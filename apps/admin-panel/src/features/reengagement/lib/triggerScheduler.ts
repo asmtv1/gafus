@@ -2,6 +2,7 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { manualTriggerScheduler } from "@gafus/reengagement";
 
@@ -48,7 +49,7 @@ export async function triggerReengagementScheduler(): Promise<{
     if (result.success && result.result) {
       logger.success("Планировщик успешно выполнен", result.result);
     } else {
-      logger.error("Ошибка выполнения планировщика", new Error(result.error || "Unknown error"));
+      logger.error("Ошибка выполнения планировщика", new Error(result.error || "Сбой планировщика"));
     }
 
     return result;
@@ -57,7 +58,7 @@ export async function triggerReengagementScheduler(): Promise<{
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

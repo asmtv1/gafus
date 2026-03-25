@@ -260,7 +260,12 @@ export function CSRFErrorBoundary({
 
   if (hasError) {
     if (FallbackComponent) {
-      return <FallbackComponent error={errorMessage || "Unknown error"} retry={retry} />;
+      return (
+        <FallbackComponent
+          error={errorMessage || "Не удалось инициализировать защиту от CSRF атак"}
+          retry={retry}
+        />
+      );
     }
 
     return (

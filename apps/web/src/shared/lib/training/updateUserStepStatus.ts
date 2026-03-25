@@ -9,6 +9,7 @@ import {
 } from "@gafus/core/services/training/trainingService";
 import { createImmediatePushNotification } from "@gafus/core/services/notifications";
 import { z } from "zod";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 import { checkAndCompleteCourse, syncUserCourseStatusFromDays } from "../user/userCourses";
@@ -134,7 +135,7 @@ export async function updateUserStepStatus(
     logger.error("❌ Error in updateUserStepStatus:", error as Error, { operation: "error" });
 
     logger.error(
-      error instanceof Error ? error.message : String(error),
+      getErrorMessage(error),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "updateUserStepStatus",

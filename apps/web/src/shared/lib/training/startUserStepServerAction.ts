@@ -1,6 +1,7 @@
 "use server";
 
 import { getStepInfoByIndex } from "@gafus/core/services/training";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createStepNotificationAction } from "@shared/server-actions/notifications";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
@@ -71,7 +72,7 @@ export async function startUserStepServerAction(
       durationSec: safeInput.durationSec,
     });
     if (!result.success) {
-      logger.error("Failed to create step notification", new Error(result.error ?? "Unknown error"), {
+      logger.error("Failed to create step notification", new Error(result.error ?? "Не удалось создать напоминание"), {
         operation: "create_step_notifications_error",
         courseId,
         dayOnCourseId,
@@ -93,7 +94,7 @@ export async function startUserStepServerAction(
     });
 
     logger.error(
-      error instanceof Error ? error.message : "Unknown error in startUserStepServerAction",
+      getErrorMessage(error, "Сбой при старте шага"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "startUserStepServerAction",

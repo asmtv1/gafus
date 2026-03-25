@@ -93,6 +93,20 @@
           "initialOrientation": "PORTRAIT"
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Приложение использует камеру для записи видеоотчёта по экзамену.",
+          "microphonePermission": "Приложение использует микрофон для записи видеоотчёта по экзамену.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Приложение использует галерею, чтобы вы могли выбрать фото для аватара профиля или фото питомца."
+        }
+      ],
       "expo-font"
     ],
     "experiments": {

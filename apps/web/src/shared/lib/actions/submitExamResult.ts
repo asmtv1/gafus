@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { submitExamResult as submitExamResultCore } from "@gafus/core/services/exam";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -11,7 +12,7 @@ export interface ExamSubmissionData {
   testAnswers?: Record<string, number>;
   testScore?: number;
   testMaxScore?: number;
-  videoReportUrl?: string;
+  videoReportUrl?: string | null;
   writtenFeedback?: string;
   overallScore?: number;
   isPassed?: boolean;
@@ -28,6 +29,6 @@ export async function submitExamResult(data: ExamSubmissionData) {
     return { success: true, examResultId: result.examResultId };
   } catch (error) {
     console.error("Ошибка при сохранении результата экзамена:", error);
-    throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
+    throw new Error(getErrorMessage(error, "Неизвестная ошибка"));
   }
 }

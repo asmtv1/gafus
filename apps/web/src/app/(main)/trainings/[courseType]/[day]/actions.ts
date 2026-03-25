@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { unstable_rethrow } from "next/navigation";
 
@@ -28,7 +29,7 @@ export async function pauseNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось приостановить уведомление",
+      error: getErrorMessage(error, "Не удалось приостановить уведомление"),
     };
   }
 }
@@ -49,7 +50,7 @@ export async function resetNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось сбросить уведомление",
+      error: getErrorMessage(error, "Не удалось сбросить уведомление"),
     };
   }
 }
@@ -71,7 +72,7 @@ export async function resumeNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось возобновить уведомление",
+      error: getErrorMessage(error, "Не удалось возобновить уведомление"),
     };
   }
 }

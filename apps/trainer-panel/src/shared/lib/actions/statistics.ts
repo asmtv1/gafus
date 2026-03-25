@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import {
   getCourseStatistics,
@@ -21,7 +22,7 @@ export async function getCourseStatisticsAction(userId: string, isElevated: bool
     logger.error("Error fetching course statistics:", error as Error, { operation: "error" });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: getErrorMessage(error, "Не удалось загрузить статистику курсов"),
     };
   }
 }
@@ -76,7 +77,7 @@ export async function getStepStatisticsAction(userId: string, isElevated: boolea
     logger.error("Error fetching step statistics:", error as Error, { operation: "error" });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: getErrorMessage(error, "Не удалось загрузить статистику шагов"),
     };
   }
 }

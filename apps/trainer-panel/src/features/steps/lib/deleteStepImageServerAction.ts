@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";
 import { removeStepImageUrl } from "@gafus/core/services/trainerStep";
@@ -47,8 +48,7 @@ export async function deleteStepImageServerAction(
     });
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Не удалось удалить изображение",
+      error: getErrorMessage(error, "Не удалось удалить изображение"),
     };
   }
 }

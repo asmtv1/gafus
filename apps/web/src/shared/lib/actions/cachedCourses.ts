@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 
 import { TrainingStatus } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
+import { getErrorMessage } from "@gafus/core/errors";
 import {
   getCoursesWithProgress,
   getFavoritesCourses,
@@ -30,7 +31,7 @@ export const getAllCoursesCached = unstable_cache(
       return { success: true, data: result.data as CourseCacheItem[] };
     } catch (error) {
       logger.error(
-        error instanceof Error ? error.message : "Unknown error in getAllCoursesCached",
+        getErrorMessage(error, "Сбой при загрузке курсов для кэша"),
         error instanceof Error ? error : new Error(String(error)),
         { operation: "getAllCoursesCached", tags: ["courses", "cache", "server-action"] },
       );

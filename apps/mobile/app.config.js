@@ -3,6 +3,18 @@ const path = require("path");
 require("@expo/env").load(path.resolve(__dirname, "../.."), { force: true });
 
 const vkClientIdAndroid = process.env.VK_CLIENT_ID_ANDROID ?? "";
+const vkClientIdIos = process.env.VK_CLIENT_ID_IOS ?? "";
+
+/** Схемы deep link: gafus + vk{id} для OAuth VK ID (iOS требует регистрации в Info.plist). */
+function resolveSchemes(baseConfig) {
+  const base = baseConfig.scheme ?? "gafus";
+  const list = Array.isArray(base) ? [...base] : [base];
+  const out = list.filter(Boolean);
+  if (vkClientIdIos && !out.includes(`vk${vkClientIdIos}`)) {
+    out.push(`vk${vkClientIdIos}`);
+  }
+  return out.length === 1 ? out[0] : out;
+}
 
 const vkIntentFilters =
   vkClientIdAndroid
@@ -24,6 +36,7 @@ const vkIntentFilters =
 
 module.exports = ({ config }) => ({
   ...config,
+  scheme: resolveSchemes(config),
   android: {
     ...config.android,
     intentFilters: [

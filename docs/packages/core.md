@@ -68,7 +68,12 @@ packages/core/
 import { getCourseMetadata, getCoursesWithProgress } from "@gafus/core/services/course";
 
 // Пользователь
-import { getUserProfile, updateUserProfile } from "@gafus/core/services/user";
+import {
+  deleteUserAccount,
+  getUserProfile,
+  updateUserProfile,
+} from "@gafus/core/services/user";
+// deleteUserAccount — самообслуживание: USER/PREMIUM, пароль, транзакция отзыв refresh + user.delete
 
 // Аутентификация
 import {

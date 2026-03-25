@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { updateStepAndDay } from "@gafus/core/services/training";
 import { z } from "zod";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
@@ -53,7 +54,7 @@ export async function pauseUserStepServerAction(
     return { success: true };
   } catch (error) {
     logger.error(
-      error instanceof Error ? error.message : String(error),
+      getErrorMessage(error),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "pauseUserStepServerAction",
@@ -94,7 +95,7 @@ export async function resumeUserStepServerAction(
     return { success: true };
   } catch (error) {
     logger.error(
-      error instanceof Error ? error.message : String(error),
+      getErrorMessage(error),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "resumeUserStepServerAction",

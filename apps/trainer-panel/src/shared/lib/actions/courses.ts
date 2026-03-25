@@ -10,6 +10,7 @@ import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { randomUUID } from "crypto";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { CACHE_TAGS } from "@gafus/core/services/cache";
 import {
@@ -258,7 +259,7 @@ export async function deleteCourseServerAction(courseId: string) {
       logger.info(`Изображение курса удалено из CDN: ${relativePath}`);
     } catch (error) {
       logger.warn("Не удалось удалить изображение курса из CDN", {
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       });
     }
   }

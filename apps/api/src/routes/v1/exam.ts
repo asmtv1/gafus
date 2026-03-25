@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import { getExamResult, submitExamResult } from "@gafus/core/services/exam";
+import { getExamResult, submitExamResult, uploadExamVideoFile } from "@gafus/core/services/exam";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-exam");
@@ -48,7 +48,7 @@ const submitExamSchema = z.object({
   testAnswers: z.record(z.string(), z.number()).optional(),
   testScore: z.number().optional(),
   testMaxScore: z.number().optional(),
-  videoReportUrl: z.string().optional(),
+  videoReportUrl: z.string().nullable().optional(),
   writtenFeedback: z.string().optional(),
   overallScore: z.number().optional(),
   isPassed: z.boolean().optional(),
@@ -71,5 +71,42 @@ examRoutes.post("/submit", zValidator("json", submitExamSchema), async (c) => {
     }
     logger.error("Error submitting exam result", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// POST /exam/upload-video — multipart: video (файл), userStepId (строка)
+examRoutes.post("/upload-video", async (c) => {
+  try {
+    const user = c.get("user");
+    const body = await c.req.parseBody();
+    const userStepIdRaw = body["userStepId"];
+    const file = body["video"];
+
+    if (!userStepIdRaw || typeof userStepIdRaw !== "string") {
+      return c.json(
+        { success: false, error: "userStepId обязателен для загрузки видео экзамена" },
+        400,
+      );
+    }
+
+    const userStepId = userStepIdRaw.trim();
+    const cuidParse = z.string().cuid().safeParse(userStepId);
+    if (!cuidParse.success) {
+      return c.json({ success: false, error: "userStepId должен быть CUID" }, 400);
+    }
+
+    if (!file || typeof file === "string") {
+      return c.json({ success: false, error: "Видео файл не предоставлен" }, 400);
+    }
+
+    const uploadResult = await uploadExamVideoFile(user.id, userStepId, file as File);
+    if (!uploadResult.success) {
+      return c.json({ success: false, error: uploadResult.error }, 400);
+    }
+
+    return c.json({ success: true, data: { videoUrl: uploadResult.videoUrl } });
+  } catch (error) {
+    logger.error("Error uploading exam video", error as Error);
+    return c.json({ success: false, error: "Ошибка при загрузке видео" }, 500);
   }
 });

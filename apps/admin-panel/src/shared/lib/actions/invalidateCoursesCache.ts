@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { CACHE_TAGS } from "@gafus/core/services/cache";
 import { revalidateTag } from "next/cache";
@@ -27,7 +28,7 @@ export async function invalidateCoursesCache() {
     logger.error("❌ Error invalidating courses cache:", error as Error, { operation: "error" });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: getErrorMessage(error, "Не удалось обновить кэш курсов"),
     };
   }
 }
@@ -50,7 +51,7 @@ export async function invalidateBaseCoursesCache() {
     });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: getErrorMessage(error, "Не удалось обновить базовый кэш курсов"),
     };
   }
 }

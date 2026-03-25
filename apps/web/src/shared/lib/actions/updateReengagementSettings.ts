@@ -6,6 +6,7 @@ import {
   updateReengagementSettings as updateReengagementSettingsCore,
   getReengagementSettings as getReengagementSettingsCore,
 } from "@gafus/core/services/reengagement";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("update-reengagement-settings");
@@ -28,7 +29,7 @@ export async function updateReengagementSettings(
     logger.error("Ошибка обновления настроек re-engagement", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -48,7 +49,7 @@ export async function getReengagementSettings(): Promise<{
     logger.error("Ошибка получения настроек re-engagement", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

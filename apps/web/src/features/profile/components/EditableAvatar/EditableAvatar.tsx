@@ -54,7 +54,7 @@ export default function EditableAvatar({ avatarUrl }: { avatarUrl: string | null
       router.refresh();
     } catch (err) {
       reportClientError(err, { issueKey: "EditableAvatar", keys: { operation: "upload_avatar" } });
-      const errorObj = err instanceof Error ? err : new Error("Unknown error");
+      const errorObj = err instanceof Error ? err : new Error("Ошибка загрузки аватара");
       logger.error("Ошибка при сохранении avatar", errorObj, {
         operation: "save_avatar_error",
         userId: session?.user?.id,

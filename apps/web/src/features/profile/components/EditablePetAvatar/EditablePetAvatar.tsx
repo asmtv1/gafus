@@ -60,7 +60,7 @@ export default function EditablePetAvatar({
       setCacheBuster(Date.now().toString());
       router.refresh();
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error("Unknown error");
+      const errorObj = err instanceof Error ? err : new Error("Ошибка загрузки фото питомца");
       reportClientError(errorObj, { issueKey: "ProfilePets", keys: { operation: "avatar", petId } });
       logger.error("Ошибка при сохранении avatar питомца", errorObj, {
         operation: "save_pet_avatar_error",

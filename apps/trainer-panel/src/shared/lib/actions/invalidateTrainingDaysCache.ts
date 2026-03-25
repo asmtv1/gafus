@@ -1,6 +1,7 @@
 "use server";
 
 import { CACHE_TAGS } from "@gafus/core/services/cache";
+import { getErrorMessage } from "@gafus/core/errors";
 import { getCoursesUsingDay } from "@gafus/core/services/trainingDay";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
@@ -82,7 +83,7 @@ export async function invalidateTrainingDaysCache(courseId?: string) {
   } catch (error) {
     console.error("[invalidateTrainingDaysCache] ERROR:", error);
     logger.error(
-      error instanceof Error ? error.message : "Unknown error in invalidateTrainingDaysCache",
+      getErrorMessage(error, "Сбой при сбросе кэша дней курса"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "invalidateTrainingDaysCache",
@@ -166,7 +167,7 @@ export async function invalidateTrainingDayCache(dayId: string, skipCoursesInval
       operation: "error",
     });
     logger.error(
-      error instanceof Error ? error.message : "Unknown error in invalidateTrainingDayCache",
+      getErrorMessage(error, "Сбой при сбросе кэша дня тренировки"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "invalidateTrainingDayCache",

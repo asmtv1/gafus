@@ -701,7 +701,7 @@
 
 **Query params:**
 
-- `userId` (required) — UUID пользователя
+- `username` (required) — логин пользователя (публичный профиль)
 
 ---
 
@@ -715,25 +715,19 @@
 
 ---
 
-### GET `/api/v1/user/preferences`
+### POST `/api/v1/user/account/delete`
 
-Получить настройки пользователя.
-
----
-
-### PUT `/api/v1/user/preferences`
-
-Обновить настройки.
+Необратимое удаление аккаунта текущего пользователя (JWT). Реализация в `apps/api` → `@gafus/core` `deleteUserAccount`. Подробнее: [Удаление аккаунта](../features/account-deletion.md).
 
 **Body:**
 
 ```json
-{
-  "notifications": true,
-  "theme": "dark",
-  ...
-}
+{ "password": "string" }
 ```
+
+**Response (success):** `{ "success": true }`
+
+**Ошибки:** 401 (неверный пароль), 403 (роль не USER/PREMIUM и т.п.), 400 (валидация), 409 (конфликт данных), 500.
 
 ---
 

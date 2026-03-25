@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { sendBroadcastPush as sendBroadcastPushFromCore } from "@gafus/core/services/adminBroadcast";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("admin-panel-broadcast-push");
@@ -51,7 +52,7 @@ export async function sendBroadcastPush(
       totalUsers: 0,
       sentCount: 0,
       failedCount: 0,
-      error: error instanceof Error ? error.message : "Ошибка рассылки",
+      error: getErrorMessage(error, "Ошибка рассылки"),
     };
   }
 }

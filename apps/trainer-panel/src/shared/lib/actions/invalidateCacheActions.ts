@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
@@ -56,7 +57,7 @@ export async function invalidateCoursesCacheAction(): Promise<InvalidateCacheRes
     logger.error("Error in invalidateCoursesCacheAction:", error as Error, { operation: "error" });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

@@ -5,6 +5,7 @@ import {
   getMultipleVideoStatuses as getMultipleVideoStatusesCore,
   type VideoStatusResult,
 } from "@gafus/core/services/trainerVideo";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { unstable_rethrow } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -42,6 +43,6 @@ export async function getMultipleVideoStatuses(
       error instanceof Error ? error : new Error(String(error)),
       { videoCount: videoIds.length },
     );
-    return { error: error instanceof Error ? error.message : "Внутренняя ошибка" };
+    return { error: getErrorMessage(error, "Внутренняя ошибка") };
   }
 }

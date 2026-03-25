@@ -43,6 +43,7 @@
 
 ### Фичи
 
+- [Удаление аккаунта](./features/account-deletion.md) — необратимое удаление (web, mobile, API v1; Apple 5.1.1(v))
 - [Shared Day Progress](./features/shared-day-progress.md) — прогресс дня с `shareProgressAcrossCourses` засчитывается во всех курсах
 - [Мини-гайд (тип курса)](./features/guide-course-type.md) — курс с полным HTML вместо дней (чек-листы, справочники)
 

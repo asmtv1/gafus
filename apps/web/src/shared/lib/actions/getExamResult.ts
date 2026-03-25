@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { getExamResult as getExamResultCore } from "@gafus/core/services/exam";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -35,6 +36,6 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
     return await getExamResultCore(session.user.id, userStepId);
   } catch (error) {
     console.error("Ошибка при получении результата экзамена:", error);
-    throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
+    throw new Error(getErrorMessage(error, "Неизвестная ошибка"));
   }
 }

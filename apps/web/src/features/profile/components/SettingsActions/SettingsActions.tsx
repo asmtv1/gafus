@@ -104,6 +104,11 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
         <Link href="/profile/change-username" className={styles.button}>
           👤 Сменить логин
         </Link>
+        {session?.user?.passwordSetAt != null && (
+          <Link href="/profile/delete-account" className={styles.dangerButton}>
+            Удалить аккаунт
+          </Link>
+        )}
       </div>
     </section>
   );

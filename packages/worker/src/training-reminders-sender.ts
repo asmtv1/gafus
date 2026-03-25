@@ -174,7 +174,10 @@ async function sendReminderToUser(
     }
   } catch (error) {
     logger.error("Ошибка отправки напоминания", error as Error, { userId, timezone });
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Сбой при отправке напоминаний",
+    };
   }
 }
 

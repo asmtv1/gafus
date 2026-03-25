@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { getErrorMessage } from "@gafus/core/errors";
 import { CACHE_TAGS } from "@gafus/core/services/cache";
 import type { ActionResult } from "@gafus/types";
 import { updateTrainerNote } from "@gafus/core/services/notes";
@@ -85,7 +86,7 @@ export async function updateNote(
     logger.error("Ошибка при обновлении заметки", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

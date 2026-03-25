@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions, getVkIdUserFromToken } from "@gafus/auth";
 import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
+import { getErrorMessage } from "@gafus/core/errors";
 import {
   createConsentLogs,
   linkConsentLogsToUser,
@@ -468,7 +469,7 @@ export async function resetPasswordByCodeAction(code: string, password: string) 
   } catch (error) {
     logger.error("Error in resetPasswordByCodeAction", error as Error);
     throw new Error(
-      error instanceof Error ? error.message : "Что-то пошло не так при сбросе пароля",
+      getErrorMessage(error, "Что-то пошло не так при сбросе пароля"),
     );
   }
 }
@@ -494,7 +495,7 @@ export async function requestPhoneChangeAction(): Promise<{
     return { success: true };
   } catch (error) {
     logger.error("requestPhoneChangeAction failed", error as Error, { userId: session.user.id });
-    return { error: error instanceof Error ? error.message : "Не удалось отправить код" };
+    return { error: getErrorMessage(error, "Не удалось отправить код") };
   }
 }
 
@@ -521,8 +522,7 @@ export async function confirmPhoneChangeAction(
     return { success: true };
   } catch (error) {
     logger.error("confirmPhoneChangeAction failed", error as Error, { userId: session.user.id });
-    const message = error instanceof Error ? error.message : "Не удалось сменить номер";
-    return { error: message };
+    return { error: getErrorMessage(error, "Не удалось сменить номер") };
   }
 }
 
@@ -549,7 +549,7 @@ export async function setPasswordAction(
     return { success: true };
   } catch (error) {
     logger.error("setPasswordAction failed", error as Error);
-    return { error: error instanceof Error ? error.message : "Не удалось установить пароль" };
+    return { error: getErrorMessage(error, "Не удалось установить пароль") };
   }
 }
 
@@ -574,7 +574,7 @@ export async function changePasswordAction(
     return { success: true };
   } catch (error) {
     logger.error("changePasswordAction failed", error as Error);
-    return { error: error instanceof Error ? error.message : "Не удалось сменить пароль" };
+    return { error: getErrorMessage(error, "Не удалось сменить пароль") };
   }
 }
 
@@ -596,7 +596,7 @@ export async function setVkPhoneAction(phone: string): Promise<{ success?: true;
     return { success: true };
   } catch (error) {
     logger.error("setVkPhoneAction failed", error as Error);
-    return { error: error instanceof Error ? error.message : "Не удалось установить номер" };
+    return { error: getErrorMessage(error, "Не удалось установить номер") };
   }
 }
 
@@ -622,7 +622,7 @@ export async function changeUsernameAction(newUsername: string): Promise<{
     return { success: true, username: normalized };
   } catch (error) {
     logger.error("changeUsernameAction failed", error as Error, { userId: session.user.id });
-    return { error: error instanceof Error ? error.message : "Не удалось сменить логин" };
+    return { error: getErrorMessage(error, "Не удалось сменить логин") };
   }
 }
 

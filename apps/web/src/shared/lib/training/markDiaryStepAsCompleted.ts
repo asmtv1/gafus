@@ -2,6 +2,7 @@
 
 import { TrainingStatus } from "@gafus/types";
 import { validateStepTypeAndGetInfo } from "@gafus/core/services/training";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -86,7 +87,7 @@ export async function markDiaryStepAsCompleted(
     });
 
     logger.error(
-      error instanceof Error ? error.message : "Unknown error in markDiaryStepAsCompleted",
+      getErrorMessage(error, "Сбой при отметке шага дневника"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "markDiaryStepAsCompleted",

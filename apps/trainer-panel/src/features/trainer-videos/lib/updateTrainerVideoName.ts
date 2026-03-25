@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@gafus/auth";
 import { updateTrainerVideoName as updateTrainerVideoNameCore } from "@gafus/core/services/trainerVideo";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import type { ActionResult } from "@gafus/types";
@@ -76,7 +77,7 @@ export async function updateTrainerVideoName(
     logger.error("Ошибка обновления названия видео", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось обновить название",
+      error: getErrorMessage(error, "Не удалось обновить название"),
     };
   }
 }

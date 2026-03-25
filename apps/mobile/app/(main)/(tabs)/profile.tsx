@@ -818,6 +818,15 @@ export default function ProfileScreen() {
           <Text style={styles.passwordButtonText}>👤 Сменить логин</Text>
         </Pressable>
 
+        {hasAppPassword ? (
+          <Pressable
+            style={styles.deleteAccountButton}
+            onPress={() => router.push("/profile/delete-account")}
+          >
+            <Text style={styles.deleteAccountButtonText}>Удалить аккаунт</Text>
+          </Pressable>
+        ) : null}
+
         {/* Выход */}
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>
@@ -1518,6 +1527,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     fontFamily: FONTS.montserrat,
+  },
+  deleteAccountButton: {
+    backgroundColor: "rgba(198, 40, 40, 0.08)",
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#c62828",
+    minHeight: 48,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  deleteAccountButtonText: {
+    color: "#c62828",
+    fontSize: 15,
+    fontWeight: "600",
+    fontFamily: FONTS.impact,
   },
   logoutButton: {
     backgroundColor: "#636128",

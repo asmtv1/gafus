@@ -46,7 +46,7 @@ export const CourseRating: React.FC<CourseRatingProps> = ({
         setRating(newValue);
         await showSuccessAlert("Рейтинг сохранен");
       } else {
-        logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Unknown error"), {
+        logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Сбой сохранения рейтинга"), {
           operation: "save_rating_error",
           courseId: courseId,
           rating: newValue,
@@ -143,7 +143,7 @@ export const SimpleCourseRating: React.FC<CourseRatingProps> = ({
         setRating(newValue);
         await showSuccessAlert("Рейтинг сохранен");
       } else {
-        logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Unknown error"), {
+        logger.error("Ошибка при сохранении рейтинга", new Error(result.error || "Сбой сохранения рейтинга"), {
           operation: "save_rating_error",
           courseId: courseId,
           rating: newValue,

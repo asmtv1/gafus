@@ -8,6 +8,7 @@ import {
   updateReminder,
   deleteReminder,
 } from "@gafus/core/services/reminders";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("training-reminders");
@@ -40,7 +41,7 @@ export async function getTrainingReminders(): Promise<{
     logger.error("Ошибка получения списка напоминаний", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -71,7 +72,7 @@ export async function createTrainingReminder(
       });
       return { success: true, data: reminder };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
+      const msg = getErrorMessage(err, "Неизвестная ошибка");
       if (msg.includes("Максимум 5 напоминаний")) {
         return { success: false, error: `Можно создать максимум ${MAX_REMINDERS} напоминаний` };
       }
@@ -81,7 +82,7 @@ export async function createTrainingReminder(
     logger.error("Ошибка создания напоминания", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -111,7 +112,7 @@ export async function updateTrainingReminder(
     logger.error("Ошибка обновления напоминания", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -131,7 +132,7 @@ export async function deleteTrainingReminder(
     logger.error("Ошибка удаления напоминания", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

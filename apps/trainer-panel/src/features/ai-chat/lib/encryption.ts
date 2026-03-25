@@ -93,7 +93,7 @@ export function decryptApiKey(encrypted: string): string {
       throw new Error("Не удалось расшифровать API ключ. Пожалуйста, обновите ключ в настройках.");
     }
     throw new Error(
-      `Decryption failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      `Ошибка расшифровки: ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
     );
   }
 }

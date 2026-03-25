@@ -6,6 +6,7 @@
 
 import { unstable_cache, revalidatePath } from "next/cache";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 import { getAuthoredCoursesWithStats } from "@gafus/statistics";
@@ -190,7 +191,7 @@ export async function getCourseReviewsAction(courseType: string) {
     logger.error("Ошибка при получении отзывов", error as Error, { courseType });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -224,7 +225,7 @@ export async function createCourseReviewAction(
     logger.error("Ошибка при создании отзыва", error as Error, { courseType, rating });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -252,7 +253,7 @@ export async function updateCourseReviewAction(reviewId: string, rating: number,
     logger.error("Ошибка при обновлении отзыва", error as Error, { reviewId, rating });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -277,7 +278,7 @@ export async function deleteCourseReviewAction(reviewId: string) {
     logger.error("Ошибка при удалении отзыва", error as Error, { reviewId });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

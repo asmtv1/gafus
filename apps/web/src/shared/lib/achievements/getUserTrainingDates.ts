@@ -2,6 +2,7 @@
 
 import { unstable_cache } from "next/cache";
 import { getUserTrainingDates as getUserTrainingDatesCore } from "@gafus/core/services/achievements";
+import { getErrorMessage } from "@gafus/core/errors";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { createWebLogger } from "@gafus/logger";
 
@@ -47,7 +48,7 @@ export async function getUserTrainingDates(): Promise<Date[]> {
 
     // Логируем ошибку через logger (отправляется в Loki)
     logger.error(
-      error instanceof Error ? error.message : "Unknown error in getUserTrainingDates",
+      getErrorMessage(error, "Сбой при получении дат тренировок"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "getUserTrainingDates",

@@ -5,6 +5,7 @@
  */
 
 import * as trackingService from "@gafus/core/services/tracking";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { unstable_rethrow } from "next/navigation";
 import type {
@@ -32,7 +33,7 @@ export async function trackPresentationViewAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Ошибка трекинга",
+      error: getErrorMessage(error, "Ошибка трекинга"),
     };
   }
 }
@@ -51,7 +52,7 @@ export async function trackPresentationEventAction(data: TrackPresentationEventD
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Ошибка трекинга",
+      error: getErrorMessage(error, "Ошибка трекинга"),
     };
   }
 }
@@ -71,7 +72,7 @@ export async function trackReengagementClickAction(notificationId: string) {
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Ошибка трекинга",
+      error: getErrorMessage(error, "Ошибка трекинга"),
     };
   }
 }

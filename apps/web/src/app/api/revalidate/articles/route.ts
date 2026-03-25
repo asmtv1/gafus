@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("web-api-revalidate-articles");
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: getErrorMessage(error, "Не удалось обновить кэш статей"),
       },
       { status: 500 },
     );

@@ -107,7 +107,7 @@ async function sendMessageToServiceWorker(
         keys: { operation: "post_message_to_sw" },
       });
       window.clearTimeout(timeoutId);
-      reject(error instanceof Error ? error : new Error("Unknown error"));
+      reject(error instanceof Error ? error : new Error("Сбой очистки кэша профиля"));
     }
   });
 }

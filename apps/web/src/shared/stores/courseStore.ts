@@ -367,7 +367,7 @@ export const useCourseStoreActions = () => {
         issueKey: "courseStore",
         keys: { operation: "fetch_all_courses" },
       });
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Ошибка загрузки курсов";
       useCourseStore.getState().setError("all", errorMessage);
       throw error;
     } finally {
@@ -395,7 +395,7 @@ export const useCourseStoreActions = () => {
         issueKey: "courseStore",
         keys: { operation: "fetch_favorites" },
       });
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Ошибка загрузки курсов";
       useCourseStore.getState().setError("favorites", errorMessage);
       throw error;
     } finally {
@@ -419,7 +419,7 @@ export const useCourseStoreActions = () => {
         issueKey: "courseStore",
         keys: { operation: "fetch_favorites" },
       });
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Ошибка загрузки курсов";
       useCourseStore.getState().setError("favorites", errorMessage);
       throw error;
     } finally {
@@ -473,7 +473,7 @@ export const useCourseStoreActions = () => {
         issueKey: "courseStore",
         keys: { operation: "fetch_authored" },
       });
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Ошибка загрузки курсов";
       useCourseStore.getState().setError("authored", errorMessage);
       throw error;
     } finally {

@@ -2,6 +2,13 @@
  * Exam Service
  * Сервис для работы с экзаменами
  */
+import { randomUUID } from "crypto";
+import {
+  deleteFileFromCDN,
+  getExamVideoPath,
+  getRelativePathFromCDNUrl,
+  uploadBufferToCDN,
+} from "@gafus/cdn-upload";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
@@ -135,7 +142,8 @@ export interface ExamSubmissionData {
   testAnswers?: Record<string, number>;
   testScore?: number;
   testMaxScore?: number;
-  videoReportUrl?: string;
+  /** null — явно очистить URL видео в БД (undefined — не менять поле). */
+  videoReportUrl?: string | null;
   writtenFeedback?: string;
   overallScore?: number;
   isPassed?: boolean;
@@ -274,6 +282,81 @@ export async function prepareExamVideoUpload(
   return { success: true };
 }
 
+const EXAM_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+
+/** Расширение файла для пути в CDN (имя или MIME). */
+function pickExamVideoExtension(file: File): string {
+  const fromName = file.name.split(".").pop()?.toLowerCase();
+  if (fromName && /^[a-z0-9]{1,8}$/.test(fromName)) {
+    return fromName;
+  }
+  const mime = file.type.toLowerCase();
+  if (mime.includes("webm")) return "webm";
+  if (mime.includes("quicktime")) return "mov";
+  if (mime.includes("3gpp")) return "3gp";
+  if (mime.includes("mp4")) return "mp4";
+  return "mp4";
+}
+
+export type UploadExamVideoFileResult =
+  | { success: true; videoUrl: string }
+  | { success: false; error: string };
+
+/**
+ * Загрузка видео экзамена на CDN: проверки, удаление предыдущего файла, S3.
+ * Используется в Next Server Action и REST API (multipart).
+ */
+export async function uploadExamVideoFile(
+  userId: string,
+  userStepId: string,
+  file: File,
+): Promise<UploadExamVideoFileResult> {
+  if (!file.type.startsWith("video/")) {
+    return { success: false, error: "Файл должен быть видео" };
+  }
+  if (file.size > EXAM_VIDEO_MAX_BYTES) {
+    return { success: false, error: "Размер видео не должен превышать 100MB" };
+  }
+
+  const prepResult = await prepareExamVideoUpload(userStepId, userId);
+  if (!prepResult.success) {
+    return { success: false, error: prepResult.error ?? "Нет доступа" };
+  }
+
+  logger.info(
+    `Загружаем видео экзамена для userStepId ${userStepId}, размер: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+  );
+
+  try {
+    const existingExam = await getExistingExamVideoReport(userStepId);
+    if (existingExam?.videoReportUrl) {
+      try {
+        const oldRelativePath = getRelativePathFromCDNUrl(existingExam.videoReportUrl);
+        await deleteFileFromCDN(oldRelativePath);
+        await markExamVideoDeleted(userStepId);
+        logger.success("Старое видео удалено перед загрузкой нового");
+      } catch (error) {
+        logger.warn(
+          `Не удалось удалить старое видео (не критично): ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  } catch (error) {
+    logger.warn(
+      `Ошибка при проверке старого видео: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const extension = pickExamVideoExtension(file);
+  const uuid = randomUUID();
+  const relativePath = getExamVideoPath(userStepId, uuid, extension);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const videoUrl = await uploadBufferToCDN(buffer, relativePath, file.type || "video/mp4");
+
+  logger.info(`Видео экзамена успешно загружено на CDN: ${videoUrl}`);
+  return { success: true, videoUrl };
+}
+
 /**
  * Сохраняет результат экзамена
  */
@@ -315,7 +398,7 @@ export async function submitExamResult(
       testAnswers: string;
       testScore: number;
       testMaxScore: number;
-      videoReportUrl: string;
+      videoReportUrl: string | null;
       writtenFeedback: string;
       overallScore: number;
       isPassed: boolean;

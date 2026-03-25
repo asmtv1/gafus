@@ -6,6 +6,7 @@ import {
   downloadFullCourse as downloadFullCourseCore,
 } from "@gafus/core/services/offline";
 import { checkCourseAccessById } from "@gafus/core/services/course";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { trainingTypeSchema } from "../validation/schemas";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
@@ -23,7 +24,7 @@ export async function getCourseVersion(
     logger.error("Error getting course version", error as Error, { courseType });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -46,7 +47,7 @@ export async function checkCourseUpdates(
     });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }
@@ -83,7 +84,7 @@ export async function downloadFullCourse(
     logger.error("Error downloading full course", error as Error, { courseType });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

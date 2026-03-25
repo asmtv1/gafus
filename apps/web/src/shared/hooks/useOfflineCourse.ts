@@ -529,7 +529,7 @@ export function useOfflineCourse(): UseOfflineCourseResult {
             // Прерываем скачивание курса при ошибке
             return {
               success: false,
-              error: `Ошибка при скачивании видео: ${error instanceof Error ? error.message : "Unknown error"}`,
+              error: `Ошибка при скачивании видео: ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
             };
           }
         }

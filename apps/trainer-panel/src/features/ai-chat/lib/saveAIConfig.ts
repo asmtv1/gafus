@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { prisma } from "@gafus/prisma";
@@ -107,11 +108,11 @@ export async function saveAIConfig(
         } catch (error) {
           logger.warn("API key validation failed", {
             trainerId,
-            error: error instanceof Error ? error.message : String(error),
+            error: getErrorMessage(error),
           });
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Не удалось проверить API ключ",
+            error: getErrorMessage(error, "Не удалось проверить API ключ"),
           };
         }
       }
@@ -162,7 +163,7 @@ export async function saveAIConfig(
     logger.error("Error in saveAIConfig", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

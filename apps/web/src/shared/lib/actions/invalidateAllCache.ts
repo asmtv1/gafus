@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -71,7 +72,7 @@ export async function invalidateAllCache() {
     logger.error("❌ Error invalidating all cache:", error as Error, { operation: "error" });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: getErrorMessage(error, "Не удалось сбросить кэш"),
     };
   }
 }

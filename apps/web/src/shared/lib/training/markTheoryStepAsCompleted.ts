@@ -2,6 +2,7 @@
 
 import { TrainingStatus } from "@gafus/types";
 import { validateStepTypeAndGetInfo } from "@gafus/core/services/training";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -87,7 +88,7 @@ export async function markTheoryStepAsCompleted(
 
     // Логируем ошибку через logger (отправляется в Loki)
     logger.error(
-      error instanceof Error ? error.message : "Unknown error in markTheoryStepAsCompleted",
+      getErrorMessage(error, "Сбой при отметке теоретического шага"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "markTheoryStepAsCompleted",

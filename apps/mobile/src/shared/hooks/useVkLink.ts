@@ -102,7 +102,7 @@ export function useVkLink(options?: UseVkLinkOptions): {
       }
 
       let redirectUrl = result.type === "success" ? result.url : undefined;
-      if (!redirectUrl && result.type === "dismiss" && Platform.OS === "android") {
+      if (!redirectUrl && result.type === "dismiss" && Platform.OS !== "web") {
         redirectUrl = await new Promise<string | undefined>((resolve) => {
           const sub = Linking.addEventListener("url", (e) => {
             if (e.url.startsWith(returnUrl)) {

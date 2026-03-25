@@ -143,7 +143,7 @@ export async function deleteOldFailedConsentLogs(options?: {
       cutoff,
     });
     return {
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : "Не удалось записать согласия",
     };
   }
 }

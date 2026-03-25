@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "@gafus/prisma";
 import { authOptions } from "@gafus/auth";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 const logger = createTrainerPanelLogger("ai-chat-get-config");
@@ -69,7 +70,7 @@ export async function getAIConfig(): Promise<GetAIConfigResult> {
     logger.error("Error in getAIConfig", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

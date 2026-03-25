@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import {
@@ -196,7 +197,7 @@ export async function updateStep(
       operation: "updateStep",
     });
     return {
-      error: error instanceof Error ? error.message : "Не удалось обновить шаг",
+      error: getErrorMessage(error, "Не удалось обновить шаг"),
     };
   }
 }

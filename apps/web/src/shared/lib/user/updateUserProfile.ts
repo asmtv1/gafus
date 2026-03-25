@@ -2,6 +2,7 @@
 "use server";
 
 import { z } from "zod";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 import type { UpdateUserProfileInput } from "@gafus/types";
@@ -33,7 +34,7 @@ const updateUserProfileSchema = z.object({
           {
             code: "custom",
             path: ["telegram"],
-            message: error instanceof Error ? error.message : "Некорректный Telegram username",
+            message: getErrorMessage(error, "Некорректный Telegram username"),
           },
         ]);
       }
@@ -52,7 +53,7 @@ const updateUserProfileSchema = z.object({
           {
             code: "custom",
             path: ["instagram"],
-            message: error instanceof Error ? error.message : "Некорректный Instagram username",
+            message: getErrorMessage(error, "Некорректный Instagram username"),
           },
         ]);
       }
@@ -71,7 +72,7 @@ const updateUserProfileSchema = z.object({
           {
             code: "custom",
             path: ["website"],
-            message: error instanceof Error ? error.message : "Некорректный URL",
+            message: getErrorMessage(error, "Некорректный URL"),
           },
         ]);
       }

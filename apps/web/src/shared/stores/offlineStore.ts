@@ -299,7 +299,7 @@ async function syncStepCompletion(data: StepCompletionData): Promise<void> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => "Не удалось прочитать ответ сервера");
     logger.warn("Failed to sync step completion", {
       operation: "sync_step_completion_error",
       status: response.status,
@@ -321,7 +321,7 @@ async function syncProfileUpdate(data: ProfileUpdateData): Promise<void> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => "Не удалось прочитать ответ сервера");
     logger.warn("Failed to sync profile update", {
       operation: "sync_profile_update_error",
       status: response.status,
@@ -343,7 +343,7 @@ async function syncComment(data: CommentData): Promise<void> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => "Не удалось прочитать ответ сервера");
     logger.warn("Failed to sync comment", {
       operation: "sync_comment_error",
       status: response.status,
@@ -365,7 +365,7 @@ async function syncRating(data: RatingData): Promise<void> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+    const errorText = await response.text().catch(() => "Не удалось прочитать ответ сервера");
     logger.warn("Failed to sync rating", {
       operation: "sync_rating_error",
       status: response.status,

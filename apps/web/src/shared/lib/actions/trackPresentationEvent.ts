@@ -4,6 +4,7 @@ import {
   trackPresentationEvent as trackPresentationEventCore,
   type TrackPresentationEventData,
 } from "@gafus/core/services/tracking";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { unstable_rethrow } from "next/navigation";
 
@@ -26,7 +27,7 @@ export async function trackPresentationEvent(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось зафиксировать событие",
+      error: getErrorMessage(error, "Не удалось зафиксировать событие"),
     };
   }
 }

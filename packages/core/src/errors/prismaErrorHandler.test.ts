@@ -90,10 +90,12 @@ describe("handlePrismaError", () => {
     expect(() => handlePrismaError(err)).toThrow("допустимую длину");
   });
 
-  it("throws InternalServiceError for unknown Prisma code", () => {
+  it("throws InternalServiceError for unknown Prisma code without leaking code to message", () => {
     const err = new MockKnownError("Unknown", { code: "P9999" });
     expect(() => handlePrismaError(err, "Тест")).toThrow(InternalServiceError);
-    expect(() => handlePrismaError(err, "Тест")).toThrow("P9999");
+    expect(() => handlePrismaError(err, "Тест")).toThrow(
+      "Не удалось выполнить операцию. Попробуйте позже.",
+    );
   });
 
   it("throws ValidationError for PrismaClientValidationError", () => {

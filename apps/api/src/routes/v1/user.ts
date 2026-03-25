@@ -7,6 +7,8 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import {
+  deleteUserAccount,
+  deleteUserAccountBodySchema,
   getPublicProfile,
   getUserProfileForApi,
   updateAvatar,
@@ -23,6 +25,7 @@ const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const logger = createWebLogger("api-user");
+const deleteAccountLogger = createWebLogger("api-user-delete");
 
 export const userRoutes = new Hono();
 
@@ -184,42 +187,47 @@ userRoutes.post("/avatar", async (c) => {
   }
 });
 
-// GET /api/v1/user/preferences (заглушка, можно расширить)
-userRoutes.get("/preferences", async (c) => {
-  try {
+// POST /api/v1/user/account/delete — необратимое удаление аккаунта (мобильный клиент)
+userRoutes.post(
+  "/account/delete",
+  zValidator("json", deleteUserAccountBodySchema),
+  async (c) => {
     const user = c.get("user");
+    try {
+      const { password } = c.req.valid("json");
+      const result = await deleteUserAccount({
+        actorUserId: user.id,
+        password,
+      });
 
-    // Пока возвращаем дефолтные настройки
-    // В будущем можно хранить в отдельной таблице UserPreferences
-    return c.json({
-      success: true,
-      data: {
-        notifications: true,
-        theme: "system",
-        language: "ru",
-      },
-    });
-  } catch (error) {
-    logger.error("Error getting preferences", error as Error);
-    return c.json({ success: false, error: "Ошибка получения настроек" }, 500);
-  }
-});
+      if (result.success) {
+        return c.json({ success: true }, 200);
+      }
 
-// PUT /api/v1/user/preferences (заглушка)
-userRoutes.put("/preferences", async (c) => {
-  try {
-    // Пока просто возвращаем успех
-    // В будущем можно сохранять в UserPreferences таблицу
-    return c.json({
-      success: true,
-      data: {
-        notifications: true,
-        theme: "system",
-        language: "ru",
-      },
-    });
-  } catch (error) {
-    logger.error("Error updating preferences", error as Error);
-    return c.json({ success: false, error: "Ошибка обновления настроек" }, 500);
-  }
-});
+      const { error, code } = result;
+      if (code === "FORBIDDEN") {
+        return c.json({ success: false, error }, 403);
+      }
+      if (code === "VALIDATION") {
+        return c.json({ success: false, error }, 400);
+      }
+      if (code === "CONFLICT") {
+        return c.json({ success: false, error }, 409);
+      }
+      if (code === "INTERNAL") {
+        return c.json({ success: false, error }, 500);
+      }
+      if (error === "Неверный пароль") {
+        return c.json({ success: false, error }, 401);
+      }
+      return c.json({ success: false, error }, 400);
+    } catch (error) {
+      deleteAccountLogger.error(
+        "Ошибка удаления аккаунта",
+        error as Error,
+        { userId: user.id },
+      );
+      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    }
+  },
+);

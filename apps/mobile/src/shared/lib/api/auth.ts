@@ -10,6 +10,7 @@ export interface User {
   phone: string;
   role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
   isConfirmed: boolean;
+  /** Совпадает с passwordSetAt на сервере (GET /user/profile) */
   hasAppPassword?: boolean;
   hasVkLinked?: boolean;
   profile?: {

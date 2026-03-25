@@ -6,6 +6,7 @@
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { getCurrentUserId as getCurrentUserIdFromAuth } from "@gafus/auth/server";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -14,8 +15,6 @@ import {
   updateUserProfile as updateUserProfileService,
   getPublicProfile as getPublicProfileService,
   updateAvatar as updateAvatarService,
-  getUserPreferences as getUserPreferencesService,
-  updateUserPreferences as updateUserPreferencesService,
 } from "@gafus/core/services/user";
 
 import {
@@ -23,7 +22,7 @@ import {
   normalizeInstagramInput,
   normalizeWebsiteUrl,
 } from "@gafus/core/utils/social";
-import type { UpdateUserProfileInput, UserPreferences } from "@gafus/types";
+import type { UpdateUserProfileInput } from "@gafus/types";
 
 const logger = createWebLogger("user-server-actions");
 
@@ -46,7 +45,7 @@ const updateUserProfileSchema = z.object({
           {
             code: "custom",
             path: ["telegram"],
-            message: error instanceof Error ? error.message : "Некорректный Telegram username",
+            message: getErrorMessage(error, "Некорректный Telegram username"),
           },
         ]);
       }
@@ -65,7 +64,7 @@ const updateUserProfileSchema = z.object({
           {
             code: "custom",
             path: ["instagram"],
-            message: error instanceof Error ? error.message : "Некорректный Instagram username",
+            message: getErrorMessage(error, "Некорректный Instagram username"),
           },
         ]);
       }
@@ -84,49 +83,12 @@ const updateUserProfileSchema = z.object({
           {
             code: "custom",
             path: ["website"],
-            message: error instanceof Error ? error.message : "Некорректный URL",
+            message: getErrorMessage(error, "Некорректный URL"),
           },
         ]);
       }
     }),
   birthDate: z.string().trim().max(100).optional(),
-});
-
-const userPreferencesSchema = z.object({
-  notifications: z
-    .object({
-      push: z.boolean(),
-      email: z.boolean(),
-      sms: z.boolean(),
-    })
-    .partial()
-    .optional(),
-  sound: z
-    .object({
-      enabled: z.boolean(),
-      volume: z.number().min(0).max(1),
-      trainingSounds: z.boolean(),
-      achievementSounds: z.boolean(),
-    })
-    .partial()
-    .optional(),
-  interface: z
-    .object({
-      autoPlay: z.boolean(),
-      showProgress: z.boolean(),
-      showTips: z.boolean(),
-      compactMode: z.boolean(),
-    })
-    .partial()
-    .optional(),
-  privacy: z
-    .object({
-      showProfile: z.boolean(),
-      showProgress: z.boolean(),
-      allowAnalytics: z.boolean(),
-    })
-    .partial()
-    .optional(),
 });
 
 const fileSchema = z.instanceof(File, { message: "Файл обязателен" });
@@ -191,38 +153,3 @@ export async function updateAvatarAction(file: File): Promise<string> {
   }
 }
 
-// ========== Preferences Actions ==========
-
-/**
- * Получает настройки текущего пользователя
- */
-export async function getUserPreferencesAction(): Promise<UserPreferences | null> {
-  try {
-    const userId = await getCurrentUserId();
-    if (!userId) return null;
-    return getUserPreferencesService(userId);
-  } catch (error) {
-    logger.error("Ошибка в getUserPreferences", error as Error);
-    return null;
-  }
-}
-
-/**
- * Обновляет настройки текущего пользователя
- */
-export async function updateUserPreferencesAction(
-  preferences: Record<string, unknown>,
-): Promise<UserPreferences | null> {
-  const safePreferences = userPreferencesSchema.parse(preferences ?? {});
-  try {
-    const userId = await getCurrentUserId();
-    if (!userId) throw new Error("Пользователь не авторизован");
-    return updateUserPreferencesService(
-      userId,
-      safePreferences as Parameters<typeof updateUserPreferencesService>[1],
-    );
-  } catch (error) {
-    logger.error("Ошибка в updateUserPreferences", error as Error);
-    throw new Error("Ошибка при обновлении настроек");
-  }
-}

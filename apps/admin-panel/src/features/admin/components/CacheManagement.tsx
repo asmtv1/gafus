@@ -43,7 +43,7 @@ export default function CacheManagement({ className }: CacheManagementProps) {
         issueKey: "CacheManagement",
         keys: { operation: "invalidateCoursesCache" },
       });
-      setMessage(`❌ Ошибка: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setMessage(`❌ Ошибка: ${error instanceof Error ? error.message : "Сбой инвалидации кэша"}`);
     } finally {
       setIsInvalidating(false);
     }
@@ -74,7 +74,7 @@ export default function CacheManagement({ className }: CacheManagementProps) {
         issueKey: "CacheManagement",
         keys: { operation: "invalidateAllCache" },
       });
-      setMessage(`❌ Ошибка: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setMessage(`❌ Ошибка: ${error instanceof Error ? error.message : "Сбой инвалидации кэша"}`);
     } finally {
       setIsInvalidatingAll(false);
     }

@@ -158,7 +158,7 @@ export const useFavoritesStore = create<FavoritesState>()(
             issueKey: "FavoritesStore",
             keys: { operation: "loadFromServer" },
           });
-          set({ error: e instanceof Error ? e.message : "Unknown error" });
+          set({ error: e instanceof Error ? e.message : "Ошибка избранного" });
         } finally {
           set({ loading: false });
         }
@@ -274,7 +274,7 @@ export const useFavoritesStore = create<FavoritesState>()(
             issueKey: "FavoritesStore",
             keys: { operation: "syncWithServer" },
           });
-          const message = e instanceof Error ? e.message : "Unknown error";
+          const message = e instanceof Error ? e.message : "Ошибка избранного";
           set({ error: message });
         }
       },

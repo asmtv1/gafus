@@ -100,7 +100,7 @@ async function exportQueueMetrics(queueName: string, queue: any): Promise<string
     return metrics;
   } catch (error) {
     logger.error(`Ошибка при получении метрик для очереди ${queueName}`, error as Error);
-    return `# Error getting metrics for queue ${queueName}: ${error instanceof Error ? error.message : "Unknown error"}\n`;
+    return `# Ошибка метрик очереди ${queueName}: ${error instanceof Error ? error.message : "неизвестная ошибка"}\n`;
   }
 }
 
@@ -130,7 +130,7 @@ app.get("/metrics", async (req, res) => {
     res
       .status(500)
       .send(
-        `# Error exporting metrics: ${error instanceof Error ? error.message : "Unknown error"}\n`,
+        `# Ошибка экспорта метрик: ${error instanceof Error ? error.message : "неизвестная ошибка"}\n`,
       );
   }
 });

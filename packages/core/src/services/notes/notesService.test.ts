@@ -13,6 +13,12 @@ const mockHandlePrismaError = vi.fn(() => {
 });
 
 vi.mock("@gafus/core/errors", () => ({
+  getErrorMessage: (error: unknown, fallback?: string) => {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+    return fallback ?? "Неизвестная ошибка";
+  },
   handlePrismaError: (...args: unknown[]) => mockHandlePrismaError(...args),
 }));
 

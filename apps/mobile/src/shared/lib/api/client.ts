@@ -141,3 +141,68 @@ export async function apiClient<T>(
     };
   }
 }
+
+/**
+ * POST multipart/form-data с Bearer и повтором после refresh (без Content-Type — boundary выставит runtime).
+ */
+export async function apiClientMultipart<T>(
+  endpoint: string,
+  buildFormData: () => FormData,
+): Promise<ApiResponse<T>> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  const doFetch = async (): Promise<Response> => {
+    const token = await SecureStore.getItemAsync("auth_token");
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return fetch(url, {
+      method: "POST",
+      headers,
+      body: buildFormData(),
+    });
+  };
+
+  try {
+    let response = await doFetch();
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        response = await doFetch();
+      } else {
+        return {
+          success: false,
+          error: "Сессия истекла",
+          code: "SESSION_EXPIRED",
+        };
+      }
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || "Ошибка запроса",
+        code: data.code,
+      };
+    }
+
+    return data;
+  } catch (error) {
+    reportClientError(error, { issueKey: "ApiClientMultipart", keys: { endpoint } });
+    if (error instanceof TypeError && error.message === "Network request failed") {
+      return {
+        success: false,
+        error: "Нет подключения к интернету",
+        code: "NETWORK_ERROR",
+      };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      code: "UNKNOWN_ERROR",
+    };
+  }
+}

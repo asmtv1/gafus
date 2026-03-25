@@ -12,6 +12,7 @@ import {
 import { authOptions } from "@gafus/auth";
 import { updateCourseLogoUrl } from "@gafus/core/services/course";
 import { validateImageUpload } from "@gafus/core/services/common";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 const logger = createTrainerPanelLogger("trainer-panel-upload-course-image");
@@ -80,7 +81,7 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
 
     if (file) {
       logger.error(
-        error instanceof Error ? error.message : "Unknown error",
+        getErrorMessage(error, "Сбой при загрузке изображения курса"),
         error instanceof Error ? error : new Error(String(error)),
         { operation: "action", action: "action", tags: [] },
       );

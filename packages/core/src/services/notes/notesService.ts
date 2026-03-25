@@ -7,7 +7,7 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
-import { handlePrismaError } from "@gafus/core/errors";
+import { getErrorMessage, handlePrismaError } from "@gafus/core/errors";
 import type {
   CreateTrainerNoteInput,
   UpdateTrainerNoteInput,
@@ -190,14 +190,16 @@ export async function createTrainerNote(
       try {
         handlePrismaError(error, "Заметка");
       } catch (serviceError) {
-        const msg = serviceError instanceof Error ? serviceError.message : "Ошибка при создании заметки";
-        return { success: false, error: msg };
+        return {
+          success: false,
+          error: getErrorMessage(serviceError, "Ошибка при создании заметки"),
+        };
       }
     }
     logger.error("Ошибка при создании заметки", error as Error, { trainerId });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Ошибка при создании заметки",
+      error: getErrorMessage(error, "Ошибка при создании заметки"),
     };
   }
 }
@@ -280,15 +282,16 @@ export async function updateTrainerNote(
       try {
         handlePrismaError(error, "Заметка");
       } catch (serviceError) {
-        const msg =
-          serviceError instanceof Error ? serviceError.message : "Ошибка при обновлении заметки";
-        return { success: false, error: msg };
+        return {
+          success: false,
+          error: getErrorMessage(serviceError, "Ошибка при обновлении заметки"),
+        };
       }
     }
     logger.error("Ошибка при обновлении заметки", error as Error, { trainerId });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Ошибка при обновлении заметки",
+      error: getErrorMessage(error, "Ошибка при обновлении заметки"),
     };
   }
 }
@@ -321,15 +324,16 @@ export async function deleteTrainerNote(
       try {
         handlePrismaError(error, "Заметка");
       } catch (serviceError) {
-        const msg =
-          serviceError instanceof Error ? serviceError.message : "Ошибка при удалении заметки";
-        return { success: false, error: msg };
+        return {
+          success: false,
+          error: getErrorMessage(serviceError, "Ошибка при удалении заметки"),
+        };
       }
     }
     logger.error("Ошибка при удалении заметки", error as Error, { trainerId });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Ошибка при удалении заметки",
+      error: getErrorMessage(error, "Ошибка при удалении заметки"),
     };
   }
 }

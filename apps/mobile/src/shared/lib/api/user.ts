@@ -13,12 +13,6 @@ export interface UpdateProfileData {
   birthDate?: string;
 }
 
-export interface UserPreferences {
-  notifications: boolean;
-  theme: "light" | "dark" | "system";
-  language: string;
-}
-
 /** Курс в публичном профиле кинолога */
 export interface PublicProfileCourse {
   id: string;
@@ -82,25 +76,6 @@ export const userApi = {
   },
 
   /**
-   * Получить настройки пользователя
-   */
-  getPreferences: async (): Promise<ApiResponse<UserPreferences>> => {
-    return apiClient<UserPreferences>("/api/v1/user/preferences");
-  },
-
-  /**
-   * Обновить настройки
-   */
-  updatePreferences: async (
-    data: Partial<UserPreferences>,
-  ): Promise<ApiResponse<UserPreferences>> => {
-    return apiClient<UserPreferences>("/api/v1/user/preferences", {
-      method: "PUT",
-      body: data,
-    });
-  },
-
-  /**
    * Запрос кода смены телефона (отправка в Telegram).
    */
   requestPhoneChange: async (): Promise<ApiResponse<void>> => {
@@ -142,6 +117,16 @@ export const userApi = {
     return apiClient<{ available: boolean }>(
       `/api/v1/auth/username-available?username=${encodeURIComponent(username)}`,
     );
+  },
+
+  /**
+   * Необратимое удаление аккаунта (пароль + Bearer).
+   */
+  deleteAccount: async (password: string): Promise<ApiResponse<{ success: boolean }>> => {
+    return apiClient<{ success: boolean }>("/api/v1/user/account/delete", {
+      method: "POST",
+      body: { password },
+    });
   },
 
   /**

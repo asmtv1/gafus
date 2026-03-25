@@ -5,6 +5,7 @@ import {
   type TrackPresentationViewData,
   type PresentationEventType,
 } from "@gafus/core/services/tracking";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { unstable_rethrow } from "next/navigation";
 
@@ -28,7 +29,7 @@ export async function trackPresentationView(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось зафиксировать просмотр",
+      error: getErrorMessage(error, "Не удалось зафиксировать просмотр"),
     };
   }
 }

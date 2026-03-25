@@ -99,8 +99,6 @@ export {
   updateUserProfileAction,
   getPublicProfileAction,
   updateAvatarAction,
-  getUserPreferencesAction,
-  updateUserPreferencesAction,
 } from "./user";
 
 // Notes Actions

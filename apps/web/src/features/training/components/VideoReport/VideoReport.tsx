@@ -294,7 +294,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
         await submitExamResult({
           userStepId,
           stepId,
-          videoReportUrl: undefined,
+          videoReportUrl: null,
           overallScore: undefined,
           isPassed: false,
         });

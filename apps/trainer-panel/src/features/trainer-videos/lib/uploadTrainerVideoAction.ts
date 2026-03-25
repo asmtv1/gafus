@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { uploadFileToCDN } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import { registerTrainerVideo } from "./registerTrainerVideo";
@@ -121,7 +122,7 @@ export async function uploadTrainerVideoAction(
     } catch (queueError) {
       // Если очередь недоступна (например, на build), логируем но не падаем
       logger.warn("Не удалось добавить задачу в очередь транскодирования", {
-        error: queueError instanceof Error ? queueError.message : "Unknown error",
+        error: queueError instanceof Error ? queueError.message : "Ошибка очереди транскодирования",
         videoId: video.id,
       });
     }
@@ -131,7 +132,7 @@ export async function uploadTrainerVideoAction(
     logger.error("Ошибка загрузки видео", error as Error);
 
     logger.error(
-      error instanceof Error ? error.message : "Unknown error",
+      getErrorMessage(error, "Не удалось загрузить видео"),
       error instanceof Error ? error : new Error(String(error)),
       {
         operation: "trainerVideoUpload",

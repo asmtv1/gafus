@@ -41,6 +41,7 @@
 - [x] **Вход через VK ID**: кнопка «Войти через VK ID» на экране welcome (не на login), хук `useVkLogin`, PKCE flow (id.vk.ru) через `expo-web-browser`, экран `/vk-set-phone` при `needsPhone: true` (E.164, `POST /api/v1/auth/vk-phone-set`). Кнопка «Установить пароль» в профиле при `!hasAppPassword` → `/profile/set-password` → `authApi.setPassword` (`POST /api/v1/auth/set-password`). Env: `VK_CLIENT_ID`, `VK_MOBILE_REDIRECT_URI=gafus://auth/vk`. Требуется Development Build (Expo Go не поддерживает custom scheme). См. [vk-auth.md](../features/vk-auth.md).
 - [x] **Подключение VK к аккаунту**: в профиле — кнопка «Подключить VK» при `!hasVkLinked`. Хук `useVkLink`, `authApi.linkVk` (POST `/api/v1/auth/vk-link`), `User.hasVkLinked` в profile API.
 - [x] **Смена логина (live-check)**: экран `profile/change-username` с `useUsernameAvailability`, `userApi.checkUsernameAvailable` (GET `/api/v1/auth/username-available`), debounce 450ms, индикатор «Логин свободен» / «Логин занят», кнопка disabled при занятом/проверке.
+- [x] **Удаление аккаунта**: экран `profile/delete-account`, `userApi.deleteAccount` → `POST /api/v1/user/account/delete`; кнопка в профиле при `passwordSetAt != null`. См. [account-deletion.md](../features/account-deletion.md). Env: `EXPO_PUBLIC_ACCOUNT_DELETION_URL` (для ссылки на веб-страницу в заметке для ревью).
 - [x] **Журнал профилактики питомца**: экран `/pets/[id]/prevention` — список записей (прививки, глистогонка, клещи/блохи), форма добавления/редактирования. API: `petsApi.getPreventionEntries`, `addPreventionEntry`, `batchUpsertPreventionEntries`. Offline: preventionSyncStore + usePreventionSyncOnReconnect (batch push при reconnect). См. [pet-prevention.md](../features/pet-prevention.md).
 
 ### В планах
@@ -207,6 +208,7 @@ apps/mobile/
 │   │   ├── profile/
 │   │   │   ├── set-password.tsx  # Установка пароля (VK-only, !hasAppPassword)
 │   │   │   ├── change-username.tsx
+│   │   │   ├── delete-account.tsx # Необратимое удаление (POST account/delete)
 │   │   │   └── edit.tsx
 │   │   ├── training/
 │   │   │   ├── [courseType]/

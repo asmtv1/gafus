@@ -233,7 +233,7 @@ export const usePushStore = create<PushState>()(
             userId: get().userId || undefined,
           });
 
-          let errorMessage = "Unknown error occurred";
+          let errorMessage = "Не удалось настроить push-уведомления";
 
           if (error instanceof Error) {
             if (error.message.includes("Service Worker")) {

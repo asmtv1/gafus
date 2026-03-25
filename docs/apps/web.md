@@ -86,7 +86,8 @@ app/
 │   │   ├── set-password/   # VK-only: установка пароля
 │   │   ├── change-password/
 │   │   ├── change-phone/   # При needsPhone — SetVkPhoneForm
-│   │   └── change-username/ # Смена логина (live-check, redirect ?username=)
+│   │   ├── change-username/ # Смена логина (live-check, redirect ?username=)
+│   │   └── delete-account/ # Необратимое удаление аккаунта (Apple 5.1.1(v))
 │   ├── statistics/
 │   └── training/
 └── ~offline/
@@ -102,6 +103,8 @@ app/
 На **главной странице** (`/`) — компонент `MainAuthButtons`: кнопки «войти», «регистрация» и `VkIdOneTap` (виджет VK ID One Tap с lazy init при клике, fallback-кнопка при ошибке). Обработка `vk_id_token` из URL — в `MainAuthButtons`. Страницы `/login` и `/register` без VK. В dev и на localhost rate limit для auth-эндпоинтов не применяется.
 
 **Подключение VK к аккаунту:** в профиле (SettingsActions) — кнопка «Подключить VK» для пользователей без VK. Server Action `initiateVkIdLink()`, callback `mode=link`, redirect `/profile?linked=vk` или `?error=...`. Подробнее: [docs/features/vk-auth.md](../features/vk-auth.md).
+
+**Удаление аккаунта:** ссылка в настройках профиля при установленном пароле → `/profile/delete-account`. См. [docs/features/account-deletion.md](../features/account-deletion.md).
 
 ### Безопасность (auth)
 

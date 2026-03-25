@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { getCoursePathData } from "@gafus/core/services/coursePath";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -170,7 +171,7 @@ export async function generateCoursePathPdf(
     logger.error("PDF generation failed", error as Error, { courseId });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось сгенерировать PDF",
+      error: getErrorMessage(error, "Не удалось сгенерировать PDF"),
     };
   }
 }

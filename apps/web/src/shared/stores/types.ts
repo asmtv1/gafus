@@ -9,7 +9,6 @@ import type {
   CourseWithProgressData,
   UserProfile,
   UpdateUserProfileInput,
-  UserPreferences,
   CreatePetInput,
   UpdatePetInput,
   Pet,
@@ -20,25 +19,20 @@ export interface UserStore extends UserStateData {
   // Действия
   setUser: (user: UserStateData["user"]) => void;
   setProfile: (profile: UserProfile | null) => void;
-  setPreferences: (preferences: Partial<UserPreferences>) => void;
 
   // Загрузка данных
   fetchProfile: () => Promise<void>;
-  fetchPreferences: () => Promise<void>;
 
   // Обновление данных
   updateProfile: (data: UpdateUserProfileInput) => Promise<void>;
-  updatePreferences: (prefs: Partial<UserPreferences>) => Promise<void>;
 
   // Очистка
   clearUser: () => void;
   clearError: () => void;
   clearProfileError: () => void;
-  clearPreferencesError: () => void;
 
   // Утилиты
   isProfileLoaded: () => boolean;
-  isPreferencesLoaded: () => boolean;
   hasProfile: () => boolean;
   getUserDisplayName: () => string;
 }

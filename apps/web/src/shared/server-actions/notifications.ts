@@ -7,6 +7,7 @@
  * и добавляют авторизацию через getCurrentUserId.
  */
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import {
   pauseStepNotification,
@@ -85,7 +86,7 @@ export async function pauseNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to pause notification",
+      error: getErrorMessage(error, "Failed to pause notification"),
     };
   }
 }
@@ -114,7 +115,7 @@ export async function resetNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to reset notification",
+      error: getErrorMessage(error, "Failed to reset notification"),
     };
   }
 }
@@ -155,7 +156,7 @@ export async function resumeNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to resume notification",
+      error: getErrorMessage(error, "Failed to resume notification"),
     };
   }
 }
@@ -188,7 +189,7 @@ export async function toggleStepNotificationPauseByDayOnCourseAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to toggle notification pause",
+      error: getErrorMessage(error, "Failed to toggle notification pause"),
     };
   }
 }
@@ -215,7 +216,7 @@ export async function toggleStepNotificationPauseAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to toggle notification pause",
+      error: getErrorMessage(error, "Failed to toggle notification pause"),
     };
   }
 }
@@ -242,7 +243,7 @@ export async function deleteStepNotificationAction(
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete notification",
+      error: getErrorMessage(error, "Failed to delete notification"),
     };
   }
 }
@@ -284,7 +285,7 @@ export async function createStepNotificationAction(params: {
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: getErrorMessage(error, "Не удалось создать напоминание для шага"),
     };
   }
 }

@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "@gafus/prisma";
 import { authOptions } from "@gafus/auth";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 const logger = createTrainerPanelLogger("ai-chat-get-history");
@@ -98,7 +99,7 @@ export async function getChatHistory(
     logger.error("Error in getChatHistory", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

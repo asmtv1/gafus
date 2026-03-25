@@ -32,9 +32,11 @@ logger.error("Operation failed", error as Error, { context });
 ```typescript
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
+import { unstable_rethrow } from "next/navigation";
 
-const logger = createWebLogger('action-name');
+const logger = createWebLogger("action-name");
 
 export async function myAction(data: FormData) {
   try {
@@ -42,10 +44,15 @@ export async function myAction(data: FormData) {
     logger.success("Action completed");
     return { success: true };
   } catch (error) {
-    logger.error("Action failed", error as Error, { action: "myAction" });
+    unstable_rethrow(error); // redirect / notFound — не превращать в { error }
+    logger.error(
+      "Action failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { action: "myAction" },
+    );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка"
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

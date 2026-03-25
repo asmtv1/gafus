@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import {
@@ -206,7 +207,7 @@ export async function createStep(
       operation: "createStep",
     });
     return {
-      error: error instanceof Error ? error.message : "Не удалось создать шаг",
+      error: getErrorMessage(error, "Не удалось создать шаг"),
     };
   }
 }

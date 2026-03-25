@@ -7,5 +7,6 @@ describe("errors barrel", () => {
     expect(typeof errors.ServiceError).toBe("function");
     expect(typeof errors.NotFoundError).toBe("function");
     expect(typeof errors.handlePrismaError).toBe("function");
+    expect(typeof errors.getErrorMessage).toBe("function");
   });
 });

@@ -47,7 +47,6 @@ export { achievementsApi, type TrainingDatesResponse } from "./achievements";
 export {
   userApi,
   type UpdateProfileData,
-  type UserPreferences,
   type PublicProfile,
   type PublicProfileCourse,
 } from "./user";

@@ -1,5 +1,6 @@
 "use server";
 
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { getCourseStatistics } from "@gafus/statistics";
 import { searchUsersByUsername } from "@gafus/core/services/user";
@@ -29,7 +30,7 @@ export async function getCourseStatisticsCached(userId: string, isElevated: bool
         });
 
         logger.error(
-          error instanceof Error ? error.message : "Unknown error in getCourseStatisticsCached",
+          getErrorMessage(error, "Сбой кэшированной статистики курсов"),
           error instanceof Error ? error : new Error(String(error)),
           {
             operation: "getCourseStatisticsCached",
@@ -71,7 +72,7 @@ export const searchUsersByUsernameCached = unstable_cache(
       });
 
       logger.error(
-        error instanceof Error ? error.message : "Unknown error in searchUsersByUsernameCached",
+        getErrorMessage(error, "Сбой кэшированного поиска пользователей"),
         error instanceof Error ? error : new Error(String(error)),
         {
           operation: "searchUsersByUsernameCached",

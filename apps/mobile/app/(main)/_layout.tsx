@@ -88,6 +88,13 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
+        name="profile/delete-account"
+        options={{
+          headerShown: true,
+          title: "Удаление аккаунта",
+        }}
+      />
+      <Stack.Screen
         name="reminders"
         options={{
           headerShown: true,

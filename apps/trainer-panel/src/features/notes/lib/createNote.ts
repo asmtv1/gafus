@@ -5,6 +5,7 @@ import { authOptions } from "@gafus/auth";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { revalidatePath, revalidateTag } from "next/cache";
 import type { ActionResult } from "@gafus/types";
+import { getErrorMessage } from "@gafus/core/errors";
 import { CACHE_TAGS } from "@gafus/core/services/cache";
 import { createTrainerNote } from "@gafus/core/services/notes";
 import { createNoteSchema } from "./schemas";
@@ -67,7 +68,7 @@ export async function createNote(
     logger.error("Ошибка при создании заметки", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
+      error: getErrorMessage(error, "Неизвестная ошибка"),
     };
   }
 }

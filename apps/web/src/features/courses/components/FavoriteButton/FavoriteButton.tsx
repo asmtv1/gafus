@@ -58,7 +58,7 @@ export const FavoriteButton = ({ id, isFavorite = false, onUnfavorite }: Favorit
             issueKey: "FavoriteButton",
             keys: { operation: "toggle_favorite" },
           });
-          setError(error instanceof Error ? error : new Error("Unknown error"));
+          setError(error instanceof Error ? error : new Error("Ошибка избранного"));
         }
       })();
     });

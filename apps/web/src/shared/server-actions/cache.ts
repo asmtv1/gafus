@@ -2,6 +2,7 @@
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("web-cache-actions");
@@ -49,7 +50,7 @@ export async function invalidateUserProgressCache(userId: string, force: boolean
     );
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось инвалидировать кэш",
+      error: getErrorMessage(error, "Не удалось инвалидировать кэш"),
     };
   }
 }

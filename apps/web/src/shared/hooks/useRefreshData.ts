@@ -119,7 +119,7 @@ function getQueryKeysForPageType(pageType: RefreshPageType): string[] {
     case "trainings":
       return ["user:with-trainings", "user:profile", "user:achievements"];
     case "profile":
-      return ["user:profile", "user:preferences", "user:pets", "user:achievements"];
+      return ["user:profile", "user:pets", "user:achievements"];
     case "achievements":
       return ["user:achievements", "user:profile", "user:with-trainings", "user:training-dates"];
     default:

@@ -10,6 +10,7 @@ import {
   getDeletePayload,
   deleteTrainerVideoRecord,
 } from "@gafus/core/services/trainerVideo";
+import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import type { ActionResult } from "@gafus/types";
@@ -117,7 +118,7 @@ export async function deleteTrainerVideo(
     logger.error("Ошибка удаления видео", error as Error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Не удалось удалить видео",
+      error: getErrorMessage(error, "Не удалось удалить видео"),
     };
   }
 }
