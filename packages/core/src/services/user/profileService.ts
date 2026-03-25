@@ -7,6 +7,8 @@ import { createWebLogger } from "@gafus/logger";
 import type { Prisma } from "@gafus/prisma";
 import type { PublicProfile, UserWithTrainings } from "@gafus/types";
 import { TrainingStatus } from "@gafus/types";
+
+import { checkCourseAccessById } from "../course/courseService";
 import {
   uploadFileToCDN,
   deleteFileFromCDN,
@@ -113,15 +115,24 @@ export async function getUserIdByUsername(username: string): Promise<string | nu
 
 // ========== Get Public Profile ==========
 
+export type GetPublicProfileOptions = {
+  /** Если передан (JWT), в курсах будет hasAccess для платных/приватных */
+  viewerUserId?: string;
+};
+
 /**
  * Получает публичный профиль пользователя по username
  */
-export async function getPublicProfile(username: string): Promise<PublicProfile | null> {
+export async function getPublicProfile(
+  username: string,
+  options?: GetPublicProfileOptions,
+): Promise<PublicProfile | null> {
   if (!username) throw new Error("username is required");
 
   const user = await prisma.user.findUnique({
     where: { username },
     select: {
+      id: true,
       username: true,
       role: true,
       profile: {
@@ -194,7 +205,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
 
   if (!user) return null;
 
-  const courses =
+  let courses: PublicProfile["courses"] =
     user.role === "TRAINER" && user.authoredCourses
       ? user.authoredCourses.map((course) => ({
           id: String(course.id),
@@ -211,8 +222,23 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
         }))
       : undefined;
 
+  const viewerUserId = options?.viewerUserId;
+  if (courses && courses.length > 0 && viewerUserId) {
+    const isProfileOwner = viewerUserId === user.id;
+    courses = await Promise.all(
+      courses.map(async (course) => {
+        if (isProfileOwner) {
+          return { ...course, hasAccess: true };
+        }
+        const { hasAccess } = await checkCourseAccessById(course.id, viewerUserId);
+        return { ...course, hasAccess };
+      }),
+    );
+  }
+
+  const { id: _ownerUserId, authoredCourses: _authored, ...userBase } = user;
   const publicProfile: PublicProfile = {
-    ...user,
+    ...userBase,
     courses,
     diplomas: user.diplomas
       .filter((d) => d.issuedAt !== null)

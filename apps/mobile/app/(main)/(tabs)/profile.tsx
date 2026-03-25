@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -19,6 +20,7 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
 import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
+import { filterPublicProfileCoursesForIos } from "@/shared/utils/iosCourseCatalog";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const AVATAR_MAX_SIZE_MB = 5;
@@ -341,7 +343,10 @@ export default function ProfileScreen() {
   const displayRole = getRoleLabel(user?.role);
   const hasPushSubscription = !!pushStatusData?.data?.hasSubscription;
   const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
-  const trainerCourses = trainerProfileData?.data?.courses ?? [];
+  const trainerCourses = useMemo(
+    () => filterPublicProfileCoursesForIos(trainerProfileData?.data?.courses ?? []),
+    [trainerProfileData?.data?.courses],
+  );
 
   const handleEditPet = (pet: Pet) => {
     router.push({

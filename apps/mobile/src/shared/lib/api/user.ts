@@ -26,6 +26,8 @@ export interface PublicProfileCourse {
   priceRub: number | null;
   avgRating: number | null;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+  /** С JWT в запросе: доступ зрителя к курсу */
+  hasAccess?: boolean;
 }
 
 /** Публичный профиль (структура как в API / profile из web) */

@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
+import { verifyAccessToken } from "@gafus/auth/jwt";
 import {
   deleteUserAccount,
   deleteUserAccountBodySchema,
@@ -42,13 +43,22 @@ userRoutes.get("/profile/public", async (c) => {
       return c.json({ success: false, error: "Требуется username" }, 400);
     }
     const { username } = parsed.data;
-    const profile = await getPublicProfile(username);
+    let viewerUserId: string | undefined;
+    const authHeader = c.req.header("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const authUser = await verifyAccessToken(authHeader.slice(7));
+      if (authUser) viewerUserId = authUser.id;
+    }
+    const profile = await getPublicProfile(username, { viewerUserId });
     if (!profile) {
       return c.json({ success: false, error: "Профиль не найден" }, 404);
     }
+    const cacheControl = viewerUserId
+      ? "private, no-cache, no-store, must-revalidate"
+      : "public, max-age=300";
     return c.json(
       { success: true, data: profile },
-      { headers: { "Cache-Control": "public, max-age=300" } },
+      { headers: { "Cache-Control": cacheControl } },
     );
   } catch (error) {
     logger.error("Error in public profile API", error as Error);

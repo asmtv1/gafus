@@ -1,6 +1,7 @@
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useMemo } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
 import { COLORS, SPACING, FONTS } from "@/constants";
+import { filterPublicProfileCoursesForIos } from "@/shared/utils/iosCourseCatalog";
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -128,7 +130,10 @@ export default function PublicProfileScreen() {
   const age = birthDateStr ? getAge(birthDateStr) : null;
   const hasSocialLinks =
     profile?.instagram || profile?.telegram || profile?.website;
-  const courses = publicData?.role === "TRAINER" ? publicData?.courses ?? [] : [];
+  const courses = useMemo(() => {
+    const raw = publicData?.role === "TRAINER" ? (publicData?.courses ?? []) : [];
+    return filterPublicProfileCoursesForIos(raw);
+  }, [publicData?.role, publicData?.courses]);
 
   if (isLoading) {
     return (

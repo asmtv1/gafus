@@ -15,6 +15,7 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { CourseCard } from "@/features/courses/components";
 import { OfflineDownloadedScreen } from "@/features/offline";
 import { COLORS, SPACING, FONTS } from "@/constants";
+import { filterCoursesForIosCatalog } from "@/shared/utils/iosCourseCatalog";
 
 /**
  * Страница избранных курсов (логика как в web: список по store).
@@ -46,10 +47,10 @@ export default function FavoritesScreen() {
     });
   }, [favoriteIds]);
 
-  const displayedCourses = useMemo(
-    () => favoriteCourses.filter((c) => favorites.includes(c.id)),
-    [favoriteCourses, favorites],
-  );
+  const displayedCourses = useMemo(() => {
+    const merged = favoriteCourses.filter((c) => favorites.includes(c.id));
+    return filterCoursesForIosCatalog(merged);
+  }, [favoriteCourses, favorites]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
