@@ -12,6 +12,13 @@ const logger = createWebLogger("payment-service");
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
 const MAX_AMOUNT_RUB = 100000; // Максимальная сумма платежа: 100 000 рублей
 
+/** Повторно отдаём ту же confirmation_url только пока сессия чекаута ЮMoney обычно жива. Иначе — новый POST в ЮKassa. */
+const PENDING_CHECKOUT_TTL_MS = 20 * 60 * 1000;
+
+function isPendingCheckoutFresh(updatedAt: Date): boolean {
+  return Date.now() - updatedAt.getTime() < PENDING_CHECKOUT_TTL_MS;
+}
+
 export interface CreateArticlePaymentParams {
   userId: string;
   articleId: string;
@@ -81,14 +88,22 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
 
   const existingPending = await prisma.payment.findFirst({
     where: { userId, courseId, status: "PENDING" },
-    select: { id: true, confirmationUrl: true },
+    select: { id: true, confirmationUrl: true, updatedAt: true },
   });
   if (existingPending?.confirmationUrl) {
-    return {
-      success: true,
-      paymentId: existingPending.id,
-      confirmationUrl: existingPending.confirmationUrl,
-    };
+    if (isPendingCheckoutFresh(existingPending.updatedAt)) {
+      return {
+        success: true,
+        paymentId: existingPending.id,
+        confirmationUrl: existingPending.confirmationUrl,
+      };
+    }
+    await prisma.payment
+      .update({
+        where: { id: existingPending.id },
+        data: { status: "CANCELED" },
+      })
+      .catch(() => undefined);
   }
 
   let paymentId: string;
@@ -108,14 +123,22 @@ export async function createPayment(params: CreatePaymentParams): Promise<{
     if (isPrismaUniqueViolation(e)) {
       const again = await prisma.payment.findFirst({
         where: { userId, courseId, status: "PENDING" },
-        select: { id: true, confirmationUrl: true },
+        select: { id: true, confirmationUrl: true, updatedAt: true },
       });
-      if (again?.confirmationUrl) {
+      if (again?.confirmationUrl && isPendingCheckoutFresh(again.updatedAt)) {
         return {
           success: true,
           paymentId: again.id,
           confirmationUrl: again.confirmationUrl,
         };
+      }
+      if (again?.id && again.confirmationUrl && !isPendingCheckoutFresh(again.updatedAt)) {
+        await prisma.payment
+          .update({
+            where: { id: again.id },
+            data: { status: "CANCELED" },
+          })
+          .catch(() => undefined);
       }
     }
     logger.error("Ошибка создания Payment", e as Error);
@@ -247,14 +270,22 @@ export async function createArticlePayment(params: CreateArticlePaymentParams): 
 
   const existingPending = await prisma.articlePayment.findFirst({
     where: { userId, articleId, status: "PENDING" },
-    select: { id: true, confirmationUrl: true },
+    select: { id: true, confirmationUrl: true, updatedAt: true },
   });
   if (existingPending?.confirmationUrl) {
-    return {
-      success: true,
-      paymentId: existingPending.id,
-      confirmationUrl: existingPending.confirmationUrl,
-    };
+    if (isPendingCheckoutFresh(existingPending.updatedAt)) {
+      return {
+        success: true,
+        paymentId: existingPending.id,
+        confirmationUrl: existingPending.confirmationUrl,
+      };
+    }
+    await prisma.articlePayment
+      .update({
+        where: { id: existingPending.id },
+        data: { status: "CANCELED" },
+      })
+      .catch(() => undefined);
   }
 
   let paymentId: string;
@@ -274,14 +305,22 @@ export async function createArticlePayment(params: CreateArticlePaymentParams): 
     if (isPrismaUniqueViolation(e)) {
       const again = await prisma.articlePayment.findFirst({
         where: { userId, articleId, status: "PENDING" },
-        select: { id: true, confirmationUrl: true },
+        select: { id: true, confirmationUrl: true, updatedAt: true },
       });
-      if (again?.confirmationUrl) {
+      if (again?.confirmationUrl && isPendingCheckoutFresh(again.updatedAt)) {
         return {
           success: true,
           paymentId: again.id,
           confirmationUrl: again.confirmationUrl,
         };
+      }
+      if (again?.id && again.confirmationUrl && !isPendingCheckoutFresh(again.updatedAt)) {
+        await prisma.articlePayment
+          .update({
+            where: { id: again.id },
+            data: { status: "CANCELED" },
+          })
+          .catch(() => undefined);
       }
     }
     logger.error("Ошибка создания ArticlePayment", e as Error);

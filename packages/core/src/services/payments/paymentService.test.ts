@@ -178,10 +178,11 @@ describe("createPayment", () => {
     expect(result.error).toContain("Доступ");
   });
 
-  it("returns existing pending payment when available", async () => {
+  it("returns existing pending payment when checkout still fresh", async () => {
     mockPaymentFindFirst.mockResolvedValue({
       id: "existing-pay",
       confirmationUrl: "https://yookassa.ru/existing",
+      updatedAt: new Date(),
     });
 
     const result = await createPayment(baseParams);
@@ -190,6 +191,27 @@ describe("createPayment", () => {
     expect(result.paymentId).toBe("existing-pay");
     expect(result.confirmationUrl).toBe("https://yookassa.ru/existing");
     expect(mockPaymentCreate).not.toHaveBeenCalled();
+  });
+
+  it("cancels stale pending and creates new payment in YooKassa", async () => {
+    mockPaymentFindFirst.mockResolvedValue({
+      id: "stale-pay",
+      confirmationUrl: "https://yookassa.ru/stale",
+      updatedAt: new Date(Date.now() - 21 * 60 * 1000),
+    });
+    mockPaymentUpdate.mockResolvedValue({});
+
+    const result = await createPayment(baseParams);
+
+    expect(result.success).toBe(true);
+    expect(mockPaymentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "stale-pay" },
+        data: { status: "CANCELED" },
+      }),
+    );
+    expect(mockPaymentCreate).toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalled();
   });
 
   it("returns error when returnUrl is not https", async () => {
