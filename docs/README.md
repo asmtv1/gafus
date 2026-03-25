@@ -58,6 +58,7 @@
 - [Логи контейнеров](./deployment/container-logs.md)
 - [Секреты API](./deployment/api-secrets.md)
 - [Платные курсы и ЮKassa](./payments/yookassa.md)
+- [Apple IAP (iOS)](./payments/iap-apple.md) — StoreKit + `POST .../apple/verify`; Android/web — YooKassa
 
 ### Мониторинг
 
@@ -87,7 +88,7 @@
 ### Юридическое и конфиденциальность
 
 - [Оферта (клаузулы)](./legal/oferta-clauses.md)
-- [Соответствие оферте при оплате](./payments/oferta-compliance.md) — OfertaAcceptance, fire-and-forget
+- [Соответствие оферте при оплате](./payments/oferta-compliance.md) — OfertaAcceptance, fire-and-forget; IAP курсов — [iap-apple.md](./payments/iap-apple.md)
 - [Публичная оферта](./legal/public-offer-full.md)
 - [Cookie consent и управление cookies](./features/cookie-consent.md) — баннер согласия, хранение в localStorage, GDPR
 

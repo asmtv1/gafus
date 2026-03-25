@@ -169,7 +169,7 @@
   "main": "./dist/core/src/index.js",
   "types": "./dist/core/src/index.d.ts",
   "scripts": {
-    "build": "tsc && ts-add-js-extension --dir dist",
+    "build": "tsc && ts-add-js-extension --dir dist && mkdir -p dist/core/src/services/payments/apple-certs && cp src/services/payments/apple-certs/*.cer dist/core/src/services/payments/apple-certs/",
     "clean": "rimraf dist",
     "dev": "tsc --watch",
     "lint": "eslint src",
@@ -180,6 +180,7 @@
     "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.0.0",
     "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/logger": "workspace:*",

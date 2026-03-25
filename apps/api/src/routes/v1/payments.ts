@@ -2,7 +2,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import { createPayment, createArticlePayment } from "@gafus/core/services/payments";
+import {
+  createArticlePayment,
+  createPayment,
+  verifyAndGrantAppleIap,
+} from "@gafus/core/services/payments";
 import { getCourseByIdOrType } from "@gafus/core/services/course";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
@@ -43,9 +47,61 @@ function resolveWebBaseUrl(): { success: true; baseUrl: string } | { success: fa
   }
 }
 
+const verifyAppleSchema = z.object({
+  transactionJws: z.string().min(1).max(4096),
+});
+
+paymentsRoutes.post("/apple/verify", zValidator("json", verifyAppleSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { transactionJws } = c.req.valid("json");
+    const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = c.req.header("user-agent") ?? null;
+
+    const result = await verifyAndGrantAppleIap({
+      userId: user.id,
+      transactionJws,
+      clientIp: ipAddress,
+      userAgent,
+    });
+
+    if (!result.success) {
+      const statusMap: Record<string, number> = {
+        JWS_INVALID: 400,
+        UNKNOWN_PRODUCT: 400,
+        NOT_FOUND: 404,
+        IAP_ALREADY_LINKED: 409,
+        CONFIG_APPLE_IAP: 500,
+        INTERNAL: 500,
+      };
+      return c.json(
+        { success: false, error: result.error, code: result.code },
+        statusMap[result.code] ?? 400,
+      );
+    }
+
+    return c.json({ success: true, data: { alreadyGranted: result.alreadyGranted } });
+  } catch (error) {
+    logger.error("Ошибка Apple IAP verify", error as Error);
+    return c.json(
+      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+      500,
+    );
+  }
+});
+
 paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c) => {
   try {
     const user = c.get("user");
+
+    const clientPlatform = c.req.header("x-client-platform");
+    if (clientPlatform === "ios") {
+      return c.json(
+        { success: false, error: "Используйте оплату через App Store", code: "USE_APPLE_IAP" },
+        403,
+      );
+    }
+
     const { courseId, courseType, articleId } = c.req.valid("json");
 
     const webBaseUrl = resolveWebBaseUrl();

@@ -103,6 +103,7 @@ app.route("/api/v1/reminders", remindersRoutes);
 
 app.use("/api/v1/payments/*", authMiddleware);
 app.use("/api/v1/payments/create", paymentsRateLimiter);
+app.use("/api/v1/payments/apple/verify", paymentsRateLimiter);
 app.route("/api/v1/payments", paymentsRoutes);
 
 // Global error handler

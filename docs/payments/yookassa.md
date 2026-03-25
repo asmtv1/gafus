@@ -2,7 +2,9 @@
 
 ## Обзор
 
-Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../apps/trainer-panel.md)). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
+**Web и Android (mobile):** оплата через [ЮKassa](https://yookassa.ru). **iOS (mobile):** цифровой контент — через Apple In-App Purchase и `POST /api/v1/payments/apple/verify` (см. [iap-apple.md](./iap-apple.md)); ЮKassa на iOS для того же контента не используется.
+
+Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../apps/trainer-panel.md)). На **web** пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на оплату → webhook создаёт доступ к курсу.
 
 ## Схема Payment (Prisma)
 
@@ -52,10 +54,13 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 
 ## Маршруты API
 
-- `POST /api/v1/payments/create` — создание платежа (сессия, CSRF, rate limit ~10 req/min на userId).
+- `POST /api/v1/payments/create` — создание платежа (сессия, CSRF, rate limit ~10 req/min на userId); на iOS mobile с `X-Client-Platform: ios` — 403 (см. [iap-apple.md](./iap-apple.md)).
 - `POST /api/v1/payments/webhook` — приём уведомлений ЮKassa (проверка IP, без CSRF).
+- Apple IAP: `POST /api/v1/payments/apple/verify` — только iOS flow, см. [iap-apple.md](./iap-apple.md).
 
-## Mobile flow (WebView, вариант A)
+## Mobile flow (WebView, вариант A) — Android
+
+На **iOS** paywall использует StoreKit (`expo-iap`) и верификацию JWS на сервере — см. [iap-apple.md](./iap-apple.md). Ниже — поток для **Android** (без изменений).
 
 1. Приложение вызывает `POST /api/v1/payments/create` с JWT:
    - body: `{ courseId }` или `{ courseType }` (ровно одно поле).

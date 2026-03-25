@@ -9,3 +9,10 @@ export {
   type CreatePaymentResult,
   type CreateArticlePaymentParams,
 } from "./paymentService";
+
+export { verifyAndGrantAppleIap } from "./appleIapService";
+export type {
+  AppleIapTarget,
+  AppleIapVerifyResult,
+  VerifyAndGrantAppleIapParams,
+} from "./appleIapTypes";

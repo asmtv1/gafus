@@ -3,7 +3,8 @@
 ## Что проверяет код
 
 - Доступ к платному курсу: наличие записи в **CourseAccess** для пары `(courseId, userId)`.
-- Запись создаётся в webhook ЮKassa при `payment.succeeded` (`confirmPaymentFromWebhook` в `gafus-web`).
+- **Web/Android:** запись создаётся в webhook ЮKassa при `payment.succeeded` (`confirmPaymentFromWebhook` в `gafus-web`).
+- **iOS (mobile):** запись создаётся после успешного `POST /api/v1/payments/apple/verify` (леджер `AppleIapTransaction`). См. [iap-apple.md](../payments/iap-apple.md).
 - Страница курса: `getCurrentUserId()` → при отсутствии редирект; `checkCourseAccessById(courseId, userId)` → при `hasAccess: false` показывается блок «нет доступа» / оплата.
 
 ## Команды на сервере (после SSH)

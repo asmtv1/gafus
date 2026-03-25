@@ -9,6 +9,8 @@ export interface RecordOfertaAcceptanceParams {
   userId: string;
   courseId: string;
   paymentId?: string | null;
+  /** Ссылка на леджер Apple IAP; не задавать вместе с paymentId — ошибка смысла (обратная совместимость не блокируем). */
+  appleIapTransactionId?: string | null;
   ipAddress?: string | null;
   userAgent?: string | null;
   source: "web" | "mobile";
@@ -23,6 +25,7 @@ export async function recordOfertaAcceptance(
         userId: params.userId,
         courseId: params.courseId,
         paymentId: params.paymentId ?? null,
+        appleIapTransactionId: params.appleIapTransactionId ?? null,
         acceptedAt: new Date(),
         ipAddress: params.ipAddress ?? null,
         userAgent: params.userAgent ?? null,
@@ -36,6 +39,7 @@ export async function recordOfertaAcceptance(
       userId: params.userId,
       courseId: params.courseId,
       paymentId: params.paymentId,
+      appleIapTransactionId: params.appleIapTransactionId,
     });
     return { success: false, error: "Не удалось записать согласие" };
   }

@@ -7,6 +7,7 @@ import {
   Linking,
   ActivityIndicator,
   Dimensions,
+  Platform,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +18,8 @@ import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
 import Markdown from "react-native-markdown-display";
 
+import { getAppleProductIdForArticleId } from "@/features/payments/appleIapClientMap";
+import { useIosInAppPurchase } from "@/features/payments/useIosInAppPurchase";
 import { articlesApi, paymentsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { wrapArticleHtml, ARTICLE_HEIGHT_MSG, ARTICLE_READY_MSG } from "@/shared/lib/articles/wrapArticleHtml";
@@ -71,6 +74,7 @@ export default function ArticleDetailScreen() {
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
   const [webViewReady, setWebViewReady] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const { purchaseProduct, restoreAndVerifyAll, isLoading: isIapLoading } = useIosInAppPurchase();
 
   useEffect(() => {
     if (slug && article) {
@@ -118,8 +122,29 @@ export default function ArticleDetailScreen() {
   const handlePay = useCallback(async () => {
     if (!article) return;
     setPayError(null);
-    setPayLoading(true);
+    const isIos = Platform.OS === "ios";
+    if (!isIos) {
+      setPayLoading(true);
+    }
     try {
+      if (isIos) {
+        const sku = getAppleProductIdForArticleId(article.id);
+        if (!sku) {
+          setPayError("Покупка через App Store для этой статьи не настроена.");
+          return;
+        }
+        const result = await purchaseProduct(sku);
+        if (result.cancelled) {
+          return;
+        }
+        if (result.success) {
+          await queryClient.invalidateQueries({ queryKey: ["article", slug] });
+          return;
+        }
+        setPayError(result.message ?? "Не удалось подтвердить покупку");
+        return;
+      }
+
       const response = await paymentsApi.createPayment({ articleId: article.id });
       if (!response.success || !response.data?.confirmationUrl) {
         setPayError(response.error ?? "Не удалось создать платёж");
@@ -127,9 +152,26 @@ export default function ArticleDetailScreen() {
       }
       void Linking.openURL(response.data.confirmationUrl);
     } finally {
+      if (!isIos) {
+        setPayLoading(false);
+      }
+    }
+  }, [article?.id, purchaseProduct, queryClient, slug]);
+
+  const handleRestoreIapArticle = useCallback(async () => {
+    if (!article || Platform.OS !== "ios") return;
+    setPayError(null);
+    setPayLoading(true);
+    try {
+      const r = await restoreAndVerifyAll();
+      await queryClient.invalidateQueries({ queryKey: ["article", slug] });
+      if (!r.success) {
+        setPayError("Не удалось восстановить покупки.");
+      }
+    } finally {
       setPayLoading(false);
     }
-  }, [article?.id]);
+  }, [article, queryClient, restoreAndVerifyAll, slug]);
 
   const coverUrl = resolveImageUrl(article?.imageUrls?.[0]);
 
@@ -257,14 +299,30 @@ export default function ArticleDetailScreen() {
                   <Text style={styles.payErrorText}>{payError}</Text>
                 ) : null}
                 <Pressable
-                  style={[styles.btnPrimary, payLoading && styles.btnDisabled]}
+                  style={[
+                    styles.btnPrimary,
+                    (payLoading || isIapLoading) && styles.btnDisabled,
+                  ]}
                   onPress={handlePay}
-                  disabled={payLoading}
+                  disabled={payLoading || isIapLoading}
                 >
                   <Text style={styles.btnPrimaryText}>
-                    {payLoading ? "Загрузка…" : "Оплатить статью"}
+                    {payLoading || isIapLoading
+                      ? "Загрузка…"
+                      : Platform.OS === "ios"
+                        ? "Оплатить через App Store"
+                        : "Оплатить статью"}
                   </Text>
                 </Pressable>
+                {Platform.OS === "ios" ? (
+                  <Pressable
+                    style={[styles.btnOutline, (payLoading || isIapLoading) && styles.btnDisabled]}
+                    onPress={() => void handleRestoreIapArticle()}
+                    disabled={payLoading || isIapLoading}
+                  >
+                    <Text style={styles.btnOutlineText}>Восстановить покупки</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   style={styles.btnOutline}
                   onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}

@@ -42,7 +42,7 @@ packages/core/
 │   │   ├── adminBroadcast/ # Push-рассылка (admin-panel)
 │   │   ├── consent/       # Согласия при регистрации (ConsentLog)
 │   │   ├── oferta/        # Фиксация согласия с Офертой (OfertaAcceptance)
-│   │   ├── payments/      # Платежи ЮKassa
+│   │   ├── payments/      # ЮKassa (paymentService), Apple IAP (appleIapService, grantAccessAfterPurchase), см. docs/payments/
 │   │   └── petPrevention/ # Журнал профилактики питомца (прививки, глистогонка, клещи/блохи)
 │   ├── config/            # Конфигурация
 │   │   └── documentVersions.ts  # Версии oferta, policy, personal

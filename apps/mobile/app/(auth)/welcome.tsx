@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Snackbar, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -67,15 +67,18 @@ export default function WelcomeScreen() {
           onPress={() => router.push("/register")}
           style={styles.button}
         />
-        <Pressable
-          style={[styles.vkButton, { width: "100%" }]}
-          onPress={handleVkLogin}
-          disabled={isVkLoading}
-        >
-          <Text style={styles.vkButtonText}>
-            {isVkLoading ? "Загрузка..." : "Продолжить через VK"}
-          </Text>
-        </Pressable>
+        {/* VK ID на iOS не показываем (политика продукта / App Store). */}
+        {Platform.OS !== "ios" ? (
+          <Pressable
+            style={[styles.vkButton, { width: "100%" }]}
+            onPress={handleVkLogin}
+            disabled={isVkLoading}
+          >
+            <Text style={styles.vkButtonText}>
+              {isVkLoading ? "Загрузка..." : "Продолжить через VK"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Подпись */}

@@ -38,6 +38,7 @@ model Course {
   payments       Payment[]
   userCourses    UserCourse[]
   ofertaAcceptances OfertaAcceptance[]
+  appleIapTransactions AppleIapTransaction[]
 }
 
 model TrainingDay {
@@ -248,6 +249,7 @@ model User {
   articleAccesses          ArticleAccess[]
   articlePayments          ArticlePayment[]
   articleViews             ArticleViewer[]
+  appleIapTransactions     AppleIapTransaction[]
 }
 
 enum ConsentType {
@@ -497,24 +499,49 @@ model Payment {
   @@index([status])
 }
 
-model OfertaAcceptance {
-  id               String    @id @default(cuid())
-  userId           String
-  courseId         String
-  paymentId        String?
-  acceptedAt       DateTime  @default(now())
-  ipAddress        String?
-  userAgent        String?
-  documentVersions Json
-  source           String    @db.VarChar(10)
+/// Леджер покупок Apple IAP (не YooKassa). Ровно один из courseId / articleId — см. CHECK в миграции.
+model AppleIapTransaction {
+  id                    String              @id @default(cuid())
+  userId                String
+  productId             String
+  originalTransactionId String              @unique
+  transactionId         String
+  environment           AppleIapEnvironment
+  courseId              String?
+  articleId             String?
+  jwsPayloadHash        String?
+  createdAt             DateTime            @default(now())
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course                Course?             @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  article               Article?            @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  ofertaAcceptances     OfertaAcceptance[]
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([userId, courseId])
+  @@index([userId, articleId])
+}
+
+model OfertaAcceptance {
+  id                      String               @id @default(cuid())
+  userId                  String
+  courseId                String
+  paymentId               String?
+  appleIapTransactionId   String?
+  acceptedAt              DateTime             @default(now())
+  ipAddress               String?
+  userAgent               String?
+  documentVersions        Json
+  source                  String               @db.VarChar(10)
+
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course                Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  payment               Payment?              @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  appleIapTransaction   AppleIapTransaction?  @relation(fields: [appleIapTransactionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([courseId])
   @@index([paymentId])
+  @@index([appleIapTransactionId])
   @@index([acceptedAt])
 }
 
@@ -1002,6 +1029,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum AppleIapEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
 enum ArticleContentType {
   TEXT
   HTML
@@ -1035,6 +1067,7 @@ model Article {
   payments      ArticlePayment[]
   viewers       ArticleViewer[]
   guestViews    ArticleGuestView[]
+  appleIapTransactions AppleIapTransaction[]
 
   @@index([authorId])
   @@index([createdAt])

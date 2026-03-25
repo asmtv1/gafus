@@ -1,4 +1,6 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+
 import { API_BASE_URL } from "@/constants";
 import { reportClientError } from "@/shared/lib/tracer";
 
@@ -82,6 +84,8 @@ export async function apiClient<T>(
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
+    ...(Platform.OS === "ios" && { "X-Client-Platform": "ios" }),
+    ...(Platform.OS === "android" && { "X-Client-Platform": "android" }),
     ...headers,
   };
 

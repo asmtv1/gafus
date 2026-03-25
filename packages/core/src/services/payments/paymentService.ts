@@ -7,6 +7,8 @@ import { createWebLogger } from "@gafus/logger";
 
 import { recordOfertaAcceptance } from "../oferta/ofertaAcceptanceService";
 
+import { grantArticleAccessInTransaction, grantCourseAccessInTransaction } from "./grantAccessAfterPurchase";
+
 const logger = createWebLogger("payment-service");
 
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
@@ -414,10 +416,9 @@ export async function confirmPaymentFromWebhook(
     }
     try {
       await prisma.$transaction(async (tx) => {
-        await tx.courseAccess.upsert({
-          where: { courseId_userId: { courseId: payment.courseId, userId: payment.userId } },
-          create: { courseId: payment.courseId, userId: payment.userId },
-          update: {},
+        await grantCourseAccessInTransaction(tx, {
+          userId: payment.userId,
+          courseId: payment.courseId,
         });
         await tx.payment.update({
           where: { id: payment.id },
@@ -460,10 +461,9 @@ export async function confirmPaymentFromWebhook(
   }
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.articleAccess.upsert({
-        where: { articleId_userId: { articleId: articlePayment.articleId, userId: articlePayment.userId } },
-        create: { articleId: articlePayment.articleId, userId: articlePayment.userId },
-        update: {},
+      await grantArticleAccessInTransaction(tx, {
+        userId: articlePayment.userId,
+        articleId: articlePayment.articleId,
       });
       await tx.articlePayment.update({
         where: { id: articlePayment.id },

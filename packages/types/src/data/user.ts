@@ -76,6 +76,8 @@ export interface PublicProfile {
     priceRub: number | null;
     avgRating: number | null;
     trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+    /** Заполняется при запросе с JWT: есть ли у зрителя доступ к платному/приватному курсу */
+    hasAccess?: boolean;
   }[];
 }
 

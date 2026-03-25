@@ -150,6 +150,13 @@ VK_MOBILE_REDIRECT_URI=gafus://auth/vk  # Custom scheme для Expo
 # Платежи ЮKassa (обязательны для /api/v1/payments/create)
 YOOKASSA_SHOP_ID=<shop_id>
 YOOKASSA_SECRET_KEY=<secret_key>
+
+# Apple IAP (для POST /api/v1/payments/apple/verify на iOS)
+# Полный список — apps/api/.env.example; см. docs/payments/iap-apple.md
+# APPLE_BUNDLE_ID=...
+# APPLE_APP_APPLE_ID=...   # число из App Store Connect, обязательно для PRODUCTION
+# APPLE_ENVIRONMENT=SANDBOX|PRODUCTION
+# APPLE_IAP_PRODUCT_MAP_JSON=[{"productId":"...","courseId":"..."}]
 ```
 
 ## Запуск

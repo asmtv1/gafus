@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Linking,
+  Platform,
 } from "react-native";
 import { Text, Surface, Snackbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -473,7 +474,7 @@ export default function TrainingDayScreen() {
             >
               {snackbar.message}
             </Snackbar>
-            {paymentUrl && (
+            {paymentUrl && Platform.OS !== "ios" && (
               <View style={styles.webViewOverlay}>
                 <View style={styles.webViewHeader}>
                   <Pressable
@@ -824,7 +825,7 @@ export default function TrainingDayScreen() {
         >
           {snackbar.message}
         </Snackbar>
-        {paymentUrl && (
+        {paymentUrl && Platform.OS !== "ios" && (
           <View style={styles.webViewOverlay}>
             <View style={styles.webViewHeader}>
               <Pressable

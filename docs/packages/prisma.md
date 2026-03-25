@@ -356,28 +356,35 @@ model ConsentLog {
 
 ```prisma
 model OfertaAcceptance {
-  id               String    @id @default(cuid())
-  userId           String
-  courseId         String
-  paymentId        String?
-  acceptedAt       DateTime  @default(now())
-  ipAddress        String?
-  userAgent        String?
-  documentVersions Json
-  source           String    @db.VarChar(10)  // "web" | "mobile"
+  id                    String    @id @default(cuid())
+  userId                String
+  courseId              String
+  paymentId             String?
+  appleIapTransactionId String?   // покупка курса через Apple IAP — вместо paymentId
+  acceptedAt            DateTime  @default(now())
+  ipAddress             String?
+  userAgent             String?
+  documentVersions      Json
+  source                String    @db.VarChar(10)  // "web" | "mobile"
 
-  user    User     @relation(...)
-  course  Course   @relation(...)
-  payment Payment? @relation(...)
+  user                 User                  @relation(...)
+  course               Course                @relation(...)
+  payment              Payment?              @relation(...)
+  appleIapTransaction  AppleIapTransaction?  @relation(...)
 
   @@index([userId])
   @@index([courseId])
   @@index([paymentId])
+  @@index([appleIapTransactionId])
   @@index([acceptedAt])
 }
 ```
 
-Запись создаётся fire-and-forget при успешном создании платежа. Подробнее: [docs/payments/oferta-compliance.md](../payments/oferta-compliance.md).
+Запись создаётся fire-and-forget при успешном создании платежа (web/mobile ЮKassa) или после успешного `verify` Apple IAP для курса. Подробнее: [docs/payments/oferta-compliance.md](../payments/oferta-compliance.md), [iap-apple.md](../payments/iap-apple.md).
+
+#### AppleIapTransaction (леджер покупок App Store)
+
+Отдельная таблица от `Payment` (ЮKassa): `originalTransactionId` уникален глобально, CHECK в миграции — ровно одно из `courseId` / `articleId`. Enum `AppleIapEnvironment` (SANDBOX | PRODUCTION). См. миграции `20260325120000_add_apple_iap_transaction`, `20260325123000_oferta_acceptance_apple_iap`.
 
 ## 🔧 API Reference
 

@@ -421,9 +421,11 @@
 
 ### POST `/api/v1/payments/create`
 
-Создание платежа ЮKassa. Используется в web и mobile.
+Создание платежа ЮKassa. Используется в **web** и **mobile Android** (и при необходимости не-iOS клиентах).
 
 **Web:** сессия NextAuth, заголовок `x-csrf-token`. **Mobile:** JWT (`Authorization: Bearer <access_token>`).
+
+Если клиент передаёт **`X-Client-Platform: ios`**, ответ **403** с кодом `USE_APPLE_IAP` — на iOS цифровой контент оформляется через App Store и `POST .../payments/apple/verify` (см. [iap-apple.md](../payments/iap-apple.md)).
 
 Сервер формирует `acceptanceContext` из заголовков (`x-forwarded-for` / `x-real-ip`, `user-agent`) для записи OfertaAcceptance — см. [oferta-compliance.md](../payments/oferta-compliance.md).
 
@@ -459,6 +461,34 @@
 - `NOT_FOUND` (404) — курс не найден
 - `PAYMENT_ERROR` (400/404) — ошибка создания платежа
 - `CONFIG` (500) — не настроены `YOOKASSA_*` или невалиден `WEB_APP_URL`
+- `USE_APPLE_IAP` (403) — запрос с `X-Client-Platform: ios` (создание ЮKassa на iOS запрещено)
+
+---
+
+### POST `/api/v1/payments/apple/verify`
+
+Верификация JWS транзакции StoreKit и выдача доступа к курсу/статье (iOS). **Auth:** JWT. **Rate limit:** тот же лимитер, что у `payments/create` (см. `apps/api`).
+
+**Body:**
+
+```json
+{ "transactionJws": "<JWS string>" }
+```
+
+На клиенте в `expo-iap` для iOS JWS передаётся в поле `purchaseToken` объекта покупки.
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "data": { "alreadyGranted": false }
+}
+```
+
+Повторная отправка того же `originalTransactionId` для того же пользователя: `alreadyGranted: true`.
+
+**Коды ошибок (примеры):** `JWS_INVALID`, `UNKNOWN_PRODUCT`, `NOT_FOUND`, `IAP_ALREADY_LINKED` (409), `CONFIG_APPLE_IAP` (500). Подробнее: [iap-apple.md](../payments/iap-apple.md).
 
 ---
 
@@ -1157,6 +1187,10 @@
 ---
 
 ## Changelog
+
+### v1.6.0 (25.03.2026)
+
+- **Apple IAP (iOS):** `POST /api/v1/payments/apple/verify` — верификация JWS StoreKit, выдача доступа; rate limit как у `payments/create`. **`POST /api/v1/payments/create`:** при `X-Client-Platform: ios` — 403 `USE_APPLE_IAP`. См. [iap-apple.md](../payments/iap-apple.md).
 
 ### v1.5.0 (23.03.2026)
 

@@ -29,6 +29,8 @@ import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
+import { getAppleProductIdForCourseId } from "@/features/payments/appleIapClientMap";
+import { useIosInAppPurchase } from "@/features/payments/useIosInAppPurchase";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 
@@ -84,6 +86,12 @@ export default function TrainingDaysScreen() {
   const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
+
+  const {
+    purchaseProduct,
+    restoreAndVerifyAll,
+    isLoading: isIapLoading,
+  } = useIosInAppPurchase();
 
   const isAccessDenied =
     (data && "code" in data && data.code === "FORBIDDEN") ||
@@ -167,6 +175,47 @@ export default function TrainingDaysScreen() {
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
   }, [courseForPay?.id, isCreatingPayment]);
+
+  const handleIosPurchase = useCallback(async () => {
+    void hapticFeedback.light();
+    const courseId = courseForPay?.id;
+    if (!courseId) {
+      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
+      return;
+    }
+    const sku = getAppleProductIdForCourseId(courseId);
+    if (!sku) {
+      setSnackbar({
+        visible: true,
+        message: "Покупка через App Store для этого курса ещё не настроена.",
+      });
+      return;
+    }
+    const result = await purchaseProduct(sku);
+    if (result.cancelled) {
+      return;
+    }
+    if (result.success) {
+      await refetch();
+      setSnackbar({ visible: true, message: "Доступ открыт." });
+      return;
+    }
+    if (result.message) {
+      setSnackbar({ visible: true, message: result.message });
+    }
+  }, [courseForPay?.id, purchaseProduct, refetch]);
+
+  const handleRestoreIap = useCallback(async () => {
+    void hapticFeedback.light();
+    const r = await restoreAndVerifyAll();
+    await refetch();
+    setSnackbar({
+      visible: true,
+      message: r.success
+        ? "Покупки проверены. Если доступ не появился, обновите экран."
+        : "Не удалось восстановить покупки.",
+    });
+  }, [restoreAndVerifyAll, refetch]);
 
   const handlePayOnWebsite = useCallback(() => {
     void hapticFeedback.light();
@@ -493,12 +542,24 @@ export default function TrainingDaysScreen() {
             )}
             <View style={styles.paywallButtons}>
               <Pressable
-                onPress={() => void handleCreatePayment()}
-                disabled={isCreatingPayment || isLoadingCourseForPay}
+                onPress={() =>
+                  void (Platform.OS === "ios" ? handleIosPurchase() : handleCreatePayment())
+                }
+                disabled={
+                  Platform.OS === "ios"
+                    ? isIapLoading || isLoadingCourseForPay || !courseForPay
+                    : isCreatingPayment || isLoadingCourseForPay || !courseForPay
+                }
                 style={styles.paywallPrimaryButton}
               >
                 <Text style={styles.paywallPrimaryButtonText}>
-                  {isCreatingPayment ? "Переход к оплате..." : "Оплатить/Начать курс"}
+                  {Platform.OS === "ios"
+                    ? isIapLoading
+                      ? "Покупка…"
+                      : "Оплатить через App Store"
+                    : isCreatingPayment
+                      ? "Переход к оплате..."
+                      : "Оплатить/Начать курс"}
                 </Text>
               </Pressable>
               <Pressable
@@ -508,10 +569,19 @@ export default function TrainingDaysScreen() {
                 }}
               >
                 <Text style={styles.ofertaHint}>
-                  Нажимая «Оплатить», я соглашаюсь с{" "}
-                  <Text style={styles.ofertaHintLink}>Офертой</Text>
+                  Нажимая «{Platform.OS === "ios" ? "Оплатить через App Store" : "Оплатить"}», я
+                  соглашаюсь с <Text style={styles.ofertaHintLink}>Офертой</Text>
                 </Text>
               </Pressable>
+              {Platform.OS === "ios" ? (
+                <Pressable
+                  onPress={() => void handleRestoreIap()}
+                  disabled={isIapLoading}
+                  style={styles.paywallSecondaryButton}
+                >
+                  <Text style={styles.paywallSecondaryButtonText}>Восстановить покупки</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 onPress={() => {
                   void hapticFeedback.light();
@@ -521,9 +591,11 @@ export default function TrainingDaysScreen() {
               >
                 <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
               </Pressable>
-              <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
-                <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
-              </Pressable>
+              {Platform.OS !== "ios" ? (
+                <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
+                  <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </ScrollView>
@@ -535,7 +607,7 @@ export default function TrainingDaysScreen() {
         >
           {snackbar.message}
         </Snackbar>
-        {paymentUrl && (
+        {paymentUrl && Platform.OS !== "ios" && (
           <View style={styles.webViewOverlay}>
             <View style={styles.webViewHeader}>
               <Pressable
@@ -962,7 +1034,7 @@ export default function TrainingDaysScreen() {
         >
           {snackbar.message}
         </Snackbar>
-        {paymentUrl && (
+        {paymentUrl && Platform.OS !== "ios" && (
           <View style={styles.webViewOverlay}>
             <View style={styles.webViewHeader}>
               <Pressable
