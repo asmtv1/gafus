@@ -925,6 +925,9 @@ importers:
       '@gafus/logger':
         specifier: workspace:*
         version: link:../logger
+      '@gafus/mailer':
+        specifier: workspace:*
+        version: link:../mailer
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../prisma
