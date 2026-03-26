@@ -1,12 +1,15 @@
 "use client";
 
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { reportClientError } from "@gafus/error-handling";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { setPasswordSchema } from "@shared/lib/validation/authSchemas";
 import { setPasswordAction } from "@shared/server-actions";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import type { z } from "zod";
 
@@ -14,6 +17,7 @@ type SetPasswordSchema = z.infer<typeof setPasswordSchema>;
 
 export default function SetPasswordForm() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [error, setError] = useState("");
   const { form, handleSubmit, formState: { errors } } = useZodForm(setPasswordSchema, {
     newPassword: "",
@@ -28,7 +32,7 @@ export default function SetPasswordForm() {
         setError(result.error);
         return;
       }
-      router.push("/profile");
+      router.push(profilePagePath(session?.user?.username));
     } catch (err) {
       reportClientError(err, { issueKey: "SetPasswordForm", keys: { operation: "submit" } });
       setError("Не удалось установить пароль");

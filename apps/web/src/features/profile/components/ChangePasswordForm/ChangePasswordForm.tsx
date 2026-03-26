@@ -6,11 +6,13 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import TextField from "@mui/material/TextField";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
 import { useZodForm } from "@shared/hooks/useZodForm";
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { changePasswordSchema } from "@shared/lib/validation/authSchemas";
 import { changePasswordAction } from "@shared/server-actions";
 
@@ -48,6 +50,7 @@ const textFieldSx = {
 
 export default function ChangePasswordForm() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
@@ -69,7 +72,7 @@ export default function ChangePasswordForm() {
         setError(result.error);
         return;
       }
-      router.push("/profile");
+      router.push(profilePagePath(session?.user?.username));
     } catch (err) {
       reportClientError(err, { issueKey: "ChangePasswordForm", keys: { operation: "submit" } });
       setError("Не удалось сменить пароль");

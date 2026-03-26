@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { createWebLogger } from "@gafus/logger";
 import { reportClientError } from "@gafus/error-handling";
 import { deletePet } from "@shared/lib/pets/deletePet";
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { savePet } from "@shared/lib/pets/savePet";
 import { formatIsoBirthDateToDdMmYyyy } from "@shared/lib/validation/petSchemas";
 import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
@@ -30,6 +31,7 @@ const handleDelete = async (
   startTransition: (callback: () => void) => void,
   isPending: boolean,
   invalidateProfileCache: () => Promise<void>,
+  profileRevalidatePath: string,
 ) => {
   if (isPending) return;
 
@@ -58,7 +60,7 @@ const handleDelete = async (
     if (result.isConfirmed) {
       startTransition(async () => {
         try {
-          await deletePet(petId, "/profile");
+          await deletePet(petId, profileRevalidatePath);
           await invalidateProfileCache();
           await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
           router.refresh();
@@ -90,6 +92,7 @@ export default function PetList({
   const router = useRouter();
   const { data: session } = useSession();
   const username = session?.user?.username ?? null;
+  const profileRevalidatePath = profilePagePath(username ?? undefined, "revalidate");
 
   const invalidateProfileCache = async () => {
     try {
@@ -166,7 +169,15 @@ export default function PetList({
               isOwner={isOwner}
               onEdit={handleEditClick}
               onDelete={(id, name) =>
-                handleDelete(id, name, router, startTransition, isPending, invalidateProfileCache)
+                handleDelete(
+                  id,
+                  name,
+                  router,
+                  startTransition,
+                  isPending,
+                  invalidateProfileCache,
+                  profileRevalidatePath,
+                )
               }
               isPending={isPending}
             />

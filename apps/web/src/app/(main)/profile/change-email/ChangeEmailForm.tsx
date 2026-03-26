@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
 import { useZodForm } from "@shared/hooks/useZodForm";
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { emailChangeRequestFormSchema } from "@shared/lib/validation/authSchemas";
 import { requestEmailChangeAction } from "@shared/server-actions";
 
@@ -35,9 +36,7 @@ export default function ChangeEmailForm({ username }: ChangeEmailFormProps) {
         setRootError(result.error);
         return;
       }
-      router.push(
-        `/profile?username=${encodeURIComponent(username)}&emailChange=sent`,
-      );
+      router.push(`${profilePagePath(username)}&emailChange=sent`);
     } catch (err) {
       reportClientError(err, { issueKey: "ChangeEmailForm", keys: { operation: "submit" } });
       setRootError("Не удалось отправить письмо. Попробуйте позже.");

@@ -35,7 +35,6 @@ import {
   newPasswordSchema,
   emailChangeConfirmTokenSchema,
   emailChangeRequestFormSchema,
-  phoneSchema,
   passwordResetFormSchema,
   resetPasswordSchema,
   usernameChangeSchema,
@@ -515,28 +514,6 @@ export async function changePasswordAction(
   } catch (error) {
     logger.error("changePasswordAction failed", error as Error);
     return { error: getErrorMessage(error, "Не удалось сменить пароль") };
-  }
-}
-
-/**
- * Установка номера телефона для VK-пользователя.
- */
-export async function setVkPhoneAction(phone: string): Promise<{ success?: true; error?: string }> {
-  const ip = await getClientIpFromHeaders();
-  if (!checkAuthRateLimit(ip, "vk-phone-set")) {
-    return { error: "Слишком много попыток, подождите" };
-  }
-  const userId = await getCurrentUserId();
-  if (!userId) return { error: "Необходима авторизация" };
-  try {
-    const parsed = phoneSchema.safeParse(phone);
-    if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? "Ошибка валидации" };
-    await authService.setVkPhone(userId, parsed.data);
-    revalidatePath("/profile");
-    return { success: true };
-  } catch (error) {
-    logger.error("setVkPhoneAction failed", error as Error);
-    return { error: getErrorMessage(error, "Не удалось установить номер") };
   }
 }
 

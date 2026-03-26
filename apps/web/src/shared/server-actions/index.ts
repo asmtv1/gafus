@@ -27,7 +27,6 @@ export {
   resetPasswordAction,
   sendPasswordResetRequestAction,
   setPasswordAction,
-  setVkPhoneAction,
   submitVkConsentAction,
 } from "./auth";
 

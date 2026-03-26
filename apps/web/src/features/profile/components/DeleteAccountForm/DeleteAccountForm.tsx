@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import {
   requestAccountDeletionCodeAction,
   submitDeleteUserAccount,
@@ -41,9 +42,11 @@ const initialDeleteState: DeleteUserAccountActionState = { success: false, error
 
 interface DeleteAccountFormProps {
   userEmail: string | null;
+  username: string;
 }
 
-export default function DeleteAccountForm({ userEmail }: DeleteAccountFormProps) {
+export default function DeleteAccountForm({ userEmail, username }: DeleteAccountFormProps) {
+  const backToProfileHref = profilePagePath(username);
   const [state, formAction, isPending] = useActionState(submitDeleteUserAccount, initialDeleteState);
   const [isRequesting, startTransition] = useTransition();
   const [requestOk, setRequestOk] = useState<string | null>(null);
@@ -72,7 +75,7 @@ export default function DeleteAccountForm({ userEmail }: DeleteAccountFormProps)
   if (!emailTrimmed) {
     return (
       <main className={styles.page}>
-        <Link href="/profile" className={styles.backLink}>
+        <Link href={backToProfileHref} className={styles.backLink}>
           ← В профиль
         </Link>
         <section className={`${styles.card} ${styles.noEmailCard}`} aria-labelledby="delete-account-no-email">
@@ -92,7 +95,7 @@ export default function DeleteAccountForm({ userEmail }: DeleteAccountFormProps)
 
   return (
     <main className={styles.page}>
-      <Link href="/profile" className={styles.backLink}>
+      <Link href={backToProfileHref} className={styles.backLink}>
         ← В профиль
       </Link>
       <section className={styles.card} aria-labelledby="delete-account-title">

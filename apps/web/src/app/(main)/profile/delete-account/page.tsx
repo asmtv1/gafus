@@ -19,6 +19,7 @@ export default async function DeleteAccountPage() {
   }
 
   const email = session.user.email?.trim() ?? null;
+  const username = session.user.username?.trim() ?? "";
 
-  return <DeleteAccountForm userEmail={email} />;
+  return <DeleteAccountForm userEmail={email} username={username} />;
 }

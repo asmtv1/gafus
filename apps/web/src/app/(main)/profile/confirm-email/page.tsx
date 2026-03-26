@@ -1,6 +1,10 @@
+import { getServerSession } from "next-auth";
 import Link from "next/link";
+
+import { authOptions } from "@gafus/auth";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { confirmEmailChangeByTokenAction } from "@shared/server-actions/auth";
 
 export const metadata = generateStaticPageMetadata(
@@ -30,11 +34,16 @@ export default async function ConfirmEmailPage({
   const result = await confirmEmailChangeByTokenAction(token);
 
   if (result.success) {
+    const session = await getServerSession(authOptions);
+    const profileHref = session?.user?.username
+      ? profilePagePath(session.user.username)
+      : "/login";
+
     return (
       <main style={{ maxWidth: 480, margin: "0 auto", padding: "2rem" }}>
         <h1>Email обновлён</h1>
         <p>Новый адрес сохранён. Войдите с ним при следующем входе, если использовали email.</p>
-        <Link href="/profile">В профиль</Link>
+        <Link href={profileHref}>В профиль</Link>
       </main>
     );
   }

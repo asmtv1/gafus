@@ -13,6 +13,7 @@ import {
 } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
+import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { checkAuthRateLimit, getClientIp } from "@shared/lib/rateLimit";
 
 const logger = createWebLogger("vk-id-callback");
@@ -195,7 +196,13 @@ export async function GET(request: NextRequest) {
         : msg.includes("profile")
           ? "vk_id_profile_failed"
           : "vk_id_auth_failed";
-    const redirectPath = isLinkMode ? "/profile" : (parsedCookie.returnPath ?? "/");
-    return NextResponse.redirect(new URL(`${redirectPath}?error=${errorParam}`, baseOrigin));
+    let redirectPath = parsedCookie.returnPath ?? "/";
+    if (isLinkMode) {
+      const session = await getServerSession(authOptions);
+      redirectPath = profilePagePath(session?.user?.username);
+    }
+    const redirectUrl = new URL(redirectPath, baseOrigin);
+    redirectUrl.searchParams.set("error", errorParam);
+    return NextResponse.redirect(redirectUrl);
   }
 }
