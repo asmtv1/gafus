@@ -38,8 +38,9 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 # Копируем Prisma Query Engine
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
-# Собираем API сервис
-RUN pnpm build --filter @gafus/api
+# Собираем API сервис (mailer до графа с core)
+RUN pnpm --filter @gafus/mailer build && \
+    pnpm build --filter @gafus/api
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner

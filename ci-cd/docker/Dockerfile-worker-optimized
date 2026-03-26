@@ -27,8 +27,10 @@ RUN cd packages/prisma \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем все пакеты (включая logger, cdn-upload и reengagement для worker)
+# mailer до core (см. Dockerfile-admin-panel-optimized)
 # Порядок важен: сначала зависимости, потом worker. Worker импортирует только @gafus/core/services/consent (без auth)
-RUN pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/core --filter @gafus/worker
+RUN pnpm --filter @gafus/mailer build && \
+    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/core --filter @gafus/worker
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner

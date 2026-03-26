@@ -41,7 +41,8 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 # Собираем в явном порядке, как локально: сначала core (и deps), потом web
 # Убирает расхождение с CI, где turbo мог по-другому разрешать граф
 ENV USE_STANDALONE=true
-RUN pnpm build --filter @gafus/core...
+RUN pnpm --filter @gafus/mailer build && \
+    pnpm build --filter '@gafus/core...'
 RUN pnpm build --filter @gafus/web
 
 # Production stage - только runtime
