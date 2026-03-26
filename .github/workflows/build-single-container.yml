@@ -95,10 +95,12 @@ jobs:
           cd packages/auth && pnpm build && cd ../..
           # Собираем video-access (core зависит от него)
           cd packages/video-access && pnpm build && cd ../..
-          # Собираем core после всех зависимостей (зависит от prisma, logger, types, queues, cdn-upload, auth, video-access)
+          # mailer до core (TypeScript резолвит dist у @gafus/mailer)
+          cd packages/mailer && pnpm build && cd ../..
+          # Собираем core после всех зависимостей (в т.ч. mailer, video-access, auth)
           cd packages/core && pnpm build && cd ../..
           # Затем собираем остальные пакеты через turbo (мы уже в корневой директории)
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access
+          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
 
       - name: Cache build artifacts
         uses: actions/cache@v4

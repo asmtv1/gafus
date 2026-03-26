@@ -87,9 +87,11 @@ jobs:
           # prisma (зависит от logger), затем auth, core
           cd packages/prisma && pnpm build && cd ../..
           cd packages/auth && pnpm build && cd ../..
+          # mailer до core (TypeScript резолвит dist/index.d.ts у @gafus/mailer)
+          cd packages/mailer && pnpm build && cd ../..
           cd packages/core && pnpm build && cd ../..
           # остальные пакеты через turbo
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access
+          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
 
       - name: Cache build artifacts
         uses: actions/cache@v4
