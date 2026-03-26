@@ -1,7 +1,6 @@
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import bcrypt from "bcryptjs";
 
-import { prisma } from "@gafus/prisma";
+import { Prisma, prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import { authRegisterBodySchema } from "../../validation/authRegisterSchema";
@@ -91,9 +90,9 @@ export async function registerUserWithCredentials(
     });
     logger.success("Регистрация по email завершена", { userId: user.id });
     return { ok: true, userId: user.id };
-  } catch (error) {
-    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
-      const targets = error.meta?.target;
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const targets = error.meta?.target as string[] | string | undefined;
       const targetList = Array.isArray(targets) ? targets : targets ? [targets] : [];
       const isEmail = targetList.some((t) => String(t).includes("email"));
       const isUsername = targetList.some((t) => String(t).includes("username"));
