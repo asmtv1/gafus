@@ -364,12 +364,22 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           command_timeout: 60m
           script: |
-            set -e
+            set -eo pipefail
             echo "🚀 Starting production deployment..."
 
-            # Error handling and graceful shutdown - best practice
-            trap 'echo "❌ Deployment failed, cleaning up..."; docker-compose -f ci-cd/docker/docker-compose.prod.yml down --timeout 30 || true; exit 1' ERR
-            trap 'echo "🛑 Deployment interrupted, cleaning up..."; docker-compose -f ci-cd/docker/docker-compose.prod.yml down --timeout 30 || true; exit 1' INT TERM
+            DEPLOY_ROOT="/root/gafus"
+            COMPOSE_PROD="$DEPLOY_ROOT/ci-cd/docker/docker-compose.prod.yml"
+            compose_down() {
+              if [ -f "$COMPOSE_PROD" ]; then
+                docker-compose -f "$COMPOSE_PROD" down --timeout 30 || true
+              else
+                echo "⚠️ compose file отсутствует, пропуск docker-compose down"
+              fi
+            }
+
+            # trap только с абсолютным путём (раньше login шёл до cd — относительный путь ломал cleanup)
+            trap 'echo "❌ Deployment failed, cleaning up..."; compose_down; exit 1' ERR
+            trap 'echo "🛑 Deployment interrupted, cleaning up..."; compose_down; exit 1' INT TERM
 
             # Log deployment start
             echo "📅 Deployment started at: $(date)"
@@ -402,16 +412,8 @@ jobs:
               chmod +x /usr/local/bin/docker-compose
             fi
 
-            # Login to GitHub Container Registry
-            echo "🔐 Logging in to GitHub Container Registry..."
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
-
-            # Navigate to project directory
-            cd /root/gafus || {
-              echo "Directory /root/gafus not found, creating it..."
-              mkdir -p /root/gafus
-              cd /root/gafus
-            }
+            mkdir -p "$DEPLOY_ROOT"
+            cd "$DEPLOY_ROOT"
 
             # Initialize git repository if it doesn't exist
             if [ ! -d .git ]; then
@@ -423,7 +425,7 @@ jobs:
             # Ensure we have the correct remote
             git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/asmtv1/gafus.git
 
-            # Pull latest changes (force update to avoid conflicts)
+            # Pull latest changes (force update to avoid conflicts) — до GHCR login, чтобы trap видел compose
             echo "🔄 Updating repository..."
             if ! git fetch origin; then
               echo "❌ Failed to fetch from origin"
@@ -446,6 +448,22 @@ jobs:
             git status --porcelain || echo "Git status check failed"
             echo "🔗 Git remote:"
             git remote -v || echo "Git remote check failed"
+
+            # GHCR: после git pull cwd = репозиторий; повторы при таймауте до ghcr.io с VPS
+            echo "🔐 Logging in to GitHub Container Registry..."
+            login_ok=0
+            for attempt in 1 2 3 4 5; do
+              if echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin; then
+                login_ok=1
+                break
+              fi
+              echo "⚠️ Попытка $attempt/5: docker login не удался, пауза 20 с..."
+              sleep 20
+            done
+            if [ "$login_ok" -ne 1 ]; then
+              echo "❌ docker login ghcr.io не удался после 5 попыток (сеть/файрвол/DNS до ghcr.io)"
+              exit 1
+            fi
 
             # Create .env file from GitHub Secrets
             echo "🔐 Creating .env file from GitHub Secrets..."
@@ -558,7 +576,7 @@ jobs:
             docker rm -f gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-prisma gafus-postgres gafus-redis gafus-postfix gafus-nginx gafus-alloy gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
 
             # Now do the normal compose cleanup
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans --timeout 30 || true
+            docker-compose -f "$COMPOSE_PROD" down --remove-orphans --timeout 30 || true
             docker system prune -f || true
             docker image prune -f --all || true
             docker container prune -f || true
@@ -612,22 +630,22 @@ jobs:
             echo "🚀 Starting infrastructure services..."
 
             # 1. Start core infrastructure (database, redis)
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis postfix
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate postgres redis postfix
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 
             # 2. Start application services
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate prisma worker api
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate prisma worker api
             echo "⏳ Waiting for application services to be ready..."
             sleep 10
 
             # 3. Start web services
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate web trainer-panel admin-panel
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate web trainer-panel admin-panel
             echo "⏳ Waiting for web services to be ready..."
             sleep 10
 
             # 4. Start bull-board (critical for nginx)
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate bull-board
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate bull-board
             echo "⏳ Waiting for bull-board to be ready..."
             sleep 15
 
@@ -650,13 +668,13 @@ jobs:
             fi
 
             # 5. Start nginx last (depends on all upstreams)
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate nginx
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate nginx
             echo "⏳ Waiting for nginx to be ready..."
             sleep 10
 
             # 6. Start monitoring and logging services
             echo "📊 Starting monitoring and logging services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate \
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate \
               grafana-alloy node-exporter postgres-exporter redis-exporter blackbox-exporter
             echo "⏳ Waiting for monitoring services to be ready..."
             sleep 10
@@ -669,13 +687,13 @@ jobs:
             cp ci-cd/nginx/conf.d/gafus.ru.http-only.conf ci-cd/nginx/conf.d/gafus.ru.conf
 
             # Restart nginx with HTTP-only config
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml restart nginx
+            docker-compose -f "$COMPOSE_PROD" restart nginx
             echo "⏳ Waiting for nginx to restart with HTTP-only config..."
             sleep 10
 
             # Generate SSL certificates using HTTP-only config
             echo "🔐 Generating SSL certificates..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm certbot certonly \
+            docker-compose -f "$COMPOSE_PROD" run --rm certbot certonly \
                 --webroot --webroot-path=/var/www/certbot \
                 --email admin@gafus.ru --agree-tos --no-eff-email \
                 -d gafus.ru -d www.gafus.ru -d api.gafus.ru \
@@ -686,16 +704,16 @@ jobs:
             git checkout ci-cd/nginx/conf.d/gafus.ru.conf
 
             # Restart nginx with HTTPS config
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml restart nginx
+            docker-compose -f "$COMPOSE_PROD" restart nginx
             echo "⏳ Waiting for nginx to be ready with SSL..."
             sleep 15
 
             # Run Prisma migrations
             echo "🗄️ Running Prisma migrations..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
+            docker-compose -f "$COMPOSE_PROD" exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
 
             # Run migrations using the dedicated Prisma container
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
+            docker-compose -f "$COMPOSE_PROD" exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
 
             # Database seeds are run manually when needed
             # docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
