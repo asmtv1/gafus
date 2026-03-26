@@ -32,14 +32,20 @@ services:
       start_period: 10s
 
   # Исходящая почта (транзакционные письма): только внутри Docker, порт 587 не публикуем наружу.
-  # Образ: https://github.com/bokysan/docker-postfix — relay, без приёма почты с интернета.
-  # DNS: SPF/DKIM/PTR для домена отправителя настраиваются у регистратора (см. README образа).
+  # Образ: https://github.com/bokysan/docker-postfix — OpenDKIM встроен.
+  # DKIM: после первого старта взять TXT для DNS: docker exec gafus-postfix find /etc/opendkim/keys -name '*.txt' -exec cat {} \;
+  # В панели DNS: имя mail._domainkey (селектор mail), тип TXT, значение из файла целиком.
   postfix:
     image: boky/postfix:v5.0.0
     container_name: gafus-postfix
     environment:
       ALLOWED_SENDER_DOMAINS: ${MAIL_ALLOWED_SENDER_DOMAINS:-gafus.ru}
       POSTFIX_myhostname: ${POSTFIX_MYHOSTNAME:-mail.gafus.ru}
+      # Ключи один раз генерируются образом и хранятся в томе; без тома при каждом recreate будет новый ключ → сломает DNS.
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: mail
+    volumes:
+      - postfix_opendkim_keys:/etc/opendkim/keys
     expose:
       - "587"
     restart: unless-stopped
@@ -409,3 +415,4 @@ services:
 
 volumes:
   postgres_data:
+  postfix_opendkim_keys:
