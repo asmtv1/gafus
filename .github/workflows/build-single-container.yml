@@ -365,7 +365,7 @@ jobs:
                 echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
                 echo "NEXT_PUBLIC_APP_VERSION=1.0.0"
                 echo "NEXT_PUBLIC_ENABLE_TRACER=true"
-                echo "WEB_APP_URL=https://gafus.ru"
+                echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
                 echo ""
                 echo "# Cookie домен"
                 echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
@@ -421,6 +421,15 @@ jobs:
                 echo "VK_CLIENT_ID_ANDROID=${{ secrets.VK_CLIENT_ID_ANDROID }}"
                 echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
                 echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
+                echo ""
+                echo "# SMTP / postfix (GitHub Variables)"
+                echo "SMTP_HOST=${{ vars.SMTP_HOST || 'postfix' }}"
+                echo "SMTP_PORT=${{ vars.SMTP_PORT || '587' }}"
+                echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'false' }}"
+                echo "MAIL_FROM=${{ vars.MAIL_FROM || 'noreply@gafus.ru' }}"
+                echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
+                echo "MAIL_ALLOWED_SENDER_DOMAINS=${{ vars.MAIL_ALLOWED_SENDER_DOMAINS || 'gafus.ru' }}"
+                echo "POSTFIX_MYHOSTNAME=${{ vars.POSTFIX_MYHOSTNAME || 'mail.gafus.ru' }}"
               } > ci-cd/docker/.env
               chmod 600 ci-cd/docker/.env
               echo "✅ .env file created"
@@ -450,7 +459,7 @@ jobs:
                 echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}" >> ci-cd/docker/.env
               fi
               if ! grep -q "^WEB_APP_URL=" ci-cd/docker/.env; then
-                echo "WEB_APP_URL=https://gafus.ru" >> ci-cd/docker/.env
+                echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}" >> ci-cd/docker/.env
               fi
             fi
 

@@ -4,7 +4,6 @@ export interface AdminUserRow {
   email: string | null;
   phone: string | null;
   role: string;
-  isConfirmed: boolean;
   createdAt: Date;
   profile: { fullName: string | null; avatarUrl: string | null } | null;
   _count: { pushSubscriptions: number };
@@ -18,7 +17,6 @@ export interface UpdateUserAdminInput {
   phone?: string;
   role?: AdminUserRole;
   newPassword?: string;
-  isConfirmed?: boolean;
 }
 
 export type AdminUserActionResult =

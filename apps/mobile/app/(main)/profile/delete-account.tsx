@@ -1,17 +1,13 @@
 import { useState } from "react";
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-} from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS, SPACING } from "@/constants";
-import { Button, Input } from "@/shared/components/ui";
+import { BORDER_RADIUS, COLORS, SPACING } from "@/constants";
+import { Button, Card, Input } from "@/shared/components/ui";
 import { userApi } from "@/shared/lib/api/user";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -19,10 +15,13 @@ import { useAuthStore } from "@/shared/stores";
 
 const ACCOUNT_DELETION_WEB_URL = process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL?.trim() ?? "";
 
+const CODE_RE = /^\d{6}$/;
+
 export default function DeleteAccountScreen() {
   const router = useRouter();
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [requestLoading, setRequestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
@@ -30,7 +29,7 @@ export default function DeleteAccountScreen() {
     queryKey: ["user-profile"],
     queryFn: () => userApi.getProfile(),
   });
-  const hasAppPassword = profileData?.data?.hasAppPassword ?? false;
+  const email = profileData?.data?.email?.trim() ?? "";
 
   const openWebDeletion = () => {
     if (ACCOUNT_DELETION_WEB_URL) {
@@ -38,10 +37,33 @@ export default function DeleteAccountScreen() {
     }
   };
 
+  const onRequestCode = async () => {
+    setRequestLoading(true);
+    setError(null);
+    setSnackbar({ visible: false, message: "" });
+    try {
+      const result = await userApi.requestAccountDeletionCode();
+      if (result.success) {
+        hapticFeedback.success();
+        setSnackbar({
+          visible: true,
+          message: "Код отправлен на ваш email (15 минут).",
+        });
+      } else {
+        setError(result.error ?? "Не удалось отправить код");
+      }
+    } catch (err) {
+      reportClientError(err, { issueKey: "DeleteAccount", keys: { operation: "requestCode" } });
+      setSnackbar({ visible: true, message: "Ошибка подключения" });
+    } finally {
+      setRequestLoading(false);
+    }
+  };
+
   const onDelete = async () => {
-    const trimmed = password.trim();
-    if (!trimmed) {
-      setError("Введите пароль");
+    const trimmed = code.trim();
+    if (!CODE_RE.test(trimmed)) {
+      setError("Введите 6-значный код из письма");
       return;
     }
     setLoading(true);
@@ -62,18 +84,25 @@ export default function DeleteAccountScreen() {
     }
   };
 
-  if (!hasAppPassword) {
+  if (!email) {
     return (
       <SafeAreaView style={styles.container} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text variant="bodyLarge" style={styles.hint}>
-            Чтобы удалить аккаунт, сначала установите пароль в настройках профиля.
-          </Text>
-          <Button
-            label="Установить пароль"
-            onPress={() => router.push("/profile/set-password")}
-            style={styles.button}
-          />
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                Удаление аккаунта
+              </Text>
+              <Text variant="bodyMedium" style={styles.hint}>
+                Укажите email в профиле — на него придёт код для подтверждения удаления.
+              </Text>
+              <Button
+                label="Указать email"
+                onPress={() => router.push("/profile/change-email")}
+                style={styles.primaryBtn}
+              />
+            </Card.Content>
+          </Card>
         </ScrollView>
       </SafeAreaView>
     );
@@ -82,48 +111,73 @@ export default function DeleteAccountScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="bodyLarge" style={styles.warning}>
-          Действие необратимо. Восстановление данных будет невозможно; все сессии перестанут работать.
-        </Text>
-        <Text style={styles.bulletTitle}>Будут удалены или обезличены:</Text>
-        <Text style={styles.bullet}>• профиль и настройки;</Text>
-        <Text style={styles.bullet}>
-          • логин, email и телефон (если указаны) — удаляются из базы вместе с учётной записью;
-        </Text>
-        <Text style={styles.bullet}>• прогресс тренировок и данные обучения (в пределах сервера);</Text>
-        <Text style={styles.bullet}>• push-подписки и напоминания;</Text>
-        <Text style={styles.bullet}>• сессии и токены обновления.</Text>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.iconWrap}>
+              <MaterialCommunityIcons name="delete-outline" size={28} color={COLORS.error} />
+            </View>
+            <Text variant="titleMedium" style={styles.cardTitle}>
+              Удаление аккаунта
+            </Text>
+            <Text variant="bodyMedium" style={styles.warning}>
+              Действие необратимо. Восстановление данных будет невозможно; все сессии перестанут
+              работать.
+            </Text>
+            <Text style={styles.bulletTitle}>Будут удалены или обезличены:</Text>
+            <Text style={styles.bullet}>• профиль и настройки;</Text>
+            <Text style={styles.bullet}>
+              • логин, email и телефон (если указаны) — из базы вместе с учётной записью;
+            </Text>
+            <Text style={styles.bullet}>• прогресс тренировок и данные обучения;</Text>
+            <Text style={styles.bullet}>• push-подписки и напоминания;</Text>
+            <Text style={styles.bullet}>• сессии и токены обновления.</Text>
 
-        {ACCOUNT_DELETION_WEB_URL ? (
-          <Pressable onPress={openWebDeletion} style={styles.linkWrap}>
-            <Text style={styles.linkText}>Открыть ту же процедуру на сайте</Text>
-          </Pressable>
-        ) : null}
+            <Text variant="bodySmall" style={styles.emailHint}>
+              Код будет отправлен на: {email}
+            </Text>
 
-        <Input
-          label="Текущий пароль"
-          value={password}
-          onChangeText={(t) => {
-            setPassword(t);
-            setError(null);
-          }}
-          secureTextEntry
-          autoComplete="password"
-          style={styles.input}
-        />
-        {error ? (
-          <Text style={styles.errorText} accessibilityRole="alert">
-            {error}
-          </Text>
-        ) : null}
+            {ACCOUNT_DELETION_WEB_URL ? (
+              <Pressable onPress={openWebDeletion} style={styles.linkWrap}>
+                <Text style={styles.linkText}>Открыть ту же процедуру на сайте</Text>
+              </Pressable>
+            ) : null}
 
-        <Button
-          label={loading ? "Удаление…" : "Удалить навсегда"}
-          onPress={onDelete}
-          loading={loading}
-          disabled={loading}
-          style={styles.dangerButton}
-        />
+            <Button
+              label={requestLoading ? "Отправка…" : "Отправить код на email"}
+              onPress={onRequestCode}
+              loading={requestLoading}
+              disabled={requestLoading}
+              style={styles.secondaryBtn}
+            />
+
+            <Input
+              label="Код из письма"
+              value={code}
+              onChangeText={(t) => {
+                setCode(t.replace(/\D/g, "").slice(0, 6));
+                setError(null);
+              }}
+              placeholder="000000"
+              keyboardType="number-pad"
+              maxLength={6}
+              autoComplete="one-time-code"
+              style={styles.input}
+            />
+            {error ? (
+              <Text style={styles.errorText} accessibilityRole="alert">
+                {error}
+              </Text>
+            ) : null}
+
+            <Button
+              label={loading ? "Удаление…" : "Удалить навсегда"}
+              onPress={onDelete}
+              loading={loading}
+              disabled={loading}
+              style={styles.dangerButton}
+            />
+          </Card.Content>
+        </Card>
       </ScrollView>
       <Snackbar
         visible={snackbar.visible}
@@ -145,14 +199,38 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     paddingBottom: SPACING.xl,
   },
-  hint: {
+  card: {
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "rgba(198, 40, 40, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: SPACING.md,
+  },
+  cardTitle: {
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  hint: {
     color: COLORS.textSecondary,
+    lineHeight: 22,
+    marginBottom: SPACING.md,
+  },
+  primaryBtn: {
+    marginTop: SPACING.sm,
   },
   warning: {
     marginBottom: SPACING.sm,
-    color: COLORS.error,
-    fontWeight: "600",
+    color: COLORS.textSecondary,
+    lineHeight: 22,
   },
   bulletTitle: {
     marginTop: SPACING.sm,
@@ -164,6 +242,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: 4,
     lineHeight: 22,
+    fontSize: 14,
+  },
+  emailHint: {
+    marginTop: SPACING.md,
+    color: COLORS.text,
+    fontWeight: "500",
   },
   linkWrap: {
     marginVertical: SPACING.md,
@@ -173,6 +257,12 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     fontSize: 15,
   },
+  secondaryBtn: {
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
   input: {
     marginTop: SPACING.md,
   },
@@ -180,9 +270,6 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginTop: SPACING.sm,
     fontSize: 14,
-  },
-  button: {
-    marginTop: SPACING.md,
   },
   dangerButton: {
     marginTop: SPACING.lg,

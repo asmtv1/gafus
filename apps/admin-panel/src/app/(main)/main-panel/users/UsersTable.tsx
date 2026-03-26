@@ -37,7 +37,6 @@ interface User {
   email: string | null;
   phone: string | null;
   role: string;
-  isConfirmed: boolean;
   createdAt: Date;
   profile?: {
     fullName?: string | null;
@@ -48,7 +47,7 @@ interface User {
   };
 }
 
-type SortField = "role" | "isConfirmed" | "createdAt" | "notifications" | null;
+type SortField = "role" | "createdAt" | "notifications" | null;
 type SortDirection = "asc" | "desc";
 
 interface UsersTableProps {
@@ -203,24 +202,6 @@ export default function UsersTable({
                     userSelect: "none",
                     "&:hover": { opacity: 0.7 },
                   }}
-                  onClick={() => onSort("isConfirmed")}
-                >
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    Статус
-                  </Typography>
-                  {getSortIcon("isConfirmed")}
-                </Box>
-              </TableCell>
-              <TableCell>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    "&:hover": { opacity: 0.7 },
-                  }}
                   onClick={() => onSort("notifications")}
                 >
                   <Typography variant="subtitle2" fontWeight="bold">
@@ -296,13 +277,6 @@ export default function UsersTable({
                   >
                     {formatEmailCell(user.email)}
                   </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={user.isConfirmed ? "Подтвержден" : "Не подтвержден"}
-                    color={user.isConfirmed ? "success" : "warning"}
-                    size="small"
-                  />
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -423,19 +397,6 @@ export default function UsersTable({
                 >
                   {formatEmailCell(user.email)}
                 </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Статус
-                </Typography>
-                <Box sx={{ mt: 0.5 }}>
-                  <Chip
-                    label={user.isConfirmed ? "Подтвержден" : "Не подтвержден"}
-                    color={user.isConfirmed ? "success" : "warning"}
-                    size="small"
-                  />
-                </Box>
               </Box>
 
               <Box>

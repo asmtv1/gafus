@@ -6,18 +6,9 @@ import { FormField, PasswordField, SelectField } from "@shared/components/ui/For
 import { ValidationErrors } from "@shared/components/ui/ValidationError";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  Switch,
-  Typography,
-} from "@/utils/muiImports";
+import { Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@/utils/muiImports";
 
 // Создаем логгер для edit-user-form
 const logger = createAdminPanelLogger("edit-user-form");
@@ -28,7 +19,6 @@ interface User {
   email: string | null;
   phone: string | null;
   role: string;
-  isConfirmed: boolean;
 }
 
 interface EditUserFormProps {
@@ -57,7 +47,6 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
       phone: user.phone ?? "",
       role: user.role,
       newPassword: "",
-      isConfirmed: user.isConfirmed,
     },
   });
 
@@ -67,7 +56,6 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
     phone: string;
     role: string;
     newPassword: string;
-    isConfirmed: boolean;
   }) => {
     setIsPending(true);
     setFormState({});
@@ -89,7 +77,6 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
           phone: data.phone !== (user.phone ?? "") ? data.phone : undefined,
           role: data.role !== user.role ? data.role : undefined,
           newPassword: data.newPassword.trim() ? data.newPassword : undefined,
-          isConfirmed: data.isConfirmed !== user.isConfirmed ? data.isConfirmed : undefined,
         }),
       });
 
@@ -181,24 +168,6 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
             options={roleOptions}
             disabled={isPending}
             className="mb-2"
-          />
-
-          <Controller
-            name="isConfirmed"
-            control={form.control}
-            render={({ field }) => (
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={field.value}
-                    onChange={field.onChange}
-                    disabled={isPending}
-                  />
-                }
-                label="Аккаунт подтверждён"
-                sx={{ mb: 2, ml: 0 }}
-              />
-            )}
           />
 
           <PasswordField

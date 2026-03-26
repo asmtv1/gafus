@@ -1,13 +1,13 @@
 /**
  * API Route: POST /api/v1/auth/password-reset-request
  *
- * Отправляет запрос на сброс пароля через Telegram.
- * Публичный endpoint (не требует авторизации).
+ * Письмо со ссылкой сброса пароля на email (если аккаунт есть).
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { sendPasswordResetRequest } from "@gafus/core/services/auth";
+import { sendPasswordResetRequestByEmail } from "@gafus/core/services/auth";
+import { coreRegisterEmailSchema } from "@gafus/core/validation/auth-register";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
@@ -20,8 +20,7 @@ import {
 const logger = createWebLogger("api-auth");
 
 const schema = z.object({
-  username: z.string().min(1, "Имя пользователя обязательно"),
-  phone: z.string().min(1, "Номер телефона обязателен"),
+  email: coreRegisterEmailSchema,
 });
 
 export async function POST(request: NextRequest) {
@@ -38,11 +37,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { username, phone } = schema.parse(body);
-
-    const result = await sendPasswordResetRequest(username, phone);
-
-    return NextResponse.json({ success: true, data: result });
+    const { email } = schema.parse(body);
+    await sendPasswordResetRequestByEmail(email);
+    return NextResponse.json({
+      success: true,
+      message: "Если этот email зарегистрирован, мы отправили письмо со ссылкой",
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -52,15 +52,10 @@ export async function POST(request: NextRequest) {
     }
 
     logger.error("Error in password-reset-request API", error as Error);
-    const message =
-      error instanceof Error ? error.message : "Внутренняя ошибка сервера";
-    const status =
-      message.includes("не найден") ||
-      message.includes("не совпадает") ||
-      message.includes("не привязан") ||
-      message.includes("Попробуйте через минуту")
-        ? 400
-        : 500;
-    return NextResponse.json({ success: false, error: message }, { status });
+    const message = error instanceof Error ? error.message : "Внутренняя ошибка сервера";
+    if (message.includes("не настроена") || message.includes("Не удалось отправить письмо")) {
+      return NextResponse.json({ success: false, error: "Отправка писем временно недоступна" }, { status: 503 });
+    }
+    return NextResponse.json({ success: false, error: "Ошибка отправки запроса" }, { status: 500 });
   }
 }

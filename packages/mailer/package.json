@@ -1,0 +1,32 @@
+{
+  "name": "@gafus/mailer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Отправка транзакционной почты через SMTP (Postfix в Docker)",
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "dev": "tsc --watch",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "nodemailer": "^7.0.10"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "@types/nodemailer": "^7.0.4",
+    "rimraf": "5.0.1",
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17"
+  }
+}

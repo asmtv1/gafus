@@ -83,7 +83,7 @@ export default function LoginScreen() {
           message: result.error || "Ошибка авторизации",
         });
       }
-      // Навигация управляется AuthProvider на основе isAuthenticated / pendingConfirmPhone
+      // Навигация: index / (auth) layout по isAuthenticated и pending VK
     } catch (err) {
       reportClientError(err instanceof Error ? err : new Error(String(err)), {
         issueKey: "LoginScreen",
@@ -100,7 +100,6 @@ export default function LoginScreen() {
         const state = useAuthStore.getState();
         console.log("[Login] after login state", {
           isAuthenticated: state.isAuthenticated,
-          pendingConfirmPhone: state.pendingConfirmPhone,
           userId: state.user?.id,
         });
       }

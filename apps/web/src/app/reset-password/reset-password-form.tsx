@@ -9,20 +9,24 @@ import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { resetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
-import { resetPasswordByCodeAction } from "@shared/server-actions";
+import { resetPasswordAction } from "@shared/server-actions";
 
 import styles from "./reset-password.module.css";
 
 import type { ResetPasswordFormSchema } from "@shared/lib/validation/authSchemas";
 
-export default function ResetPasswordForm() {
+interface ResetPasswordFormProps {
+  initialToken: string;
+}
+
+export default function ResetPasswordForm({ initialToken }: ResetPasswordFormProps) {
   const router = useRouter();
   const {
     form,
     handleSubmit,
     formState: { errors },
   } = useZodForm(resetPasswordFormSchema, {
-    code: "",
+    token: initialToken,
     password: "",
     confirmPassword: "",
   });
@@ -35,13 +39,13 @@ export default function ResetPasswordForm() {
     setError("");
     setIsPending(true);
     try {
-      await resetPasswordByCodeAction(data.code, data.password);
+      await resetPasswordAction(data.token, data.password);
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {
       reportClientError(err, {
         issueKey: "ResetPasswordForm",
-        keys: { operation: "reset_password_by_code" },
+        keys: { operation: "reset_password_by_token" },
       });
       setError(err instanceof Error ? err.message : "Ошибка сброса пароля");
     } finally {
@@ -59,17 +63,26 @@ export default function ResetPasswordForm() {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit(onSubmit)}>
-      <FormField
-        id="code"
-        label="Код из Telegram"
-        name="code"
-        type="text"
-        placeholder="123456"
-        form={form}
-        visuallyHiddenLabel
-        className={styles.input}
-        errorClassName={styles.errorText}
-      />
+      {initialToken ? (
+        <input type="hidden" {...form.register("token")} />
+      ) : (
+        <FormField
+          id="token"
+          label="Токен из письма"
+          name="token"
+          type="text"
+          placeholder="Вставьте значение из ссылки в письме"
+          form={form}
+          visuallyHiddenLabel
+          className={styles.input}
+          errorClassName={styles.errorText}
+        />
+      )}
+      {initialToken ? (
+        <p className={styles.subtitle}>
+          Ссылка из письма применена. Укажите новый пароль.
+        </p>
+      ) : null}
       <PasswordInput
         placeholder="Новый пароль"
         label="Новый пароль"

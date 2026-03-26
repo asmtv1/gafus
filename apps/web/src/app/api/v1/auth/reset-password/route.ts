@@ -1,16 +1,12 @@
 /**
  * API Route: POST /api/v1/auth/reset-password
  *
- * Сбрасывает пароль по коду из Telegram (code + password) или по токену (token + password).
- * Публичный endpoint.
+ * Сброс пароля по токену из письма (token + password).
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import {
-  resetPassword,
-  resetPasswordByCode,
-} from "@gafus/core/services/auth";
+import { resetPassword } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
 import {
@@ -18,10 +14,7 @@ import {
   getClientIp,
   RATE_LIMIT_RETRY_AFTER_SECONDS,
 } from "@shared/lib/rateLimit";
-import {
-  resetPasswordByCodeSchema,
-  resetPasswordSchema,
-} from "@shared/lib/validation/authSchemas";
+import { resetPasswordSchema } from "@shared/lib/validation/authSchemas";
 
 const logger = createWebLogger("api-auth");
 
@@ -39,28 +32,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-
-    const byCode = resetPasswordByCodeSchema.safeParse(body);
-    if (byCode.success) {
-      await resetPasswordByCode(byCode.data.code, byCode.data.password);
-      return NextResponse.json({ success: true });
+    const parsed = resetPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: "Неверные данные запроса" }, { status: 400 });
     }
-
-    const byToken = resetPasswordSchema.safeParse(body);
-    if (byToken.success) {
-      await resetPassword(byToken.data.token, byToken.data.password);
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Неверные данные запроса" },
-      { status: 400 },
-    );
+    await resetPassword(parsed.data.token, parsed.data.password);
+    return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Error in reset-password API", error as Error);
-    return NextResponse.json(
-      { success: false, error: "Внутренняя ошибка сервера" },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: "Не удалось сбросить пароль" }, { status: 400 });
   }
 }

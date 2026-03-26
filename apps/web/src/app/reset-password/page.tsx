@@ -14,7 +14,21 @@ export const metadata = generatePageMetadata({
   noIndex: true,
 });
 
-export default function ResetPasswordPage() {
+async function ResetPasswordWithToken({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}) {
+  const params = await searchParams;
+  const token = typeof params.token === "string" ? params.token : "";
+  return <ResetPasswordForm initialToken={token} />;
+}
+
+export default function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>;
+}) {
   return (
     <main className={styles.container}>
       <Image
@@ -51,10 +65,10 @@ export default function ResetPasswordPage() {
       />
       <h1 className={styles.title}>Сброс пароля</h1>
       <p className={styles.subtitle}>
-        Введите 6-значный код из сообщения в Telegram и новый пароль.
+        Перейдите по ссылке из письма или вставьте токен из ссылки и задайте новый пароль.
       </p>
       <Suspense fallback={<p className={styles.subtitle}>Загрузка...</p>}>
-        <ResetPasswordForm />
+        <ResetPasswordWithToken searchParams={searchParams} />
       </Suspense>
       <Image
         className={styles.logo}

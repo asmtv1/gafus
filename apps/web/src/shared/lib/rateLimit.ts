@@ -13,8 +13,8 @@ const LIMITS: Record<AuthRateLimitPath, number> = {
   login: 10,
   "password-reset-request": 5,
   "reset-password": 10,
-  "phone-change-request": 5,
-  "phone-change-confirm": 10,
+  "email-change-request": 5,
+  "email-change-confirm": 10,
   "username-change": 10,
   "set-password": 5,
   "change-password": 10,
@@ -23,6 +23,8 @@ const LIMITS: Record<AuthRateLimitPath, number> = {
   "initiate-vk-id": 10,
   "vk-id-link": 10,
   "username-available": 30,
+  "account-deletion-code": 5,
+  "account-deletion-submit": 10,
 };
 
 export type AuthRateLimitPath =
@@ -30,8 +32,8 @@ export type AuthRateLimitPath =
   | "login"
   | "password-reset-request"
   | "reset-password"
-  | "phone-change-request"
-  | "phone-change-confirm"
+  | "email-change-request"
+  | "email-change-confirm"
   | "username-change"
   | "set-password"
   | "change-password"
@@ -39,7 +41,9 @@ export type AuthRateLimitPath =
   | "vk-id-callback"
   | "initiate-vk-id"
   | "vk-id-link"
-  | "username-available";
+  | "username-available"
+  | "account-deletion-code"
+  | "account-deletion-submit";
 
 const store = new Map<string, number[]>();
 

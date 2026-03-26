@@ -31,6 +31,19 @@ services:
       retries: 5
       start_period: 10s
 
+  # Исходящая почта (транзакционные письма): только внутри Docker, порт 587 не публикуем наружу.
+  # Образ: https://github.com/bokysan/docker-postfix — relay, без приёма почты с интернета.
+  # DNS: SPF/DKIM/PTR для домена отправителя настраиваются у регистратора (см. README образа).
+  postfix:
+    image: boky/postfix:v5.0.0
+    container_name: gafus-postfix
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${MAIL_ALLOWED_SENDER_DOMAINS:-gafus.ru}
+      POSTFIX_myhostname: ${POSTFIX_MYHOSTNAME:-mail.gafus.ru}
+    expose:
+      - "587"
+    restart: unless-stopped
+
   # Web Application
   web:
     image: ghcr.io/asmtv1/gafus-web:latest
@@ -76,6 +89,14 @@ services:
       - VK_CLIENT_ID=${VK_CLIENT_ID}
       - VK_WEB_REDIRECT_URI=${VK_WEB_REDIRECT_URI}
       - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
+      # SMTP → контейнер postfix (транзакционная почта)
+      - SMTP_HOST=${SMTP_HOST:-postfix}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM=${MAIL_FROM:-noreply@gafus.ru}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
     # Uploads handled by CDN - no local volume needed
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
@@ -89,6 +110,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - postfix
 
   # Trainer Panel
   trainer-panel:
@@ -256,6 +278,13 @@ services:
       - VK_CLIENT_ID_IOS=${VK_CLIENT_ID_IOS}
       - VK_CLIENT_ID_ANDROID=${VK_CLIENT_ID_ANDROID}
       - VK_MOBILE_REDIRECT_URI=${VK_MOBILE_REDIRECT_URI:-gafus://auth/vk}
+      - SMTP_HOST=${SMTP_HOST:-postfix}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM=${MAIL_FROM:-noreply@gafus.ru}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
@@ -268,6 +297,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      postfix:
+        condition: service_started
 
   # Nginx Reverse Proxy
   nginx:

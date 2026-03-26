@@ -208,6 +208,8 @@ const nextConfig = {
     return [
       { source: "/guides", destination: "/articles", permanent: true },
       { source: "/guides/:path*", destination: "/articles/:path*", permanent: true },
+      // Устаревший маршрут подтверждения номера (Telegram) — ссылки из старых писем/закладок
+      { source: "/confirm", destination: "/login", permanent: false },
     ];
   },
 

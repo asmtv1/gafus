@@ -67,10 +67,10 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
-        name="profile/change-phone"
+        name="profile/change-email"
         options={{
           headerShown: true,
-          title: "Смена телефона",
+          title: "Смена email",
         }}
       />
       <Stack.Screen

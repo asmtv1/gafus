@@ -16,7 +16,6 @@ interface User {
   email: string | null;
   phone: string | null;
   role: string;
-  isConfirmed: boolean;
   createdAt: Date;
   profile?: {
     fullName?: string | null;
@@ -31,7 +30,7 @@ interface UsersClientProps {
   users: User[];
 }
 
-type SortField = "role" | "isConfirmed" | "createdAt" | "notifications" | null;
+type SortField = "role" | "createdAt" | "notifications" | null;
 type SortDirection = "asc" | "desc";
 
 export default function UsersClient({ users }: UsersClientProps) {
@@ -66,10 +65,6 @@ export default function UsersClient({ users }: UsersClientProps) {
           case "role":
             aValue = a.role;
             bValue = b.role;
-            break;
-          case "isConfirmed":
-            aValue = a.isConfirmed ? 1 : 0;
-            bValue = b.isConfirmed ? 1 : 0;
             break;
           case "createdAt":
             aValue = new Date(a.createdAt).getTime();

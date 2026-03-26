@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
@@ -810,9 +810,9 @@ export default function ProfileScreen() {
 
         <Pressable
           style={styles.passwordButton}
-          onPress={() => router.push({ pathname: "/profile/change-phone" })}
+          onPress={() => router.push("/profile/change-email" as Href)}
         >
-          <Text style={styles.passwordButtonText}>📞 Сменить телефон</Text>
+          <Text style={styles.passwordButtonText}>✉️ Сменить email</Text>
         </Pressable>
 
         <Pressable
@@ -822,14 +822,12 @@ export default function ProfileScreen() {
           <Text style={styles.passwordButtonText}>👤 Сменить логин</Text>
         </Pressable>
 
-        {hasAppPassword ? (
-          <Pressable
-            style={styles.deleteAccountButton}
-            onPress={() => router.push("/profile/delete-account")}
-          >
-            <Text style={styles.deleteAccountButtonText}>Удалить аккаунт</Text>
-          </Pressable>
-        ) : null}
+        <Pressable
+          style={styles.deleteAccountButton}
+          onPress={() => router.push("/profile/delete-account")}
+        >
+          <Text style={styles.deleteAccountButtonText}>Удалить аккаунт</Text>
+        </Pressable>
 
         {/* Выход */}
         <Pressable style={styles.logoutButton} onPress={handleLogout}>

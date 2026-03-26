@@ -5,7 +5,6 @@
 ## Auth API (web)
 
 - `POST /api/v1/auth/register` — регистрация (email + пароль; конфликты username/email — одно нейтральное сообщение)
-- `POST /api/v1/auth/check-state` — статус пользователя (confirmed, needsConfirm; для пользователей без телефона — по `isConfirmed`)
 - `POST /api/v1/auth/check-phone-match` — заглушка (всегда `matches: true`)
 - `POST /api/v1/auth/password-reset-request` — запрос сброса пароля (web и mobile → api.gafus.ru)
 - `POST /api/v1/auth/reset-password` — сброс по токену

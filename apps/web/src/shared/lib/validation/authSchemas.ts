@@ -7,6 +7,8 @@ import {
   normalizeWebsiteUrl,
 } from "@gafus/core/utils/social";
 
+import { parsePetBirthDateInput } from "./petSchemas";
+
 // ===== СХЕМЫ АУТЕНТИФИКАЦИИ =====
 
 /**
@@ -137,22 +139,10 @@ export const registerFormSchema = registerUserSchema
   });
 
 /**
- * Схема для сброса пароля (по токену, для API)
+ * Схема для сброса пароля по токену из письма (API)
  */
 export const resetPasswordSchema = z.object({
-  token: z.string().trim().min(1, "Токен обязателен").max(64),
-  password: newPasswordSchema,
-});
-
-/**
- * Схема для сброса пароля по коду из Telegram (6 цифр)
- */
-export const resetPasswordByCodeSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .length(6, "Код из Telegram — 6 цифр")
-    .regex(/^\d{6}$/, "Код должен содержать 6 цифр"),
+  token: z.string().trim().min(32).max(128),
   password: newPasswordSchema,
 });
 
@@ -165,14 +155,6 @@ export const loginFormSchema = z.object({
 });
 
 /**
- * Схема для подтверждения смены телефона (код + новый номер)
- */
-export const phoneChangeConfirmSchema = z.object({
-  code: z.string().trim().length(6, "Код — 6 цифр").regex(/^\d{6}$/, "Код должен содержать 6 цифр"),
-  newPhone: phoneSchema,
-});
-
-/**
  * Схема для смены логина
  */
 export const usernameChangeSchema = z.object({
@@ -180,23 +162,18 @@ export const usernameChangeSchema = z.object({
 });
 
 /**
- * Схема для запроса сброса пароля
+ * Схема запроса сброса пароля (email)
  */
 export const passwordResetFormSchema = z.object({
-  username: usernameSchema,
-  phone: phoneSchema,
+  email: coreRegisterEmailSchema,
 });
 
 /**
- * Схема для формы сброса пароля: код из Telegram + пароль с подтверждением
+ * Форма сброса пароля: токен из письма + новый пароль
  */
 export const resetPasswordFormSchema = z
   .object({
-    code: z
-      .string()
-      .trim()
-      .length(6, "Код из Telegram — 6 цифр")
-      .regex(/^\d{6}$/, "Код должен содержать 6 цифр"),
+    token: z.string().trim().min(32).max(128),
     password: newPasswordSchema,
     confirmPassword: z.string().min(1, "Подтвердите пароль"),
   })
@@ -209,6 +186,18 @@ export const resetPasswordFormSchema = z
       });
     }
   });
+
+/**
+ * Запрос смены email в профиле
+ */
+export const emailChangeRequestFormSchema = z.object({
+  newEmail: coreRegisterEmailSchema,
+});
+
+/** Токен из ссылки подтверждения смены email */
+export const emailChangeConfirmTokenSchema = z.object({
+  token: z.string().trim().min(32).max(128),
+});
 
 /**
  * Схема для Telegram username с валидацией и нормализацией
@@ -358,12 +347,36 @@ export const registerApiSchema = registerUserSchema.extend({
 export const userProfileFormSchema = z.object({
   fullName: z.string().trim().max(120, "Не более 120 символов").optional(),
   birthDate: z
-    .string()
-    .optional()
-    .refine((value) => {
-      if (!value) return true;
-      return new Date(value) <= new Date();
-    }, "Дата не может быть в будущем"),
+    .union([z.string(), z.undefined()])
+    .transform((s) => (typeof s === "string" ? s.trim() : ""))
+    .superRefine((val, ctx) => {
+      if (!val) return;
+      const parsed = parsePetBirthDateInput(val);
+      if (!parsed) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Укажите дату в формате ДД.ММ.ГГГГ",
+        });
+        return;
+      }
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (parsed > endOfToday) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Дата не может быть в будущем",
+        });
+      }
+    })
+    .transform((val) => {
+      if (!val) return "";
+      const parsed = parsePetBirthDateInput(val);
+      if (!parsed) return "";
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, "0");
+      const d = String(parsed.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }),
   about: z.string().trim().max(2000, "Не более 2000 символов").optional(),
   telegram: telegramUsernameSchema,
   instagram: instagramUsernameSchema,
@@ -378,8 +391,8 @@ export type RegisterUserSchema = z.infer<typeof registerUserSchema>;
 export type RegisterFormSchema = z.infer<typeof registerFormSchema>;
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
 export type LoginFormSchema = z.infer<typeof loginFormSchema>;
-export type PhoneChangeConfirmSchema = z.infer<typeof phoneChangeConfirmSchema>;
 export type UsernameChangeSchema = z.infer<typeof usernameChangeSchema>;
 export type PasswordResetFormSchema = z.infer<typeof passwordResetFormSchema>;
 export type ResetPasswordFormSchema = z.infer<typeof resetPasswordFormSchema>;
+export type EmailChangeRequestFormSchema = z.infer<typeof emailChangeRequestFormSchema>;
 export type UserProfileFormSchema = z.infer<typeof userProfileFormSchema>;

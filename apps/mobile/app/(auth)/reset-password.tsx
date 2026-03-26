@@ -14,35 +14,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
-import parsePhoneNumberFromString from "libphonenumber-js";
 
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { authApi } from "@/shared/lib/api/auth";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
-// Схемы валидации
-const usernameSchema = z
-  .string()
-  .trim()
-  .min(3, "минимум 3 символа")
-  .max(50, "максимум 50 символов")
-  .regex(/^[A-Za-z0-9_]+$/, "только английские буквы, цифры и _");
+const emailSchema = z.string().trim().email("Укажите корректный email");
 
-const phoneSchema = z
+const tokenSchema = z
   .string()
   .trim()
-  .min(1, "Номер телефона обязателен")
-  .refine((value) => {
-    const phone = parsePhoneNumberFromString(value, "RU");
-    return !!phone && phone.isValid();
-  }, "Неверный формат номера телефона");
-
-const codeSchema = z
-  .string()
-  .trim()
-  .length(6, "Код — 6 цифр")
-  .regex(/^\d{6}$/, "Код — 6 цифр");
+  .min(32, "Вставьте токен из ссылки в письме")
+  .max(128, "Некорректная длина токена");
 
 const passwordSchema = z
   .string()
@@ -53,61 +37,47 @@ const passwordSchema = z
   .regex(/[0-9]/, "Минимум одна цифра");
 
 /**
- * Страница сброса пароля - точное соответствие веб-версии
+ * Сброс пароля: запрос письма на email, затем токен из ссылки и новый пароль
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
 
-  const [phase, setPhase] = useState<"request" | "code">("request");
-  const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phase, setPhase] = useState<"request" | "token">("request");
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
-    username?: string;
-    phone?: string;
-    code?: string;
+    email?: string;
+    token?: string;
     password?: string;
     confirmPassword?: string;
   }>({});
-  const [status, setStatus] = useState("");
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
-  // Шаг 2: код + пароль
-  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const validateUsername = useCallback((): boolean => {
-    const result = usernameSchema.safeParse(username);
+  const validateEmail = useCallback((): boolean => {
+    const result = emailSchema.safeParse(email);
     if (!result.success) {
-      setErrors((prev) => ({ ...prev, username: result.error.errors[0].message }));
+      setErrors((prev) => ({ ...prev, email: result.error.errors[0].message }));
       return false;
     }
-    setErrors((prev) => ({ ...prev, username: undefined }));
+    setErrors((prev) => ({ ...prev, email: undefined }));
     return true;
-  }, [username]);
+  }, [email]);
 
-  const validatePhone = useCallback((): boolean => {
-    const result = phoneSchema.safeParse(phone);
+  const validateToken = useCallback((): boolean => {
+    const result = tokenSchema.safeParse(token);
     if (!result.success) {
-      setErrors((prev) => ({ ...prev, phone: result.error.errors[0].message }));
+      setErrors((prev) => ({ ...prev, token: result.error.errors[0].message }));
       return false;
     }
-    setErrors((prev) => ({ ...prev, phone: undefined }));
+    setErrors((prev) => ({ ...prev, token: undefined }));
     return true;
-  }, [phone]);
-
-  const validateCode = useCallback((): boolean => {
-    const result = codeSchema.safeParse(code);
-    if (!result.success) {
-      setErrors((prev) => ({ ...prev, code: result.error.errors[0].message }));
-      return false;
-    }
-    setErrors((prev) => ({ ...prev, code: undefined }));
-    return true;
-  }, [code]);
+  }, [token]);
 
   const validatePassword = useCallback((): boolean => {
     const result = passwordSchema.safeParse(password);
@@ -119,18 +89,14 @@ export default function ResetPasswordScreen() {
     return true;
   }, [password]);
 
-  const handleReset = async () => {
-    const isUsernameValid = validateUsername();
-    const isPhoneValid = validatePhone();
-
-    if (!isUsernameValid || !isPhoneValid) return;
+  const handleRequestEmail = async () => {
+    if (!validateEmail()) return;
 
     setIsLoading(true);
-    setStatus("");
     setErrors({});
 
     try {
-      const resetResult = await authApi.sendPasswordResetRequest(username, phone);
+      const resetResult = await authApi.sendPasswordResetRequest(email);
 
       if (!resetResult.success) {
         setSnackbar({
@@ -141,8 +107,11 @@ export default function ResetPasswordScreen() {
       }
 
       await hapticFeedback.success();
-      setPhase("code");
-      setStatus("");
+      setSnackbar({
+        visible: true,
+        message: "Если аккаунт есть, на email отправлено письмо со ссылкой.",
+      });
+      setPhase("token");
     } catch (err) {
       reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "send_reset_request" } });
       setSnackbar({
@@ -155,7 +124,7 @@ export default function ResetPasswordScreen() {
   };
 
   const handleResetPassword = async () => {
-    const isCodeValid = validateCode();
+    const isTokenValid = validateToken();
     const isPasswordValid = validatePassword();
 
     if (password !== confirmPassword) {
@@ -167,13 +136,13 @@ export default function ResetPasswordScreen() {
     }
     setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
 
-    if (!isCodeValid || !isPasswordValid) return;
+    if (!isTokenValid || !isPasswordValid) return;
 
     setIsLoading(true);
     setErrors({});
 
     try {
-      const result = await authApi.resetPasswordByCode(code, password);
+      const result = await authApi.resetPasswordByToken(token.trim(), password);
 
       if (!result.success) {
         setSnackbar({
@@ -190,7 +159,7 @@ export default function ResetPasswordScreen() {
       });
       router.replace("/login");
     } catch (err) {
-      reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "reset_by_code" } });
+      reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "reset_by_token" } });
       setSnackbar({
         visible: true,
         message: "Ошибка. Попробуйте позже.",
@@ -210,7 +179,6 @@ export default function ResetPasswordScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Декоративные лапки (только на мобильных) */}
           <View style={styles.pawsContainer}>
             <Image
               source={require("../../assets/images/paw.png")}
@@ -234,83 +202,61 @@ export default function ResetPasswordScreen() {
             />
           </View>
 
-          {/* Заголовок */}
           <Text style={styles.title}>Сброс пароля</Text>
 
-          {/* Подзаголовок */}
           <Text style={styles.subtitle}>
             {phase === "request"
-              ? "Введите логин и номер телефона для восстановления доступа."
-              : "Введите 6-значный код из Telegram и новый пароль."}
+              ? "Укажите email аккаунта — пришлём письмо со ссылкой."
+              : "Скопируйте токен из ссылки в письме (часть после token=) и задайте новый пароль."}
           </Text>
 
-          {/* Форма: шаг 1 — запрос */}
           {phase === "request" && (
             <View style={styles.form}>
-              {/* Логин Input */}
               <TextInput
-              style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
-              value={username}
-              onChangeText={(text) => {
-                setUsername(text);
-                if (errors.username) {
-                  setErrors((prev) => ({ ...prev, username: undefined }));
-                }
-              }}
-              placeholder="Логин"
-              placeholderTextColor={COLORS.placeholder}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="username"
-            />
-            {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errors.email) {
+                    setErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                }}
+                placeholder="Email"
+                placeholderTextColor={COLORS.placeholder}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                keyboardType="email-address"
+              />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-            {/* Телефон Input */}
-            <TextInput
-              style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
-              value={phone}
-              onChangeText={(text) => {
-                setPhone(text);
-                if (errors.phone) {
-                  setErrors((prev) => ({ ...prev, phone: undefined }));
-                }
-              }}
-              placeholder="+7XXXXXXXXXX"
-              placeholderTextColor={COLORS.placeholder}
-              keyboardType="phone-pad"
-              autoComplete="tel"
-            />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-
-              {/* Кнопка восстановления */}
               <Pressable
-                style={[styles.button, (isLoading || !username || !phone) && styles.buttonDisabled]}
-                onPress={handleReset}
-                disabled={isLoading || !username || !phone}
+                style={[styles.button, (isLoading || !email.trim()) && styles.buttonDisabled]}
+                onPress={handleRequestEmail}
+                disabled={isLoading || !email.trim()}
               >
                 <Text style={styles.buttonText}>
-                  {isLoading ? "отправка..." : "восстановить пароль"}
+                  {isLoading ? "отправка..." : "отправить письмо"}
                 </Text>
               </Pressable>
             </View>
           )}
 
-          {/* Форма: шаг 2 — код + пароль */}
-          {phase === "code" && (
+          {phase === "token" && (
             <View style={styles.form}>
               <TextInput
-                style={[styles.input, Platform.OS === "android" && styles.inputAndroid]}
-                value={code}
+                style={[styles.inputWide, Platform.OS === "android" && styles.inputAndroid]}
+                value={token}
                 onChangeText={(text) => {
-                  setCode(text.replace(/\D/g, "").slice(0, 6));
-                  if (errors.code) setErrors((prev) => ({ ...prev, code: undefined }));
+                  setToken(text);
+                  if (errors.token) setErrors((prev) => ({ ...prev, token: undefined }));
                 }}
-                placeholder="Код из Telegram (6 цифр)"
+                placeholder="Токен из ссылки"
                 placeholderTextColor={COLORS.placeholder}
-                keyboardType="number-pad"
-                maxLength={6}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
-              {errors.code && <Text style={styles.errorText}>{errors.code}</Text>}
+              {errors.token && <Text style={styles.errorText}>{errors.token}</Text>}
 
               <View style={styles.passwordInputWrapper}>
                 <TextInput
@@ -382,19 +328,27 @@ export default function ResetPasswordScreen() {
               <Pressable
                 style={[
                   styles.button,
-                  (isLoading || !code || !password || !confirmPassword) && styles.buttonDisabled,
+                  (isLoading || !token.trim() || !password || !confirmPassword) &&
+                    styles.buttonDisabled,
                 ]}
                 onPress={handleResetPassword}
-                disabled={isLoading || !code || !password || !confirmPassword}
+                disabled={isLoading || !token.trim() || !password || !confirmPassword}
               >
                 <Text style={styles.buttonText}>
                   {isLoading ? "сохранение..." : "сохранить пароль"}
                 </Text>
               </Pressable>
+
+              <Pressable
+                style={[styles.linkBack, isLoading && styles.buttonDisabled]}
+                onPress={() => setPhase("request")}
+                disabled={isLoading}
+              >
+                <Text style={styles.linkBackText}>← Другой email</Text>
+              </Pressable>
             </View>
           )}
 
-          {/* Логотип */}
           <Image
             source={require("../../assets/images/passwordReset-logo.png")}
             style={styles.logo}
@@ -417,7 +371,7 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.cardBackground, // #FFF8E5 как в веб
+    backgroundColor: COLORS.cardBackground,
   },
   keyboardView: {
     flex: 1,
@@ -431,7 +385,6 @@ const styles = StyleSheet.create({
     gap: 14,
     position: "relative",
   },
-  // Декоративные лапки
   pawsContainer: {
     position: "absolute",
     top: 0,
@@ -465,7 +418,6 @@ const styles = StyleSheet.create({
     left: 290,
     transform: [{ rotate: "32deg" }],
   },
-  // Заголовок - Impact, 40px, цвет #636128
   title: {
     color: COLORS.primary,
     fontFamily: FONTS.impact,
@@ -477,7 +429,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     zIndex: 1,
   },
-  // Подзаголовок - Montserrat, 12px, opacity 0.8
   subtitle: {
     color: COLORS.primary,
     fontFamily: FONTS.montserrat,
@@ -488,13 +439,11 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     zIndex: 1,
   },
-  // Форма
   form: {
     alignItems: "center",
     gap: 5,
     zIndex: 1,
   },
-  // Инпуты - 250x29, border 2px #636128
   input: {
     backgroundColor: COLORS.cardBackground,
     width: 250,
@@ -505,6 +454,19 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     paddingVertical: 0,
     fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.primary,
+  },
+  inputWide: {
+    backgroundColor: COLORS.cardBackground,
+    width: 300,
+    minHeight: 36,
+    borderWidth: 2,
+    borderColor: "#636128",
+    borderRadius: 5,
+    paddingLeft: 10,
+    paddingVertical: 6,
+    fontSize: 11,
     fontFamily: FONTS.montserrat,
     color: COLORS.primary,
   },
@@ -525,7 +487,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
   },
-  // Текст ошибки
   errorText: {
     fontSize: 10,
     fontFamily: FONTS.montserrat,
@@ -534,7 +495,6 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     width: 250,
   },
-  // Кнопка - 190x36, фон #636128, текст #dad3c1
   button: {
     backgroundColor: COLORS.primary,
     width: 190,
@@ -561,18 +521,16 @@ const styles = StyleSheet.create({
     lineHeight: 10,
     color: "#dad3c1",
   },
-  // Статус сообщение
-  status: {
-    color: "#636128",
-    fontFamily: FONTS.montserrat,
-    fontWeight: "400",
-    fontSize: 14,
-    lineHeight: 16.8,
-    marginTop: 20,
-    textAlign: "center",
-    maxWidth: 300,
+  linkBack: {
+    marginTop: 16,
+    padding: 8,
   },
-  // Логотип - 307x224 как в веб (адаптивный для мобильных)
+  linkBackText: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 12,
+    color: COLORS.primary,
+    textDecorationLine: "underline",
+  },
   logo: {
     width: 320,
     height: 320,

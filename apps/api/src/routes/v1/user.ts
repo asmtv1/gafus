@@ -11,6 +11,7 @@ import {
   deleteUserAccountBodySchema,
   getPublicProfile,
   getUserProfileForApi,
+  requestAccountDeletionCode,
   updateAvatar,
   updateUserProfile,
 } from "@gafus/core/services/user";
@@ -187,37 +188,71 @@ userRoutes.post("/avatar", async (c) => {
   }
 });
 
-// POST /api/v1/user/account/delete — необратимое удаление аккаунта (мобильный клиент)
+// POST /api/v1/user/account/deletion-code — письмо с кодом подтверждения удаления
+userRoutes.post("/account/deletion-code", async (c) => {
+  const user = c.get("user");
+  try {
+    const result = await requestAccountDeletionCode(user.id);
+
+    if (result.success) {
+      return c.json({ success: true }, 200);
+    }
+
+    const { error, code } = result;
+    if (code === "FORBIDDEN") {
+      return c.json({ success: false, error }, 403);
+    }
+    if (code === "VALIDATION") {
+      return c.json({ success: false, error }, 400);
+    }
+    if (code === "CONFLICT") {
+      return c.json({ success: false, error }, 409);
+    }
+    if (code === "INTERNAL") {
+      return c.json({ success: false, error }, 500);
+    }
+    return c.json({ success: false, error }, 400);
+  } catch (error) {
+    deleteAccountLogger.error(
+      "Ошибка запроса кода удаления",
+      error as Error,
+      { userId: user.id },
+    );
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+// POST /api/v1/user/account/delete — необратимое удаление (код из письма)
 userRoutes.post(
   "/account/delete",
   zValidator("json", deleteUserAccountBodySchema),
   async (c) => {
     const user = c.get("user");
     try {
-      const { password } = c.req.valid("json");
+      const { code } = c.req.valid("json");
       const result = await deleteUserAccount({
         actorUserId: user.id,
-        password,
+        code,
       });
 
       if (result.success) {
         return c.json({ success: true }, 200);
       }
 
-      const { error, code } = result;
-      if (code === "FORBIDDEN") {
+      const { error, code: errCode } = result;
+      if (errCode === "FORBIDDEN") {
         return c.json({ success: false, error }, 403);
       }
-      if (code === "VALIDATION") {
+      if (errCode === "VALIDATION") {
         return c.json({ success: false, error }, 400);
       }
-      if (code === "CONFLICT") {
+      if (errCode === "CONFLICT") {
         return c.json({ success: false, error }, 409);
       }
-      if (code === "INTERNAL") {
+      if (errCode === "INTERNAL") {
         return c.json({ success: false, error }, 500);
       }
-      if (error === "Неверный пароль") {
+      if (error.startsWith("Неверный или просроченный код")) {
         return c.json({ success: false, error }, 401);
       }
       return c.json({ success: false, error }, 400);

@@ -26,7 +26,7 @@ export const PasswordInput: FC<Props> = ({
   const inputId = id ?? (rest.name as string | undefined);
 
   return (
-    <div style={{ display: "block", width: "100%" }}>
+    <div style={{ display: "block", width: "100%", boxSizing: "border-box" }}>
       {label && (
         // Этот стиль скрывает визуально сам лейбл, но оставляет его доступным для скринридеров (экранных читалок), чтобы обеспечить доступность для людей с нарушениями зрения.
         <label
@@ -40,13 +40,24 @@ export const PasswordInput: FC<Props> = ({
           {label}
         </label>
       )}
-      <div style={{ position: "relative", minHeight: 29 }}>
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
         <input
           id={inputId}
           placeholder={placeholder}
-          className={className}
+          className={[className, "box-border"].filter(Boolean).join(" ")}
           type={show ? "text" : "password"}
-          style={{ paddingRight: 40 }}
+          style={{
+            paddingRight: 44,
+            width: "100%",
+            boxSizing: "border-box",
+            minHeight: 44,
+          }}
           {...(!label ? { "aria-label": ariaLabel ?? placeholder ?? inputId } : {})}
           {...rest}
         />
@@ -55,15 +66,18 @@ export const PasswordInput: FC<Props> = ({
           onClick={() => setShow((v) => !v)}
           style={{
             position: "absolute",
-            right: 10,
+            right: 8,
             top: "50%",
             transform: "translateY(-50%)",
             background: "none",
             border: "none",
             cursor: "pointer",
-            padding: 0,
-            height: 24,
-            width: 24,
+            padding: 4,
+            height: 36,
+            width: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
           aria-label={show ? "Скрыть пароль" : "Показать пароль"}
           tabIndex={-1}

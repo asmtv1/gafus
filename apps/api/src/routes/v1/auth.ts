@@ -8,13 +8,13 @@ import { zValidator } from "@hono/zod-validator";
 import { bodyLimit } from "hono/body-limit";
 import crypto from "crypto";
 
-import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
+import { authRegisterBodySchema, coreRegisterEmailSchema } from "@gafus/core/validation/auth-register";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { storeVkIdOneTimeUser, consumeVkIdOneTimeUser } from "@gafus/auth";
 import {
   changePassword,
   changeUsername,
-  confirmPhoneChange,
+  confirmEmailChangeByToken,
   isUsernameAvailable,
   createRefreshSession,
   exchangeVkCodeAndGetUser,
@@ -23,12 +23,12 @@ import {
   linkVkToUser,
   REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE,
   registerUserService,
-  requestPhoneChange,
-  resetPasswordByCode,
+  requestEmailChange,
+  resetPassword,
   revokeAllUserTokens,
   revokeRefreshToken,
   rotateRefreshToken,
-  sendPasswordResetRequest,
+  sendPasswordResetRequestByEmail,
   setPassword,
   setVkPhone,
   validateCredentials,
@@ -65,16 +65,11 @@ const checkPhoneMatchSchema = z.object({
 });
 
 const passwordResetRequestSchema = z.object({
-  username: z.string().min(1, "Имя пользователя обязательно"),
-  phone: z.string().min(1, "Номер телефона обязателен"),
+  email: coreRegisterEmailSchema,
 });
 
 const resetPasswordSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .length(6, "Код — 6 цифр")
-    .regex(/^\d{6}$/, "Код — 6 цифр"),
+  token: z.string().trim().min(32).max(128),
   password: z
     .string()
     .min(8, "Минимум 8 символов")
@@ -84,9 +79,12 @@ const resetPasswordSchema = z.object({
     .regex(/[0-9]/, "Минимум одна цифра"),
 });
 
-const phoneChangeConfirmSchema = z.object({
-  code: z.string().trim().length(6).regex(/^\d{6}$/, "Код — 6 цифр"),
-  newPhone: z.string().trim().min(1, "Номер телефона обязателен"),
+const emailChangeRequestSchema = z.object({
+  newEmail: coreRegisterEmailSchema,
+});
+
+const emailChangeConfirmSchema = z.object({
+  token: z.string().trim().min(32).max(128),
 });
 
 const usernameChangeSchema = z.object({
@@ -363,88 +361,87 @@ authRoutes.post(
   },
 );
 
-// POST /api/v1/auth/password-reset-request
+// POST /api/v1/auth/password-reset-request — письмо со ссылкой на email
 authRoutes.post(
   "/password-reset-request",
   bodyLimit({ maxSize: 5 * 1024 }),
   zValidator("json", passwordResetRequestSchema),
   async (c) => {
     try {
-      const { username, phone } = c.req.valid("json");
-
-      await sendPasswordResetRequest(username, phone);
-
-      return c.json({ success: true });
+      const { email } = c.req.valid("json");
+      await sendPasswordResetRequestByEmail(email);
+      return c.json({
+        success: true,
+        message: "Если этот email зарегистрирован, мы отправили письмо со ссылкой",
+      });
     } catch (error) {
       logger.error("Password reset request error", error as Error);
-      const message =
-        error instanceof Error ? error.message : "Ошибка отправки запроса";
-      const status =
-        message.includes("не найден") ||
-        message.includes("не совпадает") ||
-        message.includes("не привязан") ||
-        message.includes("Попробуйте через минуту")
-          ? 400
-          : 500;
-      return c.json({ success: false, error: message }, status);
+      const message = error instanceof Error ? error.message : "Ошибка отправки запроса";
+      if (message.includes("Некорректный email")) {
+        return c.json({ success: false, error: message }, 400);
+      }
+      if (message.includes("не настроена") || message.includes("Не удалось отправить письмо")) {
+        return c.json({ success: false, error: "Отправка писем временно недоступна" }, 503);
+      }
+      return c.json({ success: false, error: "Ошибка отправки запроса" }, 500);
     }
   },
 );
 
-// POST /api/v1/auth/reset-password — сброс пароля по 6-значному коду из Telegram
+// POST /api/v1/auth/reset-password — сброс по токену из письма
 authRoutes.post(
   "/reset-password",
   bodyLimit({ maxSize: 5 * 1024 }),
   zValidator("json", resetPasswordSchema),
   async (c) => {
     try {
-      const { code, password } = c.req.valid("json");
-      await resetPasswordByCode(code, password);
+      const { token, password } = c.req.valid("json");
+      await resetPassword(token, password);
       return c.json({ success: true });
     } catch (error) {
       logger.error("Reset password error", error as Error);
-      // Нейтральное сообщение — не раскрываем "неверный код" vs "истёк"
       return c.json({ success: false, error: "Не удалось сбросить пароль" }, 400);
     }
   },
 );
 
-// POST /api/v1/auth/phone-change-request (требует JWT)
+// POST /api/v1/auth/email-change-request (JWT)
 authRoutes.post(
-  "/phone-change-request",
+  "/email-change-request",
   authMiddleware,
   bodyLimit({ maxSize: 1024 }),
+  zValidator("json", emailChangeRequestSchema),
   async (c) => {
     try {
-      const user = c.get("user");
-      await requestPhoneChange(user.id);
-      logger.info("phone-change-request success", { userId: user.id });
+      const { newEmail } = c.req.valid("json");
+      await requestEmailChange(c.get("user").id, newEmail);
       return c.json({ success: true });
     } catch (error) {
-      logger.error("phone-change-request error", error as Error);
-      const message = error instanceof Error ? error.message : "Ошибка запроса кода";
-      return c.json({ success: false, error: message }, 400);
+      logger.error("email-change-request error", error as Error);
+      return c.json(
+        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        400,
+      );
     }
   },
 );
 
-// POST /api/v1/auth/phone-change-confirm (требует JWT)
+// POST /api/v1/auth/email-change-confirm — подтверждение по токену из письма
 authRoutes.post(
-  "/phone-change-confirm",
-  authMiddleware,
+  "/email-change-confirm",
   bodyLimit({ maxSize: 1024 }),
-  zValidator("json", phoneChangeConfirmSchema),
+  zValidator("json", emailChangeConfirmSchema),
   async (c) => {
     try {
-      const { code, newPhone } = c.req.valid("json");
-      await confirmPhoneChange(code, newPhone);
-      const user = c.get("user");
-      logger.info("phone-change-confirm success", { userId: user.id });
+      const { token } = c.req.valid("json");
+      await confirmEmailChangeByToken(token);
       return c.json({ success: true });
     } catch (error) {
-      logger.error("phone-change-confirm error", error as Error);
-      const message = error instanceof Error ? error.message : "Не удалось сменить номер";
-      return c.json({ success: false, error: message }, 400);
+      logger.error("email-change-confirm error", error as Error);
+      return c.json(
+        { success: false, error: error instanceof Error ? error.message : "Ошибка" },
+        400,
+      );
     }
   },
 );

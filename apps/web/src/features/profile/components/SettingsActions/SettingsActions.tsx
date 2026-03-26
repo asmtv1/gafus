@@ -98,8 +98,8 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
             Забыли пароль
           </Link>
         )}
-        <Link href="/profile/change-phone" className={styles.button}>
-          📞 Сменить телефон
+        <Link href="/profile/change-email" className={styles.button}>
+          ✉️ Сменить email
         </Link>
         <Link href="/profile/change-username" className={styles.button}>
           👤 Сменить логин

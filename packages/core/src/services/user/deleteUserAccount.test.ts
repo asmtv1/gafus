@@ -1,14 +1,15 @@
-import { Prisma as PrismaRuntime } from "@prisma/client";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-import { deleteUserAccount } from "./deleteUserAccount";
+const { mockDbNull } = vi.hoisted(() => ({ mockDbNull: Symbol("DbNull") }));
 
-const mockValidateCredentials = vi.fn();
+import { deleteUserAccount, requestAccountDeletionCode } from "./deleteUserAccount";
 
-vi.mock("../auth/authService", () => ({
-  validateCredentials: (...args: unknown[]) => mockValidateCredentials(...args),
-}));
-
+const mockAccountDeletionFindFirst = vi.fn();
+const mockAccountDeletionDeleteMany = vi.fn();
+const mockTokDeleteMany = vi.fn();
+const mockTokFindUnique = vi.fn();
+const mockTokCreate = vi.fn();
+const mockUserUpdate = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockCourseCount = vi.fn();
 const mockTrainingDayCount = vi.fn();
@@ -19,10 +20,18 @@ const mockRefreshUpdateMany = vi.fn();
 const mockConsentLogUpdateMany = vi.fn();
 const mockUserDelete = vi.fn();
 const mockTransaction = vi.fn();
+const mockSendDeletionEmail = vi.fn();
+
+vi.mock("../auth/transactionalAuthMail", () => ({
+  sendAccountDeletionCodeEmail: (...args: unknown[]) => mockSendDeletionEmail(...args),
+}));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
+    accountDeletionToken: {
+      findFirst: (...args: unknown[]) => mockAccountDeletionFindFirst(...args),
+    },
     course: { count: (...args: unknown[]) => mockCourseCount(...args) },
     trainingDay: { count: (...args: unknown[]) => mockTrainingDayCount(...args) },
     step: { count: (...args: unknown[]) => mockStepCount(...args) },
@@ -39,7 +48,7 @@ vi.mock("@gafus/prisma", () => ({
         this.code = opts.code;
       }
     },
-    DbNull: PrismaRuntime.DbNull,
+    DbNull: mockDbNull,
   },
 }));
 
@@ -57,9 +66,10 @@ describe("deleteUserAccount", () => {
     vi.clearAllMocks();
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
+        accountDeletionToken: { deleteMany: mockAccountDeletionDeleteMany },
         refreshToken: { updateMany: mockRefreshUpdateMany },
         consentLog: { updateMany: mockConsentLogUpdateMany },
-        user: { delete: mockUserDelete },
+        user: { delete: mockUserDelete, update: mockUserUpdate },
       };
       return fn(tx);
     });
@@ -71,78 +81,55 @@ describe("deleteUserAccount", () => {
     mockRefreshUpdateMany.mockResolvedValue({ count: 1 });
     mockConsentLogUpdateMany.mockResolvedValue({ count: 0 });
     mockUserDelete.mockResolvedValue({});
-    mockValidateCredentials.mockResolvedValue({
-      success: true,
-      user: {
-        id: "u1",
-        username: "tester",
-        role: "USER",
-        password: "hash",
-      },
+    mockAccountDeletionDeleteMany.mockResolvedValue({ count: 1 });
+    mockAccountDeletionFindFirst.mockResolvedValue({
+      id: "tok1",
+      userId: "u1",
+      shortCode: "123456",
+      expiresAt: new Date(Date.now() + 60_000),
     });
-  });
-
-  it("returns success and revokes tokens before user.delete", async () => {
     mockUserFindUnique.mockResolvedValue({
       id: "u1",
       username: "tester",
       role: "USER",
-      passwordSetAt: new Date(),
       email: "t@example.com",
     });
-
-    const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
-
-    expect(result).toEqual({ success: true });
-    expect(mockValidateCredentials).toHaveBeenCalledWith("tester", "secret");
-    expect(mockRefreshUpdateMany).toHaveBeenCalledWith({
-      where: { userId: "u1", revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(mockConsentLogUpdateMany).toHaveBeenCalledWith({
-      where: { userId: "u1" },
-      data: {
-        formData: PrismaRuntime.DbNull,
-        ipAddress: null,
-        userAgent: null,
-      },
-    });
-    expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
-    expect(mockRefreshUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
-      mockConsentLogUpdateMany.mock.invocationCallOrder[0]!,
-    );
-    expect(mockConsentLogUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
-      mockUserDelete.mock.invocationCallOrder[0]!,
-    );
   });
 
-  it("allows PREMIUM role", async () => {
+  it("returns success and deletes tokens before user.delete", async () => {
+    const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
+
+    expect(result).toEqual({ success: true });
+    expect(mockAccountDeletionFindFirst).toHaveBeenCalledWith({
+      where: { userId: "u1", shortCode: "123456" },
+    });
+    expect(mockAccountDeletionDeleteMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
+    expect(mockRefreshUpdateMany).toHaveBeenCalled();
+    expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
+  });
+
+  it("allows PREMIUM with valid code", async () => {
     mockUserFindUnique.mockResolvedValue({
       id: "u1",
       username: "prem",
       role: "PREMIUM",
-      passwordSetAt: new Date(),
-      email: null,
+      email: "p@example.com",
     });
 
-    const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
+    const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
 
     expect(result).toEqual({ success: true });
   });
 
-  it("rejects wrong password", async () => {
-    mockUserFindUnique.mockResolvedValue({
-      id: "u1",
-      username: "tester",
-      role: "USER",
-      passwordSetAt: new Date(),
-      email: null,
+  it("rejects missing or wrong code", async () => {
+    mockAccountDeletionFindFirst.mockResolvedValue(null);
+
+    const result = await deleteUserAccount({ actorUserId: "u1", code: "999999" });
+
+    expect(result.success).toBe(false);
+    expect(result).toMatchObject({
+      error: expect.stringContaining("Неверный или просроченный код") as string,
     });
-    mockValidateCredentials.mockResolvedValue({ success: false });
-
-    const result = await deleteUserAccount({ actorUserId: "u1", password: "wrong" });
-
-    expect(result).toEqual({ success: false, error: "Неверный пароль" });
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 
@@ -151,55 +138,127 @@ describe("deleteUserAccount", () => {
       id: "u1",
       username: "trainer",
       role: "TRAINER",
-      passwordSetAt: new Date(),
-      email: null,
+      email: "t@example.com",
     });
 
-    const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
+    const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
 
     expect(result.success).toBe(false);
     expect(result).toMatchObject({ code: "FORBIDDEN" });
-    expect(mockValidateCredentials).not.toHaveBeenCalled();
-  });
-
-  it("rejects when passwordSetAt is null", async () => {
-    mockUserFindUnique.mockResolvedValue({
-      id: "u1",
-      username: "tester",
-      role: "USER",
-      passwordSetAt: null,
-      email: null,
-    });
-
-    const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
-
-    expect(result).toMatchObject({
-      success: false,
-      code: "FORBIDDEN",
-    });
-    expect(mockValidateCredentials).not.toHaveBeenCalled();
+    expect(mockAccountDeletionFindFirst).not.toHaveBeenCalled();
   });
 
   it("blocks when user authored a course", async () => {
-    mockUserFindUnique.mockResolvedValue({
-      id: "u1",
-      username: "tester",
-      role: "USER",
-      passwordSetAt: new Date(),
-      email: null,
-    });
     mockCourseCount.mockResolvedValue(1);
 
-    const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
+    const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
 
     expect(result).toMatchObject({ success: false, code: "CONFLICT" });
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 
   it("rejects empty actorUserId", async () => {
-    const result = await deleteUserAccount({ actorUserId: "   ", password: "secret" });
+    const result = await deleteUserAccount({ actorUserId: "   ", code: "123456" });
 
     expect(result).toMatchObject({ code: "VALIDATION" });
     expect(mockUserFindUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestAccountDeletionCode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSendDeletionEmail.mockResolvedValue(undefined);
+    mockCourseCount.mockResolvedValue(0);
+    mockTrainingDayCount.mockResolvedValue(0);
+    mockStepCount.mockResolvedValue(0);
+    mockStepTemplateCount.mockResolvedValue(0);
+    mockArticleCount.mockResolvedValue(0);
+    mockTokDeleteMany.mockResolvedValue({ count: 0 });
+    mockTokFindUnique.mockResolvedValue(null);
+    mockTokCreate.mockResolvedValue({});
+    mockUserUpdate.mockResolvedValue({});
+
+    mockUserFindUnique.mockImplementation(
+      (args: { select: Record<string, boolean> }) => {
+        const keys = Object.keys(args.select);
+        if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
+          return Promise.resolve({ accountDeletionRequestedAt: null });
+        }
+        return Promise.resolve({
+          id: "u1",
+          username: "tester",
+          role: "USER",
+          email: "t@example.com",
+        });
+      },
+    );
+
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        accountDeletionToken: {
+          deleteMany: mockTokDeleteMany,
+          findUnique: mockTokFindUnique,
+          create: mockTokCreate,
+        },
+        user: { update: mockUserUpdate },
+      };
+      return fn(tx);
+    });
+  });
+
+  it("sends email when user has email", async () => {
+    const result = await requestAccountDeletionCode("u1");
+
+    expect(result).toEqual({ success: true });
+    expect(mockTokDeleteMany).toHaveBeenCalled();
+    expect(mockTokCreate).toHaveBeenCalled();
+    expect(mockSendDeletionEmail).toHaveBeenCalledWith("t@example.com", expect.any(String));
+  });
+
+  it("rejects when email missing", async () => {
+    mockUserFindUnique.mockImplementation(
+      (args: { select: Record<string, boolean> }) => {
+        const keys = Object.keys(args.select);
+        if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
+          return Promise.resolve({ accountDeletionRequestedAt: null });
+        }
+        return Promise.resolve({
+          id: "u1",
+          username: "tester",
+          role: "USER",
+          email: null,
+        });
+      },
+    );
+
+    const result = await requestAccountDeletionCode("u1");
+
+    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ code: "FORBIDDEN" });
+    expect(mockSendDeletionEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects when throttled", async () => {
+    mockUserFindUnique.mockImplementation(
+      (args: { select: Record<string, boolean> }) => {
+        const keys = Object.keys(args.select);
+        if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
+          return Promise.resolve({ accountDeletionRequestedAt: new Date() });
+        }
+        return Promise.resolve({
+          id: "u1",
+          username: "tester",
+          role: "USER",
+          email: "t@example.com",
+        });
+      },
+    );
+
+    const result = await requestAccountDeletionCode("u1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Подождите");
+    expect(mockTransaction).not.toHaveBeenCalled();
   });
 });

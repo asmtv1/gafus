@@ -1,422 +1,168 @@
-/* Основной контейнер страницы добавления питомца */
-.container {
-  background-color: var(--bg-1);
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 1rem;
-  gap: 1rem;
+/* В едином стиле с ChangePasswordForm */
+
+.page {
+  min-height: 60vh;
+  padding: 1.5rem 1rem 3rem;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
-/* Используем dvh только для современных браузеров после гидратации */
-@supports (height: 100dvh) {
-  .container {
-    min-height: 100dvh;
+.card {
+  padding: 1.75rem 1.5rem 2rem;
+  background: #ece5d2;
+  border-radius: 16px;
+  border: 1px solid #636128;
+  box-shadow: 0 8px 24px rgba(53, 46, 46, 0.08);
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .card {
+    padding: 2rem 2rem 2.25rem;
   }
 }
 
-/* Заголовок страницы */
+.iconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99, 97, 40, 0.18) 0%, rgba(74, 74, 26, 0.12) 100%);
+  border: 1px solid rgba(99, 97, 40, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  color: #4a4a1a;
+}
+
 .title {
-  color: var(--bg-2);
+  margin: 0 0 0.65rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #352e2e;
+  letter-spacing: -0.02em;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-  font-weight: 400;
-  font-size: 2.5rem;
-  line-height: 100%;
-  letter-spacing: 0px;
-  text-align: center;
-  margin: 0 0 1rem 0;
+  line-height: 1.2;
 }
 
-/* Контейнер формы */
-.form_container {
-  background: #f5f0e8;
-  border: 1px solid #d4c4a8;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-/* Форма */
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* Переопределение стилей FormField */
-.form :global(.mb-4) {
-  margin-bottom: 0;
-}
-
-.form :global(label) {
+.lead {
+  margin: 0 0 1.5rem;
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #352e2e;
+  line-height: 1.55;
+  color: #5a5744;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  margin-bottom: 0.5rem;
-  display: block;
 }
 
-/* Стили для обязательных полей */
-.form :global(label[for="name"]),
-.form :global(label[for="type"]),
-.form :global(label[for="breed"]),
-.form :global(label[for="birthDate"]) {
-  position: relative;
-}
-
-.form :global(label[for="name"]):after,
-.form :global(label[for="type"]):after,
-.form :global(label[for="breed"]):after,
-.form :global(label[for="birthDate"]):after {
-  content: " *";
-  color: #d32f2f;
-  font-weight: bold;
-}
-
-.form :global(input),
-.form :global(textarea),
-.form :global(select) {
-  background-color: var(--bg-1);
-  border: 2px solid #636128;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  color: #352e2e;
-  transition: all 0.3s ease;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Специальные стили для полей даты в Safari */
-.form :global(input[type="date"]) {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-color: var(--bg-1);
-  border: 2px solid #636128;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  color: #352e2e;
-  transition: all 0.3s ease;
-  width: 100%;
-  box-sizing: border-box;
-  position: relative;
-}
-
-/* Убираем встроенную иконку календаря в Safari */
-.form :global(input[type="date"])::-webkit-calendar-picker-indicator {
-  background: transparent;
-  bottom: 0;
-  color: transparent;
-  cursor: pointer;
-  height: auto;
-  left: 0;
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: auto;
-  opacity: 0;
-}
-
-/* Добавляем кастомную иконку календаря */
-.form :global(input[type="date"])::after {
-  content: "📅";
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 1rem;
-}
-
-/* Стили для Webkit браузеров (Safari, Chrome) */
-.form :global(input[type="date"])::-webkit-datetime-edit {
-  padding: 0;
-}
-
-.form :global(input[type="date"])::-webkit-datetime-edit-fields-wrapper {
-  padding: 0;
-}
-
-.form :global(input[type="date"])::-webkit-datetime-edit-text {
-  color: #352e2e;
-  padding: 0 0.25rem;
-}
-
-.form :global(input[type="date"])::-webkit-datetime-edit-month-field,
-.form :global(input[type="date"])::-webkit-datetime-edit-day-field,
-.form :global(input[type="date"])::-webkit-datetime-edit-year-field {
-  color: #352e2e;
-  padding: 0 0.125rem;
-}
-
-.form :global(input):focus,
-.form :global(textarea):focus,
-.form :global(select):focus {
-  outline: none;
-  border-color: #b6c582;
-  box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
-  background-color: #fff8e5;
-}
-
-.form :global(input[type="date"]):focus {
-  outline: none;
-  border-color: #b6c582;
-  box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
-  background-color: #fff8e5;
-}
-
-.form :global(textarea) {
-  resize: vertical;
-  min-height: 100px;
-  line-height: 1.4;
-}
-
-.form :global(select) {
-  cursor: pointer;
-}
-
-.form :global(select option) {
-  background-color: var(--bg-1);
-  color: #352e2e;
-  padding: 0.5rem;
-}
-
-/* Стили для ошибок валидации */
-.form :global(.text-red-500) {
-  color: #d32f2f;
+.sectionTitle {
+  margin: 0 0 0.85rem;
   font-size: 0.8rem;
-  margin-top: 0.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5a5744;
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
-/* Контейнер для кнопок */
-.form_buttons {
+.sectionTitle:not(:first-of-type) {
+  margin-top: 1.5rem;
+}
+
+.fields {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: 1.1rem;
 }
 
-/* Кнопки формы */
-.form_button {
+.errorBox {
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #fbe9e7;
+  color: #c62828;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.35rem;
+}
+
+.submit {
+  width: 100%;
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
   color: #ece5d2;
   border: 1px solid #636128;
-  padding: 12px 24px;
-  border-radius: 8px;
+  padding: 14px 28px;
+  border-radius: 12px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-  position: relative;
-  overflow: hidden;
+  min-height: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.form_button:hover {
+.submit:hover:not(:disabled) {
   background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
 
-.form_button:active {
-  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
+.submit:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
 
-/* Кнопка отмены */
-.form_button_cancel {
+.submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cancel {
+  width: 100%;
   background: transparent;
   color: #636128;
   border: 2px solid #636128;
-  box-shadow: none;
-}
-
-.form_button_cancel:hover {
-  background: #636128;
-  color: #ece5d2;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
-}
-
-/* Индикатор загрузки */
-.loading {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-.loading .form_button {
-  background: #d4c4a8;
-  color: #636128;
-  cursor: not-allowed;
-}
-
-/* Стиль для состояния загрузки формы */
-.form_loading {
-  text-align: center;
-  color: #636128;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-size: 1rem;
-  padding: 2rem;
-}
-
-/* Специальные стили для полей питомца */
-.pet_info_section {
-  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
-  border-radius: 8px;
-  padding: 1rem;
-  border: 1px solid #d4c4a8;
-  margin-bottom: 1rem;
-}
-
-.pet_info_section h3 {
-  font-size: 1.1rem;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #352e2e;
-  margin: 0 0 0.75rem 0;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  min-height: 48px;
 }
 
-.required_field::after {
-  content: " *";
-  color: #d32f2f;
-  font-weight: bold;
+.cancel:hover:not(:disabled) {
+  background: rgba(99, 97, 40, 0.08);
 }
 
-/* Адаптивный дизайн для мобильных устройств */
-@media (max-width: 768px) {
-  .container {
-    padding: 0.75rem;
-  }
+.loadingHint {
+  margin: 0;
+  text-align: center;
+  color: #5a5744;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 0.95rem;
+  padding: 1rem 0;
+}
 
+@media (max-width: 375px) {
   .title {
-    font-size: 2rem;
-    margin-bottom: 0.75rem;
+    font-size: 1.35rem;
   }
 
-  .form_container {
-    padding: 1rem;
-    border-radius: 8px;
-  }
-
-  .form {
-    gap: 1.25rem;
-  }
-
-  .form :global(input),
-  .form :global(textarea),
-  .form :global(select) {
-    padding: 0.65rem 0.85rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-  }
-
-  .form :global(input[type="date"]) {
-    padding: 0.65rem 0.85rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-  }
-
-  .form :global(label) {
+  .submit,
+  .cancel {
+    padding: 12px 20px;
     font-size: 0.9rem;
-    margin-bottom: 0.4rem;
-  }
-
-  .form_buttons {
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-  }
-
-  .form_button {
-    padding: 10px 20px;
-    font-size: 0.9rem;
-  }
-
-  .pet_info_section {
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 0.75rem;
-  }
-
-  .pet_info_section h3 {
-    font-size: 1rem;
-    margin-bottom: 0.6rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .container {
-    padding: 0.5rem;
-  }
-
-  .title {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .form_container {
-    padding: 0.75rem;
-    border-radius: 6px;
-  }
-
-  .form {
-    gap: 1rem;
-  }
-
-  .form :global(input),
-  .form :global(textarea),
-  .form :global(select) {
-    padding: 0.6rem 0.75rem;
-    font-size: 0.8rem;
-    border-radius: 4px;
-  }
-
-  .form :global(input[type="date"]) {
-    padding: 0.6rem 0.75rem;
-    font-size: 0.8rem;
-    border-radius: 4px;
-  }
-
-  .form :global(label) {
-    font-size: 0.85rem;
-    margin-bottom: 0.3rem;
-  }
-
-  .form_buttons {
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-  }
-
-  .form_button {
-    padding: 8px 16px;
-    font-size: 0.85rem;
-  }
-
-  .pet_info_section {
-    padding: 0.5rem;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-  }
-
-  .pet_info_section h3 {
-    font-size: 0.95rem;
-    margin-bottom: 0.5rem;
   }
 }

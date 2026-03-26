@@ -7,10 +7,7 @@ import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
-import {
-  checkLoginRateLimit,
-  checkUserStateAction,
-} from "@shared/server-actions";
+import { checkLoginRateLimit } from "@shared/server-actions";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,14 +42,6 @@ export default function LoginForm() {
       const rateLimit = await checkLoginRateLimit();
       if (!rateLimit.allowed) {
         alert("Слишком много попыток. Попробуйте позже.");
-        return;
-      }
-
-      // Проверяем статус подтверждения номера перед входом
-      const userState = await checkUserStateAction(username);
-
-      if (userState.needsConfirm) {
-        router.push("/confirm");
         return;
       }
 

@@ -14,7 +14,6 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  pendingConfirmPhone: string | null;
   pendingVkPhone: boolean;
   /** Новый VK-пользователь — нужно собрать согласия */
   pendingVkConsent: boolean;
@@ -41,8 +40,6 @@ interface AuthActions {
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
   handleSessionExpired: () => void;
-  setPendingConfirmPhone: (phone: string) => void;
-  clearPendingConfirmPhone: () => void;
   clearPendingVkPhone: () => void;
   setVkPhoneComplete: (phone: string) => Promise<{ success: boolean; error?: string }>;
   clearPendingVkConsent: () => void;
@@ -64,7 +61,6 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       isLoading: true,
       isAuthenticated: false,
-      pendingConfirmPhone: null,
       pendingVkPhone: false,
       pendingVkConsent: false,
       vkConsentToken: null,
@@ -96,25 +92,12 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = profileRes.data;
-          // undefined = считаем неподтверждённым (безопасно; API должен возвращать isConfirmed)
-          const isConfirmed = user.isConfirmed === true;
           if (__DEV__) {
-            console.log("[authStore] profile", { id: user.id, isConfirmed: user.isConfirmed });
+            console.log("[authStore] profile", { id: user.id });
           }
 
-          if (!isConfirmed) {
-            set({
-              user,
-              isAuthenticated: false,
-              pendingConfirmPhone: user.phone ?? "",
-              pendingVkPhone: false,
-            });
-            if (__DEV__) console.log("[authStore] user NOT confirmed");
-            return { success: true };
-          }
-
-          set({ user, isAuthenticated: true, pendingConfirmPhone: null, pendingVkPhone: false });
-          if (__DEV__) console.log("[authStore] user confirmed → isAuthenticated: true");
+          set({ user, isAuthenticated: true, pendingVkPhone: false });
+          if (__DEV__) console.log("[authStore] login → isAuthenticated: true");
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthLogin" });
@@ -140,10 +123,9 @@ export const useAuthStore = create<AuthStore>()(
           if (needsConsent && vkConsentToken) {
             resetUserStores();
             set({
-              user: { ...user, phone: "", email: null, isConfirmed: false } as User,
+              user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
               pendingVkPhone: false,
-              pendingConfirmPhone: null,
               pendingVkConsent: true,
               vkConsentToken,
             });
@@ -157,10 +139,9 @@ export const useAuthStore = create<AuthStore>()(
           if (needsPhone) {
             // Телефон не задан — направляем на экран установки телефона
             set({
-              user: { ...user, phone: "", email: null, isConfirmed: false } as User,
+              user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
               pendingVkPhone: true,
-              pendingConfirmPhone: null,
             });
             return { success: true, needsPhone: true };
           }
@@ -174,7 +155,6 @@ export const useAuthStore = create<AuthStore>()(
             user: profileRes.data,
             isAuthenticated: true,
             pendingVkPhone: false,
-            pendingConfirmPhone: null,
           });
           return { success: true };
         } catch (error) {
@@ -222,7 +202,6 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user: profileRes.data,
             isAuthenticated: true,
-            pendingConfirmPhone: null,
             pendingVkPhone: false,
           });
           if (__DEV__) console.log("[authStore] register success, userId:", profileRes.data.id);
@@ -255,8 +234,11 @@ export const useAuthStore = create<AuthStore>()(
 
         resetUserStores();
         set({
-          user: null, isAuthenticated: false, pendingConfirmPhone: null,
-          pendingVkPhone: false, pendingVkConsent: false, vkConsentToken: null,
+          user: null,
+          isAuthenticated: false,
+          pendingVkPhone: false,
+          pendingVkConsent: false,
+          vkConsentToken: null,
         });
       },
 
@@ -273,8 +255,10 @@ export const useAuthStore = create<AuthStore>()(
           if (!token) {
             if (__DEV__) console.log("[authStore] checkAuth: no token");
             set({
-              isLoading: false, isAuthenticated: false, user: null,
-              pendingConfirmPhone: null, pendingVkPhone: false,
+              isLoading: false,
+              isAuthenticated: false,
+              user: null,
+              pendingVkPhone: false,
             });
             return;
           }
@@ -283,12 +267,8 @@ export const useAuthStore = create<AuthStore>()(
 
           if (response.success && response.data) {
             const userData = response.data;
-            const isConfirmed = userData.isConfirmed === true;
             if (__DEV__) {
-              console.log("[authStore] checkAuth profile", { isConfirmed: userData.isConfirmed });
-              if (userData.isConfirmed === undefined) {
-                console.warn("[authStore] API не возвращает isConfirmed — считаем неподтверждённым. Добавьте поле в GET /user/profile");
-              }
+              console.log("[authStore] checkAuth profile", { id: userData.id });
             }
 
             // VK-пользователь с временным phone (vk_xxx) — экран установки телефона
@@ -298,21 +278,8 @@ export const useAuthStore = create<AuthStore>()(
                 isAuthenticated: false,
                 isLoading: false,
                 pendingVkPhone: true,
-                pendingConfirmPhone: null,
               });
               if (__DEV__) console.log("[authStore] checkAuth: VK user without phone → pendingVkPhone");
-              return;
-            }
-
-            if (!isConfirmed) {
-              set({
-                user: userData,
-                isAuthenticated: false,
-                isLoading: false,
-                pendingConfirmPhone: userData.phone ?? null,
-                pendingVkPhone: false,
-              });
-              if (__DEV__) console.log("[authStore] checkAuth: NOT confirmed");
               return;
             }
 
@@ -320,17 +287,18 @@ export const useAuthStore = create<AuthStore>()(
               user: userData,
               isAuthenticated: true,
               isLoading: false,
-              pendingConfirmPhone: null,
               pendingVkPhone: false,
             });
-            if (__DEV__) console.log("[authStore] checkAuth: confirmed, isAuthenticated: true");
+            if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
           } else {
             if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
             await SecureStore.deleteItemAsync("auth_token");
             await SecureStore.deleteItemAsync("refresh_token");
             set({
-              isLoading: false, isAuthenticated: false, user: null,
-              pendingConfirmPhone: null, pendingVkPhone: false,
+              isLoading: false,
+              isAuthenticated: false,
+              user: null,
+              pendingVkPhone: false,
             });
           }
         } catch (error) {
@@ -349,8 +317,11 @@ export const useAuthStore = create<AuthStore>()(
       handleSessionExpired: () => {
         resetUserStores();
         set({
-          user: null, isAuthenticated: false, pendingConfirmPhone: null,
-          pendingVkPhone: false, pendingVkConsent: false, vkConsentToken: null,
+          user: null,
+          isAuthenticated: false,
+          pendingVkPhone: false,
+          pendingVkConsent: false,
+          vkConsentToken: null,
         });
       },
 
@@ -358,8 +329,6 @@ export const useAuthStore = create<AuthStore>()(
        * Установка данных пользователя (например, после обновления профиля)
        */
       setUser: (user) => set({ user }),
-      setPendingConfirmPhone: (phone) => set({ pendingConfirmPhone: phone }),
-      clearPendingConfirmPhone: () => set({ pendingConfirmPhone: null }),
       clearPendingVkPhone: () => set({ pendingVkPhone: false }),
       clearPendingVkConsent: () =>
         set({ pendingVkConsent: false, vkConsentToken: null }),
@@ -380,12 +349,11 @@ export const useAuthStore = create<AuthStore>()(
           await SecureStore.setItemAsync("refresh_token", refreshToken!);
           if (needsPhone) {
             set({
-              user: { ...user, phone: "", email: null, isConfirmed: false } as User,
+              user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
               pendingVkPhone: true,
               pendingVkConsent: false,
               vkConsentToken: null,
-              pendingConfirmPhone: null,
             });
           } else {
             const profileRes = await authApi.getProfile();
@@ -398,7 +366,6 @@ export const useAuthStore = create<AuthStore>()(
               pendingVkPhone: false,
               pendingVkConsent: false,
               vkConsentToken: null,
-              pendingConfirmPhone: null,
             });
           }
           return { success: true };
@@ -408,17 +375,8 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      setVkPhoneCompleted: async () => {
-        const profileRes = await authApi.getProfile();
-        if (profileRes.success && profileRes.data) {
-          set({ user: profileRes.data, isAuthenticated: true, pendingVkPhone: false });
-        } else {
-          await useAuthStore.getState().logout();
-        }
-      },
-
       /**
-       * После установки телефона VK-пользователем: POST vk-phone-set → getProfile → confirm или main
+       * После установки телефона VK-пользователем: POST vk-phone-set → getProfile
        */
       setVkPhoneComplete: async (phone) => {
         try {
@@ -433,23 +391,11 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = profileRes.data;
-          const isConfirmed = user.isConfirmed === true;
-
-          if (!isConfirmed) {
-            set({
-              user,
-              isAuthenticated: false,
-              pendingVkPhone: false,
-              pendingConfirmPhone: user.phone,
-            });
-          } else {
-            set({
-              user,
-              isAuthenticated: true,
-              pendingVkPhone: false,
-              pendingConfirmPhone: null,
-            });
-          }
+          set({
+            user,
+            isAuthenticated: true,
+            pendingVkPhone: false,
+          });
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkPhoneSet" });
@@ -461,7 +407,7 @@ export const useAuthStore = create<AuthStore>()(
       name: "auth-storage",
       storage: createJSONStorage(() => zustandStorage),
       // Персистим только данные пользователя
-      partialize: (state) => ({ user: state.user, pendingConfirmPhone: state.pendingConfirmPhone }),
+      partialize: (state) => ({ user: state.user }),
     },
   ),
 );

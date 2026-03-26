@@ -8,10 +8,9 @@ import { useAuthStore } from "@/shared/stores";
  * Рендерится только когда AuthProvider уже завершил checkAuth.
  */
 export default function Index() {
-  const { isAuthenticated, pendingConfirmPhone, pendingVkPhone, pendingVkConsent } = useAuthStore(
+  const { isAuthenticated, pendingVkPhone, pendingVkConsent } = useAuthStore(
     useShallow((s) => ({
       isAuthenticated: s.isAuthenticated,
-      pendingConfirmPhone: s.pendingConfirmPhone,
       pendingVkPhone: s.pendingVkPhone,
       pendingVkConsent: s.pendingVkConsent,
     })),
@@ -20,6 +19,5 @@ export default function Index() {
   if (isAuthenticated) return <Redirect href="/(main)" />;
   if (pendingVkConsent) return <Redirect href="/vk-consent" />;
   if (pendingVkPhone) return <Redirect href="/vk-set-phone" />;
-  if (pendingConfirmPhone) return <Redirect href="/confirm" />;
   return <Redirect href="/welcome" />;
 }

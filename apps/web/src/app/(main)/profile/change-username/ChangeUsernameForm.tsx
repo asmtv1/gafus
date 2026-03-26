@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import TextField from "@mui/material/TextField";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
-import { FormField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { usernameChangeSchema } from "@shared/lib/validation/authSchemas";
 import { changeUsernameAction, checkUsernameAvailableAction } from "@shared/server-actions";
@@ -16,15 +17,45 @@ import styles from "./ChangeUsernameForm.module.css";
 
 type Availability = "idle" | "checking" | "available" | "taken";
 
+const textFieldSx = {
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "12px",
+    backgroundColor: "#fff",
+    fontFamily: "var(--font-montserrat), system-ui, sans-serif",
+  },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#636128",
+    borderWidth: "1px",
+  },
+  "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#4a4a1a",
+  },
+  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#636128",
+    borderWidth: "2px",
+  },
+  "& .MuiInputLabel-root": {
+    color: "#5a5744",
+    fontFamily: "var(--font-montserrat), system-ui, sans-serif",
+  },
+  "& .MuiFormHelperText-root": {
+    fontFamily: "var(--font-montserrat), system-ui, sans-serif",
+  },
+} as const;
+
 export default function ChangeUsernameForm() {
   const router = useRouter();
   const { update: updateSession } = useSession();
-  const [error, setError] = useState("");
+  const [rootError, setRootError] = useState("");
   const [availability, setAvailability] = useState<Availability>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const abortRef = useRef(0);
 
-  const { form, handleSubmit } = useZodForm(usernameChangeSchema, { newUsername: "" });
+  const {
+    form,
+    handleSubmit,
+    formState: { errors },
+  } = useZodForm(usernameChangeSchema, { newUsername: "" });
   const watchedUsername = form.watch("newUsername");
 
   useEffect(() => {
@@ -51,12 +82,12 @@ export default function ChangeUsernameForm() {
   }, [watchedUsername]);
 
   const onSubmit = async (data: UsernameChangeSchema) => {
-    setError("");
+    setRootError("");
     setIsSubmitting(true);
     try {
       const result = await changeUsernameAction(data.newUsername);
       if (result.error) {
-        setError(result.error);
+        setRootError(result.error);
         return;
       }
       if (result.success && result.username) {
@@ -65,56 +96,80 @@ export default function ChangeUsernameForm() {
       }
     } catch (err) {
       reportClientError(err, { issueKey: "ChangeUsernameForm", keys: { operation: "submit" } });
-      setError("Не удалось сменить логин");
+      setRootError("Не удалось сменить логин");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const { ref, ...usernameField } = form.register("newUsername");
+
   return (
-    <main style={{ maxWidth: 400, margin: "0 auto", padding: "2rem" }}>
-      <h1>Смена логина</h1>
-      <p style={{ marginBottom: "1rem", color: "var(--mui-palette-text-secondary)" }}>
-        Логин используется для входа. Минимум 3 символа, только латинские буквы, цифры и _.
-      </p>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <FormField
-          id="newUsername"
-          label="Новый логин"
-          name="newUsername"
-          type="text"
-          placeholder="mylogin"
-          form={form}
-          className="mb-4 w-full"
-          ariaDescribedBy="username-availability-hint"
-        />
-        <div
-          id="username-availability-hint"
-          role="status"
-          aria-live="polite"
-          className={styles.availabilityHint}
-        >
-          {availability === "checking" && (
-            <span style={{ color: "var(--mui-palette-text-secondary)" }}>Проверка...</span>
-          )}
-          {availability === "available" && (
-            <span style={{ color: "var(--mui-palette-success-main)" }}>Логин свободен</span>
-          )}
-          {availability === "taken" && (
-            <span style={{ color: "var(--mui-palette-error-main)" }}>Логин занят</span>
-          )}
+    <main className={styles.page}>
+      <section className={styles.card} aria-labelledby="change-username-title">
+        <div className={styles.iconWrap} aria-hidden>
+          <PersonOutlineIcon sx={{ fontSize: 28 }} />
         </div>
-        {error && (
-          <p style={{ color: "var(--mui-palette-error-main)", marginTop: "0.5rem" }}>{error}</p>
-        )}
-        <button
-          type="submit"
-          className={styles.button}
-          disabled={availability === "taken" || availability === "checking" || isSubmitting}
-        >
-          {isSubmitting ? "Сохранение..." : "Сохранить"}
-        </button>
-      </form>
+        <h1 id="change-username-title" className={styles.title}>
+          Смена логина
+        </h1>
+        <p className={styles.lead}>
+          Логин используется для входа. Минимум 3 символа: только латинские буквы, цифры и символ
+          подчёркивания.
+        </p>
+        <ul className={styles.steps}>
+          <li>Введите желаемый логин — покажем, свободен ли он.</li>
+          <li>Нажмите «Сохранить», чтобы применить изменение.</li>
+        </ul>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className={styles.field}>
+            <TextField
+              inputRef={ref}
+              {...usernameField}
+              id="newUsername"
+              label="Новый логин"
+              type="text"
+              placeholder="mylogin"
+              autoComplete="username"
+              fullWidth
+              error={!!errors.newUsername}
+              helperText={errors.newUsername?.message}
+              disabled={isSubmitting}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: {
+                  "aria-describedby": "username-availability-hint",
+                },
+              }}
+              sx={textFieldSx}
+            />
+          </div>
+          <div
+            id="username-availability-hint"
+            role="status"
+            aria-live="polite"
+            className={styles.availabilityHint}
+          >
+            {availability === "checking" ? (
+              <span className={styles.availabilityChecking}>Проверка…</span>
+            ) : null}
+            {availability === "available" ? (
+              <span className={styles.availabilityAvailable}>Логин свободен</span>
+            ) : null}
+            {availability === "taken" ? (
+              <span className={styles.availabilityTaken}>Логин занят</span>
+            ) : null}
+          </div>
+          {rootError ? <p className={styles.errorBox}>{rootError}</p> : null}
+          <button
+            type="submit"
+            className={styles.submit}
+            disabled={isSubmitting || availability === "taken"}
+          >
+            {isSubmitting ? "Сохранение…" : "Сохранить"}
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

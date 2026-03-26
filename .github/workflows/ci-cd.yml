@@ -470,7 +470,7 @@ jobs:
               echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
               echo "NEXT_PUBLIC_APP_VERSION=1.0.0"
               echo "NEXT_PUBLIC_ENABLE_TRACER=true"
-              echo "WEB_APP_URL=https://gafus.ru"
+              echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
               echo ""
               echo "# Cookie домен"
               echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
@@ -528,6 +528,15 @@ jobs:
               echo "VK_CLIENT_ID_ANDROID=${{ secrets.VK_CLIENT_ID_ANDROID }}"
               echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
               echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
+              echo ""
+              echo "# SMTP / postfix (значения из GitHub Variables → Repository variables)"
+              echo "SMTP_HOST=${{ vars.SMTP_HOST || 'postfix' }}"
+              echo "SMTP_PORT=${{ vars.SMTP_PORT || '587' }}"
+              echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'false' }}"
+              echo "MAIL_FROM=${{ vars.MAIL_FROM || 'noreply@gafus.ru' }}"
+              echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
+              echo "MAIL_ALLOWED_SENDER_DOMAINS=${{ vars.MAIL_ALLOWED_SENDER_DOMAINS || 'gafus.ru' }}"
+              echo "POSTFIX_MYHOSTNAME=${{ vars.POSTFIX_MYHOSTNAME || 'mail.gafus.ru' }}"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file
@@ -544,7 +553,7 @@ jobs:
             docker rm $(docker ps -aq --filter "name=gafus-*") 2>/dev/null || true
 
             # Remove all gafus containers by name explicitly
-            docker rm -f gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-prisma gafus-postgres gafus-redis gafus-nginx gafus-alloy gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
+            docker rm -f gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-prisma gafus-postgres gafus-redis gafus-postfix gafus-nginx gafus-alloy gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
 
             # Now do the normal compose cleanup
             docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans --timeout 30 || true
@@ -601,7 +610,7 @@ jobs:
             echo "🚀 Starting infrastructure services..."
 
             # 1. Start core infrastructure (database, redis)
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis postfix
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 

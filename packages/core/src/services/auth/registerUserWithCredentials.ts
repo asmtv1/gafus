@@ -85,7 +85,6 @@ export async function registerUserWithCredentials(
         phone: null,
         password: hashedPassword,
         passwordSetAt: new Date(),
-        isConfirmed: true,
         profile: { create: {} },
       },
       select: { id: true },

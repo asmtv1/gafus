@@ -13,6 +13,5 @@ export interface RegisterFormData {
 }
 
 export interface PasswordResetFormData {
-  username: string;
-  phone: string;
+  email: string;
 }

@@ -33,9 +33,10 @@ import {
 import {
   consentPayloadSchema,
   newPasswordSchema,
-  phoneChangeConfirmSchema,
+  emailChangeConfirmTokenSchema,
+  emailChangeRequestFormSchema,
   phoneSchema,
-  resetPasswordByCodeSchema,
+  passwordResetFormSchema,
   resetPasswordSchema,
   usernameChangeSchema,
   usernameSchema,
@@ -244,7 +245,7 @@ export async function initiateVkIdLink(): Promise<
 }
 
 /**
- * Проверяет rate limit для логина. Вызывать перед checkUserStateAction и signIn.
+ * Проверяет rate limit для логина. Вызывать перед signIn.
  */
 export async function checkLoginRateLimit(): Promise<{ allowed: boolean }> {
   const ip = await getClientIpFromHeaders();
@@ -252,43 +253,21 @@ export async function checkLoginRateLimit(): Promise<{ allowed: boolean }> {
 }
 
 /**
- * Проверяет статус подтверждения пользователя
+ * Запрос сброса пароля — письмо на email.
  */
-export async function checkUserStateAction(username: string) {
-  try {
-    const safeUsername = usernameSchema.parse(username);
-    return await authService.checkUserState(safeUsername);
-  } catch (error) {
-    logger.error("Error in checkUserStateAction", error as Error);
-    throw new Error("Что-то пошло не так при проверке пользователя");
+export async function sendPasswordResetRequestAction(email: string): Promise<void> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "password-reset-request")) {
+    throw new Error("Слишком много запросов. Попробуйте позже.");
   }
-}
-
-/**
- * Проверяет подтверждение пользователя по телефону
- */
-export async function serverCheckUserConfirmedAction(phone: string) {
   try {
-    const safePhone = phoneSchema.parse(phone);
-    return await authService.serverCheckUserConfirmed(safePhone);
-  } catch (error) {
-    logger.error("Error in serverCheckUserConfirmedAction", error as Error);
-    throw new Error("Что-то пошло не так при проверке подтверждения");
-  }
-}
-
-/**
- * Отправляет запрос на сброс пароля
- */
-export async function sendPasswordResetRequestAction(username: string, phone: string) {
-  try {
-    const safeUsername = usernameSchema.parse(username);
-    const safePhone = phoneSchema.parse(phone);
-
-    return await authService.sendPasswordResetRequest(safeUsername, safePhone);
+    const { email: safeEmail } = passwordResetFormSchema.pick({ email: true }).parse({ email });
+    await authService.sendPasswordResetRequestByEmail(safeEmail);
   } catch (error) {
     logger.error("Error in sendPasswordResetRequestAction", error as Error);
-    throw new Error("Что-то пошло не так при отправке запроса на сброс пароля");
+    throw new Error(
+      getErrorMessage(error, "Что-то пошло не так при отправке запроса на сброс пароля"),
+    );
   }
 }
 
@@ -441,74 +420,49 @@ export async function resetPasswordAction(token: string, password: string) {
 }
 
 /**
- * Сбрасывает пароль по 6-значному коду из Telegram
+ * Запрос смены email: письмо со ссылкой на новый адрес.
  */
-export async function resetPasswordByCodeAction(code: string, password: string) {
-  try {
-    const { code: safeCode, password: safePassword } = resetPasswordByCodeSchema.parse({
-      code,
-      password,
-    });
-
-    await authService.resetPasswordByCode(safeCode, safePassword);
-    return { success: true };
-  } catch (error) {
-    logger.error("Error in resetPasswordByCodeAction", error as Error);
-    throw new Error(
-      getErrorMessage(error, "Что-то пошло не так при сбросе пароля"),
-    );
-  }
-}
-
-/**
- * Запрос кода смены телефона (отправка в Telegram).
- */
-export async function requestPhoneChangeAction(): Promise<{
-  success?: true;
-  error?: string;
-}> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return { error: "Не авторизован" };
-  }
-  const ip = await getClientIpFromHeaders();
-  if (!checkAuthRateLimit(ip, "phone-change-request")) {
-    return { error: "Слишком много запросов. Попробуйте через 15 минут." };
-  }
-  try {
-    await authService.requestPhoneChange(session.user.id);
-    logger.info("phone-change-request success", { userId: session.user.id });
-    return { success: true };
-  } catch (error) {
-    logger.error("requestPhoneChangeAction failed", error as Error, { userId: session.user.id });
-    return { error: getErrorMessage(error, "Не удалось отправить код") };
-  }
-}
-
-/**
- * Подтверждение смены телефона по коду из Telegram.
- */
-export async function confirmPhoneChangeAction(
-  code: string,
-  newPhone: string,
+export async function requestEmailChangeAction(
+  newEmail: string,
 ): Promise<{ success?: true; error?: string }> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { error: "Не авторизован" };
   }
   const ip = await getClientIpFromHeaders();
-  if (!checkAuthRateLimit(ip, "phone-change-confirm")) {
-    return { error: "Слишком много попыток. Попробуйте через 15 минут." };
+  if (!checkAuthRateLimit(ip, "email-change-request")) {
+    return { error: "Слишком много запросов. Попробуйте через 15 минут." };
   }
   try {
-    const parsed = phoneChangeConfirmSchema.parse({ code, newPhone });
-    await authService.confirmPhoneChange(parsed.code, parsed.newPhone);
-    revalidatePath("/profile");
-    logger.info("phone-change-confirm success", { userId: session.user.id });
+    const parsed = emailChangeRequestFormSchema.parse({ newEmail });
+    await authService.requestEmailChange(session.user.id, parsed.newEmail);
+    logger.info("email-change-request success", { userId: session.user.id });
     return { success: true };
   } catch (error) {
-    logger.error("confirmPhoneChangeAction failed", error as Error, { userId: session.user.id });
-    return { error: getErrorMessage(error, "Не удалось сменить номер") };
+    logger.error("requestEmailChangeAction failed", error as Error, { userId: session.user.id });
+    return { error: getErrorMessage(error, "Не удалось отправить письмо") };
+  }
+}
+
+/**
+ * Подтверждение смены email по токену из письма (публичная страница).
+ */
+export async function confirmEmailChangeByTokenAction(
+  token: string,
+): Promise<{ success?: true; error?: string }> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "email-change-confirm")) {
+    return { error: "Слишком много попыток. Попробуйте позже." };
+  }
+  try {
+    const { token: safeToken } = emailChangeConfirmTokenSchema.parse({ token });
+    await authService.confirmEmailChangeByToken(safeToken);
+    revalidatePath("/profile");
+    logger.info("email-change-confirm success");
+    return { success: true };
+  } catch (error) {
+    logger.error("confirmEmailChangeByTokenAction failed", error as Error);
+    return { error: getErrorMessage(error, "Не удалось подтвердить email") };
   }
 }
 

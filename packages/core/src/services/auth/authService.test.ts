@@ -3,21 +3,15 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
   changePassword,
   changeUsername,
-  checkUserState,
   createRefreshSession,
   getAuthUserById,
   isUsernameAvailable,
   REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE,
   registerUserService,
-  requestPhoneChange,
-  confirmPhoneChange,
   resetPassword,
-  resetPasswordByCode,
   revokeAllUserTokens,
   revokeRefreshToken,
   rotateRefreshToken,
-  sendPasswordResetRequest,
-  serverCheckUserConfirmed,
   setPassword,
   setVkPhone,
   validateCredentials,
@@ -36,15 +30,9 @@ vi.mock("bcryptjs", () => ({
   },
 }));
 
-const mockCheckUserConfirmed = vi.fn();
-const mockMaskPhone = vi.fn();
 const mockRegisterUserWithCredentials = vi.hoisted(() => vi.fn());
-const mockSendTelegramPasswordResetRequest = vi.fn();
-const mockSendTelegramUsernameChangeNotification = vi.fn();
+const mockSendUsernameChangedNoticeEmail = vi.hoisted(() => vi.fn());
 const mockResetPasswordByToken = vi.fn();
-const mockResetPasswordByShortCode = vi.fn();
-const mockSendTelegramPhoneChangeRequest = vi.fn();
-const mockConfirmPhoneChangeByShortCode = vi.fn();
 
 const mockUserFindUnique = vi.fn();
 const mockUserFindFirst = vi.fn();
@@ -70,19 +58,17 @@ vi.mock("./registerUserWithCredentials", () => ({
   registerUserWithCredentials: (...args: unknown[]) => mockRegisterUserWithCredentials(...args),
 }));
 
+vi.mock("./transactionalAuthMail", () => ({
+  getPublicWebBaseUrl: () => "https://gafus.ru",
+  assertMailerReady: vi.fn(),
+  sendPasswordResetLinkEmail: vi.fn(),
+  sendPasswordChangedNoticeEmail: vi.fn(),
+  sendUsernameChangedNoticeEmail: (...args: unknown[]) => mockSendUsernameChangedNoticeEmail(...args),
+  sendEmailChangeConfirmEmail: vi.fn(),
+}));
+
 vi.mock("@gafus/auth", () => ({
-  checkUserConfirmed: (...args: unknown[]) => mockCheckUserConfirmed(...args),
-  maskPhone: (phone: string) => mockMaskPhone(phone),
-  sendTelegramPasswordResetRequest: (...args: unknown[]) =>
-    mockSendTelegramPasswordResetRequest(...args),
-  sendTelegramUsernameChangeNotification: (...args: unknown[]) =>
-    mockSendTelegramUsernameChangeNotification(...args),
-  confirmPhoneChangeByShortCode: (...args: unknown[]) =>
-    mockConfirmPhoneChangeByShortCode(...args),
-  resetPasswordByShortCode: (...args: unknown[]) => mockResetPasswordByShortCode(...args),
   resetPasswordByToken: (...args: unknown[]) => mockResetPasswordByToken(...args),
-  sendTelegramPhoneChangeRequest: (...args: unknown[]) =>
-    mockSendTelegramPhoneChangeRequest(...args),
 }));
 
 vi.mock("@gafus/prisma", () => ({
@@ -111,99 +97,6 @@ vi.mock("@gafus/logger", () => ({
 }));
 
 const validNewPassword = "Password1x";
-
-describe("checkUserState", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("returns confirmed when user found and confirmed", async () => {
-    mockUserFindUnique.mockResolvedValue({
-      phone: "+79001234567",
-      isConfirmed: true,
-    });
-    mockCheckUserConfirmed.mockResolvedValue(true);
-    mockMaskPhone.mockReturnValue("+7 *** *** 67");
-
-    const result = await checkUserState("testuser");
-
-    expect(result).toEqual({
-      confirmed: true,
-      phoneHint: "+7 *** *** 67",
-      needsConfirm: false,
-    });
-  });
-
-  it("returns needsConfirm when user found but not confirmed", async () => {
-    mockUserFindUnique.mockResolvedValue({
-      phone: "+79001234567",
-      isConfirmed: false,
-    });
-    mockCheckUserConfirmed.mockResolvedValue(false);
-    mockMaskPhone.mockReturnValue("+7 *** *** 67");
-
-    const result = await checkUserState("testuser");
-
-    expect(result).toEqual({
-      confirmed: false,
-      phoneHint: "+7 *** *** 67",
-      needsConfirm: true,
-    });
-  });
-
-  it("returns confirmed false when user not found", async () => {
-    mockUserFindUnique.mockResolvedValue(null);
-
-    const result = await checkUserState("unknown");
-
-    expect(result).toEqual({ confirmed: false });
-    expect(mockCheckUserConfirmed).not.toHaveBeenCalled();
-  });
-
-  it("email-only: без телефона, isConfirmed true — вход без подтверждения", async () => {
-    mockUserFindUnique.mockResolvedValue({ phone: null, isConfirmed: true });
-
-    const result = await checkUserState("emailuser");
-
-    expect(result).toEqual({
-      confirmed: true,
-      needsConfirm: false,
-    });
-    expect(mockCheckUserConfirmed).not.toHaveBeenCalled();
-  });
-});
-
-describe("serverCheckUserConfirmed", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("delegates to checkUserConfirmed", async () => {
-    mockCheckUserConfirmed.mockResolvedValue(true);
-
-    const result = await serverCheckUserConfirmed("+79001234567");
-
-    expect(result).toBe(true);
-    expect(mockCheckUserConfirmed).toHaveBeenCalledWith("+79001234567");
-  });
-});
-
-describe("sendPasswordResetRequest", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("delegates to sendTelegramPasswordResetRequest", async () => {
-    mockSendTelegramPasswordResetRequest.mockResolvedValue({ ok: true });
-
-    await sendPasswordResetRequest("testuser", "+79001234567");
-
-    expect(mockSendTelegramPasswordResetRequest).toHaveBeenCalledWith(
-      "testuser",
-      "+79001234567",
-    );
-  });
-});
 
 describe("registerUserService", () => {
   beforeEach(() => {
@@ -236,36 +129,15 @@ describe("registerUserService", () => {
   });
 });
 
-describe("resetPassword / resetPasswordByCode / phone change", () => {
+describe("resetPassword", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockResetPasswordByToken.mockResolvedValue(undefined);
-    mockResetPasswordByShortCode.mockResolvedValue(undefined);
-    mockSendTelegramPhoneChangeRequest.mockResolvedValue(undefined);
-    mockConfirmPhoneChangeByShortCode.mockResolvedValue(undefined);
   });
 
   it("resetPassword вызывает resetPasswordByToken", async () => {
     await resetPassword("tok", validNewPassword);
     expect(mockResetPasswordByToken).toHaveBeenCalledWith("tok", validNewPassword);
-  });
-
-  it("resetPasswordByCode вызывает resetPasswordByShortCode", async () => {
-    await resetPasswordByCode("123456", validNewPassword);
-    expect(mockResetPasswordByShortCode).toHaveBeenCalledWith("123456", validNewPassword);
-  });
-
-  it("requestPhoneChange вызывает sendTelegramPhoneChangeRequest", async () => {
-    await requestPhoneChange("u1");
-    expect(mockSendTelegramPhoneChangeRequest).toHaveBeenCalledWith("u1");
-  });
-
-  it("confirmPhoneChange вызывает confirmPhoneChangeByShortCode", async () => {
-    await confirmPhoneChange("111111", "+79001234567");
-    expect(mockConfirmPhoneChangeByShortCode).toHaveBeenCalledWith(
-      "111111",
-      "+79001234567",
-    );
   });
 });
 
@@ -294,7 +166,7 @@ describe("changeUsername", () => {
     mockUserFindUnique.mockResolvedValue({
       id: "user-1",
       username: "sameuser",
-      telegramId: null,
+      email: null,
     });
 
     await changeUsername("user-1", "sameuser");
@@ -307,7 +179,7 @@ describe("changeUsername", () => {
       .mockResolvedValueOnce({
         id: "user-1",
         username: "olduser",
-        telegramId: null,
+        email: null,
       })
       .mockResolvedValueOnce({ id: "other-user" });
 
@@ -319,7 +191,7 @@ describe("changeUsername", () => {
       .mockResolvedValueOnce({
         id: "user-1",
         username: "olduser",
-        telegramId: null,
+        email: null,
       })
       .mockResolvedValueOnce(null);
     mockUserUpdate.mockResolvedValue({});
@@ -337,7 +209,7 @@ describe("changeUsername", () => {
       .mockResolvedValueOnce({
         id: "user-1",
         username: "old",
-        telegramId: null,
+        email: null,
       })
       .mockResolvedValueOnce(null);
     mockUserUpdate.mockRejectedValue(Object.assign(new Error("u"), { code: "P2002" }));
@@ -345,20 +217,20 @@ describe("changeUsername", () => {
     await expect(changeUsername("user-1", "newuser2")).rejects.toThrow("Логин уже занят");
   });
 
-  it("отправляет уведомление в Telegram при смене логина", async () => {
+  it("отправляет уведомление на email при смене логина", async () => {
     mockUserFindUnique
       .mockResolvedValueOnce({
         id: "user-1",
         username: "old",
-        telegramId: "tg-1",
+        email: "a@b.com",
       })
       .mockResolvedValueOnce(null);
     mockUserUpdate.mockResolvedValue({});
-    mockSendTelegramUsernameChangeNotification.mockResolvedValue(undefined);
+    mockSendUsernameChangedNoticeEmail.mockResolvedValue(undefined);
 
     await changeUsername("user-1", "newname");
 
-    expect(mockSendTelegramUsernameChangeNotification).toHaveBeenCalledWith("tg-1", "newname");
+    expect(mockSendUsernameChangedNoticeEmail).toHaveBeenCalledWith("a@b.com", "newname");
   });
 });
 

@@ -85,7 +85,6 @@
 - [x] `apps/web/src/app/api/v1/articles/[slug]/view/route.ts`
 - [x] `apps/web/src/app/api/v1/articles/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/check-phone-match/route.ts`
-- [x] `apps/web/src/app/api/v1/auth/check-state/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/password-reset-request/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/register/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/reset-password/route.ts`

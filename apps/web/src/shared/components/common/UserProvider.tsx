@@ -27,7 +27,6 @@ export default function UserProvider({ children }: UserProviderProps) {
         username: session.user.username,
         phone: "", // Нет в сессии, можно добавить позже
         role: session.user.role,
-        isConfirmed: true, // Предполагаем, что авторизованный пользователь подтвержден
         avatarUrl: session.user.avatarUrl ?? null,
         createdAt: new Date(), // Нет в сессии
         updatedAt: new Date(), // Нет в сессии

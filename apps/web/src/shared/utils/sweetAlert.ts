@@ -2,6 +2,11 @@ import { reportClientError } from "@gafus/error-handling";
 import type { PetFormData } from "@gafus/types";
 import Swal from "sweetalert2";
 
+import {
+  formatIsoBirthDateToDdMmYyyy,
+  petBirthDateSchema,
+} from "@shared/lib/validation/petSchemas";
+
 /** Экранирование для подстановки в HTML (value="...") — защита от XSS */
 function escapeHtml(s: string): string {
   if (typeof s !== "string") return "";
@@ -275,7 +280,8 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Дата рождения *</label>
-          <input id="pet-birthDate" type="date" value="${escapeHtml(String(pet.birthDate ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;">
+          <input id="pet-birthDate" type="text" inputmode="numeric" autocomplete="bday" value="${escapeHtml(formatIsoBirthDateToDdMmYyyy(pet.birthDate ?? ""))}" placeholder="ДД.ММ.ГГГГ" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;">
+          <p style="margin: 6px 0 0 0; font-size: 12px; color: #636128; opacity: 0.9;">Формат: ДД.ММ.ГГГГ (можно ГГГГ-ММ-ДД)</p>
         </div>
         
         <div style="margin-bottom: 15px;">
@@ -315,7 +321,8 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
       const name = (document.getElementById("pet-name") as HTMLInputElement)?.value?.trim();
       const type = (document.getElementById("pet-type") as HTMLSelectElement)?.value;
       const breed = (document.getElementById("pet-breed") as HTMLInputElement)?.value?.trim();
-      const birthDate = (document.getElementById("pet-birthDate") as HTMLInputElement)?.value;
+      const birthDateRaw =
+        (document.getElementById("pet-birthDate") as HTMLInputElement)?.value?.trim() ?? "";
       const heightCm = (document.getElementById("pet-heightCm") as HTMLInputElement)?.value;
       const weightKg = (document.getElementById("pet-weightKg") as HTMLInputElement)?.value;
       const notes = (document.getElementById("pet-notes") as HTMLTextAreaElement)?.value?.trim();
@@ -329,18 +336,19 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         Swal.showValidationMessage("Выберите тип питомца");
         return false;
       }
-      if (!birthDate) {
+      if (!birthDateRaw) {
         Swal.showValidationMessage("Дата рождения обязательна для заполнения");
         return false;
       }
 
-      // Проверка даты
-      const selectedDate = new Date(birthDate);
-      const now = new Date();
-      if (selectedDate > now) {
-        Swal.showValidationMessage("Дата рождения не может быть в будущем");
+      const birthParsed = petBirthDateSchema.safeParse(birthDateRaw);
+      if (!birthParsed.success) {
+        const msg =
+          birthParsed.error.issues[0]?.message ?? "Укажите дату в формате ДД.ММ.ГГГГ";
+        Swal.showValidationMessage(msg);
         return false;
       }
+      const birthDate = birthParsed.data;
 
       // Проверка числовых полей
       if (heightCm && (isNaN(Number(heightCm)) || Number(heightCm) < 1 || Number(heightCm) > 200)) {

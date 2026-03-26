@@ -22,14 +22,12 @@ async function main() {
       phone: "+79198031371",
       password: hashedPassword,
       role: "ADMIN",
-      isConfirmed: true,
     },
   });
   console.log("Админ создан или найден", {
     username: admin.username,
     phone: admin.phone,
     role: admin.role,
-    isConfirmed: admin.isConfirmed,
   });
 
   const [homeCourse, streetCourse, puppyCourse, authorCourse] = await prismaClient.$transaction(
@@ -528,7 +526,6 @@ async function main() {
       phone: "+79998887766",
       password: hashedTrainerPassword,
       role: "TRAINER",
-      isConfirmed: true,
     },
   });
   console.log("Тренер создан", {

@@ -70,80 +70,8 @@
   box-sizing: border-box;
 }
 
-/* Специальные стили для полей даты в Safari */
-.form :global(input[type="date"]) {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-color: var(--bg-1);
-  border: 2px solid #636128;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  color: #352e2e;
-  transition: all 0.3s ease;
-  width: 100%;
-  box-sizing: border-box;
-  position: relative;
-}
-
-/* Убираем встроенную иконку календаря в Safari */
-.form :global(input[type="date"])::-webkit-calendar-picker-indicator {
-  background: transparent;
-  bottom: 0;
-  color: transparent;
-  cursor: pointer;
-  height: auto;
-  left: 0;
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: auto;
-  opacity: 0;
-}
-
-/* Добавляем кастомную иконку календаря */
-.form :global(input[type="date"])::after {
-  content: "📅";
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 1rem;
-}
-
-/* Стили для Webkit браузеров (Safari, Chrome) */
-.form :global(input[type="date"])::-webkit-datetime-edit {
-  padding: 0;
-}
-
-.form :global(input[type="date"])::-webkit-datetime-edit-fields-wrapper {
-  padding: 0;
-}
-
-.form :global(input[type="date"])::-webkit-datetime-edit-text {
-  color: #352e2e;
-  padding: 0 0.25rem;
-}
-
-.form :global(input[type="date"])::-webkit-datetime-edit-month-field,
-.form :global(input[type="date"])::-webkit-datetime-edit-day-field,
-.form :global(input[type="date"])::-webkit-datetime-edit-year-field {
-  color: #352e2e;
-  padding: 0 0.125rem;
-}
-
 .form :global(input):focus,
 .form :global(textarea):focus {
-  outline: none;
-  border-color: #b6c582;
-  box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
-  background-color: #fff8e5;
-}
-
-.form :global(input[type="date"]):focus {
   outline: none;
   border-color: #b6c582;
   box-shadow: 0 0 0 3px rgba(182, 197, 130, 0.1);
@@ -304,12 +232,6 @@
     border-radius: 6px;
   }
 
-  .form :global(input[type="date"]) {
-    padding: 0.65rem 0.85rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-  }
-
   .form :global(label) {
     font-size: 0.9rem;
     margin-bottom: 0.4rem;
@@ -358,12 +280,6 @@
 
   .form :global(input),
   .form :global(textarea) {
-    padding: 0.6rem 0.75rem;
-    font-size: 0.8rem;
-    border-radius: 4px;
-  }
-
-  .form :global(input[type="date"]) {
     padding: 0.6rem 0.75rem;
     font-size: 0.8rem;
     border-radius: 4px;

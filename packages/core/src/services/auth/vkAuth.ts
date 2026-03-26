@@ -422,7 +422,6 @@ export async function findOrCreateVkUser(
         username,
         phone,
         password,
-        isConfirmed: true,
         passwordSetAt: null,
         ...(emailForCreate ? { email: emailForCreate } : {}),
       },

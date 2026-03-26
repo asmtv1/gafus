@@ -10,7 +10,6 @@ export function createUserFixture(overrides?: Partial<User>): Partial<User> {
     phone: "+79001234567",
     password: "hashed",
     role: "USER",
-    isConfirmed: true,
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     ...overrides,

@@ -16,12 +16,6 @@ const updateUserSchema = z.object({
   phone: z.string().optional(),
   role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "USER"]).optional(),
   newPassword: z.string().min(6, "Пароль минимум 6 символов").optional(),
-  isConfirmed: z
-    .preprocess(
-      (v) => (v === "true" ? true : v === "false" ? false : undefined),
-      z.boolean().optional(),
-    )
-    .optional(),
 });
 
 export async function updateUser(
@@ -47,7 +41,6 @@ export async function updateUser(
       phone: formData.get("phone"),
       role: formData.get("role"),
       newPassword: formData.get("newPassword"),
-      isConfirmed: formData.get("isConfirmed"),
     });
 
     if (!parsed.success) {
@@ -56,14 +49,13 @@ export async function updateUser(
       return { success: false, error: msg };
     }
 
-    const { id, username, phone, role, newPassword, isConfirmed } = parsed.data;
+    const { id, username, phone, role, newPassword } = parsed.data;
 
     const result = await updateUserAdmin(id, {
       username,
       phone,
       role,
       newPassword,
-      isConfirmed,
     });
 
     if (!result.success) {

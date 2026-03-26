@@ -104,15 +104,17 @@ export const authOptions: NextAuthOptions = {
         try {
           const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { role: true, passwordSetAt: true, phone: true },
+            select: { role: true, passwordSetAt: true, phone: true, email: true },
           });
           session.user.role = (user?.role as AuthUser["role"]) ?? (t.role as AuthUser["role"]);
           session.user.passwordSetAt = user?.passwordSetAt ?? null;
           session.user.needsPhone = user?.phone?.startsWith("vk_") ?? false;
+          session.user.email = user?.email ?? null;
         } catch {
           session.user.role = t.role as AuthUser["role"];
           session.user.passwordSetAt = null;
           session.user.needsPhone = false;
+          session.user.email = null;
         }
 
         try {

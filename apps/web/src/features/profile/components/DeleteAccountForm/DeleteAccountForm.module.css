@@ -1,0 +1,204 @@
+/* В едином стиле с change-password / change-email */
+
+.page {
+  min-height: 60vh;
+  padding: 1.5rem 1rem 3rem;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #636128;
+  text-decoration: none;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.backLink:hover {
+  color: #4a4a1a;
+  transform: translateX(-2px);
+}
+
+.card {
+  padding: 1.75rem 1.5rem 2rem;
+  background: #ece5d2;
+  border-radius: 16px;
+  border: 1px solid #636128;
+  box-shadow: 0 8px 24px rgba(53, 46, 46, 0.08);
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .card {
+    padding: 2rem 2rem 2.25rem;
+  }
+}
+
+.iconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(198, 40, 40, 0.12) 0%, rgba(154, 0, 7, 0.08) 100%);
+  border: 1px solid rgba(154, 0, 7, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  color: #9a0007;
+}
+
+.title {
+  margin: 0 0 0.65rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #352e2e;
+  letter-spacing: -0.02em;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.2;
+}
+
+.lead {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #5a5744;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.bulletTitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.bulletList {
+  margin: 0 0 1.25rem 1.1rem;
+  padding: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #5a5744;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.bulletList li {
+  margin-bottom: 0.35rem;
+}
+
+.hint {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #5a5744;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.emailLine {
+  font-size: 0.85rem;
+  color: #4a4a1a;
+  margin-bottom: 1rem;
+  word-break: break-all;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.secondaryBtn {
+  margin-bottom: 1.25rem;
+  width: 100%;
+  background: #fff;
+  color: #4a4a1a;
+  border: 1px solid #636128;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  min-height: 48px;
+}
+
+.secondaryBtn:hover:not(:disabled) {
+  background: #f5f2e8;
+  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.15);
+}
+
+.secondaryBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.successBox {
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.errorBox {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #fbe9e7;
+  color: #c62828;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.dangerSubmit {
+  margin-top: 1rem;
+  width: 100%;
+  background: linear-gradient(135deg, #c62828 0%, #9a0007 100%);
+  color: #fff;
+  border: 1px solid #9a0007;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(154, 0, 7, 0.25);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  min-height: 48px;
+}
+
+.dangerSubmit:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.dangerSubmit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.noEmailCard {
+  text-align: left;
+}
+
+.changeEmailLink {
+  display: inline-block;
+  margin-top: 1rem;
+  font-weight: 600;
+  color: #636128;
+  text-decoration: underline;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.changeEmailLink:hover {
+  color: #4a4a1a;
+}

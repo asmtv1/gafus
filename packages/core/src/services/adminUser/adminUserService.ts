@@ -27,7 +27,6 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
         email: true,
         phone: true,
         role: true,
-        isConfirmed: true,
         createdAt: true,
         profile: { select: { fullName: true, avatarUrl: true } },
         _count: { select: { pushSubscriptions: true } },
@@ -52,7 +51,6 @@ export async function updateUserAdmin(
       phone?: string;
       role?: UserRole;
       password?: string;
-      isConfirmed?: boolean;
     } = {};
 
     if (input.username !== undefined) updateData.username = input.username;
@@ -62,8 +60,6 @@ export async function updateUserAdmin(
     if (input.newPassword && input.newPassword.trim()) {
       updateData.password = await bcryptjs.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
     }
-    if (input.isConfirmed !== undefined) updateData.isConfirmed = input.isConfirmed;
-
     await prisma.user.update({ where: { id: userId }, data: updateData });
     logger.info("Пользователь обновлён", { userId });
     return { success: true };

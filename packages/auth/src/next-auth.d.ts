@@ -15,6 +15,7 @@ declare module "next-auth" {
       avatarUrl?: string | null;
       passwordSetAt?: Date | null;
       needsPhone?: boolean;
+      email?: string | null;
     } & import("next-auth").DefaultSession["user"];
   }
 

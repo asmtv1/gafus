@@ -9,7 +9,7 @@ const PUBLIC_PATHS = [
   "/register",
   "/passwordReset",
   "/reset-password",
-  "/confirm",
+  "/profile/confirm-email",
   "/~offline", // Страница офлайна доступна всем
   "/tracer-test", // Тест Tracer без авторизации
   "/api/auth",

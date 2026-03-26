@@ -77,7 +77,6 @@ import {
 
 // Аутентификация
 import {
-  checkUserState,
   registerUserService,
   registerUserWithCredentials,
   exchangeVkCodeAndGetUser,

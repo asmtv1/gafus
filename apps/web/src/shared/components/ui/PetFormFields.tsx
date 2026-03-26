@@ -1,3 +1,5 @@
+import { parsePetBirthDateInput } from "@shared/lib/validation/petSchemas";
+
 import { FormField } from "./FormField"; // замените путь при необходимости
 
 import type { PetFormData } from "@gafus/types";
@@ -50,16 +52,18 @@ export function PetFormFields({ form }: Props) {
       <FormField
         id="birthDate"
         name="birthDate"
-        label="Дата рождения"
-        type="date"
+        label="Дата рождения (ДД.ММ.ГГГГ)"
+        type="text"
+        placeholder="15.03.2020"
         form={form}
         rules={{
           required: "Введите дату рождения",
           validate: (value: string) => {
-            if (typeof value !== "string") return true;
-            const selected = new Date(value);
+            if (typeof value !== "string" || !value.trim()) return true;
+            const d = parsePetBirthDateInput(value);
+            if (!d) return "Формат: ДД.ММ.ГГГГ";
             const now = new Date();
-            return selected <= now || "Дата рождения не может быть в будущем";
+            return d <= now || "Дата рождения не может быть в будущем";
           },
         }}
       />

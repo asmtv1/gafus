@@ -390,7 +390,6 @@ export interface UserProfileForApi {
   phone: string | null;
   email: string | null;
   role: string;
-  isConfirmed: boolean;
   /** true, если у пользователя установлен прикладной пароль (passwordSetAt !== null) */
   hasAppPassword: boolean;
   hasVkLinked: boolean;
@@ -419,7 +418,6 @@ export async function getUserProfileForApi(
       phone: true,
       email: true,
       role: true,
-      isConfirmed: true,
       passwordSetAt: true,
       accounts: {
         where: { provider: "vk" },

@@ -1,20 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
 
-import { FormField, TextField } from "@shared/components/ui/FormField";
+import { EmailField } from "@shared/components/ui/FormField";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
+import { sendPasswordResetRequestAction } from "@shared/server-actions";
 
 import styles from "./passwordReset.module.css";
 
 import type { PasswordResetFormSchema } from "@shared/lib/validation/authSchemas";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.gafus.ru";
 
 export function PasswordResetForm() {
   const {
@@ -24,64 +22,29 @@ export function PasswordResetForm() {
     clearErrors,
     formState: { errors, isValid },
   } = useZodForm(passwordResetFormSchema, {
-    username: "",
-    phone: "",
+    email: "",
   });
 
   const [isPending, setIsPending] = useState(false);
   const [status, setStatus] = useState("");
 
-  // Валидация телефона теперь обрабатывается Zod схемой
-
   const onSubmit = async (data: PasswordResetFormSchema) => {
-    const phoneNumberObj = parsePhoneNumberFromString(data.phone, "RU");
-
-    if (!phoneNumberObj?.isValid()) {
-      setError("phone", { message: "Неверный формат телефона" });
-      return;
-    }
-
     clearErrors();
     setIsPending(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/password-reset-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: data.username, phone: data.phone }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = "Ошибка отправки запроса. Попробуйте позже.";
-        if (response.status === 429) {
-          errorMessage = "Слишком много запросов. Попробуйте позже.";
-        } else {
-          try {
-            const contentType = response.headers.get("content-type");
-            if (contentType?.includes("application/json")) {
-              const errorData: { error?: string } = await response.json();
-              if (errorData.error) errorMessage = errorData.error;
-            }
-          } catch (error) {
-            reportClientError(error, {
-              issueKey: "PasswordResetForm",
-              keys: { operation: "parse_error_response_json" },
-            });
-            // Игнорируем ошибки парсинга — используем дефолтное сообщение
-          }
-        }
-        setError("root", { message: errorMessage });
-        return;
-      }
-
-      setStatus("Если указанные данные верны, вам придёт сообщение в Telegram");
+      await sendPasswordResetRequestAction(data.email);
+      setStatus(
+        "Если аккаунт с таким email есть, на него отправлено письмо со ссылкой для сброса пароля.",
+      );
     } catch (error) {
       reportClientError(error, {
         issueKey: "PasswordResetForm",
         keys: { operation: "password_reset_request" },
       });
       setError("root", {
-        message: error instanceof Error ? error.message : "Ошибка отправки запроса. Попробуйте позже.",
+        message:
+          error instanceof Error ? error.message : "Ошибка отправки запроса. Попробуйте позже.",
       });
     } finally {
       setIsPending(false);
@@ -95,29 +58,16 @@ export function PasswordResetForm() {
           {errors.root.message}
         </p>
       )}
-      <TextField
-        id="username"
-        label="Логин"
+      <EmailField
+        id="email"
+        label="Email"
         visuallyHiddenLabel
-        name="username"
-        placeholder="Логин"
+        name="email"
+        placeholder="Email"
+        autoComplete="email"
         className={styles.input}
         form={form}
         errorClassName={styles.errorText}
-        // Валидация теперь через Zod схему
-      />
-
-      <FormField
-        id="phone"
-        label="Телефон"
-        visuallyHiddenLabel
-        className={styles.input}
-        errorClassName={styles.errorText}
-        name="phone"
-        type="tel"
-        placeholder="+7XXXXXXXXXX"
-        form={form}
-        // Валидация теперь через Zod схему
       />
 
       <button className={styles.button} type="submit" disabled={isPending || !isValid}>
@@ -128,7 +78,7 @@ export function PasswordResetForm() {
         <>
           <p className={styles.status}>{status}</p>
           <Link href="/reset-password" className={styles.linkButton}>
-            Ввести код
+            Уже есть ссылка — ввести новый пароль
           </Link>
         </>
       )}

@@ -76,22 +76,12 @@ export const userApi = {
   },
 
   /**
-   * Запрос кода смены телефона (отправка в Telegram).
+   * Запрос смены email: письмо со ссылкой на новый адрес.
    */
-  requestPhoneChange: async (): Promise<ApiResponse<void>> => {
-    return apiClient<void>("/api/v1/auth/phone-change-request", { method: "POST" });
-  },
-
-  /**
-   * Подтверждение смены телефона по коду.
-   */
-  confirmPhoneChange: async (
-    code: string,
-    newPhone: string,
-  ): Promise<ApiResponse<void>> => {
-    return apiClient<void>("/api/v1/auth/phone-change-confirm", {
+  requestEmailChange: async (newEmail: string): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/email-change-request", {
       method: "POST",
-      body: { code, newPhone },
+      body: { newEmail },
     });
   },
 
@@ -120,12 +110,22 @@ export const userApi = {
   },
 
   /**
-   * Необратимое удаление аккаунта (пароль + Bearer).
+   * Письмо с 6-значным кодом на email профиля (перед удалением).
    */
-  deleteAccount: async (password: string): Promise<ApiResponse<{ success: boolean }>> => {
+  requestAccountDeletionCode: async (): Promise<ApiResponse<{ success: boolean }>> => {
+    return apiClient<{ success: boolean }>("/api/v1/user/account/deletion-code", {
+      method: "POST",
+      body: {},
+    });
+  },
+
+  /**
+   * Необратимое удаление аккаунта (код из письма + Bearer).
+   */
+  deleteAccount: async (code: string): Promise<ApiResponse<{ success: boolean }>> => {
     return apiClient<{ success: boolean }>("/api/v1/user/account/delete", {
       method: "POST",
-      body: { password },
+      body: { code },
     });
   },
 

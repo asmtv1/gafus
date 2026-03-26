@@ -8,6 +8,7 @@ import { createWebLogger } from "@gafus/logger";
 import { reportClientError } from "@gafus/error-handling";
 import { deletePet } from "@shared/lib/pets/deletePet";
 import { savePet } from "@shared/lib/pets/savePet";
+import { formatIsoBirthDateToDdMmYyyy } from "@shared/lib/validation/petSchemas";
 import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
@@ -115,10 +116,11 @@ export default function PetList({
       breed: pet.breed || "",
       photoUrl: pet.photoUrl || "",
       notes: pet.notes || "",
-      birthDate:
+      birthDate: formatIsoBirthDateToDdMmYyyy(
         pet.birthDate instanceof Date
           ? pet.birthDate.toISOString().split("T")[0]
           : pet.birthDate || "",
+      ),
       heightCm: pet.heightCm || undefined,
       weightKg: pet.weightKg || undefined,
     };

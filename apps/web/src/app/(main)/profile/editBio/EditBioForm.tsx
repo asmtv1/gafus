@@ -16,10 +16,22 @@ import styles from "./EditBioForm.module.css";
 import type { BioFormData, UserProfile, UpdateUserProfileInput } from "@gafus/types";
 import type { UserProfileFormSchema } from "@shared/lib/validation/authSchemas";
 
+/** Дата из БД → ДД.ММ.ГГГГ по UTC-части ISO (как раньше для type="date"). */
+function profileBirthDateToDdMmYyyy(value: Date | null): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const iso = d.toISOString().split("T")[0];
+  const parts = iso.split("-");
+  if (parts.length !== 3) return "";
+  const [y, m, day] = parts;
+  return `${day.padStart(2, "0")}.${m.padStart(2, "0")}.${y}`;
+}
+
 function mapProfileToForm(profile: UserProfile): Omit<BioFormData, "userId"> {
   return {
     fullName: profile.fullName || "",
-    birthDate: profile.birthDate ? new Date(profile.birthDate).toISOString().split("T")[0] : "",
+    birthDate: profileBirthDateToDdMmYyyy(profile.birthDate),
     about: profile.about || "",
     telegram: profile.telegram || "",
     instagram: profile.instagram || "",
@@ -133,14 +145,20 @@ export default function EditBioForm() {
               // Валидация теперь через Zod схему
             />
 
-            <FormField
-              id="birthDate"
-              name="birthDate"
-              label="Дата рождения"
-              type="date"
-              form={form}
-              // Валидация теперь через Zod схему
-            />
+            <div>
+              <FormField
+                id="birthDate"
+                name="birthDate"
+                label="Дата рождения"
+                type="text"
+                placeholder="ДД.ММ.ГГГГ"
+                autoComplete="bday"
+                form={form}
+              />
+              <p className={styles.helperText}>
+                Формат: ДД.ММ.ГГГГ (можно также ГГГГ-ММ-ДД). Поле необязательное.
+              </p>
+            </div>
 
             <FormField
               id="about"

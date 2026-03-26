@@ -9,16 +9,7 @@ import bcrypt from "bcryptjs";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { z } from "zod";
 
-import {
-  checkUserConfirmed,
-  confirmPhoneChangeByShortCode,
-  maskPhone,
-  resetPasswordByShortCode,
-  resetPasswordByToken,
-  sendTelegramPasswordResetRequest,
-  sendTelegramUsernameChangeNotification,
-  sendTelegramPhoneChangeRequest,
-} from "@gafus/auth";
+import { resetPasswordByToken } from "@gafus/auth";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
@@ -26,6 +17,10 @@ import {
   registerUserWithCredentials,
   type RegisterCredentialsConflictCode,
 } from "./registerUserWithCredentials";
+import {
+  sendPasswordChangedNoticeEmail,
+  sendUsernameChangedNoticeEmail,
+} from "./transactionalAuthMail";
 
 const logger = createWebLogger("auth-service");
 
@@ -76,64 +71,6 @@ export interface ValidateRefreshFailure {
 }
 
 /**
- * Проверяет статус подтверждения пользователя по имени.
- * Не возвращает phone клиенту — только phoneHint (маска) и needsConfirm.
- */
-export async function checkUserState(username: string): Promise<{
-  confirmed: boolean;
-  phoneHint?: string;
-  needsConfirm?: boolean;
-}> {
-  logger.info("Checking user state", { username });
-
-  const normalized = username.toLowerCase().trim();
-  const user = await prisma.user.findUnique({
-    where: { username: normalized },
-    select: { phone: true, isConfirmed: true },
-  });
-
-  if (!user) {
-    return { confirmed: false };
-  }
-
-  if (!user.phone) {
-    return {
-      confirmed: user.isConfirmed,
-      needsConfirm: !user.isConfirmed,
-    };
-  }
-
-  const confirmed = await checkUserConfirmed(user.phone);
-  logger.info("User confirmed status", { confirmed, username });
-
-  return {
-    confirmed,
-    phoneHint: maskPhone(user.phone),
-    needsConfirm: !confirmed,
-  };
-}
-
-/**
- * Проверяет подтверждение пользователя по номеру телефона
- * @param phone - Номер телефона
- * @returns true если пользователь подтверждён
- */
-export async function serverCheckUserConfirmed(phone: string): Promise<boolean> {
-  return checkUserConfirmed(phone);
-}
-
-/**
- * Отправляет запрос на сброс пароля через Telegram
- * @param username - Имя пользователя
- * @param phone - Номер телефона
- * @returns Результат отправки
- */
-export async function sendPasswordResetRequest(username: string, phone: string) {
-  logger.info("Sending password reset request");
-  return sendTelegramPasswordResetRequest(username, phone);
-}
-
-/**
  * Регистрирует нового пользователя (email + пароль, без телефона).
  */
 export async function registerUserService(
@@ -164,35 +101,12 @@ export async function resetPassword(token: string, password: string): Promise<vo
   await resetPasswordByToken(token, password);
 }
 
-/**
- * Сбрасывает пароль по 6-значному коду из Telegram
- */
-export async function resetPasswordByCode(code: string, password: string): Promise<void> {
-  logger.info("Resetting password by code");
-  await resetPasswordByShortCode(code, password);
-}
-
-/**
- * Запрос кода смены телефона (отправка в Telegram).
- */
-export async function requestPhoneChange(userId: string): Promise<void> {
-  logger.info("Requesting phone change", { userId });
-  await sendTelegramPhoneChangeRequest(userId);
-}
-
-/**
- * Подтверждение смены телефона по коду из Telegram.
- */
-export async function confirmPhoneChange(code: string, newPhone: string): Promise<void> {
-  await confirmPhoneChangeByShortCode(code, newPhone);
-}
-
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 50;
 const USERNAME_REGEX = /^[a-z0-9_]+$/;
 
 /**
- * Смена логина пользователя. Валидация формата и уникальности, обновление в БД, уведомление в Telegram.
+ * Смена логина пользователя. Уведомление на email, если указан.
  */
 export async function changeUsername(userId: string, newUsername: string): Promise<void> {
   const normalized = newUsername.trim().toLowerCase();
@@ -206,7 +120,7 @@ export async function changeUsername(userId: string, newUsername: string): Promi
 
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, username: true, telegramId: true },
+    select: { id: true, username: true, email: true },
   });
 
   if (!currentUser) {
@@ -237,12 +151,12 @@ export async function changeUsername(userId: string, newUsername: string): Promi
     throw error instanceof Error ? error : new Error("Не удалось сменить логин");
   }
 
-  if (currentUser.telegramId) {
+  if (currentUser.email?.trim()) {
     try {
-      await sendTelegramUsernameChangeNotification(currentUser.telegramId, normalized);
+      await sendUsernameChangedNoticeEmail(currentUser.email, normalized);
     } catch (err) {
       logger.error(
-        "Не удалось отправить уведомление о смене логина в Telegram",
+        "Не удалось отправить уведомление о смене логина на email",
         err instanceof Error ? err : new Error(String(err)),
         { userId },
       );
@@ -467,6 +381,20 @@ export async function setPassword(userId: string, newPassword: string): Promise<
     data: { password: hash, passwordSetAt: new Date() },
   });
   logger.success("setPassword completed", { userId });
+
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (u?.email?.trim()) {
+    await sendPasswordChangedNoticeEmail(u.email).catch((err) =>
+      logger.error(
+        "Не удалось отправить уведомление после установки пароля",
+        err instanceof Error ? err : new Error(String(err)),
+        { userId },
+      ),
+    );
+  }
 }
 
 /**
@@ -496,5 +424,19 @@ export async function changePassword(
     data: { password: hash, passwordSetAt: new Date() },
   });
   logger.success("changePassword completed", { userId });
+
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (u?.email?.trim()) {
+    await sendPasswordChangedNoticeEmail(u.email).catch((err) =>
+      logger.error(
+        "Не удалось отправить уведомление после смены пароля",
+        err instanceof Error ? err : new Error(String(err)),
+        { userId },
+      ),
+    );
+  }
 }
 

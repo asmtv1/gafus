@@ -10,7 +10,6 @@ export interface User {
   phone: string | null;
   email: string | null;
   role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
-  isConfirmed: boolean;
   /** Совпадает с passwordSetAt на сервере (GET /user/profile) */
   hasAppPassword?: boolean;
   hasVkLinked?: boolean;
@@ -204,14 +203,14 @@ export const authApi = {
   },
 
   /**
-   * Отправляет запрос на сброс пароля
+   * Запрос сброса пароля — письмо на email со ссылкой
    */
-  sendPasswordResetRequest: async (username: string, phone: string): Promise<ApiResponse<void>> => {
+  sendPasswordResetRequest: async (email: string): Promise<ApiResponse<void>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/password-reset-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, phone }),
+        body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
@@ -409,17 +408,17 @@ export const authApi = {
   },
 
   /**
-   * Сброс пароля по 6-значному коду из Telegram
+   * Сброс пароля по токену из письма
    */
-  resetPasswordByCode: async (
-    code: string,
+  resetPasswordByToken: async (
+    token: string,
     password: string,
   ): Promise<ApiResponse<void>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, password }),
+        body: JSON.stringify({ token, password }),
       });
 
       if (!response.ok) {
@@ -446,7 +445,7 @@ export const authApi = {
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "AuthApi",
-        keys: { operation: "reset_password_by_code" },
+        keys: { operation: "reset_password_by_token" },
       });
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return {

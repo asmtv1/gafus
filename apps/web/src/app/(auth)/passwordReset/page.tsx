@@ -7,7 +7,7 @@ import { PasswordResetForm } from "./PasswordResetForm";
 
 export const metadata = generatePageMetadata({
   title: "Сброс пароля",
-  description: "Введите логин и номер телефона для восстановления доступа к аккаунту.",
+  description: "Укажите email — пришлём письмо со ссылкой для сброса пароля.",
   path: "/passwordReset",
   noIndex: true, // Не индексировать служебную страницу
 });
@@ -45,7 +45,7 @@ export default function PasswordResetPage() {
         height={136}
       />
       <h1 className={styles.title}>Сброс пароля</h1>
-      <p className={styles.subtitle}>Введите логин и номер телефона для восстановления доступа.</p>
+      <p className={styles.subtitle}>Укажите email аккаунта — пришлём письмо со ссылкой.</p>
       <Suspense fallback={<p>Загрузка...</p>}>
         <PasswordResetForm />
       </Suspense>

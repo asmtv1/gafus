@@ -1,5 +1,132 @@
-/* Кнопка — стили как в SettingsActions (gradient, brand colors) */
-.button {
+/* Страница и карточка — как ChangeEmailForm */
+
+.page {
+  min-height: 60vh;
+  padding: 1.5rem 1rem 3rem;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.card {
+  padding: 1.75rem 1.5rem 2rem;
+  background: #ece5d2;
+  border-radius: 16px;
+  border: 1px solid #636128;
+  box-shadow: 0 8px 24px rgba(53, 46, 46, 0.08);
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .card {
+    padding: 2rem 2rem 2.25rem;
+  }
+}
+
+.iconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(99, 97, 40, 0.18) 0%, rgba(74, 74, 26, 0.12) 100%);
+  border: 1px solid rgba(99, 97, 40, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  color: #4a4a1a;
+}
+
+.title {
+  margin: 0 0 0.65rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #352e2e;
+  letter-spacing: -0.02em;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.2;
+}
+
+.lead {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #5a5744;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.steps {
+  margin: 0 0 1.5rem;
+  padding: 0.85rem 1rem;
+  list-style: none;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 97, 40, 0.2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #5a5744;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.steps li {
+  position: relative;
+  padding-left: 1.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.steps li:last-child {
+  margin-bottom: 0;
+}
+
+.steps li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #636128;
+}
+
+.field {
+  margin-bottom: 0.25rem;
+}
+
+.availabilityHint {
+  min-height: 1.35rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.availabilityChecking {
+  color: #5a5744;
+}
+
+.availabilityAvailable {
+  color: #2e7d32;
+}
+
+.availabilityTaken {
+  color: #c62828;
+}
+
+.errorBox {
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #fbe9e7;
+  color: #c62828;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.submit {
+  margin-top: 1.35rem;
+  width: 100%;
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
   color: #ece5d2;
   border: 1px solid #636128;
@@ -10,57 +137,36 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 220px;
-  min-height: 48px;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-  position: relative;
-  overflow: hidden;
-  width: 100%;
+  min-height: 48px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-.button:hover:not(:disabled) {
+.submit:hover:not(:disabled) {
   background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
 }
 
-.button:active:not(:disabled) {
-  background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
+.submit:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
 }
 
-.button:disabled {
-  opacity: 0.6;
+.submit:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
-  pointer-events: none;
-}
-
-/* Индикатор доступности логина */
-.availabilityHint {
-  font-size: 0.85rem;
-  margin-top: 4px;
-}
-
-@media (max-width: 480px) {
-  .button {
-    padding: 12px 20px;
-    font-size: 0.9rem;
-    min-height: 48px;
-  }
+  transform: none;
 }
 
 @media (max-width: 375px) {
-  .button {
-    padding: 10px 12px;
-    font-size: 0.8rem;
-    min-height: 44px;
-    min-width: auto;
+  .title {
+    font-size: 1.35rem;
+  }
+
+  .submit {
+    padding: 12px 20px;
+    font-size: 0.9rem;
   }
 }

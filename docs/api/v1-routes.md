@@ -28,24 +28,6 @@
 
 ## Auth — Аутентификация
 
-### POST `/api/v1/auth/check-state`
-
-Проверка состояния пользователя по username.
-
-**Body:**
-
-```json
-{ "username": "string" }
-```
-
-**Response:**
-
-```json
-{ "success": true, "data": { "exists": boolean, "confirmed": boolean } }
-```
-
----
-
 ### POST `/api/v1/auth/password-reset-request`
 
 Запрос на сброс пароля. Ранее код уходил в Telegram; отдельное приложение `telegram-bot` удалено, а вызовы `sendTelegram*` в `@gafus/auth` — заглушки. Пока канал не заменён, API может вернуть ошибку с текстом вроде «Функция временно недоступна. Обратитесь в поддержку.» Ссылка для ввода кода (когда flow снова доступен) формируется из `WEB_APP_URL` (напр. `https://gafus.ru/reset-password`). **Web и mobile клиенты используют api.gafus.ru** для этого эндпоинта.
