@@ -215,6 +215,14 @@ services:
       - PINO_USE_WORKER_TRANSPORTS=true
       - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
       - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
+      # SMTP — как у api/web (фоновые задачи с @gafus/mailer / почтой)
+      - SMTP_HOST=${SMTP_HOST:-postfix}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM=${MAIL_FROM:-noreply@gafus.ru}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
     deploy:
       resources:
         limits:
@@ -233,6 +241,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - postfix
 
   # Bull Board
   bull-board:
