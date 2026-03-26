@@ -22,6 +22,8 @@ import {
 
 const mockAccountFindUnique = vi.fn();
 const mockUserFindFirst = vi.fn();
+const mockUserFindUnique = vi.fn();
+const mockUserUpdate = vi.fn();
 const mockUserProfileUpsert = vi.fn();
 const mockUserProfileFindUnique = vi.fn();
 
@@ -57,6 +59,8 @@ vi.mock("@gafus/prisma", () => ({
     },
     user: {
       findFirst: (...args: unknown[]) => mockUserFindFirst(...args),
+      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+      update: (...args: unknown[]) => mockUserUpdate(...args),
     },
     userProfile: {
       upsert: (...args: unknown[]) => mockUserProfileUpsert(...args),
@@ -93,20 +97,33 @@ describe("fetchVkProfile", () => {
   it("берёт данные из users.get при успехе", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        json: () =>
-          Promise.resolve({
-            response: [
-              {
-                id: 1,
-                first_name: "Иван",
-                last_name: "Тест",
-                bdate: "15.5.1990",
-                photo_200: "https://vk.com/photo.jpg",
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          json: () =>
+            Promise.resolve({
+              user: {
+                user_id: "1",
+                first_name: "Lat",
+                last_name: "Test",
+                email: "vk@test.com",
               },
-            ],
-          }),
-      }),
+            }),
+        })
+        .mockResolvedValueOnce({
+          json: () =>
+            Promise.resolve({
+              response: [
+                {
+                  id: 1,
+                  first_name: "Иван",
+                  last_name: "Тест",
+                  bdate: "15.5.1990",
+                  photo_200: "https://vk.com/photo.jpg",
+                },
+              ],
+            }),
+        }),
     );
 
     const p = await fetchVkProfile({
@@ -118,14 +135,12 @@ describe("fetchVkProfile", () => {
     expect(p.id).toBe("1");
     expect(p.first_name).toBe("Иван");
     expect(p.birthday).toBe("15.5.1990");
+    expect(p.email).toBe("vk@test.com");
   });
 
   it("fallback на user_info если users.get пустой", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({
-        json: () => Promise.resolve({ response: [] }),
-      })
       .mockResolvedValueOnce({
         json: () =>
           Promise.resolve({
@@ -135,6 +150,9 @@ describe("fetchVkProfile", () => {
               last_name: "B",
             },
           }),
+      })
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ response: [] }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -161,6 +179,12 @@ describe("exchangeVkCodeForProfile", () => {
           Promise.resolve({
             access_token: "at",
             user_id: "7",
+          }),
+      })
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
+            user: { user_id: "7", first_name: "N", last_name: "" },
           }),
       })
       .mockResolvedValueOnce({
@@ -224,6 +248,12 @@ describe("exchangeVkCodeAndGetUser", () => {
       .mockResolvedValueOnce({
         json: () =>
           Promise.resolve({
+            user: { user_id: "200", first_name: "A", last_name: "B" },
+          }),
+      })
+      .mockResolvedValueOnce({
+        json: () =>
+          Promise.resolve({
             response: [{ id: 200, first_name: "A", last_name: "B" }],
           }),
       });
@@ -255,6 +285,14 @@ describe("findOrCreateVkUser", () => {
     vi.clearAllMocks();
     mockUserProfileUpsert.mockResolvedValue({});
     mockUserFindFirst.mockResolvedValue(null);
+    mockUserFindUnique.mockImplementation(
+      (args: { where: { id?: string; email?: string } }) => {
+        if (args.where.id) return Promise.resolve({ email: null });
+        if (args.where.email) return Promise.resolve(null);
+        return Promise.resolve(null);
+      },
+    );
+    mockUserUpdate.mockResolvedValue({});
     mockTxUserCreate.mockResolvedValue({
       id: "new-u",
       username: "test_user",
@@ -277,13 +315,19 @@ describe("findOrCreateVkUser", () => {
     });
 
     const r = await findOrCreateVkUser(
-      { ...baseProfile, avatar: "https://cdn/a.png", birthday: "01.01.2000" },
+      {
+        ...baseProfile,
+        avatar: "https://cdn/a.png",
+        birthday: "01.01.2000",
+        email: "vkexisting@gmail.com",
+      },
       "vk99",
     );
 
     expect(r.needsPhone).toBe(true);
     expect(r.isNewUser).toBe(false);
     expect(mockUserProfileUpsert).toHaveBeenCalled();
+    expect(mockUserUpdate).toHaveBeenCalled();
   });
 
   it("создаёт пользователя если аккаунта нет", async () => {
@@ -295,6 +339,19 @@ describe("findOrCreateVkUser", () => {
     expect(r.needsPhone).toBe(true);
     expect(mockVkTransaction).toHaveBeenCalled();
     expect(mockTxUserCreate).toHaveBeenCalled();
+  });
+
+  it("при валидном email от VK передаёт email в create", async () => {
+    mockAccountFindUnique.mockResolvedValue(null);
+    const email = "newvkuser@gmail.com";
+
+    await findOrCreateVkUser({ ...baseProfile, email }, "vk99");
+
+    expect(mockTxUserCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ email }),
+      }),
+    );
   });
 
   it("при занятом username добавляет суффикс и повторяет поиск", async () => {
@@ -323,6 +380,14 @@ describe("linkVkToUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserProfileFindUnique.mockResolvedValue(null);
+    mockUserFindUnique.mockImplementation(
+      (args: { where: { id?: string; email?: string } }) => {
+        if (args.where.id) return Promise.resolve({ email: null });
+        if (args.where.email) return Promise.resolve(null);
+        return Promise.resolve(null);
+      },
+    );
+    mockUserUpdate.mockResolvedValue({});
   });
 
   it("ошибка если VK уже на другом пользователе", async () => {
@@ -351,7 +416,10 @@ describe("linkVkToUser", () => {
       fn(vkTxStub),
     );
 
-    await expect(linkVkToUser("me", profile)).resolves.toEqual({ success: true });
+    await expect(
+      linkVkToUser("me", { ...profile, email: "linkedvk@gmail.com" }),
+    ).resolves.toEqual({ success: true });
     expect(mockVkTransaction).toHaveBeenCalled();
+    expect(mockUserUpdate).toHaveBeenCalled();
   });
 });

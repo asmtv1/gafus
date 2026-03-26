@@ -72,7 +72,7 @@ api:
 | `DATABASE_URL`         | PostgreSQL connection | Все сервисы       |
 | `REDIS_URL`            | Redis connection      | API, Worker       |
 | `NEXTAUTH_SECRET`      | NextAuth secret       | Web apps          |
-| `TELEGRAM_BOT_TOKEN`   | Telegram bot          | Bot, Worker       |
+| `TELEGRAM_BOT_TOKEN`   | Legacy (заглушки sendTelegram*) | Не обязателен после удаления `apps/telegram-bot`; оставить только если планируется восстановление канала |
 | `VAPID_PUBLIC_KEY`     | Web Push public       | Web apps          |
 | `VAPID_PRIVATE_KEY`    | Web Push private      | Worker            |
 | `YC_ACCESS_KEY_ID`     | Yandex Cloud CDN      | Apps with uploads |

@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import parsePhoneNumberFromString from "libphonenumber-js";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
+import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { FormField, TextField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
@@ -13,6 +10,9 @@ import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/server-actions";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import type { ConsentPayload } from "@shared/constants/consent";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import styles from "./register.module.css";
 
@@ -20,15 +20,15 @@ import type { RegisterFormSchema } from "@shared/lib/validation/authSchemas";
 
 export function RegisterForm() {
   const router = useRouter();
+  const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
 
   const {
     form,
     handleSubmit,
-    setError,
     formState: { errors, isValid },
   } = useZodForm(registerFormSchema, {
     name: "",
-    phone: "",
+    email: "",
     password: "",
     confirmPassword: "",
     acceptPersonalData: false,
@@ -40,27 +40,25 @@ export function RegisterForm() {
   const [isPending, setIsPending] = useState(false);
   const [tempSessionId] = useState<string>(() => crypto.randomUUID());
 
-
   const onSubmit = async (data: RegisterFormSchema) => {
-    const phoneNumber = parsePhoneNumberFromString(data.phone, "RU");
-
-    if (!phoneNumber || !phoneNumber.isValid()) {
-      setError("phone", { message: "Неверный номер телефона" });
+    if (csrfLoading || !csrfToken) {
+      alert("Загрузка... Попробуйте снова");
       return;
     }
 
-    const formattedPhone = phoneNumber.format("E.164");
     const consentPayload: ConsentPayload = {
       acceptPersonalData: data.acceptPersonalData,
       acceptPrivacyPolicy: data.acceptPrivacyPolicy,
       acceptDataDistribution: data.acceptDataDistribution,
     };
 
+    const username = data.name.toLowerCase().trim();
+
     setIsPending(true);
     try {
       const result = await registerUserAction(
-        data.name.toLowerCase(),
-        formattedPhone,
+        username,
+        data.email.trim().toLowerCase(),
         data.password,
         tempSessionId,
         consentPayload,
@@ -69,12 +67,26 @@ export function RegisterForm() {
       if (result?.error) {
         alert(result.error);
         setIsPending(false);
-      } else {
-        router.push("/confirm");
+        return;
       }
+
+      const res = await signIn("credentials", {
+        username,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (res?.error) {
+        alert(res.error);
+        setIsPending(false);
+        return;
+      }
+
+      router.replace("/courses");
     } catch (error) {
       reportClientError(error, { issueKey: "RegisterForm", keys: { operation: "submit_register" } });
       catchError(error);
+      setIsPending(false);
     }
   };
 
@@ -87,25 +99,23 @@ export function RegisterForm() {
         name="name"
         placeholder="Имя пользователя"
         className={styles.input}
-        form={form}
         errorClassName={styles.errorText}
         autoComplete="username"
+        form={form}
       />
 
       <FormField
-        id="phone"
-        label="Телефон"
+        id="email"
+        label="Email"
         visuallyHiddenLabel
         className={styles.input}
         errorClassName={styles.errorText}
-        name="phone"
-        type="tel"
-        placeholder="+7XXXXXXXXXX"
+        name="email"
+        type="email"
+        placeholder="email@example.com"
         form={form}
-        autoComplete="tel"
+        autoComplete="email"
       />
-
-      <p className={styles.info}>Требуется Подтверждение через Telegram</p>
 
       <PasswordInput
         className={styles.input}
@@ -174,10 +184,7 @@ export function RegisterForm() {
       )}
 
       <label className={styles.checkboxRow}>
-        <input
-          type="checkbox"
-          {...form.register("acceptDataDistribution")}
-        />
+        <input type="checkbox" {...form.register("acceptDataDistribution")} />
         <span className={styles.checkboxLabel}>
           Даю{" "}
           <Link
@@ -191,7 +198,13 @@ export function RegisterForm() {
         </span>
       </label>
 
-      <button className={styles.button} type="submit" disabled={isPending || !isValid}>
+      {csrfError && <div className={styles.errorText}>Ошибка загрузки токена: {csrfError}</div>}
+
+      <button
+        className={styles.button}
+        type="submit"
+        disabled={isPending || !isValid || csrfLoading}
+      >
         {isPending ? "регистрация..." : "зарегистрироваться"}
       </button>
     </form>

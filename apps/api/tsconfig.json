@@ -27,7 +27,10 @@
       "@gafus/core/services/notifications": [
         "../../packages/core/src/services/notifications/index.ts"
       ],
-      "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"]
+      "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"],
+      "@gafus/core/validation/auth-register": [
+        "../../packages/core/src/validation/authRegisterSchema.ts"
+      ]
     }
   },
   "include": ["src/**/*"],

@@ -5,7 +5,6 @@ export { maskPhone } from "./maskPhone";
 export { sendTelegramPasswordResetRequest } from "./sendTelegramPasswordResetRequest";
 export { resetPasswordByToken } from "./resetPasswordByToken";
 export { resetPasswordByShortCode } from "./resetPasswordByShortCode";
-export { registerUser } from "./registerUser";
 export { sendTelegramPhoneChangeRequest } from "./sendTelegramPhoneChangeRequest";
 export { confirmPhoneChangeByShortCode } from "./confirmPhoneChangeByShortCode";
 export { sendTelegramUsernameChangeNotification } from "./sendTelegramUsernameChangeNotification";

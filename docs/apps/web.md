@@ -96,7 +96,7 @@ app/
 
 ### Регистрация и согласия
 
-При регистрации сохраняются согласия на три документа (персональные данные, политика конфиденциальности, размещение в публичном профиле). Flow: tempSessionId → createConsentLogs (PENDING) → registerUser → linkConsentLogsToUser (COMPLETED) или markConsentLogsFailed. Подробнее: [docs/features/consent-registration.md](../features/consent-registration.md).
+При регистрации сохраняются согласия на три документа (персональные данные, политика конфиденциальности, размещение в публичном профиле). Поля формы: username, email, пароль. Server Action вызывает `@gafus/core` (`registerUserWithCredentials`); после успеха клиент выполняет `signIn("credentials", …)` (NextAuth v4), как на странице входа. Flow согласий: tempSessionId → createConsentLogs (PENDING) → регистрация → linkConsentLogsToUser (COMPLETED) или markConsentLogsFailed. Маршрут `/confirm` редиректит на `/login` (подтверждение через Telegram снято). Подробнее: [docs/features/consent-registration.md](../features/consent-registration.md).
 
 ### Вход через VK ID
 

@@ -29,7 +29,6 @@ docker logs --since 1h gafus-web
 | gafus-admin-panel | Admin Panel |
 | gafus-worker | BullMQ Worker |
 | gafus-api | API |
-| gafus-telegram-bot | Telegram Bot |
 | gafus-bull-board | Bull Board |
 
 ## Ошибки

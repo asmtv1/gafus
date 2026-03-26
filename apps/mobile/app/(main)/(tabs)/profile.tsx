@@ -19,6 +19,7 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
 import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
+import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const AVATAR_MAX_SIZE_MB = 5;
@@ -484,12 +485,15 @@ export default function ProfileScreen() {
           </Pressable>
           <View style={styles.profileInfo}>
             <Text style={styles.greeting}>Привет, {profile?.fullName || user?.username}!</Text>
-            <Text style={styles.contactInfo}>
-              {user?.phone
-                ? user.phone
-                : profile?.telegram
-                  ? `@${profile.telegram}`
-                  : "Контакты не указаны"}
+            <Text
+              style={[
+                styles.contactInfo,
+                !user?.email?.trim() ? styles.contactInfoMissing : null,
+              ]}
+            >
+              {user?.email?.trim()
+                ? user.email.trim()
+                : USER_EMAIL_MISSING_HINT}
             </Text>
             {displayRole && (
               <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
@@ -1004,6 +1008,10 @@ const styles = StyleSheet.create({
     color: "#D4C4A8",
     fontFamily: FONTS.montserrat,
     opacity: 0.9,
+  },
+  contactInfoMissing: {
+    fontStyle: "italic",
+    opacity: 0.85,
   },
   roleBadge: {
     paddingVertical: 4,

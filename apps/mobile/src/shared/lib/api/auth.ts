@@ -7,7 +7,8 @@ import { apiClient, type ApiResponse } from "./client";
 export interface User {
   id: string;
   username: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
   role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
   isConfirmed: boolean;
   /** Совпадает с passwordSetAt на сервере (GET /user/profile) */
@@ -42,7 +43,7 @@ export interface VkLoginResponse {
 
 export interface RegisterData {
   name: string;
-  phone: string;
+  email: string;
   password: string;
   tempSessionId: string;
   consentPayload: ConsentPayload;
@@ -121,7 +122,7 @@ export const authApi = {
    */
   register: async (
     name: string,
-    phone: string,
+    email: string,
     password: string,
     tempSessionId: string,
     consentPayload: ConsentPayload,
@@ -130,7 +131,7 @@ export const authApi = {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, password, tempSessionId, consentPayload }),
+        body: JSON.stringify({ name, email, password, tempSessionId, consentPayload }),
       });
 
       if (!response.ok) {

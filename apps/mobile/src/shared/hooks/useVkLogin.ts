@@ -5,6 +5,8 @@ import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
+import { VK_ID_OAUTH_SCOPE } from "@gafus/core/services/auth";
+
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -81,6 +83,8 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         "&code_challenge=" +
         encodeURIComponent(codeChallenge) +
         "&code_challenge_method=S256" +
+        "&scope=" +
+        encodeURIComponent(VK_ID_OAUTH_SCOPE) +
         "&lang_id=0" + // RUS — русский язык для first_name/last_name
         "&display=mobile" +
         "&fastAuthEnabled=1"; // не показывать экран подтверждения повторно

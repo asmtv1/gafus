@@ -25,7 +25,7 @@ interface AuthActions {
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (
     name: string,
-    phone: string,
+    email: string,
     password: string,
     tempSessionId: string,
     consentPayload: ConsentPayload,
@@ -104,8 +104,10 @@ export const useAuthStore = create<AuthStore>()(
 
           if (!isConfirmed) {
             set({
-              user, isAuthenticated: false,
-              pendingConfirmPhone: user.phone, pendingVkPhone: false,
+              user,
+              isAuthenticated: false,
+              pendingConfirmPhone: user.phone ?? "",
+              pendingVkPhone: false,
             });
             if (__DEV__) console.log("[authStore] user NOT confirmed");
             return { success: true };
@@ -138,7 +140,7 @@ export const useAuthStore = create<AuthStore>()(
           if (needsConsent && vkConsentToken) {
             resetUserStores();
             set({
-              user: { ...user, phone: "", isConfirmed: false } as User,
+              user: { ...user, phone: "", email: null, isConfirmed: false } as User,
               isAuthenticated: false,
               pendingVkPhone: false,
               pendingConfirmPhone: null,
@@ -155,7 +157,7 @@ export const useAuthStore = create<AuthStore>()(
           if (needsPhone) {
             // Телефон не задан — направляем на экран установки телефона
             set({
-              user: { ...user, phone: "", isConfirmed: false } as User,
+              user: { ...user, phone: "", email: null, isConfirmed: false } as User,
               isAuthenticated: false,
               pendingVkPhone: true,
               pendingConfirmPhone: null,
@@ -184,12 +186,12 @@ export const useAuthStore = create<AuthStore>()(
       /**
        * Регистрация нового пользователя
        */
-      register: async (name, phone, password, tempSessionId, consentPayload) => {
+      register: async (name, email, password, tempSessionId, consentPayload) => {
         try {
-          if (__DEV__) console.log("[authStore] register start", { name, phone, tempSessionId });
+          if (__DEV__) console.log("[authStore] register start", { name, email, tempSessionId });
           const response = await authApi.register(
             name,
-            phone,
+            email,
             password,
             tempSessionId,
             consentPayload,
@@ -206,15 +208,24 @@ export const useAuthStore = create<AuthStore>()(
             return { success: false, error: response.error || "Ошибка регистрации" };
           }
 
-          const { user, accessToken, refreshToken } = response.data;
+          const { accessToken, refreshToken } = response.data;
 
           resetUserStores();
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
 
-          // API не возвращает phone в user — берём из параметра
-          set({ user, isAuthenticated: false, pendingConfirmPhone: phone, pendingVkPhone: false });
-          if (__DEV__) console.log("[authStore] register success, userId:", user.id);
+          const profileRes = await authApi.getProfile();
+          if (!profileRes.success || !profileRes.data) {
+            return { success: false, error: "Ошибка загрузки профиля" };
+          }
+
+          set({
+            user: profileRes.data,
+            isAuthenticated: true,
+            pendingConfirmPhone: null,
+            pendingVkPhone: false,
+          });
+          if (__DEV__) console.log("[authStore] register success, userId:", profileRes.data.id);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthRegister" });
@@ -298,7 +309,7 @@ export const useAuthStore = create<AuthStore>()(
                 user: userData,
                 isAuthenticated: false,
                 isLoading: false,
-                pendingConfirmPhone: userData.phone,
+                pendingConfirmPhone: userData.phone ?? null,
                 pendingVkPhone: false,
               });
               if (__DEV__) console.log("[authStore] checkAuth: NOT confirmed");
@@ -369,7 +380,7 @@ export const useAuthStore = create<AuthStore>()(
           await SecureStore.setItemAsync("refresh_token", refreshToken!);
           if (needsPhone) {
             set({
-              user: { ...user, phone: "", isConfirmed: false } as User,
+              user: { ...user, phone: "", email: null, isConfirmed: false } as User,
               isAuthenticated: false,
               pendingVkPhone: true,
               pendingVkConsent: false,

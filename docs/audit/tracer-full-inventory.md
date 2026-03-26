@@ -63,7 +63,7 @@
 - `checkUserConfirmed.ts`
 - `getCurrentUserId.ts` — только `getServerSession` + возврат `id` или `null` (типичный гость не логируется намеренно на уровне web-обёртки; см. `apps/web/src/shared/utils/getCurrentUserId.ts`)
 - `getUserPhoneByUsername.ts`
-- `registerUser.ts`
+- `packages/core/src/services/auth/registerUserWithCredentials.ts` (регистрация перенесена в core; `registerUser` из `@gafus/auth` удалён)
 - `resetPasswordByShortCode.ts`
 - `resetPasswordByToken.ts`
 - `sendTelegramPasswordResetRequest.ts`

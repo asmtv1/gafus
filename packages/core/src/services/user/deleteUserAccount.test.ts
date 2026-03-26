@@ -1,3 +1,4 @@
+import { Prisma as PrismaRuntime } from "@prisma/client";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { deleteUserAccount } from "./deleteUserAccount";
@@ -15,6 +16,7 @@ const mockStepCount = vi.fn();
 const mockStepTemplateCount = vi.fn();
 const mockArticleCount = vi.fn();
 const mockRefreshUpdateMany = vi.fn();
+const mockConsentLogUpdateMany = vi.fn();
 const mockUserDelete = vi.fn();
 const mockTransaction = vi.fn();
 
@@ -37,6 +39,7 @@ vi.mock("@gafus/prisma", () => ({
         this.code = opts.code;
       }
     },
+    DbNull: PrismaRuntime.DbNull,
   },
 }));
 
@@ -55,6 +58,7 @@ describe("deleteUserAccount", () => {
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
         refreshToken: { updateMany: mockRefreshUpdateMany },
+        consentLog: { updateMany: mockConsentLogUpdateMany },
         user: { delete: mockUserDelete },
       };
       return fn(tx);
@@ -65,6 +69,7 @@ describe("deleteUserAccount", () => {
     mockStepTemplateCount.mockResolvedValue(0);
     mockArticleCount.mockResolvedValue(0);
     mockRefreshUpdateMany.mockResolvedValue({ count: 1 });
+    mockConsentLogUpdateMany.mockResolvedValue({ count: 0 });
     mockUserDelete.mockResolvedValue({});
     mockValidateCredentials.mockResolvedValue({
       success: true,
@@ -83,6 +88,7 @@ describe("deleteUserAccount", () => {
       username: "tester",
       role: "USER",
       passwordSetAt: new Date(),
+      email: "t@example.com",
     });
 
     const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
@@ -93,8 +99,19 @@ describe("deleteUserAccount", () => {
       where: { userId: "u1", revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+    expect(mockConsentLogUpdateMany).toHaveBeenCalledWith({
+      where: { userId: "u1" },
+      data: {
+        formData: PrismaRuntime.DbNull,
+        ipAddress: null,
+        userAgent: null,
+      },
+    });
     expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
     expect(mockRefreshUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      mockConsentLogUpdateMany.mock.invocationCallOrder[0]!,
+    );
+    expect(mockConsentLogUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(
       mockUserDelete.mock.invocationCallOrder[0]!,
     );
   });
@@ -105,6 +122,7 @@ describe("deleteUserAccount", () => {
       username: "prem",
       role: "PREMIUM",
       passwordSetAt: new Date(),
+      email: null,
     });
 
     const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
@@ -118,6 +136,7 @@ describe("deleteUserAccount", () => {
       username: "tester",
       role: "USER",
       passwordSetAt: new Date(),
+      email: null,
     });
     mockValidateCredentials.mockResolvedValue({ success: false });
 
@@ -133,6 +152,7 @@ describe("deleteUserAccount", () => {
       username: "trainer",
       role: "TRAINER",
       passwordSetAt: new Date(),
+      email: null,
     });
 
     const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
@@ -148,6 +168,7 @@ describe("deleteUserAccount", () => {
       username: "tester",
       role: "USER",
       passwordSetAt: null,
+      email: null,
     });
 
     const result = await deleteUserAccount({ actorUserId: "u1", password: "secret" });
@@ -165,6 +186,7 @@ describe("deleteUserAccount", () => {
       username: "tester",
       role: "USER",
       passwordSetAt: new Date(),
+      email: null,
     });
     mockCourseCount.mockResolvedValue(1);
 

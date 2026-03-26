@@ -93,9 +93,6 @@ jobs:
               echo "# Redis"
               echo "REDIS_URL=redis://redis:6379"
               echo ""
-              echo "# Telegram Bot"
-              echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
-              echo ""
               echo "# NextAuth секреты"
               echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"
               echo ""
@@ -193,7 +190,6 @@ jobs:
             docker pull ghcr.io/asmtv1/gafus-api:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-worker:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-bull-board:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-telegram-bot:latest & pids="$pids $!"
             docker pull ghcr.io/asmtv1/gafus-prisma:latest & pids="$pids $!"
             pull_failed=0
             for pid in $pids; do
@@ -212,7 +208,6 @@ jobs:
             docker tag ghcr.io/asmtv1/gafus-api:latest gafus-api:latest
             docker tag ghcr.io/asmtv1/gafus-worker:latest gafus-worker:latest
             docker tag ghcr.io/asmtv1/gafus-bull-board:latest gafus-bull-board:latest
-            docker tag ghcr.io/asmtv1/gafus-telegram-bot:latest gafus-telegram-bot:latest
             docker tag ghcr.io/asmtv1/gafus-prisma:latest gafus-prisma:latest
 
             # Start services

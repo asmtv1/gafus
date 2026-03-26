@@ -1,6 +1,7 @@
 export interface AdminUserRow {
   id: string;
   username: string;
+  email: string | null;
   phone: string | null;
   role: string;
   isConfirmed: boolean;
@@ -13,6 +14,7 @@ export type AdminUserRole = "ADMIN" | "MODERATOR" | "TRAINER" | "USER";
 
 export interface UpdateUserAdminInput {
   username?: string;
+  email?: string | null;
   phone?: string;
   role?: AdminUserRole;
   newPassword?: string;

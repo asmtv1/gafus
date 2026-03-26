@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
+
 import {
   Avatar,
   Box,
@@ -32,6 +34,7 @@ import {
 interface User {
   id: string;
   username: string;
+  email: string | null;
   phone: string | null;
   role: string;
   isConfirmed: boolean;
@@ -105,16 +108,9 @@ export default function UsersTable({
     return `${day}.${month}.${year}, ${hours}:${minutes}`;
   };
 
-  const formatPhone = (phone: string) => {
-    // Форматируем телефон в формате +7 (XXX) XXX-XX-XX
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length === 11 && cleaned.startsWith("7")) {
-      const match = cleaned.match(/^7(\d{3})(\d{3})(\d{2})(\d{2})$/);
-      if (match) {
-        return `+7 (${match[1]}) ${match[2]}-${match[3]}-${match[4]}`;
-      }
-    }
-    return phone;
+  const formatEmailCell = (email: string | null | undefined) => {
+    const trimmed = email?.trim();
+    return trimmed ? trimmed : USER_EMAIL_MISSING_HINT;
   };
 
   const getSortIcon = (field: SortField) => {
@@ -194,7 +190,7 @@ export default function UsersTable({
               </TableCell>
               <TableCell>
                 <Typography variant="subtitle2" fontWeight="bold">
-                  Телефон
+                  Email
                 </Typography>
               </TableCell>
               <TableCell>
@@ -291,7 +287,15 @@ export default function UsersTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2">{formatPhone(user.phone ?? "")}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      wordBreak: "break-all",
+                      ...(!user.email?.trim() ? { color: "text.secondary", fontStyle: "italic" } : {}),
+                    }}
+                  >
+                    {formatEmailCell(user.email)}
+                  </Typography>
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -408,9 +412,17 @@ export default function UsersTable({
 
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Телефон
+                  Email
                 </Typography>
-                <Typography variant="body2">{formatPhone(user.phone ?? "")}</Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    wordBreak: "break-all",
+                    ...(!user.email?.trim() ? { color: "text.secondary", fontStyle: "italic" } : {}),
+                  }}
+                >
+                  {formatEmailCell(user.email)}
+                </Typography>
               </Box>
 
               <Box>

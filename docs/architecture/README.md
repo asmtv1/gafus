@@ -11,7 +11,7 @@ gafus/
 ├── apps/                    # Микрофронтенды
 │   ├── web/                # Основное веб-приложение
 │   ├── trainer-panel/      # Панель тренера
-│   ├── telegram-bot/       # Telegram бот
+│   ├── mobile/             # React Native
 │   └── bull-board/         # Мониторинг очередей
 ├── packages/               # Общие пакеты
 │   ├── prisma/            # База данных

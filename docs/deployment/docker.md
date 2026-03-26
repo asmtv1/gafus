@@ -13,7 +13,6 @@ gafus/
 ├── ci-cd/docker/           # Docker файлы
 │   ├── Dockerfile-web-optimized
 │   ├── Dockerfile-trainer-panel-optimized
-│   ├── Dockerfile-telegram-bot-optimized
 │   ├── Dockerfile-bull-board-optimized
 │   ├── Dockerfile-worker-optimized
 │   └── Dockerfile-prisma-optimized
@@ -157,49 +156,6 @@ ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "apps/trainer-panel/server.js"]
-```
-
-### Telegram Bot Dockerfile
-
-```dockerfile
-# ci-cd/docker/Dockerfile-telegram-bot-optimized
-FROM node:18-alpine AS base
-
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-COPY package.json pnpm-lock.yaml* ./
-COPY apps/telegram-bot/package.json ./apps/telegram-bot/
-COPY packages/*/package.json ./packages/*/
-
-RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile --prod
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-RUN pnpm db:generate
-RUN pnpm --filter @gafus/telegram-bot build
-
-FROM base AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/apps/telegram-bot/dist ./apps/telegram-bot/dist
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-USER nextjs
-
-EXPOSE 3004
-
-CMD ["node", "apps/telegram-bot/dist/bot.js"]
 ```
 
 ### Worker Dockerfile
@@ -375,28 +331,6 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Telegram Bot
-  telegram-bot:
-    build:
-      context: ../..
-      dockerfile: ci-cd/docker/Dockerfile-telegram-bot-optimized
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://gafus_user:${DATABASE_PASSWORD}@postgres:5432/gafus_production
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "process.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3

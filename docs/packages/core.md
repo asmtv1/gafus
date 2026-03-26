@@ -78,7 +78,8 @@ import {
 // Аутентификация
 import {
   checkUserState,
-  registerUser,
+  registerUserService,
+  registerUserWithCredentials,
   exchangeVkCodeAndGetUser,
   exchangeVkCodeForProfile,
   findOrCreateVkUser,
@@ -88,6 +89,9 @@ import {
   changePassword,
   isUsernameAvailable,
 } from "@gafus/core/services/auth";
+// registerUserWithCredentials — доменная регистрация username + email + password (bcrypt 12)
+// registerUserService — обёртка с маскировкой конфликтов (REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE)
+// Схема тела: authRegisterBodySchema в packages/core/src/validation/authRegisterSchema.ts
 // exchangeVkCodeAndGetUser — обмен code на токен, получение профиля, создание/поиск пользователя
 // exchangeVkCodeForProfile — обмен code и профиль без создания пользователя (для link)
 

@@ -73,6 +73,9 @@
       "@gafus/core/utils/social": ["../../packages/core/src/utils/social.ts"],
       "@gafus/core/utils/training": ["../../packages/core/src/utils/training.ts"],
       "@gafus/core/utils/retry": ["../../packages/core/src/utils/retry.ts"],
+      "@gafus/core/validation/auth-register": [
+        "../../packages/core/src/validation/authRegisterSchema.ts"
+      ],
       "@gafus/csrf": ["../../packages/csrf/src/index.ts"],
       "@gafus/csrf/*": ["../../packages/csrf/src/*"],
       "@gafus/auth": ["../../packages/auth/dist/index.d.ts"],

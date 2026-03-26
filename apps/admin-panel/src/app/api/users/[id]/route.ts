@@ -11,6 +11,18 @@ const logger = createAdminPanelLogger("api-users");
 
 const updateUserBodySchema = z.object({
   username: z.string().min(1).optional(),
+  email: z
+    .union([
+      z.string().email("Некорректный email").max(255),
+      z.literal(""),
+      z.null(),
+    ])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      if (v === "" || v === null) return null;
+      return v.toLowerCase().trim();
+    }),
   phone: z.string().optional(),
   role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "USER"]).optional(),
   newPassword: z.string().min(6).optional(),

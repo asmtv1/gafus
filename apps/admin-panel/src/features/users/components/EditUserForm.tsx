@@ -25,6 +25,7 @@ const logger = createAdminPanelLogger("edit-user-form");
 interface User {
   id: string;
   username: string;
+  email: string | null;
   phone: string | null;
   role: string;
   isConfirmed: boolean;
@@ -52,6 +53,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
   const form = useForm({
     defaultValues: {
       username: user.username,
+      email: user.email ?? "",
       phone: user.phone ?? "",
       role: user.role,
       newPassword: "",
@@ -61,6 +63,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
 
   const handleSubmit = async (data: {
     username: string;
+    email: string;
     phone: string;
     role: string;
     newPassword: string;
@@ -79,7 +82,11 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
         },
         body: JSON.stringify({
           username: data.username !== user.username ? data.username : undefined,
-          phone: data.phone !== user.phone ? data.phone : undefined,
+          email:
+            data.email.trim().toLowerCase() !== (user.email ?? "")
+              ? data.email.trim().toLowerCase() || null
+              : undefined,
+          phone: data.phone !== (user.phone ?? "") ? data.phone : undefined,
           role: data.role !== user.role ? data.role : undefined,
           newPassword: data.newPassword.trim() ? data.newPassword : undefined,
           isConfirmed: data.isConfirmed !== user.isConfirmed ? data.isConfirmed : undefined,
@@ -149,9 +156,18 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
           />
 
           <FormField
+            id="email"
+            name="email"
+            label="Email"
+            form={form}
+            disabled={isPending}
+            className="mb-2"
+          />
+
+          <FormField
             id="phone"
             name="phone"
-            label="Телефон"
+            label="Телефон (необязательно)"
             form={form}
             disabled={isPending}
             className="mb-2"
@@ -179,7 +195,7 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
                     disabled={isPending}
                   />
                 }
-                label="Телефон подтверждён"
+                label="Аккаунт подтверждён"
                 sx={{ mb: 2, ml: 0 }}
               />
             )}

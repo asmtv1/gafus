@@ -24,6 +24,7 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
       select: {
         id: true,
         username: true,
+        email: true,
         phone: true,
         role: true,
         isConfirmed: true,
@@ -47,6 +48,7 @@ export async function updateUserAdmin(
   try {
     const updateData: {
       username?: string;
+      email?: string | null;
       phone?: string;
       role?: UserRole;
       password?: string;
@@ -54,6 +56,7 @@ export async function updateUserAdmin(
     } = {};
 
     if (input.username !== undefined) updateData.username = input.username;
+    if (input.email !== undefined) updateData.email = input.email;
     if (input.phone !== undefined) updateData.phone = input.phone;
     if (input.role !== undefined) updateData.role = input.role as UserRole;
     if (input.newPassword && input.newPassword.trim()) {

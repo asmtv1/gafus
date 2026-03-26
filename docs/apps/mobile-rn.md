@@ -1640,7 +1640,7 @@ const styles = StyleSheet.create({
 
 ## Аутентификация
 
-Регистрация включает 3 обязательных чекбокса согласий (персональные данные, политика конфиденциальности, размещение в профиле). Клиент генерирует `tempSessionId` (expo-crypto `randomUUID`) и передаёт `consentPayload` вместе с `name`, `phone`, `password`. Flow: createConsentLogs → registerUser → linkConsentLogsToUser. См. [Consent at Registration](../features/consent-registration.md).
+Регистрация включает 3 обязательных чекбокса согласий (персональные данные, политика конфиденциальности, размещение в профиле). Клиент генерирует `tempSessionId` (expo-crypto `randomUUID`) и передаёт `consentPayload` вместе с `name`, `email`, `password`. Flow: createConsentLogs → регистрация в API → linkConsentLogsToUser. После успеха `authStore` выставляет `isAuthenticated: true` (без ожидания подтверждения по телефону). Polling `check-confirmed` удалён. См. [Consent at Registration](../features/consent-registration.md).
 
 ### Auth Store
 

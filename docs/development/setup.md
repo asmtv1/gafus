@@ -108,8 +108,8 @@ REDIS_URL=redis://localhost:6379
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your-secret-key-here
 
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+# Telegram (опционально, legacy — приложение telegram-bot удалено из монорепо)
+# TELEGRAM_BOT_TOKEN=
 
 # AWS S3 (для загрузки файлов)
 AWS_ACCESS_KEY_ID=your-access-key
@@ -142,14 +142,6 @@ WEB_APP_URL=http://localhost:3002
 
 # Секретный токен для межсервисных вызовов (опционально)
 REVALIDATE_SECRET_TOKEN=your-secret-token-here
-```
-
-**Telegram Bot (.env)**
-
-```env
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=your-bot-token
-TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/telegram-webhook
 ```
 
 **Bull Board (.env)**

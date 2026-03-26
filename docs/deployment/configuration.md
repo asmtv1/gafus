@@ -81,7 +81,7 @@ ENABLE_CONSOLE_LOGS=false
 
 # Tracer (ошибки — клиентские и серверные)
 NEXT_PUBLIC_TRACER_APP_TOKEN=your-tracer-app-token
-TRACER_APP_TOKEN=your-tracer-app-token   # для серверных приложений (worker, api, telegram-bot и др.)
+TRACER_APP_TOKEN=your-tracer-app-token   # для серверных приложений (worker, api и др.)
 TRACER_SERVER_ENABLED=                   # в prod не нужен (по умолчанию включено)
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NEXT_PUBLIC_ENABLE_TRACER=true
@@ -148,8 +148,7 @@ WEB_APP_URL=https://gafus.ru
 # API URL для web (build-time; требуется для формы сброса пароля)
 NEXT_PUBLIC_API_URL=https://api.gafus.ru
 
-# TELEGRAM_BOT_TOKEN для API сервиса — обязателен для сброса пароля (отправка кода в Telegram).
-# Тот же токен используется в telegram-bot сервисе.
+# TELEGRAM_BOT_TOKEN — опционально; отдельный контейнер telegram-bot удалён. Сброс пароля / смена телефона через Telegram временно недоступны (заглушки в @gafus/auth).
 
 # Секретный токен для межсервисных вызовов (опционально, но рекомендуется)
 # Используется для защиты API endpoints инвалидации кэша
@@ -228,24 +227,15 @@ LOCAL_UPLOAD_MAX_SIZE=10485760  # 10MB
 LOCAL_UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp
 ```
 
-## 🤖 Telegram Bot
+## 🤖 Telegram (legacy)
 
-### Bot конфигурация
+Приложение `apps/telegram-bot` и образ `Dockerfile-telegram-bot-optimized` удалены из репозитория (март 2026). Переменные `TELEGRAM_*` ниже актуальны только при восстановлении интеграции; для текущего кода не требуются.
 
 ```env
-# Основные настройки
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-TELEGRAM_WEBHOOK_URL=https://gafus.ru/api/telegram-webhook
-TELEGRAM_WEBHOOK_SECRET=your-webhook-secret
-
-# Настройки бота
-TELEGRAM_BOT_USERNAME=gafus_bot
-TELEGRAM_BOT_DESCRIPTION=GAFUS Training Assistant
-TELEGRAM_BOT_COMMANDS=/start,/help,/reset_password,/stats
-
-# Ограничения
-TELEGRAM_RATE_LIMIT_WINDOW_MS=60000  # 1 минута
-TELEGRAM_RATE_LIMIT_MAX_MESSAGES=30  # максимум сообщений в минуту
+# Пример (не используется в prod compose по умолчанию)
+# TELEGRAM_BOT_TOKEN=
+# TELEGRAM_WEBHOOK_URL=
+# TELEGRAM_WEBHOOK_SECRET=
 ```
 
 ## 📧 Уведомления
@@ -417,7 +407,6 @@ env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   REDIS_URL: ${{ secrets.REDIS_URL }}
   NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```

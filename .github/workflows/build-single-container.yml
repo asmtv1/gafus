@@ -14,7 +14,6 @@ on:
           - api
           - worker
           - bull-board
-          - telegram-bot
           - prisma
       deploy:
         description: "Deploy to server after build"
@@ -154,11 +153,6 @@ jobs:
               echo "dockerfile=Dockerfile-bull-board-optimized" >> $GITHUB_OUTPUT
               echo "tag=gafus-bull-board" >> $GITHUB_OUTPUT
               echo "app-name=bull-board" >> $GITHUB_OUTPUT
-              ;;
-            telegram-bot)
-              echo "dockerfile=Dockerfile-telegram-bot-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-telegram-bot" >> $GITHUB_OUTPUT
-              echo "app-name=telegram-bot" >> $GITHUB_OUTPUT
               ;;
             prisma)
               echo "dockerfile=Dockerfile-prisma-optimized" >> $GITHUB_OUTPUT
@@ -357,9 +351,6 @@ jobs:
                 echo ""
                 echo "# Redis"
                 echo "REDIS_URL=redis://redis:6379"
-                echo ""
-                echo "# Telegram Bot"
-                echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
                 echo ""
                 echo "# NextAuth секреты"
                 echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"

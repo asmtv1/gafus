@@ -8,9 +8,15 @@ import crypto from "crypto";
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
+import { isRegisterEmailWithValidDomain } from "../../validation/registerEmailDomain";
 import { transliterate } from "../../utils/transliterate";
 
 const logger = createWebLogger("vk-auth");
+
+/**
+ * Права VK ID для authorize: почта в ответе user_info (настроить то же в кабинете приложения VK).
+ */
+export const VK_ID_OAUTH_SCOPE = "email";
 
 const MAX_FULLNAME_LENGTH = 120;
 const MAX_AVATAR_URL_LENGTH = 2048;
@@ -66,12 +72,68 @@ export interface VkProfile {
   last_name?: string;
   avatar?: string;
   birthday?: string;
+  /** Сырой email из user_info (после scope=email); в БД пишем только через sanitizeVkEmailForUser. */
+  email?: string;
+}
+
+function sanitizeVkEmailForUser(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return null;
+  return isRegisterEmailWithValidDomain(normalized) ? normalized : null;
 }
 
 /**
- * Получает профиль VK через users.get с lang=0 (русский).
- * user_info возвращает имена транслитерированными — users.get с lang=0 даёт кириллицу.
- * Fallback на user_info при ошибке users.get.
+ * Заполняет User.email из VK, если поле пустое и адрес свободен (не перезаписываем существующий).
+ */
+export async function trySetUserEmailFromVk(
+  userId: string,
+  rawEmail: unknown,
+): Promise<void> {
+  const normalized = sanitizeVkEmailForUser(rawEmail);
+  if (!normalized) return;
+
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (current?.email?.trim()) return;
+
+  const owner = await prisma.user.findUnique({
+    where: { email: normalized },
+    select: { id: true },
+  });
+  if (owner && owner.id !== userId) {
+    logger.warn("VK: email уже привязан к другому пользователю, пропуск", {
+      userId,
+    });
+    return;
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { email: normalized },
+    });
+  } catch (error) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: string }).code)
+        : "";
+    if (code === "P2002") {
+      logger.warn("VK: конфликт уникальности email при записи", { userId });
+      return;
+    }
+    logger.error(
+      "VK: не удалось сохранить email",
+      error instanceof Error ? error : new Error(String(error)),
+      { userId },
+    );
+  }
+}
+
+/**
+ * Сначала user_info (email и базовые поля при scope=email), затем users.get для кириллицы в ФИО.
  */
 export async function fetchVkProfile(params: {
   accessToken: string;
@@ -80,35 +142,6 @@ export async function fetchVkProfile(params: {
 }): Promise<VkProfile> {
   const { accessToken, vkUserId, clientId } = params;
 
-  // users.get с lang=0 — имена на русском (VK API транслитерирует при lang=3)
-  if (vkUserId) {
-    const usersGetUrl = `https://api.vk.com/method/users.get?user_ids=${encodeURIComponent(vkUserId)}&fields=photo_200,bdate&access_token=${encodeURIComponent(accessToken)}&v=5.199&lang=0`;
-
-    try {
-      const res = await fetch(usersGetUrl);
-      type VkUser = { id: number; first_name?: string; last_name?: string; bdate?: string; photo_200?: string };
-      const data = (await res.json()) as { response?: VkUser[]; error?: { error_code: number } };
-
-      if (data.response && data.response.length > 0) {
-        const u = data.response[0];
-        return {
-          id: String(u.id),
-          first_name: u.first_name,
-          last_name: u.last_name,
-          avatar: u.photo_200,
-          birthday: u.bdate?.includes(".") ? u.bdate : undefined, // DD.MM или DD.MM.YYYY
-        };
-      }
-    } catch (err) {
-      logger.error(
-        "VK users.get не удался, используем user_info",
-        err instanceof Error ? err : new Error(String(err)),
-        { operation: "vk_users_get_fallback" },
-      );
-    }
-  }
-
-  // Fallback: user_info (может вернуть транслит)
   const userInfoRes = await fetch("https://id.vk.ru/oauth2/user_info", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -117,17 +150,68 @@ export async function fetchVkProfile(params: {
       access_token: accessToken,
     }),
   });
-  type VkUserInfo = { user_id: string; first_name?: string; last_name?: string; avatar?: string; birthday?: string };
+  type VkUserInfo = {
+    user_id: string;
+    first_name?: string;
+    last_name?: string;
+    avatar?: string;
+    birthday?: string;
+    email?: string;
+  };
   const userInfo = (await userInfoRes.json()) as { user?: VkUserInfo };
   if (!userInfo.user?.user_id) {
     throw new Error("VK profile fetch failed");
   }
+
+  const info = userInfo.user;
+  const id = String(info.user_id);
+
+  let fromGet: {
+    first_name?: string;
+    last_name?: string;
+    photo_200?: string;
+    bdate?: string;
+  } | null = null;
+
+  const uidForApi = vkUserId || id;
+  if (uidForApi) {
+    const usersGetUrl = `https://api.vk.com/method/users.get?user_ids=${encodeURIComponent(uidForApi)}&fields=photo_200,bdate&access_token=${encodeURIComponent(accessToken)}&v=5.199&lang=0`;
+    try {
+      const res = await fetch(usersGetUrl);
+      type VkUser = {
+        id: number;
+        first_name?: string;
+        last_name?: string;
+        bdate?: string;
+        photo_200?: string;
+      };
+      const data = (await res.json()) as { response?: VkUser[]; error?: { error_code: number } };
+      if (data.response && data.response.length > 0) {
+        const u = data.response[0];
+        fromGet = {
+          first_name: u.first_name,
+          last_name: u.last_name,
+          photo_200: u.photo_200,
+          bdate: u.bdate,
+        };
+      }
+    } catch (err) {
+      logger.error(
+        "VK users.get не удался, остаёмся на user_info",
+        err instanceof Error ? err : new Error(String(err)),
+        { operation: "vk_users_get_fallback" },
+      );
+    }
+  }
+
   return {
-    id: String(userInfo.user.user_id),
-    first_name: userInfo.user.first_name,
-    last_name: userInfo.user.last_name,
-    avatar: userInfo.user.avatar,
-    birthday: userInfo.user.birthday,
+    id,
+    first_name: fromGet?.first_name ?? info.first_name,
+    last_name: fromGet?.last_name ?? info.last_name,
+    avatar: fromGet?.photo_200 ?? info.avatar,
+    birthday:
+      (fromGet?.bdate?.includes(".") ? fromGet.bdate : undefined) ?? info.birthday,
+    email: info.email,
   };
 }
 
@@ -288,13 +372,14 @@ export async function findOrCreateVkUser(
       },
       update: updateData,
     });
+    await trySetUserEmailFromVk(account.userId, vkProfile.email);
     return {
       user: {
         id: account.user.id,
         username: account.user.username,
         role: account.user.role,
       },
-      needsPhone: account.user.phone.startsWith("vk_"),
+      needsPhone: !account.user.phone || account.user.phone.startsWith("vk_"),
       isNewUser: false,
     };
   }
@@ -315,6 +400,22 @@ export async function findOrCreateVkUser(
   const password = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
   const phone = `vk_${providerAccountId}`;
 
+  const normalizedVkEmail = sanitizeVkEmailForUser(vkProfile.email);
+  let emailForCreate: string | undefined;
+  if (normalizedVkEmail) {
+    const emailOwner = await prisma.user.findUnique({
+      where: { email: normalizedVkEmail },
+      select: { id: true },
+    });
+    if (emailOwner) {
+      logger.warn("VK: email из профиля уже занят, регистрация без поля email", {
+        providerAccountId,
+      });
+    } else {
+      emailForCreate = normalizedVkEmail;
+    }
+  }
+
   const { user } = await prisma.$transaction(async (tx) => {
     const u = await tx.user.create({
       data: {
@@ -323,6 +424,7 @@ export async function findOrCreateVkUser(
         password,
         isConfirmed: true,
         passwordSetAt: null,
+        ...(emailForCreate ? { email: emailForCreate } : {}),
       },
     });
     await tx.userProfile.create({
@@ -420,6 +522,8 @@ export async function linkVkToUser(
     }
     throw error;
   }
+
+  await trySetUserEmailFromVk(userId, vkProfile.email);
 
   logger.success("linkVkToUser: VK linked", { userId, providerAccountId });
   return { success: true };

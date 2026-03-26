@@ -14,9 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
+import { coreRegisterEmailSchema } from "@gafus/core/validation/registerEmailDomain";
 import * as Crypto from "expo-crypto";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -32,16 +31,7 @@ const registerSchema = z
       .min(3, "Минимум 3 символа")
       .max(50, "Максимум 50 символов")
       .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
-    phone: z
-      .string()
-      .min(1, "Введите номер телефона")
-      .refine(
-        (v) => {
-          const p = parsePhoneNumberFromString(v, "RU");
-          return p?.isValid() ?? false;
-        },
-        { message: "Введите корректный номер телефона" },
-      ),
+    email: coreRegisterEmailSchema,
     password: z
       .string()
       .min(8, "Минимум 8 символов")
@@ -58,7 +48,7 @@ const registerSchema = z
 
 type FormErrors = {
   name?: string;
-  phone?: string;
+  email?: string;
   password?: string;
   confirmPassword?: string;
   consent?: string;
@@ -77,7 +67,7 @@ export default function RegisterScreen() {
 
   const [form, setForm] = useState({
     name: "",
-    phone: "",
+    email: "",
     password: "",
     confirmPassword: "",
   });
@@ -108,7 +98,7 @@ export default function RegisterScreen() {
     if (!result.success) {
       const fieldErrors: FormErrors = {};
       const validKeys: (keyof FormErrors)[] = [
-        "name", "phone", "password", "confirmPassword", "consent",
+        "name", "email", "password", "confirmPassword", "consent",
       ];
       result.error.errors.forEach((err) => {
         const field = err.path[0];
@@ -143,18 +133,13 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, phone: form.phone, tempSessionId });
+    if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, email: form.email, tempSessionId });
     submittingRef.current = true;
     setIsLoading(true);
     setErrors((prev) => ({ ...prev, api: undefined }));
     try {
       const normalizedName = form.name.toLowerCase().trim();
-      const phoneNumber = parsePhoneNumberFromString(form.phone, "RU");
-      if (!phoneNumber?.isValid()) {
-        setErrors((prev) => ({ ...prev, phone: "Введите корректный номер телефона" }));
-        return;
-      }
-      const formattedPhone = phoneNumber.format("E.164");
+      const normalizedEmail = form.email.trim().toLowerCase();
 
       const consentPayload: ConsentPayload = {
         acceptPersonalData: consents.acceptPersonalData,
@@ -164,7 +149,7 @@ export default function RegisterScreen() {
 
       const result = await register(
         normalizedName,
-        formattedPhone,
+        normalizedEmail,
         form.password,
         tempSessionId,
         consentPayload,
@@ -174,8 +159,7 @@ export default function RegisterScreen() {
 
       if (result.success) {
         await hapticFeedback.success();
-        setSnackbar({ visible: true, message: "Подтвердите номер в Telegram" });
-        // Навигация на /confirm управляется AuthProvider (pendingConfirmPhone уже в store)
+        setSnackbar({ visible: true, message: "Регистрация успешна" });
       } else {
         const msg = result.error || "Ошибка регистрации";
         setErrors((prev) => ({ ...prev, api: msg }));
@@ -254,29 +238,22 @@ export default function RegisterScreen() {
             />
             {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
-            {/* Phone Input */}
+            {/* Email */}
             <TextInput
               style={[
                 styles.input,
                 { width: formWidth },
                 Platform.OS === "android" && styles.inputAndroid,
               ]}
-              value={form.phone}
-              onChangeText={(v) => updateField("phone", v)}
-              placeholder="+7XXXXXXXXXX"
+              value={form.email}
+              onChangeText={(v) => updateField("email", v)}
+              placeholder="email@example.com"
               placeholderTextColor={COLORS.placeholder}
-              keyboardType="phone-pad"
+              keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-
-            {/* Информация о подтверждении */}
-            <View style={[styles.infoBlock, { width: formWidth }]}>
-              <Text style={styles.info}>
-                Требуется подтверждение номера через Telegram
-              </Text>
-            
-            </View>
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
             {/* Password Input */}
             <View style={[styles.passwordInputWrapper, { width: formWidth }]}>

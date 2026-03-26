@@ -6,7 +6,6 @@ const { execSync } = require("child_process");
 const appPorts = {
   "@gafus/web": 3002,
   "@gafus/trainer-panel": 3001,
-  "@gafus/telegram-bot": 3003,
   "@gafus/bull-board": 3004,
 
   "@gafus/webpush": 3007,

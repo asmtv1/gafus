@@ -10,6 +10,7 @@ import TrainerCoursesSection from "../TrainerCoursesSection";
 import type { BioProps } from "../../types";
 
 import { getAge, declOfNum } from "@gafus/core/utils";
+import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 import { getTelegramUrl, getInstagramUrl } from "@gafus/core/utils/social";
 import { InstagramIcon, TelegramIcon, WebsiteIcon } from "../SocialIcons";
 
@@ -66,9 +67,15 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           <div className={styles.greeting}>
             {isOwner ? `Привет, ${profile?.fullName || username}!` : profile?.fullName || username}
           </div>
-          <div className={styles.contactInfo}>
-            {isOwner && userData?.phone
-              ? `${userData.phone}`
+          <div
+            className={`${styles.contactInfo}${
+              isOwner && !userData?.email?.trim() ? ` ${styles.contactInfoMissing}` : ""
+            }`}
+          >
+            {isOwner
+              ? userData?.email?.trim()
+                ? userData.email.trim()
+                : USER_EMAIL_MISSING_HINT
               : profile?.telegram
                 ? `@${profile.telegram}`
                 : "Контакты не указаны"}

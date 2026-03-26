@@ -197,7 +197,8 @@ model UserStep {
 model User {
   id                       String                 @id @default(cuid())
   username                 String                 @unique
-  phone                    String                 @unique
+  email                    String?                @unique
+  phone                    String?                @unique
   password                 String
   passwordSetAt            DateTime?
   telegramId               String?                @unique

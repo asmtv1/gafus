@@ -305,7 +305,7 @@ export default [
   // Node-focused overrides for workers, bots and backend-ish code
   {
     files: [
-      "apps/{worker,telegram-bot,bull-board}/**/*.{js,ts}",
+      "apps/{worker,bull-board}/**/*.{js,ts}",
       "packages/{queues,webpush,worker}/**/*.{js,ts}",
     ],
     languageOptions: {

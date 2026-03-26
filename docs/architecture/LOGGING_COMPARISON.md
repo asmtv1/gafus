@@ -41,7 +41,7 @@
 
 - ✅ Ошибки в Tracer (серверные и клиентские), логи — docker logs
 - ✅ Структурированные логи (JSON через Pino)
-- ✅ Поддержка всех приложений монорепо (web, trainer-panel, admin-panel, worker, telegram-bot)
+- ✅ Поддержка всех приложений монорепо (web, trainer-panel, admin-panel, api, mobile, worker, bull-board)
 - ✅ React Error Boundaries (`@gafus/error-handling`)
 - ✅ Специализированные логгеры для каждого типа сервиса
 - ✅ Логи в stdout (docker logs)

@@ -288,18 +288,8 @@ cat apps/trainer-panel/src/middleware.ts
 **Решения:**
 
 ```bash
-# Проверка токена бота
-echo $TELEGRAM_BOT_TOKEN
-
-# Проверка webhook
-curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
-
-# Установка webhook
-curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
-  -d "url=https://yourdomain.com/api/telegram-webhook"
-
-# Проверка логов бота
-pnpm --filter @gafus/telegram-bot dev
+# Ранее: отдельный пакет @gafus/telegram-bot. С марта 2026 приложение удалено из репозитория.
+# Сброс пароля / смена телефона через Telegram — заглушки; см. docs/deployment/configuration.md (раздел Telegram legacy).
 ```
 
 ## 🐳 Проблемы Docker

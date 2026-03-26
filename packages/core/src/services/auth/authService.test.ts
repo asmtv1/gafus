@@ -7,6 +7,7 @@ import {
   createRefreshSession,
   getAuthUserById,
   isUsernameAvailable,
+  REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE,
   registerUserService,
   requestPhoneChange,
   confirmPhoneChange,
@@ -35,10 +36,9 @@ vi.mock("bcryptjs", () => ({
   },
 }));
 
-const mockGetUserPhoneByUsername = vi.fn();
 const mockCheckUserConfirmed = vi.fn();
 const mockMaskPhone = vi.fn();
-const mockRegisterUser = vi.fn();
+const mockRegisterUserWithCredentials = vi.hoisted(() => vi.fn());
 const mockSendTelegramPasswordResetRequest = vi.fn();
 const mockSendTelegramUsernameChangeNotification = vi.fn();
 const mockResetPasswordByToken = vi.fn();
@@ -66,11 +66,13 @@ const mockTransaction = vi.fn((fn: (tx: typeof refreshTxStub) => Promise<unknown
   fn(refreshTxStub),
 );
 
+vi.mock("./registerUserWithCredentials", () => ({
+  registerUserWithCredentials: (...args: unknown[]) => mockRegisterUserWithCredentials(...args),
+}));
+
 vi.mock("@gafus/auth", () => ({
   checkUserConfirmed: (...args: unknown[]) => mockCheckUserConfirmed(...args),
-  getUserPhoneByUsername: (...args: unknown[]) => mockGetUserPhoneByUsername(...args),
   maskPhone: (phone: string) => mockMaskPhone(phone),
-  registerUser: (...args: unknown[]) => mockRegisterUser(...args),
   sendTelegramPasswordResetRequest: (...args: unknown[]) =>
     mockSendTelegramPasswordResetRequest(...args),
   sendTelegramUsernameChangeNotification: (...args: unknown[]) =>
@@ -116,7 +118,10 @@ describe("checkUserState", () => {
   });
 
   it("returns confirmed when user found and confirmed", async () => {
-    mockGetUserPhoneByUsername.mockResolvedValue("+79001234567");
+    mockUserFindUnique.mockResolvedValue({
+      phone: "+79001234567",
+      isConfirmed: true,
+    });
     mockCheckUserConfirmed.mockResolvedValue(true);
     mockMaskPhone.mockReturnValue("+7 *** *** 67");
 
@@ -130,7 +135,10 @@ describe("checkUserState", () => {
   });
 
   it("returns needsConfirm when user found but not confirmed", async () => {
-    mockGetUserPhoneByUsername.mockResolvedValue("+79001234567");
+    mockUserFindUnique.mockResolvedValue({
+      phone: "+79001234567",
+      isConfirmed: false,
+    });
     mockCheckUserConfirmed.mockResolvedValue(false);
     mockMaskPhone.mockReturnValue("+7 *** *** 67");
 
@@ -144,11 +152,23 @@ describe("checkUserState", () => {
   });
 
   it("returns confirmed false when user not found", async () => {
-    mockGetUserPhoneByUsername.mockResolvedValue(null);
+    mockUserFindUnique.mockResolvedValue(null);
 
     const result = await checkUserState("unknown");
 
     expect(result).toEqual({ confirmed: false });
+    expect(mockCheckUserConfirmed).not.toHaveBeenCalled();
+  });
+
+  it("email-only: без телефона, isConfirmed true — вход без подтверждения", async () => {
+    mockUserFindUnique.mockResolvedValue({ phone: null, isConfirmed: true });
+
+    const result = await checkUserState("emailuser");
+
+    expect(result).toEqual({
+      confirmed: true,
+      needsConfirm: false,
+    });
     expect(mockCheckUserConfirmed).not.toHaveBeenCalled();
   });
 });
@@ -190,17 +210,29 @@ describe("registerUserService", () => {
     vi.clearAllMocks();
   });
 
-  it("calls registerUser with params", async () => {
-    mockRegisterUser.mockResolvedValue({ userId: "user-1" });
+  it("успех: делегирует в registerUserWithCredentials", async () => {
+    mockRegisterUserWithCredentials.mockResolvedValue({ ok: true, userId: "user-1" });
 
-    const result = await registerUserService("Иван", "+79001234567", "password");
+    const result = await registerUserService("ivan", "ivan@example.com", "Password1x");
 
-    expect(mockRegisterUser).toHaveBeenCalledWith(
-      "Иван",
-      "+79001234567",
-      "password",
-    );
-    expect(result).toEqual({ userId: "user-1" });
+    expect(mockRegisterUserWithCredentials).toHaveBeenCalledWith({
+      username: "ivan",
+      email: "ivan@example.com",
+      password: "Password1x",
+    });
+    expect(result).toEqual({ success: true, userId: "user-1" });
+  });
+
+  it("маскирует конфликт username/email", async () => {
+    mockRegisterUserWithCredentials.mockResolvedValue({
+      ok: false,
+      code: "EMAIL_TAKEN",
+      messageRu: "внутреннее",
+    });
+
+    const result = await registerUserService("ivan", "taken@example.com", "Password1x");
+
+    expect(result).toEqual({ error: REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE });
   });
 });
 
@@ -546,6 +578,14 @@ describe("setVkPhone / setPassword / changePassword", () => {
     mockUserFindUnique.mockResolvedValue({ phone: "+79001234567" });
 
     await expect(setVkPhone("u1", "+79001112233")).rejects.toThrow(
+      "Смена номера недоступна через этот метод",
+    );
+  });
+
+  it("setVkPhone: ошибка если телефон отсутствует", async () => {
+    mockUserFindUnique.mockResolvedValue({ phone: null });
+
+    await expect(setVkPhone("u1", "+79001234567")).rejects.toThrow(
       "Смена номера недоступна через этот метод",
     );
   });

@@ -1,5 +1,8 @@
 /**
  * Необратимое удаление аккаунта (самообслуживание USER / PREMIUM).
+ * Удаляется запись User (username, email, phone, telegramId и т.д.).
+ * Перед удалением обезличиваются ConsentLog, привязанные к userId (formData/ip/userAgent),
+ * чтобы email из регистрации не оставался в JSON после отвязки userId (onDelete: SetNull).
  */
 
 import { z } from "zod";
@@ -59,6 +62,7 @@ export async function deleteUserAccount(
         username: true,
         role: true,
         passwordSetAt: true,
+        email: true,
       },
     });
 
@@ -109,15 +113,25 @@ export async function deleteUserAccount(
       return { success: false, error: "Неверный пароль" };
     }
 
+    const hadEmail = user.email != null && user.email.length > 0;
+
     await prisma.$transaction(async (tx) => {
       await tx.refreshToken.updateMany({
         where: { userId: actorUserId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      await tx.consentLog.updateMany({
+        where: { userId: actorUserId },
+        data: {
+          formData: Prisma.DbNull,
+          ipAddress: null,
+          userAgent: null,
+        },
+      });
       await tx.user.delete({ where: { id: actorUserId } });
     });
 
-    logger.success("Аккаунт удалён", { userId: actorUserId });
+    logger.success("Аккаунт удалён", { userId: actorUserId, hadEmail });
     return { success: true };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {

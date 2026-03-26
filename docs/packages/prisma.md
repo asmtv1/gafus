@@ -53,7 +53,8 @@ const checklist = Prisma.JsonNull;
 model User {
   id                String    @id @default(cuid())
   username          String    @unique
-  phone             String    @unique
+  email             String?   @unique  // нормализация в application layer
+  phone             String?   @unique  // опционально; несколько NULL в UNIQUE (PostgreSQL)
   password          String
   passwordSetAt     DateTime?  // null = VK-only, пароль не установлен
   telegramId        String?   @unique

@@ -12,11 +12,9 @@ import { z } from "zod";
 import {
   checkUserConfirmed,
   confirmPhoneChangeByShortCode,
-  getUserPhoneByUsername,
   maskPhone,
   resetPasswordByShortCode,
   resetPasswordByToken,
-  registerUser,
   sendTelegramPasswordResetRequest,
   sendTelegramUsernameChangeNotification,
   sendTelegramPhoneChangeRequest,
@@ -24,7 +22,16 @@ import {
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
+import {
+  registerUserWithCredentials,
+  type RegisterCredentialsConflictCode,
+} from "./registerUserWithCredentials";
+
 const logger = createWebLogger("auth-service");
+
+/** Единый текст при конфликте username/email (защита от перечисления email). */
+export const REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE =
+  "Пользователь с такими данными уже существует";
 
 const newPasswordSchema = z
   .string()
@@ -79,19 +86,29 @@ export async function checkUserState(username: string): Promise<{
 }> {
   logger.info("Checking user state", { username });
 
-  const phone = await getUserPhoneByUsername(username);
+  const normalized = username.toLowerCase().trim();
+  const user = await prisma.user.findUnique({
+    where: { username: normalized },
+    select: { phone: true, isConfirmed: true },
+  });
 
-  if (!phone) {
-    logger.warn("No phone found for user", { username });
+  if (!user) {
     return { confirmed: false };
   }
 
-  const confirmed = await checkUserConfirmed(phone);
+  if (!user.phone) {
+    return {
+      confirmed: user.isConfirmed,
+      needsConfirm: !user.isConfirmed,
+    };
+  }
+
+  const confirmed = await checkUserConfirmed(user.phone);
   logger.info("User confirmed status", { confirmed, username });
 
   return {
     confirmed,
-    phoneHint: maskPhone(phone),
+    phoneHint: maskPhone(user.phone),
     needsConfirm: !confirmed,
   };
 }
@@ -117,15 +134,26 @@ export async function sendPasswordResetRequest(username: string, phone: string) 
 }
 
 /**
- * Регистрирует нового пользователя
- * @param name - Имя пользователя
- * @param phone - Номер телефона
- * @param password - Пароль
- * @returns Результат регистрации
+ * Регистрирует нового пользователя (email + пароль, без телефона).
  */
-export async function registerUserService(name: string, phone: string, password: string) {
-  logger.info("Registering new user");
-  return registerUser(name, phone, password);
+export async function registerUserService(
+  username: string,
+  email: string,
+  password: string,
+): Promise<{ success: true; userId: string } | { error: string }> {
+  logger.info("Registering new user (email)");
+  const result = await registerUserWithCredentials({ username, email, password });
+  if (!result.ok) {
+    const maskedCodes: RegisterCredentialsConflictCode[] = [
+      "USERNAME_TAKEN",
+      "EMAIL_TAKEN",
+    ];
+    if (maskedCodes.includes(result.code)) {
+      return { error: REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE };
+    }
+    return { error: result.messageRu };
+  }
+  return { success: true, userId: result.userId };
 }
 
 /**
@@ -263,7 +291,7 @@ export async function isUsernameAvailable(
  */
 export async function getAuthUserById(
   userId: string,
-): Promise<{ id: string; username: string; role: string; phone: string } | null> {
+): Promise<{ id: string; username: string; role: string; phone: string | null } | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, username: true, role: true, phone: true },
@@ -397,7 +425,7 @@ export async function setVkPhone(userId: string, phone: string): Promise<void> {
     select: { phone: true },
   });
   if (!user) throw new Error("Пользователь не найден");
-  if (!user.phone.startsWith("vk_")) {
+  if (!user.phone?.startsWith("vk_")) {
     throw new Error("Смена номера недоступна через этот метод");
   }
 

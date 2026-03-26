@@ -38,7 +38,7 @@
 - [Trainer Panel](./apps/trainer-panel.md)
 - [Admin Panel](./apps/admin-panel.md)
 - [API (v1)](./apps/api.md)
-- [Telegram Bot](./apps/telegram-bot.md)
+- [Telegram Bot (удалён, справка)](./apps/telegram-bot.md)
 - [Bull Board](./apps/bull-board.md)
 
 ### Фичи
@@ -109,4 +109,4 @@ pnpm dev
 
 Поддержка: issue в репозитории, раздел [Troubleshooting](./troubleshooting/README.md).
 
-_Обновлено: февраль 2026_
+_Обновлено: март 2026_

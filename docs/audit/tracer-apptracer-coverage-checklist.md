@@ -14,17 +14,15 @@
 - `apps/admin-panel/src`: **48** файлов
 - `apps/mobile`: **132** файлов
 - `apps/api/src`: **21** файлов
-- `apps/telegram-bot`: **1** файлов
 - `apps/bull-board`: **1** файлов
 - `packages`: **287** файлов
-- **Всего: 1072**
+- **Всего: 1071** (приложение `apps/telegram-bot` удалено, март 2026)
 
 ## Полный список (проверено — инвентарь)
 
 ### apps/web/src
 
-- [x] `apps/web/src/app/(auth)/confirm/ConfirmClient.tsx`
-- [x] `apps/web/src/app/(auth)/confirm/page.tsx`
+- [x] `apps/web/src/app/(auth)/confirm/page.tsx` (редирект; ConfirmClient удалён)
 - [x] `apps/web/src/app/(auth)/layout.tsx`
 - [x] `apps/web/src/app/(auth)/login/LoginForm.tsx`
 - [x] `apps/web/src/app/(auth)/login/page.tsx`
@@ -86,7 +84,6 @@
 - [x] `apps/web/src/app/api/v1/articles/[slug]/route.ts`
 - [x] `apps/web/src/app/api/v1/articles/[slug]/view/route.ts`
 - [x] `apps/web/src/app/api/v1/articles/route.ts`
-- [x] `apps/web/src/app/api/v1/auth/check-confirmed/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/check-phone-match/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/check-state/route.ts`
 - [x] `apps/web/src/app/api/v1/auth/password-reset-request/route.ts`
@@ -819,10 +816,6 @@
 - [x] `apps/api/src/routes/v1/training.ts`
 - [x] `apps/api/src/routes/v1/user.ts`
 
-### apps/telegram-bot
-
-- [x] `apps/telegram-bot/bot.ts`
-
 ### apps/bull-board
 
 - [x] `apps/bull-board/bull-board.ts`
@@ -839,7 +832,6 @@
 - [x] `packages/auth/src/jwt.ts`
 - [x] `packages/auth/src/maskPhone.ts`
 - [x] `packages/auth/src/middleware.ts`
-- [x] `packages/auth/src/registerUser.ts`
 - [x] `packages/auth/src/resetPasswordByShortCode.ts`
 - [x] `packages/auth/src/resetPasswordByToken.ts`
 - [x] `packages/auth/src/sendTelegramPasswordResetRequest.ts`
@@ -885,6 +877,7 @@
 - [x] `packages/core/src/services/article/index.ts`
 - [x] `packages/core/src/services/article/schemas.ts`
 - [x] `packages/core/src/services/auth/authService.ts`
+- [x] `packages/core/src/services/auth/registerUserWithCredentials.ts`
 - [x] `packages/core/src/services/auth/index.ts`
 - [x] `packages/core/src/services/auth/vkAuth.ts`
 - [x] `packages/core/src/services/cache/index.ts`

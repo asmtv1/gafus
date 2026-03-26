@@ -168,6 +168,10 @@
     "./utils/retry": {
       "types": "./dist/core/src/utils/retry.d.ts",
       "default": "./dist/core/src/utils/retry.js"
+    },
+    "./validation/auth-register": {
+      "types": "./dist/core/src/validation/authRegisterSchema.d.ts",
+      "default": "./dist/core/src/validation/authRegisterSchema.js"
     }
   },
   "main": "./dist/core/src/index.js",
@@ -195,15 +199,17 @@
     "bcryptjs": "^3.0.2",
     "libphonenumber-js": "^1.12.8",
     "petrovich": "^0.2.1",
+    "validator": "^13.15.26",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "20.4.8",
+    "@types/validator": "^13.15.10",
+    "@vitest/coverage-v8": "^4.0.17",
     "rimraf": "5.0.1",
     "ts-add-js-extension": "^1.6.6",
     "typescript": "5.8.3",
-    "vitest": "^4.0.17",
-    "@vitest/coverage-v8": "^4.0.17"
+    "vitest": "^4.0.17"
   }
 }

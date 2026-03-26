@@ -72,7 +72,7 @@ workerLogger.error("Не удалось отправить push", error);
 | `createTrainerPanelLogger` | trainer-panel |
 | `createAdminPanelLogger`   | admin-panel   |
 | `createWorkerLogger`       | worker        |
-| `createTelegramBotLogger`  | telegram-bot  |
+| `createTelegramBotLogger`  | legacy (приложение telegram-bot удалено) |
 | `createBullBoardLogger`    | bull-board    |
 | `createSilentLogger`       | — (только fatal) |
 

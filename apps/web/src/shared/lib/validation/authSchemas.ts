@@ -1,5 +1,6 @@
 import { z } from "zod";
 import parsePhoneNumberFromString from "libphonenumber-js";
+import { coreRegisterEmailSchema } from "@gafus/core/validation/auth-register";
 import {
   normalizeTelegramInput,
   normalizeInstagramInput,
@@ -94,12 +95,15 @@ export const changePasswordSchema = z
 
 // ===== СХЕМЫ ФОРМ =====
 
+/** Email для регистрации: тот же контракт, что в @gafus/core (validator + FQDN домена). */
+export const registerEmailSchema = coreRegisterEmailSchema;
+
 /**
- * Базовая схема для регистрации пользователя
+ * Базовая схема для регистрации пользователя (email + пароль)
  */
 export const registerUserSchema = z.object({
   name: usernameSchema,
-  phone: phoneSchema,
+  email: registerEmailSchema,
   password: newPasswordSchema,
 });
 
@@ -342,6 +346,7 @@ export const tempSessionIdSchema = z.string().uuid(
 /**
  * Схема для регистрации через API (с consent для GDPR)
  */
+/** Паритет с POST /api/v1/auth/register и authRegisterBodySchema в @gafus/core */
 export const registerApiSchema = registerUserSchema.extend({
   tempSessionId: tempSessionIdSchema,
   consentPayload: consentPayloadSchema,

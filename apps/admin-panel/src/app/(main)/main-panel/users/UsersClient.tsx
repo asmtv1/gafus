@@ -13,6 +13,7 @@ import { Alert, Box } from "@/utils/muiImports";
 interface User {
   id: string;
   username: string;
+  email: string | null;
   phone: string | null;
   role: string;
   isConfirmed: boolean;

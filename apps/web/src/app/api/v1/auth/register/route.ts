@@ -1,19 +1,19 @@
 /**
  * API Route: POST /api/v1/auth/register
  *
- * Регистрирует нового пользователя с consent flow (GDPR).
- * Контракт совпадает с api.gafus.ru: name, phone, password, tempSessionId, consentPayload.
+ * Регистрация с consent flow (GDPR). Контракт совпадает с Hono API: email вместо телефона.
  */
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { registerUserService } from "@gafus/core/services/auth";
+import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
+import { registerUserService, REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE } from "@gafus/core/services/auth";
 import {
   createConsentLogs,
   linkConsentLogsToUser,
   markConsentLogsFailed,
 } from "@gafus/core/services/consent";
 import { createWebLogger } from "@gafus/logger";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 import { CONSENT_VERSION } from "@shared/constants/consent";
 import {
@@ -21,12 +21,8 @@ import {
   getClientIp,
   RATE_LIMIT_RETRY_AFTER_SECONDS,
 } from "@shared/lib/rateLimit";
-import { registerApiSchema } from "@shared/lib/validation/authSchemas";
 
 const logger = createWebLogger("api-auth");
-
-const REGISTER_CONFLICT_MESSAGE =
-  "Пользователь с такими данными уже существует. Проверьте данные или войдите в существующий аккаунт.";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -42,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const parsed = registerApiSchema.safeParse(body);
+    const parsed = authRegisterBodySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: parsed.error.errors },
@@ -50,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, phone, password, tempSessionId, consentPayload } = parsed.data;
+    const { name, email, password, tempSessionId, consentPayload } = parsed.data;
     const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0] ?? undefined;
     const userAgent = request.headers.get("user-agent") ?? undefined;
 
@@ -59,20 +55,26 @@ export async function POST(request: NextRequest) {
       await createConsentLogs({
         tempSessionId,
         consentPayload,
-        formData: { name: name.toLowerCase().trim(), phone },
+        formData: { name, email },
         ipAddress,
         userAgent,
         defaultVersion: CONSENT_VERSION,
       });
       consentCreated = true;
 
-      const result = await registerUserService(name, phone, password);
+      const result = await registerUserService(name, email, password);
 
       if ("error" in result) {
         await markConsentLogsFailed(tempSessionId);
+        const isConflict = result.error === REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE;
         return NextResponse.json(
-          { success: false, error: REGISTER_CONFLICT_MESSAGE },
-          { status: 409 },
+          {
+            success: false,
+            error: isConflict
+              ? REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE
+              : result.error,
+          },
+          { status: isConflict ? 409 : 400 },
         );
       }
 

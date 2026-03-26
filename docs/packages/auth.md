@@ -8,9 +8,9 @@
 
 ### Аутентификация
 
-- **JWT токены** через NextAuth.js
-- **Подтверждение по SMS** для регистрации
-- **Сброс пароля** через Telegram бота
+- **JWT токены** через NextAuth.js (web) и выдача access/refresh в `apps/api` (mobile)
+- **Регистрация по email и паролю** — бизнес-логика в `@gafus/core` (`registerUserWithCredentials`), не в этом пакете
+- **Сброс пароля / смена телефона через Telegram** — вызовы в этом пакете **заглушены** (отдельное приложение бота удалено)
 - **Роли пользователей** (USER, TRAINER, ADMIN, MODERATOR, PREMIUM)
 
 ### Авторизация
@@ -74,19 +74,9 @@ import { getUserPhoneByUsername } from "@gafus/auth";
 const phone = await getUserPhoneByUsername("john_doe");
 ```
 
-#### `registerUser(userData: RegisterData): Promise<User>`
+#### Регистрация
 
-Регистрирует нового пользователя.
-
-```typescript
-import { registerUser } from "@gafus/auth";
-
-const user = await registerUser({
-  username: "john_doe",
-  phone: "+79123456789",
-  password: "secure_password",
-});
-```
+Экспорта `registerUser` больше нет. Используйте `@gafus/core/services/auth`: `registerUserWithCredentials` или `registerUserService` (с маскировкой конфликтов username/email).
 
 #### `resetPasswordByToken(token: string, newPassword: string): Promise<boolean>`
 
@@ -98,15 +88,9 @@ import { resetPasswordByToken } from "@gafus/auth";
 const success = await resetPasswordByToken(token, newPassword);
 ```
 
-#### `sendTelegramPasswordResetRequest(username: string, phone: string): Promise<void>`
+#### `sendTelegramPasswordResetRequest` (заглушка)
 
-Отправляет запрос на сброс пароля через Telegram. Вызывается из `@gafus/core` при `POST /api/v1/auth/password-reset-request`. Базовый URL для ссылки: `NEXTAUTH_URL || APP_BASE_URL || WEB_APP_URL` (API использует `WEB_APP_URL`).
-
-```typescript
-import { sendTelegramPasswordResetRequest } from "@gafus/auth";
-
-await sendTelegramPasswordResetRequest("john_doe", "+79001234567");
-```
+Ранее отправляла запрос в Telegram. Сейчас возвращает отказ с сообщением для пользователя; логируется предупреждение. Вызывается из `@gafus/core` при `POST /api/v1/auth/password-reset-request`.
 
 ## 🔐 Конфигурация
 
@@ -126,8 +110,8 @@ VK_CLIENT_SECRET=  # Опционально — только для консол
 VK_WEB_REDIRECT_URI=
 VK_MOBILE_REDIRECT_URI=
 
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=your-bot-token
+# Telegram (опционально, legacy)
+# TELEGRAM_BOT_TOKEN=
 ```
 
 ### VK ID (web)
@@ -178,19 +162,9 @@ enum UserRole {
 - Валидация origin для запросов
 - Безопасные cookies
 
-## 📱 Интеграция с Telegram
+## 📱 Telegram (legacy)
 
-### Подтверждение регистрации
-
-1. Пользователь регистрируется с номером телефона
-2. Система отправляет SMS с кодом подтверждения
-3. После подтверждения активируется аккаунт
-
-### Сброс пароля
-
-1. Пользователь запрашивает сброс пароля
-2. Система отправляет ссылку через Telegram бота
-3. Пользователь переходит по ссылке и устанавливает новый пароль
+Отдельный процесс бота удалён. Сброс пароля и смена телефона через Telegram временно недоступны до внедрения нового канала.
 
 ## 🔄 Middleware
 
@@ -240,17 +214,12 @@ export default withRole(["ADMIN", "TRAINER"])(async function handler(req, res) {
 ### Unit тесты
 
 ```typescript
-import { registerUser, checkUserConfirmed } from "@gafus/auth";
+import { checkUserConfirmed } from "@gafus/auth";
 
 describe("Auth Package", () => {
-  it("should register user successfully", async () => {
-    const user = await registerUser({
-      username: "test_user",
-      phone: "+79123456789",
-      password: "password123",
-    });
-
-    expect(user.username).toBe("test_user");
+  it("should check confirmation", async () => {
+    const ok = await checkUserConfirmed("+79123456789");
+    expect(typeof ok).toBe("boolean");
   });
 });
 ```
@@ -284,9 +253,8 @@ packages/auth/
 │   ├── middleware.ts        # Middleware функции
 │   ├── next-auth.d.ts       # Расширение Session: needsPhone, passwordSetAt
 │   ├── vkIdOneTimeStore.ts  # One-time токены для VK ID web callback
-│   ├── registerUser.ts      # Регистрация пользователя
 │   ├── resetPasswordByToken.ts # Сброс пароля
-│   ├── sendTelegramPasswordResetRequest.ts # Telegram интеграция
+│   ├── sendTelegramPasswordResetRequest.ts # заглушка (legacy Telegram)
 │   ├── server.ts            # Серверные функции
 │   └── index.ts             # Главный экспорт
 ├── package.json
@@ -314,8 +282,8 @@ DATABASE_URL=postgresql://...
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=your-secret
 
-# Опциональные
-TELEGRAM_BOT_TOKEN=your-bot-token
+# Опциональные (legacy)
+# TELEGRAM_BOT_TOKEN=
 ```
 
 ### Безопасность в продакшене

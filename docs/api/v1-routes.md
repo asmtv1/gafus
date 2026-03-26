@@ -46,21 +46,9 @@
 
 ---
 
-### POST `/api/v1/auth/check-confirmed`
-
-Проверка подтверждения аккаунта.
-
-**Body:**
-
-```json
-{ "phone": "+79001234567" }
-```
-
----
-
 ### POST `/api/v1/auth/password-reset-request`
 
-Запрос на сброс пароля. Код отправляется пользователю в Telegram. Ссылка для ввода кода формируется из `WEB_APP_URL` (напр. `https://gafus.ru/reset-password`). **Web и mobile клиенты используют api.gafus.ru** для этого эндпоинта.
+Запрос на сброс пароля. Ранее код уходил в Telegram; отдельное приложение `telegram-bot` удалено, а вызовы `sendTelegram*` в `@gafus/auth` — заглушки. Пока канал не заменён, API может вернуть ошибку с текстом вроде «Функция временно недоступна. Обратитесь в поддержку.» Ссылка для ввода кода (когда flow снова доступен) формируется из `WEB_APP_URL` (напр. `https://gafus.ru/reset-password`). **Web и mobile клиенты используют api.gafus.ru** для этого эндпоинта.
 
 **Body:**
 
@@ -83,7 +71,7 @@
 ```json
 {
   "name": "string (3-50, a-zA-Z0-9_)",
-  "phone": "string (E.164)",
+  "email": "string (email, max 255, нормализация toLowerCase/trim на сервере)",
   "password": "string (min 8, upper/lower/digit)",
   "tempSessionId": "UUID",
   "consentPayload": {
@@ -93,6 +81,12 @@
   }
 }
 ```
+
+**Ответ при конфликте username/email:** HTTP 409, единое сообщение «Пользователь с такими данными уже существует» (без указания, какое поле занято).
+
+**Успех:** как раньше — `data.user`, `accessToken`, `refreshToken` (мобильный клиент).
+
+Регистрация выполняется в `@gafus/core` (`registerUserWithCredentials`); согласия: `createConsentLogs` → регистрация → `linkConsentLogsToUser`.
 
 ---
 
@@ -128,7 +122,7 @@
 
 ### POST `/api/v1/auth/phone-change-request`
 
-Запрос кода смены телефона (код отправляется в Telegram). Требует авторизацию: Bearer JWT.
+Запрос кода смены телефона (ранее — Telegram; сейчас может быть заглушка). Требует авторизацию: Bearer JWT.
 
 **Body:** пустой или `{}`
 
@@ -1176,15 +1170,21 @@
 
 ### v1.1.2 (01.03.2026)
 
-- **Унификация сброса пароля:** web и mobile используют `api.gafus.ru/api/v1/auth/password-reset-request`. API требует `TELEGRAM_BOT_TOKEN` и `WEB_APP_URL`; ссылка для ввода кода формируется из `WEB_APP_URL/reset-password`.
+- **Унификация сброса пароля:** web и mobile используют `api.gafus.ru/api/v1/auth/password-reset-request`. Нужен `WEB_APP_URL`; отправка кода через Telegram — при наличии рабочей интеграции (см. актуальное состояние `@gafus/auth`).
 
 ### v1.1.1 (21.02.2026)
 
 - `POST /api/v1/payments/create`: acceptanceContext формируется из заголовков (IP, User-Agent) для OfertaAcceptance; поддержка web (сессия) и mobile (JWT).
 
+### v1.2.0 (26.03.2026)
+
+- **Регистрация по email:** `POST /api/v1/auth/register` — поле `email` вместо обязательного `phone`; пользователь создаётся с `isConfirmed: true`, `phone` может быть `null` (миграция `20260326120000_add_email_optional_phone`).
+- Удалён `POST /api/v1/auth/check-confirmed` (Hono API).
+- Конфликты username/email маскируются единым текстом (см. тело ответа register).
+
 ### v1.1.0 (20.02.2026)
 
-- `POST /api/v1/auth/register`: body расширен (name вместо username, tempSessionId, consentPayload); flow согласий createConsentLogs → registerUser → linkConsentLogsToUser
+- `POST /api/v1/auth/register`: body с `name`, `tempSessionId`, `consentPayload`; flow согласий createConsentLogs → регистрация → linkConsentLogsToUser
 
 ### v1.0.0 (19.01.2026)
 

@@ -7,7 +7,6 @@ const path = require("path");
 const appsToCheck = [
   { name: "@gafus/web", path: "apps/web/.next", type: "next" },
   { name: "@gafus/trainer-panel", path: "apps/trainer-panel/.next", type: "next" },
-  { name: "@gafus/telegram-bot", path: "apps/telegram-bot/dist", type: "dist" },
   { name: "@gafus/bull-board", path: "apps/bull-board/dist", type: "dist" },
 
   { name: "@gafus/webpush", path: "packages/webpush/dist", type: "dist" },

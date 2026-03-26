@@ -8,8 +8,8 @@ import { zValidator } from "@hono/zod-validator";
 import { bodyLimit } from "hono/body-limit";
 import crypto from "crypto";
 
+import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
-import { registerUser } from "@gafus/auth";
 import { storeVkIdOneTimeUser, consumeVkIdOneTimeUser } from "@gafus/auth";
 import {
   changePassword,
@@ -21,13 +21,14 @@ import {
   exchangeVkCodeForProfile,
   getAuthUserById,
   linkVkToUser,
+  REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE,
+  registerUserService,
   requestPhoneChange,
   resetPasswordByCode,
   revokeAllUserTokens,
   revokeRefreshToken,
   rotateRefreshToken,
   sendPasswordResetRequest,
-  serverCheckUserConfirmed,
   setPassword,
   setVkPhone,
   validateCredentials,
@@ -52,31 +53,6 @@ export const authRoutes = new Hono();
 const loginSchema = z.object({
   username: z.string().min(1, "Имя пользователя обязательно"),
   password: z.string().min(1, "Пароль обязателен"),
-});
-
-const registerSchema = z.object({
-  name: z.string().trim().min(3, "Минимум 3 символа").max(50, "Максимум 50 символов")
-    .regex(/^[a-zA-Z0-9_]+$/, "Только латиница, цифры и _"),
-  phone: z.string().min(1, "Номер телефона обязателен"),
-  password: z
-    .string()
-    .min(8, "Пароль должен содержать минимум 8 символов")
-    .max(100, "Пароль не более 100 символов")
-    .regex(/[A-Z]/, "Минимум одна заглавная буква")
-    .regex(/[a-z]/, "Минимум одна строчная буква")
-    .regex(/[0-9]/, "Минимум одна цифра"),
-  tempSessionId: z.string().uuid("tempSessionId должен быть UUID"),
-  consentPayload: z.object({
-    acceptPersonalData: z.literal(true, {
-      errorMap: () => ({ message: "Необходимо принять согласие на обработку данных" }),
-    }),
-    acceptPrivacyPolicy: z.literal(true, {
-      errorMap: () => ({ message: "Необходимо принять политику конфиденциальности" }),
-    }),
-    acceptDataDistribution: z.literal(true, {
-      errorMap: () => ({ message: "Необходимо принять согласие на размещение данных" }),
-    }),
-  }),
 });
 
 const refreshSchema = z.object({
@@ -106,10 +82,6 @@ const resetPasswordSchema = z.object({
     .regex(/[A-Z]/, "Минимум одна заглавная буква")
     .regex(/[a-z]/, "Минимум одна строчная буква")
     .regex(/[0-9]/, "Минимум одна цифра"),
-});
-
-const checkConfirmedSchema = z.object({
-  phone: z.string().min(1, "Номер телефона обязателен"),
 });
 
 const phoneChangeConfirmSchema = z.object({
@@ -211,30 +183,13 @@ authRoutes.post(
   },
 );
 
-// POST /api/v1/auth/check-confirmed
-authRoutes.post(
-  "/check-confirmed",
-  bodyLimit({ maxSize: 1024 }),
-  zValidator("json", checkConfirmedSchema),
-  async (c) => {
-    try {
-      const { phone } = c.req.valid("json");
-      const confirmed = await serverCheckUserConfirmed(phone);
-      return c.json({ success: true, data: { confirmed } });
-    } catch (error) {
-      logger.error("check-confirmed error", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
-    }
-  },
-);
-
 // POST /api/v1/auth/register
 authRoutes.post(
   "/register",
   bodyLimit({ maxSize: 10 * 1024 }),
-  zValidator("json", registerSchema),
+  zValidator("json", authRegisterBodySchema),
   async (c) => {
-    const { name, phone, password, tempSessionId, consentPayload } = c.req.valid("json");
+    const { name, email, password, tempSessionId, consentPayload } = c.req.valid("json");
     const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0];
     const userAgent = c.req.header("user-agent");
 
@@ -243,24 +198,26 @@ authRoutes.post(
       await createConsentLogs({
         tempSessionId,
         consentPayload,
-        formData: { name: name.toLowerCase().trim(), phone },
+        formData: { name, email },
         ipAddress,
         userAgent,
         defaultVersion: CONSENT_VERSION,
       });
       consentCreated = true;
 
-      const result = await registerUser(name, phone, password);
+      const result = await registerUserService(name, email, password);
 
       if ("error" in result) {
         await markConsentLogsFailed(tempSessionId);
+        const isConflict = result.error === REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE;
         return c.json(
           {
             success: false,
-            error:
-              "Пользователь с такими данными уже существует. Проверьте данные или войдите в существующий аккаунт.",
+            error: isConflict
+              ? REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE
+              : result.error,
           },
-          409,
+          isConflict ? 409 : 400,
         );
       }
 
@@ -625,7 +582,11 @@ authRoutes.post(
       await createConsentLogs({
         tempSessionId,
         consentPayload,
-        formData: { name: vkUser.username, phone: user.phone ?? "" },
+        formData: {
+          name: vkUser.username,
+          phone: user.phone ?? undefined,
+          email: undefined,
+        },
         ipAddress: ip,
         userAgent: userAgent ?? undefined,
         defaultVersion: CONSENT_VERSION,
@@ -656,7 +617,7 @@ authRoutes.post(
           user: { id: user.id, username: user.username, role: user.role },
           accessToken,
           refreshToken,
-          needsPhone: user.phone.startsWith("vk_"),
+          needsPhone: user.phone?.startsWith("vk_") ?? false,
         },
       });
     } catch (error) {

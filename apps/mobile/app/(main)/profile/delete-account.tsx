@@ -87,6 +87,9 @@ export default function DeleteAccountScreen() {
         </Text>
         <Text style={styles.bulletTitle}>Будут удалены или обезличены:</Text>
         <Text style={styles.bullet}>• профиль и настройки;</Text>
+        <Text style={styles.bullet}>
+          • логин, email и телефон (если указаны) — удаляются из базы вместе с учётной записью;
+        </Text>
         <Text style={styles.bullet}>• прогресс тренировок и данные обучения (в пределах сервера);</Text>
         <Text style={styles.bullet}>• push-подписки и напоминания;</Text>
         <Text style={styles.bullet}>• сессии и токены обновления.</Text>

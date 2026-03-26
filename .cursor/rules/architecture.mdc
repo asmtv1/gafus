@@ -6,7 +6,7 @@ alwaysApply: true
 
 ## Monorepo Structure
 - This is a **pnpm workspace** monorepo with Turborepo
-- Apps: `apps/` (web, trainer-panel, admin-panel, telegram-bot, bull-board, api, mobile)
+- Apps: `apps/` (web, trainer-panel, admin-panel, bull-board, api, mobile)
 - Packages: `packages/` (shared libraries)
 - Always use workspace protocol: `"@gafus/package": "workspace:*"`
 

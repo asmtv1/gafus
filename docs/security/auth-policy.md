@@ -4,9 +4,8 @@
 
 ## Auth API (web)
 
-- `POST /api/v1/auth/register` — регистрация
-- `POST /api/v1/auth/check-state` — статус пользователя (confirmed, needsConfirm)
-- `POST /api/v1/auth/check-confirmed` — подтверждение по телефону
+- `POST /api/v1/auth/register` — регистрация (email + пароль; конфликты username/email — одно нейтральное сообщение)
+- `POST /api/v1/auth/check-state` — статус пользователя (confirmed, needsConfirm; для пользователей без телефона — по `isConfirmed`)
 - `POST /api/v1/auth/check-phone-match` — заглушка (всегда `matches: true`)
 - `POST /api/v1/auth/password-reset-request` — запрос сброса пароля (web и mobile → api.gafus.ru)
 - `POST /api/v1/auth/reset-password` — сброс по токену
@@ -45,7 +44,7 @@ In-memory хранилище: при нескольких инстансах (po
 
 ## Сброс пароля
 
-- Ссылка из бота ведёт на `/reset-password` без query. В сообщении передаётся 6-значный код; пользователь вводит код и новый пароль на странице.
+- Целевой UX: страница `/reset-password` и код/токен. Канал доставки кода (ранее Telegram) временно недоступен — см. `@gafus/auth` заглушки и [API v1](../api/v1-routes.md).
 - API принимает либо `{ code, password }` (сброс по коду), либо `{ token, password }` (по токену, для обратной совместимости). В схеме: `token` max 64 символа, `code` — 6 цифр.
 
 ## Сессия (NextAuth)

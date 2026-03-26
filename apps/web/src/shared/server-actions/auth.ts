@@ -8,8 +8,10 @@ import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 
 import { authOptions, getVkIdUserFromToken } from "@gafus/auth";
+import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
 import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
 import { getErrorMessage } from "@gafus/core/errors";
@@ -19,11 +21,6 @@ import {
   markConsentLogsFailed,
 } from "@gafus/core/services/consent";
 import { createWebLogger } from "@gafus/logger";
-import {
-  deletePendingConfirmCookie,
-  getPendingConfirmPhone,
-  setPendingConfirmCookie,
-} from "@shared/lib/pendingConfirmCookie";
 import {
   generateCodeChallenge,
   generateCodeVerifier,
@@ -38,10 +35,8 @@ import {
   newPasswordSchema,
   phoneChangeConfirmSchema,
   phoneSchema,
-  registerUserSchema,
   resetPasswordByCodeSchema,
   resetPasswordSchema,
-  tempSessionIdSchema,
   usernameChangeSchema,
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
@@ -173,6 +168,7 @@ export async function initiateVkIdAuth(
     `&state=${encodeURIComponent(prepared.state)}` +
     `&code_challenge=${encodeURIComponent(codeChallenge)}` +
     `&code_challenge_method=S256` +
+    `&scope=${encodeURIComponent(authService.VK_ID_OAUTH_SCOPE)}` +
     `&lang_id=0` + // RUS — русский язык для first_name/last_name
     `&fastAuthEnabled=1`; // не показывать экран подтверждения повторно
 
@@ -236,6 +232,7 @@ export async function initiateVkIdLink(): Promise<
       `&state=${encodeURIComponent(state)}` +
       `&code_challenge=${encodeURIComponent(codeChallenge)}` +
       `&code_challenge_method=S256` +
+      `&scope=${encodeURIComponent(authService.VK_ID_OAUTH_SCOPE)}` +
       `&lang_id=0` + // RUS — русский язык для first_name/last_name
       `&fastAuthEnabled=1`; // не показывать экран подтверждения повторно
 
@@ -268,25 +265,6 @@ export async function checkUserStateAction(username: string) {
 }
 
 /**
- * Статус ожидания подтверждения (для страницы /confirm).
- * Читает cookie, проверяет confirmed по phone. При confirmed очищает cookie.
- */
-export async function getPendingConfirmationStatus(): Promise<{
-  hasPending: boolean;
-  confirmed: boolean;
-}> {
-  const phone = await getPendingConfirmPhone();
-  if (!phone) {
-    return { hasPending: false, confirmed: false };
-  }
-  const confirmed = await authService.serverCheckUserConfirmed(phone);
-  if (confirmed) {
-    await deletePendingConfirmCookie();
-  }
-  return { hasPending: true, confirmed };
-}
-
-/**
  * Проверяет подтверждение пользователя по телефону
  */
 export async function serverCheckUserConfirmedAction(phone: string) {
@@ -304,9 +282,8 @@ export async function serverCheckUserConfirmedAction(phone: string) {
  */
 export async function sendPasswordResetRequestAction(username: string, phone: string) {
   try {
-    const { name: safeUsername, phone: safePhone } = registerUserSchema
-      .pick({ name: true, phone: true })
-      .parse({ name: username, phone });
+    const safeUsername = usernameSchema.parse(username);
+    const safePhone = phoneSchema.parse(phone);
 
     return await authService.sendPasswordResetRequest(safeUsername, safePhone);
   } catch (error) {
@@ -316,12 +293,12 @@ export async function sendPasswordResetRequestAction(username: string, phone: st
 }
 
 /**
- * Регистрирует нового пользователя.
- * При ошибке валидации возвращает { error }. После успеха ставит cookie pending_confirm и возвращает { success: true }.
+ * Регистрирует нового пользователя (email + пароль).
+ * Сессию NextAuth создаёт клиент через signIn после успеха.
  */
 export async function registerUserAction(
   name: string,
-  phone: string,
+  email: string,
   password: string,
   tempSessionId: string,
   consentPayload: ConsentPayload,
@@ -331,31 +308,33 @@ export async function registerUserAction(
     return { error: "Слишком много запросов. Попробуйте через 15 минут." };
   }
 
-  const parsed = registerUserSchema.safeParse({ name, phone, password });
+  const parsed = authRegisterBodySchema.safeParse({
+    name,
+    email,
+    password,
+    tempSessionId,
+    consentPayload,
+  });
   if (!parsed.success) {
     const message = parsed.error.errors.map((issue) => issue.message).join(", ");
     return { error: `Ошибка валидации: ${message}` };
   }
 
-  const consentParsed = consentPayloadSchema.safeParse(consentPayload);
-  if (!consentParsed.success) {
-    return { error: "Необходимо принять все согласия" };
-  }
-
-  const sessionParsed = tempSessionIdSchema.safeParse(tempSessionId);
-  if (!sessionParsed.success) {
-    return { error: "Некорректный идентификатор сессии" };
-  }
-
-  const safeSessionId = sessionParsed.data;
+  const {
+    name: safeName,
+    email: safeEmail,
+    password: safePassword,
+    tempSessionId: safeSessionId,
+    consentPayload: safeConsent,
+  } = parsed.data;
   const userAgent = (await headers()).get("user-agent") ?? undefined;
 
   let consentCreated = false;
   try {
     await createConsentLogs({
       tempSessionId: safeSessionId,
-      consentPayload: consentParsed.data,
-      formData: { name: parsed.data.name, phone: parsed.data.phone },
+      consentPayload: safeConsent,
+      formData: { name: safeName, email: safeEmail },
       ipAddress: ip,
       userAgent,
       defaultVersion: CONSENT_VERSION,
@@ -363,9 +342,9 @@ export async function registerUserAction(
     consentCreated = true;
 
     const result = await authService.registerUserService(
-      parsed.data.name,
-      parsed.data.phone,
-      parsed.data.password,
+      safeName,
+      safeEmail,
+      safePassword,
     );
 
     if ("error" in result) {
@@ -374,13 +353,16 @@ export async function registerUserAction(
     }
 
     await linkConsentLogsToUser(safeSessionId, result.userId);
-    await setPendingConfirmCookie(parsed.data.phone);
     return { success: true };
   } catch (error) {
+    unstable_rethrow(error);
     if (consentCreated) {
       await markConsentLogsFailed(safeSessionId).catch(() => undefined);
     }
-    logger.error("Error in registerUserAction", error as Error);
+    logger.error(
+      "Error in registerUserAction",
+      error instanceof Error ? error : new Error(String(error)),
+    );
     return { error: "Что-то пошло не так при регистрации пользователя" };
   }
 }
@@ -410,7 +392,7 @@ export async function submitVkConsentAction(
 
   const user = await prisma.user.findUnique({
     where: { id: vkUser.userId },
-    select: { phone: true },
+    select: { phone: true, email: true },
   });
   if (!user) {
     return { success: false, error: "Пользователь не найден." };
@@ -423,7 +405,11 @@ export async function submitVkConsentAction(
     await createConsentLogs({
       tempSessionId,
       consentPayload: consentParsed.data,
-      formData: { name: vkUser.username, phone: user.phone ?? "" },
+      formData: {
+        name: vkUser.username,
+        phone: user.phone ?? undefined,
+        email: user.email ?? undefined,
+      },
       ipAddress: ip,
       userAgent,
       defaultVersion: CONSENT_VERSION,

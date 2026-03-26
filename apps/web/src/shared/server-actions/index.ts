@@ -20,7 +20,6 @@ export {
   checkUsernameAvailableAction,
   checkUserStateAction,
   confirmPhoneChangeAction,
-  getPendingConfirmationStatus,
   initiateVkIdAuth,
   initiateVkIdLink,
   prepareVkIdOneTap,

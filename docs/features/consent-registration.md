@@ -12,13 +12,14 @@
 ## Flow
 
 1. **RegisterForm** генерирует `tempSessionId` (`crypto.randomUUID()`) при монтировании.
-2. При отправке формы вызывается `registerUserAction(name, phone, password, tempSessionId, consentPayload)`.
+2. При отправке формы вызывается `registerUserAction` с полями `name`, `email`, `password`, `tempSessionId`, `consentPayload` (и подтверждением пароля на клиенте).
 3. Server Action:
-   - Валидирует данные (Zod) и rate limit
+   - Валидирует данные (Zod, схема согласована с `@gafus/core/validation/authRegisterSchema`) и rate limit
    - `createConsentLogs()` — создаёт 3 записи в `ConsentLog` со статусом `PENDING`
-   - `registerUserService()` — создаёт пользователя
+   - `registerUserWithCredentials` / обёртка в core — создаёт пользователя с `email`, без обязательного `phone`, `isConfirmed: true`
    - При успехе: `linkConsentLogsToUser()` → `status: COMPLETED`, `userId` заполняется
    - При ошибке: `markConsentLogsFailed()` → `status: FAILED`
+   - Конфликт username/email для пользователя: единое сообщение «Пользователь с такими данными уже существует»
 
 ## Компоненты
 
@@ -44,7 +45,7 @@ import {
 await createConsentLogs({
   tempSessionId,
   consentPayload: { acceptPersonalData: true, acceptPrivacyPolicy: true, acceptDataDistribution: true },
-  formData: { name, phone },
+  formData: { name, email },
   ipAddress,
   userAgent,
   defaultVersion: CONSENT_VERSION,
@@ -59,14 +60,14 @@ await markConsentLogsFailed(tempSessionId);
 
 ## Mobile и API
 
-API `POST /api/v1/auth/register` принимает `tempSessionId` (UUID) и `consentPayload` (три required `true`). Mobile-приложение отправляет согласия аналогично вебу; flow согласий идентичен: createConsentLogs → registerUser → linkConsentLogsToUser. Для API используется env `CONSENT_VERSION` (default `"v1.0 2026-02-13"`).
+API `POST /api/v1/auth/register` принимает `tempSessionId` (UUID) и `consentPayload` (три required `true`). Mobile-приложение отправляет согласия аналогично вебу; flow согласий идентичен: createConsentLogs → регистрация в core → linkConsentLogsToUser. Для API используется env `CONSENT_VERSION` (default `"v1.0 2026-02-13"`).
 
 **API contract:**
 
 ```json
 {
   "name": "string (3-50, a-zA-Z0-9_)",
-  "phone": "string (E.164)",
+  "email": "string (email, max 255)",
   "password": "string (min 8, upper/lower/digit)",
   "tempSessionId": "UUID",
   "consentPayload": {

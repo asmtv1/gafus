@@ -88,7 +88,7 @@ apps/admin-panel/
 │   │   ├── purchases/              # getAllPurchases (→ adminPurchase)
 │   │   ├── reengagement/           # getReengagementMetrics (→ adminReengagement)
 │   │   ├── presentation/           # getPresentationStats (→ adminPresentation)
-│   │   └── users/                  # getAllUsers, updateUser, deleteUser (→ adminUser)
+│   │   └── users/                  # список/редактирование (username, email, phone опционально; → adminUser)
 │   ├── shared/
 │   │   ├── lib/actions/            # invalidateAllCache, invalidateCoursesCache
 │   │   └── providers/

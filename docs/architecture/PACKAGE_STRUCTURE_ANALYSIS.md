@@ -45,7 +45,7 @@
   - Серверные приложения (Next.js API routes, Server Actions)
   - Клиентские приложения (React компоненты)
   - Worker-ы (фоновые задачи)
-  - Backend сервисы (telegram-bot, bull-board)
+  - Backend сервисы (api, bull-board)
   - Пакеты (prisma, auth, csrf)
 
 **Размер:**
@@ -132,7 +132,7 @@ import { createWorkerLogger } from "@gafus/logger"; // +React (лишнее!)
 
 #### Где используется @gafus/logger:
 
-- ✅ Все приложения (web, trainer-panel, admin-panel, telegram-bot)
+- ✅ Все приложения (web, trainer-panel, admin-panel, api, mobile, bull-board)
 - ✅ Worker пакет
 - ✅ Backend пакеты (prisma, auth, csrf)
 - ✅ Server Actions, API routes
@@ -142,7 +142,7 @@ import { createWorkerLogger } from "@gafus/logger"; // +React (лишнее!)
 - ✅ Только 2 React-приложения (web, trainer-panel)
 - ❌ НЕ используется в worker
 - ❌ НЕ используется в backend
-- ❌ НЕ используется в telegram-bot
+- ❌ НЕ используется в worker, api и других не-React сервисах
 
 **Вывод:** Разные use cases — объединять не нужно ✅
 
