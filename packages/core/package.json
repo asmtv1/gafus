@@ -137,6 +137,10 @@
       "types": "./dist/core/src/services/adminBroadcast/index.d.ts",
       "default": "./dist/core/src/services/adminBroadcast/index.js"
     },
+    "./services/appFeatureFlags": {
+      "types": "./dist/core/src/services/appFeatureFlags/index.d.ts",
+      "default": "./dist/core/src/services/appFeatureFlags/index.js"
+    },
     "./services/consent": {
       "types": "./dist/core/src/services/consent/index.d.ts",
       "default": "./dist/core/src/services/consent/index.js"

@@ -1113,3 +1113,10 @@ model ArticlePayment {
   @@index([articleId])
   @@index([status])
 }
+
+/// Публичные флаги клиентов (мобильное приложение и т.д.). Ключ — стабильный идентификатор.
+model AppFeatureFlag {
+  key       String   @id @db.VarChar(64)
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}

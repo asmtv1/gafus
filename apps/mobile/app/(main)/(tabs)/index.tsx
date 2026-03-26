@@ -15,6 +15,7 @@ import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
+import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
 import { setupPushNotifications } from "@/shared/lib/utils/notifications";
 import {
@@ -30,6 +31,7 @@ import {
   type ProgressFilterType,
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
+import { filterCoursesForIosCatalog } from "@/shared/utils/iosCourseCatalog";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 /**
@@ -62,14 +64,7 @@ export default function CoursesScreen() {
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const pushPromptAskedInSession = useRef(false);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["courses"],
-    queryFn: async () => {
-      const res = await coursesApi.getAll();
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки курсов");
-      return res;
-    },
-  });
+  const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -102,7 +97,10 @@ export default function CoursesScreen() {
     };
   }, []);
 
-  const allCourses = data?.data ?? [];
+  const allCourses = useMemo(
+    () => filterCoursesForIosCatalog(data?.data ?? []),
+    [data?.data],
+  );
   const filteredCourses = useMemo(
     () => filterAndSortCourses(allCourses, filters),
     [allCourses, filters],

@@ -18,6 +18,12 @@ declare module "hono" {
 export const authMiddleware = createMiddleware(async (c, next) => {
   const path = c.req.path;
 
+  // Публичные настройки мобильного приложения — без JWT
+  if (path.includes("/public/mobile-app") || path.endsWith("/public/mobile-app")) {
+    await next();
+    return;
+  }
+
   // Публичный профиль по username — без авторизации
   if (path.includes("/user/profile/public") || path.endsWith("/profile/public")) {
     await next();

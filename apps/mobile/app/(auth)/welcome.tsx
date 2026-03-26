@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Snackbar, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import { Image } from "expo-image";
 import { Button } from "@/shared/components/ui";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { useLayout, useVkLogin } from "@/shared/hooks";
+import { fetchMobileAppPublicConfig } from "@/shared/lib/api/public-config";
 
 /**
  * Welcome страница (Landing) - точное соответствие веб-версии
@@ -16,9 +17,34 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const layout = useLayout();
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [iosVkAllowed, setIosVkAllowed] = useState(false);
+  const [iosVkConfigLoaded, setIosVkConfigLoaded] = useState(false);
   const { handleVkLogin, isVkLoading } = useVkLogin({
     onError: (msg) => setSnackbar({ visible: true, message: msg }),
   });
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchMobileAppPublicConfig();
+        if (!cancelled && res.success && res.data) {
+          setIosVkAllowed(res.data.vkLoginEnabledOnIos);
+        }
+      } finally {
+        if (!cancelled) setIosVkConfigLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Только iOS: кнопка VK зависит от флага с бэка. Android, web и остальные — всегда показываем VK.
+  const showVkButton =
+    Platform.OS !== "ios" ? true : iosVkConfigLoaded && iosVkAllowed;
+
   const imgW = layout.contentWidth(SPACING.md * 4);
   const titleSize = layout.moderateScale(110, 0.4);
   const pawW = layout.scale(141);
@@ -67,15 +93,17 @@ export default function WelcomeScreen() {
           onPress={() => router.push("/register")}
           style={styles.button}
         />
-        <Pressable
-          style={[styles.vkButton, { width: "100%" }]}
-          onPress={handleVkLogin}
-          disabled={isVkLoading}
-        >
-          <Text style={styles.vkButtonText}>
-            {isVkLoading ? "Загрузка..." : "Продолжить через VK"}
-          </Text>
-        </Pressable>
+        {showVkButton ? (
+          <Pressable
+            style={[styles.vkButton, { width: "100%" }]}
+            onPress={handleVkLogin}
+            disabled={isVkLoading}
+          >
+            <Text style={styles.vkButtonText}>
+              {isVkLoading ? "Загрузка..." : "Продолжить через VK"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Подпись */}

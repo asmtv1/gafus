@@ -3,7 +3,9 @@ import { authOptions } from "@gafus/auth";
 import { redirect } from "next/navigation";
 
 import CacheManagement from "@/features/admin/components/CacheManagement";
+import { MobileAppFeaturesCard } from "@/features/admin/components/MobileAppFeaturesCard";
 import StorageManagement from "@/features/admin/components/StorageManagement";
+import { getMobileVkLoginIosFlag } from "@/features/admin/lib/getMobileVkLoginIosFlag";
 import {
   getStorageStats,
   type StorageStats,
@@ -27,6 +29,8 @@ export default async function AdminPage() {
     }
   }
 
+  const vkLoginOnIos = await getMobileVkLoginIosFlag();
+
   return (
     <PageLayout title="Администрирование" subtitle="Управление системой и кэшированием данных">
       <div
@@ -38,6 +42,8 @@ export default async function AdminPage() {
       >
         {/* Управление хранилищем (только для ADMIN) */}
         {storageStats && <StorageManagement stats={storageStats} />}
+
+        <MobileAppFeaturesCard initialVkLoginOnIos={vkLoginOnIos} />
 
         {/* Управление кэшем */}
         <CacheManagement />

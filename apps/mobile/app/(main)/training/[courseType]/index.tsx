@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Text, Surface, Snackbar, TextInput } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -41,6 +41,7 @@ export default function TrainingDaysScreen() {
     personalize?: string;
   }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
   const courseData = data?.success && data.data ? data.data : undefined;
@@ -537,8 +538,9 @@ export default function TrainingDaysScreen() {
         </Snackbar>
         {paymentUrl && (
           <View style={styles.webViewOverlay}>
-            <View style={styles.webViewHeader}>
+            <View style={[styles.webViewHeader, { paddingTop: insets.top }]}>
               <Pressable
+                hitSlop={12}
                 onPress={() => {
                   void hapticFeedback.light();
                   void handleClosePaymentWebView(false);
@@ -550,6 +552,7 @@ export default function TrainingDaysScreen() {
             </View>
             <WebView
               source={{ uri: paymentUrl }}
+              style={styles.webViewFlex}
               onNavigationStateChange={(state) => {
                 void handlePaymentNavigation(state.url);
               }}
@@ -964,8 +967,9 @@ export default function TrainingDaysScreen() {
         </Snackbar>
         {paymentUrl && (
           <View style={styles.webViewOverlay}>
-            <View style={styles.webViewHeader}>
+            <View style={[styles.webViewHeader, { paddingTop: insets.top }]}>
               <Pressable
+                hitSlop={12}
                 onPress={() => {
                   void hapticFeedback.light();
                   void handleClosePaymentWebView(false);
@@ -977,6 +981,7 @@ export default function TrainingDaysScreen() {
             </View>
             <WebView
               source={{ uri: paymentUrl }}
+              style={styles.webViewFlex}
               onNavigationStateChange={(state) => {
                 void handlePaymentNavigation(state.url);
               }}
@@ -1436,14 +1441,18 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.surface,
   },
+  webViewFlex: {
+    flex: 1,
+  },
   webViewHeader: {
-    height: 52,
     paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.borderLight,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    minHeight: 44,
   },
   webViewCloseText: {
     fontSize: 16,

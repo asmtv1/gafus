@@ -31,6 +31,7 @@ import { subscriptionsRoutes } from "./routes/v1/subscriptions.js";
 import { notesRoutes } from "./routes/v1/notes.js";
 import { remindersRoutes } from "./routes/v1/reminders.js";
 import { paymentsRoutes } from "./routes/v1/payments.js";
+import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 
 export const app = new Hono();
 
@@ -42,6 +43,10 @@ app.use("*", corsMiddleware);
 
 // Health routes (no auth)
 app.route("/", healthRoutes);
+
+// Публичная конфигурация мобильного приложения (без JWT)
+app.use("/api/v1/public/*", apiRateLimiter);
+app.route("/api/v1/public", publicMobileRoutes);
 
 // Auth routes (rate limited) — GET username-available получает мягкий лимит
 app.use("/api/v1/auth/*", (c, next) => {
