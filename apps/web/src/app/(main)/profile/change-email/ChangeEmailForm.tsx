@@ -14,7 +14,11 @@ import type { EmailChangeRequestFormSchema } from "@shared/lib/validation/authSc
 
 import styles from "./ChangeEmailForm.module.css";
 
-export default function ChangeEmailForm() {
+interface ChangeEmailFormProps {
+  username: string;
+}
+
+export default function ChangeEmailForm({ username }: ChangeEmailFormProps) {
   const router = useRouter();
   const [rootError, setRootError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,7 +35,9 @@ export default function ChangeEmailForm() {
         setRootError(result.error);
         return;
       }
-      router.push("/profile?emailChange=sent");
+      router.push(
+        `/profile?username=${encodeURIComponent(username)}&emailChange=sent`,
+      );
     } catch (err) {
       reportClientError(err, { issueKey: "ChangeEmailForm", keys: { operation: "submit" } });
       setRootError("Не удалось отправить письмо. Попробуйте позже.");

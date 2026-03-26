@@ -18,5 +18,9 @@ export default async function ChangeEmailPage() {
   if (!session?.user?.id) {
     redirect("/login");
   }
-  return <ChangeEmailForm />;
+  const username = session.user.username?.trim();
+  if (!username) {
+    redirect("/login");
+  }
+  return <ChangeEmailForm username={username} />;
 }

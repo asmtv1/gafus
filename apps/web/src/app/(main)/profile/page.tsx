@@ -20,11 +20,22 @@ export const metadata = generateStaticPageMetadata(
 export default async function ProfilPage({
   searchParams,
 }: {
-  searchParams: Promise<{ username?: string; linked?: string; error?: string }>;
+  searchParams: Promise<{
+    username?: string;
+    linked?: string;
+    error?: string;
+    emailChange?: string;
+  }>;
 }) {
   const params = await searchParams;
   const username = params?.username;
-  const linkFeedback = params?.linked ? "vk" : params?.error ? params.error : undefined;
+  const linkFeedback = params?.linked
+    ? "vk"
+    : params?.error
+      ? params.error
+      : params?.emailChange === "sent"
+        ? "emailChangeSent"
+        : undefined;
 
   if (!username) {
     notFound();

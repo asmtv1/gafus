@@ -27,10 +27,15 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
   const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (linkFeedback !== "vk") return;
+    if (linkFeedback !== "vk" && linkFeedback !== "emailChangeSent") return;
     const t = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
-      params.delete("linked");
+      if (linkFeedback === "vk") {
+        params.delete("linked");
+      }
+      if (linkFeedback === "emailChangeSent") {
+        params.delete("emailChange");
+      }
       const newSearch = params.toString();
       router.replace(newSearch ? `${pathname}?${newSearch}` : pathname, { scroll: false });
     }, LINK_SUCCESS_DISMISS_MS);
@@ -57,7 +62,15 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
           <span>VK подключён</span>
         </div>
       )}
-      {linkFeedback && linkFeedback !== "vk" && (
+      {linkFeedback === "emailChangeSent" && (
+        <div className={styles.successBanner}>
+          <CheckCircleIcon className={styles.successIcon} />
+          <span>Письмо отправлено — проверьте новый email</span>
+        </div>
+      )}
+      {linkFeedback &&
+        linkFeedback !== "vk" &&
+        linkFeedback !== "emailChangeSent" && (
         <div className={styles.errorBanner}>{linkFeedback}</div>
       )}
       <div className={styles.buttonsContainer}>
