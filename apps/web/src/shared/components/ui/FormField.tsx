@@ -32,6 +32,9 @@ export function FormField<T extends FieldValues>({
 
   const hasLabel = typeof label === "string" && label.trim().length > 0;
 
+  /** Inline-цвет рамки: className из CSS-модулей часто задаёт border и перебивает Tailwind. */
+  const errorBorderStyle = error ? ({ borderColor: "#c62828" } as const) : undefined;
+
   const baseInputProps = {
     id,
     placeholder,
@@ -40,6 +43,7 @@ export function FormField<T extends FieldValues>({
     "aria-invalid": !!error,
     ...(hasLabel ? {} : { "aria-label": ariaLabel ?? placeholder ?? id }),
     ...(ariaDescribedBy ? { "aria-describedby": ariaDescribedBy } : {}),
+    style: errorBorderStyle,
     className: [
       "w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500",
       error ? "border-red-500" : "border-gray-300",

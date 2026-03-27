@@ -11,12 +11,11 @@ import { createWebLogger } from "@gafus/logger";
 import { isRegisterEmailWithValidDomain } from "../../validation/registerEmailDomain";
 import { transliterate } from "../../utils/transliterate";
 
+import { VK_ID_OAUTH_SCOPE } from "./vkAuthConstants";
+
 const logger = createWebLogger("vk-auth");
 
-/**
- * Права VK ID для authorize: почта в ответе user_info (настроить то же в кабинете приложения VK).
- */
-export const VK_ID_OAUTH_SCOPE = "email";
+export { VK_ID_OAUTH_SCOPE };
 
 const MAX_FULLNAME_LENGTH = 120;
 const MAX_AVATAR_URL_LENGTH = 2048;

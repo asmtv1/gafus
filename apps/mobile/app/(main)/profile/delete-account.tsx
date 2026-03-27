@@ -23,6 +23,8 @@ export default function DeleteAccountScreen() {
   const [loading, setLoading] = useState(false);
   const [requestLoading, setRequestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestOk, setRequestOk] = useState<string | null>(null);
+  const [requestErr, setRequestErr] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
   const { data: profileData } = useQuery({
@@ -40,21 +42,20 @@ export default function DeleteAccountScreen() {
   const onRequestCode = async () => {
     setRequestLoading(true);
     setError(null);
+    setRequestOk(null);
+    setRequestErr(null);
     setSnackbar({ visible: false, message: "" });
     try {
       const result = await userApi.requestAccountDeletionCode();
       if (result.success) {
         hapticFeedback.success();
-        setSnackbar({
-          visible: true,
-          message: "Код отправлен на ваш email (15 минут).",
-        });
+        setRequestOk("Код отправлен на ваш email (действует 15 минут).");
       } else {
-        setError(result.error ?? "Не удалось отправить код");
+        setRequestErr(result.error ?? "Не удалось отправить код");
       }
     } catch (err) {
       reportClientError(err, { issueKey: "DeleteAccount", keys: { operation: "requestCode" } });
-      setSnackbar({ visible: true, message: "Ошибка подключения" });
+      setRequestErr("Ошибка подключения");
     } finally {
       setRequestLoading(false);
     }
@@ -135,6 +136,9 @@ export default function DeleteAccountScreen() {
             <Text variant="bodySmall" style={styles.emailHint}>
               Код будет отправлен на: {email}
             </Text>
+            <Text variant="bodySmall" style={styles.codeHint}>
+              Мы отправим 6-значный код на email. Без верного кода удаление невозможно.
+            </Text>
 
             {ACCOUNT_DELETION_WEB_URL ? (
               <Pressable onPress={openWebDeletion} style={styles.linkWrap}>
@@ -143,12 +147,24 @@ export default function DeleteAccountScreen() {
             ) : null}
 
             <Button
+              variant="outline"
               label={requestLoading ? "Отправка…" : "Отправить код на email"}
               onPress={onRequestCode}
               loading={requestLoading}
               disabled={requestLoading}
-              style={styles.secondaryBtn}
+              style={styles.sendCodeButton}
             />
+
+            {requestOk ? (
+              <Text style={styles.successBox} accessibilityRole="text">
+                {requestOk}
+              </Text>
+            ) : null}
+            {requestErr ? (
+              <Text style={styles.errorBox} accessibilityRole="alert">
+                {requestErr}
+              </Text>
+            ) : null}
 
             <Input
               label="Код из письма"
@@ -163,6 +179,9 @@ export default function DeleteAccountScreen() {
               autoComplete="one-time-code"
               style={styles.input}
             />
+            <Text variant="bodySmall" style={styles.codeFieldHint}>
+              Введите код и нажмите кнопку ниже, чтобы удалить аккаунт навсегда.
+            </Text>
             {error ? (
               <Text style={styles.errorText} accessibilityRole="alert">
                 {error}
@@ -249,6 +268,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: "500",
   },
+  codeHint: {
+    marginTop: SPACING.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
   linkWrap: {
     marginVertical: SPACING.md,
   },
@@ -257,14 +281,43 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     fontSize: 15,
   },
-  secondaryBtn: {
-    marginTop: SPACING.sm,
+  /** Как .secondaryBtn на web: белый фон, оливковая обводка, тёмный текст (outline). */
+  sendCodeButton: {
+    marginTop: SPACING.md,
+    alignSelf: "stretch",
+    width: "100%",
+    minHeight: 48,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
+  successBox: {
+    marginTop: SPACING.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "#e8f5e9",
+    color: "#2e7d32",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  errorBox: {
+    marginTop: SPACING.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "#fbe9e7",
+    color: "#c62828",
+    fontSize: 14,
+    lineHeight: 20,
+  },
   input: {
     marginTop: SPACING.md,
+  },
+  codeFieldHint: {
+    marginTop: SPACING.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
   },
   errorText: {
     color: COLORS.error,

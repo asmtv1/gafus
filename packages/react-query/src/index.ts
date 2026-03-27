@@ -1,3 +1,5 @@
+export { REACT_QUERY_PERSIST_STORAGE_KEY } from "./constants";
+
 // Основные экспорты TanStack Query
 import { useMutation } from "@tanstack/react-query";
 export { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

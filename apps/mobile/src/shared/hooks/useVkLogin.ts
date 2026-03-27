@@ -5,7 +5,7 @@ import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
-import { VK_ID_OAUTH_SCOPE } from "@gafus/core/services/auth";
+import { VK_ID_OAUTH_SCOPE } from "@gafus/core/services/auth/vkAuthConstants";
 
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";

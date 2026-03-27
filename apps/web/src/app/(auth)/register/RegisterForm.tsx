@@ -26,15 +26,23 @@ export function RegisterForm() {
     form,
     handleSubmit,
     formState: { errors, isValid },
-  } = useZodForm(registerFormSchema, {
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    acceptPersonalData: false,
-    acceptPrivacyPolicy: false,
-    acceptDataDistribution: false,
-  });
+  } = useZodForm(
+    registerFormSchema,
+    {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      acceptPersonalData: false,
+      acceptPrivacyPolicy: false,
+      acceptDataDistribution: false,
+    },
+    {
+      /* после первого blur — дальше перепроверка при вводе; рамка/текст ошибки видны до сабмита */
+      mode: "onTouched",
+      reValidateMode: "onChange",
+    },
+  );
 
   const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
@@ -184,7 +192,11 @@ export function RegisterForm() {
       )}
 
       <label className={styles.checkboxRow}>
-        <input type="checkbox" {...form.register("acceptDataDistribution")} />
+        <input
+          type="checkbox"
+          {...form.register("acceptDataDistribution")}
+          aria-invalid={!!errors.acceptDataDistribution}
+        />
         <span className={styles.checkboxLabel}>
           Даю{" "}
           <Link

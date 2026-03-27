@@ -57,9 +57,11 @@ export const PasswordInput: FC<Props> = ({
             width: "100%",
             boxSizing: "border-box",
             minHeight: 44,
+            ...(error ? { borderColor: "#c62828" } : {}),
           }}
           {...(!label ? { "aria-label": ariaLabel ?? placeholder ?? inputId } : {})}
           {...rest}
+          aria-invalid={error ? true : undefined}
         />
         <button
           type="button"

@@ -6,6 +6,8 @@ import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persist
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 
+import { REACT_QUERY_PERSIST_STORAGE_KEY } from "../constants";
+
 import type { ReactNode } from "react";
 
 interface QueryProviderProps {
@@ -61,7 +63,7 @@ export function QueryProvider({ children, client }: QueryProviderProps) {
   const [persister] = useState(() =>
     createSyncStoragePersister({
       storage: typeof window !== "undefined" ? window.localStorage : undefined,
-      key: "gafus-react-query-cache",
+      key: REACT_QUERY_PERSIST_STORAGE_KEY,
       throttleTime: 2000,
     }),
   );
