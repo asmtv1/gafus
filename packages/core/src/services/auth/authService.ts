@@ -20,6 +20,7 @@ import {
 import {
   sendPasswordChangedNoticeEmail,
   sendUsernameChangedNoticeEmail,
+  sendWelcomeEmailAfterRegistration,
 } from "./transactionalAuthMail";
 
 const logger = createWebLogger("auth-service");
@@ -90,6 +91,7 @@ export async function registerUserService(
     }
     return { error: result.messageRu };
   }
+  void sendWelcomeEmailAfterRegistration(email);
   return { success: true, userId: result.userId };
 }
 

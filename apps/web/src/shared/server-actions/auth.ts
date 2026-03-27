@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
+import { after } from "next/server";
 
 import { authOptions, getVkIdUserFromToken } from "@gafus/auth";
 import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
@@ -456,7 +457,11 @@ export async function confirmEmailChangeByTokenAction(
   try {
     const { token: safeToken } = emailChangeConfirmTokenSchema.parse({ token });
     await authService.confirmEmailChangeByToken(safeToken);
-    revalidatePath("/profile");
+    // Страница /profile/confirm-email вызывает action при RSC-render — revalidatePath
+    // в том же коллстеке запрещён; откладываем до завершения ответа (next/server after).
+    after(() => {
+      revalidatePath("/profile");
+    });
     logger.info("email-change-confirm success");
     return { success: true };
   } catch (error) {

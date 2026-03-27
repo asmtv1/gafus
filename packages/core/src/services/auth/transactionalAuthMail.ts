@@ -181,6 +181,100 @@ export async function sendAccountDeletionCodeEmail(to: string, code: string): Pr
   }
 }
 
+const WELCOME_EMAIL_RUSTORE_ANDROID_URL =
+  "https://www.rustore.ru/catalog/app/ru.gafus.app";
+const WELCOME_EMAIL_TELEGRAM_URL = "https://t.me/gafusRu";
+
+function welcomeEmailPlatformUrls(): {
+  web: string;
+  android: string;
+  telegram: string;
+  ios: string | null;
+} {
+  return {
+    web: getPublicWebBaseUrl(),
+    android: WELCOME_EMAIL_RUSTORE_ANDROID_URL,
+    telegram: WELCOME_EMAIL_TELEGRAM_URL,
+    ios: process.env.WELCOME_EMAIL_IOS_APP_URL?.trim() || null,
+  };
+}
+
+/** Список ссылок в приветственном письме (HTML). */
+function welcomePlatformsListHtml(urls: ReturnType<typeof welcomeEmailPlatformUrls>): string {
+  const iosBlock = urls.ios
+    ? `<li style="margin:10px 0;"><strong>iOS:</strong> <a href="${escapeHtml(urls.ios)}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
+        urls.ios,
+      )}</a></li>`
+    : `<li style="margin:10px 0;"><strong>iOS:</strong> ссылку на приложение для iPhone добавим позже — следите за обновлениями на сайте и в Telegram.</li>`;
+
+  return `<ul style="margin:0 0 16px 0;padding-left:20px;color:#333333;line-height:1.5;">
+<li style="margin:10px 0;"><strong>Сайт:</strong> <a href="${escapeHtml(urls.web)}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
+    urls.web,
+  )}</a></li>
+${iosBlock}
+<li style="margin:10px 0;"><strong>Android (RuStore):</strong> <a href="${escapeHtml(urls.android)}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
+    urls.android,
+  )}</a></li>
+<li style="margin:10px 0;"><strong>Telegram:</strong> <a href="${escapeHtml(urls.telegram)}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
+    urls.telegram,
+  )}</a></li>
+</ul>`;
+}
+
+/**
+ * Приветствие после регистрации по email. Не бросает наружу — сбой почты не отменяет регистрацию.
+ */
+export async function sendWelcomeEmailAfterRegistration(to: string): Promise<void> {
+  if (!isMailerConfigured()) return;
+
+  const urls = welcomeEmailPlatformUrls();
+  const subject = "Добро пожаловать в Гафус";
+  const textIosLine = urls.ios
+    ? `iOS: ${urls.ios}`
+    : "iOS: ссылку на приложение для iPhone добавим позже — следите за обновлениями на сайте и в Telegram.";
+  const text = [
+    "Здравствуйте!",
+    "",
+    "Ваш email был указан при регистрации в сервисе «Гафус». Добро пожаловать!",
+    "",
+    "Наши платформы:",
+    `Сайт: ${urls.web}`,
+    textIosLine,
+    `Android (RuStore): ${urls.android}`,
+    `Telegram: ${urls.telegram}`,
+    "",
+    "Если вы не регистрировались в Гафус, проигнорируйте это письмо.",
+    "",
+    "С уважением,",
+    "команда Гафус",
+  ].join("\n");
+
+  try {
+    await sendTransactionalLayout({
+      to,
+      subject,
+      text,
+      blocksHtml: [
+        paragraphHtml("Здравствуйте!"),
+        paragraphHtml(
+          "Ваш email был указан при регистрации в сервисе «Гафус». Добро пожаловать!",
+        ),
+        paragraphHtml("Наши платформы:"),
+        welcomePlatformsListHtml(urls),
+        paragraphHtml(
+          "Если вы не регистрировались в Гафус, проигнорируйте это письмо.",
+        ),
+      ],
+    });
+  } catch (error) {
+    logger.error(
+      "Не удалось отправить приветственное письмо после регистрации",
+      error instanceof Error ? error : new Error(String(error)),
+      {},
+    );
+  }
+}
+
 export async function sendEmailChangeConfirmEmail(to: string, confirmUrl: string): Promise<void> {
   assertMailerReady();
   const subject = "Подтвердите новый email — Гафус";

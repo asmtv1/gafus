@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
+import AccountRemovalClientCleanup from "@shared/components/auth/AccountRemovalClientCleanup";
+
 import styles from "./login.module.css";
 import LoginForm from "./LoginForm";
 
@@ -35,6 +37,7 @@ export default function LoginPage() {
         .
       </p>
       <Suspense fallback={null}>
+        <AccountRemovalClientCleanup />
         <LoginForm />
       </Suspense>
     </main>

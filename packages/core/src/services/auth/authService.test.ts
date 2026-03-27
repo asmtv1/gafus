@@ -32,6 +32,7 @@ vi.mock("bcryptjs", () => ({
 
 const mockRegisterUserWithCredentials = vi.hoisted(() => vi.fn());
 const mockSendUsernameChangedNoticeEmail = vi.hoisted(() => vi.fn());
+const mockSendWelcomeEmailAfterRegistration = vi.hoisted(() => vi.fn());
 const mockResetPasswordByToken = vi.fn();
 
 const mockUserFindUnique = vi.fn();
@@ -64,6 +65,8 @@ vi.mock("./transactionalAuthMail", () => ({
   sendPasswordResetLinkEmail: vi.fn(),
   sendPasswordChangedNoticeEmail: vi.fn(),
   sendUsernameChangedNoticeEmail: (...args: unknown[]) => mockSendUsernameChangedNoticeEmail(...args),
+  sendWelcomeEmailAfterRegistration: (...args: unknown[]) =>
+    mockSendWelcomeEmailAfterRegistration(...args),
   sendEmailChangeConfirmEmail: vi.fn(),
 }));
 
@@ -113,6 +116,7 @@ describe("registerUserService", () => {
       email: "ivan@example.com",
       password: "Password1x",
     });
+    expect(mockSendWelcomeEmailAfterRegistration).toHaveBeenCalledWith("ivan@example.com");
     expect(result).toEqual({ success: true, userId: "user-1" });
   });
 
@@ -125,6 +129,7 @@ describe("registerUserService", () => {
 
     const result = await registerUserService("ivan", "taken@example.com", "Password1x");
 
+    expect(mockSendWelcomeEmailAfterRegistration).not.toHaveBeenCalled();
     expect(result).toEqual({ error: REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE });
   });
 });

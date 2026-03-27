@@ -88,6 +88,29 @@ export const showSuccessAlert = (message: string) => {
   });
 };
 
+/**
+ * После запроса смены email: явное подтверждение отправки и напоминание про спам.
+ * Без авто-таймера — пользователь успевает прочитать.
+ */
+export const showEmailChangeRequestSentAlert = async (): Promise<void> => {
+  await Swal.fire({
+    title: "Письмо отправлено",
+    html: `<p style="margin:0 0 12px;line-height:1.55;">Ссылка для подтверждения смены email отправлена на указанный адрес.</p><p style="margin:0;line-height:1.55;">Если письма нет во «Входящих», проверьте папку «Спам» и другие разделы (например «Промоакции») — письмо могло оказаться там.</p>`,
+    imageUrl: "/uploads/logo.png",
+    imageWidth: 100,
+    imageHeight: 100,
+    imageAlt: "Гафус",
+    confirmButtonText: "Понятно",
+    confirmButtonColor: customTheme.cancelButtonColor,
+    customClass: {
+      popup: "swal2-popup-custom",
+      title: "swal2-title-custom",
+      htmlContainer: "swal2-content-custom",
+      confirmButton: "swal2-confirm-custom",
+    },
+  });
+};
+
 // Стилизованный диалог подтверждения
 export const showConfirmDialog = async (title: string, text: string): Promise<boolean> => {
   const result = await Swal.fire({

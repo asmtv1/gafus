@@ -101,9 +101,29 @@ export async function submitDeleteUserAccount(
   }
 
   revalidatePath("/profile");
+  revalidatePath("/courses");
+  revalidatePath("/favorites");
+  revalidatePath("/articles");
+
   const cookieStore = await cookies();
-  cookieStore.delete("next-auth.session-token");
-  cookieStore.delete("next-auth.callback-url");
-  cookieStore.delete("next-auth.csrf-token");
-  redirect("/login");
+  const nextAuthCookieNames = [
+    "next-auth.session-token",
+    "__Secure-next-auth.session-token",
+    "next-auth.callback-url",
+    "__Secure-next-auth.callback-url",
+    "next-auth.csrf-token",
+    "__Host-next-auth.csrf-token",
+    "next-auth.pkce.code_verifier",
+    "__Secure-next-auth.pkce.code_verifier",
+    "next-auth.state",
+    "__Secure-next-auth.state",
+    "next-auth.nonce",
+    "__Secure-next-auth.nonce",
+  ] as const;
+  for (const name of nextAuthCookieNames) {
+    cookieStore.delete(name);
+  }
+
+  // Клиент на /login?accountRemoved=1 сбросит localStorage, React Query и signOut.
+  redirect("/login?accountRemoved=1");
 }

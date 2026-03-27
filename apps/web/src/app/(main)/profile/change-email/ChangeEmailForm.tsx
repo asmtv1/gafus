@@ -10,6 +10,7 @@ import { useZodForm } from "@shared/hooks/useZodForm";
 import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { emailChangeRequestFormSchema } from "@shared/lib/validation/authSchemas";
 import { requestEmailChangeAction } from "@shared/server-actions";
+import { showEmailChangeRequestSentAlert } from "@shared/utils/sweetAlert";
 
 import type { EmailChangeRequestFormSchema } from "@shared/lib/validation/authSchemas";
 
@@ -36,6 +37,7 @@ export default function ChangeEmailForm({ username }: ChangeEmailFormProps) {
         setRootError(result.error);
         return;
       }
+      await showEmailChangeRequestSentAlert();
       router.push(`${profilePagePath(username)}&emailChange=sent`);
     } catch (err) {
       reportClientError(err, { issueKey: "ChangeEmailForm", keys: { operation: "submit" } });

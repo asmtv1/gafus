@@ -3,6 +3,8 @@
 import { ErrorBoundary } from "@gafus/error-handling";
 import { TracerProvider } from "@gafus/ui-components";
 import { SITE_CONFIG, DEFAULT_OG_IMAGE, SOCIAL } from "@gafus/metadata";
+import BfCacheReloadOnRestore from "@shared/components/auth/BfCacheReloadOnRestore";
+import { VkIdTokenHandler } from "@shared/components/auth/VkIdTokenHandler";
 import PetsProvider from "@shared/components/common/PetsProvider";
 import UserProvider from "@shared/components/common/UserProvider";
 import ClientLayout from "@shared/components/ui/ClientLayout";
@@ -10,12 +12,11 @@ import SessionWrapper from "@shared/components/ui/SessionWrapper";
 import { WebQueryProvider } from "@shared/providers/QueryProvider";
 
 import { Montserrat } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 
 import { Suspense } from "react";
 
 import { ClientRedirect } from "./ClientRedirect";
-import { VkIdTokenHandler } from "@shared/components/auth/VkIdTokenHandler";
-import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./normalize.css";
 import "./tokens.css";
@@ -100,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           >
             <ClientLayout>
               <SessionWrapper>
+                <BfCacheReloadOnRestore />
                 <ClientRedirect />
                 <Suspense fallback={null}>
                   <VkIdTokenHandler />
