@@ -11,6 +11,7 @@ import {
 } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { updateCourseLogoUrl } from "@gafus/core/services/course";
+import { trainerCanEditCourse } from "@gafus/core/services/trainerCourse";
 import { validateImageUpload } from "@gafus/core/services/common";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
@@ -40,6 +41,14 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
 
     if (!courseId) {
       throw new Error("courseId обязателен для редактирования");
+    }
+
+    const isAdmin = session.user.role === "ADMIN";
+    const canEdit = await trainerCanEditCourse(courseId, trainerId, {
+      allowAdmin: isAdmin,
+    });
+    if (!canEdit) {
+      throw new Error("Курс не найден или нет доступа");
     }
 
     const ext = file.name.split(".").pop() || "jpg";

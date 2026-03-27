@@ -6,11 +6,15 @@ import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { Button, Input } from "@/shared/components/ui";
-import { useAuthStore } from "@/shared/stores";
-import { userApi, type UpdateProfileData } from "@/shared/lib/api";
-import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/constants";
+import { Button, Input } from "@/shared/components/ui";
+import { userApi, type UpdateProfileData } from "@/shared/lib/api";
+import {
+  formatIsoBirthDateToDdMmYyyy,
+  validateOptionalProfileBirthDateInput,
+} from "@/shared/lib/utils/birthDateInput";
+import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { useAuthStore } from "@/shared/stores";
 
 const editProfileSchema = z.object({
   fullName: z.string().trim().max(120),
@@ -34,7 +38,7 @@ function mapProfileToForm(profile: {
 }): UpdateProfileData {
   return {
     fullName: profile.fullName || "",
-    birthDate: profile.birthDate ? new Date(profile.birthDate).toISOString().split("T")[0] : "",
+    birthDate: formatIsoBirthDateToDdMmYyyy(profile.birthDate ?? ""),
     about: profile.about || "",
     telegram: profile.telegram || "",
     instagram: profile.instagram || "",
@@ -107,6 +111,13 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = () => {
+    const birthRaw = (form.birthDate ?? "").trim();
+    const birthCheck = validateOptionalProfileBirthDateInput(birthRaw);
+    if (!birthCheck.ok) {
+      setSnackbar({ visible: true, message: birthCheck.message });
+      return;
+    }
+
     const normalized = {
       ...form,
       fullName: (form.fullName ?? "").trim(),
@@ -114,7 +125,7 @@ export default function EditProfileScreen() {
       telegram: (form.telegram ?? "").trim().replace(/^@/, ""),
       instagram: (form.instagram ?? "").trim().replace(/^@/, ""),
       website: (form.website ?? "").trim(),
-      birthDate: (form.birthDate ?? "").trim(),
+      birthDate: birthCheck.apiValue,
     };
 
     const parsed = editProfileSchema.safeParse(normalized);
@@ -214,11 +225,14 @@ export default function EditProfileScreen() {
               <View style={styles.inputWrapper}>
                 <Input
                   label="Дата рождения"
-                  placeholder="YYYY-MM-DD"
+                  placeholder="ДД.ММ.ГГГГ"
                   value={form.birthDate || ""}
                   onChangeText={(v) => updateField("birthDate", v)}
-                  keyboardType="default"
+                  keyboardType="numbers-and-punctuation"
                 />
+                <HelperText type="info" visible style={styles.helperText}>
+                  Формат: ДД.ММ.ГГГГ
+                </HelperText>
               </View>
 
               <Input

@@ -773,7 +773,7 @@
 - [x] `apps/mobile/src/shared/providers/AuthProvider.tsx`
 - [x] `apps/mobile/src/shared/providers/QueryProvider.tsx`
 - [x] `apps/mobile/src/shared/providers/ThemeProvider.tsx`
-- [x] `apps/mobile/src/shared/providers/TracerProvider.tsx`
+- [x] `apps/mobile/src/shared/lib/tracer/installGlobalJsErrorHandler.ts` (глобальный перехват; ранее дублировался с удалённым `TracerProvider`)
 - [x] `apps/mobile/src/shared/providers/index.ts`
 - [x] `apps/mobile/src/shared/stores/authStore.ts`
 - [x] `apps/mobile/src/shared/stores/courseStore.ts`

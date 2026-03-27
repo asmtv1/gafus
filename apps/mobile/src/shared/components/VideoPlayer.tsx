@@ -18,6 +18,8 @@ interface VideoPlayerProps {
   onComplete?: () => void;
   onRetry?: () => void;
   autoPlay?: boolean;
+  /** По умолчанию true. При true жесты на обёртке отключены — иначе тап после системной паузы снова вызывает play(). */
+  nativeControls?: boolean;
 }
 
 /**
@@ -39,7 +41,14 @@ function getVideoSource(uri: string): VideoSource {
 /**
  * Видео плеер на базе expo-video (HLS через contentType: 'hls')
  */
-export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPlay = false }: VideoPlayerProps) {
+export function VideoPlayer({
+  uri,
+  poster: _poster,
+  onComplete,
+  onRetry,
+  autoPlay = false,
+  nativeControls = true,
+}: VideoPlayerProps) {
   const videoViewRef = useRef<VideoView>(null);
   const [progressBarWidth, setProgressBarWidth] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -163,6 +172,7 @@ export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPla
     setSpeedIndex((i) => (i + 1) % PLAYBACK_SPEEDS.length);
   }, []);
 
+  /** Только при nativeControls=false: двойной тап seek / тап по паузе play — иначе конфликт с системными контролами. */
   const handleVideoTouchEnd = useCallback(
     (e: { nativeEvent: { locationX: number } }) => {
       if (isFullscreen) return;
@@ -194,7 +204,7 @@ export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPla
         }, DOUBLE_TAP_DELAY_MS);
       }
     },
-    [isFullscreen, player, seek, togglePlay],
+    [isFullscreen, player.playing, seek, togglePlay],
   );
 
   const bufferedProgress = durationSec > 0 && bufferedSec >= 0 ? bufferedSec / durationSec : 0;
@@ -203,10 +213,14 @@ export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPla
     <View style={styles.container}>
       <View
         style={styles.videoContainer}
-        onLayout={(e) => {
-          videoAreaWidthRef.current = e.nativeEvent.layout.width;
-        }}
-        onTouchEnd={handleVideoTouchEnd}
+        onLayout={
+          nativeControls
+            ? undefined
+            : (e) => {
+                videoAreaWidthRef.current = e.nativeEvent.layout.width;
+              }
+        }
+        onTouchEnd={nativeControls ? undefined : handleVideoTouchEnd}
       >
         <View style={styles.videoWrapper}>
           <VideoView
@@ -214,7 +228,7 @@ export function VideoPlayer({ uri, poster: _poster, onComplete, onRetry, autoPla
             player={player}
             style={styles.video}
             contentFit="contain"
-            nativeControls={true}
+            nativeControls={nativeControls}
             fullscreenOptions={{ enable: true }}
             onFullscreenEnter={() => setIsFullscreen(true)}
             onFullscreenExit={() => setIsFullscreen(false)}

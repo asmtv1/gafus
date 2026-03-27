@@ -1,7 +1,22 @@
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import Markdown from "react-native-markdown-display";
 
 import { COLORS, FONTS } from "@/constants";
+
+const androidText = Platform.OS === "android" ? { includeFontPadding: true } : {};
+
+/**
+ * lineHeight на heading* задаётся вместе с fontSize — библиотека передаёт эти text-поля
+ * в листовые Text через родителей; коэффициент ~1.65 — запас под Impact и эмодзи сверху.
+ */
+const HEADING = {
+  h1: { fontSize: 20, lineHeight: 34 },
+  h2: { fontSize: 18, lineHeight: 31 },
+  h3: { fontSize: 16, lineHeight: 28 },
+  h4: { fontSize: 15, lineHeight: 26 },
+  h5: { fontSize: 14, lineHeight: 25 },
+  h6: { fontSize: 13, lineHeight: 23 },
+} as const;
 
 /** Рендер markdown (CommonMark) — как на web с react-markdown */
 export function MarkdownText({ text }: { text: string }) {
@@ -17,19 +32,44 @@ export function MarkdownText({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {},
+  container: {
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+  },
 });
 
 const markdownStyles = StyleSheet.create({
   body: {
     color: COLORS.text,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 24,
     fontFamily: FONTS.montserrat,
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
+    ...androidText,
   },
   paragraph: {
     marginTop: 0,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 2,
+  },
+  text: {
+    flexShrink: 1,
+    lineHeight: 24,
+    ...androidText,
+  },
+  textgroup: {
+    flexShrink: 1,
+    maxWidth: "100%",
+    lineHeight: 24,
+    ...androidText,
   },
   strong: {
     fontWeight: "600",
@@ -43,61 +83,100 @@ const markdownStyles = StyleSheet.create({
     textDecorationLine: "line-through",
   },
   heading1: {
-    fontSize: 20,
+    ...HEADING.h1,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.impact,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
   },
   heading2: {
-    fontSize: 18,
+    ...HEADING.h2,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.impact,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
   },
   heading3: {
-    fontSize: 16,
+    ...HEADING.h3,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.impact,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
   },
   heading4: {
-    fontSize: 15,
+    ...HEADING.h4,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.impact,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
   },
   heading5: {
-    fontSize: 14,
+    ...HEADING.h5,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.impact,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
   },
   heading6: {
-    fontSize: 13,
+    ...HEADING.h6,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: FONTS.impact,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
+    flexDirection: "column",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
+    paddingTop: 6,
   },
   bullet_list: {
     marginBottom: 8,
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
   },
   ordered_list: {
     marginBottom: 8,
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
   },
   list_item: {
     marginBottom: 4,
+    width: "100%",
+    maxWidth: "100%",
+    alignItems: "flex-start",
   },
   bullet_list_icon: {
     color: COLORS.text,
@@ -107,8 +186,12 @@ const markdownStyles = StyleSheet.create({
   bullet_list_content: {
     color: COLORS.text,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 24,
     fontFamily: FONTS.montserrat,
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    ...androidText,
   },
   ordered_list_icon: {
     color: COLORS.text,
@@ -118,15 +201,24 @@ const markdownStyles = StyleSheet.create({
   ordered_list_content: {
     color: COLORS.text,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 24,
     fontFamily: FONTS.montserrat,
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    ...androidText,
   },
   blockquote: {
     backgroundColor: "rgba(99, 97, 40, 0.08)",
     borderLeftColor: COLORS.border,
     borderLeftWidth: 4,
     paddingLeft: 12,
+    paddingRight: 10,
+    paddingTop: 14,
+    paddingBottom: 12,
     marginVertical: 8,
+    alignSelf: "stretch",
+    maxWidth: "100%",
   },
   hr: {
     backgroundColor: "#ddd",
@@ -145,6 +237,9 @@ const markdownStyles = StyleSheet.create({
     fontSize: 13,
     padding: 12,
     marginVertical: 8,
+    maxWidth: "100%",
+    lineHeight: 22,
+    ...androidText,
   },
   link: {
     color: COLORS.secondary,
@@ -154,6 +249,8 @@ const markdownStyles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 4,
     marginVertical: 8,
+    alignSelf: "stretch",
+    maxWidth: "100%",
   },
   thead: {
     backgroundColor: "rgba(99, 97, 40, 0.12)",

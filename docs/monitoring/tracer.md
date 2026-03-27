@@ -77,7 +77,7 @@ reportClientError(error, { issueKey: "MyFeature", keys: { step: "fetch" }, userI
 
 - **Включение**: production (`!__DEV__`) или `EXPO_PUBLIC_ENABLE_TRACER=true`
 - **ErrorBoundary**: автоматически отправляет ошибки рендеринга
-- **TracerProvider**: перехватывает глобальные JS-ошибки через `ErrorUtils.setGlobalHandler`
+- **Глобальные JS-ошибки**: `installGlobalJsErrorHandler()` в root `_layout` (`ErrorUtils.setGlobalHandler`, `severity` по `isFatal`); без второго провайдера
 - **deviceId**: `expo-application.getAndroidId()` на Android, UUID на iOS
 - **sessionUuid**: in-memory singleton, генерируется при первом вызове
 

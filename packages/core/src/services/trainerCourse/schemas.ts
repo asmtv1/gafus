@@ -5,6 +5,19 @@
 
 import { z } from "zod";
 
+/** Защита от подмены src (javascript:, data: HTML и т.д.) при сохранении из клиента */
+const MAX_LOGO_IMG_URL_LENGTH = 2000;
+
+function isSafeCourseLogoUrl(val: string): boolean {
+  const t = val.trim();
+  if (t === "") return true;
+  try {
+    return new URL(t).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const trainingLevelSchema = z.enum([
   "BEGINNER",
   "INTERMEDIATE",
@@ -19,7 +32,10 @@ export const createTrainerCourseSchema = z.object({
   description: z.string().default(""),
   duration: z.string().min(1, "Укажите длительность").max(100),
   videoUrl: z.string().max(2000).optional().nullable(),
-  logoImg: z.string(),
+  logoImg: z
+    .string()
+    .max(MAX_LOGO_IMG_URL_LENGTH)
+    .refine(isSafeCourseLogoUrl, { message: "Некорректный URL логотипа (разрешён только https)" }),
   isPublic: z.boolean(),
   isPaid: z.boolean().default(false),
   priceRub: z.number().min(0).max(999_999).nullable(),
@@ -38,7 +54,10 @@ export const updateTrainerCourseSchema = z.object({
   description: z.string().default(""),
   duration: z.string().min(1, "Укажите длительность").max(100),
   videoUrl: z.string().max(2000).optional().nullable(),
-  logoImg: z.string(),
+  logoImg: z
+    .string()
+    .max(MAX_LOGO_IMG_URL_LENGTH)
+    .refine(isSafeCourseLogoUrl, { message: "Некорректный URL логотипа (разрешён только https)" }),
   isPublic: z.boolean(),
   isPaid: z.boolean().default(false),
   priceRub: z.number().min(0).max(999_999).nullable(),

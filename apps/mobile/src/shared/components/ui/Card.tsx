@@ -7,12 +7,12 @@ interface CardProps extends Omit<PaperCardProps, "elevation"> {
 }
 
 /**
- * Карточка с тенью
- * Обёртка над React Native Paper Card
+ * Карточка над Paper Card.
+ * По умолчанию elevated (тень); для overflow: hidden без предупреждения Surface используйте mode="contained".
  */
-export function Card({ children, style, ...props }: CardProps) {
+export function Card({ children, style, mode = "elevated", ...props }: CardProps) {
   return (
-    <PaperCard mode="elevated" style={[styles.card, style as ViewStyle]} {...props}>
+    <PaperCard mode={mode} style={[styles.card, style as ViewStyle]} {...props}>
       {children}
     </PaperCard>
   );

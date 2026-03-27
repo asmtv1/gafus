@@ -14,8 +14,6 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { WebView } from "react-native-webview";
-import { useShallow } from "zustand/react/shallow";
-
 import { Loading } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
 import { AccordionStep } from "@/features/training/components";
@@ -32,6 +30,7 @@ import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/constants";
 import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
+import type { DiaryEntry } from "@/shared/lib/api/training";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
@@ -52,14 +51,14 @@ export default function TrainingDayScreen() {
 
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
-  const [diaryEntries, setDiaryEntries] = useState<
-    { id: string; content: string; createdAt: string; dayOnCourseId: string }[]
-  >([]);
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
+  /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
+  const diaryListFetchGenerationRef = useRef(0);
   const { isOffline } = useNetworkStatus();
 
   // Загрузка данных дня
@@ -72,12 +71,8 @@ export default function TrainingDayScreen() {
     data != null && "code" in data && data.code === "PERSONALIZATION_REQUIRED";
 
   // Stores
-  const { getOpenIndex, setOpenIndex } = useTrainingStore(
-    useShallow((s) => ({
-      getOpenIndex: s.getOpenIndex,
-      setOpenIndex: s.setOpenIndex,
-    })),
-  );
+  /** Нельзя брать только getOpenIndex/setOpenIndex через shallow — функции стабильны, подписки на openIndexes нет */
+  const setOpenIndex = useTrainingStore((s) => s.setOpenIndex);
   const getStepState = useStepStore((s) => s.getStepState);
   const startStep = useStepStore((s) => s.startStep);
   const pauseStep = useStepStore((s) => s.pauseStep);
@@ -97,14 +92,25 @@ export default function TrainingDayScreen() {
   const dayData = data?.data;
   const courseId = dayData?.courseId ?? courseType;
 
+  const openIndexRaw = useTrainingStore((s) => {
+    if (!courseId || !dayId) return null;
+    const key = s.getDayKey(courseId, dayId);
+    return s.openIndexes[key] ?? null;
+  });
+  const openIndex = openIndexRaw ?? -1;
+
   useEffect(() => {
-    if (!courseId || !dayId) return;
+    if (!courseId) return;
     let cancelled = false;
+    const genAtStart = diaryListFetchGenerationRef.current;
     (async () => {
-      const res = await trainingApi.getDiaryEntries(courseId, dayId);
+      /** Без upToDayOnCourseId — как web useStepDiary: полный список по курсу, без риска обрезать день. */
+      const res = await trainingApi.getDiaryEntries(courseId);
       if (cancelled) return;
+      if (diaryListFetchGenerationRef.current !== genAtStart) return;
       if (res.success) {
-        setDiaryEntries(res.data?.entries ?? []);
+        const raw = res.data?.entries ?? [];
+        setDiaryEntries(raw.map((e) => ({ ...e })));
       } else {
         setDiaryEntries([]);
       }
@@ -112,7 +118,7 @@ export default function TrainingDayScreen() {
     return () => {
       cancelled = true;
     };
-  }, [courseId, dayId]);
+  }, [courseId]);
 
   // Инициализация всех шагов при загрузке (как в web-версии)
   useEffect(() => {
@@ -135,9 +141,6 @@ export default function TrainingDayScreen() {
       }
     }
   }, [dayData?.steps, courseId, dayId, initializeStep]);
-
-  // Текущий открытый шаг
-  const openIndex = getOpenIndex(courseId, dayId) ?? -1;
 
   // Обработчики
   const handleToggleStep = useCallback(
@@ -259,16 +262,7 @@ export default function TrainingDayScreen() {
       stepTitle?: string,
       stepOrder?: number,
     ) => {
-      console.log("[Я выполнил] handleCompleteStep вызван", {
-        stepIndex,
-        isTheory,
-        stepTitle,
-        stepOrder,
-        courseId,
-        dayId,
-      });
       try {
-        console.log("[Я выполнил] stopTimer, completeStep");
         stopTimer(courseId, dayId, stepIndex);
         completeStep(courseId, dayId, stepIndex);
 
@@ -279,17 +273,13 @@ export default function TrainingDayScreen() {
           stepTitle,
           stepOrder,
         };
-        console.log("[Я выполнил] params для API:", params);
 
         if (isTheory) {
-          console.log("[Я выполнил] вызов completeTheoryMutation.mutateAsync");
           await completeTheoryMutation.mutateAsync(params);
         } else {
-          console.log("[Я выполнил] вызов completePracticeMutation.mutateAsync");
           await completePracticeMutation.mutateAsync(params);
         }
 
-        console.log("[Я выполнил] mutateAsync успешно, показываем snackbar");
         setSnackbar({ visible: true, message: "Шаг выполнен!" });
 
         const nextIndex = stepIndex + 1;
@@ -318,6 +308,7 @@ export default function TrainingDayScreen() {
 
   const handleSaveDiaryForStep = useCallback(
     async (stepIndex: number, content: string, stepTitle?: string) => {
+      diaryListFetchGenerationRef.current += 1;
       const saveRes = await trainingApi.postDiaryEntry(dayId, content);
       if (!saveRes.success) {
         throw new Error(saveRes.error ?? "Не удалось сохранить запись");
@@ -334,9 +325,10 @@ export default function TrainingDayScreen() {
         throw new Error(completeRes.error ?? "Не удалось завершить шаг");
       }
 
-      const listRes = await trainingApi.getDiaryEntries(courseId, dayId);
+      const listRes = await trainingApi.getDiaryEntries(courseId);
       if (listRes.success) {
-        setDiaryEntries(listRes.data?.entries ?? []);
+        const raw = listRes.data?.entries ?? [];
+        setDiaryEntries(raw.map((e) => ({ ...e })));
       }
       setSnackbar({ visible: true, message: "Запись сохранена" });
     },
@@ -600,16 +592,6 @@ export default function TrainingDayScreen() {
     );
   }
 
-  // Отладочное логирование (убрано для предотвращения бесконечных логов)
-  // if (__DEV__) {
-  //   console.log("[TrainingDayScreen] Рендеринг контента:", {
-  //     hasDayData: !!dayData,
-  //     title: dayData?.title,
-  //     stepsCount: dayData?.steps?.length ?? 0,
-  //     progress: progress.percent,
-  //   });
-  // }
-
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -622,6 +604,7 @@ export default function TrainingDayScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
           {/* Заголовок дня по типу (как на web Day.tsx) */}
@@ -660,6 +643,11 @@ export default function TrainingDayScreen() {
             <View style={styles.descriptionDayContainer}>
               <Pressable
                 onPress={() => setIsDescriptionOpen((o) => !o)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isDescriptionOpen ? "Скрыть описание дня" : "Подробнее описание дня"
+                }
                 style={[
                   styles.descriptionDayHeader,
                   isDescriptionOpen && styles.descriptionDayHeaderExpanded,
@@ -764,22 +752,13 @@ export default function TrainingDayScreen() {
                     dayOnCourseId={dayId}
                     onToggle={() => handleToggleStep(index)}
                     onStart={() => {
-                      if (__DEV__) {
-                        console.log("[TrainingDayScreen] Start step:", index, durationSec);
-                      }
-                      handleStartStep(index, durationSec);
+                      void handleStartStep(index, durationSec);
                     }}
                     onPause={(remainingSec) => {
-                      if (__DEV__) {
-                        console.log("[TrainingDayScreen] Pause step:", index, remainingSec);
-                      }
-                      handlePauseStep(index, remainingSec);
+                      void handlePauseStep(index, remainingSec);
                     }}
                     onResume={() => {
-                      if (__DEV__) {
-                        console.log("[TrainingDayScreen] Resume step:", index);
-                      }
-                      handleResumeStep(index);
+                      void handleResumeStep(index);
                     }}
                     onComplete={() =>
                       handleCompleteStep(
@@ -790,17 +769,10 @@ export default function TrainingDayScreen() {
                       )
                     }
                     onReset={(durationSecReset) => {
-                      if (__DEV__) {
-                        console.log("[TrainingDayScreen] Reset step:", index, durationSecReset);
-                      }
-                      handleResetStep(index, durationSecReset);
+                      void handleResetStep(index, durationSecReset);
                     }}
                     diaryEntries={diaryEntries}
-                    onSaveDiary={
-                      stepType === "DIARY"
-                        ? async (content) => handleSaveDiaryForStep(index, content, stepTitle)
-                        : undefined
-                    }
+                    onSaveDiary={stepType === "DIARY" ? handleSaveDiaryForStep : undefined}
                   />
                   );
                 } catch (error) {

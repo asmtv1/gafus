@@ -5,10 +5,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { COLORS, SPACING } from "@/constants";
 import { Button, Input } from "@/shared/components/ui";
 import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
+import { validatePetBirthDateInput } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING } from "@/constants";
 
 const LOG_PREFIX = "[AddPetScreen]";
 
@@ -88,29 +89,12 @@ export default function AddPetScreen() {
       return;
     }
 
-    if (!birthDate.trim()) {
+    const birthCheck = validatePetBirthDateInput(birthDate);
+    if (!birthCheck.ok) {
       if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: дата рождения пустая`);
+        console.warn(`${LOG_PREFIX} Валидация даты не пройдена`, { birthDate, message: birthCheck.message });
       }
-      Alert.alert("Ошибка", "Дата рождения обязательна");
-      return;
-    }
-
-    // Валидация даты
-    const date = new Date(birthDate);
-    if (isNaN(date.getTime())) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный формат даты`, { birthDate });
-      }
-      Alert.alert("Ошибка", "Неверный формат даты");
-      return;
-    }
-
-    if (date > new Date()) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: дата в будущем`, { birthDate });
-      }
-      Alert.alert("Ошибка", "Дата не может быть в будущем");
+      Alert.alert("Ошибка", birthCheck.message);
       return;
     }
 
@@ -138,7 +122,7 @@ export default function AddPetScreen() {
       name: name.trim(),
       type,
       breed: breed.trim(),
-      birthDate: birthDate.trim(),
+      birthDate: birthCheck.apiValue,
       heightCm: height,
       weightKg: weight,
       notes: notes.trim() || undefined,
@@ -210,8 +194,8 @@ export default function AddPetScreen() {
                 label="Дата рождения *"
                 value={birthDate}
                 onChangeText={setBirthDate}
-                placeholder="YYYY-MM-DD"
-                keyboardType="default"
+                placeholder="ДД.ММ.ГГГГ"
+                keyboardType="numbers-and-punctuation"
               />
             </View>
 

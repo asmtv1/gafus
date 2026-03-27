@@ -1,3 +1,4 @@
+import { useCallback, useEffect } from "react";
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -5,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter, type Href } from "expo-router";
+import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
@@ -156,10 +157,11 @@ const getPetTypeLabel = (type: string) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, logout } = useAuthStore(
+  const { user, logout, setUser } = useAuthStore(
     useShallow((s) => ({
       user: s.user,
       logout: s.logout,
+      setUser: s.setUser,
     })),
   );
 
@@ -172,6 +174,18 @@ export default function ProfileScreen() {
       return res;
     },
   });
+
+  /** После смены email на web стор мог остаться со старым user — подтягиваем GET /profile */
+  useFocusEffect(
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+    }, [queryClient]),
+  );
+
+  useEffect(() => {
+    if (!profileData?.success || !profileData.data) return;
+    setUser(profileData.data);
+  }, [profileData, setUser]);
 
   // Загрузка питомцев
   const { data: petsData } = useQuery({
@@ -326,7 +340,9 @@ export default function ProfileScreen() {
     },
   });
 
-  const profile = profileData?.data?.profile;
+  const profileUser = profileData?.data;
+  const profile = profileUser?.profile;
+  const displayEmail = profileUser?.email?.trim() || user?.email?.trim() || "";
   const hasAppPassword = profileData?.data?.hasAppPassword ?? user?.hasAppPassword ?? false;
   const hasVkLinked = profileData?.data?.hasVkLinked ?? false;
 
@@ -488,12 +504,10 @@ export default function ProfileScreen() {
             <Text
               style={[
                 styles.contactInfo,
-                !user?.email?.trim() ? styles.contactInfoMissing : null,
+                !displayEmail ? styles.contactInfoMissing : null,
               ]}
             >
-              {user?.email?.trim()
-                ? user.email.trim()
-                : USER_EMAIL_MISSING_HINT}
+              {displayEmail || USER_EMAIL_MISSING_HINT}
             </Text>
             {displayRole && (
               <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
@@ -795,7 +809,7 @@ export default function ProfileScreen() {
         {hasAppPassword ? (
           <Pressable
             style={styles.passwordButton}
-            onPress={() => router.push("/reset-password")}
+            onPress={() => router.push("/profile/change-password" as Href)}
           >
             <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
           </Pressable>

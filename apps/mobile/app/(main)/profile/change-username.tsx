@@ -1,19 +1,20 @@
 import { useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useShallow } from "zustand/react/shallow";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import { useShallow } from "zustand/react/shallow";
 
-import { Button, Input } from "@/shared/components/ui";
+import { BORDER_RADIUS, COLORS, SPACING } from "@/constants";
+import { Button, Card, Input } from "@/shared/components/ui";
+import { useUsernameAvailability } from "@/shared/hooks";
 import type { User } from "@/shared/lib/api/auth";
 import { userApi } from "@/shared/lib/api/user";
 import { reportClientError } from "@/shared/lib/tracer";
-import { useAuthStore } from "@/shared/stores";
-import { useUsernameAvailability } from "@/shared/hooks";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING } from "@/constants";
+import { useAuthStore } from "@/shared/stores";
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
@@ -71,40 +72,58 @@ export default function ChangeUsernameScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="bodyLarge" style={styles.hint}>
-          Логин используется для входа. Минимум 3 символа, только латинские буквы, цифры и _.
-        </Text>
-        <Input
-          label="Новый логин"
-          value={newUsername}
-          onChangeText={setNewUsername}
-          placeholder="mylogin"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.input}
-        />
-        {status === "checking" && (
-          <Text style={[styles.availabilityHint, { color: COLORS.textSecondary }]}>
-            Проверка...
-          </Text>
-        )}
-        {status === "available" && (
-          <Text style={[styles.availabilityHint, { color: COLORS.success }]}>
-            Логин свободен
-          </Text>
-        )}
-        {status === "taken" && (
-          <Text style={[styles.availabilityHint, { color: COLORS.error }]}>
-            Логин занят
-          </Text>
-        )}
-        <Button
-          label="Сохранить"
-          onPress={onSave}
-          loading={loading}
-          disabled={loading || status === "taken" || status === "checking"}
-          style={styles.button}
-        />
+        <Card mode="contained" style={styles.card}>
+          <Card.Content>
+            <View style={styles.iconWrap}>
+              <MaterialCommunityIcons name="account-outline" size={28} color={COLORS.primaryDark} />
+            </View>
+            <Text variant="titleMedium" style={styles.cardTitle}>
+              Новый логин
+            </Text>
+            <Text variant="bodyMedium" style={styles.hint}>
+              Логин нужен для входа. После смены при следующем входе используйте новый логин.
+            </Text>
+            <View style={styles.stepsBox}>
+              <Text variant="bodySmall" style={styles.stepLine}>
+                • От 3 до 50 символов, только латиница, цифры и символ _
+              </Text>
+              <Text variant="bodySmall" style={styles.stepLine}>
+                • Свободность логина проверяется при вводе
+              </Text>
+            </View>
+            <Input
+              label="Новый логин"
+              value={newUsername}
+              onChangeText={setNewUsername}
+              placeholder="mylogin"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.input}
+            />
+            {status === "checking" && (
+              <Text style={[styles.availabilityHint, { color: COLORS.textSecondary }]}>
+                Проверка...
+              </Text>
+            )}
+            {status === "available" && (
+              <Text style={[styles.availabilityHint, { color: COLORS.success }]}>
+                Логин свободен
+              </Text>
+            )}
+            {status === "taken" && (
+              <Text style={[styles.availabilityHint, { color: COLORS.error }]}>
+                Логин занят
+              </Text>
+            )}
+            <Button
+              label="Сохранить"
+              onPress={onSave}
+              loading={loading}
+              disabled={loading || status === "taken" || status === "checking"}
+              style={styles.button}
+            />
+          </Card.Content>
+        </Card>
       </ScrollView>
       <Snackbar
         visible={snackbar.visible}
@@ -125,12 +144,50 @@ const styles = StyleSheet.create({
   scroll: {
     padding: SPACING.lg,
   },
+  card: {
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: "hidden",
+  },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "rgba(99, 97, 40, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.28)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: SPACING.md,
+  },
+  cardTitle: {
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
   hint: {
-    marginBottom: SPACING.lg,
     color: COLORS.textSecondary,
+    lineHeight: 22,
+    marginBottom: SPACING.md,
+  },
+  stepsBox: {
+    backgroundColor: "rgba(255, 255, 255, 0.65)",
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  stepLine: {
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: 4,
   },
   input: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   availabilityHint: {
     marginTop: 4,
@@ -139,5 +196,6 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
   },
 });

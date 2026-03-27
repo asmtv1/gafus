@@ -1,18 +1,45 @@
 import { useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, Switch, Snackbar } from "react-native-paper";
+import { Checkbox, Snackbar, Switch, Text } from "react-native-paper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { remindersApi } from "@/shared/lib/api";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { remindersApi, type Reminder } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, FONTS, SPACING } from "@/constants";
+
+/** Как на web TrainingReminders: 1 = Пн … 7 = Вс */
+const DAYS_OF_WEEK = [
+  { id: "1", label: "Пн" },
+  { id: "2", label: "Вт" },
+  { id: "3", label: "Ср" },
+  { id: "4", label: "Чт" },
+  { id: "5", label: "Пт" },
+  { id: "6", label: "Сб" },
+  { id: "7", label: "Вс" },
+] as const;
+
+function formatReminderDaysLabel(reminderDays: string | null): string {
+  if (!reminderDays?.trim()) return "каждый день";
+  const ids = reminderDays.split(",").map((s) => s.trim()).filter(Boolean);
+  const labels = ids.map(
+    (id) => DAYS_OF_WEEK.find((d) => d.id === id)?.label ?? id,
+  );
+  return labels.join(", ");
+}
+
+function reminderDaysForCreate(allDays: boolean, selectedDays: string[]): string | null {
+  if (allDays) return null;
+  if (selectedDays.length === 0) return null;
+  return [...selectedDays].sort((a, b) => Number(a) - Number(b)).join(",");
+}
 
 export default function RemindersScreen() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [time, setTime] = useState("09:00");
-  const [days, setDays] = useState("1,2,3,4,5,6,7");
+  const [allDays, setAllDays] = useState(true);
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
   const remindersQuery = useQuery({
@@ -33,6 +60,9 @@ export default function RemindersScreen() {
         return;
       }
       setName("");
+      setTime("09:00");
+      setAllDays(true);
+      setSelectedDays([]);
       await queryClient.invalidateQueries({ queryKey: ["reminders"] });
       void hapticFeedback.success();
       setSnackbar({ visible: true, message: "Напоминание добавлено" });
@@ -63,6 +93,27 @@ export default function RemindersScreen() {
     },
   });
 
+  const handleToggleAllDays = () => {
+    const next = !allDays;
+    setAllDays(next);
+    if (next) setSelectedDays([]);
+  };
+
+  const handleDayChipPress = (dayId: string) => {
+    void hapticFeedback.selection();
+    if (allDays) {
+      setAllDays(false);
+      setSelectedDays([dayId]);
+      return;
+    }
+    setSelectedDays((prev) => {
+      const next = prev.includes(dayId)
+        ? prev.filter((d) => d !== dayId)
+        : [...prev, dayId].sort((a, b) => Number(a) - Number(b));
+      return next;
+    });
+  };
+
   const handleCreate = () => {
     if (!name.trim()) {
       setSnackbar({ visible: true, message: "Введите название напоминания" });
@@ -72,10 +123,18 @@ export default function RemindersScreen() {
       setSnackbar({ visible: true, message: "Максимум 5 напоминаний" });
       return;
     }
+    if (!allDays && selectedDays.length === 0) {
+      setSnackbar({
+        visible: true,
+        message: "Выберите дни недели или включите «Все дни»",
+      });
+      return;
+    }
+
     createMutation.mutate({
       name: name.trim(),
       reminderTime: time.trim() || "09:00",
-      reminderDays: days.trim() || null,
+      reminderDays: reminderDaysForCreate(allDays, selectedDays),
       timezone: "Europe/Moscow",
     });
   };
@@ -94,20 +153,47 @@ export default function RemindersScreen() {
             placeholder="Название"
             placeholderTextColor={COLORS.textSecondary}
           />
+          <Text style={styles.fieldLabel}>Время</Text>
           <TextInput
             value={time}
             onChangeText={setTime}
             style={styles.input}
-            placeholder="Время (HH:MM)"
+            placeholder="ЧЧ:ММ"
             placeholderTextColor={COLORS.textSecondary}
           />
-          <TextInput
-            value={days}
-            onChangeText={setDays}
-            style={styles.input}
-            placeholder="Дни (например 1,2,3,4,5)"
-            placeholderTextColor={COLORS.textSecondary}
+
+          <Text style={styles.fieldLabel}>Дни</Text>
+          <Checkbox.Item
+            label="Все дни"
+            status={allDays ? "checked" : "unchecked"}
+            onPress={handleToggleAllDays}
+            position="leading"
+            style={styles.checkboxItem}
+            labelStyle={styles.checkboxLabel}
           />
+
+          {!allDays && (
+            <View style={styles.daysGrid}>
+              {DAYS_OF_WEEK.map((day) => {
+                const selected = selectedDays.includes(day.id);
+                return (
+                  <Pressable
+                    key={day.id}
+                    onPress={() => handleDayChipPress(day.id)}
+                    style={[styles.dayChip, selected && styles.dayChipSelected]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={`${day.label}, ${selected ? "выбран" : "не выбран"}`}
+                  >
+                    <Text style={[styles.dayChipText, selected && styles.dayChipTextSelected]}>
+                      {day.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
           <Pressable style={styles.primaryButton} onPress={handleCreate}>
             <Text style={styles.primaryButtonText}>Добавить</Text>
           </Pressable>
@@ -115,12 +201,12 @@ export default function RemindersScreen() {
 
         <View style={styles.listCard}>
           <Text style={styles.formTitle}>Список</Text>
-          {reminders.map((r) => (
+          {reminders.map((r: Reminder) => (
             <View key={r.id} style={styles.item}>
               <View style={styles.itemMeta}>
                 <Text style={styles.itemName}>{r.name}</Text>
                 <Text style={styles.itemDetail}>
-                  {r.reminderTime} • {r.reminderDays ?? "каждый день"}
+                  {r.reminderTime} • {formatReminderDaysLabel(r.reminderDays)}
                 </Text>
               </View>
               <Switch
@@ -136,7 +222,11 @@ export default function RemindersScreen() {
                   void hapticFeedback.light();
                   Alert.alert("Удалить напоминание", "Вы уверены?", [
                     { text: "Отмена", style: "cancel" },
-                    { text: "Удалить", style: "destructive", onPress: () => deleteMutation.mutate(r.id) },
+                    {
+                      text: "Удалить",
+                      style: "destructive",
+                      onPress: () => deleteMutation.mutate(r.id),
+                    },
                   ]);
                 }}
               >
@@ -183,20 +273,62 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   formTitle: { fontSize: 16, fontWeight: "700", color: COLORS.text },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
   input: {
     borderWidth: 1,
     borderColor: "#D4C4A8",
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: "#FFF",
     paddingHorizontal: 12,
     paddingVertical: 10,
     color: COLORS.text,
   },
+  checkboxItem: {
+    marginVertical: 0,
+    marginHorizontal: -SPACING.sm,
+    paddingVertical: 0,
+  },
+  checkboxLabel: { color: COLORS.text },
+  daysGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  dayChip: {
+    minWidth: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.cardBackground,
+    alignItems: "center",
+  },
+  dayChipSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  dayChipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  dayChipTextSelected: {
+    color: COLORS.onPrimary,
+  },
   primaryButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.md,
     paddingVertical: 10,
     alignItems: "center",
+    marginTop: SPACING.sm,
   },
   primaryButtonText: { color: "#fff", fontWeight: "600" },
   item: {
@@ -205,7 +337,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     borderWidth: 1,
     borderColor: "#D4C4A8",
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.md,
     padding: SPACING.sm,
     backgroundColor: "#fff",
   },
@@ -221,4 +353,3 @@ const styles = StyleSheet.create({
   deleteBtnText: { color: "#B00020", fontSize: 12, fontWeight: "600" },
   empty: { color: COLORS.textSecondary },
 });
-

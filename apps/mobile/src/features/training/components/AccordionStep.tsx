@@ -1,18 +1,34 @@
-import { View, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  TextInput,
+  useWindowDimensions,
+  Modal,
+  FlatList,
+  Platform,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
-import { useEffect, useState, memo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, memo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import {
   formatTimeLeft,
   getStepDisplayStatus,
+  isStepWithTimer,
+  shouldShowEstimatedDuration,
   STEP_STATUS_LABELS,
+  STEP_TYPE_LABELS,
 } from "@gafus/core/utils/training";
-import type { TrainingStatus } from "@gafus/types";
+import { getEmbeddedVideoInfo } from "@gafus/core/utils";
+import type { StepType, TrainingStatus } from "@gafus/types";
 import { MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep, StepContent } from "@/shared/lib/api";
+import type { DiaryEntry } from "@/shared/lib/api/training";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
 import { VideoReportBlock } from "./VideoReportBlock";
 import { WrittenFeedbackBlock } from "./WrittenFeedbackBlock";
@@ -20,7 +36,10 @@ import type { LocalStepState } from "@/shared/stores";
 import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoUrl } from "@/shared/hooks";
+import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { WebView } from "react-native-webview";
 import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
+import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/constants";
@@ -35,6 +54,12 @@ const EXTERNAL_VIDEO_PATTERNS = [
 ];
 function isExternalVideoUrl(url: string): boolean {
   return EXTERNAL_VIDEO_PATTERNS.some((p) => p.test(url));
+}
+
+/** Как web StepDiaryBlock: toLocaleDateString("ru-RU"). */
+function formatDiaryEntryDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ru-RU");
 }
 
 /** Цвета и эмодзи для статусов — как в web Day.tsx */
@@ -66,8 +91,9 @@ interface AccordionStepProps {
   onResume: () => void;
   onComplete: () => void;
   onReset?: (durationSec: number) => void;
-  diaryEntries?: { id: string; content: string; createdAt: string }[];
-  onSaveDiary?: (content: string) => Promise<void>;
+  diaryEntries?: DiaryEntry[];
+  /** Стабильная ссылка из экрана дня: (stepIndex, content, stepTitle?) — без замыкания на каждый map. */
+  onSaveDiary?: (stepIndex: number, content: string, stepTitle?: string) => Promise<void>;
 }
 
 /**
@@ -102,9 +128,12 @@ function AccordionStepComponent({
     stepData = step as StepContent;
   }
 
-  const { activeTimer, startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor, restoreTimerFromStorage } = useTimerStore(
+  /**
+   * Только стабильные методы — без activeTimer: иначе при каждом tick() меняется весь объект
+   * activeTimer и перерисовываются ВСЕ шаги на экране → ScrollView сдвигает offset (~60px).
+   */
+  const { startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor, restoreTimerFromStorage } = useTimerStore(
     useShallow((s) => ({
-      activeTimer: s.activeTimer,
       startTimer: s.startTimer,
       pauseTimer: s.pauseTimer,
       tick: s.tick,
@@ -112,6 +141,22 @@ function AccordionStepComponent({
       isTimerActiveFor: s.isTimerActiveFor,
       restoreTimerFromStorage: s.restoreTimerFromStorage,
     })),
+  );
+
+  /** Остаток/флаг run только для ЭТОГО шага — сравнение по значениям, без лишних ререндеров соседей */
+  const stepTimerTuple = useTimerStore(
+    useShallow((s) => {
+      const at = s.activeTimer;
+      if (
+        at &&
+        at.courseId === courseId &&
+        at.dayOnCourseId === dayOnCourseId &&
+        at.stepIndex === index
+      ) {
+        return [at.remainingSec, at.isRunning] as const;
+      }
+      return null;
+    }),
   );
 
   // После инициализации шага localState должен быть источником истины.
@@ -134,17 +179,76 @@ function AccordionStepComponent({
   const isBreak = stepType === "BREAK";
   const isExamination = stepType === "EXAMINATION";
   const isDiary = stepType === "DIARY";
-  // Таймер показывается для TRAINING шагов и перерывов (не для PRACTICE, THEORY, EXAMINATION)
-  const showTimer =
-    stepType === "TRAINING" || isBreak || (!isTheory && !isPractice && !isExamination);
+  /** Паритет с web AccordionStep: только TRAINING и BREAK (см. isStepWithTimer в core) */
+  const showTimer = isStepWithTimer(stepType as StepType);
+  const stepTypeForUi = (stepType || undefined) as StepType | undefined;
 
   const videoUrl = stepData?.videoUrl ?? null;
+
+  const videoInfo = useMemo(
+    () => (videoUrl && typeof videoUrl === "string" ? getEmbeddedVideoInfo(videoUrl) : null),
+    [videoUrl],
+  );
+  /** CDN / наш HLS — expo-video; остальное (Rutube, YouTube, VK…) — WebView с embed URL, как на web. */
+  const useExpoVideo = Boolean(videoInfo?.isCDN || videoInfo?.isHLS);
+  const embedPageUrl =
+    videoInfo && !useExpoVideo && videoInfo.embedUrl ? videoInfo.embedUrl : null;
+
+  const { isOffline } = useNetworkStatus();
+
+  const trainerImageUrls = useMemo(() => {
+    const raw = stepData?.imageUrls;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+  }, [stepData?.imageUrls]);
+
+  const resolvedTrainerImageUris = useMemo(
+    () =>
+      trainerImageUrls
+        .map((raw) => resolveImageUrl(raw))
+        .filter((u): u is string => u !== null),
+    [trainerImageUrls],
+  );
+
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const stepImageMaxWidth = Math.min(windowWidth - SPACING.md * 4, 520);
+
+  /** Фиксированная высота: в ScrollView + aspectRatio у WebView часто даёт 0px. */
+  const embedWebViewHeight = useMemo(
+    () => Math.max(220, Math.round((Math.min(windowWidth, 640) - SPACING.md * 2) * (9 / 16))),
+    [windowWidth],
+  );
+
+  const handleEmbedShouldStartLoad = useCallback((request: { url: string }) => {
+    const u = request.url;
+    if (u.startsWith("http://") || u.startsWith("https://")) return true;
+    if (u.startsWith("about:blank") || u.startsWith("about:srcdoc")) return true;
+    if (u === "about:blank") return true;
+    return false;
+  }, []);
+
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const imageGalleryRef = useRef<FlatList<string>>(null);
+
+  useEffect(() => {
+    if (!imageViewerOpen) return;
+    const id = requestAnimationFrame(() => {
+      imageGalleryRef.current?.scrollToOffset({
+        offset: imageViewerIndex * windowWidth,
+        animated: false,
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [imageViewerOpen, imageViewerIndex, windowWidth]);
   const [videoRetryKey, setVideoRetryKey] = useState(0);
   const lastPlaybackUrlRef = useRef<string | null>(null);
 
   const [userRequestedPlay, setUserRequestedPlay] = useState(false);
   const [diaryContent, setDiaryContent] = useState("");
   const [isSavingDiary, setIsSavingDiary] = useState(false);
+  const [diaryError, setDiaryError] = useState<string | null>(null);
   const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onCompleteRef = useRef(onComplete);
@@ -153,7 +257,8 @@ function AccordionStepComponent({
     userRequestedPlay &&
     videoUrl &&
     typeof videoUrl === "string" &&
-    videoUrl.trim() !== "";
+    videoUrl.trim() !== "" &&
+    useExpoVideo;
   const {
     url: playbackUrl,
     isLoading: isLoadingVideo,
@@ -189,7 +294,8 @@ function AccordionStepComponent({
 
   // Проверяем, активен ли таймер для этого шага
   const hasActiveTimer = isTimerActiveFor(courseId, dayOnCourseId, index);
-  const isActuallyRunning = isInProgress && hasActiveTimer && activeTimer?.isRunning;
+  const isActuallyRunning =
+    isInProgress && hasActiveTimer && Boolean(stepTimerTuple?.[1]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -245,10 +351,6 @@ function AccordionStepComponent({
 
       if (intervalRef.current) {
         return;
-      }
-
-      if (__DEV__) {
-        console.log("[AccordionStep] Запуск таймера:", { index, courseId, dayOnCourseId });
       }
 
       // Сразу синхронизируем остаток (без ожидания 1 секунды).
@@ -340,6 +442,11 @@ function AccordionStepComponent({
   const stepSubtitle =
     stepType === "BREAK" ? stepData?.title ?? "" : `«${stepData?.title ?? "Шаг"}»`;
   const showDiaryBlock = isDiary && !!onSaveDiary;
+  /** Смена key при обновлении списка: пересборка поддерева + обход глюков layout внутри Animated.View */
+  const diaryEntriesListKey = useMemo(
+    () => diaryEntries.map((e) => e.id).join("|"),
+    [diaryEntries],
+  );
 
   return (
     <View
@@ -356,6 +463,9 @@ function AccordionStepComponent({
             onToggle();
           }}
           style={styles.header}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={isOpen ? "Скрыть шаг" : "Подробнее о шаге"}
         >
           {(stepSubtitle || stepTypeLabel) ? (
             <Text
@@ -385,55 +495,64 @@ function AccordionStepComponent({
           </View>
         </Pressable>
 
-        {/* Контент (раскрывающийся) */}
-        <Animated.View style={[styles.content, animatedStyle]}>
+        {/* Контент (раскрывающийся); pointerEvents: на iOS свёрнутый слой не должен перехватывать тапы */}
+        <Animated.View
+          style={[styles.content, animatedStyle]}
+          pointerEvents={isOpen ? "auto" : "none"}
+        >
           {isOpen && (
-            <ScrollView
-              style={styles.stepContentScroll}
-              contentContainerStyle={styles.stepContentScrollContent}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
-            >
+            <View style={styles.stepContentInner}>
               <Divider style={styles.divider} />
 
               {/* Информационные карточки для разных типов шагов (как в web) */}
               {isTheory && (
                 <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Теоретический шаг</Text>
-                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
-                    <View style={styles.estimatedTimeBadge}>
-                      <Text style={styles.estimatedTimeBadgeText}>
-                        Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
-                      </Text>
-                    </View>
-                  )}
+                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.THEORY}</Text>
+                  {shouldShowEstimatedDuration(stepTypeForUi) &&
+                    stepData.estimatedDurationSec &&
+                    stepData.estimatedDurationSec > 0 && (
+                      <View style={styles.estimatedTimeBadge}>
+                        <Text style={styles.estimatedTimeBadgeText}>
+                          Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                        </Text>
+                      </View>
+                    )}
                 </View>
               )}
 
               {isPractice && (
                 <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Упражнение без таймера</Text>
-                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
-                    <View style={styles.estimatedTimeBadge}>
-                      <Text style={styles.estimatedTimeBadgeText}>
-                        Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
-                      </Text>
-                    </View>
-                  )}
+                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.PRACTICE}</Text>
+                  {shouldShowEstimatedDuration(stepTypeForUi) &&
+                    stepData.estimatedDurationSec &&
+                    stepData.estimatedDurationSec > 0 && (
+                      <View style={styles.estimatedTimeBadge}>
+                        <Text style={styles.estimatedTimeBadgeText}>
+                          Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
+                        </Text>
+                      </View>
+                    )}
                 </View>
               )}
 
               {isExamination && (
                 <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>Экзаменационный шаг</Text>
-                  {stepData.estimatedDurationSec && stepData.estimatedDurationSec > 0 && (
-                    <View style={styles.estimatedTimeBadge}>
-                      <Text style={styles.estimatedTimeBadgeText}>
-                        Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
-                      </Text>
-                    </View>
-                  )}
+                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.EXAMINATION}</Text>
+                  {shouldShowEstimatedDuration(stepTypeForUi) &&
+                    stepData.estimatedDurationSec &&
+                    stepData.estimatedDurationSec > 0 && (
+                      <View style={styles.estimatedTimeBadge}>
+                        <Text style={styles.estimatedTimeBadgeText}>
+                          Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                        </Text>
+                      </View>
+                    )}
+                </View>
+              )}
+
+              {isDiary && (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.DIARY}</Text>
                 </View>
               )}
 
@@ -486,45 +605,87 @@ function AccordionStepComponent({
                 )}
 
               {showDiaryBlock && (
-                <View style={styles.diaryCard}>
-                  <Text style={styles.diaryTitle}>Ваша запись</Text>
-                  {diaryEntries.length > 0 && (
-                    <View style={styles.diaryHistory}>
-                      {diaryEntries.map((entry) => (
-                        <Text key={entry.id} style={styles.diaryHistoryItem}>
-                          • {entry.content}
+                <View key={diaryEntriesListKey} style={styles.diaryStepInfo}>
+                  {!isCompleted ? (
+                    <>
+                      <Text style={styles.diarySectionTitle}>Ваша запись:</Text>
+                      <TextInput
+                        value={diaryContent}
+                        onChangeText={(t) => {
+                          setDiaryContent(t);
+                          if (diaryError) setDiaryError(null);
+                        }}
+                        multiline
+                        maxLength={10000}
+                        placeholder="Опишите свои успехи за сегодня..."
+                        placeholderTextColor={COLORS.textSecondary}
+                        style={styles.diaryTextarea}
+                      />
+                      {diaryError ? (
+                        <Text style={styles.diaryError} accessibilityRole="alert">
+                          {diaryError}
                         </Text>
-                      ))}
+                      ) : null}
+                      <View style={styles.diarySaveAction}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.completeBtn,
+                            pressed && styles.completeBtnPressed,
+                            (isSavingDiary || !diaryContent.trim()) && styles.diarySaveBtnDisabled,
+                          ]}
+                          disabled={isSavingDiary || !diaryContent.trim()}
+                          onPress={async () => {
+                            const content = diaryContent.trim();
+                            if (!onSaveDiary) return;
+                            if (!content) {
+                              setDiaryError("Введите текст записи");
+                              return;
+                            }
+                            setIsSavingDiary(true);
+                            try {
+                              await onSaveDiary(
+                                index,
+                                content,
+                                typeof stepData?.title === "string" ? stepData.title : undefined,
+                              );
+                              void hapticFeedback.success();
+                              setDiaryContent("");
+                              setDiaryError(null);
+                            } finally {
+                              setIsSavingDiary(false);
+                            }
+                          }}
+                        >
+                          <Text style={styles.completeBtnText}>
+                            {isSavingDiary ? "Сохранение…" : "Сохранить"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.completedBadge}>
+                      <Text style={styles.completedBadgeCheck}>✓</Text>
+                      <Text style={styles.completedBadgeText}>Запись сохранена</Text>
                     </View>
                   )}
-                  <TextInput
-                    value={diaryContent}
-                    onChangeText={setDiaryContent}
-                    multiline
-                    placeholder="Опишите результат занятия..."
-                    placeholderTextColor={COLORS.textSecondary}
-                    style={styles.diaryInput}
-                  />
-                  <Pressable
-                    style={styles.diarySaveButton}
-                    disabled={isSavingDiary}
-                    onPress={async () => {
-                      const content = diaryContent.trim();
-                      if (!content || !onSaveDiary) return;
-                      setIsSavingDiary(true);
-                      try {
-                        await onSaveDiary(content);
-                        void hapticFeedback.success();
-                        setDiaryContent("");
-                      } finally {
-                        setIsSavingDiary(false);
-                      }
-                    }}
-                  >
-                    <Text style={styles.diarySaveButtonText}>
-                      {isSavingDiary ? "Сохраняем..." : "Сохранить"}
-                    </Text>
-                  </Pressable>
+                  {diaryEntries.length > 0 ? (
+                    <>
+                      <Text style={styles.diarySectionTitle}>Предыдущие записи:</Text>
+                      <View style={styles.diaryEntriesList}>
+                        {diaryEntries.map((entry) => (
+                          <View key={entry.id} style={styles.diaryEntryItem}>
+                            <Text style={styles.diaryEntryTitle}>
+                              День {entry.dayOrder}. {entry.dayTitle}
+                            </Text>
+                            <Text style={styles.diaryEntryDate}>
+                              {formatDiaryEntryDate(entry.createdAt)}
+                            </Text>
+                            <Text style={styles.diaryEntryContent}>{entry.content}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
                 </View>
               )}
 
@@ -545,6 +706,32 @@ function AccordionStepComponent({
                 );
               })()}
 
+              {/* Изображения тренера — как web StepContent (отдельное поле imageUrls, не markdown). */}
+              {!isBreak && resolvedTrainerImageUris.length > 0 && (
+                <View style={styles.imagesSection}>
+                  <Text style={styles.descriptionSectionTitle}>Изображения:</Text>
+                  {resolvedTrainerImageUris.map((src, imgIndex) => (
+                    <Pressable
+                      key={`${imgIndex}-${src.slice(0, 48)}`}
+                      onPress={() => {
+                        void hapticFeedback.light();
+                        setImageViewerIndex(imgIndex);
+                        setImageViewerOpen(true);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Открыть изображение ${imgIndex + 1} на весь экран`}
+                    >
+                      <Image
+                        source={{ uri: src }}
+                        style={[styles.stepTrainerImage, { maxWidth: stepImageMaxWidth }]}
+                        contentFit="contain"
+                        accessibilityLabel={`Изображение ${imgIndex + 1} к шагу`}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
               {/* Видео: сначала обложка с кнопкой Play (как на web), по нажатию — загрузка и плеер */}
               {!isBreak &&
                 videoUrl &&
@@ -562,6 +749,34 @@ function AccordionStepComponent({
                         <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
                         <Text style={styles.videoCoverText}>Смотреть видео</Text>
                       </Pressable>
+                    ) : embedPageUrl ? (
+                      isOffline ? (
+                        <View style={styles.videoLoadingContainer}>
+                          <Text style={styles.videoLoadingText}>
+                            Для просмотра нужен интернет
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.embedWebViewWrap, { height: embedWebViewHeight }]}>
+                          <WebView
+                            key={embedPageUrl}
+                            source={{ uri: embedPageUrl }}
+                            style={[styles.embedWebView, { height: embedWebViewHeight }]}
+                            /* Иначе about:srcdoc/iframe уходят в Linking → WARN и пустой экран */
+                            originWhitelist={["http://*", "https://*", "about:*"]}
+                            onShouldStartLoadWithRequest={handleEmbedShouldStartLoad}
+                            allowsInlineMediaPlayback
+                            mediaPlaybackRequiresUserAction={false}
+                            javaScriptEnabled
+                            domStorageEnabled
+                            mixedContentMode="always"
+                            allowsFullscreenVideo
+                            setSupportMultipleWindows={false}
+                            thirdPartyCookiesEnabled={Platform.OS === "android"}
+                            cacheEnabled
+                          />
+                        </View>
+                      )
                     ) : showOfflineStub ? (
                       <View style={styles.videoLoadingContainer}>
                         <Text style={styles.videoLoadingText}>
@@ -578,6 +793,12 @@ function AccordionStepComponent({
                         uri={effectivePlaybackUrl}
                         onRetry={() => setVideoRetryKey((k) => k + 1)}
                       />
+                    ) : userRequestedPlay ? (
+                      <View style={styles.videoLoadingContainer}>
+                        <Text style={styles.videoLoadingText}>
+                          Не удалось открыть видео. Попробуйте ещё раз или откройте ссылку в браузере.
+                        </Text>
+                      </View>
                     ) : null}
                   </View>
                 )}
@@ -587,11 +808,9 @@ function AccordionStepComponent({
                 (() => {
                   try {
                     const duration = stepData?.durationSec ?? 0;
-                    // Используем время из активного таймера, если он запущен, иначе из localState
-                    const currentTimer = useTimerStoreDirect.getState().activeTimer;
                     const timeLeft =
-                      hasActiveTimer && currentTimer
-                        ? currentTimer.remainingSec
+                      hasActiveTimer && stepTimerTuple
+                        ? stepTimerTuple[0]
                         : isReset
                           ? duration
                           : (localState?.timeLeft ?? localState?.remainingSec ?? duration);
@@ -737,10 +956,60 @@ function AccordionStepComponent({
                   </View>
                 ) : null}
               </View>
-            </ScrollView>
+            </View>
           )}
         </Animated.View>
       </View>
+
+      <Modal
+        visible={imageViewerOpen}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setImageViewerOpen(false)}
+      >
+        <View style={[styles.imageViewerRoot, { height: windowHeight }]}>
+          <View
+            style={[
+              styles.imageViewerHeader,
+              { paddingTop: insets.top + 4, paddingRight: Math.max(insets.right, 4) },
+            ]}
+          >
+            <IconButton
+              icon="close"
+              iconColor="#fff"
+              size={26}
+              onPress={() => {
+                void hapticFeedback.light();
+                setImageViewerOpen(false);
+              }}
+              accessibilityLabel="Закрыть просмотр изображения"
+            />
+          </View>
+          <FlatList
+            ref={imageGalleryRef}
+            data={resolvedTrainerImageUris}
+            keyExtractor={(item, i) => `${i}-${item.slice(0, 48)}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            getItemLayout={(_, i) => ({
+              length: windowWidth,
+              offset: windowWidth * i,
+              index: i,
+            })}
+            renderItem={({ item }) => (
+              <View style={[styles.imageViewerPage, { width: windowWidth, height: windowHeight }]}>
+                <Image
+                  source={{ uri: item }}
+                  style={StyleSheet.absoluteFillObject}
+                  contentFit="contain"
+                />
+              </View>
+            )}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -820,11 +1089,12 @@ const styles = StyleSheet.create({
   content: {
     overflow: "hidden",
   },
-  stepContentScroll: {
-    maxHeight: 3000,
-  },
-  stepContentScrollContent: {
+  /** Без вложенного ScrollView — иначе при тапах по кнопкам шага родительский ScrollView экрана дёргается на несколько px */
+  stepContentInner: {
     paddingBottom: 0,
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
   },
   divider: {
     marginHorizontal: SPACING.md,
@@ -832,6 +1102,9 @@ const styles = StyleSheet.create({
   descriptionSection: {
     marginTop: SPACING.md,
     paddingHorizontal: 0,
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
   },
   descriptionSectionTitle: {
     fontWeight: "700",
@@ -846,51 +1119,100 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     paddingHorizontal: 14,
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
   },
-  diaryCard: {
+  imagesSection: {
     marginTop: SPACING.md,
-    borderWidth: 1,
-    borderColor: WEB.timerCardBorder,
+    alignSelf: "stretch",
+  },
+  stepTrainerImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    marginBottom: SPACING.sm,
     borderRadius: 12,
-    backgroundColor: "#fff",
-    padding: SPACING.sm,
-    gap: SPACING.sm,
+    backgroundColor: "#f0f0f0",
+    alignSelf: "center",
   },
-  diaryTitle: {
+  imageViewerRoot: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  imageViewerHeader: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    left: 0,
+    zIndex: 10,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "flex-start",
+  },
+  imageViewerPage: {
+    backgroundColor: "#000",
+    justifyContent: "center",
+  },
+  /** Паритет с web .stepInfo + StepDiaryBlock */
+  diaryStepInfo: {
+    marginTop: SPACING.md,
+    gap: 12,
+    marginBottom: 16,
+  },
+  diarySectionTitle: {
     fontWeight: "700",
-    color: COLORS.text,
-    fontSize: 14,
+    color: WEB.stepTitleText,
+    marginBottom: 6,
+    fontSize: 15,
   },
-  diaryHistory: {
-    gap: 4,
-    backgroundColor: "#F9F6EC",
-    borderRadius: 8,
-    padding: SPACING.sm,
-  },
-  diaryHistoryItem: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-  },
-  diaryInput: {
-    minHeight: 88,
-    borderWidth: 1,
+  diaryTextarea: {
+    width: "100%",
+    minHeight: 120,
+    padding: 12,
+    borderWidth: 2,
     borderColor: WEB.timerCardBorder,
     borderRadius: 8,
-    backgroundColor: "#fff",
-    padding: 10,
+    fontSize: 16,
     textAlignVertical: "top",
     color: COLORS.text,
+    backgroundColor: "#fff",
   },
-  diarySaveButton: {
-    alignSelf: "flex-start",
-    backgroundColor: COLORS.primary,
+  diaryError: {
+    color: "#b71c1c",
+    fontSize: 14,
+  },
+  diarySaveAction: {
+    marginTop: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  diarySaveBtnDisabled: {
+    opacity: 0.6,
+  },
+  diaryEntriesList: {
+    gap: 12,
+  },
+  diaryEntryItem: {
+    padding: 12,
+    backgroundColor: WEB.timerCardBg,
+    borderWidth: 1,
+    borderColor: WEB.timerCardBorder,
     borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
   },
-  diarySaveButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+  diaryEntryTitle: {
+    fontWeight: "700",
+    color: WEB.stepTitleText,
+    fontSize: 15,
+  },
+  diaryEntryDate: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 4,
+  },
+  diaryEntryContent: {
+    marginTop: 8,
+    fontSize: 15,
+    color: WEB.stepTitleText,
   },
   actions: {
     padding: SPACING.md,
@@ -962,6 +1284,16 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     fontSize: 16,
     color: "#fff",
+  },
+  embedWebViewWrap: {
+    width: "100%",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#000",
+  },
+  embedWebView: {
+    width: "100%",
+    backgroundColor: "#000",
   },
   infoCard: {
     padding: 14,
@@ -1066,15 +1398,4 @@ const styles = StyleSheet.create({
   },
 });
 
-// Мемоизация: перерендериваем только если изменились критичные пропсы
-export const AccordionStep = memo(AccordionStepComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.step.id === nextProps.step.id &&
-    prevProps.index === nextProps.index &&
-    prevProps.isOpen === nextProps.isOpen &&
-    prevProps.stepNumber === nextProps.stepNumber &&
-    prevProps.localState?.status === nextProps.localState?.status &&
-    prevProps.localState?.timeLeft === nextProps.localState?.timeLeft &&
-    prevProps.localState?.remainingSec === nextProps.localState?.remainingSec
-  );
-});
+export const AccordionStep = memo(AccordionStepComponent);

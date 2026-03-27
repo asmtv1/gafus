@@ -18,6 +18,7 @@ export function installGlobalJsErrorHandler(): void {
   errorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
     reportClientError(error, {
       issueKey: "GlobalJsError",
+      severity: isFatal ? "fatal" : "error",
       keys: { isFatal: String(Boolean(isFatal)) },
     });
     previous?.(error, isFatal);

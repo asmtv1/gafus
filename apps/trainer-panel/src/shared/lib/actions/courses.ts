@@ -19,6 +19,7 @@ import {
   deleteCourse,
   canCreatePaidCourse as coreCanCreatePaidCourse,
   createTrainerCourseSchema,
+  trainerCanEditCourse,
   updateTrainerCourseSchema,
 } from "@gafus/core/services/trainerCourse";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
@@ -184,6 +185,14 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
 
+  const isAdmin = session.user.role === "ADMIN";
+  const canEdit = await trainerCanEditCourse(input.id, session.user.id, {
+    allowAdmin: isAdmin,
+  });
+  if (!canEdit) {
+    return { success: false, error: "Курс не найден или нет доступа" };
+  }
+
   if (input.isPaid) {
     if (
       !coreCanCreatePaidCourse(
@@ -248,6 +257,14 @@ export async function deleteCourseServerAction(courseId: string) {
     user: { id: string; username: string; role: string };
   } | null;
   if (!session?.user?.id) return { success: false, error: "Не авторизован" };
+
+  const isAdmin = session.user.role === "ADMIN";
+  const canEdit = await trainerCanEditCourse(courseId, session.user.id, {
+    allowAdmin: isAdmin,
+  });
+  if (!canEdit) {
+    return { success: false, error: "Курс не найден или нет доступа" };
+  }
 
   const result = await deleteCourse(courseId);
   if (!result.success) return { success: false, error: result.error };

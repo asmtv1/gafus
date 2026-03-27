@@ -1,6 +1,6 @@
 import { Redirect, Stack } from "expo-router";
-import { useTheme } from "react-native-paper";
 
+import { COLORS } from "@/constants";
 import { useAuthStore } from "@/shared/stores";
 
 /**
@@ -8,7 +8,6 @@ import { useAuthStore } from "@/shared/stores";
  * Редиректит неавторизованных пользователей в auth; (main) layout размонтируется, циклов нет.
  */
 export default function MainLayout() {
-  const theme = useTheme();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   if (!isAuthenticated) return <Redirect href="/welcome" />;
@@ -17,10 +16,12 @@ export default function MainLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        contentStyle: { backgroundColor: COLORS.background },
         headerStyle: {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: COLORS.background,
         },
-        headerTintColor: theme.colors.onSurface,
+        headerTintColor: COLORS.text,
+        headerShadowVisible: false,
         headerBackTitle: "Назад",
       }}
     >
@@ -78,6 +79,13 @@ export default function MainLayout() {
         options={{
           headerShown: true,
           title: "Смена логина",
+        }}
+      />
+      <Stack.Screen
+        name="profile/change-password"
+        options={{
+          headerShown: true,
+          title: "Смена пароля",
         }}
       />
       <Stack.Screen

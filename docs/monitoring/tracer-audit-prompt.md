@@ -14,7 +14,7 @@
 
 - [ ] **Web**: `TracerProvider` в layout, `setupGlobalErrorHandling()` в ClientLayout — перехват `window.onerror`, `unhandledrejection`
 - [ ] **trainer-panel**: `TracerProvider` и `ErrorBoundary` в layout — есть ли `setupGlobalErrorHandling()`? (Web вызывает, trainer-panel — проверить)
-- [ ] **Mobile**: `TracerProvider` (ErrorUtils.setGlobalHandler), `ErrorBoundary` в _layout.tsx
+- [ ] **Mobile**: `installGlobalJsErrorHandler` в root `_layout`, `ErrorBoundary`, репорт при `fontError`
 - [ ] Env: `NEXT_PUBLIC_TRACER_APP_TOKEN`, `NEXT_PUBLIC_ENABLE_TRACER` (web/trainer-panel); `EXPO_PUBLIC_TRACER_APP_TOKEN`, `EXPO_PUBLIC_ENABLE_TRACER` (mobile)
 
 ### 2. Автоматический перехват

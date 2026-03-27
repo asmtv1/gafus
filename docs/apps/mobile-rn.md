@@ -289,7 +289,6 @@ apps/mobile/
 │   │   └── providers/
 │   │       ├── AuthProvider.tsx
 │   │       ├── QueryProvider.tsx
-│   │       ├── TracerProvider.tsx
 │   │       └── ThemeProvider.tsx
 │   │
 │   └── types/                    # Локальные типы (расширения)

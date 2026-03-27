@@ -58,7 +58,6 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
  * Хук для старта шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useStartStep() {
-  const queryClient = useQueryClient();
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
@@ -72,22 +71,14 @@ export function useStartStep() {
     [isOffline, addToQueue],
   );
 
-  return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      // Инвалидируем кэш дня
-      queryClient.invalidateQueries({
-        queryKey: ["trainingDay"],
-      });
-    },
-  });
+  /** Без invalidate trainingDay: refetch пересоздаёт steps → скачок ScrollView; старт уже в stepStore. */
+  return useMutation({ mutationFn });
 }
 
 /**
  * Хук для паузы шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function usePauseStep() {
-  const queryClient = useQueryClient();
   const pauseStepLocal = useStepStore((s) => s.pauseStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
@@ -112,9 +103,6 @@ export function usePauseStep() {
         variables.timeLeftSec,
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
-    },
   });
 }
 
@@ -122,7 +110,6 @@ export function usePauseStep() {
  * Хук для возобновления шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useResumeStep() {
-  const queryClient = useQueryClient();
   const resumeStepLocal = useStepStore((s) => s.resumeStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
@@ -142,9 +129,6 @@ export function useResumeStep() {
     onMutate: async (variables) => {
       resumeStepLocal(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
-    },
   });
 }
 
@@ -153,7 +137,6 @@ export function useResumeStep() {
  * При офлайне ставит действие в очередь синхронизации.
  */
 export function useResetStep() {
-  const queryClient = useQueryClient();
   const resetStepLocal = useStepStore((s) => s.resetStep);
   const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
@@ -177,9 +160,6 @@ export function useResetStep() {
         variables.stepIndex,
         variables.durationSec ?? 0,
       );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
     },
   });
 }
@@ -209,7 +189,6 @@ export function useCompleteTheoryStep() {
       completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
       queryClient.invalidateQueries({ queryKey: ["trainingDays"] });
     },
   });
@@ -240,7 +219,6 @@ export function useCompletePracticeStep() {
       completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trainingDay"] });
       queryClient.invalidateQueries({ queryKey: ["trainingDays"] });
     },
   });

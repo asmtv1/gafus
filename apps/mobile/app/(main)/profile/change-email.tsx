@@ -59,7 +59,7 @@ export default function ChangeEmailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Card style={styles.card}>
+        <Card mode="contained" style={styles.card}>
           <Card.Content>
             <View style={styles.iconWrap}>
               <MaterialCommunityIcons name="email-outline" size={28} color={COLORS.primaryDark} />

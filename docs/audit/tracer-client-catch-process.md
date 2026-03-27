@@ -9,7 +9,7 @@
 | Контекст | Импорт | Примечание |
 |----------|--------|------------|
 | Web, trainer-panel, admin-panel | `reportClientError` из `@gafus/error-handling` | После `TracerProvider` в layout |
-| Mobile | `reportClientError` из `@/shared/lib/tracer` | Плюс `installGlobalJsErrorHandler` в root layout |
+| Mobile | `reportClientError` из `@/shared/lib/tracer` | `installGlobalJsErrorHandler` один раз в root `_layout` (без дубля `ErrorUtils`); при ошибке шрифтов — `reportClientError` с `issueKey: "FontLoad"` |
 | Пакеты `ui-components`, `csrf` (клиент: `src/react/*`, `store.ts`) | `reportClientError` из `@gafus/error-handling` | Серверные `utils.ts` / `middleware` — только `logger.error` |
 | Сервер (RSC, actions, API) | **не** `reportClientError` | `logger.error("…", error as Error, meta)` — см. `error-handling.mdc` |
 

@@ -15,7 +15,7 @@ import { createCourseServerAction, updateCourseServerAction } from "@shared/lib/
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import {
   Alert,
@@ -89,6 +89,8 @@ export default function CourseForm({
       trainingLevel: "BEGINNER",
     },
   });
+
+  const logoImgFromForm = useWatch({ control: form.control, name: "logoImg" });
 
   // Применяем initialValues при редактировании
   useEffect(() => {
@@ -304,6 +306,7 @@ export default function CourseForm({
         <FormSection title="Медиа">
           <input type="hidden" {...form.register("logoImg", commonValidationRules.logoImg)} />
           <CourseMediaUploader
+            existingLogoUrl={logoImgFromForm?.trim() ? logoImgFromForm : undefined}
             onUploadComplete={(url) => {
               form.setValue("logoImg", url, { shouldValidate: true });
             }}
@@ -389,6 +392,8 @@ export default function CourseForm({
                   required: "Укажите цену",
                   min: { value: 1, message: "Минимум 1 ₽" },
                   max: { value: 999999, message: "Максимум 999 999 ₽" },
+                  // Иначе react-hook-form отдаёт строку из input type="number", Zod в updateTrainerCourseSchema ждёт number
+                  valueAsNumber: true,
                 }}
               />
             </Box>

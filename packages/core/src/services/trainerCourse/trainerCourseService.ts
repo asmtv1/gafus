@@ -350,6 +350,27 @@ export async function deleteCourse(
 }
 
 /**
+ * Право на изменение курса: автор или вызов с allowAdmin (передавать только для ADMIN).
+ */
+export async function trainerCanEditCourse(
+  courseId: string,
+  trainerId: string,
+  options?: { allowAdmin?: boolean },
+): Promise<boolean> {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { authorId: true },
+    });
+    if (!course) return false;
+    if (options?.allowAdmin) return true;
+    return course.authorId === trainerId;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Получение курса с dayLinks и access для формы редактирования.
  * Возвращает null, если курс не найден или не принадлежит тренеру.
  * При allowAdmin: true проверка автора пропускается (для ADMIN).

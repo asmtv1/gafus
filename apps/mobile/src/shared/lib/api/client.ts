@@ -20,6 +20,32 @@ export interface ApiResponse<T> {
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
+type SafeJsonOk = { ok: true; value: unknown };
+type SafeJsonErr = { ok: false; error: string; preview?: string };
+
+/**
+ * Читает тело ответа как текст и парсит JSON.
+ * Прокси/HTML/текст вместо JSON дают понятную ошибку вместо «Unexpected character: T».
+ */
+async function safeParseResponseJson(response: Response): Promise<SafeJsonOk | SafeJsonErr> {
+  const text = await response.text();
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Пустой ответ сервера" };
+  }
+  try {
+    return { ok: true, value: JSON.parse(trimmed) as unknown };
+  } catch {
+    const preview = trimmed.slice(0, 120).replace(/\s+/g, " ");
+    const base =
+      "Сервер вернул ответ в неожиданном формате. Попробуйте позже или проверьте подключение.";
+    const error = __DEV__
+      ? `${base} (HTTP ${response.status}, начало: ${preview}${trimmed.length > 120 ? "…" : ""})`
+      : base;
+    return { ok: false, error, preview };
+  }
+}
+
 /**
  * Обновляет access token используя refresh token
  */
@@ -112,17 +138,39 @@ export async function apiClient<T>(
       };
     }
 
-    const data = await response.json();
-
-    if (!response.ok) {
+    const parsed = await safeParseResponseJson(response);
+    if (!parsed.ok) {
+      reportClientError(new Error(parsed.error), {
+        issueKey: "ApiClient",
+        keys: {
+          endpoint,
+          httpStatus: String(response.status),
+          invalidBody: "1",
+          ...(parsed.preview ? { bodyPreview: parsed.preview.slice(0, 80) } : {}),
+        },
+      });
       return {
         success: false,
-        error: data.error || "Ошибка запроса",
-        code: data.code,
+        error: parsed.error,
+        code: "INVALID_RESPONSE",
+      };
+    }
+    const data = parsed.value;
+
+    if (!response.ok) {
+      const errObj =
+        data && typeof data === "object" && !Array.isArray(data)
+          ? (data as { error?: unknown; code?: unknown })
+          : null;
+      return {
+        success: false,
+        error:
+          errObj && typeof errObj.error === "string" ? errObj.error : "Ошибка запроса",
+        code: errObj && typeof errObj.code === "string" ? errObj.code : undefined,
       };
     }
 
-    return data;
+    return data as ApiResponse<T>;
   } catch (error) {
     reportClientError(error, { issueKey: "ApiClient", keys: { endpoint } });
     // Обработка сетевых ошибок
@@ -179,17 +227,38 @@ export async function apiClientMultipart<T>(
       }
     }
 
-    const data = await response.json();
-
-    if (!response.ok) {
+    const parsed = await safeParseResponseJson(response);
+    if (!parsed.ok) {
+      reportClientError(new Error(parsed.error), {
+        issueKey: "ApiClientMultipart",
+        keys: {
+          endpoint,
+          httpStatus: String(response.status),
+          invalidBody: "1",
+        },
+      });
       return {
         success: false,
-        error: data.error || "Ошибка запроса",
-        code: data.code,
+        error: parsed.error,
+        code: "INVALID_RESPONSE",
+      };
+    }
+    const data = parsed.value;
+
+    if (!response.ok) {
+      const errObj =
+        data && typeof data === "object" && !Array.isArray(data)
+          ? (data as { error?: unknown; code?: unknown })
+          : null;
+      return {
+        success: false,
+        error:
+          errObj && typeof errObj.error === "string" ? errObj.error : "Ошибка запроса",
+        code: errObj && typeof errObj.code === "string" ? errObj.code : undefined,
       };
     }
 
-    return data;
+    return data as ApiResponse<T>;
   } catch (error) {
     reportClientError(error, { issueKey: "ApiClientMultipart", keys: { endpoint } });
     if (error instanceof TypeError && error.message === "Network request failed") {

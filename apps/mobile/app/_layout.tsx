@@ -12,13 +12,8 @@ import {
   Montserrat_500Medium,
   Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
-import {
-  AuthProvider,
-  QueryProvider,
-  ThemeProvider,
-  TracerProvider,
-} from "@/shared/providers";
-import { installGlobalJsErrorHandler } from "@/shared/lib/tracer";
+import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
+import { installGlobalJsErrorHandler, reportClientError } from "@/shared/lib/tracer";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
@@ -57,6 +52,13 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
+    if (!fontError) return;
+    reportClientError(fontError instanceof Error ? fontError : new Error(String(fontError)), {
+      issueKey: "FontLoad",
+    });
+  }, [fontError]);
+
+  useEffect(() => {
     installGlobalJsErrorHandler();
   }, []);
 
@@ -77,7 +79,6 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
-        <TracerProvider>
         <ErrorBoundary>
           <QueryProvider>
             <ThemeProvider>
@@ -96,7 +97,6 @@ export default function RootLayout() {
             </ThemeProvider>
           </QueryProvider>
         </ErrorBoundary>
-        </TracerProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

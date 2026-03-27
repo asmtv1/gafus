@@ -129,6 +129,7 @@ export function mapMetaToTrainingDayResponse(
         type: (step.type as "THEORY" | "PRACTICE" | "EXAM") ?? "TRAINING",
         durationSec: step.durationSec,
         videoUrl: step.videoUrl,
+        imageUrls: step.imageUrls ?? [],
         pdfUrl: step.pdfUrls?.[0] ?? null,
         order: step.order,
       },

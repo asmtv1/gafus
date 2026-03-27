@@ -2,8 +2,6 @@ import { useState, useCallback, useMemo } from "react";
 import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { WebView } from "react-native-webview";
-
 import { MarkdownText, VideoPlayer } from "@/shared/components";
 import { useVideoUrl } from "@/shared/hooks";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
@@ -58,8 +56,15 @@ export function CourseDescription({
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={handleToggle}>
-        <Surface style={[styles.header, isExpanded && styles.headerExpanded]} elevation={1}>
+      {/* Pressable внутри Surface: на iOS внешняя обёртка + elevation ломала hit-testing */}
+      <Surface style={[styles.headerSurface, isExpanded && styles.headerExpanded]} elevation={1}>
+        <Pressable
+          onPress={handleToggle}
+          style={({ pressed }) => [styles.headerPressable, pressed && styles.headerPressablePressed]}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={isExpanded ? "Скрыть описание курса" : "Подробнее описание курса"}
+        >
           <Text variant="titleMedium" style={styles.title}>
             Описание курса
           </Text>
@@ -72,8 +77,8 @@ export function CourseDescription({
               style={[styles.expandIcon, isExpanded && styles.expandIconExpanded]}
             />
           </View>
-        </Surface>
-      </Pressable>
+        </Pressable>
+      </Surface>
 
       {isExpanded && (
         <View style={styles.content}>
@@ -161,15 +166,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     marginHorizontal: SPACING.md,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: SPACING.md,
+  headerSurface: {
     backgroundColor: "#ECE5D2",
     borderWidth: 1,
     borderColor: "#636128",
     borderRadius: 12,
+  },
+  headerPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: SPACING.md,
+  },
+  headerPressablePressed: {
+    opacity: 0.92,
   },
   headerExpanded: {
     borderBottomLeftRadius: 0,

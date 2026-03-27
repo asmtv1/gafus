@@ -20,11 +20,24 @@ import { createTrainerPanelLogger } from "@gafus/logger";
 // Создаем логгер для CourseMediaUploader
 const logger = createTrainerPanelLogger("trainer-panel-course-media-uploader");
 
+/** Не подставляем в <img src> произвольные схемы (javascript:, data: и т.д.) */
+function isSafeLogoPreviewUrl(url: string): boolean {
+  if (url.startsWith("blob:")) return true;
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export default function CourseMediaUploader({
+  existingLogoUrl,
   onUploadComplete,
   onFileSelect,
   courseId,
 }: {
+  /** Уже сохранённый URL (CDN) или временный blob из формы — показываем, пока нет нового локального превью */
+  existingLogoUrl?: string;
   onUploadComplete: (url: string) => void;
   onFileSelect?: (file: File) => void;
   courseId?: string;
@@ -96,6 +109,10 @@ export default function CourseMediaUploader({
     }
   };
 
+  const safeExisting =
+    existingLogoUrl && isSafeLogoPreviewUrl(existingLogoUrl) ? existingLogoUrl : null;
+  const displayImageUrl = previewUrl ?? safeExisting;
+
   return (
     <Card sx={{ maxWidth: 345, mb: 2 }}>
       <CardContent>
@@ -123,12 +140,12 @@ export default function CourseMediaUploader({
           />
         </FormControl>
 
-        {previewUrl && (
+        {displayImageUrl && (
           <CardMedia
             component="img"
             height="200"
-            image={previewUrl}
-            alt="Preview"
+            image={displayImageUrl}
+            alt="Логотип курса"
             sx={{ objectFit: "cover" }}
           />
         )}

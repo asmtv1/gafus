@@ -408,6 +408,19 @@ export const authApi = {
   },
 
   /**
+   * Смена пароля для пользователя с уже установленным паролем (Bearer).
+   */
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<ApiResponse<void>> => {
+    return apiClient<void>("/api/v1/auth/change-password", {
+      method: "POST",
+      body: { currentPassword, newPassword },
+    });
+  },
+
+  /**
    * Сброс пароля по токену из письма
    */
   resetPasswordByToken: async (

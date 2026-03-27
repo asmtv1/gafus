@@ -4,6 +4,7 @@ export {
   deleteCourse,
   canCreatePaidCourse,
   getCourseDraftWithRelations,
+  trainerCanEditCourse,
 } from "./trainerCourseService";
 export type {
   CourseDraftDto,

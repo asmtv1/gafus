@@ -129,14 +129,6 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     const effectiveEndTs = timer.endTsSec ?? (nowSec() + timer.remainingSec);
     const newRemaining = Math.max(effectiveEndTs - nowSec(), 0);
 
-    if (__DEV__) {
-      console.log("[timer] tick:", {
-        stepIndex: timer.stepIndex,
-        remainingSec: newRemaining,
-        done: newRemaining <= 0,
-      });
-    }
-
     set({
       activeTimer: {
         ...timer,

@@ -39,6 +39,8 @@ export type StepContent = {
   type: string;
   durationSec: number | null;
   videoUrl: string | null;
+  /** Загруженные тренером изображения (как на web StepContent / OfflineImageViewer). */
+  imageUrls?: string[];
   pdfUrl: string | null;
   order: number;
   estimatedDurationSec?: number | null;
@@ -101,6 +103,10 @@ export interface DiaryEntry {
   content: string;
   dayOnCourseId: string;
   createdAt: string;
+  /** Порядок дня на курсе — как на web (StepDiaryBlock). */
+  dayOrder: number;
+  /** Название дня — как на web. */
+  dayTitle: string;
 }
 
 /**
