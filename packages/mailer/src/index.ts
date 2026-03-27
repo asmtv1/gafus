@@ -5,6 +5,7 @@ export {
   mailerEnvFromProcess,
 } from "./env.js";
 export {
+  type Attachment,
   type SendTransactionalMailInput,
   createMailerTransporter,
   sendTransactionalMail,

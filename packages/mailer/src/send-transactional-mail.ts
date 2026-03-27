@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import type { Attachment } from "nodemailer/lib/mailer/index.js";
 import type { Transporter } from "nodemailer";
 
 import {
@@ -8,12 +9,16 @@ import {
   mailerEnvFromProcess,
 } from "./env.js";
 
+export type { Attachment };
+
 export interface SendTransactionalMailInput {
   to: string | string[];
   subject: string;
   text: string;
   html?: string;
   replyTo?: string;
+  /** Вложения (в т.ч. inline с cid для логотипа в HTML). */
+  attachments?: Attachment[];
 }
 
 /**
@@ -57,5 +62,6 @@ export async function sendTransactionalMail(
     text: input.text,
     html: input.html,
     replyTo: input.replyTo,
+    attachments: input.attachments,
   });
 }
