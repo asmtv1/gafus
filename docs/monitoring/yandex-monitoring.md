@@ -11,19 +11,18 @@
 
 ```
 [node-exporter]      →
-[postgres-exporter]  → [Grafana Alloy] → remote_write → [Yandex Monitoring]
+[postgres-exporter]  → [Grafana Alloy] → relabel (allowlist) → remote_write → [Yandex Monitoring]
 [blackbox-exporter]  →
-[bull-board /metrics] →
 ```
 
-Redis-exporter не используется. Метрики node-exporter фильтруются (relabel): исключаются `node_disk_io_*`, `node_netstat_*`, `node_sockstat_*`.
+Redis-exporter не используется. В Yandex уходят только `probe_success`, `pg_up` и метрики node-exporter для CPU/RAM/диска (остальное, включая BullMQ, не отправляется).
 
 Alloy — headless сервис (без UI). Не экспонирует порты наружу. Healthcheck: `http://localhost:12345/-/ready` (внутренний).
 
 ## Конфигурация
 
 - **Конфиг Alloy:** `ci-cd/docker/prometheus/config.alloy`
-- **Scrape targets:** node-exporter (с relabel-фильтром), postgres-exporter, blackbox (services-health: web-app, api, trainer-panel, admin-panel, worker, bull-board), bullmq-queues
+- **Scrape targets:** node-exporter, postgres-exporter, blackbox (services-health: web-app, api, trainer-panel, admin-panel, worker, bull-board). Перед remote_write — allowlist имён метрик (см. `config.alloy`).
 - **remote_write:** Yandex Monitoring, аутентификация через `YC_MONITORING_API_KEY` (env var → sys.env)
 
 ## Импорт дашбордов

@@ -22,6 +22,16 @@ prometheus.remote_write "yc" {
   }
 }
 
+// В Yandex только: health (probe_success, pg_up), CPU/RAM/диск с node-exporter.
+prometheus.relabel "yc_allowlist" {
+  rule {
+    source_labels = ["__name__"]
+    regex         = "probe_success|pg_up|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes"
+    action        = "keep"
+  }
+  forward_to = [prometheus.remote_write.yc.receiver]
+}
+
 prometheus.scrape "node_exporter" {
   targets = [{
     __address__ = "host.docker.internal:9100",
@@ -29,16 +39,7 @@ prometheus.scrape "node_exporter" {
     job         = "node-exporter",
   }]
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.node_filter.receiver]
-}
-
-prometheus.relabel "node_filter" {
-  rule {
-    action        = "drop"
-    source_labels = ["__name__"]
-    regex         = "node_disk_io_.*|node_netstat_.*|node_sockstat_.*"
-  }
-  forward_to = [prometheus.remote_write.yc.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
 }
 
 prometheus.scrape "postgres_exporter" {
@@ -48,7 +49,7 @@ prometheus.scrape "postgres_exporter" {
     job         = "postgres-exporter",
   }]
   scrape_interval = "60s"
-  forward_to      = [prometheus.remote_write.yc.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
 }
 
 // Health checks для сервисов через blackbox-exporter
@@ -64,20 +65,9 @@ prometheus.scrape "services_health" {
   metrics_path    = "/probe"
   params          = { module = ["http_2xx"] }
   scrape_interval = "60s"
-  forward_to      = [prometheus.remote_write.yc.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
 
   clustering {
     enabled = false
   }
-}
-
-prometheus.scrape "bullmq_queues" {
-  targets = [{
-    __address__ = "bull-board:3002",
-    instance    = "production-bull-board",
-    job         = "bullmq-queues",
-  }]
-  metrics_path    = "/metrics"
-  scrape_interval = "60s"
-  forward_to      = [prometheus.remote_write.yc.receiver]
 }

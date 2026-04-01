@@ -184,28 +184,32 @@ export async function sendAccountDeletionCodeEmail(to: string, code: string): Pr
 const WELCOME_EMAIL_RUSTORE_ANDROID_URL =
   "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const WELCOME_EMAIL_TELEGRAM_URL = "https://t.me/gafusRu";
+/** Витрина РФ в браузере; без региона apps.apple.com/app/… часто отдаёт 404. */
+const WELCOME_EMAIL_APP_STORE_IOS_RU_URL =
+  "https://apps.apple.com/ru/app/gafus/id6760964612";
 
 function welcomeEmailPlatformUrls(): {
   web: string;
   android: string;
   telegram: string;
-  ios: string | null;
+  ios: string;
 } {
   return {
     web: getPublicWebBaseUrl(),
     android: WELCOME_EMAIL_RUSTORE_ANDROID_URL,
     telegram: WELCOME_EMAIL_TELEGRAM_URL,
-    ios: process.env.WELCOME_EMAIL_IOS_APP_URL?.trim() || null,
+    ios:
+      process.env.WELCOME_EMAIL_IOS_APP_URL?.trim() || WELCOME_EMAIL_APP_STORE_IOS_RU_URL,
   };
 }
 
 /** Список ссылок в приветственном письме (HTML). */
 function welcomePlatformsListHtml(urls: ReturnType<typeof welcomeEmailPlatformUrls>): string {
-  const iosBlock = urls.ios
-    ? `<li style="margin:10px 0;"><strong>iOS:</strong> <a href="${escapeHtml(urls.ios)}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
-        urls.ios,
-      )}</a></li>`
-    : `<li style="margin:10px 0;"><strong>iOS:</strong> ссылку на приложение для iPhone добавим позже — следите за обновлениями на сайте и в Telegram.</li>`;
+  const iosBlock = `<li style="margin:10px 0;"><strong>iOS (App Store):</strong> <a href="${escapeHtml(
+    urls.ios,
+  )}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
+    urls.ios,
+  )}</a></li>`;
 
   return `<ul style="margin:0 0 16px 0;padding-left:20px;color:#333333;line-height:1.5;">
 <li style="margin:10px 0;"><strong>Сайт:</strong> <a href="${escapeHtml(urls.web)}" target="_blank" rel="noopener noreferrer" style="color:#1a56db;word-break:break-all;">${escapeHtml(
@@ -229,9 +233,7 @@ export async function sendWelcomeEmailAfterRegistration(to: string): Promise<voi
 
   const urls = welcomeEmailPlatformUrls();
   const subject = "Добро пожаловать в Гафус";
-  const textIosLine = urls.ios
-    ? `iOS: ${urls.ios}`
-    : "iOS: ссылку на приложение для iPhone добавим позже — следите за обновлениями на сайте и в Telegram.";
+  const textIosLine = `iOS (App Store): ${urls.ios}`;
   const text = [
     "Здравствуйте!",
     "",
