@@ -142,15 +142,15 @@ export default function TrainingDaysScreen() {
   const handleCreatePayment = useCallback(async () => {
     void hapticFeedback.light();
     if (isCreatingPayment) return;
-    const courseId = courseForPay?.id;
-    if (!courseId) {
-      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
-      return;
-    }
-    setIsCreatingPayment(true);
 
     if (Platform.OS === "ios") {
-      const iapResult = await runAppleCourseIapPurchase({ courseId });
+      if (!courseType) {
+        setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
+        return;
+      }
+      setIsCreatingPayment(true);
+      // IAP-метаданные по type из URL — не зависим от списка курсов (избегаем устаревшего id/кэша)
+      const iapResult = await runAppleCourseIapPurchase({ courseType });
       if (!iapResult.ok) {
         if (!iapResult.userCancelled) {
           setSnackbar({ visible: true, message: iapResult.message });
@@ -162,6 +162,13 @@ export default function TrainingDaysScreen() {
       await pollAccessAfterPayment();
       return;
     }
+
+    const courseId = courseForPay?.id;
+    if (!courseId) {
+      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
+      return;
+    }
+    setIsCreatingPayment(true);
 
     const response = await paymentsApi.createPayment({ courseId });
     if (!response.success || !response.data?.confirmationUrl) {
@@ -186,7 +193,7 @@ export default function TrainingDaysScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [courseForPay?.id, isCreatingPayment, pollAccessAfterPayment]);
+  }, [courseForPay?.id, courseType, isCreatingPayment, pollAccessAfterPayment]);
 
   const handlePayOnWebsite = useCallback(() => {
     void hapticFeedback.light();
@@ -324,14 +331,14 @@ export default function TrainingDaysScreen() {
   }, [courseForPay, courseType, isAccessDenied]);
 
   useEffect(() => {
-    if (Platform.OS !== "ios" || !isAccessDenied || !courseForPay?.id) {
+    if (Platform.OS !== "ios" || !isAccessDenied || !courseType) {
       setIosApplePrice(null);
       return;
     }
     let cancelled = false;
     void (async () => {
       try {
-        const meta = await paymentsApi.getAppleCourseIapMetadata({ courseId: courseForPay.id });
+        const meta = await paymentsApi.getAppleCourseIapMetadata({ courseType });
         if (!meta.success || !meta.data?.appleIapProductId || cancelled) return;
         const sku = meta.data.appleIapProductId;
         await initConnection();
@@ -350,7 +357,7 @@ export default function TrainingDaysScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isAccessDenied, courseForPay?.id]);
+  }, [isAccessDenied, courseType]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {

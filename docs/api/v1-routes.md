@@ -485,7 +485,7 @@
 }
 ```
 
-Заголовок ответа: `Cache-Control: private, max-age=300`.
+Заголовок ответа: `Cache-Control: private, no-store` (чтобы после настройки `appleIapProductId` не отдавался устаревший ответ).
 
 ---
 

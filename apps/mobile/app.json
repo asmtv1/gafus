@@ -28,7 +28,8 @@
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "PJQ8PP666S"
     },
     "android": {
       "androidStatusBar": {

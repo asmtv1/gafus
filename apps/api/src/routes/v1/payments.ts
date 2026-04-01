@@ -239,7 +239,8 @@ paymentsRoutes.get(
         return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
       }
 
-      c.header("Cache-Control", "private, max-age=300");
+      // Без кэша: после заполнения appleIapProductId клиенты не должны долго видеть старый null
+      c.header("Cache-Control", "private, no-store");
       return c.json({
         success: true,
         data: {
