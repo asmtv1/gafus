@@ -79,10 +79,11 @@ export default function CoursesScreen() {
       pushPromptAskedInSession.current = true;
 
       const status = await subscriptionsApi.getPushSubscriptionStatus();
-      if (cancelled || !status.success || status.data?.hasSubscription) return;
+      if (cancelled || !status.success) return;
 
+      const hadAnySubscription = !!status.data?.hasSubscription;
       const ok = await setupPushNotifications();
-      if (!cancelled && !ok) {
+      if (!cancelled && !ok && !hadAnySubscription) {
         setSnackbar({
           visible: true,
           message: "Не удалось включить push-уведомления",

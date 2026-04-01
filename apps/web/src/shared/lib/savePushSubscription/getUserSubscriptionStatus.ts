@@ -19,10 +19,10 @@ export async function getUserSubscriptionStatus() {
     return getUserSubscriptionStatusFromCore(userId);
   } catch (error) {
     if (error instanceof Error && error.message === "Пользователь не авторизован") {
-      return { hasSubscription: false };
+      return { hasSubscription: false, hasExpoPushSubscription: false };
     }
     logger.error("Ошибка getUserSubscriptionStatus", error as Error, { operation: "error" });
-    return { hasSubscription: false };
+    return { hasSubscription: false, hasExpoPushSubscription: false };
   }
 }
 

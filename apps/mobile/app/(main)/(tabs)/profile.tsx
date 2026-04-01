@@ -356,7 +356,7 @@ export default function ProfileScreen() {
   const avatarUrl = profile?.avatarUrl?.trim() || null;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
-  const hasPushSubscription = !!pushStatusData?.data?.hasSubscription;
+  const hasPushSubscription = !!pushStatusData?.data?.hasExpoPushSubscription;
   const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
   const trainerCourses = trainerProfileData?.data?.courses ?? [];
 
@@ -588,7 +588,9 @@ export default function ProfileScreen() {
           <View style={styles.notificationsCard}>
             <Text style={styles.notificationsTitle}>Уведомления</Text>
             <Text style={styles.notificationsStatus}>
-              {hasPushSubscription ? "Подписка активна" : "Подписка неактивна"}
+              {hasPushSubscription ?
+                "Push на устройстве включён"
+              : "Push на устройстве выключен"}
             </Text>
             <View style={styles.notificationsActions}>
               <Pressable

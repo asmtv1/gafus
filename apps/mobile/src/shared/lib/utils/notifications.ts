@@ -33,7 +33,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
   let finalStatus = existingStatus;
 
   if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
     finalStatus = status;
   }
 
@@ -43,7 +49,15 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) {
+      reportClientError(new Error("Expo projectId отсутствует в конфиге сборки"), {
+        issueKey: "PushNotifications",
+        keys: { operation: "register_expo_push" },
+      });
+      return null;
+    }
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId,
     });

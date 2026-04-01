@@ -99,17 +99,24 @@ export async function deleteAllPushSubscriptions(
 // ========== Get Subscription Status ==========
 
 /**
- * Проверяет, есть ли у пользователя активная push-подписка
+ * Проверяет, есть ли у пользователя активные push-подписки и отдельно — Expo (мобильное приложение).
+ * Веб-подписка без Expo не должна блокировать регистрацию токена на телефоне.
  */
 export async function getUserSubscriptionStatus(
   userId: string,
-): Promise<{ hasSubscription: boolean }> {
-  const subscription = await prisma.pushSubscription.findFirst({
+): Promise<{ hasSubscription: boolean; hasExpoPushSubscription: boolean }> {
+  const subscriptions = await prisma.pushSubscription.findMany({
     where: { userId },
-    select: { id: true },
+    select: { endpoint: true },
   });
 
-  return { hasSubscription: !!subscription };
+  const hasSubscription = subscriptions.length > 0;
+  const hasExpoPushSubscription = subscriptions.some(
+    (s) =>
+      s.endpoint.startsWith("ExponentPushToken[") || s.endpoint.startsWith("ExpoPushToken["),
+  );
+
+  return { hasSubscription, hasExpoPushSubscription };
 }
 
 /**

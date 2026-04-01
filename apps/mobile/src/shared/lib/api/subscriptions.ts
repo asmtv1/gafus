@@ -12,8 +12,12 @@ export interface PushSubscription {
  * API модуль для push подписок
  */
 export const subscriptionsApi = {
-  getPushSubscriptionStatus: async (): Promise<ApiResponse<{ hasSubscription: boolean }>> => {
-    return apiClient<{ hasSubscription: boolean }>("/api/v1/subscriptions/push");
+  getPushSubscriptionStatus: async (): Promise<
+    ApiResponse<{ hasSubscription: boolean; hasExpoPushSubscription: boolean }>
+  > => {
+    return apiClient<{ hasSubscription: boolean; hasExpoPushSubscription: boolean }>(
+      "/api/v1/subscriptions/push",
+    );
   },
 
   /**

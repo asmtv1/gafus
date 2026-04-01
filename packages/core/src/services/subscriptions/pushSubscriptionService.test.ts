@@ -114,20 +114,40 @@ describe("getUserSubscriptionStatus", () => {
     vi.clearAllMocks();
   });
 
-  it("returns hasSubscription true when subscription exists", async () => {
-    mockFindFirst.mockResolvedValue({ id: "sub-1" });
+  it("returns hasSubscription true without Expo when only web endpoint", async () => {
+    mockFindMany.mockResolvedValue([{ endpoint: "https://fcm.googleapis.com/fcm/send/x" }]);
 
     const result = await getUserSubscriptionStatus("user-1");
 
-    expect(result).toEqual({ hasSubscription: true });
+    expect(result).toEqual({
+      hasSubscription: true,
+      hasExpoPushSubscription: false,
+    });
   });
 
-  it("returns hasSubscription false when none", async () => {
-    mockFindFirst.mockResolvedValue(null);
+  it("returns hasExpoPushSubscription when Expo token present", async () => {
+    mockFindMany.mockResolvedValue([
+      { endpoint: "https://web.example/push" },
+      { endpoint: "ExponentPushToken[abc]" },
+    ]);
 
     const result = await getUserSubscriptionStatus("user-1");
 
-    expect(result).toEqual({ hasSubscription: false });
+    expect(result).toEqual({
+      hasSubscription: true,
+      hasExpoPushSubscription: true,
+    });
+  });
+
+  it("returns false when none", async () => {
+    mockFindMany.mockResolvedValue([]);
+
+    const result = await getUserSubscriptionStatus("user-1");
+
+    expect(result).toEqual({
+      hasSubscription: false,
+      hasExpoPushSubscription: false,
+    });
   });
 });
 
