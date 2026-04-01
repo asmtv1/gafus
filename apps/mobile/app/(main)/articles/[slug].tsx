@@ -6,7 +6,6 @@ import {
   Pressable,
   Linking,
   ActivityIndicator,
-  Dimensions,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,12 +18,24 @@ import Markdown from "react-native-markdown-display";
 
 import { articlesApi, paymentsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
-import { wrapArticleHtml, ARTICLE_HEIGHT_MSG, ARTICLE_READY_MSG } from "@/shared/lib/articles/wrapArticleHtml";
+import {
+  wrapArticleHtml,
+  ARTICLE_HEIGHT_MSG,
+  ARTICLE_READY_MSG,
+  ARTICLE_WEBVIEW_HEIGHT_INJECTED_JS,
+} from "@/shared/lib/articles/wrapArticleHtml";
 import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
 import { Loading } from "@/shared/components/ui";
+
+/** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
+const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
+/** Пока нет postMessage — компактная высота для замера; не весь экран (избегаем «скролл в скролле»). */
+const ARTICLE_WEBVIEW_LOADING_HEIGHT = 360;
+/** Совпадает с таймаутом в useEffect ниже. */
+const ARTICLE_WEBVIEW_FALLBACK_HEIGHT = 800;
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -70,6 +81,8 @@ export default function ArticleDetailScreen() {
   const [payLoading, setPayLoading] = useState(false);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
   const [webViewReady, setWebViewReady] = useState(false);
+  /** Таймаут 3.5s выставил 800px — без внутреннего скролла контент длинных статей обрежется. */
+  const [articleHeightIsTimeoutFallback, setArticleHeightIsTimeoutFallback] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -86,6 +99,7 @@ export default function ArticleDetailScreen() {
   useEffect(() => {
     setHtmlHeight(null);
     setWebViewReady(false);
+    setArticleHeightIsTimeoutFallback(false);
   }, [article?.id]);
 
   // Fallback: высота и ready, если postMessage не пришёл
@@ -98,7 +112,8 @@ export default function ArticleDetailScreen() {
     )
       return;
     const t = setTimeout(() => {
-      setHtmlHeight(800);
+      setArticleHeightIsTimeoutFallback(true);
+      setHtmlHeight(ARTICLE_WEBVIEW_FALLBACK_HEIGHT);
       setWebViewReady(true);
     }, 3500);
     return () => clearTimeout(t);
@@ -107,7 +122,9 @@ export default function ArticleDetailScreen() {
   // Fallback: показать WebView, если postMessage так и не пришёл (4 с)
   useEffect(() => {
     if (!article || article.contentType === "TEXT" || article.content === null) return;
-    const t = setTimeout(() => setWebViewReady(true), 4000);
+    const t = setTimeout(() => {
+      setWebViewReady(true);
+    }, 4000);
     return () => clearTimeout(t);
   }, [article?.id, article?.contentType, article?.content]);
 
@@ -132,6 +149,16 @@ export default function ArticleDetailScreen() {
   }, [article?.id]);
 
   const coverUrl = resolveImageUrl(article?.imageUrls?.[0]);
+
+  const hasMeasuredArticleHtml =
+    htmlHeight != null && htmlHeight > 0;
+  const articleWebViewBlockHeight = hasMeasuredArticleHtml
+    ? Math.ceil(htmlHeight) + ARTICLE_WEBVIEW_HEIGHT_PADDING
+    : webViewReady
+      ? ARTICLE_WEBVIEW_FALLBACK_HEIGHT
+      : ARTICLE_WEBVIEW_LOADING_HEIGHT;
+  const articleWebViewScrollInside =
+    !hasMeasuredArticleHtml || articleHeightIsTimeoutFallback;
 
   if (error) {
     return (
@@ -163,10 +190,17 @@ export default function ArticleDetailScreen() {
     );
   }
 
+  const isHtmlArticle = article.content !== null && article.contentType !== "TEXT";
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Stack.Screen options={{ title: article.title }} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          isHtmlArticle && styles.scrollContentHtmlArticle,
+        ]}
+      >
         <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backRowText}>Назад</Text>
@@ -290,17 +324,18 @@ export default function ArticleDetailScreen() {
             <Markdown style={markdownStyles}>{article.content}</Markdown>
           </View>
         ) : (
-          <View style={styles.webviewWrapper}>
+          <View style={[styles.webviewWrapper, styles.webviewWrapperFlushBottom]}>
             {!webViewReady && (
-              <View style={[styles.webviewSpinner, { height: Dimensions.get("window").height - 100 }]}>
+              <View style={[styles.webviewSpinner, { height: articleWebViewBlockHeight }]}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
               </View>
             )}
             <View
               style={[
                 styles.webviewContainer,
+                styles.webviewContainerFlushBottom,
                 {
-                  height: Dimensions.get("window").height - 100,
+                  height: articleWebViewBlockHeight,
                   opacity: webViewReady ? 1 : 0,
                 },
               ]}
@@ -308,17 +343,20 @@ export default function ArticleDetailScreen() {
               <WebView
                 key={article.id}
                 source={{ html: wrapArticleHtml(article.content ?? "") }}
-                style={[styles.webview, { flex: 1 }]}
-                scrollEnabled={true}
-                nestedScrollEnabled={true}
+                style={[styles.webview, { height: articleWebViewBlockHeight }]}
+                scrollEnabled={articleWebViewScrollInside}
+                nestedScrollEnabled={articleWebViewScrollInside}
                 originWhitelist={["*"]}
+                injectedJavaScript={ARTICLE_WEBVIEW_HEIGHT_INJECTED_JS}
                 onMessage={(e) => {
+                  const raw = e.nativeEvent.data;
                   try {
-                    const msg = JSON.parse(e.nativeEvent.data) as {
+                    const msg = JSON.parse(raw) as {
                       type?: string;
                       height?: number;
                     };
                     if (msg.type === ARTICLE_READY_MSG) {
+                      setArticleHeightIsTimeoutFallback(false);
                       setTimeout(() => setWebViewReady(true), 100);
                       if (typeof msg.height === "number" && msg.height > 0) {
                         setHtmlHeight((prev) => Math.max(prev ?? 0, msg.height!));
@@ -328,7 +366,9 @@ export default function ArticleDetailScreen() {
                       typeof msg.height === "number" &&
                       msg.height > 0
                     ) {
+                      setArticleHeightIsTimeoutFallback(false);
                       setHtmlHeight((prev) => Math.max(prev ?? 0, msg.height!));
+                      setWebViewReady(true);
                     }
                   } catch (error) {
                     reportClientError(
@@ -365,6 +405,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xxl,
+  },
+  /** HTML-вставка: без нижнего поля ScrollView (контент сам задаёт отступ при необходимости). */
+  scrollContentHtmlArticle: {
+    paddingBottom: 0,
   },
   backRow: {
     flexDirection: "row",
@@ -517,6 +561,9 @@ const styles = StyleSheet.create({
     position: "relative" as const,
     marginBottom: SPACING.md,
   },
+  webviewWrapperFlushBottom: {
+    marginBottom: 0,
+  },
   webviewSpinner: {
     position: "absolute" as const,
     top: 0,
@@ -533,6 +580,9 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     overflow: "hidden" as const,
     backgroundColor: "#fff",
+  },
+  webviewContainerFlushBottom: {
+    marginBottom: 0,
   },
   webview: {
     width: "100%",

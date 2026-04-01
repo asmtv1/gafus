@@ -188,6 +188,7 @@
     "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.0.0",
     "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/logger": "workspace:*",

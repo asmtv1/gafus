@@ -107,7 +107,8 @@
           "photosPermission": "Приложение использует галерею, чтобы вы могли выбрать фото для аватара профиля или фото питомца."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true

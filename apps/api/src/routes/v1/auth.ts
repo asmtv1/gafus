@@ -45,7 +45,7 @@ import { authMiddleware } from "../../middleware/auth.js";
 
 const logger = createWebLogger("api-auth");
 
-const CONSENT_VERSION = process.env.CONSENT_VERSION ?? "v1.0 2026-02-13";
+const CONSENT_VERSION = process.env.CONSENT_VERSION ?? "v1.1 2026-03-27";
 
 export const authRoutes = new Hono();
 

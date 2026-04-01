@@ -55,6 +55,15 @@ describe("handlePrismaError", () => {
     expect(() => handlePrismaError(err)).toThrow("данные");
   });
 
+  it("throws ConflictError с понятным текстом для дубля appleIapProductId", () => {
+    const err = new MockKnownError("Unique", {
+      code: "P2002",
+      meta: { target: ["appleIapProductId"] },
+    });
+    expect(() => handlePrismaError(err)).toThrow(ConflictError);
+    expect(() => handlePrismaError(err)).toThrow("Apple IAP Product ID");
+  });
+
   it("throws NotFoundError for P2025 with context", () => {
     const err = new MockKnownError("Record not found", { code: "P2025" });
     expect(() => handlePrismaError(err, "Пользователь")).toThrow(NotFoundError);

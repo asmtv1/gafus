@@ -2,7 +2,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import { createPayment, createArticlePayment } from "@gafus/core/services/payments";
+import {
+  createArticlePayment,
+  createPayment,
+  verifyAppleCoursePurchase,
+} from "@gafus/core/services/payments";
 import { getCourseByIdOrType } from "@gafus/core/services/course";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
@@ -10,6 +14,19 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("api-payments");
 
 export const paymentsRoutes = new Hono();
+
+const verifyAppleBody = z.object({
+  signedTransactionInfo: z.string().min(1).max(10000),
+});
+
+const courseMetadataQuery = z
+  .object({
+    courseId: z.string().min(1).optional(),
+    courseType: z.string().min(1).optional(),
+  })
+  .refine((d) => Boolean(d.courseId) !== Boolean(d.courseType), {
+    message: "Передайте ровно одно: courseId или courseType",
+  });
 
 const createPaymentSchema = z
   .object({
@@ -105,6 +122,18 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
       return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
     }
 
+    const clientPlatform = c.req.header("x-client-platform")?.toLowerCase();
+    if (clientPlatform === "ios") {
+      return c.json(
+        {
+          success: false,
+          error: "Оплата курса в приложении iOS только через App Store",
+          code: "APPLE_IAP_REQUIRED",
+        },
+        403,
+      );
+    }
+
     const returnUrl =
       `${webBaseUrl.baseUrl}/trainings/${encodeURIComponent(course.type)}` + "?paid=1&from=app";
 
@@ -140,3 +169,89 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
     );
   }
 });
+
+function statusForAppleVerifyCode(code: string): number {
+  switch (code) {
+    case "APPLE_VERIFY_FAILED":
+    case "APPLE_INVALID_PRODUCT_TYPE":
+    case "PAYMENT_ERROR":
+      return 400;
+    case "APPLE_PRODUCT_UNKNOWN":
+      return 404;
+    case "APPLE_TRANSACTION_CONFLICT":
+      return 409;
+    case "CONFIG_APPLE_IAP":
+      return 500;
+    default:
+      return 400;
+  }
+}
+
+paymentsRoutes.post("/apple/verify", zValidator("json", verifyAppleBody), async (c) => {
+  try {
+    const user = c.get("user");
+    const { signedTransactionInfo } = c.req.valid("json");
+    const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = c.req.header("user-agent") ?? null;
+
+    const result = await verifyAppleCoursePurchase({
+      userId: user.id,
+      signedTransactionInfo,
+      acceptanceContext: { ipAddress, userAgent, source: "mobile" },
+    });
+
+    if (!result.success) {
+      const status = statusForAppleVerifyCode(result.code);
+      return c.json(
+        { success: false, error: result.error, code: result.code },
+        status,
+      );
+    }
+
+    return c.json({ success: true, data: { courseId: result.courseId } }, 200);
+  } catch (error) {
+    logger.error("Apple IAP verify error", error as Error);
+    return c.json(
+      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+      500,
+    );
+  }
+});
+
+paymentsRoutes.get(
+  "/apple/course-metadata",
+  zValidator("query", courseMetadataQuery),
+  async (c) => {
+    try {
+      const { courseId, courseType } = c.req.valid("query");
+      const courseRef = await getCourseByIdOrType(courseId, courseType);
+      if (!courseRef) {
+        return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
+      }
+
+      const row = await prisma.course.findUnique({
+        where: { id: courseRef.id },
+        select: { appleIapProductId: true, isPaid: true },
+      });
+      if (!row) {
+        return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
+      }
+
+      c.header("Cache-Control", "private, max-age=300");
+      return c.json({
+        success: true,
+        data: {
+          courseId: courseRef.id,
+          appleIapProductId: row.appleIapProductId,
+          isPaid: row.isPaid,
+        },
+      });
+    } catch (error) {
+      logger.error("Apple IAP course-metadata error", error as Error);
+      return c.json(
+        { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+        500,
+      );
+    }
+  },
+);

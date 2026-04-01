@@ -27,6 +27,8 @@ model Course {
   updatedAt      DateTime         @updatedAt
   showInProfile  Boolean          @default(true)
   priceRub       Decimal?         @db.Decimal(10, 2)
+  /// Apple IAP product id (ASC non-consumable), заполняется для платных курсов в iOS
+  appleIapProductId String?       @unique
   isPersonalized Boolean          @default(false)
   guideContent   String?           @db.Text
   awards         Award[]
@@ -484,7 +486,9 @@ model Payment {
   courseId          String
   amountRub         Decimal           @db.Decimal(10, 2)
   currency          String            @default("RUB")
+  provider          PaymentProvider   @default(YOOKASSA)
   yookassaPaymentId String?           @unique
+  appleTransactionId String?          @unique
   confirmationUrl   String?
   status            PaymentStatus     @default(PENDING)
   createdAt         DateTime          @default(now())
@@ -1010,6 +1014,11 @@ enum TranscodingStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum PaymentProvider {
+  YOOKASSA
+  APPLE
 }
 
 enum PaymentStatus {

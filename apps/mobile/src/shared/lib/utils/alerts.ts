@@ -1,4 +1,4 @@
-import { Alert, Linking } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 
 /**
  * Показывает alert о заблокированном дне "Подведение итогов" (как на web)
@@ -38,6 +38,15 @@ export function showPaidCourseAccessDeniedAlert(
   onCancel?: () => void,
 ): void {
   const url = courseType ? `${WEB_BASE}/trainings/${courseType}` : `${WEB_BASE}/courses`;
+  if (Platform.OS === "ios") {
+    Alert.alert(
+      "Нет доступа к курсу",
+      "Этот курс платный. Откройте курс в приложении и оформите покупку через App Store.",
+      [{ text: "Понятно", onPress: onCancel, style: "default" }],
+      { cancelable: true },
+    );
+    return;
+  }
   Alert.alert(
     "Нет доступа к курсу",
     "Этот курс платный. Оплатите его на сайте, после чего доступ откроется в приложении.",
@@ -56,12 +65,30 @@ export function showPaidCoursePaymentOptions(params: {
 }): void {
   const { courseType, onPayInApp, onCancel } = params;
   const url = courseType ? `${WEB_BASE}/trainings/${courseType}` : `${WEB_BASE}/courses`;
+  if (Platform.OS === "ios") {
+    Alert.alert(
+      "Нет доступа к курсу",
+      "Этот курс платный. Оплатите его через App Store в карточке курса.",
+      [
+        { text: "Отмена", onPress: onCancel, style: "cancel" },
+        { text: "К курсу", onPress: onPayInApp, style: "default" },
+      ],
+      { cancelable: true },
+    );
+    return;
+  }
   Alert.alert(
     "Нет доступа к курсу",
     "Этот курс платный. Вы можете оплатить в приложении или перейти на сайт.",
     [
       { text: "Отмена", onPress: onCancel, style: "cancel" },
-      { text: "Оплатить на сайте", onPress: () => Linking.openURL(url), style: "default" },
+      {
+        text: "Оплатить на сайте",
+        onPress: () => {
+          void Linking.openURL(url);
+        },
+        style: "default",
+      },
       { text: "Оплатить", onPress: onPayInApp, style: "default" },
     ],
     { cancelable: true },

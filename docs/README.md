@@ -58,6 +58,7 @@
 - [Логи контейнеров](./deployment/container-logs.md)
 - [Секреты API](./deployment/api-secrets.md)
 - [Платные курсы и ЮKassa](./payments/yookassa.md)
+- [Apple IAP (курсы, iOS)](./payments/apple-iap.md)
 
 ### Мониторинг
 
@@ -87,6 +88,7 @@
 ### Юридическое и конфиденциальность
 
 - [Оферта (клаузулы)](./legal/oferta-clauses.md)
+- [Версии и архив HTML-документов](./legal/document-versions.md) — `public/legal/archive/`, `/legal/index.html`
 - [Соответствие оферте при оплате](./payments/oferta-compliance.md) — OfertaAcceptance, fire-and-forget
 - [Публичная оферта](./legal/public-offer-full.md)
 - [Cookie consent и управление cookies](./features/cookie-consent.md) — баннер согласия, хранение в localStorage, GDPR

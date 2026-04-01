@@ -9,3 +9,8 @@ export {
   type CreatePaymentResult,
   type CreateArticlePaymentParams,
 } from "./paymentService";
+export {
+  verifyAppleCoursePurchase,
+  type VerifyAppleCoursePurchaseParams,
+  type VerifyAppleCoursePurchaseResult,
+} from "./appleIapCourseService";

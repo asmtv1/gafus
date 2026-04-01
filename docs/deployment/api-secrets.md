@@ -80,6 +80,9 @@ api:
 | `VIDEO_ACCESS_SECRET`  | HLS protection        | Apps with video   |
 | `YOOKASSA_SHOP_ID`     | ЮKassa shop id        | Web + API (платежи) |
 | `YOOKASSA_SECRET_KEY`  | ЮKassa secret key     | Web + API (платежи) |
+| `APPLE_BUNDLE_ID`      | Bundle ID приложения  | API (IAP verify курсов, iOS) |
+| `APPLE_APP_ID`         | Числовой App Store ID | API (обязателен в prod для verifier) |
+| `APPLE_USE_SANDBOX`    | Sandbox StoreKit      | API (`true`/`1` — песочница) |
 | `WEB_APP_URL`          | Базовый URL web для return_url | API (платежи) |
 | `VK_CLIENT_ID`         | VK ID приложение (mobile auth, vk-link) | Web, API |
 | ~~`NEXT_PUBLIC_CONTACT_*`~~ | ~~Контакты~~ | **Не используются** — страница /contacts теперь статический public/contacts.html |

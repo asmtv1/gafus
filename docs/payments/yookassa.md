@@ -2,11 +2,11 @@
 
 ## Обзор
 
-Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../apps/trainer-panel.md)). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
+Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Оплата курса в **приложении iOS** — через **Apple IAP** (отдельный API и поле `Course.appleIapProductId`); см. [apple-iap.md](./apple-iap.md). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../apps/trainer-panel.md)). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
 
 ## Схема Payment (Prisma)
 
-- `id`, `userId`, `courseId`, `amountRub`, `currency`, `yookassaPaymentId`, `confirmationUrl`, `status` (PENDING, SUCCEEDED, CANCELED, REFUNDED), `createdAt`, `updatedAt`
+- `id`, `userId`, `courseId`, `amountRub`, `currency`, `provider` (YOOKASSA | APPLE), `yookassaPaymentId`, `appleTransactionId` (для IAP), `confirmationUrl`, `status` (PENDING, SUCCEEDED, CANCELED, REFUNDED), `createdAt`, `updatedAt`
 
 Логирование согласия с Офертой при создании платежа — см. [oferta-compliance.md](./oferta-compliance.md).
 - Частичный уникальный индекс: один PENDING на пару (userId, courseId) — защита от двойного клика «Оплатить».
@@ -56,6 +56,8 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 - `POST /api/v1/payments/webhook` — приём уведомлений ЮKassa (проверка IP, без CSRF).
 
 ## Mobile flow (WebView, вариант A)
+
+**Исключение — iOS, платный курс:** оплата через **Apple IAP**, не WebView и не `create` для курса (см. [apple-iap.md](./apple-iap.md)). Ниже — **Android** и **iOS для статей**, а также курсы на Android.
 
 1. Приложение вызывает `POST /api/v1/payments/create` с JWT:
    - body: `{ courseId }` или `{ courseType }` (ровно одно поле).

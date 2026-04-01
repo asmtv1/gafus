@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Linking, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -9,10 +8,7 @@ import { Image } from "expo-image";
 
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
-import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
-import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
-import { filterTrainerProfileCoursesForIos } from "@/shared/utils/iosCourseCatalog";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 // Функция для получения инициалов
@@ -110,12 +106,6 @@ const getTrainingLevelLabel = (
 export default function PublicProfileScreen() {
   const router = useRouter();
   const { username } = useLocalSearchParams<{ username: string }>();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
-  const { data: catalogResponse } = useQuery({
-    ...coursesCatalogQueryOptions,
-    enabled: Platform.OS === "ios" && isAuthenticated,
-  });
 
   // Загрузка публичного профиля
   const { data: profileResponse, isLoading } = useQuery({
@@ -140,11 +130,7 @@ export default function PublicProfileScreen() {
     profile?.instagram || profile?.telegram || profile?.website;
   const rawTrainerCourses =
     publicData?.role === "TRAINER" ? (publicData?.courses ?? []) : [];
-  const catalogCourses = catalogResponse?.success ? catalogResponse.data : undefined;
-  const courses = useMemo(
-    () => filterTrainerProfileCoursesForIos(rawTrainerCourses, catalogCourses),
-    [rawTrainerCourses, catalogCourses],
-  );
+  const courses = rawTrainerCourses;
 
   if (isLoading) {
     return (

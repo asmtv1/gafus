@@ -37,6 +37,8 @@ export interface CreateCourseInput {
   isPublic: boolean;
   isPaid: boolean;
   priceRub: number | null;
+  /** Пустая строка на клиенте → null в Zod */
+  appleIapProductId?: string | null;
   showInProfile: boolean;
   isPersonalized: boolean;
   trainingDays: string[];
@@ -118,6 +120,8 @@ export async function createCourseServerAction(formData: FormData) {
       }
     }
 
+    const appleIapProductIdRaw = formData.get("appleIapProductId")?.toString().trim() ?? "";
+
     const parseResult = createTrainerCourseSchema.safeParse({
       id: uuid,
       name,
@@ -129,6 +133,7 @@ export async function createCourseServerAction(formData: FormData) {
       isPublic,
       isPaid,
       priceRub: isPaid ? priceRub : null,
+      appleIapProductId: isPaid && appleIapProductIdRaw ? appleIapProductIdRaw : null,
       showInProfile,
       isPersonalized,
       trainingDays,
@@ -229,6 +234,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     isPublic: input.isPublic,
     isPaid: input.isPaid,
     priceRub: input.priceRub,
+    appleIapProductId: input.isPaid ? (input.appleIapProductId?.trim() || null) : null,
     showInProfile: input.showInProfile,
     isPersonalized: input.isPersonalized,
     trainingDays: input.trainingDays,

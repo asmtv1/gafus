@@ -123,6 +123,8 @@ X-Device-Id: <device_identifier>  // опционально
 | Auth routes | 10 запросов  | 15 минут |
 | API routes  | 100 запросов | 1 минута |
 
+Платежи: к `POST /api/v1/payments/create` и `POST /api/v1/payments/apple/verify` подключён отдельный лимитер (`paymentsRateLimiter`), см. `apps/api/src/app.ts`. Детали ответов и кодов — [v1-routes.md](../api/v1-routes.md).
+
 ## Environment Variables
 
 ```bash
@@ -136,7 +138,7 @@ REDIS_URL=redis://...               # Redis connection
 API_PORT=3001                       # Порт сервера (default: 3001)
 NODE_ENV=production                 # Окружение
 WEB_APP_URL=https://gafus.ru        # Базовый URL web для return_url платежей и ссылки сброса пароля
-CONSENT_VERSION=v1.0 2026-02-13     # Версия документов согласий (для register)
+CONSENT_VERSION=v1.1 2026-03-27     # Версия документов согласий (для register)
 
 # Сброс пароля через Telegram (legacy; сейчас заглушки в @gafus/auth)
 # TELEGRAM_BOT_TOKEN=<token>
@@ -150,6 +152,11 @@ VK_MOBILE_REDIRECT_URI=gafus://auth/vk  # Custom scheme для Expo
 # Платежи ЮKassa (обязательны для /api/v1/payments/create)
 YOOKASSA_SHOP_ID=<shop_id>
 YOOKASSA_SECRET_KEY=<secret_key>
+
+# Apple IAP — верификация покупок курсов (iOS), см. docs/payments/apple-iap.md
+APPLE_BUNDLE_ID=ru.gafus.app
+APPLE_APP_ID=<numeric_app_id>   # обязателен в production для SignedDataVerifier
+APPLE_USE_SANDBOX=true          # true/1 — sandbox StoreKit; иначе production
 ```
 
 ## Запуск

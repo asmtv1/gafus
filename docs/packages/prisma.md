@@ -165,8 +165,12 @@ model Course {
   avgRating       Float?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  // В актуальной схеме также: isPaid, priceRub, appleIapProductId (уникальный Product ID для IAP iOS)
 }
 ```
+
+Таблица **`Payment`**: в том числе `provider` (YOOKASSA \| APPLE), `appleTransactionId` (уникальный, для IAP). Миграция `20260401120000_add_apple_iap_course_fields`. Подробнее: [yookassa.md](../payments/yookassa.md), [apple-iap.md](../payments/apple-iap.md).
 
 #### TrainingDay (Дни тренировок)
 

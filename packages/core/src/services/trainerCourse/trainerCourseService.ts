@@ -31,6 +31,7 @@ export interface CourseDraftDto {
   isPrivate: boolean;
   isPaid: boolean;
   priceRub: number | null;
+  appleIapProductId: string | null;
   showInProfile: boolean;
   isPersonalized: boolean;
   equipment: string;
@@ -82,6 +83,8 @@ export async function createCourse(
           isPaid: input.isPaid ?? false,
           priceRub:
             input.isPaid && input.priceRub != null ? input.priceRub : null,
+          appleIapProductId:
+            input.isPaid && input.appleIapProductId ? input.appleIapProductId : null,
           showInProfile: input.showInProfile ?? true,
           isPersonalized: input.isPersonalized ?? false,
           guideContent: null,
@@ -156,6 +159,8 @@ export async function updateCourse(
               isPaid: input.isPaid,
               priceRub:
                 input.isPaid && input.priceRub != null ? input.priceRub : null,
+              appleIapProductId:
+                input.isPaid && input.appleIapProductId ? input.appleIapProductId : null,
               showInProfile: input.showInProfile ?? true,
               isPersonalized: input.isPersonalized ?? false,
               guideContent: null,
@@ -394,6 +399,7 @@ export async function getCourseDraftWithRelations(
         isPrivate: true,
         isPaid: true,
         priceRub: true,
+        appleIapProductId: true,
         showInProfile: true,
         isPersonalized: true,
         equipment: true,
@@ -432,6 +438,7 @@ export async function getCourseDraftWithRelations(
       isPrivate: course.isPrivate,
       isPaid: course.isPaid ?? false,
       priceRub: course.priceRub != null ? Number(course.priceRub) : null,
+      appleIapProductId: course.appleIapProductId ?? null,
       showInProfile: (course as { showInProfile?: boolean }).showInProfile ?? true,
       isPersonalized:
         (course as { isPersonalized?: boolean }).isPersonalized ?? false,

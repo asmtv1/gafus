@@ -26,3 +26,5 @@
 ## Версии документов
 
 Версии хранятся в `packages/core/src/config/documentVersions.ts`. **Обновлять при изменении** oferta.html, policy.html, personal.html, personal-distribution.html.
+
+Архив опубликованных HTML (прошлые редакции): `apps/web/public/legal/archive/`, оглавление: `/legal/index.html`. Порядок работы — в [document-versions.md](../legal/document-versions.md).

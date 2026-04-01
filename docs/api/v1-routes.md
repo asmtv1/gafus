@@ -403,6 +403,8 @@
 
 Сервер формирует `acceptanceContext` из заголовков (`x-forwarded-for` / `x-real-ip`, `user-agent`) для записи OfertaAcceptance — см. [oferta-compliance.md](../payments/oferta-compliance.md).
 
+**Заголовок `X-Client-Platform`:** рекомендуется передавать на всех запросах значения `ios` или `android`. Для создания платежа **курса** с `ios` сервер отвечает **403** с кодом `APPLE_IAP_REQUIRED` (на iOS курс оплачивается через App Store — см. [apple-iap.md](../payments/apple-iap.md)). Запросы с `articleId` этим ограничением не затрагиваются.
+
 **Body (ровно одно поле):**
 
 ```json
@@ -434,7 +436,56 @@
 - `VALIDATION_ERROR` (400) — некорректный body
 - `NOT_FOUND` (404) — курс не найден
 - `PAYMENT_ERROR` (400/404) — ошибка создания платежа
+- `APPLE_IAP_REQUIRED` (403) — оплата курса с iOS-клиента; нужен IAP, не ЮKassa
 - `CONFIG` (500) — не настроены `YOOKASSA_*` или невалиден `WEB_APP_URL`
+
+### POST `/api/v1/payments/apple/verify`
+
+Проверка JWS транзакции StoreKit 2 и выдача доступа к платному курсу. Только JWT. Rate limit как у `create`.
+
+**Body:**
+
+```json
+{ "signedTransactionInfo": "string (JWS, StoreKit 2)" }
+```
+
+**Response (success):**
+
+```json
+{ "success": true, "data": { "courseId": "cuid" } }
+```
+
+**Коды ошибок:**
+
+| Код | HTTP | Описание |
+| --- | ---- | -------- |
+| `APPLE_VERIFY_FAILED` | 400 | Не удалось проверить подпись / данные транзакции |
+| `APPLE_INVALID_PRODUCT_TYPE` | 400 | Не non-consumable |
+| `APPLE_PRODUCT_UNKNOWN` | 404 | Продукт не сопоставлен с платным курсом |
+| `APPLE_TRANSACTION_CONFLICT` | 409 | Транзакция уже привязана к другому пользователю или курсу |
+| `CONFIG_APPLE_IAP` | 500 | Не заданы `APPLE_BUNDLE_ID` / `APPLE_APP_ID` (prod) и т.п. |
+| `PAYMENT_ERROR` | 400 | Ошибка записи в БД после проверки Apple |
+
+### GET `/api/v1/payments/apple/course-metadata`
+
+Метаданные для экрана оплаты IAP. Только JWT.
+
+**Query (ровно один параметр):** `courseId=<cuid>` или `courseType=<string>`
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "courseId": "cuid",
+    "appleIapProductId": "string | null",
+    "isPaid": true
+  }
+}
+```
+
+Заголовок ответа: `Cache-Control: private, max-age=300`.
 
 ---
 

@@ -31,7 +31,6 @@ import {
   type ProgressFilterType,
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
-import { filterCoursesForIosCatalog } from "@/shared/utils/iosCourseCatalog";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 /**
@@ -97,10 +96,7 @@ export default function CoursesScreen() {
     };
   }, []);
 
-  const allCourses = useMemo(
-    () => filterCoursesForIosCatalog(data?.data ?? []),
-    [data?.data],
-  );
+  const allCourses = useMemo(() => data?.data ?? [], [data?.data]);
   const filteredCourses = useMemo(
     () => filterAndSortCourses(allCourses, filters),
     [allCourses, filters],

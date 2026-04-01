@@ -7,6 +7,7 @@
 **Документы:**
 - Согласие на обработку персональных данных — `PERSONAL_DATA` (`/personal.html`)
 - Политика конфиденциальности — `PRIVACY_POLICY` (`/policy.html`)
+- Архив прошлых редакций страниц — `/legal/index.html` и `apps/web/public/legal/archive/` (см. [document-versions.md](../legal/document-versions.md))
 - Согласие на размещение данных в публичном профиле — `DATA_DISTRIBUTION` (`/personal-distribution.html`)
 
 ## Flow
@@ -60,7 +61,7 @@ await markConsentLogsFailed(tempSessionId);
 
 ## Mobile и API
 
-API `POST /api/v1/auth/register` принимает `tempSessionId` (UUID) и `consentPayload` (три required `true`). Mobile-приложение отправляет согласия аналогично вебу; flow согласий идентичен: createConsentLogs → регистрация в core → linkConsentLogsToUser. Для API используется env `CONSENT_VERSION` (default `"v1.0 2026-02-13"`).
+API `POST /api/v1/auth/register` принимает `tempSessionId` (UUID) и `consentPayload` (три required `true`). Mobile-приложение отправляет согласия аналогично вебу; flow согласий идентичен: createConsentLogs → регистрация в core → linkConsentLogsToUser. Для API используется env `CONSENT_VERSION` (default `"v1.1 2026-03-27"`).
 
 **API contract:**
 
@@ -80,7 +81,7 @@ API `POST /api/v1/auth/register` принимает `tempSessionId` (UUID) и `c
 
 ## Переменные окружения
 
-- `CONSENT_VERSION` — версия документов (по умолчанию `v1.0 2026-02-13`)
+- `CONSENT_VERSION` — версия документов (по умолчанию `v1.1 2026-03-27`)
 - `CONSENT_CLEANUP_DAYS` — возраст записей для очистки (1–365 дней, по умолчанию 90)
 
 ## Очистка ConsentLog

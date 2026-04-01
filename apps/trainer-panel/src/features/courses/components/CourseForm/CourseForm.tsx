@@ -81,6 +81,7 @@ export default function CourseForm({
       isPublic: true,
       isPaid: false,
       priceRub: null as number | null,
+      appleIapProductId: "",
       showInProfile: true,
       isPersonalized: false,
       trainingDays: [],
@@ -105,6 +106,7 @@ export default function CourseForm({
         isPublic: initialValues.isPublic ?? true,
         isPaid: initialValues.isPaid ?? false,
         priceRub: initialValues.priceRub ?? null,
+        appleIapProductId: initialValues.appleIapProductId ?? "",
         showInProfile: initialValues.showInProfile ?? true,
         isPersonalized: initialValues.isPersonalized ?? false,
         trainingDays: initialValues.trainingDays ?? [],
@@ -141,6 +143,7 @@ export default function CourseForm({
           isPublic: data.isPublic,
           isPaid: data.isPaid,
           priceRub: data.priceRub ?? null,
+          appleIapProductId: data.appleIapProductId?.trim() || null,
           showInProfile: data.showInProfile,
           isPersonalized: data.isPersonalized,
           trainingDays: data.trainingDays,
@@ -164,6 +167,9 @@ export default function CourseForm({
         formData.append("isPaid", data.isPaid ? "true" : "false");
         if (data.isPaid && data.priceRub != null) {
           formData.append("priceRub", String(data.priceRub));
+        }
+        if (data.isPaid && data.appleIapProductId?.trim()) {
+          formData.append("appleIapProductId", data.appleIapProductId.trim());
         }
         formData.append("showInProfile", data.showInProfile ? "true" : "false");
         formData.append("isPersonalized", data.isPersonalized ? "true" : "false");
@@ -352,12 +358,14 @@ export default function CourseForm({
                   form.setValue("isPublic", true);
                   form.setValue("isPaid", false);
                   form.setValue("priceRub", null);
+                  form.setValue("appleIapProductId", "");
                   setSelectedUsers([]);
                   form.setValue("allowedUsers", []);
                 } else if (value === "private") {
                   form.setValue("isPublic", false);
                   form.setValue("isPaid", false);
                   form.setValue("priceRub", null);
+                  form.setValue("appleIapProductId", "");
                 } else if (value === "paid") {
                   form.setValue("isPublic", true);
                   form.setValue("isPaid", true);
@@ -394,6 +402,31 @@ export default function CourseForm({
                   max: { value: 999999, message: "Максимум 999 999 ₽" },
                   // Иначе react-hook-form отдаёт строку из input type="number", Zod в updateTrainerCourseSchema ждёт number
                   valueAsNumber: true,
+                }}
+              />
+            </Box>
+          )}
+          {form.watch("isPaid") && (
+            <Box className={sharedStyles.formField} sx={{ maxWidth: 480 }}>
+              <FormField
+                id="appleIapProductId"
+                name="appleIapProductId"
+                label="Apple IAP Product ID (iOS)"
+                placeholder="например: ru.gafus.app.course.название"
+                form={form}
+                helperText={
+                  "Для платных курсов укажите Product ID non-consumable из App Store Connect " +
+                  "(например ru.gafus.app.course....). Поле необязательно."
+                }
+                rules={{
+                  maxLength: { value: 255, message: "Не более 255 символов" },
+                  validate: (v) => {
+                    const s = (v as string) ?? "";
+                    if (s.length > 0 && s.trim().length === 0) {
+                      return "Введите непустой Product ID или очистите поле";
+                    }
+                    return true;
+                  },
                 }}
               />
             </Box>

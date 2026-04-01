@@ -1,4 +1,6 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+
 import { API_BASE_URL } from "@/constants";
 import { reportClientError } from "@/shared/lib/tracer";
 
@@ -107,6 +109,7 @@ export async function apiClient<T>(
 
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-Client-Platform": Platform.OS,
     ...(token && { Authorization: `Bearer ${token}` }),
     ...headers,
   };
@@ -201,7 +204,9 @@ export async function apiClientMultipart<T>(
 
   const doFetch = async (): Promise<Response> => {
     const token = await SecureStore.getItemAsync("auth_token");
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      "X-Client-Platform": Platform.OS,
+    };
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }

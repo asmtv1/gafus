@@ -22,8 +22,18 @@ export function prismaErrorToServiceError(
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case "P2002": {
-        const field = error.meta?.target as string[] | undefined;
-        const fieldName = field ? field.join(", ") : "данные";
+        const raw = error.meta?.target as string | string[] | undefined;
+        const targets = Array.isArray(raw)
+          ? raw.map(String)
+          : raw != null
+            ? [String(raw)]
+            : [];
+        if (targets.some((t) => t.includes("appleIapProductId"))) {
+          return new ConflictError(
+            "Этот Apple IAP Product ID уже привязан к другому курсу. Укажите уникальный Product ID из App Store Connect.",
+          );
+        }
+        const fieldName = targets.length > 0 ? targets.join(", ") : "данные";
         return new ConflictError(`Запись с такими ${fieldName} уже существует`);
       }
 

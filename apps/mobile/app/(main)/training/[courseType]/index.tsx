@@ -19,6 +19,8 @@ import { useShallow } from "zustand/react/shallow";
 import { declineRussianName } from "@gafus/core/utils";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
 import { WebView } from "react-native-webview";
+import { fetchProducts, initConnection } from "expo-iap";
+import type { Product } from "expo-iap";
 
 import { Loading } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
@@ -29,6 +31,7 @@ import { COLORS, SPACING, FONTS } from "@/constants";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training/components";
+import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 
@@ -85,6 +88,7 @@ export default function TrainingDaysScreen() {
   const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
+  const [iosApplePrice, setIosApplePrice] = useState<string | null>(null);
 
   const isAccessDenied =
     (data && "code" in data && data.code === "FORBIDDEN") ||
@@ -145,6 +149,20 @@ export default function TrainingDaysScreen() {
     }
     setIsCreatingPayment(true);
 
+    if (Platform.OS === "ios") {
+      const iapResult = await runAppleCourseIapPurchase({ courseId });
+      if (!iapResult.ok) {
+        if (!iapResult.userCancelled) {
+          setSnackbar({ visible: true, message: iapResult.message });
+        }
+        setIsCreatingPayment(false);
+        return;
+      }
+      setIsCreatingPayment(false);
+      await pollAccessAfterPayment();
+      return;
+    }
+
     const response = await paymentsApi.createPayment({ courseId });
     if (!response.success || !response.data?.confirmationUrl) {
       const messageByCode: Record<string, string> = {
@@ -154,6 +172,7 @@ export default function TrainingDaysScreen() {
         CONFIG_WEB_APP_URL: "Платежи временно недоступны (конфиг WEB_APP_URL).",
         CONFIG_YOOKASSA: "Платежи временно недоступны (конфиг YooKassa).",
         NOT_FOUND: "Курс не найден.",
+        APPLE_IAP_REQUIRED: "На этом устройстве оплата курса только через App Store.",
       };
       const fallback = response.error ?? "Не удалось создать платёж";
       setSnackbar({
@@ -167,7 +186,7 @@ export default function TrainingDaysScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [courseForPay?.id, isCreatingPayment]);
+  }, [courseForPay?.id, isCreatingPayment, pollAccessAfterPayment]);
 
   const handlePayOnWebsite = useCallback(() => {
     void hapticFeedback.light();
@@ -303,6 +322,35 @@ export default function TrainingDaysScreen() {
     // isLoadingCourseForPay намеренно не в deps: иначе при setState(true) эффект перезапускается,
     // cleanup выставляет cancelled, и запрос завершается без setCourseForPay
   }, [courseForPay, courseType, isAccessDenied]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios" || !isAccessDenied || !courseForPay?.id) {
+      setIosApplePrice(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const meta = await paymentsApi.getAppleCourseIapMetadata({ courseId: courseForPay.id });
+        if (!meta.success || !meta.data?.appleIapProductId || cancelled) return;
+        const sku = meta.data.appleIapProductId;
+        await initConnection();
+        if (cancelled) return;
+        const list = await fetchProducts({ skus: [sku], type: "in-app" });
+        if (cancelled) return;
+        const item = list?.find((x) => x.id === sku) as Product | undefined;
+        if (item?.displayPrice) setIosApplePrice(item.displayPrice);
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "AppleIAP",
+          keys: { phase: "prefetch_product_price" },
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAccessDenied, courseForPay?.id]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -474,7 +522,10 @@ export default function TrainingDaysScreen() {
                   {courseForPay?.name
                     ? `Оплатите «${courseForPay.name}» для доступа к занятиям.`
                     : "Оплатите курс для доступа к занятиям."}
-                  {courseForPay?.priceRub && courseForPay.priceRub > 0 ? (
+                  {Platform.OS === "ios" && iosApplePrice ? (
+                    <> Стоимость в App Store: {iosApplePrice}.</>
+                  ) : null}
+                  {Platform.OS !== "ios" && courseForPay?.priceRub && courseForPay.priceRub > 0 ? (
                     <>
                       {" "}
                       Стоимость: {courseForPay.priceRub} ₽.
@@ -499,7 +550,13 @@ export default function TrainingDaysScreen() {
                 style={styles.paywallPrimaryButton}
               >
                 <Text style={styles.paywallPrimaryButtonText}>
-                  {isCreatingPayment ? "Переход к оплате..." : "Оплатить/Начать курс"}
+                  {isCreatingPayment
+                    ? Platform.OS === "ios"
+                      ? "App Store…"
+                      : "Переход к оплате..."
+                    : Platform.OS === "ios"
+                      ? "Купить через App Store"
+                      : "Оплатить/Начать курс"}
                 </Text>
               </Pressable>
               <Pressable
@@ -509,7 +566,9 @@ export default function TrainingDaysScreen() {
                 }}
               >
                 <Text style={styles.ofertaHint}>
-                  Нажимая «Оплатить», я соглашаюсь с{" "}
+                  {Platform.OS === "ios"
+                    ? "Нажимая «Купить через App Store», я соглашаюсь с "
+                    : "Нажимая «Оплатить», я соглашаюсь с "}
                   <Text style={styles.ofertaHintLink}>Офертой</Text>
                 </Text>
               </Pressable>
@@ -522,9 +581,11 @@ export default function TrainingDaysScreen() {
               >
                 <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
               </Pressable>
-              <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
-                <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
-              </Pressable>
+              {Platform.OS !== "ios" ? (
+                <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
+                  <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </ScrollView>

@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Linking,
+  Platform,
 } from "react-native";
 import { Text, Surface, Snackbar, useTheme } from "react-native-paper";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,6 +34,7 @@ import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import type { DiaryEntry } from "@/shared/lib/api/training";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
+import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
@@ -376,19 +378,43 @@ export default function TrainingDayScreen() {
 
   const handleCreatePayment = useCallback(async () => {
     if (isCreatingPayment) return;
-    if (!courseId) {
+    if (!courseType) {
       setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
       return;
     }
     setIsCreatingPayment(true);
 
-    const response = await paymentsApi.createPayment({ courseId });
+    if (Platform.OS === "ios") {
+      const iapResult = await runAppleCourseIapPurchase(
+        dayData?.courseId
+          ? { courseId: dayData.courseId }
+          : { courseType },
+      );
+      if (!iapResult.ok) {
+        if (!iapResult.userCancelled) {
+          setSnackbar({ visible: true, message: iapResult.message });
+        }
+        setIsCreatingPayment(false);
+        return;
+      }
+      setIsCreatingPayment(false);
+      await pollAccessAfterPayment();
+      return;
+    }
+
+    const payParams = dayData?.courseId
+      ? { courseId: dayData.courseId }
+      : { courseType };
+    const response = await paymentsApi.createPayment(payParams);
     if (!response.success || !response.data?.confirmationUrl) {
       const messageByCode: Record<string, string> = {
         RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
         NETWORK_ERROR: "Нет подключения к интернету.",
         CONFIG: "Платежи временно недоступны.",
+        CONFIG_WEB_APP_URL: "Платежи временно недоступны (конфиг WEB_APP_URL).",
+        CONFIG_YOOKASSA: "Платежи временно недоступны (конфиг YooKassa).",
         NOT_FOUND: "Курс не найден.",
+        APPLE_IAP_REQUIRED: "На этом устройстве оплата курса только через App Store.",
       };
       const fallback = response.error ?? "Не удалось создать платёж";
       setSnackbar({
@@ -402,7 +428,12 @@ export default function TrainingDayScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [courseId, isCreatingPayment]);
+  }, [
+    courseType,
+    dayData?.courseId,
+    isCreatingPayment,
+    pollAccessAfterPayment,
+  ]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {
