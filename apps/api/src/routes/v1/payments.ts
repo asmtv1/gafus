@@ -170,7 +170,9 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
   }
 });
 
-function statusForAppleVerifyCode(code: string): number {
+type AppleVerifyHttpStatus = 400 | 404 | 409 | 500;
+
+function statusForAppleVerifyCode(code: string): AppleVerifyHttpStatus {
   switch (code) {
     case "APPLE_VERIFY_FAILED":
     case "APPLE_INVALID_PRODUCT_TYPE":
