@@ -7,11 +7,19 @@ export const petPreventionTypeSchema = z.enum(["VACCINATION", "DEWORMING", "TICK
 
 export const petPreventionReminderKindSchema = z.enum(["AFTER_DAYS", "ON_DATE"]);
 
+const REMINDER_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
 const reminderFields = {
   reminderEnabled: z.boolean().default(true),
   reminderKind: petPreventionReminderKindSchema.default("AFTER_DAYS"),
   reminderDaysAfter: z.number().int().min(1).max(1095).optional().nullable(),
   reminderOnDate: z.coerce.date().optional().nullable(),
+  /** Массив времён (ЧЧ:ММ) для отправки push; по умолчанию ["09:00"] */
+  reminderTimes: z
+    .array(z.string().regex(REMINDER_TIME_RE, "Формат ЧЧ:ММ"))
+    .min(1)
+    .max(5)
+    .default(["09:00"]),
 };
 
 const entryBodySchema = z.object({
@@ -48,6 +56,11 @@ export const batchEntrySchema = z.object({
   reminderKind: petPreventionReminderKindSchema.optional(),
   reminderDaysAfter: z.number().int().min(1).max(1095).optional().nullable(),
   reminderOnDate: z.coerce.date().optional().nullable(),
+  reminderTimes: z
+    .array(z.string().regex(REMINDER_TIME_RE, "Формат ЧЧ:ММ"))
+    .min(1)
+    .max(5)
+    .optional(),
 });
 
 export const batchRequestSchema = z.object({

@@ -59,6 +59,7 @@ export interface PetPreventionEntry {
   reminderDaysAfter?: number | null;
   reminderOnDate?: string | null;
   remindAt?: string | null;
+  reminderTimes?: string[];
   lastNotifiedForRemindAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -73,6 +74,7 @@ export interface CreatePreventionEntryData {
   reminderKind?: PetPreventionReminderKind;
   reminderDaysAfter?: number;
   reminderOnDate?: string;
+  reminderTimes?: string[];
 }
 
 export interface BatchPreventionEntry extends CreatePreventionEntryData {

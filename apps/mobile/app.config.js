@@ -1,6 +1,14 @@
 /** Динамический конфиг: прокидывает env в extra для Constants.expoConfig */
 const path = require("path");
-require("@expo/env").load(path.resolve(__dirname, "../.."), { force: true });
+const { load } = require("@expo/env");
+
+// Загружаем env в правильном порядке:
+// 1. Локальный apps/mobile/.env (если есть) — для локальных EAS-сборок
+// 2. Корневой .env монорепо — для dev-режима и как fallback
+// dotenv не перезаписывает уже установленные переменные,
+// поэтому значения из eas.json env секции имеют наивысший приоритет.
+load(path.resolve(__dirname), { force: true });
+load(path.resolve(__dirname, "../.."), { force: true });
 
 const vkClientIdAndroid = process.env.VK_CLIENT_ID_ANDROID ?? "";
 const vkClientIdIos = process.env.VK_CLIENT_ID_IOS ?? "";

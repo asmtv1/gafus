@@ -20,52 +20,136 @@ interface SendResult {
 
 const pushService = PushNotificationService.fromEnvironment();
 
+interface LocalTime {
+  hour: number;
+  minute: number;
+  /** 0=Вс, 1=Пн, ..., 6=Сб (как Date.getDay()) */
+  dayOfWeek: number;
+  year: number;
+  month: number;
+  day: number;
+}
+
+const WEEKDAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
 /**
- * Проверяет, совпадает ли текущий день недели с выбранными днями
+ * Возвращает текущие дату и время в указанной IANA timezone.
+ * Использует Intl.DateTimeFormat.formatToParts — корректно работает
+ * независимо от timezone сервера.
  */
-function matchesDayOfWeek(reminderDays: string | null, currentDayOfWeek: number): boolean {
-  // Если reminderDays не указано - все дни
+function getUserLocalTime(timezone: string): LocalTime {
+  const now = new Date();
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "short",
+      hour12: false,
+    }).formatToParts(now);
+  } catch {
+    // Неизвестная TZ — откат на UTC
+    logger.warn("Неизвестная timezone, используем UTC", { timezone });
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      weekday: "short",
+      hour12: false,
+    }).formatToParts(now);
+  }
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "0";
+
+  // При hour12: false полночь иногда отдаётся как "24" — нормализуем
+  let hour = parseInt(get("hour"), 10);
+  if (hour === 24) hour = 0;
+
+  const weekdayStr = get("weekday"); // "Sun", "Mon", ...
+  const dayOfWeek = WEEKDAY_EN.indexOf(weekdayStr as (typeof WEEKDAY_EN)[number]);
+
+  if (dayOfWeek === -1) {
+    logger.warn("Не удалось определить день недели", { weekdayStr, timezone });
+  }
+
+  return {
+    hour,
+    minute: parseInt(get("minute"), 10),
+    dayOfWeek: dayOfWeek >= 0 ? dayOfWeek : 0,
+    year: parseInt(get("year"), 10),
+    month: parseInt(get("month"), 10),
+    day: parseInt(get("day"), 10),
+  };
+}
+
+/**
+ * Проверяет, совпадает ли текущий день недели с выбранными днями.
+ * dayOfWeek: 0=Вс, 1=Пн, ..., 6=Сб (как Date.getDay())
+ * reminderDays: "1,2,3,4,5,6,7" где 1=Пн, 7=Вс
+ */
+function matchesDayOfWeek(reminderDays: string | null, dayOfWeek: number): boolean {
   if (!reminderDays) return true;
 
-  // currentDayOfWeek: 0=Воскресенье, 1=Понедельник, ..., 6=Суббота (Date.getDay())
-  // reminderDays: "1,2,3,4,5" где 1=Пн, 7=Вс
-  // Конвертируем: 0->7, 1->1, 2->2, ..., 6->6
-  const dayNumber = currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
-
-  const selectedDays = reminderDays.split(",").map((s) => s.trim()).filter(Boolean);
+  // Конвертируем JS dayOfWeek → схему хранения (0→7, остальные без изменений)
+  const dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek;
+  const selectedDays = reminderDays
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return selectedDays.includes(dayNumber.toString());
 }
 
 /**
- * Проверяет, совпадает ли текущее время с временем напоминания
- * Допускается расхождение ±5 минут
+ * Проверяет, совпадает ли текущее время с временем напоминания.
+ * Допускается расхождение ±5 минут (воркер тикает раз в 10 минут).
  */
-function matchesTime(reminderTime: string, currentTime: Date): boolean {
-  const [hours, minutes] = reminderTime.split(":").map(Number);
-  const currentHours = currentTime.getHours();
-  const currentMinutes = currentTime.getMinutes();
-
-  // Вычисляем разницу в минутах
-  const reminderTotalMinutes = hours * 60 + minutes;
-  const currentTotalMinutes = currentHours * 60 + currentMinutes;
-  const diff = Math.abs(reminderTotalMinutes - currentTotalMinutes);
-
-  // Допускаем расхождение ±5 минут
-  return diff <= 5;
+function matchesTime(reminderTime: string, hour: number, minute: number): boolean {
+  const [rHours, rMinutes] = reminderTime.split(":").map(Number);
+  if (isNaN(rHours) || isNaN(rMinutes)) return false;
+  const reminderTotal = rHours * 60 + rMinutes;
+  const currentTotal = hour * 60 + minute;
+  return Math.abs(reminderTotal - currentTotal) <= 5;
 }
 
 /**
- * Проверяет, не отправляли ли уже сегодня напоминание
+ * Проверяет, не отправляли ли уже сегодня напоминание.
+ * Сравнение ведётся в timezone пользователя, а не сервера.
  */
-function wasAlreadySentToday(lastSentAt: Date | null, currentTime: Date): boolean {
+function wasAlreadySentToday(
+  lastSentAt: Date | null,
+  timezone: string,
+  localYear: number,
+  localMonth: number,
+  localDay: number,
+): boolean {
   if (!lastSentAt) return false;
 
-  // Проверяем, что lastSentAt сегодня
-  const lastSentDate = new Date(lastSentAt);
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(lastSentAt);
+  } catch {
+    return false;
+  }
+
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+
   return (
-    lastSentDate.getFullYear() === currentTime.getFullYear() &&
-    lastSentDate.getMonth() === currentTime.getMonth() &&
-    lastSentDate.getDate() === currentTime.getDate()
+    get("year") === localYear &&
+    get("month") === localMonth &&
+    get("day") === localDay
   );
 }
 
@@ -75,9 +159,9 @@ function wasAlreadySentToday(lastSentAt: Date | null, currentTime: Date): boolea
 async function sendReminderToUser(
   userId: string,
   timezone: string,
+  reminderName: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Получаем подписки пользователя
     const subscriptions = await prisma.pushSubscription.findMany({
       where: { userId },
     });
@@ -87,10 +171,9 @@ async function sendReminderToUser(
       return { success: false, error: "No subscriptions" };
     }
 
-    // Создаём payload уведомления
     const payload = JSON.stringify({
-      title: "Напоминание о тренировке 🐕",
-      body: "Пора заниматься с питомцем! Не забудьте про сегодняшнюю тренировку.",
+      title: "Напоминание о тренировке",
+      body: reminderName,
       icon: "/icons/icon192.png",
       badge: "/icons/badge-72.png",
       data: {
@@ -103,55 +186,43 @@ async function sendReminderToUser(
     const webResults =
       partitioned.web.length > 0 ?
         await pushService.sendNotifications(partitioned.web, payload)
-      : {
-          results: [],
-          successCount: 0,
-          failureCount: 0,
-        };
+      : { results: [], successCount: 0, failureCount: 0 };
 
     const invalidWebEndpoints = webResults.results
-      .filter((result) => !result.success && PushNotificationService.shouldDeleteSubscription(result.error))
+      .filter(
+        (result) =>
+          !result.success && PushNotificationService.shouldDeleteSubscription(result.error),
+      )
       .map((result) => result.endpoint);
+
     if (invalidWebEndpoints.length > 0) {
       await prisma.pushSubscription.deleteMany({
-        where: {
-          endpoint: {
-            in: invalidWebEndpoints,
-          },
-        },
+        where: { endpoint: { in: invalidWebEndpoints } },
       });
     }
 
     const expoResults =
       partitioned.expo.length > 0 ?
         await sendExpoPushNotifications(partitioned.expo, {
-          title: "Напоминание о тренировке 🐕",
-          body: "Пора заниматься с питомцем! Не забудьте про сегодняшнюю тренировку.",
+          title: "Напоминание о тренировке",
+          body: reminderName,
           url: "/courses",
         })
-      : {
-          successCount: 0,
-          failureCount: 0,
-          deletedCount: 0,
-          temporaryFailureCount: 0,
-        };
+      : { successCount: 0, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0 };
 
     const rustoreResults =
       partitioned.rustore.length > 0 ?
         await sendRustorePushNotifications(partitioned.rustore, {
-          title: "Напоминание о тренировке 🐕",
-          body: "Пора заниматься с питомцем! Не забудьте про сегодняшнюю тренировку.",
+          title: "Напоминание о тренировке",
+          body: reminderName,
           url: "/courses",
         })
-      : {
-          successCount: 0,
-          failureCount: 0,
-          deletedCount: 0,
-          temporaryFailureCount: 0,
-        };
+      : { successCount: 0, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0 };
 
-    const successCount = webResults.successCount + expoResults.successCount + rustoreResults.successCount;
-    const failureCount = webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount;
+    const successCount =
+      webResults.successCount + expoResults.successCount + rustoreResults.successCount;
+    const failureCount =
+      webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount;
 
     if (successCount > 0) {
       logger.success("Напоминание отправлено", {
@@ -166,10 +237,7 @@ async function sendReminderToUser(
       });
       return { success: true };
     } else {
-      logger.warn("Не удалось отправить напоминание", {
-        userId,
-        failureCount,
-      });
+      logger.warn("Не удалось отправить напоминание", { userId, failureCount });
       return { success: false, error: "All sends failed" };
     }
   } catch (error) {
@@ -182,28 +250,21 @@ async function sendReminderToUser(
 }
 
 /**
- * Главная функция отправки напоминаний
- * Вызывается по расписанию (например, каждые 10 минут)
+ * Главная функция отправки напоминаний.
+ * Вызывается по расписанию (каждые 10 минут).
  */
 export async function sendTrainingReminders(): Promise<SendResult> {
-  const result: SendResult = {
-    sent: 0,
-    skipped: 0,
-    errors: 0,
-  };
+  const result: SendResult = { sent: 0, skipped: 0, errors: 0 };
 
   try {
     logger.info("Начинаем проверку напоминаний о тренировках");
 
-    // Получаем все включенные напоминания о тренировках
     const reminders = await prisma.reminder.findMany({
-      where: {
-        type: "training",
-        enabled: true,
-      },
+      where: { type: "training", enabled: true },
       select: {
         id: true,
         userId: true,
+        name: true,
         reminderTime: true,
         reminderDays: true,
         timezone: true,
@@ -213,33 +274,38 @@ export async function sendTrainingReminders(): Promise<SendResult> {
 
     logger.info(`Найдено ${reminders.length} активных напоминаний`);
 
-    // Обрабатываем каждое напоминание
     for (const reminder of reminders) {
       try {
-        // Получаем текущее время в timezone пользователя
-        const currentTime = new Date(
-          new Date().toLocaleString("en-US", { timeZone: reminder.timezone }),
-        );
+        // Получаем текущие дату и время в TZ пользователя через Intl
+        const local = getUserLocalTime(reminder.timezone);
 
         // Проверяем день недели
-        if (!matchesDayOfWeek(reminder.reminderDays, currentTime.getDay())) {
+        if (!matchesDayOfWeek(reminder.reminderDays, local.dayOfWeek)) {
           logger.info("Сегодня не день для напоминания", {
             userId: reminder.userId,
             reminderDays: reminder.reminderDays,
-            currentDay: currentTime.getDay(),
+            currentDayOfWeek: local.dayOfWeek,
           });
           result.skipped++;
           continue;
         }
 
-        // Проверяем время
-        if (!matchesTime(reminder.reminderTime, currentTime)) {
+        // Проверяем время (±5 минут)
+        if (!matchesTime(reminder.reminderTime, local.hour, local.minute)) {
           result.skipped++;
           continue;
         }
 
-        // Проверяем, не отправляли ли уже сегодня
-        if (wasAlreadySentToday(reminder.lastSentAt, currentTime)) {
+        // Проверяем дедуп «уже сегодня» в TZ пользователя
+        if (
+          wasAlreadySentToday(
+            reminder.lastSentAt,
+            reminder.timezone,
+            local.year,
+            local.month,
+            local.day,
+          )
+        ) {
           logger.info("Напоминание уже отправлено сегодня", {
             userId: reminder.userId,
             lastSentAt: reminder.lastSentAt,
@@ -248,11 +314,13 @@ export async function sendTrainingReminders(): Promise<SendResult> {
           continue;
         }
 
-        // Отправляем напоминание
-        const sendResult = await sendReminderToUser(reminder.userId, reminder.timezone);
+        const sendResult = await sendReminderToUser(
+          reminder.userId,
+          reminder.timezone,
+          reminder.name,
+        );
 
         if (sendResult.success) {
-          // Обновляем lastSentAt
           await prisma.reminder.update({
             where: { id: reminder.id },
             data: { lastSentAt: new Date() },

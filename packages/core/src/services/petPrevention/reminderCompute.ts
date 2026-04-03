@@ -27,19 +27,28 @@ export interface ReminderState {
   reminderKind: "AFTER_DAYS" | "ON_DATE";
   reminderDaysAfter: number | null;
   reminderOnDate: Date | null;
+  reminderTimes?: string[];
 }
 
 export interface ComputedReminder extends ReminderState {
   remindAt: Date | null;
+  reminderTimes: string[];
 }
 
 /**
  * Считает remindAt и нормализует поля напоминания для записи в БД.
  */
+const DEFAULT_REMINDER_TIMES = ["09:00"];
+
 export function computeReminderFields(params: {
   performedAt: Date;
   type: PetPreventionTypeKey;
 } & ReminderState): ComputedReminder {
+  const times =
+    params.reminderTimes && params.reminderTimes.length > 0
+      ? params.reminderTimes
+      : DEFAULT_REMINDER_TIMES;
+
   if (!params.reminderEnabled) {
     return {
       reminderEnabled: false,
@@ -47,6 +56,7 @@ export function computeReminderFields(params: {
       reminderDaysAfter: null,
       reminderOnDate: null,
       remindAt: null,
+      reminderTimes: times,
     };
   }
 
@@ -61,6 +71,7 @@ export function computeReminderFields(params: {
       reminderDaysAfter: days,
       reminderOnDate: null,
       remindAt,
+      reminderTimes: times,
     };
   }
 
@@ -75,5 +86,6 @@ export function computeReminderFields(params: {
     reminderDaysAfter: null,
     reminderOnDate: remindAt,
     remindAt,
+    reminderTimes: times,
   };
 }

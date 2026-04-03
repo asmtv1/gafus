@@ -1,13 +1,22 @@
 import { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { Text, Snackbar, HelperText } from "react-native-paper";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
+import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
-import { COLORS, SPACING } from "@/constants";
-import { Button, Input } from "@/shared/components/ui";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
 import { userApi, type UpdateProfileData } from "@/shared/lib/api";
 import {
   formatIsoBirthDateToDdMmYyyy,
@@ -25,9 +34,6 @@ const editProfileSchema = z.object({
   birthDate: z.string().trim().max(100),
 });
 
-/**
- * Функция для преобразования профиля в данные формы (как в веб-версии)
- */
 function mapProfileToForm(profile: {
   fullName?: string | null;
   about?: string | null;
@@ -47,7 +53,7 @@ function mapProfileToForm(profile: {
 }
 
 /**
- * Экран редактирования профиля (логика как в веб-версии)
+ * Редактирование «О себе» — тот же визуальный паттерн, что экран «Напоминания»
  */
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -64,7 +70,6 @@ export default function EditProfileScreen() {
   });
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
 
-  // Загрузка профиля (как в веб-версии через fetchProfile)
   const {
     data: profileData,
     isLoading,
@@ -78,7 +83,6 @@ export default function EditProfileScreen() {
     },
   });
 
-  // Инициализация формы данными из профиля (как в веб-версии)
   useEffect(() => {
     if (profileData?.success && profileData.data?.profile) {
       const profile = profileData.data.profile;
@@ -86,15 +90,13 @@ export default function EditProfileScreen() {
     }
   }, [profileData]);
 
-  // Мутация обновления профиля
   const updateMutation = useMutation({
     mutationFn: userApi.updateProfile,
     onSuccess: (result) => {
       if (result.success && result.data) {
         setUser(result.data);
-        // Инвалидируем кэш профиля (как в веб-версии через clearProfilePageCache)
         queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-        hapticFeedback.success();
+        void hapticFeedback.success();
         setSnackbar({ visible: true, message: "Профиль обновлён" });
         setTimeout(() => router.back(), 1000);
       } else {
@@ -140,178 +142,154 @@ export default function EditProfileScreen() {
     updateMutation.mutate(parsed.data);
   };
 
-  // Показываем загрузку пока профиль загружается
-  if (isLoading) {
-    return (
-      <>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: "Редактировать «О себе»",
-          }}
-        />
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
-          <View style={styles.loadingContainer}>
-            <Text variant="titleLarge" style={styles.loadingTitle}>
-              Редактировать «О себе»
-            </Text>
-            <Text style={styles.loadingText}>Загрузка профиля...</Text>
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
-
-  // Показываем ошибку если не удалось загрузить профиль
-  if (error) {
-    return (
-      <>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: "Редактировать «О себе»",
-          }}
-        />
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
-          <View style={styles.loadingContainer}>
-            <Text variant="titleLarge" style={styles.loadingTitle}>
-              Редактировать «О себе»
-            </Text>
-            <Text style={[styles.loadingText, styles.errorText]}>
-              Ошибка загрузки профиля:{" "}
-              {error instanceof Error ? error.message : "Неизвестная ошибка"}
-            </Text>
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
+  const handleBack = () => {
+    void hapticFeedback.light();
+    router.back();
+  };
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: "Редактировать «О себе»",
-        }}
-      />
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={handleBack} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
+        </Pressable>
+
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text variant="titleLarge" style={styles.title}>
-              Редактировать «О себе»
-            </Text>
+          {isLoading ? (
+            <View style={styles.centerBlock}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.mutedText}>Загрузка профиля…</Text>
+            </View>
+          ) : error ? (
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <View style={styles.formCard}>
+                <Text style={styles.screenTitle}>О себе</Text>
+                <Text style={styles.errorInline}>
+                  {error instanceof Error ? error.message : "Не удалось загрузить профиль"}
+                </Text>
+                <Pressable style={styles.secondaryButton} onPress={handleBack}>
+                  <Text style={styles.secondaryButtonText}>Назад</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.formCard}>
+                <Text style={styles.screenTitle}>О себе</Text>
 
-            {/* Основная информация */}
-            <View style={styles.section}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Основная информация
-              </Text>
+                <Text style={styles.sectionHeading}>Основная информация</Text>
 
-              <Input
-                label="Имя и фамилия"
-                placeholder="Имя и фамилия"
-                value={form.fullName || ""}
-                onChangeText={(v) => updateField("fullName", v)}
-                autoCapitalize="words"
-              />
+                <Text style={styles.fieldLabel}>Имя и фамилия</Text>
+                <TextInput
+                  value={form.fullName || ""}
+                  onChangeText={(v) => updateField("fullName", v)}
+                  style={styles.input}
+                  placeholder="Имя и фамилия"
+                  placeholderTextColor={COLORS.disabled}
+                  autoCapitalize="words"
+                />
 
-              <View style={styles.inputWrapper}>
-                <Input
-                  label="Дата рождения"
-                  placeholder="ДД.ММ.ГГГГ"
+                <Text style={styles.fieldLabel}>Дата рождения</Text>
+                <TextInput
                   value={form.birthDate || ""}
                   onChangeText={(v) => updateField("birthDate", v)}
+                  style={styles.input}
+                  placeholder="ДД.ММ.ГГГГ"
+                  placeholderTextColor={COLORS.disabled}
                   keyboardType="numbers-and-punctuation"
                 />
-                <HelperText type="info" visible style={styles.helperText}>
-                  Формат: ДД.ММ.ГГГГ
-                </HelperText>
-              </View>
+                <Text style={styles.hintText}>Формат: ДД.ММ.ГГГГ</Text>
 
-              <Input
-                label="Заметки о себе"
-                placeholder="О себе"
-                value={form.about || ""}
-                onChangeText={(v) => updateField("about", v)}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
+                <Text style={styles.fieldLabel}>Заметки о себе</Text>
+                <TextInput
+                  value={form.about || ""}
+                  onChangeText={(v) => updateField("about", v)}
+                  style={[styles.input, styles.inputMultiline]}
+                  placeholder="О себе"
+                  placeholderTextColor={COLORS.disabled}
+                  multiline
+                  textAlignVertical="top"
+                />
 
-            {/* Контактная информация */}
-            <View style={styles.section}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Контактная информация
-              </Text>
+                <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
+                  Контакты
+                </Text>
 
-              <View style={styles.inputWrapper}>
-                <Input
-                  label="Telegram для связи"
-                  placeholder="asmtv1"
+                <Text style={styles.fieldLabel}>Telegram</Text>
+                <TextInput
                   value={form.telegram || ""}
                   onChangeText={(v) => updateField("telegram", v)}
+                  style={styles.input}
+                  placeholder="username без @"
+                  placeholderTextColor={COLORS.disabled}
                   autoCapitalize="none"
+                  autoCorrect={false}
                 />
-                <HelperText type="info" visible={true} style={styles.helperText}>
-                  Введите username без @ (например: asmtv1). Минимум 5 символов, только латинские
-                  буквы, цифры и подчеркивание.
-                </HelperText>
-              </View>
+                <Text style={styles.hintText}>
+                  Минимум 5 символов: латиница, цифры, подчёркивание.
+                </Text>
 
-              <View style={styles.inputWrapper}>
-                <Input
-                  label="Ваш Instagram"
-                  placeholder="doghandler_lana"
+                <Text style={styles.fieldLabel}>Instagram</Text>
+                <TextInput
                   value={form.instagram || ""}
                   onChangeText={(v) => updateField("instagram", v)}
+                  style={styles.input}
+                  placeholder="username без @"
+                  placeholderTextColor={COLORS.disabled}
                   autoCapitalize="none"
+                  autoCorrect={false}
                 />
-                <HelperText type="info" visible={true} style={styles.helperText}>
-                  Введите username без @ (например: doghandler_lana). До 30 символов, только
-                  латинские буквы, цифры, точки и подчеркивание.
-                </HelperText>
-              </View>
+                <Text style={styles.hintText}>
+                  До 30 символов: латиница, цифры, точка, подчёркивание.
+                </Text>
 
-              <View style={styles.inputWrapper}>
-                <Input
-                  label="YouTube или сайт"
-                  placeholder="youtube.com/@username или example.com"
+                <Text style={styles.fieldLabel}>YouTube или сайт</Text>
+                <TextInput
                   value={form.website || ""}
                   onChangeText={(v) => updateField("website", v)}
+                  style={styles.input}
+                  placeholder="youtube.com/@… или example.com"
+                  placeholderTextColor={COLORS.disabled}
                   autoCapitalize="none"
+                  autoCorrect={false}
                   keyboardType="url"
                 />
-                <HelperText type="info" visible={true} style={styles.helperText}>
-                  Введите URL сайта или канала YouTube. Можно без https:// и www - они добавятся
-                  автоматически.
-                </HelperText>
-              </View>
-            </View>
+                <Text style={styles.hintText}>
+                  YouTube или сайт. Можно без https:// и www — добавятся автоматически.
+                </Text>
 
-            {/* Кнопки */}
-            <View style={styles.actions}>
-              <Button
-                label="Вернуться без сохранения"
-                mode="outlined"
-                onPress={() => router.back()}
-                style={styles.button}
-              />
-              <Button
-                label="Сохранить"
-                onPress={handleSave}
-                loading={updateMutation.isPending}
-                disabled={updateMutation.isPending}
-                style={styles.button}
-              />
-            </View>
-          </ScrollView>
+                <View style={styles.actionsRow}>
+                  <Pressable
+                    style={styles.secondaryButton}
+                    onPress={handleBack}
+                    disabled={updateMutation.isPending}
+                  >
+                    <Text style={styles.secondaryButtonText}>Отмена</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.primaryButton,
+                      updateMutation.isPending && styles.primaryButtonDisabled,
+                    ]}
+                    onPress={handleSave}
+                    disabled={updateMutation.isPending}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {updateMutation.isPending ? "Сохранение…" : "Сохранить"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </ScrollView>
+          )}
         </KeyboardAvoidingView>
 
         <Snackbar
@@ -334,58 +312,130 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
+  },
+  backText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
   scrollContent: {
     padding: SPACING.md,
+    paddingTop: 0,
+    paddingBottom: SPACING.xl,
   },
-  title: {
-    marginBottom: SPACING.lg,
-    fontWeight: "400",
-    color: COLORS.text,
-  },
-  loadingContainer: {
+  centerBlock: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: SPACING.md,
     padding: SPACING.lg,
   },
-  loadingTitle: {
-    marginBottom: SPACING.md,
-    fontWeight: "400",
-    color: COLORS.text,
-  },
-  loadingText: {
+  mutedText: {
+    fontSize: 14,
     color: COLORS.textSecondary,
-    textAlign: "center",
+    fontFamily: FONTS.montserrat,
   },
-  errorText: {
-    color: COLORS.error,
+  formCard: {
+    backgroundColor: "#F5F0E8",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    padding: SPACING.md,
+    gap: SPACING.sm,
   },
-  section: {
-    marginBottom: SPACING.lg,
+  screenTitle: {
+    fontSize: 24,
+    fontFamily: FONTS.impact,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
   },
-  sectionTitle: {
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: "700",
+    fontFamily: FONTS.impact,
+    color: COLORS.text,
+    marginTop: SPACING.xs,
+  },
+  sectionHeadingSpaced: {
+    marginTop: SPACING.md,
+  },
+  fieldLabel: {
+    fontSize: 13,
     fontWeight: "600",
-    marginBottom: SPACING.md,
-    color: COLORS.text,
-  },
-  inputWrapper: {
-    marginBottom: SPACING.sm,
-  },
-  helperText: {
-    marginTop: -SPACING.xs,
-    marginBottom: SPACING.sm,
-    fontSize: 12,
-  },
-  inputPrefix: {
     color: COLORS.textSecondary,
-    marginLeft: SPACING.sm,
+    fontFamily: FONTS.montserrat,
+    marginTop: 4,
   },
-  actions: {
+  hintText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: "#FFF",
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
+  },
+  inputMultiline: {
+    minHeight: 100,
+    paddingTop: Platform.OS === "ios" ? 12 : 10,
+  },
+  errorInline: {
+    fontSize: 14,
+    color: COLORS.error,
+    fontFamily: FONTS.montserrat,
+    marginBottom: SPACING.sm,
+  },
+  actionsRow: {
     flexDirection: "row",
     gap: SPACING.sm,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
   },
-  button: {
+  secondaryButton: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    backgroundColor: "transparent",
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+  },
+  primaryButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.55,
+  },
+  primaryButtonText: {
+    color: COLORS.onPrimary,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
   },
 });

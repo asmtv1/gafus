@@ -1,12 +1,22 @@
 import { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from "react-native";
-import { Text, Surface, IconButton } from "react-native-paper";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
+import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS, SPACING } from "@/constants";
-import { Button, Input } from "@/shared/components/ui";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
 import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import {
   formatIsoBirthDateToDdMmYyyy,
@@ -17,12 +27,12 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 const LOG_PREFIX = "[EditPetScreen]";
 
 const PET_TYPES = [
-  { value: "DOG", label: "Собака", icon: "dog" },
-  { value: "CAT", label: "Кошка", icon: "cat" },
-] as const satisfies ReadonlyArray<{ value: PetKind; label: string; icon: string }>;
+  { value: "DOG" as const, label: "Собака", icon: "dog" as const },
+  { value: "CAT" as const, label: "Кошка", icon: "cat" as const },
+];
 
 /**
- * Экран редактирования питомца
+ * Редактировать питомца — тот же визуальный паттерн, что «Напоминания» / «О себе»
  */
 export default function EditPetScreen() {
   const router = useRouter();
@@ -37,7 +47,6 @@ export default function EditPetScreen() {
   const [weightKg, setWeightKg] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Загрузка питомца по id (тот же источник, что и GET /pets/:id на API)
   const { data: petData, isLoading: isLoadingPet } = useQuery({
     queryKey: ["pet", petId],
     queryFn: async () => {
@@ -50,7 +59,6 @@ export default function EditPetScreen() {
     enabled: !!petId,
   });
 
-  // Заполнение формы при загрузке питомца (проверка id — от залипания кэша при смене маршрута)
   useEffect(() => {
     if (!petData || petData.id !== petId) return;
     setName(petData.name || "");
@@ -62,7 +70,6 @@ export default function EditPetScreen() {
     setNotes(petData.notes || "");
   }, [petData, petId]);
 
-  // Обновление питомца
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreatePetData> }) => {
       const res = await petsApi.update(id, data);
@@ -79,7 +86,7 @@ export default function EditPetScreen() {
       }
       queryClient.invalidateQueries({ queryKey: ["pets"] });
       queryClient.invalidateQueries({ queryKey: ["pet"] });
-      hapticFeedback.success();
+      void hapticFeedback.success();
       router.back();
     },
     onError: (error) => {
@@ -89,9 +96,17 @@ export default function EditPetScreen() {
           errorStack: error instanceof Error ? error.stack : undefined,
         });
       }
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось обновить питомца");
+      Alert.alert(
+        "Ошибка",
+        error instanceof Error ? error.message : "Не удалось обновить питомца",
+      );
     },
   });
+
+  const handleBack = () => {
+    void hapticFeedback.light();
+    router.back();
+  };
 
   const handleSave = () => {
     if (!petId) {
@@ -99,63 +114,36 @@ export default function EditPetScreen() {
       return;
     }
 
-    if (__DEV__) {
-      console.log(`${LOG_PREFIX} Начало сохранения питомца`, {
-        petId,
-        name,
-        type,
-        breed,
-        birthDate,
-      });
-    }
-
-    // Валидация обязательных полей
     if (!name.trim()) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: имя питомца пустое`);
-      }
       Alert.alert("Ошибка", "Имя питомца обязательно");
       return;
     }
 
     if (!breed.trim()) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: порода пустая`);
-      }
       Alert.alert("Ошибка", "Порода обязательна");
       return;
     }
 
     const birthCheck = validatePetBirthDateInput(birthDate);
     if (!birthCheck.ok) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация даты не пройдена`, { birthDate, message: birthCheck.message });
-      }
       Alert.alert("Ошибка", birthCheck.message);
       return;
     }
 
-    // Валидация числовых полей
     const height = heightCm.trim() ? parseFloat(heightCm) : undefined;
     const weight = weightKg.trim() ? parseFloat(weightKg) : undefined;
 
     if (height !== undefined && (isNaN(height) || height < 1 || height > 200)) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный рост`, { height, heightCm });
-      }
       Alert.alert("Ошибка", "Рост должен быть от 1 до 200 см");
       return;
     }
 
     if (weight !== undefined && (isNaN(weight) || weight < 0.1 || weight > 200)) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный вес`, { weight, weightKg });
-      }
       Alert.alert("Ошибка", "Вес должен быть от 0.1 до 200 кг");
       return;
     }
 
-    const petData: Partial<CreatePetData> = {
+    const petPayload: Partial<CreatePetData> = {
       name: name.trim(),
       type,
       breed: breed.trim(),
@@ -165,159 +153,172 @@ export default function EditPetScreen() {
       notes: notes.trim() || undefined,
     };
 
-    if (__DEV__) {
-      console.log(`${LOG_PREFIX} Валидация пройдена, отправка данных на сервер`, {
-        petId,
-        petData: { ...petData, notes: petData.notes ? "[заметки есть]" : undefined },
-      });
-    }
-
-    updateMutation.mutate({ id: petId, data: petData });
+    updateMutation.mutate({ id: petId, data: petPayload });
   };
-
-  if (isLoadingPet) {
-    return (
-      <>
-        <Stack.Screen options={{ headerShown: true, title: "Редактировать питомца" }} />
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
-          <View style={styles.loadingContainer}>
-            <Text>Загрузка...</Text>
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
-
-  if (!petData) {
-    return (
-      <>
-        <Stack.Screen options={{ headerShown: true, title: "Редактировать питомца" }} />
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
-          <View style={styles.loadingContainer}>
-            <Text>Питомец не найден</Text>
-            <Button label="Назад" variant="outline" onPress={() => router.back()} />
-          </View>
-        </SafeAreaView>
-      </>
-    );
-  }
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: "Редактировать питомца" }} />
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={handleBack} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
+        </Pressable>
+
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Основная информация */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Основная информация</Text>
-
-              <Input
-                label="Имя питомца *"
-                value={name}
-                onChangeText={setName}
-                placeholder="Введите имя питомца"
-              />
-
-              <Text style={styles.fieldLabel}>
-                Тип <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.typeSelector}>
-                {PET_TYPES.map((t) => (
-                  <Surface
-                    key={t.value}
-                    style={[styles.typeOption, type === t.value && styles.typeOptionSelected]}
-                    elevation={type === t.value ? 2 : 0}
-                  >
-                    <IconButton
-                      icon={t.icon}
-                      size={24}
-                      iconColor={type === t.value ? COLORS.primary : COLORS.textSecondary}
-                      onPress={() => setType(t.value)}
-                    />
-                    <Text style={[styles.typeLabel, type === t.value && styles.typeLabelSelected]}>
-                      {t.label}
-                    </Text>
-                  </Surface>
-                ))}
+          {isLoadingPet ? (
+            <View style={styles.centerBlock}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.mutedText}>Загрузка…</Text>
+            </View>
+          ) : !petData ? (
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <View style={styles.formCard}>
+                <Text style={styles.screenTitle}>Редактировать питомца</Text>
+                <Text style={styles.errorInline}>Питомец не найден</Text>
+                <Pressable style={styles.secondaryButton} onPress={handleBack}>
+                  <Text style={styles.secondaryButtonText}>Назад</Text>
+                </Pressable>
               </View>
+            </ScrollView>
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.formCard}>
+                <Text style={styles.screenTitle}>Редактировать питомца</Text>
 
-              <Input
-                label="Порода *"
-                value={breed}
-                onChangeText={setBreed}
-                placeholder="Введите породу"
-              />
+                <Text style={styles.sectionHeading}>Основная информация</Text>
 
-              <Input
-                label="Дата рождения *"
-                value={birthDate}
-                onChangeText={setBirthDate}
-                placeholder="ДД.ММ.ГГГГ"
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
+                <Text style={styles.fieldLabel}>Имя питомца *</Text>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  style={styles.input}
+                  placeholder="Кличка"
+                  placeholderTextColor={COLORS.disabled}
+                />
 
-            {/* Физические характеристики */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Физические характеристики</Text>
+                <Text style={styles.fieldLabel}>Тип *</Text>
+                <View style={styles.typeRow}>
+                  {PET_TYPES.map((t) => (
+                    <Pressable
+                      key={t.value}
+                      style={[styles.typeChip, type === t.value && styles.typeChipSelected]}
+                      onPress={() => {
+                        void hapticFeedback.selection();
+                        setType(t.value);
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={t.icon}
+                        size={20}
+                        color={type === t.value ? COLORS.onPrimary : COLORS.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.typeChipText,
+                          type === t.value && styles.typeChipTextSelected,
+                        ]}
+                      >
+                        {t.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
 
-              <Input
-                label="Рост (см)"
-                value={heightCm}
-                onChangeText={setHeightCm}
-                placeholder="Введите рост"
-                keyboardType="numeric"
-              />
+                <Text style={styles.fieldLabel}>Порода *</Text>
+                <TextInput
+                  value={breed}
+                  onChangeText={setBreed}
+                  style={styles.input}
+                  placeholder="Порода"
+                  placeholderTextColor={COLORS.disabled}
+                />
 
-              <Input
-                label="Вес (кг)"
-                value={weightKg}
-                onChangeText={setWeightKg}
-                placeholder="Введите вес"
-                keyboardType="numeric"
-              />
-            </View>
+                <Text style={styles.fieldLabel}>Дата рождения *</Text>
+                <TextInput
+                  value={birthDate}
+                  onChangeText={setBirthDate}
+                  style={styles.input}
+                  placeholder="ДД.ММ.ГГГГ"
+                  placeholderTextColor={COLORS.disabled}
+                  keyboardType="numbers-and-punctuation"
+                />
+                <Text style={styles.hintText}>Формат: ДД.ММ.ГГГГ</Text>
 
-            {/* Дополнительная информация */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Дополнительная информация</Text>
+                <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
+                  Физические характеристики
+                </Text>
 
-              <Input
-                label="Заметки"
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Дополнительная информация о питомце"
-                multiline
-                numberOfLines={3}
-              />
-            </View>
+                <Text style={styles.fieldLabel}>Рост (см)</Text>
+                <TextInput
+                  value={heightCm}
+                  onChangeText={setHeightCm}
+                  style={styles.input}
+                  placeholder="Необязательно"
+                  placeholderTextColor={COLORS.disabled}
+                  keyboardType="decimal-pad"
+                />
 
-            <View style={styles.actions}>
-              <Button
-                label="Отмена"
-                variant="outline"
-                onPress={() => router.back()}
-                style={styles.actionButton}
-              />
-              <Button
-                label="Сохранить"
-                variant="primary"
-                onPress={handleSave}
-                loading={updateMutation.isPending}
-                disabled={
-                  !name.trim() || !breed.trim() || !birthDate.trim() || updateMutation.isPending
-                }
-                style={styles.actionButton}
-              />
-            </View>
-          </ScrollView>
+                <Text style={styles.fieldLabel}>Вес (кг)</Text>
+                <TextInput
+                  value={weightKg}
+                  onChangeText={setWeightKg}
+                  style={styles.input}
+                  placeholder="Необязательно"
+                  placeholderTextColor={COLORS.disabled}
+                  keyboardType="decimal-pad"
+                />
+
+                <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
+                  Дополнительно
+                </Text>
+
+                <Text style={styles.fieldLabel}>Заметки</Text>
+                <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  style={[styles.input, styles.inputMultiline]}
+                  placeholder="Заметки о питомце"
+                  placeholderTextColor={COLORS.disabled}
+                  multiline
+                  textAlignVertical="top"
+                />
+
+                <View style={styles.actionsRow}>
+                  <Pressable
+                    style={styles.secondaryButton}
+                    onPress={handleBack}
+                    disabled={updateMutation.isPending}
+                  >
+                    <Text style={styles.secondaryButtonText}>Отмена</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.primaryButton,
+                      updateMutation.isPending && styles.primaryButtonDisabled,
+                    ]}
+                    onPress={handleSave}
+                    disabled={
+                      !name.trim() ||
+                      !breed.trim() ||
+                      !birthDate.trim() ||
+                      updateMutation.isPending
+                    }
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {updateMutation.isPending ? "Сохранение…" : "Сохранить"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </ScrollView>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </>
@@ -332,63 +333,160 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  scrollContent: {
-    padding: SPACING.lg,
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
   },
-  loadingContainer: {
+  backText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  centerBlock: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: SPACING.xl,
+    gap: SPACING.md,
+    padding: SPACING.lg,
   },
-  section: {
-    marginBottom: SPACING.lg,
+  mutedText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+  scrollContent: {
+    padding: SPACING.md,
+    paddingTop: 0,
+    paddingBottom: SPACING.xl,
+  },
+  formCard: {
+    backgroundColor: "#F5F0E8",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontFamily: FONTS.impact,
     color: COLORS.text,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: "700",
+    fontFamily: FONTS.impact,
+    color: COLORS.text,
+    marginTop: SPACING.xs,
+  },
+  sectionHeadingSpaced: {
+    marginTop: SPACING.md,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: "600",
     color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-    marginTop: SPACING.sm,
+    fontFamily: FONTS.montserrat,
+    marginTop: 4,
   },
-  required: {
+  hintText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  errorInline: {
+    fontSize: 14,
     color: COLORS.error,
-    fontWeight: "bold",
+    fontFamily: FONTS.montserrat,
+    marginBottom: SPACING.sm,
   },
-  typeSelector: {
+  input: {
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: "#FFF",
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
+  },
+  inputMultiline: {
+    minHeight: 88,
+    paddingTop: Platform.OS === "ios" ? 12 : 10,
+  },
+  typeRow: {
     flexDirection: "row",
     gap: SPACING.sm,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
-  typeOption: {
+  typeChip: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    backgroundColor: "#FFF",
+  },
+  typeChipSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  typeChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
+    color: COLORS.textSecondary,
+  },
+  typeChipTextSelected: {
+    color: COLORS.onPrimary,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  secondaryButton: {
     flex: 1,
     alignItems: "center",
-    padding: SPACING.sm,
-    borderRadius: 12,
-    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    backgroundColor: "transparent",
   },
-  typeOptionSelected: {
-    backgroundColor: COLORS.primary + "15",
-  },
-  typeLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  typeLabelSelected: {
-    color: COLORS.primary,
+  secondaryButtonText: {
+    fontSize: 14,
     fontWeight: "600",
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
   },
-  actions: {
-    flexDirection: "row",
-    gap: SPACING.sm,
-    marginTop: SPACING.lg,
-  },
-  actionButton: {
+  primaryButton: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.55,
+  },
+  primaryButtonText: {
+    color: COLORS.onPrimary,
+    fontWeight: "600",
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
   },
 });

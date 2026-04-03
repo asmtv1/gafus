@@ -64,6 +64,19 @@ for android_build in "$MOBILE/android/app/build" "$MOBILE/android/build"; do
     echo "  ✅ $android_build удалён"
   fi
 done
+# Локальный Gradle/CMake в репозитории (тяжёлый кэш после release-сборок)
+for android_junk in "$MOBILE/android/.gradle" "$MOBILE/android/app/.cxx"; do
+  if [ -d "$android_junk" ]; then
+    echo "  Удаляем $android_junk..."
+    rm -rf "$android_junk"
+    echo "  ✅ $android_junk удалён"
+  fi
+done
+if [ -d "$MOBILE/ios/build" ]; then
+  echo "  Удаляем $MOBILE/ios/build..."
+  rm -rf "$MOBILE/ios/build"
+  echo "  ✅ $MOBILE/ios/build удалён"
+fi
 
 # 6. coverage
 find . -maxdepth 4 -type d -name "coverage" ! -path "*/node_modules/*" -exec rm -rf {} + 2>/dev/null || true

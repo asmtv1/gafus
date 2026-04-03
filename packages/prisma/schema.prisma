@@ -444,8 +444,12 @@ model PetPreventionEntry {
   reminderOnDate           DateTime?                  @db.Date
   /// Вычисленный день срабатывания напоминания (для выборки воркером)
   remindAt                 DateTime?                  @db.Date
+  /// JSON-массив времён напоминания ["09:00","21:00"]; по умолчанию ["09:00"]
+  reminderTimes            Json                       @default("[\"09:00\"]")
   /// Дата remindAt, по которой уже успешно отправили push (идемпотентность повторных прогонов)
   lastNotifiedForRemindAt  DateTime?                  @db.Date
+  /// Какие времена из reminderTimes уже отправлены для текущего remindAt (JSON массив строк)
+  sentTimesForRemindAt     Json?
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
   pet                      Pet                        @relation(fields: [petId], references: [id], onDelete: Cascade)

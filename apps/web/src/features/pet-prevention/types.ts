@@ -16,6 +16,8 @@ export interface PreventionEntryDisplay {
   reminderDaysAfter: number | null;
   reminderOnDate: Date | null;
   remindAt: Date | null;
+  /** Времена push в день remindAt (ЧЧ:ММ), до 5 шт. */
+  reminderTimes?: unknown;
   lastNotifiedForRemindAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

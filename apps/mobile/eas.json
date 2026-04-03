@@ -33,7 +33,11 @@
         "JAVA_HOME": "/opt/homebrew/opt/openjdk@17",
         "ANDROID_HOME": "/Users/asmtv1/Library/Android/sdk",
         "ORG_GRADLE_PROJECT_android.minSdkVersion": "24",
-        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=2048m"
+        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=2048m",
+        "VK_CLIENT_ID": "54472652",
+        "VK_CLIENT_ID_IOS": "54472654",
+        "VK_CLIENT_ID_ANDROID": "54472653",
+        "VK_MOBILE_REDIRECT_URI": "gafus://auth/vk"
       }
     }
   },

@@ -22,7 +22,7 @@ export async function setupPetPreventionReminderSchedule() {
       {},
       {
         repeat: {
-          pattern: "0 9 * * *",
+          pattern: "*/30 * * * *",
           tz: "Europe/Moscow",
         },
         removeOnComplete: true,
@@ -30,7 +30,7 @@ export async function setupPetPreventionReminderSchedule() {
       },
     );
 
-    logger.success("✅ Расписание напоминаний о профилактике настроено: 09:00 MSK");
+    logger.success("✅ Расписание напоминаний о профилактике настроено: каждые 30 мин MSK");
   } catch (error) {
     logger.error("❌ Ошибка при настройке расписания напоминаний", error as Error);
     throw error;

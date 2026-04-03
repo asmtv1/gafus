@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import AddIcon from "@mui/icons-material/Add";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
   Box,
   Button,
@@ -11,11 +13,13 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Switch,
   TextField,
+  Typography,
 } from "@mui/material";
 
 import {
@@ -33,6 +37,32 @@ import { PREVENTION_TYPE_LABELS } from "../types";
 import type { PreventionEntryDisplay } from "../types";
 
 import styles from "./prevention-ui.module.css";
+
+const REMINDER_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const MAX_REMINDER_TIMES = 5;
+
+function normalizeReminderTimes(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    const valid = raw.filter(
+      (t): t is string => typeof t === "string" && REMINDER_TIME_RE.test(t),
+    );
+    if (valid.length > 0) {
+      return valid;
+    }
+  }
+  return ["09:00"];
+}
+
+/** Нормализует значение из input type="time" к ЧЧ:ММ для API */
+function toApiTime(value: string): string {
+  const trimmed = value.trim();
+  const m = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) {
+    return trimmed;
+  }
+  const h = m[1].padStart(2, "0");
+  return `${h}:${m[2]}`;
+}
 
 const switchSx = {
   "& .MuiSwitch-switchBase.Mui-checked": {
@@ -87,6 +117,9 @@ export function PreventionEntryForm({
       ? new Date(entry.reminderOnDate).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
   );
+  const [reminderTimes, setReminderTimes] = useState<string[]>(() =>
+    normalizeReminderTimes(entry?.reminderTimes),
+  );
 
   useEffect(() => {
     if (open) {
@@ -112,6 +145,7 @@ export function PreventionEntryForm({
           ? new Date(entry.reminderOnDate).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
       );
+      setReminderTimes(normalizeReminderTimes(entry?.reminderTimes));
     }
   }, [open, entry]);
 
@@ -128,6 +162,17 @@ export function PreventionEntryForm({
       return;
     }
 
+    const normalizedTimes = reminderTimes.map(toApiTime);
+    const invalidTime = normalizedTimes.find((t) => !REMINDER_TIME_RE.test(t));
+    if (invalidTime) {
+      setError("Укажите корректное время (ЧЧ:ММ) для всех напоминаний");
+      return;
+    }
+    if (normalizedTimes.length < 1 || normalizedTimes.length > MAX_REMINDER_TIMES) {
+      setError(`От 1 до ${MAX_REMINDER_TIMES} времён напоминания`);
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       type,
       performedAt,
@@ -135,6 +180,7 @@ export function PreventionEntryForm({
       notes: notes.trim() || undefined,
       reminderEnabled,
       reminderKind,
+      reminderTimes: normalizedTimes,
     };
     if (reminderEnabled) {
       if (reminderKind === "AFTER_DAYS") {
@@ -300,6 +346,57 @@ export function PreventionEntryForm({
                   required
                   fullWidth
                 />
+              )}
+
+              <p className={styles.timeSectionLabel}>Во сколько напомнить</p>
+              <Typography variant="caption" display="block" sx={{ color: "#636128", mb: 1 }}>
+                Можно несколько раз в день (например, утром и вечером). Время — по Москве, как в
+                расписании отправки.
+              </Typography>
+              {reminderTimes.map((t, idx) => (
+                <div key={idx} className={styles.timeRow}>
+                  <TextField
+                    className={styles.timeRowField}
+                    label={`Время ${idx + 1}`}
+                    type="time"
+                    value={t}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setReminderTimes((prev) => {
+                        const next = [...prev];
+                        next[idx] = v;
+                        return next;
+                      });
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 300 }}
+                    fullWidth
+                  />
+                  {reminderTimes.length > 1 && (
+                    <IconButton
+                      aria-label="Убрать время"
+                      onClick={() =>
+                        setReminderTimes((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                      sx={{ mt: 0.5, color: "#8b4513" }}
+                      size="small"
+                    >
+                      <CloseRoundedIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </div>
+              ))}
+              {reminderTimes.length < MAX_REMINDER_TIMES && (
+                <Button
+                  type="button"
+                  startIcon={<AddIcon />}
+                  onClick={() =>
+                    setReminderTimes((prev) => [...prev, "18:00"])
+                  }
+                  className={styles.addTimeButton}
+                >
+                  Ещё одно напоминание
+                </Button>
               )}
             </>
           )}

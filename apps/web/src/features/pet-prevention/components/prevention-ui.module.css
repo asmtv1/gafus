@@ -298,3 +298,38 @@
   font-family: var(--font-montserrat), system-ui, sans-serif;
   color: #636128 !important;
 }
+
+.timeSectionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #636128;
+  margin: 0.25rem 0 0.35rem;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.timeRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.timeRowField {
+  flex: 1;
+  min-width: 0;
+}
+
+.addTimeButton {
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  font-family: var(--font-montserrat), system-ui, sans-serif !important;
+  color: #636128 !important;
+  justify-content: flex-start !important;
+  padding-left: 0 !important;
+}
+
+.addTimeButton:hover {
+  background: rgba(99, 97, 40, 0.06) !important;
+}

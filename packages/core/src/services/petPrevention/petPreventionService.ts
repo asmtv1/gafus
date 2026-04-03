@@ -3,7 +3,7 @@
  */
 import { ZodError } from "zod";
 
-import { prisma } from "@gafus/prisma";
+import { prisma, Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import {
   handlePrismaError,
@@ -84,7 +84,9 @@ const SELECT_ENTRY = {
   reminderDaysAfter: true,
   reminderOnDate: true,
   remindAt: true,
+  reminderTimes: true,
   lastNotifiedForRemindAt: true,
+  sentTimesForRemindAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -143,6 +145,7 @@ export async function createEntry(
       reminderKind: validated.reminderKind,
       reminderDaysAfter: validated.reminderDaysAfter ?? null,
       reminderOnDate: validated.reminderOnDate ?? null,
+      reminderTimes: validated.reminderTimes,
     });
 
     const entry = await prisma.petPreventionEntry.create({
@@ -158,7 +161,9 @@ export async function createEntry(
         reminderDaysAfter: computed.reminderDaysAfter,
         reminderOnDate: computed.reminderOnDate,
         remindAt: computed.remindAt,
+        reminderTimes: computed.reminderTimes,
         lastNotifiedForRemindAt: null,
+        sentTimesForRemindAt: Prisma.DbNull,
       },
       select: SELECT_ENTRY,
     });
@@ -207,6 +212,7 @@ export async function updateEntry(
         reminderDaysAfter: true,
         reminderOnDate: true,
         remindAt: true,
+        reminderTimes: true,
         lastNotifiedForRemindAt: true,
       },
     });
@@ -232,6 +238,10 @@ export async function updateEntry(
         validated.reminderOnDate !== undefined
           ? validated.reminderOnDate
           : existing.reminderOnDate ?? undefined,
+      reminderTimes:
+        validated.reminderTimes !== undefined
+          ? validated.reminderTimes
+          : Array.isArray(existing.reminderTimes) ? existing.reminderTimes as string[] : ["09:00"],
     };
 
     const computed = computeReminderFields({
@@ -241,6 +251,7 @@ export async function updateEntry(
       reminderKind: merged.reminderKind,
       reminderDaysAfter: merged.reminderDaysAfter ?? null,
       reminderOnDate: merged.reminderOnDate ?? null,
+      reminderTimes: merged.reminderTimes,
     });
 
     const prevRemind = existing.remindAt ? utcDayStart(existing.remindAt).getTime() : null;
@@ -260,7 +271,9 @@ export async function updateEntry(
         reminderDaysAfter: computed.reminderDaysAfter,
         reminderOnDate: computed.reminderOnDate,
         remindAt: computed.remindAt,
+        reminderTimes: computed.reminderTimes,
         lastNotifiedForRemindAt,
+        sentTimesForRemindAt: prevRemind === nextRemind ? undefined : Prisma.DbNull,
       },
       select: SELECT_ENTRY,
     });
@@ -388,6 +401,7 @@ function batchEntryToComputed(entry: BatchEntryInput) {
     reminderKind,
     reminderDaysAfter,
     reminderOnDate,
+    reminderTimes: entry.reminderTimes,
   });
 }
 
@@ -439,7 +453,9 @@ export async function upsertPreventionEntriesBatch(
               reminderDaysAfter: computed.reminderDaysAfter,
               reminderOnDate: computed.reminderOnDate,
               remindAt: computed.remindAt,
+              reminderTimes: computed.reminderTimes,
               lastNotifiedForRemindAt,
+              sentTimesForRemindAt: prevRemind === nextRemind ? undefined : Prisma.DbNull,
             },
           });
           updated += 1;
@@ -458,7 +474,9 @@ export async function upsertPreventionEntriesBatch(
               reminderDaysAfter: computed.reminderDaysAfter,
               reminderOnDate: computed.reminderOnDate,
               remindAt: computed.remindAt,
+              reminderTimes: computed.reminderTimes,
               lastNotifiedForRemindAt: null,
+              sentTimesForRemindAt: Prisma.DbNull,
             },
           });
           created += 1;

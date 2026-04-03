@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,7 +18,7 @@ import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
-import { setupPushNotifications } from "@/shared/lib/utils/notifications";
+import { setupPushNotifications, getCurrentDeviceTokens } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 
@@ -182,6 +182,29 @@ export default function ProfileScreen() {
     }, [queryClient]),
   );
 
+  const [osPermission, setOsPermission] = useState<"granted" | "denied" | "undetermined">(
+    "undetermined",
+  );
+
+  const refreshOsPermission = useCallback(async () => {
+    if (Constants.appOwnership === "expo") return;
+    try {
+      const Notifications = await import("expo-notifications");
+      const { status } = await Notifications.getPermissionsAsync();
+      setOsPermission(
+        status === "granted" ? "granted" : status === "denied" ? "denied" : "undetermined",
+      );
+    } catch {
+      // оставляем undetermined
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshOsPermission();
+    }, [refreshOsPermission]),
+  );
+
   useEffect(() => {
     if (!profileData?.success || !profileData.data) return;
     setUser(profileData.data);
@@ -303,6 +326,7 @@ export default function ProfileScreen() {
       return ok ? { success: true } : { success: false, error: "Не удалось включить push-уведомления" };
     },
     onSuccess: async (result) => {
+      void refreshOsPermission();
       if (!result.success) {
         Alert.alert("Уведомления", result.error ?? "Не удалось включить уведомления");
         return;
@@ -321,7 +345,15 @@ export default function ProfileScreen() {
   });
 
   const disablePushMutation = useMutation({
-    mutationFn: () => subscriptionsApi.deleteAllPushSubscriptions(),
+    mutationFn: async () => {
+      const tokens = await getCurrentDeviceTokens();
+      const endpoints = [tokens.expo, tokens.rustore].filter(Boolean) as string[];
+      if (endpoints.length === 0) return { success: true };
+      const results = await Promise.all(
+        endpoints.map((ep) => subscriptionsApi.deletePushSubscription(ep)),
+      );
+      return results.find((r) => !r.success) ?? { success: true };
+    },
     onSuccess: async (result) => {
       if (!result.success) {
         Alert.alert("Уведомления", result.error ?? "Не удалось отключить уведомления");
@@ -587,32 +619,101 @@ export default function ProfileScreen() {
 
           <View style={styles.notificationsCard}>
             <Text style={styles.notificationsTitle}>Уведомления</Text>
-            <Text style={styles.notificationsStatus}>
-              {hasPushSubscription ?
-                "Push на устройстве включён"
-              : "Push на устройстве выключен"}
-            </Text>
+
+            <View style={styles.notifyStatusRow}>
+              <Text style={styles.notifyStatusLabel}>Разрешение телефона:</Text>
+              <View
+                style={[
+                  styles.notifyStatusBadge,
+                  osPermission === "granted" ? styles.notifyBadgeOk
+                  : osPermission === "denied" ? styles.notifyBadgeFail
+                  : styles.notifyBadgeWarn,
+                ]}
+              >
+                <Text style={styles.notifyBadgeText}>
+                  {osPermission === "granted" ? "✅ Разрешено"
+                  : osPermission === "denied" ? "❌ Запрещено"
+                  : "⏳ Не запрошено"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.notifyStatusRow}>
+              <Text style={styles.notifyStatusLabel}>Серверная подписка:</Text>
+              <View
+                style={[
+                  styles.notifyStatusBadge,
+                  hasPushSubscription ? styles.notifyBadgeOk : styles.notifyBadgeFail,
+                ]}
+              >
+                <Text style={styles.notifyBadgeText}>
+                  {hasPushSubscription ? "✅ Активна" : "❌ Неактивна"}
+                </Text>
+              </View>
+            </View>
+
+            {osPermission === "denied" && hasPushSubscription && (
+              <View style={styles.notifyWarningBox}>
+                <MaterialCommunityIcons name="alert" size={14} color="#8B4513" />
+                <Text style={styles.notifyWarningText}>
+                  Сервер пытается отправлять пуши, но телефон их блокирует. Разрешите уведомления
+                  в настройках телефона.
+                </Text>
+              </View>
+            )}
+
             <View style={styles.notificationsActions}>
-              <Pressable
-                style={styles.notifyActionButton}
-                onPress={() => enablePushMutation.mutate()}
-              >
-                <Text style={styles.notifyActionText}>Включить</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.notifyActionButton, styles.notifyActionDanger]}
-                onPress={() => disablePushMutation.mutate()}
-              >
-                <Text style={styles.notifyActionText}>Отключить</Text>
-              </Pressable>
+              {osPermission === "denied" ?
+                <Pressable
+                  style={[styles.notifyActionButton, styles.notifyActionSettings]}
+                  onPress={() => void Linking.openSettings()}
+                >
+                  <MaterialCommunityIcons name="cog-outline" size={15} color="#ECE5D2" />
+                  <Text style={styles.notifyActionText}>Открыть настройки телефона</Text>
+                </Pressable>
+              : osPermission === "undetermined" ?
+                <Pressable
+                  style={styles.notifyActionButton}
+                  disabled={enablePushMutation.isPending}
+                  onPress={() => enablePushMutation.mutate()}
+                >
+                  <Text style={styles.notifyActionText}>
+                    {enablePushMutation.isPending ? "Загрузка..." : "Включить уведомления"}
+                  </Text>
+                </Pressable>
+              : hasPushSubscription ?
+                <Pressable
+                  style={[styles.notifyActionButton, styles.notifyActionDanger]}
+                  disabled={disablePushMutation.isPending}
+                  onPress={() => disablePushMutation.mutate()}
+                >
+                  <Text style={styles.notifyActionText}>
+                    {disablePushMutation.isPending ? "Загрузка..." : "Отключить уведомления"}
+                  </Text>
+                </Pressable>
+              : <Pressable
+                  style={styles.notifyActionButton}
+                  disabled={enablePushMutation.isPending}
+                  onPress={() => enablePushMutation.mutate()}
+                >
+                  <Text style={styles.notifyActionText}>
+                    {enablePushMutation.isPending ? "Загрузка..." : "Включить подписку"}
+                  </Text>
+                </Pressable>
+              }
             </View>
           </View>
 
           <Pressable
-            style={styles.remindersButton}
+            style={styles.remindersCard}
             onPress={() => router.push({ pathname: "/reminders" })}
           >
-            <Text style={styles.remindersButtonText}>Напоминания о тренировках</Text>
+            <MaterialCommunityIcons name="bell-ring-outline" size={22} color={COLORS.primary} />
+            <View style={styles.remindersCardContent}>
+              <Text style={styles.remindersCardTitle}>Напоминания о тренировках</Text>
+              <Text style={styles.remindersCardSubtitle}>Настроить время и дни</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
           </Pressable>
 
           {user?.role === "USER" && (
@@ -1113,11 +1214,61 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#352E2E",
     fontFamily: FONTS.impact,
+    marginBottom: SPACING.sm,
   },
   notificationsStatus: {
     marginTop: 6,
     color: "#636128",
     fontFamily: FONTS.montserrat,
+  },
+  notifyStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  notifyStatusLabel: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#352E2E",
+    flex: 1,
+  },
+  notifyStatusBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  notifyBadgeOk: {
+    backgroundColor: "#D4EDDA",
+  },
+  notifyBadgeFail: {
+    backgroundColor: "#F8D7DA",
+  },
+  notifyBadgeWarn: {
+    backgroundColor: "#FFF3CD",
+  },
+  notifyBadgeText: {
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    fontWeight: "600",
+    color: "#352E2E",
+  },
+  notifyWarningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#FFF3CD",
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+  },
+  notifyWarningText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: "#8B4513",
+    lineHeight: 17,
   },
   notificationsActions: {
     marginTop: SPACING.sm,
@@ -1129,27 +1280,47 @@ const styles = StyleSheet.create({
     backgroundColor: "#636128",
     borderRadius: 8,
     alignItems: "center",
-    paddingVertical: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
   },
   notifyActionDanger: {
     backgroundColor: "#8B4513",
+  },
+  notifyActionSettings: {
+    backgroundColor: "#352E2E",
   },
   notifyActionText: {
     color: "#ECE5D2",
     fontFamily: FONTS.impact,
     fontSize: 13,
   },
-  remindersButton: {
-    backgroundColor: "#352E2E",
-    borderRadius: 12,
-    marginTop: SPACING.sm,
-    paddingVertical: 10,
+  remindersCard: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
+    backgroundColor: "#ECE5D2",
   },
-  remindersButtonText: {
-    color: "#ECE5D2",
+  remindersCardContent: {
+    flex: 1,
+  },
+  remindersCardTitle: {
     fontFamily: FONTS.impact,
     fontSize: 14,
+    color: COLORS.text,
+  },
+  remindersCardSubtitle: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   notesCard: {
     marginTop: SPACING.md,

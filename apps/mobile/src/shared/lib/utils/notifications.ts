@@ -143,6 +143,54 @@ export async function savePushToken(token: string): Promise<boolean> {
 }
 
 /**
+ * Возвращает токены текущего устройства без запроса разрешений.
+ * Используется при отключении пушей — удаляем только текущее устройство.
+ */
+export async function getCurrentDeviceTokens(): Promise<{ expo?: string; rustore?: string }> {
+  const tokens: { expo?: string; rustore?: string } = {};
+
+  if (Constants.appOwnership === "expo") return tokens;
+  if (!Device.isDevice) return tokens;
+
+  const Notifications = await import("expo-notifications");
+  const { status } = await Notifications.getPermissionsAsync();
+
+  if (status === "granted") {
+    try {
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      if (projectId) {
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        if (tokenData.data) tokens.expo = tokenData.data;
+      }
+    } catch {
+      // токен недоступен — продолжаем
+    }
+  }
+
+  if (Platform.OS === "android") {
+    try {
+      let RustorePush = NativeModules.RustorePush;
+      if (!RustorePush) {
+        const mod = await import("react-native-rustore-push");
+        RustorePush = mod.default ?? (mod as { RustorePush?: unknown }).RustorePush;
+      }
+      const getToken =
+        (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
+        (RustorePush as { getPushToken?: () => Promise<string> })?.getPushToken;
+      if (typeof getToken === "function") {
+        const token = await getToken();
+        if (token && typeof token === "string") tokens.rustore = token;
+      }
+    } catch {
+      // RuStore недоступен — продолжаем
+    }
+  }
+
+  return tokens;
+}
+
+/**
  * Полная регистрация: получить токен и сохранить на сервере.
  * На Android без FCM Expo может не выдать токен — тогда достаточно успешного RuStore.
  */

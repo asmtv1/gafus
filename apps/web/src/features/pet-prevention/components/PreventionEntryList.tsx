@@ -102,6 +102,9 @@ export function PreventionEntryList({ entries, petId }: PreventionEntryListProps
                             className={styles.captionMuted}
                           >
                             Напоминание: {formatDate(entry.remindAt)}
+                            {Array.isArray(entry.reminderTimes) &&
+                              entry.reminderTimes.length > 0 &&
+                              ` в ${(entry.reminderTimes as string[]).join(", ")}`}
                           </Typography>
                         )}
                         {entry.productName && (

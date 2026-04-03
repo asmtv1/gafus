@@ -9,6 +9,9 @@
   ],
   "globalEnv": ["NODE_ENV", "DATABASE_URL", "NEXT_RUNTIME", "NEXT_PUBLIC_APP_URL", "CI"],
   "tasks": {
+    "clean": {
+      "cache": false
+    },
     "build": {
       "dependsOn": ["^build", "prisma:generate"],
       "outputs": [".next/**", "dist/**", "build/**", "coverage/**"],

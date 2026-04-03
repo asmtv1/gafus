@@ -7,11 +7,11 @@ import type { Job } from "bullmq";
 
 const logger = createWorkerLogger("pet-prevention-reminder");
 
-/** Тексты push по типу профилактики (рус.). */
-const PUSH_BODY: Record<string, string> = {
-  VACCINATION: "Пора сделать прививки",
-  DEWORMING: "Пора провести глистогонку",
-  TICKS_FLEAS: "Пора обработать от клещей и блох",
+/** Названия типов профилактики для push-уведомлений. */
+const TYPE_LABEL: Record<string, string> = {
+  VACCINATION: "Прививка",
+  DEWORMING: "Глистогонка",
+  TICKS_FLEAS: "Обработка от клещей и блох",
 };
 
 interface DueRow {
@@ -21,12 +21,14 @@ interface DueRow {
   petName: string;
   type: string;
   productName: string | null;
+  notes: string | null;
   remindAt: Date;
+  reminderTimes: unknown;
+  sentTimesForRemindAt: unknown;
 }
 
 /**
- * Записи с наступившим remindAt, по которым ещё не отправляли для текущего цикла
- * (lastNotifiedForRemindAt отличается от remindAt или null).
+ * Записи с наступившим remindAt, для которых есть неотправленные времена.
  */
 async function findDueEntries(): Promise<DueRow[]> {
   return prisma.$queryRaw<DueRow[]>`
@@ -37,26 +39,62 @@ async function findDueEntries(): Promise<DueRow[]> {
       p.name AS "petName",
       ppe.type::text AS "type",
       ppe."productName",
-      ppe."remindAt"
+      ppe.notes,
+      ppe."remindAt",
+      ppe."reminderTimes",
+      ppe."sentTimesForRemindAt"
     FROM "PetPreventionEntry" ppe
     INNER JOIN "Pet" p ON p.id = ppe."petId"
     WHERE ppe."reminderEnabled" = true
       AND ppe."remindAt" IS NOT NULL
       AND ppe."remindAt" <= (timezone('utc', now()))::date
-      AND (
-        ppe."lastNotifiedForRemindAt" IS NULL
-        OR ppe."lastNotifiedForRemindAt" IS DISTINCT FROM ppe."remindAt"
-      )
   `;
 }
 
+const MAX_BODY_LENGTH = 200;
+
 function buildPushBody(row: DueRow): string {
-  const base = PUSH_BODY[row.type] ?? "Пора обновить профилактику";
-  let body = `${base} для ${row.petName}`;
+  const label = TYPE_LABEL[row.type] ?? "Профилактика";
+  let body = `${label} — ${row.petName}`;
   if (row.productName?.trim()) {
-    body = `${body} (${row.productName.trim()})`;
+    body += `: ${row.productName.trim()}`;
+  }
+  if (row.notes?.trim()) {
+    const note = row.notes.trim();
+    const remaining = MAX_BODY_LENGTH - body.length - 2;
+    if (remaining > 10) {
+      body += `\n${note.length > remaining ? note.slice(0, remaining - 1) + "…" : note}`;
+    }
   }
   return body;
+}
+
+function parseReminderTimes(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((t): t is string => typeof t === "string");
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { /* fallback */ }
+  }
+  return ["09:00"];
+}
+
+function parseSentTimes(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((t): t is string => typeof t === "string");
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { /* fallback */ }
+  }
+  return [];
+}
+
+function getCurrentMoscowHHMM(): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const h = parts.find((p) => p.type === "hour")?.value ?? "00";
+  const m = parts.find((p) => p.type === "minute")?.value ?? "00";
+  return `${h}:${m}`;
 }
 
 async function checkAndSendReminders(): Promise<{ sent: number; errors: number }> {
@@ -64,23 +102,38 @@ async function checkAndSendReminders(): Promise<{ sent: number; errors: number }
   let errors = 0;
 
   const due = await findDueEntries();
+  const nowHHMM = getCurrentMoscowHHMM();
 
   for (const row of due) {
     try {
-      const result = await createImmediatePushNotification({
-        userId: row.ownerId,
-        title: "Записи о процедурах",
-        body: buildPushBody(row),
-        url: `/profile/pets/${row.petId}/prevention`,
-      });
+      const times = parseReminderTimes(row.reminderTimes);
+      const alreadySent = parseSentTimes(row.sentTimesForRemindAt);
+      const timesToSend = times.filter((t) => t <= nowHHMM && !alreadySent.includes(t));
 
-      if (result.queued) {
-        await prisma.petPreventionEntry.update({
-          where: { id: row.id },
-          data: { lastNotifiedForRemindAt: row.remindAt },
+      if (timesToSend.length === 0) continue;
+
+      for (const t of timesToSend) {
+        const result = await createImmediatePushNotification({
+          userId: row.ownerId,
+          title: "Процедуры",
+          body: buildPushBody(row),
+          url: `/profile/pets/${row.petId}/prevention`,
         });
-        sent += 1;
+
+        if (result.queued) {
+          alreadySent.push(t);
+          sent += 1;
+        }
       }
+
+      const allSent = times.every((t) => alreadySent.includes(t));
+      await prisma.petPreventionEntry.update({
+        where: { id: row.id },
+        data: {
+          sentTimesForRemindAt: alreadySent,
+          ...(allSent ? { lastNotifiedForRemindAt: row.remindAt } : {}),
+        },
+      });
     } catch (error) {
       logger.error("Ошибка отправки push-напоминания", error as Error, {
         entryId: row.id,
