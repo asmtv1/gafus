@@ -66,6 +66,17 @@ describe("training-reminders-sender", () => {
     mockFindMany.mockResolvedValue([]);
   });
 
+  it("допуск по времени покрывает интервал крона (нет пропуска между тиками)", async () => {
+    const {
+      TRAINING_REMINDER_CRON_INTERVAL_MINUTES,
+      TRAINING_REMINDER_TIME_TOLERANCE_MINUTES,
+    } = await import("./training-reminder-schedule");
+
+    expect(TRAINING_REMINDER_TIME_TOLERANCE_MINUTES).toBeGreaterThanOrEqual(
+      TRAINING_REMINDER_CRON_INTERVAL_MINUTES,
+    );
+  });
+
   describe("sendTrainingReminders", () => {
     it("возвращает sent/skipped/errors", async () => {
       const { sendTrainingReminders } = await import("./training-reminders-sender");

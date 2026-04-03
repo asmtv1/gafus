@@ -9,6 +9,7 @@ import { PushNotificationService } from "@gafus/webpush";
 import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
 import { sendExpoPushNotifications } from "./lib/expoPush";
 import { sendRustorePushNotifications } from "./lib/rustorePush";
+import { TRAINING_REMINDER_TIME_TOLERANCE_MINUTES } from "./training-reminder-schedule";
 
 const logger = createWorkerLogger("training-reminders-sender");
 
@@ -108,14 +109,16 @@ function matchesDayOfWeek(reminderDays: string | null, dayOfWeek: number): boole
 
 /**
  * Проверяет, совпадает ли текущее время с временем напоминания.
- * Допускается расхождение ±5 минут (воркер тикает раз в 10 минут).
+ * Допуск синхронизирован с интервалом крона — см. training-reminder-schedule.ts.
  */
 function matchesTime(reminderTime: string, hour: number, minute: number): boolean {
   const [rHours, rMinutes] = reminderTime.split(":").map(Number);
   if (isNaN(rHours) || isNaN(rMinutes)) return false;
   const reminderTotal = rHours * 60 + rMinutes;
   const currentTotal = hour * 60 + minute;
-  return Math.abs(reminderTotal - currentTotal) <= 5;
+  return (
+    Math.abs(reminderTotal - currentTotal) <= TRAINING_REMINDER_TIME_TOLERANCE_MINUTES
+  );
 }
 
 /**
@@ -251,7 +254,7 @@ async function sendReminderToUser(
 
 /**
  * Главная функция отправки напоминаний.
- * Вызывается по расписанию (каждые 10 минут).
+ * Вызывается по расписанию (см. cron-scheduler, training-reminder-schedule).
  */
 export async function sendTrainingReminders(): Promise<SendResult> {
   const result: SendResult = { sent: 0, skipped: 0, errors: 0 };
@@ -290,7 +293,7 @@ export async function sendTrainingReminders(): Promise<SendResult> {
           continue;
         }
 
-        // Проверяем время (±5 минут)
+        // Проверяем время (допуск — TRAINING_REMINDER_TIME_TOLERANCE_MINUTES)
         if (!matchesTime(reminder.reminderTime, local.hour, local.minute)) {
           result.skipped++;
           continue;

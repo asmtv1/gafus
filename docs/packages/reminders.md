@@ -146,11 +146,11 @@ const result = await deleteTrainingReminder(reminderId);
 
 ### Как работает
 
-1. **Запуск:** Каждые 10 минут через cron
+1. **Запуск:** Каждую минуту через cron (UTC в контейнере; сравнение времени — в timezone пользователя)
 2. **Выборка:** Все включенные напоминания типа "training"
 3. **Фильтрация:**
    - Проверка дня недели
-   - Проверка времени (±5 минут)
+   - Проверка времени (допуск ±5 мин, см. `training-reminder-schedule.ts`)
    - Проверка что не отправляли сегодня
 4. **Отправка:** Push-уведомление через `PushNotificationService`
 5. **Обновление:** `lastSentAt` = текущая дата
@@ -161,8 +161,8 @@ const result = await deleteTrainingReminder(reminderId);
 // Совпадает ли день недели?
 matchesDayOfWeek(reminderDays: string | null, currentDayOfWeek: number): boolean
 
-// Совпадает ли время? (±5 минут)
-matchesTime(reminderTime: string, currentTime: Date): boolean
+// Совпадает ли время? (допуск из TRAINING_REMINDER_TIME_TOLERANCE_MINUTES)
+matchesTime(reminderTime: string, hour: number, minute: number): boolean
 
 // Уже отправляли сегодня?
 wasAlreadySentToday(lastSentAt: Date | null, currentTime: Date): boolean
