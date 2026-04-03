@@ -110,6 +110,13 @@ export function withCSRFProtection<T = unknown>(
       return handler(req, context);
     }
 
+    // Мобильный API: Bearer не уходит со сторонних сайтов вместе с cookie — CSRF для cookie-сессии здесь не применим.
+    const authHeader = req.headers.get("authorization");
+    const bearerPayload = authHeader?.match(/^Bearer\s+(\S+)/i)?.[1];
+    if (bearerPayload) {
+      return handler(req, context);
+    }
+
     // Получаем CSRF токен из заголовков
     const csrfToken = getCSRFTokenFromHeaders(req);
 

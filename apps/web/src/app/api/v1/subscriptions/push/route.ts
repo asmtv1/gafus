@@ -60,13 +60,52 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Сохранить подписку
-const saveSchema = z.object({
-  endpoint: z.string().url(),
-  keys: z.object({
-    p256dh: z.string().min(1),
-    auth: z.string().min(1),
-  }),
-});
+// Веб-пуш: endpoint — URL. Expo: ExponentPushToken[…] / ExpoPushToken[…]. RuStore: произвольный токен при keys rustore/rustore.
+const saveSchema = z
+  .object({
+    endpoint: z.string().min(1).max(4096),
+    keys: z.object({
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
+    }),
+  })
+  .superRefine((data, ctx) => {
+    const rustore =
+      data.keys.p256dh === "rustore" && data.keys.auth === "rustore";
+    if (rustore) {
+      return;
+    }
+    const { endpoint } = data;
+    if (endpoint.startsWith("ExponentPushToken[") || endpoint.startsWith("ExpoPushToken[")) {
+      const expoOk =
+        /^ExponentPushToken\[[^\]]+\]$/.test(endpoint) ||
+        /^ExpoPushToken\[[^\]]+\]$/.test(endpoint);
+      if (!expoOk) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Некорректный формат токена Expo",
+          path: ["endpoint"],
+        });
+      }
+      return;
+    }
+    try {
+      const parsed = new URL(endpoint);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "URL подписки должен быть http(s)",
+          path: ["endpoint"],
+        });
+      }
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Некорректный endpoint веб-пуша",
+        path: ["endpoint"],
+      });
+    }
+  });
 
 export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
@@ -103,11 +142,51 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
   }
 });
 
-// DELETE - Удалить подписку
-const deleteSchema = z.object({
-  endpoint: z.string().url().optional(),
-  deleteAll: z.boolean().optional(),
-});
+// DELETE - Удалить подписку (тот же набор форматов endpoint, что и при сохранении)
+const deleteSchema = z
+  .object({
+    endpoint: z.string().min(1).max(4096).optional(),
+    deleteAll: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.deleteAll) {
+      return;
+    }
+    if (!data.endpoint) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Требуется endpoint или deleteAll: true",
+        path: ["endpoint"],
+      });
+      return;
+    }
+    const endpoint = data.endpoint;
+    if (endpoint.startsWith("ExponentPushToken[") || endpoint.startsWith("ExpoPushToken[")) {
+      const expoOk =
+        /^ExponentPushToken\[[^\]]+\]$/.test(endpoint) ||
+        /^ExpoPushToken\[[^\]]+\]$/.test(endpoint);
+      if (!expoOk) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Некорректный формат токена Expo",
+          path: ["endpoint"],
+        });
+      }
+      return;
+    }
+    try {
+      const parsed = new URL(endpoint);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "URL подписки должен быть http(s)",
+          path: ["endpoint"],
+        });
+      }
+    } catch {
+      // RuStore и другие не-URL токены
+    }
+  });
 
 export const DELETE = withCSRFProtection(async (request: NextRequest) => {
   try {
