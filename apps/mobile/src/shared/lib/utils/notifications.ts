@@ -86,11 +86,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
 /**
  * Пытается зарегистрировать RuStore Push (только Android).
- * Gracefully пропускает, если SDK недоступен (Expo Go, пакет не установлен).
+ * @returns true если токен получен и сохранён на API
  */
-async function tryRegisterRustorePush(): Promise<void> {
-  if (Platform.OS !== "android") return;
-  if (Constants.appOwnership === "expo") return; // Expo Go не содержит RuStore SDK
+async function tryRegisterRustorePush(): Promise<boolean> {
+  if (Platform.OS !== "android") return false;
+  if (Constants.appOwnership === "expo") return false; // Expo Go не содержит RuStore SDK
   try {
     let RustorePush = NativeModules.RustorePush;
     if (!RustorePush) {
@@ -99,23 +99,23 @@ async function tryRegisterRustorePush(): Promise<void> {
     }
     const getToken = (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
       (RustorePush as { getPushToken?: () => Promise<string> })?.getPushToken;
-    if (typeof getToken !== "function") return;
+    if (typeof getToken !== "function") return false;
     const token = await getToken();
-    if (token && typeof token === "string") {
-      const result = await subscriptionsApi.savePushSubscription({
-        endpoint: token,
-        keys: { p256dh: "rustore", auth: "rustore" },
-      });
-      if (!result.success) {
-        console.log("RuStore push: не удалось сохранить подписку");
-      }
+    if (!token || typeof token !== "string") return false;
+    const result = await subscriptionsApi.savePushSubscription({
+      endpoint: token,
+      keys: { p256dh: "rustore", auth: "rustore" },
+    });
+    if (!result.success) {
+      console.log("RuStore push: не удалось сохранить подписку");
     }
+    return result.success;
   } catch (error) {
     reportClientError(error instanceof Error ? error : new Error(String(error)), {
       issueKey: "PushNotifications",
       keys: { operation: "register_rustore_push" },
     });
-    // Expo Go, пакет не установлен или ошибка SDK — не критично
+    return false;
   }
 }
 
@@ -144,15 +144,13 @@ export async function savePushToken(token: string): Promise<boolean> {
 
 /**
  * Полная регистрация: получить токен и сохранить на сервере.
- * Expo — основной канал. RuStore — дополнительно на Android (независимо).
+ * На Android без FCM Expo может не выдать токен — тогда достаточно успешного RuStore.
  */
 export async function setupPushNotifications(): Promise<boolean> {
   const expoToken = await registerForPushNotifications();
   const expoSaved = expoToken ? await savePushToken(expoToken) : false;
 
-  if (Platform.OS === "android") {
-    await tryRegisterRustorePush();
-  }
+  const rustoreSaved = Platform.OS === "android" ? await tryRegisterRustorePush() : false;
 
-  return expoSaved;
+  return expoSaved || rustoreSaved;
 }

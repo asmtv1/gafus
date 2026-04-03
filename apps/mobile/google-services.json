@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "886425391605",
+    "project_id": "gafus-7d0b6",
+    "storage_bucket": "gafus-7d0b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886425391605:android:38a044db4de4c90b4e10bc",
+        "android_client_info": {
+          "package_name": "ru.gafus.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABMZoez_4g1Fxm1okNom16R96lGJTr1lY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -15,7 +15,8 @@ export const remindersRoutes = new Hono();
 const createSchema = z.object({
   name: z.string().min(1),
   reminderTime: z.string().min(1),
-  reminderDays: z.string().optional(),
+  /** null / отсутствие — каждый день (как на web «Все дни») */
+  reminderDays: z.string().nullable().optional(),
   timezone: z.string().optional(),
 });
 

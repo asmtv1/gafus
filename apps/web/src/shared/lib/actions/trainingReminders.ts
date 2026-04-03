@@ -93,7 +93,7 @@ export async function updateTrainingReminder(
     name?: string;
     enabled?: boolean;
     reminderTime?: string;
-    reminderDays?: string;
+    reminderDays?: string | null;
     timezone?: string;
   },
 ): Promise<{ success: boolean; data?: TrainingReminderData; error?: string }> {
@@ -104,7 +104,8 @@ export async function updateTrainingReminder(
     }
     const reminder = await updateReminder(session.user.id, id, {
       ...data,
-      reminderDays: data.reminderDays !== undefined ? data.reminderDays ?? null : undefined,
+      reminderDays:
+        data.reminderDays !== undefined ? (data.reminderDays === "" ? null : data.reminderDays) : undefined,
     });
     logger.info("Напоминание обновлено", { id, userId: session.user.id });
     return { success: true, data: reminder };

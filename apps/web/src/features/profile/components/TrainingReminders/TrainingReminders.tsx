@@ -126,11 +126,10 @@ export default function TrainingReminders() {
           name?: string;
           enabled?: boolean;
           reminderTime?: string;
-          reminderDays?: string;
+          reminderDays?: string | null;
           timezone?: string;
         } = {
           ...data,
-          reminderDays: data.reminderDays === null ? undefined : data.reminderDays,
           timezone: browserTimezone,
         };
 
@@ -279,7 +278,7 @@ const ReminderItem = memo(function ReminderItem({
 
     if (newAllDays) {
       setSelectedDays([]);
-      await onUpdate(reminder.id, { reminderDays: undefined });
+      await onUpdate(reminder.id, { reminderDays: null });
     }
   };
 

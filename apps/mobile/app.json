@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "associatedDomains": [
         "applinks:gafus.ru",
         "applinks:gafus.ru"
@@ -32,16 +32,17 @@
       "appleTeamId": "PJQ8PP666S"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "androidStatusBar": {
         "backgroundColor": "#DAD3C1",
         "translucent": false
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon512.png",
+        "foregroundImage": "./assets/images/adaptive-icon-foreground.png",
         "backgroundColor": "#dad3c1"
       },
       "package": "ru.gafus.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "intentFilters": [
         {
           "action": "VIEW",

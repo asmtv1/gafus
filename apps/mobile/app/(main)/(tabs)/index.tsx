@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
-import { useCourseStore } from "@/shared/stores";
+import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
@@ -62,6 +62,8 @@ export default function CoursesScreen() {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const pushPromptAskedInSession = useRef(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const authLoading = useAuthStore((s) => s.isLoading);
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
 
@@ -72,14 +74,17 @@ export default function CoursesScreen() {
   }, [refetch]);
 
   useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
+
     let cancelled = false;
 
     const ensurePushSubscription = async () => {
       if (pushPromptAskedInSession.current) return;
-      pushPromptAskedInSession.current = true;
 
       const status = await subscriptionsApi.getPushSubscriptionStatus();
       if (cancelled || !status.success) return;
+
+      pushPromptAskedInSession.current = true;
 
       const hadAnySubscription = !!status.data?.hasSubscription;
       const ok = await setupPushNotifications();
@@ -95,7 +100,7 @@ export default function CoursesScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAuthenticated, authLoading]);
 
   const allCourses = useMemo(() => data?.data ?? [], [data?.data]);
   const filteredCourses = useMemo(

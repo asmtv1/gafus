@@ -32,7 +32,7 @@ function matchesDayOfWeek(reminderDays: string | null, currentDayOfWeek: number)
   // Конвертируем: 0->7, 1->1, 2->2, ..., 6->6
   const dayNumber = currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
 
-  const selectedDays = reminderDays.split(",");
+  const selectedDays = reminderDays.split(",").map((s) => s.trim()).filter(Boolean);
   return selectedDays.includes(dayNumber.toString());
 }
 
