@@ -175,6 +175,13 @@ export function CourseCard({
       ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
       : course.logoImg || undefined;
 
+  /** Фрагмент URL файла — меняется при новой обложке; иначе expo-image держит старый bitmap по cacheKey */
+  const coverCacheKeySuffix =
+    logoImgUri && logoImgUri.length > 0
+      ? logoImgUri.replace(/\/+$/, "").split("/").pop() ?? logoImgUri
+      : "none";
+  const coverImageCacheKey = `course-logo-${course.id}-${coverCacheKeySuffix}`;
+
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
     if (!version) return;
@@ -237,11 +244,11 @@ export function CourseCard({
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
                 <Image
-                  source={{ uri: logoImgUri, cacheKey: `course-logo-${course.id}` }}
+                  source={{ uri: logoImgUri, cacheKey: coverImageCacheKey }}
                   style={styles.courseImage}
                   contentFit="contain"
                   contentPosition="center"
-                  recyclingKey={course.id}
+                  recyclingKey={coverImageCacheKey}
                   transition={0}
                 />
                 {course.isPaid && (
