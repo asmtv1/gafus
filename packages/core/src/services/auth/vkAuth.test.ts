@@ -68,6 +68,12 @@ vi.mock("@gafus/prisma", () => ({
     },
     $transaction: (fn: (tx: unknown) => Promise<unknown>) => mockVkTransaction(fn),
   },
+  RegistrationChannel: {
+    WEB: "WEB",
+    IOS: "IOS",
+    ANDROID: "ANDROID",
+    UNKNOWN: "UNKNOWN",
+  },
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -78,6 +84,8 @@ vi.mock("@gafus/logger", () => ({
     success: vi.fn(),
   }),
 }));
+
+import { RegistrationChannel } from "@gafus/prisma";
 
 describe("generateUniqueVkUsername", () => {
   it("строит логин из имён через транслит", () => {
@@ -338,7 +346,23 @@ describe("findOrCreateVkUser", () => {
     expect(r.isNewUser).toBe(true);
     expect(r.needsPhone).toBe(true);
     expect(mockVkTransaction).toHaveBeenCalled();
-    expect(mockTxUserCreate).toHaveBeenCalled();
+    expect(mockTxUserCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ registrationChannel: "UNKNOWN" }),
+      }),
+    );
+  });
+
+  it("прокидывает registrationChannel при создании", async () => {
+    mockAccountFindUnique.mockResolvedValue(null);
+
+    await findOrCreateVkUser(baseProfile, "vk99", RegistrationChannel.IOS);
+
+    expect(mockTxUserCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ registrationChannel: "IOS" }),
+      }),
+    );
   });
 
   it("при валидном email от VK передаёт email в create", async () => {
@@ -349,7 +373,10 @@ describe("findOrCreateVkUser", () => {
 
     expect(mockTxUserCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ email }),
+        data: expect.objectContaining({
+          email,
+          registrationChannel: "UNKNOWN",
+        }),
       }),
     );
   });

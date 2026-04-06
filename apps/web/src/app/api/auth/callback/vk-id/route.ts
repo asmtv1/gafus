@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { authOptions, storeVkIdOneTimeUser } from "@gafus/auth";
 import { getServerSession } from "next-auth";
-import { prisma } from "@gafus/prisma";
+import { prisma, RegistrationChannel } from "@gafus/prisma";
 import {
   exchangeVkCodeAndGetUser,
   exchangeVkCodeForProfile,
@@ -168,6 +168,7 @@ export async function GET(request: NextRequest) {
       state: returnedState,
       redirectUri,
       clientId,
+      registrationChannel: RegistrationChannel.WEB,
     });
 
     const { user, isNewUser } = result;

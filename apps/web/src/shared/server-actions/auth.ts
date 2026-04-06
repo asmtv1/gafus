@@ -13,6 +13,7 @@ import { after } from "next/server";
 
 import { authOptions, getVkIdUserFromToken } from "@gafus/auth";
 import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
+import { RegistrationChannel } from "@gafus/prisma";
 import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
 import { getErrorMessage } from "@gafus/core/errors";
@@ -324,6 +325,7 @@ export async function registerUserAction(
       safeName,
       safeEmail,
       safePassword,
+      RegistrationChannel.WEB,
     );
 
     if ("error" in result) {

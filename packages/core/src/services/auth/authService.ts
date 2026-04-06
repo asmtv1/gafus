@@ -10,7 +10,7 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 import { z } from "zod";
 
 import { resetPasswordByToken } from "@gafus/auth";
-import { prisma } from "@gafus/prisma";
+import { prisma, type RegistrationChannel } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import {
@@ -78,9 +78,15 @@ export async function registerUserService(
   username: string,
   email: string,
   password: string,
+  registrationChannel?: RegistrationChannel,
 ): Promise<{ success: true; userId: string } | { error: string }> {
   logger.info("Registering new user (email)");
-  const result = await registerUserWithCredentials({ username, email, password });
+  const result = await registerUserWithCredentials({
+    username,
+    email,
+    password,
+    registrationChannel,
+  });
   if (!result.ok) {
     const maskedCodes: RegisterCredentialsConflictCode[] = [
       "USERNAME_TAKEN",

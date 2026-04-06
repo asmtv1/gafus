@@ -12,6 +12,8 @@
     "lint:fix": "eslint src --fix",
     "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger",
     "start": "expo start",
+    "update:ota:preview": "eas update --channel preview",
+    "update:ota:production": "eas update --channel production",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web"
   },
@@ -49,6 +51,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-updates": "~29.0.16",
     "expo-video": "~3.0.16",
     "expo-web-browser": "~15.0.10",
     "libphonenumber-js": "1.12.8",

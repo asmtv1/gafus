@@ -27,6 +27,7 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
         email: true,
         phone: true,
         role: true,
+        registrationChannel: true,
         createdAt: true,
         profile: { select: { fullName: true, avatarUrl: true } },
         _count: { select: { pushSubscriptions: true } },

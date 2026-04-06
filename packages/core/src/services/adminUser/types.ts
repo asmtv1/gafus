@@ -4,6 +4,8 @@ export interface AdminUserRow {
   email: string | null;
   phone: string | null;
   role: string;
+  /** Канал регистрации (web / ios / android / неизвестно для старых аккаунтов) */
+  registrationChannel: string;
   createdAt: Date;
   profile: { fullName: string | null; avatarUrl: string | null } | null;
   _count: { pushSubscriptions: number };

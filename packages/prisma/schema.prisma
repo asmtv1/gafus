@@ -205,6 +205,7 @@ model User {
   passwordSetAt            DateTime?
   telegramId               String?                @unique
   role                     UserRole               @default(USER)
+  registrationChannel      RegistrationChannel    @default(UNKNOWN)
   passwordResetRequestedAt DateTime?
   accountDeletionRequestedAt DateTime?
   createdAt                DateTime               @default(now())
@@ -971,6 +972,14 @@ enum TrainingStatus {
   IN_PROGRESS
   COMPLETED
   RESET
+}
+
+/** Канал первой регистрации (email/пароль); для старых записей — UNKNOWN */
+enum RegistrationChannel {
+  WEB
+  IOS
+  ANDROID
+  UNKNOWN
 }
 
 enum UserRole {

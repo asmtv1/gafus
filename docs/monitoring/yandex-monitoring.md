@@ -42,6 +42,10 @@ Alloy — headless сервис (без UI). Не экспонирует пор�
 
 Исходные дашборды: `ci-cd/docker/grafana/dashboards/` (overview, system-metrics, postgres-metrics, services-availability, bullmq-queues). Overview — консолидированный дашборд (сервисы, DB, ресурсы, push queue).
 
+## Алерты и push на телефон
+
+Готовые запросы и настройка канала **Push** (приложение Yandex Cloud): [yandex-alerts-gafus.md](./yandex-alerts-gafus.md).
+
 ## PromQL в Explore
 
 В Yandex Monitoring → Explore доступен PromQL. Примеры из [PROMETHEUS_QUERIES.md](./PROMETHEUS_QUERIES.md) работают без изменений.

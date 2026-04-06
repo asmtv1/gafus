@@ -4,7 +4,10 @@
  * Регистрация с consent flow (GDPR). Контракт совпадает с Hono API: email вместо телефона.
  */
 
-import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
+import {
+  authRegisterBodySchema,
+  resolveRegistrationChannelFromBody,
+} from "@gafus/core/validation/auth-register";
 import { registerUserService, REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE } from "@gafus/core/services/auth";
 import {
   createConsentLogs,
@@ -46,7 +49,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, tempSessionId, consentPayload } = parsed.data;
+    const { name, email, password, tempSessionId, consentPayload, registrationChannel } =
+      parsed.data;
     const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0] ?? undefined;
     const userAgent = request.headers.get("user-agent") ?? undefined;
 
@@ -62,7 +66,12 @@ export async function POST(request: NextRequest) {
       });
       consentCreated = true;
 
-      const result = await registerUserService(name, email, password);
+      const result = await registerUserService(
+        name,
+        email,
+        password,
+        resolveRegistrationChannelFromBody(registrationChannel),
+      );
 
       if ("error" in result) {
         await markConsentLogsFailed(tempSessionId);

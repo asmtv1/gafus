@@ -13,5 +13,10 @@ declare module "@gafus/core/services/auth" {
   export function findOrCreateVkUser(
     vkProfile: VkProfile,
     providerAccountId: string,
-  ): Promise<{ user: { id: string; username: string; role: string }; needsPhone: boolean }>;
+    registrationChannel?: import("@prisma/client").RegistrationChannel,
+  ): Promise<{
+    user: { id: string; username: string; role: string };
+    needsPhone: boolean;
+    isNewUser?: boolean;
+  }>;
 }

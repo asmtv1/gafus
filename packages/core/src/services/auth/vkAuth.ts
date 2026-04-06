@@ -6,7 +6,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
-import { prisma } from "@gafus/prisma";
+import { prisma, RegistrationChannel } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { isRegisterEmailWithValidDomain } from "../../validation/registerEmailDomain";
 import { transliterate } from "../../utils/transliterate";
@@ -228,6 +228,8 @@ export interface ExchangeVkCodeParams {
   state: string;
   redirectUri: string;
   clientId: string;
+  /** Канал первой регистрации при создании нового пользователя VK */
+  registrationChannel?: RegistrationChannel;
 }
 
 async function exchangeVkCodeForToken(
@@ -285,7 +287,7 @@ export async function exchangeVkCodeAndGetUser(
     clientId: params.clientId,
   });
 
-  return findOrCreateVkUser(vkProfile, vkProfile.id);
+  return findOrCreateVkUser(vkProfile, vkProfile.id, params.registrationChannel);
 }
 
 export async function exchangeVkCodeForProfile(
@@ -327,6 +329,7 @@ export function generateUniqueVkUsername(
 export async function findOrCreateVkUser(
   vkProfile: VkProfile,
   providerAccountId: string,
+  registrationChannel: RegistrationChannel = RegistrationChannel.UNKNOWN,
 ): Promise<FindOrCreateVkResult> {
   const fullName = sanitizeFullName(vkProfile.first_name, vkProfile.last_name);
   const birthDate = parseVkBirthday(vkProfile.birthday);
@@ -422,6 +425,7 @@ export async function findOrCreateVkUser(
         phone,
         password,
         passwordSetAt: null,
+        registrationChannel,
         ...(emailForCreate ? { email: emailForCreate } : {}),
       },
     });

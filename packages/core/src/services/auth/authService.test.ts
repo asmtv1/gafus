@@ -115,6 +115,7 @@ describe("registerUserService", () => {
       username: "ivan",
       email: "ivan@example.com",
       password: "Password1x",
+      registrationChannel: undefined,
     });
     expect(mockSendWelcomeEmailAfterRegistration).toHaveBeenCalledWith("ivan@example.com");
     expect(result).toEqual({ success: true, userId: "user-1" });

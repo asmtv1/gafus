@@ -16,6 +16,7 @@ interface User {
   email: string | null;
   phone: string | null;
   role: string;
+  registrationChannel: string;
   createdAt: Date;
   profile?: {
     fullName?: string | null;

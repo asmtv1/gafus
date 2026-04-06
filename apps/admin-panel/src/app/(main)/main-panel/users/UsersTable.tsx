@@ -37,6 +37,7 @@ interface User {
   email: string | null;
   phone: string | null;
   role: string;
+  registrationChannel: string;
   createdAt: Date;
   profile?: {
     fullName?: string | null;
@@ -76,6 +77,13 @@ const roleLabels = {
   ADMIN: "Администратор",
   PREMIUM: "Премиум",
 } as const;
+
+const registrationChannelLabels: Record<string, string> = {
+  WEB: "Веб",
+  IOS: "iOS",
+  ANDROID: "Android",
+  UNKNOWN: "Не указано",
+};
 
 export default function UsersTable({
   users,
@@ -193,6 +201,11 @@ export default function UsersTable({
                 </Typography>
               </TableCell>
               <TableCell>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Регистрация
+                </Typography>
+              </TableCell>
+              <TableCell>
                 <Box
                   sx={{
                     display: "flex",
@@ -277,6 +290,15 @@ export default function UsersTable({
                   >
                     {formatEmailCell(user.email)}
                   </Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={
+                      registrationChannelLabels[user.registrationChannel] ?? user.registrationChannel
+                    }
+                    size="small"
+                    variant="outlined"
+                  />
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -397,6 +419,21 @@ export default function UsersTable({
                 >
                   {formatEmailCell(user.email)}
                 </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Регистрация
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip
+                    label={
+                      registrationChannelLabels[user.registrationChannel] ?? user.registrationChannel
+                    }
+                    size="small"
+                    variant="outlined"
+                  />
+                </Box>
               </Box>
 
               <Box>

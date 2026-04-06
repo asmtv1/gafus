@@ -680,7 +680,7 @@ jobs:
             # 6. Start monitoring and logging services
             echo "📊 Starting monitoring and logging services..."
             docker-compose -f "$COMPOSE_PROD" up -d --force-recreate \
-              grafana-alloy node-exporter postgres-exporter redis-exporter blackbox-exporter
+              grafana-alloy yandex-metrics-sync node-exporter postgres-exporter redis-exporter blackbox-exporter
             echo "⏳ Waiting for monitoring services to be ready..."
             sleep 10
 

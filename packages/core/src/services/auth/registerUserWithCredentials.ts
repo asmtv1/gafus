@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 
-import { Prisma, prisma } from "@gafus/prisma";
+import { Prisma, prisma, RegistrationChannel } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import { authRegisterBodySchema } from "../../validation/authRegisterSchema";
@@ -23,6 +23,8 @@ export type RegisterUserWithCredentialsInput = {
   username: string;
   email: string;
   password: string;
+  /** Если не передан — UNKNOWN (старые клиенты / неизвестный канал) */
+  registrationChannel?: RegistrationChannel;
 };
 
 /**
@@ -49,6 +51,8 @@ export async function registerUserWithCredentials(
   }
 
   const { name: normalizedUsername, email: normalizedEmail, password } = parsed.data;
+  const registrationChannel =
+    input.registrationChannel ?? RegistrationChannel.UNKNOWN;
 
   const existingUsername = await prisma.user.findUnique({
     where: { username: normalizedUsername },
@@ -84,6 +88,7 @@ export async function registerUserWithCredentials(
         phone: null,
         password: hashedPassword,
         passwordSetAt: new Date(),
+        registrationChannel,
         profile: { create: {} },
       },
       select: { id: true },

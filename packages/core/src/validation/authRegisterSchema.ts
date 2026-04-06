@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { RegistrationChannel } from "@gafus/prisma";
+
 import { coreRegisterEmailSchema } from "./registerEmailDomain";
 
 export { coreRegisterEmailSchema, isRegisterEmailWithValidDomain } from "./registerEmailDomain";
@@ -43,12 +45,26 @@ export const coreRegisterConsentPayloadSchema = z.object({
   }),
 });
 
+/** Клиент указывает платформу регистрации; без поля — UNKNOWN на сервере */
+export const registrationChannelRequestSchema = z.enum(["WEB", "IOS", "ANDROID"]);
+
 export const authRegisterBodySchema = z.object({
   name: coreRegisterUsernameSchema,
   email: coreRegisterEmailSchema,
   password: coreRegisterPasswordSchema,
   tempSessionId: z.string().uuid("tempSessionId должен быть UUID"),
   consentPayload: coreRegisterConsentPayloadSchema,
+  registrationChannel: registrationChannelRequestSchema.optional(),
 });
 
 export type AuthRegisterBody = z.infer<typeof authRegisterBodySchema>;
+
+/** Значение из тела запроса → enum Prisma; без поля — UNKNOWN */
+export function resolveRegistrationChannelFromBody(
+  v: z.infer<typeof registrationChannelRequestSchema> | undefined,
+): RegistrationChannel {
+  if (v === "WEB") return RegistrationChannel.WEB;
+  if (v === "IOS") return RegistrationChannel.IOS;
+  if (v === "ANDROID") return RegistrationChannel.ANDROID;
+  return RegistrationChannel.UNKNOWN;
+}

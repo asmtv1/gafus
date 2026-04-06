@@ -1,6 +1,7 @@
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import * as SecureStore from "expo-secure-store";
 
 import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
@@ -169,12 +170,19 @@ export const useAuthStore = create<AuthStore>()(
       register: async (name, email, password, tempSessionId, consentPayload) => {
         try {
           if (__DEV__) console.log("[authStore] register start", { name, email, tempSessionId });
+          const registrationChannel =
+            Platform.OS === "ios"
+              ? "IOS"
+              : Platform.OS === "android"
+                ? "ANDROID"
+                : "WEB";
           const response = await authApi.register(
             name,
             email,
             password,
             tempSessionId,
             consentPayload,
+            registrationChannel,
           );
 
           if (__DEV__) console.log("[authStore] register API response", {

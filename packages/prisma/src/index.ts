@@ -30,6 +30,7 @@ export {
   PetPreventionReminderKind,
   PetPreventionType,
   PetType,
+  RegistrationChannel,
   StepType,
   TrainingStatus,
   TranscodingStatus,

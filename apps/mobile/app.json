@@ -22,10 +22,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
       "buildNumber": "4",
-      "associatedDomains": [
-        "applinks:gafus.ru",
-        "applinks:gafus.ru"
-      ],
+      "associatedDomains": ["applinks:gafus.ru"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -54,11 +51,12 @@
               "pathPrefix": "/training"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
+      ],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -120,7 +118,8 @@
       "policy": "sdkVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/gafus"
+      "url": "https://u.expo.dev/6c36fab5-6226-450f-8ee5-64e9beeea7db",
+      "checkAutomatically": "ON_LOAD"
     }
   }
 }

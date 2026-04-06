@@ -8,7 +8,11 @@ import { zValidator } from "@hono/zod-validator";
 import { bodyLimit } from "hono/body-limit";
 import crypto from "crypto";
 
-import { authRegisterBodySchema, coreRegisterEmailSchema } from "@gafus/core/validation/auth-register";
+import {
+  authRegisterBodySchema,
+  coreRegisterEmailSchema,
+  resolveRegistrationChannelFromBody,
+} from "@gafus/core/validation/auth-register";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import { storeVkIdOneTimeUser, consumeVkIdOneTimeUser } from "@gafus/auth";
 import {
@@ -34,13 +38,13 @@ import {
   validateCredentials,
   validateRefreshToken,
 } from "@gafus/core/services/auth";
-import { createWebLogger } from "@gafus/logger";
-
 import {
   createConsentLogs,
   linkConsentLogsToUser,
   markConsentLogsFailed,
 } from "@gafus/core/services/consent";
+import { createWebLogger } from "@gafus/logger";
+import { RegistrationChannel } from "@gafus/prisma";
 import { authMiddleware } from "../../middleware/auth.js";
 
 const logger = createWebLogger("api-auth");
@@ -187,7 +191,8 @@ authRoutes.post(
   bodyLimit({ maxSize: 10 * 1024 }),
   zValidator("json", authRegisterBodySchema),
   async (c) => {
-    const { name, email, password, tempSessionId, consentPayload } = c.req.valid("json");
+    const { name, email, password, tempSessionId, consentPayload, registrationChannel } =
+      c.req.valid("json");
     const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0];
     const userAgent = c.req.header("user-agent");
 
@@ -203,7 +208,12 @@ authRoutes.post(
       });
       consentCreated = true;
 
-      const result = await registerUserService(name, email, password);
+      const result = await registerUserService(
+        name,
+        email,
+        password,
+        resolveRegistrationChannelFromBody(registrationChannel),
+      );
 
       if ("error" in result) {
         await markConsentLogsFailed(tempSessionId);
@@ -481,6 +491,13 @@ authRoutes.post(
             ? (process.env.VK_CLIENT_ID_ANDROID ?? process.env.VK_CLIENT_ID ?? "")
             : (process.env.VK_CLIENT_ID ?? "");
 
+      const vkRegistrationChannel =
+        platform === "ios"
+          ? RegistrationChannel.IOS
+          : platform === "android"
+            ? RegistrationChannel.ANDROID
+            : RegistrationChannel.UNKNOWN;
+
       const result = await exchangeVkCodeAndGetUser({
         code,
         codeVerifier: code_verifier,
@@ -488,6 +505,7 @@ authRoutes.post(
         state,
         redirectUri: `vk${clientId}://vk.ru/blank.html`,
         clientId,
+        registrationChannel: vkRegistrationChannel,
       });
 
       const { user, needsPhone, isNewUser } = result;
