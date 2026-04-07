@@ -76,6 +76,9 @@
       "@gafus/core/validation/auth-register": [
         "../../packages/core/src/validation/authRegisterSchema.ts"
       ],
+      "@gafus/core/validation/email-domain-suggestion": [
+        "../../packages/core/src/validation/emailDomainSuggestion.ts"
+      ],
       "@gafus/csrf": ["../../packages/csrf/src/index.ts"],
       "@gafus/csrf/*": ["../../packages/csrf/src/*"],
       "@gafus/auth": ["../../packages/auth/dist/index.d.ts"],

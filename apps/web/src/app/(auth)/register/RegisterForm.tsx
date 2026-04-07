@@ -10,9 +10,10 @@ import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/server-actions";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import type { ConsentPayload } from "@shared/constants/consent";
+import { suggestRegisterEmailDomain } from "@gafus/core/validation/email-domain-suggestion";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import styles from "./register.module.css";
 
@@ -25,6 +26,7 @@ export function RegisterForm() {
   const {
     form,
     handleSubmit,
+    setValue,
     formState: { errors, isValid },
   } = useZodForm(
     registerFormSchema,
@@ -47,6 +49,20 @@ export function RegisterForm() {
   const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
   const [tempSessionId] = useState<string>(() => crypto.randomUUID());
+  const [emailTypoSuggestion, setEmailTypoSuggestion] = useState<string | null>(null);
+
+  const emailRegisterOptions = useMemo(
+    () => ({
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+        const s = suggestRegisterEmailDomain(e.target.value);
+        setEmailTypoSuggestion(s?.full ?? null);
+      },
+      onChange: () => {
+        setEmailTypoSuggestion(null);
+      },
+    }),
+    [],
+  );
 
   const onSubmit = async (data: RegisterFormSchema) => {
     if (csrfLoading || !csrfToken) {
@@ -123,7 +139,34 @@ export function RegisterForm() {
         placeholder="email@example.com"
         form={form}
         autoComplete="email"
+        ariaDescribedBy={emailTypoSuggestion ? "email-typo-hint" : undefined}
+        registerOptions={emailRegisterOptions}
       />
+
+      {emailTypoSuggestion && (
+        <div
+          id="email-typo-hint"
+          role="status"
+          className={styles.emailTypoHint}
+        >
+          <span className={styles.emailTypoHintText}>
+            Возможно, имелось в виду {emailTypoSuggestion}?
+          </span>
+          <button
+            type="button"
+            className={styles.emailTypoFix}
+            onClick={() => {
+              setValue("email", emailTypoSuggestion, {
+                shouldValidate: true,
+                shouldDirty: true,
+              });
+              setEmailTypoSuggestion(null);
+            }}
+          >
+            Исправить
+          </button>
+        </div>
+      )}
 
       <PasswordInput
         className={styles.input}

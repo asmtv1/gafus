@@ -9,7 +9,7 @@ import { Image } from "expo-image";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/constants";
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -49,6 +49,22 @@ const declOfNum = (n: number, forms: [string, string, string]) => {
   const cases = [2, 0, 1, 1, 1, 2];
   return forms[n % 100 > 4 && n % 100 < 20 ? 2 : cases[Math.min(n % 10, 5)]];
 };
+
+/** URI и cacheKey логотипа — как в CourseCard (инвалидация кэша при смене файла обложки) */
+function getTrainerCourseLogoCacheProps(
+  course: Pick<PublicProfileCourse, "id" | "logoImg">,
+): { uri: string | undefined; cacheKey: string } {
+  const logoImgUri =
+    course.logoImg?.startsWith("/")
+      ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
+      : course.logoImg || undefined;
+  const coverCacheKeySuffix =
+    logoImgUri && logoImgUri.length > 0
+      ? logoImgUri.replace(/\/+$/, "").split("/").pop() ?? logoImgUri
+      : "none";
+  const cacheKey = `course-logo-${course.id}-${coverCacheKeySuffix}`;
+  return { uri: logoImgUri, cacheKey };
+}
 
 // Функция для получения метки роли
 const getRoleLabel = (role?: string) => {
@@ -301,70 +317,74 @@ export default function PublicProfileScreen() {
           <View style={styles.coursesSection}>
             <Text style={styles.coursesSectionTitle}>Курсы кинолога</Text>
             <View style={styles.coursesList}>
-              {courses.map((course) => (
-                <Pressable
-                  key={course.id}
-                  style={({ pressed }) => [
-                    styles.courseItem,
-                    pressed && styles.courseItemPressed,
-                  ]}
-                  onPress={() => handleCoursePress(course)}
-                >
-                  <View style={styles.courseContent}>
-                    <View style={styles.imageWrapper}>
-                      <Image
-                        source={{
-                          uri: course.logoImg || undefined,
-                        }}
-                        style={styles.courseImage}
-                        contentFit="cover"
-                      />
-                      {course.isPrivate && (
-                        <View style={styles.privateBadge}>
-                          <Text style={styles.privateBadgeText}>Приватный</Text>
-                        </View>
-                      )}
-                      {course.isPaid && (
-                        <View style={styles.paidBadge}>
-                          <Text style={styles.paidBadgeText}>Платный</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.courseInfo}>
-                      <Text style={styles.courseName}>{course.name}</Text>
-                      {course.shortDesc ? (
-                        <Text style={styles.courseDescription}>
-                          {course.shortDesc}
-                        </Text>
-                      ) : null}
-                      <View style={styles.courseMeta}>
-                        {course.isPaid &&
-                          course.priceRub != null &&
-                          course.priceRub > 0 && (
-                            <Text style={styles.courseMetaText}>
-                              <Text style={styles.courseMetaLabel}>Цена:</Text>{" "}
-                              {course.priceRub} ₽
-                            </Text>
-                          )}
-                        <Text style={styles.courseMetaText}>
-                          <Text style={styles.courseMetaLabel}>Длительность:</Text>{" "}
-                          {course.duration}
-                        </Text>
-                        <Text style={styles.courseMetaText}>
-                          <Text style={styles.courseMetaLabel}>Уровень:</Text>{" "}
-                          {getTrainingLevelLabel(course.trainingLevel)}
-                        </Text>
-                        {course.avgRating != null && (
-                          <Text style={styles.courseMetaText}>
-                            <Text style={styles.courseMetaLabel}>Рейтинг:</Text>{" "}
-                            {course.avgRating.toFixed(1)} ♥
-                          </Text>
+              {courses.map((course) => {
+                const { uri: logoUri, cacheKey: logoCacheKey } =
+                  getTrainerCourseLogoCacheProps(course);
+                return (
+                  <Pressable
+                    key={course.id}
+                    style={({ pressed }) => [
+                      styles.courseItem,
+                      pressed && styles.courseItemPressed,
+                    ]}
+                    onPress={() => handleCoursePress(course)}
+                  >
+                    <View style={styles.courseContent}>
+                      <View style={styles.imageWrapper}>
+                        <Image
+                          source={{ uri: logoUri, cacheKey: logoCacheKey }}
+                          style={styles.courseImage}
+                          contentFit="cover"
+                          recyclingKey={logoCacheKey}
+                          transition={0}
+                        />
+                        {course.isPrivate && (
+                          <View style={styles.privateBadge}>
+                            <Text style={styles.privateBadgeText}>Приватный</Text>
+                          </View>
+                        )}
+                        {course.isPaid && (
+                          <View style={styles.paidBadge}>
+                            <Text style={styles.paidBadgeText}>Платный</Text>
+                          </View>
                         )}
                       </View>
+                      <View style={styles.courseInfo}>
+                        <Text style={styles.courseName}>{course.name}</Text>
+                        {course.shortDesc ? (
+                          <Text style={styles.courseDescription}>
+                            {course.shortDesc}
+                          </Text>
+                        ) : null}
+                        <View style={styles.courseMeta}>
+                          {course.isPaid &&
+                            course.priceRub != null &&
+                            course.priceRub > 0 && (
+                              <Text style={styles.courseMetaText}>
+                                <Text style={styles.courseMetaLabel}>Цена:</Text>{" "}
+                                {course.priceRub} ₽
+                              </Text>
+                            )}
+                          <Text style={styles.courseMetaText}>
+                            <Text style={styles.courseMetaLabel}>Длительность:</Text>{" "}
+                            {course.duration}
+                          </Text>
+                          <Text style={styles.courseMetaText}>
+                            <Text style={styles.courseMetaLabel}>Уровень:</Text>{" "}
+                            {getTrainingLevelLabel(course.trainingLevel)}
+                          </Text>
+                          {course.avgRating != null && (
+                            <Text style={styles.courseMetaText}>
+                              <Text style={styles.courseMetaLabel}>Рейтинг:</Text>{" "}
+                              {course.avgRating.toFixed(1)} ♥
+                            </Text>
+                          )}
+                        </View>
+                      </View>
                     </View>
-                  </View>
-                </Pressable>
-              ))}
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         )}

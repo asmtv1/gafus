@@ -1,6 +1,6 @@
 // UI-специфичные типы для shared компонентов
 
-import type { UseFormReturn, FieldValues } from "react-hook-form";
+import type { FieldValues, Path, RegisterOptions, UseFormReturn } from "react-hook-form";
 
 export interface OptimizedImageProps {
   src: string;
@@ -95,6 +95,8 @@ export interface FormFieldComponentProps<T extends FieldValues> {
   placeholder?: string;
   as?: "input" | "textarea" | "select";
   rules?: Record<string, unknown>;
+  /** Доп. опции register (onBlur/onChange и т.д.); перекрывают одноимённые ключи из rules */
+  registerOptions?: RegisterOptions<T, Path<T>>;
   form: UseFormReturn<T>;
   options?: { value: string; label: string }[];
   className?: string;

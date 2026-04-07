@@ -3,7 +3,7 @@
 import { ValidationError } from "./ValidationError";
 
 import type { FormFieldComponentProps } from "./types";
-import type { FieldValues, Path } from "react-hook-form";
+import type { FieldValues, Path, RegisterOptions } from "react-hook-form";
 
 export function FormField<T extends FieldValues>({
   id,
@@ -22,11 +22,17 @@ export function FormField<T extends FieldValues>({
   ariaDescribedBy,
   visuallyHiddenLabel = false,
   errorClassName,
+  registerOptions,
 }: FormFieldComponentProps<T>) {
   const {
     register,
     formState: { errors },
   } = form;
+
+  const registerOpts = {
+    ...(rules as RegisterOptions<T, Path<T>>),
+    ...(registerOptions ?? {}),
+  } as RegisterOptions<T, Path<T>>;
 
   const error = errors[name]?.message as string | undefined;
 
@@ -70,9 +76,9 @@ export function FormField<T extends FieldValues>({
       )}
 
       {as === "textarea" ? (
-        <textarea {...baseInputProps} rows={4} {...register(name as Path<T>, rules)} />
+        <textarea {...baseInputProps} rows={4} {...register(name as Path<T>, registerOpts)} />
       ) : as === "select" ? (
-        <select {...baseInputProps} {...register(name as Path<T>, rules)}>
+        <select {...baseInputProps} {...register(name as Path<T>, registerOpts)}>
           <option value="">Выберите...</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -81,7 +87,7 @@ export function FormField<T extends FieldValues>({
           ))}
         </select>
       ) : (
-        <input {...baseInputProps} type={type} {...register(name as Path<T>, rules)} />
+        <input {...baseInputProps} type={type} {...register(name as Path<T>, registerOpts)} />
       )}
 
       <ValidationError error={error} className={errorClassName} />

@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
+import { suggestRegisterEmailDomain } from "@gafus/core/validation/emailDomainSuggestion";
 import { coreRegisterEmailSchema } from "@gafus/core/validation/registerEmailDomain";
 import * as Crypto from "expo-crypto";
 import { useAuthStore } from "@/shared/stores";
@@ -77,6 +78,7 @@ export default function RegisterScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [tempSessionId] = useState<string>(() => Crypto.randomUUID());
+  const [emailTypoFull, setEmailTypoFull] = useState<string | null>(null);
   const submittingRef = useRef(false);
   const [consents, setConsents] = useState({
     acceptPersonalData: false,
@@ -86,6 +88,9 @@ export default function RegisterScreen() {
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "email") {
+      setEmailTypoFull(null);
+    }
     setErrors((prev) => {
       const next = { ...prev, [field]: undefined, api: undefined };
       return next;
@@ -247,6 +252,10 @@ export default function RegisterScreen() {
               ]}
               value={form.email}
               onChangeText={(v) => updateField("email", v)}
+              onEndEditing={(e) => {
+                const s = suggestRegisterEmailDomain(e.nativeEvent.text);
+                setEmailTypoFull(s?.full ?? null);
+              }}
               placeholder="email@example.com"
               placeholderTextColor={COLORS.placeholder}
               keyboardType="email-address"
@@ -254,6 +263,21 @@ export default function RegisterScreen() {
               autoCorrect={false}
             />
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            {emailTypoFull && (
+              <View style={[styles.emailTypoHint, { width: formWidth }]}>
+                <Text style={styles.emailTypoHintText}>
+                  Возможно, имелось в виду {emailTypoFull}?
+                </Text>
+                <Pressable
+                  style={styles.emailTypoFix}
+                  onPress={() => updateField("email", emailTypoFull)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Исправить email на предложенный"
+                >
+                  <Text style={styles.emailTypoFixText}>Исправить</Text>
+                </Pressable>
+              </View>
+            )}
 
             {/* Password Input */}
             <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
@@ -528,6 +552,36 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
     marginTop: 4,
     color: COLORS.error,
+  },
+  emailTypoHint: {
+    marginTop: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "#636128",
+    backgroundColor: "rgba(99, 97, 40, 0.08)",
+    gap: 8,
+  },
+  emailTypoHintText: {
+    fontSize: 10,
+    fontFamily: FONTS.montserrat,
+    lineHeight: 14,
+    color: COLORS.primary,
+  },
+  emailTypoFix: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
+  },
+  emailTypoFixText: {
+    fontSize: 10,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.onPrimary,
   },
   apiError: {
     marginTop: 8,
