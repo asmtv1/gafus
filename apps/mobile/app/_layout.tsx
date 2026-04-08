@@ -15,6 +15,7 @@ import {
 import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
 import { installGlobalJsErrorHandler, reportClientError } from "@/shared/lib/tracer";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
+import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
 import { COLORS } from "@/constants";
@@ -61,6 +62,8 @@ export default function RootLayout() {
   useEffect(() => {
     installGlobalJsErrorHandler();
   }, []);
+
+  useOtaAutoApply();
 
   // DEBUG: лог любых deep link на Android для отладки VK redirect
   useEffect(() => {

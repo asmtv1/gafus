@@ -10,6 +10,7 @@ export {
 } from "./useTrainingDay";
 export { useLayout } from "./useLayout";
 export { useNetworkStatus } from "./useNetworkStatus";
+export { useOtaAutoApply } from "./useOtaAutoApply";
 export { useSyncProgressOnReconnect } from "./useSyncProgressOnReconnect";
 export { useVideoUrl } from "./useVideoUrl";
 export { useVkLink } from "./useVkLink";

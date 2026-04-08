@@ -6,10 +6,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding: 8px 16px 22px 16px;
+  justify-content: center;
+  padding: clamp(20px, 5vh, 56px) 16px clamp(24px, 6vh, 64px) 16px;
   gap: 16px;
   position: relative;
+  box-sizing: border-box;
 }
 .title {
   color: var(--bg-2);
@@ -46,12 +47,25 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  align-items: center;
+  align-items: stretch;
+  width: 100%;
+  max-width: 280px;
+  box-sizing: border-box;
 }
+
+/* Обёртки полей (FormField / PasswordInput) на всю ширину колонки */
+.form > :global(.flex.flex-col) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .input {
   background-color: var(--bg-1);
-  width: 250px;
+  width: 100%;
+  max-width: 100%;
   height: 29px;
+  box-sizing: border-box;
   opacity: 1;
   border: 2px solid #636128;
   border-radius: 5px;
@@ -95,7 +109,9 @@
   font-size: 12px;
   line-height: 1.4;
   color: black;
-  width: 250px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   margin-top: 4px;
 }
 
@@ -119,6 +135,7 @@
 }
 
 .button {
+  align-self: center;
   background-color: var(--bg-2);
   width: 190px;
   height: 36px;
@@ -155,12 +172,19 @@
 }
 
 /* Подсказка mailcheck: опечатка в домене */
+.consentsError {
+  width: 100%;
+  margin-top: 6px;
+}
+
 .emailTypoHint {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  width: 250px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   margin-top: 4px;
   padding: 8px 10px;
   border-radius: 5px;

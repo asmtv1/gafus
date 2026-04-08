@@ -109,34 +109,48 @@ export const registerUserSchema = z.object({
   password: newPasswordSchema,
 });
 
-/**
- * Схема для формы регистрации с подтверждением пароля и согласием с документами
- */
 const acceptRequired = (message: string) =>
   z.boolean().refine((v) => v === true, message);
 
+/**
+ * Схема для формы регистрации с подтверждением пароля и согласием с документами
+ */
 export const registerFormSchema = registerUserSchema
   .extend({
     confirmPassword: z.string().min(1, "Подтвердите пароль"),
-    acceptPersonalData: acceptRequired(
-      "Необходимо дать согласие на обработку персональных данных",
-    ),
-    acceptPrivacyPolicy: acceptRequired(
-      "Необходимо ознакомиться с Политикой конфиденциальности",
-    ),
-    acceptDataDistribution: acceptRequired(
-      "Необходимо дать согласие на размещение данных в публичном профиле",
-    ),
+    acceptPersonalData: z.boolean(),
+    acceptPrivacyPolicy: z.boolean(),
+    acceptDataDistribution: z.boolean(),
   })
-  .superRefine(({ password, confirmPassword }, ctx) => {
-    if (password !== confirmPassword) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["confirmPassword"],
-        message: "Пароли не совпадают",
-      });
-    }
-  });
+  .superRefine(
+    (
+      {
+        password,
+        confirmPassword,
+        acceptPersonalData,
+        acceptPrivacyPolicy,
+        acceptDataDistribution,
+      },
+      ctx,
+    ) => {
+      if (password !== confirmPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["confirmPassword"],
+          message: "Пароли не совпадают",
+        });
+      }
+
+      if (!acceptPersonalData || !acceptPrivacyPolicy || !acceptDataDistribution) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["acceptPersonalData"],
+          message:
+            "Для регистрации нужно отметить все три согласия — поставьте галочки во всех пунктах.",
+        });
+      }
+    },
+  );
 
 /**
  * Схема для сброса пароля по токену из письма (API)

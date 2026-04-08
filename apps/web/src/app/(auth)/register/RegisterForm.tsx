@@ -27,7 +27,7 @@ export function RegisterForm() {
     form,
     handleSubmit,
     setValue,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useZodForm(
     registerFormSchema,
     {
@@ -208,15 +208,12 @@ export function RegisterForm() {
           </Link>
         </span>
       </label>
-      {errors.acceptPersonalData?.message && (
-        <span className={styles.errorText}>{errors.acceptPersonalData.message}</span>
-      )}
 
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"
           {...form.register("acceptPrivacyPolicy")}
-          aria-invalid={!!errors.acceptPrivacyPolicy}
+          aria-invalid={!!errors.acceptPersonalData}
         />
         <span className={styles.checkboxLabel}>
           Ознакомлен(а) с{" "}
@@ -230,15 +227,12 @@ export function RegisterForm() {
           </Link>
         </span>
       </label>
-      {errors.acceptPrivacyPolicy?.message && (
-        <span className={styles.errorText}>{errors.acceptPrivacyPolicy.message}</span>
-      )}
 
       <label className={styles.checkboxRow}>
         <input
           type="checkbox"
           {...form.register("acceptDataDistribution")}
-          aria-invalid={!!errors.acceptDataDistribution}
+          aria-invalid={!!errors.acceptPersonalData}
         />
         <span className={styles.checkboxLabel}>
           Даю{" "}
@@ -253,12 +247,18 @@ export function RegisterForm() {
         </span>
       </label>
 
+      {errors.acceptPersonalData?.message && (
+        <span className={`${styles.errorText} ${styles.consentsError}`} role="alert">
+          {errors.acceptPersonalData.message}
+        </span>
+      )}
+
       {csrfError && <div className={styles.errorText}>Ошибка загрузки токена: {csrfError}</div>}
 
       <button
         className={styles.button}
         type="submit"
-        disabled={isPending || !isValid || csrfLoading}
+        disabled={isPending || csrfLoading}
       >
         {isPending ? "регистрация..." : "зарегистрироваться"}
       </button>

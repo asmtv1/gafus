@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -19,6 +19,7 @@ import { coreRegisterEmailSchema } from "@gafus/core/validation/registerEmailDom
 import * as Crypto from "expo-crypto";
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
+import { getOtaRuntimeFingerprintText } from "@/shared/lib/otaRuntimeFingerprint";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/constants";
@@ -79,6 +80,8 @@ export default function RegisterScreen() {
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [tempSessionId] = useState<string>(() => Crypto.randomUUID());
   const [emailTypoFull, setEmailTypoFull] = useState<string | null>(null);
+  /** Актуальный email для blur/onEndEditing (state в RN может отставать от события). */
+  const emailTextRef = useRef("");
   const submittingRef = useRef(false);
   const [consents, setConsents] = useState({
     acceptPersonalData: false,
@@ -86,9 +89,48 @@ export default function RegisterScreen() {
     acceptDataDistribution: false,
   });
 
+  const applyEmailTypoHint = useCallback((raw: string) => {
+    try {
+      const s = suggestRegisterEmailDomain(raw);
+      setEmailTypoFull(s?.full ?? null);
+    } catch (err) {
+      setEmailTypoFull(null);
+      reportClientError(err instanceof Error ? err : new Error(String(err)), {
+        issueKey: "RegisterScreen",
+        keys: { operation: "email_typo_hint" },
+      });
+    }
+  }, []);
+
+  const emailTypoDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Android: onBlur/onEndEditing часто не вызываются при переносе фокуса на кнопку/другое поле.
+   * Пересчёт подсказки после паузы в вводе — основной надёжный триггер на обеих платформах.
+   */
+  useEffect(() => {
+    const raw = form.email;
+    if (emailTypoDebounceRef.current) {
+      clearTimeout(emailTypoDebounceRef.current);
+    }
+    if (!raw.includes("@")) {
+      setEmailTypoFull(null);
+      return;
+    }
+    emailTypoDebounceRef.current = setTimeout(() => {
+      applyEmailTypoHint(raw);
+    }, 550);
+    return () => {
+      if (emailTypoDebounceRef.current) {
+        clearTimeout(emailTypoDebounceRef.current);
+      }
+    };
+  }, [form.email, applyEmailTypoHint]);
+
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (field === "email") {
+      emailTextRef.current = value;
       setEmailTypoFull(null);
     }
     setErrors((prev) => {
@@ -126,6 +168,7 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (submittingRef.current) return;
+    applyEmailTypoHint(emailTextRef.current || form.email);
     if (!validateForm()) return;
 
     const allConsentsAccepted =
@@ -134,7 +177,11 @@ export default function RegisterScreen() {
       consents.acceptDataDistribution;
 
     if (!allConsentsAccepted) {
-      setErrors((prev) => ({ ...prev, consent: "Необходимо принять все согласия" }));
+      setErrors((prev) => ({
+        ...prev,
+        consent:
+          "Для регистрации нужно отметить все три согласия — поставьте галочки во всех пунктах.",
+      }));
       return;
     }
 
@@ -253,9 +300,15 @@ export default function RegisterScreen() {
               value={form.email}
               onChangeText={(v) => updateField("email", v)}
               onEndEditing={(e) => {
-                const s = suggestRegisterEmailDomain(e.nativeEvent.text);
-                setEmailTypoFull(s?.full ?? null);
+                applyEmailTypoHint(e.nativeEvent.text);
               }}
+              onBlur={() => {
+                applyEmailTypoHint(emailTextRef.current);
+              }}
+              onSubmitEditing={() => {
+                applyEmailTypoHint(emailTextRef.current);
+              }}
+              returnKeyType="next"
               placeholder="email@example.com"
               placeholderTextColor={COLORS.placeholder}
               keyboardType="email-address"
@@ -423,7 +476,15 @@ export default function RegisterScreen() {
                   </Text>
                 </Text>
               </View>
-              {errors.consent && <Text style={styles.errorText}>{errors.consent}</Text>}
+              {errors.consent ? (
+                <Text
+                  style={styles.errorText}
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                >
+                  {errors.consent}
+                </Text>
+              ) : null}
             </View>
 
             {errors.api && (
@@ -445,6 +506,11 @@ export default function RegisterScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {/* Метка бандла: после применения OTA меняется префикс ota xxxxxxxx */}
+          <Text style={styles.otaBundleHint} pointerEvents="none">
+            {getOtaRuntimeFingerprintText()}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -664,6 +730,19 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     fontSize: 22,
     color: COLORS.onPrimary,
+    textAlign: "center",
+  },
+  /** Едва заметная подсказка для проверки OTA; не тянется с web */
+  otaBundleHint: {
+    marginTop: 10,
+    marginBottom: 4,
+    alignSelf: "center",
+    maxWidth: "100%",
+    fontSize: 8,
+    lineHeight: 11,
+    fontFamily: FONTS.montserrat,
+    color: COLORS.text,
+    opacity: 0.26,
     textAlign: "center",
   },
 });
