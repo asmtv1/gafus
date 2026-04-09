@@ -5,6 +5,7 @@ import {
   deletePushSubscriptionByEndpoint,
   deleteAllPushSubscriptions,
   getUserSubscriptionStatus,
+  getPushSubscriptionStatusForEndpoints,
   getUserSubscriptionCount,
   getUserSubscriptions,
 } from "./pushSubscriptionService";
@@ -147,6 +148,53 @@ describe("getUserSubscriptionStatus", () => {
     expect(result).toEqual({
       hasSubscription: false,
       hasExpoPushSubscription: false,
+    });
+  });
+});
+
+describe("getPushSubscriptionStatusForEndpoints", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns determined false when endpoints empty", async () => {
+    const result = await getPushSubscriptionStatusForEndpoints("user-1", []);
+    expect(result).toEqual({
+      hasThisDeviceSubscription: false,
+      determined: false,
+    });
+    expect(mockCount).not.toHaveBeenCalled();
+  });
+
+  it("returns hasThisDeviceSubscription when endpoint matches", async () => {
+    mockCount.mockResolvedValue(1);
+
+    const result = await getPushSubscriptionStatusForEndpoints("user-1", [
+      "ExponentPushToken[abc]",
+    ]);
+
+    expect(result).toEqual({
+      hasThisDeviceSubscription: true,
+      determined: true,
+    });
+    expect(mockCount).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        endpoint: { in: ["ExponentPushToken[abc]"] },
+      },
+    });
+  });
+
+  it("returns false when count is zero", async () => {
+    mockCount.mockResolvedValue(0);
+
+    const result = await getPushSubscriptionStatusForEndpoints("user-1", [
+      "ExponentPushToken[ghost]",
+    ]);
+
+    expect(result).toEqual({
+      hasThisDeviceSubscription: false,
+      determined: true,
     });
   });
 });

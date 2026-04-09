@@ -50,7 +50,11 @@ export {
   type PublicProfile,
   type PublicProfileCourse,
 } from "./user";
-export { subscriptionsApi, type PushSubscription } from "./subscriptions";
+export {
+  subscriptionsApi,
+  type PushSubscription,
+  type PushSubscriptionDeviceStatus,
+} from "./subscriptions";
 export { notesApi, type StudentNote, type StudentNoteEntry } from "./notes";
 export {
   remindersApi,

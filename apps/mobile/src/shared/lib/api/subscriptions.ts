@@ -8,15 +8,29 @@ export interface PushSubscription {
   };
 }
 
+/** Статус подписки именно для переданных endpoint'ов (это устройство). */
+export interface PushSubscriptionDeviceStatus {
+  hasThisDeviceSubscription: boolean;
+  determined: boolean;
+}
+
 /**
  * API модуль для push подписок
  */
 export const subscriptionsApi = {
-  getPushSubscriptionStatus: async (): Promise<
-    ApiResponse<{ hasSubscription: boolean; hasExpoPushSubscription: boolean }>
-  > => {
-    return apiClient<{ hasSubscription: boolean; hasExpoPushSubscription: boolean }>(
-      "/api/v1/subscriptions/push",
+  /**
+   * Есть ли на сервере подписка с одним из endpoint'ов этого устройства (Expo / RuStore).
+   * Пустой массив → determined: false.
+   */
+  postPushDeviceStatus: async (
+    endpoints: string[],
+  ): Promise<ApiResponse<PushSubscriptionDeviceStatus>> => {
+    return apiClient<PushSubscriptionDeviceStatus>(
+      "/api/v1/subscriptions/push/device-status",
+      {
+        method: "POST",
+        body: { endpoints },
+      },
     );
   },
 

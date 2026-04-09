@@ -18,7 +18,7 @@ import { userApi } from "@/shared/lib/api/user";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
-import { setupPushNotifications, getCurrentDeviceTokens } from "@/shared/lib/utils/notifications";
+import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 
@@ -220,9 +220,23 @@ export default function ProfileScreen() {
     },
   });
 
-  const { data: pushStatusData } = useQuery({
-    queryKey: ["push-subscription-status"],
-    queryFn: subscriptionsApi.getPushSubscriptionStatus,
+  const {
+    data: pushDeviceStatus,
+    isPending: pushDeviceStatusPending,
+    isError: pushDeviceStatusError,
+  } = useQuery({
+    queryKey: ["push-subscription-device-status"],
+    queryFn: async () => {
+      const tokens = await getCurrentDeviceTokens();
+      const endpoints = [tokens.expo, tokens.rustore].filter(
+        (ep): ep is string => typeof ep === "string" && ep.length > 0,
+      );
+      const res = await subscriptionsApi.postPushDeviceStatus(endpoints);
+      if (!res.success || res.data === undefined) {
+        throw new Error(res.error ?? "Не удалось проверить подписку");
+      }
+      return res.data;
+    },
   });
 
   const { data: studentNotesData } = useQuery({
@@ -332,7 +346,7 @@ export default function ProfileScreen() {
         return;
       }
       try {
-        await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
+        await queryClient.invalidateQueries({ queryKey: ["push-subscription-device-status"] });
         hapticFeedback.success();
       } catch (err) {
         reportClientError(err, {
@@ -348,7 +362,13 @@ export default function ProfileScreen() {
     mutationFn: async () => {
       const tokens = await getCurrentDeviceTokens();
       const endpoints = [tokens.expo, tokens.rustore].filter(Boolean) as string[];
-      if (endpoints.length === 0) return { success: true };
+      if (endpoints.length === 0) {
+        return {
+          success: false,
+          error:
+            "Не удалось определить это устройство. Разрешите уведомления в настройках телефона и повторите попытку.",
+        };
+      }
       const results = await Promise.all(
         endpoints.map((ep) => subscriptionsApi.deletePushSubscription(ep)),
       );
@@ -360,7 +380,7 @@ export default function ProfileScreen() {
         return;
       }
       try {
-        await queryClient.invalidateQueries({ queryKey: ["push-subscription-status"] });
+        await queryClient.invalidateQueries({ queryKey: ["push-subscription-device-status"] });
         hapticFeedback.success();
       } catch (err) {
         reportClientError(err, {
@@ -388,7 +408,8 @@ export default function ProfileScreen() {
   const avatarUrl = profile?.avatarUrl?.trim() || null;
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
-  const hasPushSubscription = !!pushStatusData?.data?.hasExpoPushSubscription;
+  const pushServerDetermined = pushDeviceStatus?.determined === true;
+  const hasThisDevicePushOnServer = pushDeviceStatus?.hasThisDeviceSubscription === true;
   const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
   const trainerCourses = trainerProfileData?.data?.courses ?? [];
 
@@ -639,20 +660,34 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.notifyStatusRow}>
-              <Text style={styles.notifyStatusLabel}>Серверная подписка:</Text>
+              <Text style={styles.notifyStatusLabel}>Подписка на этом устройстве:</Text>
               <View
                 style={[
                   styles.notifyStatusBadge,
-                  hasPushSubscription ? styles.notifyBadgeOk : styles.notifyBadgeFail,
+                  pushDeviceStatusPending ? styles.notifyBadgeWarn
+                  : pushDeviceStatusError ? styles.notifyBadgeFail
+                  : !pushServerDetermined ? styles.notifyBadgeWarn
+                  : hasThisDevicePushOnServer ? styles.notifyBadgeOk
+                  : styles.notifyBadgeFail,
                 ]}
               >
                 <Text style={styles.notifyBadgeText}>
-                  {hasPushSubscription ? "✅ Активна" : "❌ Неактивна"}
+                  {pushDeviceStatusPending ? "⏳ Проверка…"
+                  : pushDeviceStatusError ? "❌ Ошибка"
+                  : !pushServerDetermined ? "⚠️ Нет токена"
+                  : hasThisDevicePushOnServer ? "✅ Активна"
+                  : "❌ Неактивна"}
                 </Text>
               </View>
             </View>
 
-            {osPermission === "denied" && hasPushSubscription && (
+            {!pushDeviceStatusPending && !pushDeviceStatusError && !pushServerDetermined && (
+              <Text style={styles.notifyHintText}>
+                Разрешите уведомления, чтобы проверить и включить подписку на этом устройстве.
+              </Text>
+            )}
+
+            {osPermission === "denied" && pushServerDetermined && hasThisDevicePushOnServer && (
               <View style={styles.notifyWarningBox}>
                 <MaterialCommunityIcons name="alert" size={14} color="#8B4513" />
                 <Text style={styles.notifyWarningText}>
@@ -681,7 +716,7 @@ export default function ProfileScreen() {
                     {enablePushMutation.isPending ? "Загрузка..." : "Включить уведомления"}
                   </Text>
                 </Pressable>
-              : hasPushSubscription ?
+              : pushServerDetermined && hasThisDevicePushOnServer ?
                 <Pressable
                   style={[styles.notifyActionButton, styles.notifyActionDanger]}
                   disabled={disablePushMutation.isPending}
@@ -1269,6 +1304,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
     color: "#8B4513",
     lineHeight: 17,
+  },
+  notifyHintText: {
+    fontSize: 12,
+    fontFamily: FONTS.montserrat,
+    color: "#6B6560",
+    lineHeight: 17,
+    marginBottom: 6,
   },
   notificationsActions: {
     marginTop: SPACING.sm,

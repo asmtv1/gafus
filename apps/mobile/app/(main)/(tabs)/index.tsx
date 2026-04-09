@@ -17,7 +17,7 @@ import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
-import { setupPushNotifications } from "@/shared/lib/utils/notifications";
+import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
 import {
   CourseCard,
   CourseSearch,
@@ -81,14 +81,18 @@ export default function CoursesScreen() {
     const ensurePushSubscription = async () => {
       if (pushPromptAskedInSession.current) return;
 
-      const status = await subscriptionsApi.getPushSubscriptionStatus();
+      const tokens = await getCurrentDeviceTokens();
+      const endpoints = [tokens.expo, tokens.rustore].filter(
+        (ep): ep is string => typeof ep === "string" && ep.length > 0,
+      );
+      const status = await subscriptionsApi.postPushDeviceStatus(endpoints);
       if (cancelled || !status.success) return;
 
       pushPromptAskedInSession.current = true;
 
-      const hadAnySubscription = !!status.data?.hasSubscription;
+      const hadThisDeviceSubscription = !!status.data?.hasThisDeviceSubscription;
       const ok = await setupPushNotifications();
-      if (!cancelled && !ok && !hadAnySubscription) {
+      if (!cancelled && !ok && !hadThisDeviceSubscription) {
         setSnackbar({
           visible: true,
           message: "Не удалось включить push-уведомления",

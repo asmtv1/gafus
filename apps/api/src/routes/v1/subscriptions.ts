@@ -3,6 +3,7 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import {
   getUserSubscriptionStatus,
+  getPushSubscriptionStatusForEndpoints,
   savePushSubscription,
   deletePushSubscriptionByEndpoint,
   deleteAllPushSubscriptions,
@@ -21,6 +22,41 @@ const deleteSchema = z.object({
   endpoint: z.string().optional(),
   deleteAll: z.boolean().optional(),
 });
+
+/** Те же правила endpoint, что при DELETE (Expo / https URL / непрозрачный RuStore). */
+const deviceStatusSchema = z
+  .object({
+    endpoints: z.array(z.string().min(1).max(4096)).max(8),
+  })
+  .superRefine((data, ctx) => {
+    data.endpoints.forEach((endpoint, i) => {
+      if (endpoint.startsWith("ExponentPushToken[") || endpoint.startsWith("ExpoPushToken[")) {
+        const expoOk =
+          /^ExponentPushToken\[[^\]]+\]$/.test(endpoint) ||
+          /^ExpoPushToken\[[^\]]+\]$/.test(endpoint);
+        if (!expoOk) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Некорректный формат токена Expo",
+            path: ["endpoints", i],
+          });
+        }
+        return;
+      }
+      try {
+        const parsed = new URL(endpoint);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "URL подписки должен быть http(s)",
+            path: ["endpoints", i],
+          });
+        }
+      } catch {
+        // RuStore и другие не-URL токены
+      }
+    });
+  });
 
 subscriptionsRoutes.get("/push", async (c) => {
   try {
@@ -44,6 +80,23 @@ subscriptionsRoutes.post("/push", zValidator("json", saveSchema), async (c) => {
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
+
+/** Статус подписки для текущего устройства (переданные endpoint'ы). */
+subscriptionsRoutes.post(
+  "/push/device-status",
+  zValidator("json", deviceStatusSchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const { endpoints } = c.req.valid("json");
+      const data = await getPushSubscriptionStatusForEndpoints(user.id, endpoints);
+      return c.json({ success: true, data });
+    } catch (error) {
+      logger.error("POST push/device-status error", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+    }
+  },
+);
 
 subscriptionsRoutes.delete("/push", zValidator("json", deleteSchema), async (c) => {
   try {

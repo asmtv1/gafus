@@ -119,6 +119,39 @@ export async function getUserSubscriptionStatus(
   return { hasSubscription, hasExpoPushSubscription };
 }
 
+/** Ответ проверки подписки для переданных endpoint'ов (текущее устройство). */
+export interface PushSubscriptionDeviceStatus {
+  /** Есть ли в БД запись с одним из переданных endpoint для этого пользователя */
+  hasThisDeviceSubscription: boolean;
+  /** false, если клиент прислал пустой список — сверить с БД нельзя */
+  determined: boolean;
+}
+
+/**
+ * Проверяет, зарегистрированы ли на сервере push-endpoint'ы этого устройства.
+ * Пустой список: determined=false (нет токена с устройства — статус «неизвестен»).
+ */
+export async function getPushSubscriptionStatusForEndpoints(
+  userId: string,
+  endpoints: string[],
+): Promise<PushSubscriptionDeviceStatus> {
+  if (endpoints.length === 0) {
+    return { hasThisDeviceSubscription: false, determined: false };
+  }
+
+  const count = await prisma.pushSubscription.count({
+    where: {
+      userId,
+      endpoint: { in: endpoints },
+    },
+  });
+
+  return {
+    hasThisDeviceSubscription: count > 0,
+    determined: true,
+  };
+}
+
 /**
  * Получает количество активных push-подписок пользователя
  */

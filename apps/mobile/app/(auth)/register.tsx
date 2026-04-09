@@ -48,6 +48,9 @@ const registerSchema = z
     path: ["confirmPassword"],
   });
 
+const CONSENT_ALL_REQUIRED_MESSAGE =
+  "Для регистрации нужно отметить все три согласия — поставьте галочки во всех пунктах.";
+
 type FormErrors = {
   name?: string;
   email?: string;
@@ -139,27 +142,47 @@ export default function RegisterScreen() {
     });
   };
 
-  const validateForm = useCallback((): boolean => {
-    const result = registerSchema.safeParse(form);
+  /**
+   * Поля и согласия проверяем за один раз: иначе при ошибках ввода выходили раньше
+   * и сообщение про галочки никогда не показывалось.
+   */
+  const validateRegisterForm = useCallback((): boolean => {
+    const next: FormErrors = {};
+    const parseResult = registerSchema.safeParse(form);
 
-    if (!result.success) {
-      const fieldErrors: FormErrors = {};
+    if (!parseResult.success) {
       const validKeys: (keyof FormErrors)[] = [
-        "name", "email", "password", "confirmPassword", "consent",
+        "name",
+        "email",
+        "password",
+        "confirmPassword",
+        "consent",
       ];
-      result.error.errors.forEach((err) => {
+      parseResult.error.errors.forEach((err) => {
         const field = err.path[0];
         if (field != null && validKeys.includes(field as keyof FormErrors)) {
-          fieldErrors[field as keyof FormErrors] = err.message;
+          next[field as keyof FormErrors] = err.message;
         }
       });
-      setErrors(fieldErrors);
+    }
+
+    const allConsentsAccepted =
+      consents.acceptPersonalData &&
+      consents.acceptPrivacyPolicy &&
+      consents.acceptDataDistribution;
+
+    if (!allConsentsAccepted) {
+      next.consent = CONSENT_ALL_REQUIRED_MESSAGE;
+    }
+
+    if (Object.keys(next).length > 0) {
+      setErrors({ ...next, api: undefined });
       return false;
     }
 
     setErrors({});
     return true;
-  }, [form]);
+  }, [form, consents]);
 
   const toggleConsent = (key: keyof typeof consents) => {
     setConsents((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -169,21 +192,7 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (submittingRef.current) return;
     applyEmailTypoHint(emailTextRef.current || form.email);
-    if (!validateForm()) return;
-
-    const allConsentsAccepted =
-      consents.acceptPersonalData &&
-      consents.acceptPrivacyPolicy &&
-      consents.acceptDataDistribution;
-
-    if (!allConsentsAccepted) {
-      setErrors((prev) => ({
-        ...prev,
-        consent:
-          "Для регистрации нужно отметить все три согласия — поставьте галочки во всех пунктах.",
-      }));
-      return;
-    }
+    if (!validateRegisterForm()) return;
 
     if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, email: form.email, tempSessionId });
     submittingRef.current = true;
@@ -478,7 +487,7 @@ export default function RegisterScreen() {
               </View>
               {errors.consent ? (
                 <Text
-                  style={styles.errorText}
+                  style={[styles.errorText, styles.consentErrorText]}
                   accessibilityRole="alert"
                   accessibilityLiveRegion="polite"
                 >
@@ -705,6 +714,12 @@ const styles = StyleSheet.create({
   consentLink: {
     textDecorationLine: "underline",
     color: COLORS.primary,
+  },
+  /** Сообщение про все три согласия — чуть крупнее, чем у полей */
+  consentErrorText: {
+    marginTop: 6,
+    fontSize: 10,
+    lineHeight: 14,
   },
   buttonDisabled: {
     opacity: 0.6,
