@@ -6,6 +6,7 @@ import {
   Pressable,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
+import { Image } from "expo-image";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,7 +32,16 @@ import {
   type ProgressFilterType,
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/constants";
+
+const LOGO_PREFETCH_LIMIT = 8;
+
+function getCourseLogoUri(logoImg: string | null | undefined): string | null {
+  if (!logoImg) return null;
+  return logoImg.startsWith("/")
+    ? `${API_BASE_URL.replace(/\/$/, "")}${logoImg}`
+    : logoImg;
+}
 
 /**
  * Страница со всеми курсами: поиск и фильтры как в web.
@@ -91,8 +101,12 @@ export default function CoursesScreen() {
       pushPromptAskedInSession.current = true;
 
       const hadThisDeviceSubscription = !!status.data?.hasThisDeviceSubscription;
+      if (hadThisDeviceSubscription) {
+        return;
+      }
+
       const ok = await setupPushNotifications();
-      if (!cancelled && !ok && !hadThisDeviceSubscription) {
+      if (!cancelled && !ok) {
         setSnackbar({
           visible: true,
           message: "Не удалось включить push-уведомления",
@@ -111,6 +125,19 @@ export default function CoursesScreen() {
     () => filterAndSortCourses(allCourses, filters),
     [allCourses, filters],
   );
+
+  useEffect(() => {
+    if (allCourses.length === 0) return;
+
+    const logoUris = allCourses
+      .map((course) => getCourseLogoUri(course.logoImg))
+      .filter((uri): uri is string => typeof uri === "string" && uri.length > 0)
+      .slice(0, LOGO_PREFETCH_LIMIT);
+
+    if (logoUris.length === 0) return;
+
+    void Promise.allSettled(logoUris.map((uri) => Image.prefetch(uri)));
+  }, [allCourses]);
 
   const getResultsCount = useCallback(
     (f: {

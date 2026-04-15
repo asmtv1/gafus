@@ -22,6 +22,7 @@ import {
   trainerCanEditCourse,
   updateTrainerCourseSchema,
 } from "@gafus/core/services/trainerCourse";
+import { ensureMobileImageVariantForLogoUrl } from "@shared/lib/media/ensureMobileImageVariant";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
 import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
 
@@ -115,7 +116,7 @@ export async function createCourseServerAction(formData: FormData) {
         const ext = logoFile.name.split(".").pop() || "jpg";
         const relativePath = getCourseImagePath(trainerId, uuid, uuid, ext);
         logoImgUrl = await uploadFileToCDN(logoFile, relativePath);
-      } catch (error) {
+      } catch {
         return { success: false, error: "Не удалось загрузить изображение курса" };
       }
     }
@@ -163,6 +164,16 @@ export async function createCourseServerAction(formData: FormData) {
         }
       }
       return { success: false, error: result.error };
+    }
+
+    if (logoImgUrl) {
+      const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(logoImgUrl);
+      if (!mobileVariantResult.success) {
+        logger.warn("Не удалось подготовить mobile-логотип курса", {
+          courseId: result.id,
+          error: mobileVariantResult.error,
+        });
+      }
     }
 
     revalidateTag(CACHE_TAGS.STATISTICS);
@@ -249,6 +260,18 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
 
   const result = await updateCourse(parseResult.data);
   if (!result.success) return { success: false, error: result.error };
+
+  if (parseResult.data.logoImg) {
+    const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(
+      parseResult.data.logoImg,
+    );
+    if (!mobileVariantResult.success) {
+      logger.warn("Не удалось подготовить mobile-логотип курса", {
+        courseId: input.id,
+        error: mobileVariantResult.error,
+      });
+    }
+  }
 
   revalidateTag(CACHE_TAGS.STATISTICS);
   revalidatePath("/main-panel/statistics");

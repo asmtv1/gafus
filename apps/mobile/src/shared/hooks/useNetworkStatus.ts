@@ -14,6 +14,10 @@ interface NetworkStatus {
  * Хук для отслеживания состояния сети
  */
 export function useNetworkStatus(): NetworkStatus {
+  const resolveOfflineState = (state: NetInfoState): boolean => {
+    return state.isConnected === false || state.isInternetReachable === false;
+  };
+
   const [status, setStatus] = useState<NetworkStatus>({
     isConnected: true,
     isInternetReachable: true,
@@ -27,7 +31,7 @@ export function useNetworkStatus(): NetworkStatus {
         isConnected: state.isConnected,
         isInternetReachable: state.isInternetReachable,
         connectionType: state.type,
-        isOffline: state.isConnected === false,
+        isOffline: resolveOfflineState(state),
       });
     });
 
@@ -37,7 +41,7 @@ export function useNetworkStatus(): NetworkStatus {
         isConnected: state.isConnected,
         isInternetReachable: state.isInternetReachable,
         connectionType: state.type,
-        isOffline: state.isConnected === false,
+        isOffline: resolveOfflineState(state),
       });
     });
 

@@ -13,6 +13,7 @@ import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants
 import { useOfflineStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
+import { getMobileImageVariantUrl } from "@/shared/lib/utils/mobileImageVariant";
 import type { Course } from "@/shared/lib/api";
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -161,8 +162,13 @@ export function CourseCard({
     setAuthorAvatarError(false);
   }, [course.id, course.authorAvatarUrl]);
 
-  const authorAvatarUrl =
-    (course.authorAvatarUrl ?? (course as { author?: { profile?: { avatarUrl?: string | null } } }).author?.profile?.avatarUrl ?? null) as string | null | undefined;
+  const authorAvatarUrl = (
+    course.authorAvatarUrl ??
+    (
+      course as { author?: { profile?: { avatarUrl?: string | null } } }
+    ).author?.profile?.avatarUrl ??
+    null
+  ) as string | null | undefined;
   const authorAvatarUri =
     authorAvatarUrl && !authorAvatarError
       ? authorAvatarUrl.startsWith("/")
@@ -181,6 +187,20 @@ export function CourseCard({
       ? logoImgUri.replace(/\/+$/, "").split("/").pop() ?? logoImgUri
       : "none";
   const coverImageCacheKey = `course-logo-${course.id}-${coverCacheKeySuffix}`;
+  const mobileLogoImgUri = getMobileImageVariantUrl(logoImgUri);
+  const hasMobileLogoVariant =
+    !!mobileLogoImgUri && !!logoImgUri && mobileLogoImgUri !== logoImgUri;
+  const [shouldUseOriginalLogo, setShouldUseOriginalLogo] = useState(false);
+  const preferredLogoImgUri =
+    shouldUseOriginalLogo || !hasMobileLogoVariant
+      ? logoImgUri
+      : mobileLogoImgUri;
+  const [isCoverLoading, setIsCoverLoading] = useState(Boolean(logoImgUri));
+
+  useEffect(() => {
+    setIsCoverLoading(Boolean(logoImgUri));
+    setShouldUseOriginalLogo(false);
+  }, [course.id, logoImgUri]);
 
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
@@ -244,13 +264,32 @@ export function CourseCard({
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
                 <Image
-                  source={{ uri: logoImgUri, cacheKey: coverImageCacheKey }}
+                  source={
+                    preferredLogoImgUri
+                      ? { uri: preferredLogoImgUri, cacheKey: coverImageCacheKey }
+                      : undefined
+                  }
                   style={styles.courseImage}
+                  cachePolicy="memory-disk"
                   contentFit="contain"
                   contentPosition="center"
                   recyclingKey={coverImageCacheKey}
-                  transition={0}
+                  transition={180}
+                  onLoadEnd={() => setIsCoverLoading(false)}
+                  onError={() => {
+                    if (hasMobileLogoVariant && !shouldUseOriginalLogo) {
+                      setShouldUseOriginalLogo(true);
+                      setIsCoverLoading(true);
+                      return;
+                    }
+                    setIsCoverLoading(false);
+                  }}
                 />
+                {isCoverLoading && (
+                  <View style={styles.courseImagePlaceholder}>
+                    <ActivityIndicator size="small" color={COLORS.secondary} />
+                  </View>
+                )}
                 {course.isPaid && (
                   <View style={styles.paidBadge}>
                     <Text style={styles.paidBadgeText}>Платный</Text>
@@ -535,6 +574,12 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: BORDER_RADIUS.md,
+  },
+  courseImagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f4efe2",
   },
   paidBadge: {
     position: "absolute",

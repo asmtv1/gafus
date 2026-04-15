@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { getOfflineCourseTypes, getCourseMeta } from "@/shared/lib/offline";
+import { reportClientError } from "@/shared/lib/tracer";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 interface OfflineCourseItem {
@@ -25,19 +26,30 @@ export function OfflineDownloadedScreen() {
     let cancelled = false;
 
     async function load() {
-      const types = await getOfflineCourseTypes();
-      if (cancelled) return;
-      const list: OfflineCourseItem[] = [];
-      for (const courseType of types) {
-        const meta = await getCourseMeta(courseType);
+      try {
+        const types = await getOfflineCourseTypes();
         if (cancelled) return;
-        list.push({
-          courseType,
-          name: meta?.course?.name ?? courseType,
+        const list: OfflineCourseItem[] = [];
+        for (const courseType of types) {
+          const meta = await getCourseMeta(courseType);
+          if (cancelled) return;
+          list.push({
+            courseType,
+            name: meta?.course?.name ?? courseType,
+          });
+        }
+        setItems(list);
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "OfflineDownloadedScreen",
+          keys: { operation: "load_offline_courses" },
         });
+        setItems([]);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setItems(list);
-      setLoading(false);
     }
 
     load();

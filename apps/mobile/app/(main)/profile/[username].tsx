@@ -9,6 +9,7 @@ import { Image } from "expo-image";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
+import { getMobileImageVariantUrl } from "@/shared/lib/utils/mobileImageVariant";
 import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/constants";
 
 // Функция для получения инициалов
@@ -58,12 +59,17 @@ function getTrainerCourseLogoCacheProps(
     course.logoImg?.startsWith("/")
       ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
       : course.logoImg || undefined;
+  const mobileLogoImgUri = getMobileImageVariantUrl(logoImgUri);
+  const preferredLogoImgUri =
+    mobileLogoImgUri && mobileLogoImgUri !== logoImgUri
+      ? mobileLogoImgUri
+      : logoImgUri;
   const coverCacheKeySuffix =
-    logoImgUri && logoImgUri.length > 0
-      ? logoImgUri.replace(/\/+$/, "").split("/").pop() ?? logoImgUri
+    preferredLogoImgUri && preferredLogoImgUri.length > 0
+      ? preferredLogoImgUri.replace(/\/+$/, "").split("/").pop() ?? preferredLogoImgUri
       : "none";
   const cacheKey = `course-logo-${course.id}-${coverCacheKeySuffix}`;
-  return { uri: logoImgUri, cacheKey };
+  return { uri: preferredLogoImgUri, cacheKey };
 }
 
 // Функция для получения метки роли

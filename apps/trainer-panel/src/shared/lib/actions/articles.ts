@@ -11,6 +11,7 @@ import {
 import type { ArticleViewerDto } from "@gafus/types";
 import { deleteFolderFromCDN } from "@gafus/cdn-upload";
 import { revalidatePath } from "next/cache";
+import { ensureMobileImageVariantForLogoUrl } from "@shared/lib/media/ensureMobileImageVariant";
 import { invalidateArticlesCache } from "./invalidateArticlesCache";
 
 const logger = createWebLogger("trainer-article-actions");
@@ -19,8 +20,19 @@ export async function createArticleAction(input: Record<string, unknown>) {
   try {
     const userId = await getCurrentUserId();
     if (!userId) return { success: false, error: "Не авторизован" };
+
+    const logoImg = typeof input.logoImg === "string" ? input.logoImg : "";
     const result = await createArticle(input, userId);
     if (result.success) {
+      if (logoImg) {
+        const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(logoImg);
+        if (!mobileVariantResult.success) {
+          logger.warn("Не удалось подготовить mobile-логотип статьи", {
+            articleId: result.data?.id,
+            error: mobileVariantResult.error,
+          });
+        }
+      }
       revalidatePath("/main-panel/articles");
       await invalidateArticlesCache();
     }
@@ -38,8 +50,19 @@ export async function updateArticleAction(
   try {
     const userId = await getCurrentUserId();
     if (!userId) return { success: false, error: "Не авторизован" };
+
+    const logoImg = typeof input.logoImg === "string" ? input.logoImg : "";
     const result = await updateArticle(id, input, userId);
     if (result.success) {
+      if (logoImg) {
+        const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(logoImg);
+        if (!mobileVariantResult.success) {
+          logger.warn("Не удалось подготовить mobile-логотип статьи", {
+            articleId: id,
+            error: mobileVariantResult.error,
+          });
+        }
+      }
       revalidatePath("/main-panel/articles");
       revalidatePath(`/main-panel/articles/${id}/edit`);
       const slug = typeof input.slug === "string" ? input.slug : undefined;
