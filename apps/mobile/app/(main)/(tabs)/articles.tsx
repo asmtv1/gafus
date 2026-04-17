@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -20,6 +20,8 @@ import { articlesApi } from "@/shared/lib/api";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
+
+const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 
 function formatViews(n: number): string {
   const last = n % 10;
@@ -59,6 +61,36 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isLikePending }
   const hasNextCoverFallback = coverCandidateIndex < coverCandidates.length - 1;
   const currentCoverUrl = coverCandidates[coverCandidateIndex];
   const coverCacheKey = `article-${article.id}-${new Date(article.updatedAt).getTime()}-${coverCandidateIndex}`;
+  const [isCoverLoading, setIsCoverLoading] = useState(false);
+  const [showCoverPlaceholder, setShowCoverPlaceholder] = useState(false);
+  const coverPlaceholderDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (coverPlaceholderDelayTimeoutRef.current) {
+      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+      coverPlaceholderDelayTimeoutRef.current = null;
+    }
+
+    if (!currentCoverUrl) {
+      setIsCoverLoading(false);
+      setShowCoverPlaceholder(false);
+      return;
+    }
+
+    setIsCoverLoading(true);
+    setShowCoverPlaceholder(false);
+    coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+      setShowCoverPlaceholder(true);
+    }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+  }, [article.id, currentCoverUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (!coverPlaceholderDelayTimeoutRef.current) return;
+      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+      coverPlaceholderDelayTimeoutRef.current = null;
+    };
+  }, []);
 
   const handleLikePress = (e: { stopPropagation?: () => void }) => {
     e.stopPropagation?.();
@@ -77,18 +109,60 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isLikePending }
       <View style={styles.row}>
         <View style={styles.logoBox}>
           {currentCoverUrl ? (
-            <Image
-              source={{ uri: currentCoverUrl, cacheKey: coverCacheKey }}
-              style={styles.logoImage}
-              contentFit="cover"
-              recyclingKey={coverCacheKey}
-              accessibilityLabel={`Обложка статьи «${article.title}»`}
-              onError={() => {
-                if (hasNextCoverFallback) {
-                  setCoverCandidateIndex((prev) => prev + 1);
-                }
-              }}
-            />
+            <>
+              <Image
+                source={{ uri: currentCoverUrl, cacheKey: coverCacheKey }}
+                style={styles.logoImage}
+                contentFit="cover"
+                recyclingKey={coverCacheKey}
+                accessibilityLabel={`Обложка статьи «${article.title}»`}
+                onLoadStart={() => {
+                  if (coverPlaceholderDelayTimeoutRef.current) {
+                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                    coverPlaceholderDelayTimeoutRef.current = null;
+                  }
+                  setIsCoverLoading(true);
+                  setShowCoverPlaceholder(false);
+                  coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                    setShowCoverPlaceholder(true);
+                  }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+                }}
+                onLoadEnd={() => {
+                  if (coverPlaceholderDelayTimeoutRef.current) {
+                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                    coverPlaceholderDelayTimeoutRef.current = null;
+                  }
+                  setIsCoverLoading(false);
+                  setShowCoverPlaceholder(false);
+                }}
+                onError={() => {
+                  if (hasNextCoverFallback) {
+                    if (coverPlaceholderDelayTimeoutRef.current) {
+                      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                      coverPlaceholderDelayTimeoutRef.current = null;
+                    }
+                    setCoverCandidateIndex((prev) => prev + 1);
+                    setIsCoverLoading(true);
+                    setShowCoverPlaceholder(false);
+                    coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                      setShowCoverPlaceholder(true);
+                    }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+                    return;
+                  }
+                  setIsCoverLoading(false);
+                  setShowCoverPlaceholder(false);
+                }}
+              />
+              {isCoverLoading && showCoverPlaceholder && (
+                <View style={styles.logoLoadingPlaceholder}>
+                  <MaterialCommunityIcons
+                    name="image-outline"
+                    size={28}
+                    color={COLORS.textSecondary}
+                  />
+                </View>
+              )}
+            </>
           ) : (
             <View style={styles.logoPlaceholder}>
               <MaterialCommunityIcons
@@ -287,7 +361,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: "#fff",
+    backgroundColor: "#e8e3d2",
     overflow: "hidden",
     position: "relative",
   },
@@ -298,6 +372,12 @@ const styles = StyleSheet.create({
   logoPlaceholder: {
     width: "100%",
     height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e8e3d2",
+  },
+  logoLoadingPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#e8e3d2",

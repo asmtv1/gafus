@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Pressable, Alert, ActivityIndicator, Platform } from "react-native";
 import { Text } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
@@ -22,6 +22,7 @@ const LEVEL_LABELS: Record<string, string> = {
   ADVANCED: "Продвинутый",
   EXPERT: "Экспертный",
 };
+const COVER_SPINNER_DELAY_MS = 140;
 
 function getStatusText(status: string): string {
   return (
@@ -196,12 +197,37 @@ export function CourseCard({
   const preferredLogoImgUri = logoCandidates[logoCandidateIndex];
   const hasNextLogoFallback = logoCandidateIndex < logoCandidates.length - 1;
   const coverImageCacheKey = `${coverImageCacheKeyBase}-${logoCandidateIndex}`;
-  const [isCoverLoading, setIsCoverLoading] = useState(Boolean(logoImgUri));
+  const [isCoverLoading, setIsCoverLoading] = useState(false);
+  const [showCoverSpinner, setShowCoverSpinner] = useState(false);
+  const coverSpinnerDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setIsCoverLoading(Boolean(logoImgVersionedUri));
     setLogoCandidateIndex(0);
+    if (coverSpinnerDelayTimeoutRef.current) {
+      clearTimeout(coverSpinnerDelayTimeoutRef.current);
+      coverSpinnerDelayTimeoutRef.current = null;
+    }
+
+    if (!logoImgVersionedUri) {
+      setIsCoverLoading(false);
+      setShowCoverSpinner(false);
+      return;
+    }
+
+    setIsCoverLoading(true);
+    setShowCoverSpinner(false);
+    coverSpinnerDelayTimeoutRef.current = setTimeout(() => {
+      setShowCoverSpinner(true);
+    }, COVER_SPINNER_DELAY_MS);
   }, [course.id, logoImgVersionedUri]);
+
+  useEffect(() => {
+    return () => {
+      if (!coverSpinnerDelayTimeoutRef.current) return;
+      clearTimeout(coverSpinnerDelayTimeoutRef.current);
+      coverSpinnerDelayTimeoutRef.current = null;
+    };
+  }, []);
 
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
@@ -276,17 +302,48 @@ export function CourseCard({
                   contentPosition="center"
                   recyclingKey={coverImageCacheKey}
                   transition={180}
-                  onLoadEnd={() => setIsCoverLoading(false)}
+                  onLoadStart={() => {
+                    if (coverSpinnerDelayTimeoutRef.current) {
+                      clearTimeout(coverSpinnerDelayTimeoutRef.current);
+                      coverSpinnerDelayTimeoutRef.current = null;
+                    }
+                    setIsCoverLoading(true);
+                    setShowCoverSpinner(false);
+                    coverSpinnerDelayTimeoutRef.current = setTimeout(() => {
+                      setShowCoverSpinner(true);
+                    }, COVER_SPINNER_DELAY_MS);
+                  }}
+                  onLoadEnd={() => {
+                    if (coverSpinnerDelayTimeoutRef.current) {
+                      clearTimeout(coverSpinnerDelayTimeoutRef.current);
+                      coverSpinnerDelayTimeoutRef.current = null;
+                    }
+                    setIsCoverLoading(false);
+                    setShowCoverSpinner(false);
+                  }}
                   onError={() => {
                     if (hasNextLogoFallback) {
                       setLogoCandidateIndex((prev) => prev + 1);
+                      if (coverSpinnerDelayTimeoutRef.current) {
+                        clearTimeout(coverSpinnerDelayTimeoutRef.current);
+                        coverSpinnerDelayTimeoutRef.current = null;
+                      }
                       setIsCoverLoading(true);
+                      setShowCoverSpinner(false);
+                      coverSpinnerDelayTimeoutRef.current = setTimeout(() => {
+                        setShowCoverSpinner(true);
+                      }, COVER_SPINNER_DELAY_MS);
                       return;
                     }
+                    if (coverSpinnerDelayTimeoutRef.current) {
+                      clearTimeout(coverSpinnerDelayTimeoutRef.current);
+                      coverSpinnerDelayTimeoutRef.current = null;
+                    }
                     setIsCoverLoading(false);
+                    setShowCoverSpinner(false);
                   }}
                 />
-                {isCoverLoading && (
+                {isCoverLoading && showCoverSpinner && (
                   <View style={styles.courseImagePlaceholder}>
                     <ActivityIndicator size="small" color={COLORS.secondary} />
                   </View>

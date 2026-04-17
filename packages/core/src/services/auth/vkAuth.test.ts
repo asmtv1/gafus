@@ -318,7 +318,7 @@ describe("findOrCreateVkUser", () => {
         username: "old",
         role: "USER",
         phone: "vk_99",
-        profile: { fullName: null, birthDate: null },
+        profile: { fullName: null, birthDate: null, avatarUrl: null },
       },
     });
 
@@ -336,6 +336,37 @@ describe("findOrCreateVkUser", () => {
     expect(r.isNewUser).toBe(false);
     expect(mockUserProfileUpsert).toHaveBeenCalled();
     expect(mockUserUpdate).toHaveBeenCalled();
+  });
+
+  it("существующий аккаунт: не перезаписывает кастомную аватарку из VK", async () => {
+    mockAccountFindUnique.mockResolvedValue({
+      userId: "u1",
+      user: {
+        id: "u1",
+        username: "old",
+        role: "USER",
+        phone: "+79001234567",
+        profile: {
+          fullName: "Пользователь",
+          birthDate: new Date("2000-01-01T00:00:00.000Z"),
+          avatarUrl: "https://cdn.example.com/custom-avatar.jpg",
+        },
+      },
+    });
+
+    await findOrCreateVkUser(
+      {
+        ...baseProfile,
+        avatar: "https://vk.com/new-avatar.jpg",
+      },
+      "vk99",
+    );
+
+    expect(mockUserProfileUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {},
+      }),
+    );
   });
 
   it("создаёт пользователя если аккаунта нет", async () => {

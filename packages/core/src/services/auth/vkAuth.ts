@@ -346,7 +346,7 @@ export async function findOrCreateVkUser(
           username: true,
           role: true,
           phone: true,
-          profile: { select: { fullName: true, birthDate: true } },
+          profile: { select: { fullName: true, birthDate: true, avatarUrl: true } },
         },
       },
     },
@@ -354,9 +354,10 @@ export async function findOrCreateVkUser(
 
   if (account) {
     const profile = account.user.profile;
-    const updateData: Record<string, unknown> = {
-      avatarUrl,
-    };
+    const updateData: Record<string, unknown> = {};
+    if (!profile?.avatarUrl && avatarUrl) {
+      updateData.avatarUrl = avatarUrl;
+    }
     if (!profile?.fullName && fullName) {
       updateData.fullName = fullName;
     }

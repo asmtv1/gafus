@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -37,6 +37,7 @@ const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
 const ARTICLE_WEBVIEW_LOADING_HEIGHT = 360;
 /** Совпадает с таймаутом в useEffect ниже. */
 const ARTICLE_WEBVIEW_FALLBACK_HEIGHT = 800;
+const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 
 function getVersionedImageUrl(
   rawUrl: string | null | undefined,
@@ -174,10 +175,40 @@ export default function ArticleDetailScreen() {
       ? `article-${article.id}-${new Date(article.updatedAt).getTime()}`
       : "article-no-id";
   const articleLogoCacheKey = `${articleLogoCacheKeyBase}-${coverCandidateIndex}`;
+  const [isCoverLoading, setIsCoverLoading] = useState(false);
+  const [showCoverPlaceholder, setShowCoverPlaceholder] = useState(false);
+  const coverPlaceholderDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setCoverCandidateIndex(0);
   }, [articleLogoCacheKeyBase]);
+
+  useEffect(() => {
+    if (coverPlaceholderDelayTimeoutRef.current) {
+      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+      coverPlaceholderDelayTimeoutRef.current = null;
+    }
+
+    if (!currentCoverUrl) {
+      setIsCoverLoading(false);
+      setShowCoverPlaceholder(false);
+      return;
+    }
+
+    setIsCoverLoading(true);
+    setShowCoverPlaceholder(false);
+    coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+      setShowCoverPlaceholder(true);
+    }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+  }, [article?.id, currentCoverUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (!coverPlaceholderDelayTimeoutRef.current) return;
+      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+      coverPlaceholderDelayTimeoutRef.current = null;
+    };
+  }, []);
 
   const hasMeasuredArticleHtml =
     htmlHeight != null && htmlHeight > 0;
@@ -270,12 +301,52 @@ export default function ArticleDetailScreen() {
               contentFit="cover"
               recyclingKey={articleLogoCacheKey}
               accessibilityLabel={`Обложка статьи «${article.title}»`}
+              onLoadStart={() => {
+                if (coverPlaceholderDelayTimeoutRef.current) {
+                  clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                  coverPlaceholderDelayTimeoutRef.current = null;
+                }
+                setIsCoverLoading(true);
+                setShowCoverPlaceholder(false);
+                coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                  setShowCoverPlaceholder(true);
+                }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+              }}
+              onLoadEnd={() => {
+                if (coverPlaceholderDelayTimeoutRef.current) {
+                  clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                  coverPlaceholderDelayTimeoutRef.current = null;
+                }
+                setIsCoverLoading(false);
+                setShowCoverPlaceholder(false);
+              }}
               onError={() => {
                 if (hasNextCoverFallback) {
+                  if (coverPlaceholderDelayTimeoutRef.current) {
+                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                    coverPlaceholderDelayTimeoutRef.current = null;
+                  }
                   setCoverCandidateIndex((prev) => prev + 1);
+                  setIsCoverLoading(true);
+                  setShowCoverPlaceholder(false);
+                  coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                    setShowCoverPlaceholder(true);
+                  }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+                  return;
                 }
+                setIsCoverLoading(false);
+                setShowCoverPlaceholder(false);
               }}
             />
+            {isCoverLoading && showCoverPlaceholder && (
+              <View style={styles.coverLoadingPlaceholder}>
+                <MaterialCommunityIcons
+                  name="image-outline"
+                  size={42}
+                  color={COLORS.textSecondary}
+                />
+              </View>
+            )}
           </View>
         )}
 
@@ -514,11 +585,17 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     overflow: "hidden",
     marginBottom: SPACING.md,
-    backgroundColor: COLORS.onPrimary,
+    backgroundColor: "#e8e3d2",
   },
   coverImage: {
     width: "100%",
     height: "100%",
+  },
+  coverLoadingPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e8e3d2",
   },
   paidBlock: {
     padding: SPACING.xxl,
