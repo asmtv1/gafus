@@ -27,6 +27,7 @@ export interface ArticleListDto {
   viewCount: number;
   description: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface ArticleDetailDto extends ArticleListDto {

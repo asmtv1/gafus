@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,7 +10,7 @@ import { Image } from "expo-image";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
-import { getMobileImageVariantUrl } from "@/shared/lib/utils/mobileImageVariant";
+import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/constants";
 
 // Функция для получения инициалов
@@ -53,23 +54,54 @@ const declOfNum = (n: number, forms: [string, string, string]) => {
 
 /** URI и cacheKey логотипа — как в CourseCard (инвалидация кэша при смене файла обложки) */
 function getTrainerCourseLogoCacheProps(
-  course: Pick<PublicProfileCourse, "id" | "logoImg">,
-): { uri: string | undefined; cacheKey: string } {
+  course: Pick<PublicProfileCourse, "id" | "logoImg" | "updatedAt">,
+): { logoCandidates: string[]; cacheKeyBase: string } {
   const logoImgUri =
     course.logoImg?.startsWith("/")
       ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
       : course.logoImg || undefined;
-  const mobileLogoImgUri = getMobileImageVariantUrl(logoImgUri);
-  const preferredLogoImgUri =
-    mobileLogoImgUri && mobileLogoImgUri !== logoImgUri
-      ? mobileLogoImgUri
-      : logoImgUri;
-  const coverCacheKeySuffix =
-    preferredLogoImgUri && preferredLogoImgUri.length > 0
-      ? preferredLogoImgUri.replace(/\/+$/, "").split("/").pop() ?? preferredLogoImgUri
-      : "none";
-  const cacheKey = `course-logo-${course.id}-${coverCacheKeySuffix}`;
-  return { uri: preferredLogoImgUri, cacheKey };
+  const logoVersion =
+    course.updatedAt != null ? new Date(course.updatedAt).getTime().toString() : "no-version";
+  const logoImgVersionedUri = logoImgUri
+    ? `${logoImgUri}${logoImgUri.includes("?") ? "&" : "?"}v=${logoVersion}`
+    : undefined;
+  const logoCandidates = getCourseLogoVariantCandidates(logoImgVersionedUri);
+  const cacheKeyBase = `course-logo-${course.id}-${logoVersion}`;
+  return { logoCandidates, cacheKeyBase };
+}
+
+function TrainerCourseLogoImage({
+  course,
+}: {
+  course: Pick<PublicProfileCourse, "id" | "logoImg" | "updatedAt">;
+}) {
+  const { logoCandidates, cacheKeyBase } = useMemo(
+    () => getTrainerCourseLogoCacheProps(course),
+    [course],
+  );
+  const [logoCandidateIndex, setLogoCandidateIndex] = useState(0);
+  const preferredLogoImgUri = logoCandidates[logoCandidateIndex];
+  const hasNextLogoFallback = logoCandidateIndex < logoCandidates.length - 1;
+  const logoCacheKey = `${cacheKeyBase}-${logoCandidateIndex}`;
+
+  useEffect(() => {
+    setLogoCandidateIndex(0);
+  }, [cacheKeyBase]);
+
+  return (
+    <Image
+      source={preferredLogoImgUri ? { uri: preferredLogoImgUri, cacheKey: logoCacheKey } : undefined}
+      style={styles.courseImage}
+      contentFit="cover"
+      recyclingKey={logoCacheKey}
+      transition={0}
+      onError={() => {
+        if (hasNextLogoFallback) {
+          setLogoCandidateIndex((prev) => prev + 1);
+        }
+      }}
+    />
+  );
 }
 
 // Функция для получения метки роли
@@ -324,8 +356,6 @@ export default function PublicProfileScreen() {
             <Text style={styles.coursesSectionTitle}>Курсы кинолога</Text>
             <View style={styles.coursesList}>
               {courses.map((course) => {
-                const { uri: logoUri, cacheKey: logoCacheKey } =
-                  getTrainerCourseLogoCacheProps(course);
                 return (
                   <Pressable
                     key={course.id}
@@ -337,13 +367,7 @@ export default function PublicProfileScreen() {
                   >
                     <View style={styles.courseContent}>
                       <View style={styles.imageWrapper}>
-                        <Image
-                          source={{ uri: logoUri, cacheKey: logoCacheKey }}
-                          style={styles.courseImage}
-                          contentFit="cover"
-                          recyclingKey={logoCacheKey}
-                          transition={0}
-                        />
+                        <TrainerCourseLogoImage course={course} />
                         {course.isPrivate && (
                           <View style={styles.privateBadge}>
                             <Text style={styles.privateBadgeText}>Приватный</Text>

@@ -186,6 +186,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
           isPaid: true,
           priceRub: true,
           avgRating: true,
+          updatedAt: true,
           trainingLevel: true,
         },
       },
@@ -207,6 +208,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
           isPaid: course.isPaid,
           priceRub: course.priceRub != null ? Number(course.priceRub) : null,
           avgRating: course.avgRating,
+          updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
           trainingLevel: course.trainingLevel,
         }))
       : undefined;

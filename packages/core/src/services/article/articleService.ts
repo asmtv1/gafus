@@ -27,6 +27,7 @@ const articleListSelect = {
   viewCount: true,
   description: true,
   createdAt: true,
+  updatedAt: true,
   author: {
     select: {
       id: true,
@@ -72,6 +73,7 @@ function mapToListDto(
     viewCount: row.viewCount ?? 0,
     description: (row as { description?: string }).description ?? "",
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 

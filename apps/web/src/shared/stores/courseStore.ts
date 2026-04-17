@@ -455,6 +455,7 @@ export const useCourseStoreActions = () => {
           avgRating: course.avgRating,
           trainingLevel: "BEGINNER" as const,
           createdAt: new Date(),
+          updatedAt: new Date(),
           authorUsername: "",
           userStatus: TrainingStatus.NOT_STARTED,
           startedAt: null,

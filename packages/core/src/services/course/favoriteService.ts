@@ -80,6 +80,7 @@ export async function getFavoritesCourses(
         avgRating: course.avgRating,
         trainingLevel: course.trainingLevel,
         createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
+        updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
         authorUsername: course.author.username,
         authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
         userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,

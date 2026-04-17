@@ -8,6 +8,7 @@ import { authOptions } from "@gafus/auth";
 import { validateImageUpload } from "@gafus/core/services/common";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { unstable_rethrow } from "next/navigation";
+import { ensureLogoImageVariantsForLogoUrl } from "@shared/lib/media/ensureMobileImageVariant";
 
 const logger = createTrainerPanelLogger("trainer-panel-upload-article-logo");
 
@@ -36,6 +37,13 @@ export async function uploadArticleLogoServerAction(
     const relativePath = getArticleImagePath(session.user.id, articleId, uuid, ext);
 
     const fileUrl = await uploadFileToCDN(file, relativePath);
+    const variantsResult = await ensureLogoImageVariantsForLogoUrl(fileUrl);
+    if (!variantsResult.success) {
+      logger.warn("Не удалось подготовить варианты логотипа статьи", {
+        articleId,
+        error: variantsResult.error,
+      });
+    }
     logger.info("Логотип статьи загружен в CDN", { path: relativePath });
     return fileUrl;
   } catch (error) {

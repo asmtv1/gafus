@@ -3,18 +3,17 @@
 import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 
-import {
-  deleteFileFromCDN,
-  getCourseImagePath,
-  getRelativePathFromCDNUrl,
-  uploadFileToCDN,
-} from "@gafus/cdn-upload";
+import { getCourseImagePath, uploadFileToCDN } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { updateCourseLogoUrl } from "@gafus/core/services/course";
 import { trainerCanEditCourse } from "@gafus/core/services/trainerCourse";
 import { validateImageUpload } from "@gafus/core/services/common";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
+import {
+  deleteImageWithVariantsFromLogoUrl,
+  ensureLogoImageVariantsForLogoUrl,
+} from "@shared/lib/media/ensureMobileImageVariant";
 
 const logger = createTrainerPanelLogger("trainer-panel-upload-course-image");
 
@@ -57,11 +56,18 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
 
     const fileUrl = await uploadFileToCDN(file, relativePath);
 
+    const variantsResult = await ensureLogoImageVariantsForLogoUrl(fileUrl);
+    if (!variantsResult.success) {
+      logger.warn("Не удалось подготовить варианты логотипа курса", {
+        courseId,
+        error: variantsResult.error,
+      });
+    }
+
     const result = await updateCourseLogoUrl(courseId, fileUrl);
     if (!result.success) {
       try {
-        const newRelativePath = getRelativePathFromCDNUrl(fileUrl);
-        await deleteFileFromCDN(newRelativePath);
+        await deleteImageWithVariantsFromLogoUrl(fileUrl);
       } catch {
         // игнорируем ошибку отката CDN
       }
@@ -69,11 +75,10 @@ export async function uploadCourseImageServerAction(formData: FormData, courseId
     }
 
     if (result.previousLogoUrl) {
-      const oldRelativePath = getRelativePathFromCDNUrl(result.previousLogoUrl);
       try {
-        await deleteFileFromCDN(oldRelativePath);
+        await deleteImageWithVariantsFromLogoUrl(result.previousLogoUrl);
         logger.info("Старое изображение курса удалено из CDN", {
-          path: oldRelativePath,
+          previousLogoUrl: result.previousLogoUrl,
         });
       } catch (error) {
         logger.error("Не удалось удалить старое изображение курса из CDN", error as Error);

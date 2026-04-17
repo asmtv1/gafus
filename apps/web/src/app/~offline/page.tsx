@@ -36,6 +36,7 @@ function convertToCourseCardProps(
     shortDesc: metadata.shortDesc,
     authorUsername: metadata.authorUsername,
     createdAt: new Date(metadata.createdAt),
+    updatedAt: new Date(metadata.updatedAt),
     avgRating: metadata.avgRating,
     trainingLevel: metadata.trainingLevel as "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT",
     reviews: [],

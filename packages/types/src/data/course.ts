@@ -17,6 +17,7 @@ export interface CourseWithProgressData {
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   equipment?: string | null;
   createdAt: Date;
+  updatedAt: Date;
   authorUsername: string;
   authorAvatarUrl?: string | null;
   userStatus: TrainingStatus;
@@ -87,6 +88,7 @@ export interface CourseCardData {
   authorUsername: string;
   authorAvatarUrl?: string | null;
   createdAt: Date;
+  updatedAt: Date;
   avgRating: number | null;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   reviews: CourseReview[];

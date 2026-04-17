@@ -11,7 +11,7 @@ import {
 import type { ArticleViewerDto } from "@gafus/types";
 import { deleteFolderFromCDN } from "@gafus/cdn-upload";
 import { revalidatePath } from "next/cache";
-import { ensureMobileImageVariantForLogoUrl } from "@shared/lib/media/ensureMobileImageVariant";
+import { ensureLogoImageVariantsForLogoUrl } from "@shared/lib/media/ensureMobileImageVariant";
 import { invalidateArticlesCache } from "./invalidateArticlesCache";
 
 const logger = createWebLogger("trainer-article-actions");
@@ -25,11 +25,11 @@ export async function createArticleAction(input: Record<string, unknown>) {
     const result = await createArticle(input, userId);
     if (result.success) {
       if (logoImg) {
-        const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(logoImg);
-        if (!mobileVariantResult.success) {
-          logger.warn("Не удалось подготовить mobile-логотип статьи", {
+        const variantsResult = await ensureLogoImageVariantsForLogoUrl(logoImg);
+        if (!variantsResult.success) {
+          logger.warn("Не удалось подготовить варианты логотипа статьи", {
             articleId: result.data?.id,
-            error: mobileVariantResult.error,
+            error: variantsResult.error,
           });
         }
       }
@@ -55,11 +55,11 @@ export async function updateArticleAction(
     const result = await updateArticle(id, input, userId);
     if (result.success) {
       if (logoImg) {
-        const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(logoImg);
-        if (!mobileVariantResult.success) {
-          logger.warn("Не удалось подготовить mobile-логотип статьи", {
+        const variantsResult = await ensureLogoImageVariantsForLogoUrl(logoImg);
+        if (!variantsResult.success) {
+          logger.warn("Не удалось подготовить варианты логотипа статьи", {
             articleId: id,
-            error: mobileVariantResult.error,
+            error: variantsResult.error,
           });
         }
       }

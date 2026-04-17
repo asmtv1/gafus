@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -27,6 +27,7 @@ import {
 import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
+import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
 import { Loading } from "@/shared/components/ui";
 
@@ -36,6 +37,17 @@ const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
 const ARTICLE_WEBVIEW_LOADING_HEIGHT = 360;
 /** Совпадает с таймаутом в useEffect ниже. */
 const ARTICLE_WEBVIEW_FALLBACK_HEIGHT = 800;
+
+function getVersionedImageUrl(
+  rawUrl: string | null | undefined,
+  updatedAt: string | null | undefined,
+): string | null {
+  const resolved = resolveImageUrl(rawUrl);
+  if (!resolved) return null;
+  const version =
+    updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
+  return `${resolved}${resolved.includes("?") ? "&" : "?"}v=${version}`;
+}
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -148,7 +160,24 @@ export default function ArticleDetailScreen() {
     }
   }, [article?.id]);
 
-  const coverUrl = resolveImageUrl(article?.imageUrls?.[0]);
+  const rawCover = article?.logoImg || article?.imageUrls?.[0];
+  const coverUrl = getVersionedImageUrl(rawCover, article?.updatedAt);
+  const coverCandidates = useMemo(
+    () => getArticleLogoVariantCandidates(coverUrl),
+    [coverUrl],
+  );
+  const [coverCandidateIndex, setCoverCandidateIndex] = useState(0);
+  const hasNextCoverFallback = coverCandidateIndex < coverCandidates.length - 1;
+  const currentCoverUrl = coverCandidates[coverCandidateIndex];
+  const articleLogoCacheKeyBase =
+    article != null
+      ? `article-${article.id}-${new Date(article.updatedAt).getTime()}`
+      : "article-no-id";
+  const articleLogoCacheKey = `${articleLogoCacheKeyBase}-${coverCandidateIndex}`;
+
+  useEffect(() => {
+    setCoverCandidateIndex(0);
+  }, [articleLogoCacheKeyBase]);
 
   const hasMeasuredArticleHtml =
     htmlHeight != null && htmlHeight > 0;
@@ -233,13 +262,19 @@ export default function ArticleDetailScreen() {
           </Text>
         </Pressable>
 
-        {coverUrl && (
+        {currentCoverUrl && (
           <View style={styles.coverFrame}>
             <Image
-              source={{ uri: coverUrl, cacheKey: `article-${article.id}` }}
+              source={{ uri: currentCoverUrl, cacheKey: articleLogoCacheKey }}
               style={styles.coverImage}
               contentFit="cover"
+              recyclingKey={articleLogoCacheKey}
               accessibilityLabel={`Обложка статьи «${article.title}»`}
+              onError={() => {
+                if (hasNextCoverFallback) {
+                  setCoverCandidateIndex((prev) => prev + 1);
+                }
+              }}
             />
           </View>
         )}

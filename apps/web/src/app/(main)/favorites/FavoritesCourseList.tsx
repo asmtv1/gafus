@@ -175,6 +175,7 @@ export default function FavoritesCourseList({
             authorUsername: course.authorUsername || "",
             authorAvatarUrl: course.authorAvatarUrl ?? null,
             createdAt: course.createdAt || new Date(),
+            updatedAt: course.updatedAt || new Date(),
             avgRating: course.avgRating,
             trainingLevel: course.trainingLevel || "BEGINNER",
             reviews: course.reviews || [],

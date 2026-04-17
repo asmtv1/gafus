@@ -1,11 +1,6 @@
 "use server";
 
-import {
-  deleteFileFromCDN,
-  uploadFileToCDN,
-  getRelativePathFromCDNUrl,
-  getCourseImagePath,
-} from "@gafus/cdn-upload";
+import { getCourseImagePath, uploadFileToCDN } from "@gafus/cdn-upload";
 import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath, revalidateTag } from "next/cache";
@@ -22,7 +17,10 @@ import {
   trainerCanEditCourse,
   updateTrainerCourseSchema,
 } from "@gafus/core/services/trainerCourse";
-import { ensureMobileImageVariantForLogoUrl } from "@shared/lib/media/ensureMobileImageVariant";
+import {
+  deleteImageWithVariantsFromLogoUrl,
+  ensureLogoImageVariantsForLogoUrl,
+} from "@shared/lib/media/ensureMobileImageVariant";
 import { invalidateCoursesCache } from "./invalidateCoursesCache";
 import { invalidateTrainingDaysCache } from "./invalidateTrainingDaysCache";
 
@@ -146,7 +144,7 @@ export async function createCourseServerAction(formData: FormData) {
       const msg = parseResult.error.flatten().formErrors[0] ?? "Ошибка валидации";
       if (logoImgUrl) {
         try {
-          await deleteFileFromCDN(getRelativePathFromCDNUrl(logoImgUrl));
+          await deleteImageWithVariantsFromLogoUrl(logoImgUrl);
         } catch {
           // игнорируем ошибку отката CDN
         }
@@ -158,7 +156,7 @@ export async function createCourseServerAction(formData: FormData) {
     if (!result.success) {
       if (logoImgUrl) {
         try {
-          await deleteFileFromCDN(getRelativePathFromCDNUrl(logoImgUrl));
+          await deleteImageWithVariantsFromLogoUrl(logoImgUrl);
         } catch {
           // откат CDN при ошибке core
         }
@@ -167,11 +165,11 @@ export async function createCourseServerAction(formData: FormData) {
     }
 
     if (logoImgUrl) {
-      const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(logoImgUrl);
-      if (!mobileVariantResult.success) {
-        logger.warn("Не удалось подготовить mobile-логотип курса", {
+      const variantsResult = await ensureLogoImageVariantsForLogoUrl(logoImgUrl);
+      if (!variantsResult.success) {
+        logger.warn("Не удалось подготовить варианты логотипа курса", {
           courseId: result.id,
-          error: mobileVariantResult.error,
+          error: variantsResult.error,
         });
       }
     }
@@ -262,13 +260,11 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
   if (!result.success) return { success: false, error: result.error };
 
   if (parseResult.data.logoImg) {
-    const mobileVariantResult = await ensureMobileImageVariantForLogoUrl(
-      parseResult.data.logoImg,
-    );
-    if (!mobileVariantResult.success) {
-      logger.warn("Не удалось подготовить mobile-логотип курса", {
+    const variantsResult = await ensureLogoImageVariantsForLogoUrl(parseResult.data.logoImg);
+    if (!variantsResult.success) {
+      logger.warn("Не удалось подготовить варианты логотипа курса", {
         courseId: input.id,
-        error: mobileVariantResult.error,
+        error: variantsResult.error,
       });
     }
   }
@@ -300,9 +296,10 @@ export async function deleteCourseServerAction(courseId: string) {
 
   if (result.logoImg) {
     try {
-      const relativePath = getRelativePathFromCDNUrl(result.logoImg);
-      await deleteFileFromCDN(relativePath);
-      logger.info(`Изображение курса удалено из CDN: ${relativePath}`);
+      await deleteImageWithVariantsFromLogoUrl(result.logoImg);
+      logger.info("Изображение курса и его варианты удалены из CDN", {
+        logoImg: result.logoImg,
+      });
     } catch (error) {
       logger.warn("Не удалось удалить изображение курса из CDN", {
         error: getErrorMessage(error),

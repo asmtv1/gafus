@@ -34,6 +34,7 @@ const DOCUMENT_URLS = {
   personalDistribution: `${WEB_BASE_URL}/personal-distribution.html`,
 } as const;
 const SUPPORT_TELEGRAM_URL = "https://t.me/gafus_support";
+const GAFUS_TELEGRAM_URL = "https://t.me/gafusRu";
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -394,6 +395,9 @@ export default function ProfileScreen() {
 
   const profileUser = profileData?.data;
   const profile = profileUser?.profile;
+  const cachedFullName = user?.profile?.fullName?.trim() || null;
+  const currentFullName = profile?.fullName?.trim() || null;
+  const cachedAvatarUrl = user?.profile?.avatarUrl?.trim() || null;
   const displayEmail = profileUser?.email?.trim() || user?.email?.trim() || "";
   const hasAppPassword = profileData?.data?.hasAppPassword ?? user?.hasAppPassword ?? false;
   const hasVkLinked = profileData?.data?.hasVkLinked ?? false;
@@ -405,7 +409,11 @@ export default function ProfileScreen() {
     },
     onError: (msg) => Alert.alert("Ошибка", msg),
   });
-  const avatarUrl = profile?.avatarUrl?.trim() || null;
+  const avatarUrl = profile?.avatarUrl?.trim() || cachedAvatarUrl;
+  const greetingName = currentFullName || cachedFullName || user?.username || "пользователь";
+  const avatarCacheKey = avatarUrl
+    ? `user-avatar-${profileUser?.id ?? user?.id ?? "me"}-${avatarUrl}`
+    : "user-avatar-placeholder";
   const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
   const pushServerDetermined = pushDeviceStatus?.determined === true;
@@ -543,9 +551,15 @@ export default function ProfileScreen() {
           >
             <View style={styles.avatarWrapper}>
               <Image
-                source={avatarUrl ? { uri: avatarUrl } : require("../../../assets/images/avatar.png")}
+                source={
+                  avatarUrl
+                    ? { uri: avatarUrl, cacheKey: avatarCacheKey }
+                    : require("../../../assets/images/avatar.png")
+                }
                 style={styles.avatarImage}
                 contentFit="cover"
+                recyclingKey={avatarCacheKey}
+                transition={0}
               />
             </View>
             <View style={styles.avatarEditBadge}>
@@ -553,7 +567,7 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
           <View style={styles.profileInfo}>
-            <Text style={styles.greeting}>Привет, {profile?.fullName || user?.username}!</Text>
+            <Text style={styles.greeting}>Привет, {greetingName}!</Text>
             <Text
               style={[
                 styles.contactInfo,
@@ -999,6 +1013,19 @@ export default function ProfileScreen() {
               </Text>
             </View>
           </View>
+
+          <View style={styles.infoDivider} />
+
+          <Pressable
+            style={styles.infoItem}
+            onPress={() => Linking.openURL(GAFUS_TELEGRAM_URL)}
+          >
+            <Text style={styles.infoIcon}>📢</Text>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoItemTitle}>Наш Telegram</Text>
+            </View>
+            <Text style={styles.infoArrow}>→</Text>
+          </Pressable>
 
           <View style={styles.infoDivider} />
 

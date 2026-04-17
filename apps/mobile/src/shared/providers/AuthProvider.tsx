@@ -1,13 +1,11 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRootNavigationState } from "expo-router";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
 
 import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
-import { COLORS } from "@/constants";
 import { resetUserStores } from "@/shared/stores/resetAll";
 
 interface AuthProviderProps {
@@ -22,13 +20,9 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const navState = useRootNavigationState();
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore();
   const prevAuthRef = useRef<boolean | null>(null);
   const favoritesLoadedRef = useRef(false);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -72,22 +66,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     })();
   }, [isAuthenticated, queryClient]);
 
-  if (isLoading || !navState?.key) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
+  if (isLoading || !navState?.key) return null;
 
   return <>{children}</>;
 }
-
-const styles = StyleSheet.create({
-  loader: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-  },
-});

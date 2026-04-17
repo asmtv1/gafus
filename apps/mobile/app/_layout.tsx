@@ -18,6 +18,7 @@ import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
+import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/constants";
 
 function SyncProgressOnReconnect() {
@@ -34,6 +35,8 @@ SplashScreen.preventAutoHideAsync();
  * Загружает шрифты: Montserrat (Google Fonts) и Moscow2024 (локальный)
  */
 export default function RootLayout() {
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
   const [fontsLoaded, fontError] = useFonts({
     // Google Fonts - Montserrat
     Montserrat_400Regular,
@@ -46,11 +49,15 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Скрываем splash screen только после загрузки шрифтов
-    if (fontsLoaded || fontError) {
+    // Скрываем splash screen только когда готовы шрифты и завершена auth-проверка
+    if ((fontsLoaded || fontError) && !authLoading) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, authLoading]);
+
+  useEffect(() => {
+    void checkAuth();
+  }, [checkAuth]);
 
   useEffect(() => {
     if (!fontError) return;
@@ -75,7 +82,7 @@ export default function RootLayout() {
   }, []);
 
   // Не рендерим контент до загрузки шрифтов
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || authLoading) {
     return null;
   }
 

@@ -29,6 +29,7 @@ const courseSelect = {
   trainingLevel: true,
   equipment: true,
   createdAt: true,
+  updatedAt: true,
   author: {
     select: {
       username: true,
@@ -135,6 +136,7 @@ export async function getCoursesWithProgress(
       trainingLevel: course.trainingLevel,
       equipment: course.equipment ?? null,
       createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
+      updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
       authorUsername: course.author.username,
       authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
       favoritedBy: course.favoritedBy,

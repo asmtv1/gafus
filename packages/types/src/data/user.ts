@@ -80,6 +80,7 @@ export interface PublicProfile {
     isPaid: boolean;
     priceRub: number | null;
     avgRating: number | null;
+    updatedAt: Date;
     trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   }[];
 }

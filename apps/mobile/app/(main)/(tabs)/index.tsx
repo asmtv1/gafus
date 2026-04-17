@@ -36,11 +36,17 @@ import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/constants";
 
 const LOGO_PREFETCH_LIMIT = 8;
 
-function getCourseLogoUri(logoImg: string | null | undefined): string | null {
+function getCourseLogoUri(
+  logoImg: string | null | undefined,
+  updatedAt: Date | string | null | undefined,
+): string | null {
   if (!logoImg) return null;
-  return logoImg.startsWith("/")
+  const baseLogoUri = logoImg.startsWith("/")
     ? `${API_BASE_URL.replace(/\/$/, "")}${logoImg}`
     : logoImg;
+  const logoVersion =
+    updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
+  return `${baseLogoUri}${baseLogoUri.includes("?") ? "&" : "?"}v=${logoVersion}`;
 }
 
 /**
@@ -130,7 +136,7 @@ export default function CoursesScreen() {
     if (allCourses.length === 0) return;
 
     const logoUris = allCourses
-      .map((course) => getCourseLogoUri(course.logoImg))
+      .map((course) => getCourseLogoUri(course.logoImg, course.updatedAt))
       .filter((uri): uri is string => typeof uri === "string" && uri.length > 0)
       .slice(0, LOGO_PREFETCH_LIMIT);
 

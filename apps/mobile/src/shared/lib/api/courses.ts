@@ -17,6 +17,7 @@ export interface Course {
   isPaid: boolean;
   avgRating: number | null;
   createdAt: Date | string;
+  updatedAt: Date | string;
   authorUsername: string;
   authorAvatarUrl?: string | null;
   userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";

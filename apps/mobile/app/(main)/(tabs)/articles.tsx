@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -17,6 +17,7 @@ import type { ArticleListDto } from "@gafus/types";
 
 import { Loading } from "@/shared/components/ui";
 import { articlesApi } from "@/shared/lib/api";
+import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
 
@@ -29,6 +30,17 @@ function formatViews(n: number): string {
   return `${n} просмотров`;
 }
 
+function getVersionedImageUrl(
+  rawUrl: string | null | undefined,
+  updatedAt: string | null | undefined,
+): string | null {
+  const resolved = resolveImageUrl(rawUrl);
+  if (!resolved) return null;
+  const version =
+    updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
+  return `${resolved}${resolved.includes("?") ? "&" : "?"}v=${version}`;
+}
+
 interface ArticleCardProps {
   article: ArticleListDto;
   onLike: (articleId: string) => void;
@@ -38,7 +50,15 @@ interface ArticleCardProps {
 const ArticleCard = memo(function ArticleCard({ article, onLike, isLikePending }: ArticleCardProps) {
   const router = useRouter();
   const rawCover = article.logoImg || article.imageUrls?.[0];
-  const coverUrl = resolveImageUrl(rawCover);
+  const coverUrl = getVersionedImageUrl(rawCover, article.updatedAt);
+  const coverCandidates = useMemo(
+    () => getArticleLogoVariantCandidates(coverUrl),
+    [coverUrl],
+  );
+  const [coverCandidateIndex, setCoverCandidateIndex] = useState(0);
+  const hasNextCoverFallback = coverCandidateIndex < coverCandidates.length - 1;
+  const currentCoverUrl = coverCandidates[coverCandidateIndex];
+  const coverCacheKey = `article-${article.id}-${new Date(article.updatedAt).getTime()}-${coverCandidateIndex}`;
 
   const handleLikePress = (e: { stopPropagation?: () => void }) => {
     e.stopPropagation?.();
@@ -56,13 +76,18 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isLikePending }
     >
       <View style={styles.row}>
         <View style={styles.logoBox}>
-          {coverUrl ? (
+          {currentCoverUrl ? (
             <Image
-              source={{ uri: coverUrl, cacheKey: `article-${article.id}` }}
+              source={{ uri: currentCoverUrl, cacheKey: coverCacheKey }}
               style={styles.logoImage}
               contentFit="cover"
-              recyclingKey={article.id}
+              recyclingKey={coverCacheKey}
               accessibilityLabel={`Обложка статьи «${article.title}»`}
+              onError={() => {
+                if (hasNextCoverFallback) {
+                  setCoverCandidateIndex((prev) => prev + 1);
+                }
+              }}
             />
           ) : (
             <View style={styles.logoPlaceholder}>

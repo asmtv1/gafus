@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, Pressable, Alert, ActivityIndicator, Platform } from "react-native";
 import { Text } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
@@ -13,7 +13,7 @@ import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants
 import { useOfflineStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
-import { getMobileImageVariantUrl } from "@/shared/lib/utils/mobileImageVariant";
+import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import type { Course } from "@/shared/lib/api";
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -180,27 +180,28 @@ export function CourseCard({
     course.logoImg?.startsWith("/")
       ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
       : course.logoImg || undefined;
+  const logoVersion =
+    course.updatedAt != null ? new Date(course.updatedAt).getTime().toString() : "no-version";
+  const logoImgVersionedUri = logoImgUri
+    ? `${logoImgUri}${logoImgUri.includes("?") ? "&" : "?"}v=${logoVersion}`
+    : undefined;
 
-  /** Фрагмент URL файла — меняется при новой обложке; иначе expo-image держит старый bitmap по cacheKey */
-  const coverCacheKeySuffix =
-    logoImgUri && logoImgUri.length > 0
-      ? logoImgUri.replace(/\/+$/, "").split("/").pop() ?? logoImgUri
-      : "none";
-  const coverImageCacheKey = `course-logo-${course.id}-${coverCacheKeySuffix}`;
-  const mobileLogoImgUri = getMobileImageVariantUrl(logoImgUri);
-  const hasMobileLogoVariant =
-    !!mobileLogoImgUri && !!logoImgUri && mobileLogoImgUri !== logoImgUri;
-  const [shouldUseOriginalLogo, setShouldUseOriginalLogo] = useState(false);
-  const preferredLogoImgUri =
-    shouldUseOriginalLogo || !hasMobileLogoVariant
-      ? logoImgUri
-      : mobileLogoImgUri;
+  /** Версия курса обновляется в БД при смене логотипа, это и есть триггер инвалидации кэша */
+  const coverImageCacheKeyBase = `course-logo-${course.id}-${logoVersion}`;
+  const logoCandidates = useMemo(
+    () => getCourseLogoVariantCandidates(logoImgVersionedUri),
+    [logoImgVersionedUri],
+  );
+  const [logoCandidateIndex, setLogoCandidateIndex] = useState(0);
+  const preferredLogoImgUri = logoCandidates[logoCandidateIndex];
+  const hasNextLogoFallback = logoCandidateIndex < logoCandidates.length - 1;
+  const coverImageCacheKey = `${coverImageCacheKeyBase}-${logoCandidateIndex}`;
   const [isCoverLoading, setIsCoverLoading] = useState(Boolean(logoImgUri));
 
   useEffect(() => {
-    setIsCoverLoading(Boolean(logoImgUri));
-    setShouldUseOriginalLogo(false);
-  }, [course.id, logoImgUri]);
+    setIsCoverLoading(Boolean(logoImgVersionedUri));
+    setLogoCandidateIndex(0);
+  }, [course.id, logoImgVersionedUri]);
 
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
@@ -277,8 +278,8 @@ export function CourseCard({
                   transition={180}
                   onLoadEnd={() => setIsCoverLoading(false)}
                   onError={() => {
-                    if (hasMobileLogoVariant && !shouldUseOriginalLogo) {
-                      setShouldUseOriginalLogo(true);
+                    if (hasNextLogoFallback) {
+                      setLogoCandidateIndex((prev) => prev + 1);
                       setIsCoverLoading(true);
                       return;
                     }
