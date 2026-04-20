@@ -7,11 +7,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
+import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
-import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/constants";
 
 // Функция для получения инициалов
 const getInitials = (name: string): string => {
@@ -195,6 +196,7 @@ export default function PublicProfileScreen() {
           <Text style={styles.backRowText}>Назад</Text>
         </Pressable>
         <View style={styles.loadingContainer}>
+          <MascotSpinner size="large" style={{ marginBottom: SPACING.md }} />
           <Text style={styles.loadingText}>Загрузка профиля...</Text>
         </View>
       </SafeAreaView>

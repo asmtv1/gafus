@@ -8,7 +8,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,7 +15,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { Button, Input } from "@/shared/components/ui";
+import { Button, Input, MascotSpinner } from "@/shared/components/ui";
 import { petsApi } from "@/shared/lib/api/pets";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
@@ -395,7 +394,7 @@ export default function PreventionScreen() {
 
         {isLoading ? (
           <View style={styles.centerContent}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <MascotSpinner size="large" />
             <Text style={styles.loadingText}>Загрузка…</Text>
           </View>
         ) : (

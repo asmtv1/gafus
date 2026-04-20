@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { COLORS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
+import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 
 const MIN_FEEDBACK_LENGTH = 10;
 
@@ -74,7 +75,7 @@ export function WrittenFeedbackBlock({
   if (isLoading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
+        <MascotSpinner size="small" />
         <Text style={styles.loadingText}>Загрузка данных...</Text>
       </View>
     );
@@ -138,7 +139,7 @@ export function WrittenFeedbackBlock({
           disabled={!canSubmit}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color={COLORS.surface} />
+            <MascotSpinner size="small" />
           ) : (
             <Text style={[styles.submitBtnText, !canSubmit && styles.submitBtnTextDisabled]}>
               ОТПРАВИТЬ ОБРАТНУЮ СВЯЗЬ

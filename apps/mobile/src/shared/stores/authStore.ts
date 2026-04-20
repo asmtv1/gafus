@@ -272,6 +272,9 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const response = await authApi.getProfile();
+          const persistedUser = useAuthStore.getState().user;
+          const isNetworkError =
+            response.code === "NETWORK_ERROR" || response.error === "Нет подключения к интернету";
 
           if (response.success && response.data) {
             const userData = response.data;
@@ -291,13 +294,20 @@ export const useAuthStore = create<AuthStore>()(
               return;
             }
 
+            set({ user: userData, isAuthenticated: true, isLoading: false, pendingVkPhone: false });
+            if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
+          } else if (isNetworkError && persistedUser) {
+            if (__DEV__) {
+              console.log("[authStore] checkAuth: offline fallback with persisted user", {
+                id: persistedUser.id,
+              });
+            }
             set({
-              user: userData,
+              user: persistedUser,
               isAuthenticated: true,
               isLoading: false,
               pendingVkPhone: false,
             });
-            if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
           } else {
             if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
             await SecureStore.deleteItemAsync("auth_token");

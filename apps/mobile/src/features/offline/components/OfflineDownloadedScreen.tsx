@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { COLORS, SPACING, FONTS } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { getOfflineCourseTypes, getCourseMeta } from "@/shared/lib/offline";
 import { reportClientError } from "@/shared/lib/tracer";
-import { COLORS, SPACING, FONTS } from "@/constants";
 
 interface OfflineCourseItem {
   courseType: string;
@@ -65,7 +66,7 @@ export function OfflineDownloadedScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <MascotSpinner size="large" style={{ marginBottom: SPACING.sm }} />
         <Text style={styles.loadingText}>Загрузка списка...</Text>
       </View>
     );

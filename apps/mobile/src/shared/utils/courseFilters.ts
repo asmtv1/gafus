@@ -145,6 +145,9 @@ export function filterAndSortCourses(
   result = filterCoursesByRating(result, filters.rating);
   result = filterCoursesBySearch(result, filters.search);
   result = sortCourses(result, filters.sorting);
+  if (filters.tab === "all") {
+    result = [...result].sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
+  }
   return result;
 }
 

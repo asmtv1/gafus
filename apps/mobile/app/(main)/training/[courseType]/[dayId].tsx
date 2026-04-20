@@ -5,7 +5,6 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
-  ActivityIndicator,
   Linking,
   Platform,
 } from "react-native";
@@ -15,7 +14,7 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { WebView } from "react-native-webview";
-import { Loading } from "@/shared/components/ui";
+import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
 import { AccordionStep } from "@/features/training/components";
 import {
@@ -509,7 +508,7 @@ export default function TrainingDayScreen() {
                   >
                     <Text style={styles.webViewCloseText}>Закрыть</Text>
                   </Pressable>
-                  {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+                  {isPaymentChecking && <MascotSpinner size="small" />}
                 </View>
                 <WebView
                   source={{ uri: paymentUrl }}
@@ -744,7 +743,7 @@ export default function TrainingDayScreen() {
                 disabled={isOffline || isExporting}
               >
                 {isExporting ? (
-                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <MascotSpinner size="small" />
                 ) : (
                   <MaterialCommunityIcons name="file-download-outline" size={22} color="#fff" />
                 )}
@@ -842,7 +841,7 @@ export default function TrainingDayScreen() {
               >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
-              {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+              {isPaymentChecking && <MascotSpinner size="small" />}
             </View>
             <WebView
               source={{ uri: paymentUrl }}

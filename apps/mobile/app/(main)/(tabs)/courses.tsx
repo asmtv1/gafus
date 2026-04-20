@@ -36,8 +36,8 @@ export default function FavoritesScreen() {
   const { data, isLoading, error, refetch } = useQuery(favoritesQueryOptions);
 
   const payload = data?.data;
-  const favoriteIds = payload?.favoriteIds;
-  const favoriteCourses = payload?.data ?? [];
+  const favoriteIds = useMemo(() => payload?.favoriteIds, [payload]);
+  const favoriteCourses = useMemo(() => payload?.data ?? [], [payload]);
 
   useEffect(() => {
     if (favoriteIds === undefined) return;
@@ -46,10 +46,11 @@ export default function FavoritesScreen() {
     });
   }, [favoriteIds]);
 
-  const displayedCourses = useMemo(
-    () => favoriteCourses.filter((c) => favorites.includes(c.id)),
-    [favoriteCourses, favorites],
-  );
+  const displayedCourses = useMemo(() => {
+    return favoriteCourses
+      .filter((c) => favorites.includes(c.id))
+      .sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
+  }, [favoriteCourses, favorites]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -57,35 +58,42 @@ export default function FavoritesScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  const handleUnfavorite = async (courseId: string) => {
-    removeFromFavorites(courseId);
-    setPendingIds((prev) => [...prev, courseId]);
-    try {
-      const res = await coursesApi.toggleFavorite(courseId, "remove");
-      if (res.success) await refetch();
-      else throw new Error(res.error);
-    } catch (err) {
-      reportClientError(err instanceof Error ? err : new Error(String(err)), {
-        issueKey: "FavoritesScreen",
-        keys: { operation: "toggle_favorite" },
-      });
-      addToFavorites(courseId);
-      setSnackbar({
-        visible: true,
-        message: err instanceof Error ? err.message : "Ошибка удаления из избранного",
-      });
-    } finally {
-      setPendingIds((prev) => prev.filter((id) => id !== courseId));
-    }
-  };
+  const handleUnfavorite = useCallback(
+    async (courseId: string) => {
+      removeFromFavorites(courseId);
+      setPendingIds((prev) => [...prev, courseId]);
+      try {
+        const res = await coursesApi.toggleFavorite(courseId, "remove");
+        if (res.success) await refetch();
+        else throw new Error(res.error);
+      } catch (err) {
+        reportClientError(err instanceof Error ? err : new Error(String(err)), {
+          issueKey: "FavoritesScreen",
+          keys: { operation: "toggle_favorite" },
+        });
+        addToFavorites(courseId);
+        setSnackbar({
+          visible: true,
+          message: err instanceof Error ? err.message : "Ошибка удаления из избранного",
+        });
+      } finally {
+        setPendingIds((prev) => prev.filter((id) => id !== courseId));
+      }
+    },
+    [addToFavorites, refetch, removeFromFavorites],
+  );
 
-  const renderCourseItem = ({ item }: { item: Course }) => (
-    <CourseCard
-      course={item}
-      isFavorite
-      onToggleFavorite={() => handleUnfavorite(item.id)}
-      disabled={pendingIds.includes(item.id)}
-    />
+  const pendingIdsSet = useMemo(() => new Set(pendingIds), [pendingIds]);
+  const renderCourseItem = useCallback(
+    ({ item }: { item: Course }) => (
+      <CourseCard
+        course={item}
+        isFavorite
+        onToggleFavorite={handleUnfavorite}
+        disabled={pendingIdsSet.has(item.id)}
+      />
+    ),
+    [handleUnfavorite, pendingIdsSet],
   );
 
   const renderHeader = () => (

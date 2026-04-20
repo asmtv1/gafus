@@ -6,7 +6,6 @@ import {
   RefreshControl,
   Pressable,
   Share,
-  ActivityIndicator,
   Linking,
   Platform,
 } from "react-native";
@@ -22,7 +21,7 @@ import { WebView } from "react-native-webview";
 import { fetchProducts, initConnection } from "expo-iap";
 import type { Product } from "expo-iap";
 
-import { Loading } from "@/shared/components/ui";
+import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
@@ -616,7 +615,7 @@ export default function TrainingDaysScreen() {
               >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
-              {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+              {isPaymentChecking && <MascotSpinner size="small" />}
             </View>
             <WebView
               source={{ uri: paymentUrl }}
@@ -1045,7 +1044,7 @@ export default function TrainingDaysScreen() {
               >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
-              {isPaymentChecking && <ActivityIndicator color={COLORS.primary} />}
+              {isPaymentChecking && <MascotSpinner size="small" />}
             </View>
             <WebView
               source={{ uri: paymentUrl }}

@@ -1,12 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Linking,
-  ActivityIndicator,
-} from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -27,9 +20,8 @@ import {
 import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
-import { Loading } from "@/shared/components/ui";
+import { Loading, MascotSpinner } from "@/shared/components/ui";
 
 /** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
 const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
@@ -37,18 +29,6 @@ const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
 const ARTICLE_WEBVIEW_LOADING_HEIGHT = 360;
 /** Совпадает с таймаутом в useEffect ниже. */
 const ARTICLE_WEBVIEW_FALLBACK_HEIGHT = 800;
-const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
-
-function getVersionedImageUrl(
-  rawUrl: string | null | undefined,
-  updatedAt: string | null | undefined,
-): string | null {
-  const resolved = resolveImageUrl(rawUrl);
-  if (!resolved) return null;
-  const version =
-    updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
-  return `${resolved}${resolved.includes("?") ? "&" : "?"}v=${version}`;
-}
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
@@ -161,55 +141,6 @@ export default function ArticleDetailScreen() {
     }
   }, [article?.id]);
 
-  const rawCover = article?.logoImg || article?.imageUrls?.[0];
-  const coverUrl = getVersionedImageUrl(rawCover, article?.updatedAt);
-  const coverCandidates = useMemo(
-    () => getArticleLogoVariantCandidates(coverUrl),
-    [coverUrl],
-  );
-  const [coverCandidateIndex, setCoverCandidateIndex] = useState(0);
-  const hasNextCoverFallback = coverCandidateIndex < coverCandidates.length - 1;
-  const currentCoverUrl = coverCandidates[coverCandidateIndex];
-  const articleLogoCacheKeyBase =
-    article != null
-      ? `article-${article.id}-${new Date(article.updatedAt).getTime()}`
-      : "article-no-id";
-  const articleLogoCacheKey = `${articleLogoCacheKeyBase}-${coverCandidateIndex}`;
-  const [isCoverLoading, setIsCoverLoading] = useState(false);
-  const [showCoverPlaceholder, setShowCoverPlaceholder] = useState(false);
-  const coverPlaceholderDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setCoverCandidateIndex(0);
-  }, [articleLogoCacheKeyBase]);
-
-  useEffect(() => {
-    if (coverPlaceholderDelayTimeoutRef.current) {
-      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-      coverPlaceholderDelayTimeoutRef.current = null;
-    }
-
-    if (!currentCoverUrl) {
-      setIsCoverLoading(false);
-      setShowCoverPlaceholder(false);
-      return;
-    }
-
-    setIsCoverLoading(true);
-    setShowCoverPlaceholder(false);
-    coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
-      setShowCoverPlaceholder(true);
-    }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
-  }, [article?.id, currentCoverUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (!coverPlaceholderDelayTimeoutRef.current) return;
-      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-      coverPlaceholderDelayTimeoutRef.current = null;
-    };
-  }, []);
-
   const hasMeasuredArticleHtml =
     htmlHeight != null && htmlHeight > 0;
   const articleWebViewBlockHeight = hasMeasuredArticleHtml
@@ -292,63 +223,6 @@ export default function ArticleDetailScreen() {
             {article.likeCount}
           </Text>
         </Pressable>
-
-        {currentCoverUrl && (
-          <View style={styles.coverFrame}>
-            <Image
-              source={{ uri: currentCoverUrl, cacheKey: articleLogoCacheKey }}
-              style={styles.coverImage}
-              contentFit="cover"
-              recyclingKey={articleLogoCacheKey}
-              accessibilityLabel={`Обложка статьи «${article.title}»`}
-              onLoadStart={() => {
-                if (coverPlaceholderDelayTimeoutRef.current) {
-                  clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-                  coverPlaceholderDelayTimeoutRef.current = null;
-                }
-                setIsCoverLoading(true);
-                setShowCoverPlaceholder(false);
-                coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
-                  setShowCoverPlaceholder(true);
-                }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
-              }}
-              onLoadEnd={() => {
-                if (coverPlaceholderDelayTimeoutRef.current) {
-                  clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-                  coverPlaceholderDelayTimeoutRef.current = null;
-                }
-                setIsCoverLoading(false);
-                setShowCoverPlaceholder(false);
-              }}
-              onError={() => {
-                if (hasNextCoverFallback) {
-                  if (coverPlaceholderDelayTimeoutRef.current) {
-                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-                    coverPlaceholderDelayTimeoutRef.current = null;
-                  }
-                  setCoverCandidateIndex((prev) => prev + 1);
-                  setIsCoverLoading(true);
-                  setShowCoverPlaceholder(false);
-                  coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
-                    setShowCoverPlaceholder(true);
-                  }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
-                  return;
-                }
-                setIsCoverLoading(false);
-                setShowCoverPlaceholder(false);
-              }}
-            />
-            {isCoverLoading && showCoverPlaceholder && (
-              <View style={styles.coverLoadingPlaceholder}>
-                <MaterialCommunityIcons
-                  name="image-outline"
-                  size={42}
-                  color={COLORS.textSecondary}
-                />
-              </View>
-            )}
-          </View>
-        )}
 
         {article.videoUrl && (
           <View style={styles.videoFrame}>
@@ -433,7 +307,7 @@ export default function ArticleDetailScreen() {
           <View style={[styles.webviewWrapper, styles.webviewWrapperFlushBottom]}>
             {!webViewReady && (
               <View style={[styles.webviewSpinner, { height: articleWebViewBlockHeight }]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+                <MascotSpinner size="large" />
               </View>
             )}
             <View
@@ -578,24 +452,6 @@ const styles = StyleSheet.create({
   },
   likeCountLiked: {
     color: "#e63946",
-  },
-  coverFrame: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    borderRadius: BORDER_RADIUS.md,
-    overflow: "hidden",
-    marginBottom: SPACING.md,
-    backgroundColor: "#e8e3d2",
-  },
-  coverImage: {
-    width: "100%",
-    height: "100%",
-  },
-  coverLoadingPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#e8e3d2",
   },
   paidBlock: {
     padding: SPACING.xxl,

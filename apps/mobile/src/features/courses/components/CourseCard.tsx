@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Pressable, Alert, ActivityIndicator, Platform } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, Pressable, Alert, Platform } from "react-native";
 import { Text } from "react-native-paper";
 import { Link, useRouter } from "expo-router";
 import { Image } from "expo-image";
@@ -10,6 +10,7 @@ import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus } from "@gafus/types";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { useOfflineStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
@@ -22,7 +23,13 @@ const LEVEL_LABELS: Record<string, string> = {
   ADVANCED: "Продвинутый",
   EXPERT: "Экспертный",
 };
-const COVER_SPINNER_DELAY_MS = 140;
+
+/**
+ * Кэш «лого уже было показано» на время жизни JS-рантайма.
+ * Нужен, чтобы при рецикле/ремоунте ячеек списка не показывать плейсхолдер повторно
+ * для того же courseId + версии логотипа.
+ */
+const displayedCourseLogoVersionKeys = new Set<string>();
 
 function getStatusText(status: string): string {
   return (
@@ -72,6 +79,47 @@ function getReviewText(reviewsCount: number, userStatus: string): string {
   return `${reviewsCount} ${decl(reviewsCount)}`;
 }
 
+function toTimestamp(value: Date | string | null | undefined): number {
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function areCourseVisualFieldsEqual(prev: Course, next: Course): boolean {
+  return (
+    prev.id === next.id &&
+    prev.name === next.name &&
+    prev.type === next.type &&
+    prev.shortDesc === next.shortDesc &&
+    prev.duration === next.duration &&
+    prev.trainingLevel === next.trainingLevel &&
+    prev.userStatus === next.userStatus &&
+    prev.isPaid === next.isPaid &&
+    prev.isPrivate === next.isPrivate &&
+    prev.hasAccess === next.hasAccess &&
+    prev.logoImg === next.logoImg &&
+    prev.authorUsername === next.authorUsername &&
+    prev.authorAvatarUrl === next.authorAvatarUrl &&
+    prev.avgRating === next.avgRating &&
+    (prev.reviews?.length ?? 0) === (next.reviews?.length ?? 0) &&
+    toTimestamp(prev.startedAt) === toTimestamp(next.startedAt) &&
+    toTimestamp(prev.completedAt) === toTimestamp(next.completedAt) &&
+    toTimestamp(prev.updatedAt) === toTimestamp(next.updatedAt)
+  );
+}
+
+function areCourseCardPropsEqual(prev: CourseCardProps, next: CourseCardProps): boolean {
+  return (
+    prev.isFavorite === next.isFavorite &&
+    prev.disabled === next.disabled &&
+    prev.listIndex === next.listIndex &&
+    prev.viewportGateCount === next.viewportGateCount &&
+    prev.onToggleFavorite === next.onToggleFavorite &&
+    prev.onViewportCoverReady === next.onViewportCoverReady &&
+    areCourseVisualFieldsEqual(prev.course, next.course)
+  );
+}
+
 function SimpleRating({
   rating,
   readOnly,
@@ -111,19 +159,26 @@ function SimpleRating({
 export interface CourseCardProps {
   course: Course;
   isFavorite: boolean;
-  onToggleFavorite: () => void;
+  onToggleFavorite: (courseId: string) => void;
   /** Блокировка кнопки избранного (напр. во время запроса) */
   disabled?: boolean;
+  /** Индекс в списке: для вкладки «Курсы» — готовность лого до снятия полноэкранного оверлея */
+  listIndex?: number;
+  viewportGateCount?: number;
+  onViewportCoverReady?: (courseId: string) => void;
 }
 
 /**
  * Карточка курса (как в веб-версии), общая для списка курсов и избранного
  */
-export function CourseCard({
+function CourseCardComponent({
   course,
   isFavorite,
   onToggleFavorite,
   disabled = false,
+  listIndex,
+  viewportGateCount = 0,
+  onViewportCoverReady,
 }: CourseCardProps) {
   const router = useRouter();
   const courseType = course.type;
@@ -197,37 +252,71 @@ export function CourseCard({
   const preferredLogoImgUri = logoCandidates[logoCandidateIndex];
   const hasNextLogoFallback = logoCandidateIndex < logoCandidates.length - 1;
   const coverImageCacheKey = `${coverImageCacheKeyBase}-${logoCandidateIndex}`;
-  const [isCoverLoading, setIsCoverLoading] = useState(false);
-  const [showCoverSpinner, setShowCoverSpinner] = useState(false);
-  const coverSpinnerDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logoRecyclingKey = `course-logo-${course.id}`;
+  const logoDisplayVersionKey = `${course.id}:${logoVersion}`;
+  const [hasDisplayedLogo, setHasDisplayedLogo] = useState(() =>
+    displayedCourseLogoVersionKeys.has(logoDisplayVersionKey),
+  );
+  const logoImageSource = useMemo(
+    () =>
+      preferredLogoImgUri
+        ? { uri: preferredLogoImgUri, cacheKey: coverImageCacheKey }
+        : undefined,
+    [preferredLogoImgUri, coverImageCacheKey],
+  );
+  const viewportCoverReportedRef = useRef(false);
+
+  const isInViewportGate =
+    typeof listIndex === "number" &&
+    viewportGateCount > 0 &&
+    listIndex < viewportGateCount &&
+    typeof onViewportCoverReady === "function";
+
+  const maybeReportViewportCoverReady = useCallback(() => {
+    if (!isInViewportGate || viewportCoverReportedRef.current) return;
+    viewportCoverReportedRef.current = true;
+    onViewportCoverReady?.(course.id);
+  }, [course.id, isInViewportGate, onViewportCoverReady]);
+
+  const markLogoDisplayed = useCallback(() => {
+    if (displayedCourseLogoVersionKeys.has(logoDisplayVersionKey)) {
+      if (!hasDisplayedLogo) {
+        setHasDisplayedLogo(true);
+      }
+      return;
+    }
+    displayedCourseLogoVersionKeys.add(logoDisplayVersionKey);
+    setHasDisplayedLogo(true);
+  }, [hasDisplayedLogo, logoDisplayVersionKey]);
+
+  useEffect(() => {
+    viewportCoverReportedRef.current = false;
+  }, [course.id]);
+
+  useEffect(() => {
+    if (!isInViewportGate || logoImgVersionedUri) return;
+    maybeReportViewportCoverReady();
+  }, [logoImgVersionedUri, isInViewportGate, maybeReportViewportCoverReady]);
+
+  /** Нет ни одного URL варианта — Image не загрузится, onDisplay/onLoadEnd не придут. */
+  useEffect(() => {
+    if (!isInViewportGate || !logoImgVersionedUri) return;
+    if (preferredLogoImgUri) return;
+    maybeReportViewportCoverReady();
+  }, [
+    isInViewportGate,
+    logoImgVersionedUri,
+    preferredLogoImgUri,
+    maybeReportViewportCoverReady,
+  ]);
 
   useEffect(() => {
     setLogoCandidateIndex(0);
-    if (coverSpinnerDelayTimeoutRef.current) {
-      clearTimeout(coverSpinnerDelayTimeoutRef.current);
-      coverSpinnerDelayTimeoutRef.current = null;
-    }
-
-    if (!logoImgVersionedUri) {
-      setIsCoverLoading(false);
-      setShowCoverSpinner(false);
-      return;
-    }
-
-    setIsCoverLoading(true);
-    setShowCoverSpinner(false);
-    coverSpinnerDelayTimeoutRef.current = setTimeout(() => {
-      setShowCoverSpinner(true);
-    }, COVER_SPINNER_DELAY_MS);
   }, [course.id, logoImgVersionedUri]);
 
   useEffect(() => {
-    return () => {
-      if (!coverSpinnerDelayTimeoutRef.current) return;
-      clearTimeout(coverSpinnerDelayTimeoutRef.current);
-      coverSpinnerDelayTimeoutRef.current = null;
-    };
-  }, []);
+    setHasDisplayedLogo(displayedCourseLogoVersionKeys.has(logoDisplayVersionKey));
+  }, [logoDisplayVersionKey]);
 
   const handleCheckUpdates = async () => {
     const version = downloaded[courseType]?.version;
@@ -290,64 +379,35 @@ export function CourseCard({
           <Pressable style={styles.link}>
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
+                {!hasDisplayedLogo ? (
+                  <View style={styles.courseImagePlaceholder} pointerEvents="none" />
+                ) : null}
                 <Image
-                  source={
-                    preferredLogoImgUri
-                      ? { uri: preferredLogoImgUri, cacheKey: coverImageCacheKey }
-                      : undefined
-                  }
+                  source={logoImageSource}
                   style={styles.courseImage}
                   cachePolicy="memory-disk"
                   contentFit="contain"
                   contentPosition="center"
-                  recyclingKey={coverImageCacheKey}
-                  transition={180}
-                  onLoadStart={() => {
-                    if (coverSpinnerDelayTimeoutRef.current) {
-                      clearTimeout(coverSpinnerDelayTimeoutRef.current);
-                      coverSpinnerDelayTimeoutRef.current = null;
-                    }
-                    setIsCoverLoading(true);
-                    setShowCoverSpinner(false);
-                    coverSpinnerDelayTimeoutRef.current = setTimeout(() => {
-                      setShowCoverSpinner(true);
-                    }, COVER_SPINNER_DELAY_MS);
-                  }}
+                  recyclingKey={logoRecyclingKey}
+                  transition={0}
+                  priority={isInViewportGate ? "high" : "normal"}
+                  onLoad={markLogoDisplayed}
                   onLoadEnd={() => {
-                    if (coverSpinnerDelayTimeoutRef.current) {
-                      clearTimeout(coverSpinnerDelayTimeoutRef.current);
-                      coverSpinnerDelayTimeoutRef.current = null;
-                    }
-                    setIsCoverLoading(false);
-                    setShowCoverSpinner(false);
+                    markLogoDisplayed();
+                    maybeReportViewportCoverReady();
+                  }}
+                  onDisplay={() => {
+                    markLogoDisplayed();
+                    maybeReportViewportCoverReady();
                   }}
                   onError={() => {
                     if (hasNextLogoFallback) {
                       setLogoCandidateIndex((prev) => prev + 1);
-                      if (coverSpinnerDelayTimeoutRef.current) {
-                        clearTimeout(coverSpinnerDelayTimeoutRef.current);
-                        coverSpinnerDelayTimeoutRef.current = null;
-                      }
-                      setIsCoverLoading(true);
-                      setShowCoverSpinner(false);
-                      coverSpinnerDelayTimeoutRef.current = setTimeout(() => {
-                        setShowCoverSpinner(true);
-                      }, COVER_SPINNER_DELAY_MS);
                       return;
                     }
-                    if (coverSpinnerDelayTimeoutRef.current) {
-                      clearTimeout(coverSpinnerDelayTimeoutRef.current);
-                      coverSpinnerDelayTimeoutRef.current = null;
-                    }
-                    setIsCoverLoading(false);
-                    setShowCoverSpinner(false);
+                    maybeReportViewportCoverReady();
                   }}
                 />
-                {isCoverLoading && showCoverSpinner && (
-                  <View style={styles.courseImagePlaceholder}>
-                    <ActivityIndicator size="small" color={COLORS.secondary} />
-                  </View>
-                )}
                 {course.isPaid && (
                   <View style={styles.paidBadge}>
                     <Text style={styles.paidBadgeText}>Платный</Text>
@@ -453,7 +513,7 @@ export function CourseCard({
             <Pressable
               onPress={() => {
                 void hapticFeedback.selection();
-                onToggleFavorite?.();
+                onToggleFavorite(course.id);
               }}
               disabled={disabled}
               style={({ pressed }) => [
@@ -483,7 +543,7 @@ export function CourseCard({
               ]}
             >
               {checkingUpdates ? (
-                <ActivityIndicator size="small" color={COLORS.secondary} />
+                <MascotSpinner size="small" />
               ) : (
                 <>
                   <MaterialCommunityIcons
@@ -583,6 +643,8 @@ export function CourseCard({
     </View>
   );
 }
+
+export const CourseCard = memo(CourseCardComponent, areCourseCardPropsEqual);
 
 // Отступы как в web (CourseCard.module.css)
 const PAD_H = 20;

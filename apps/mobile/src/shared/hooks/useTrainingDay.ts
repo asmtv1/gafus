@@ -16,6 +16,9 @@ import type { TrainingDayResponse } from "@/shared/lib/api/training";
 export function useTrainingDay(courseType: string, dayOnCourseId: string) {
   const syncFromServer = useStepStore((s) => s.syncFromServer);
   const getStepState = useStepStore((s) => s.getStepState);
+  const isNetworkErrorResponse = (response: ApiResponse<TrainingDayResponse>): boolean => {
+    return response.code === "NETWORK_ERROR" || response.error === "Нет подключения к интернету";
+  };
 
   return useQuery<ApiResponse<TrainingDayResponse>>({
     queryKey: ["trainingDay", courseType, dayOnCourseId],
@@ -32,6 +35,17 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
             durationSec: s.step?.durationSec ?? s.durationSec ?? undefined,
           }));
           syncFromServer(response.data.courseId ?? courseType, dayOnCourseId, steps);
+          return response;
+        }
+
+        if (isNetworkErrorResponse(response)) {
+          const meta = await getCourseMeta(courseType);
+          const dayData = meta
+            ? mapMetaToTrainingDayResponse(meta, dayOnCourseId, getStepState)
+            : null;
+          if (dayData) {
+            return { success: true, data: dayData };
+          }
         }
 
         return response;

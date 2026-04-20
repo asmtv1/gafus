@@ -13,9 +13,16 @@ import { useShallow } from "zustand/react/shallow";
 import { Card } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
-import { subscriptionsApi, notesApi } from "@/shared/lib/api";
-import { userApi } from "@/shared/lib/api/user";
+import { subscriptionsApi } from "@/shared/lib/api";
+import {
+  petsQueryOptions,
+  pushSubscriptionDeviceStatusQueryOptions,
+  studentNotesQueryOptions,
+  trainerPublicProfileQueryOptions,
+  userProfileQueryOptions,
+} from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet } from "@/shared/lib/api/pets";
+import { userApi } from "@/shared/lib/api/user";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
@@ -167,14 +174,7 @@ export default function ProfileScreen() {
   );
 
   // Загрузка данных профиля
-  const { data: profileData } = useQuery({
-    queryKey: ["user-profile"],
-    queryFn: async () => {
-      const res = await userApi.getProfile();
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля");
-      return res;
-    },
-  });
+  const { data: profileData } = useQuery(userProfileQueryOptions);
 
   /** После смены email на web стор мог остаться со старым user — подтягиваем GET /profile */
   useFocusEffect(
@@ -212,47 +212,21 @@ export default function ProfileScreen() {
   }, [profileData, setUser]);
 
   // Загрузка питомцев
-  const { data: petsData } = useQuery({
-    queryKey: ["pets"],
-    queryFn: async () => {
-      const res = await petsApi.getAll();
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки питомцев");
-      return res;
-    },
-  });
+  const { data: petsData } = useQuery(petsQueryOptions);
 
   const {
     data: pushDeviceStatus,
     isPending: pushDeviceStatusPending,
     isError: pushDeviceStatusError,
-  } = useQuery({
-    queryKey: ["push-subscription-device-status"],
-    queryFn: async () => {
-      const tokens = await getCurrentDeviceTokens();
-      const endpoints = [tokens.expo, tokens.rustore].filter(
-        (ep): ep is string => typeof ep === "string" && ep.length > 0,
-      );
-      const res = await subscriptionsApi.postPushDeviceStatus(endpoints);
-      if (!res.success || res.data === undefined) {
-        throw new Error(res.error ?? "Не удалось проверить подписку");
-      }
-      return res.data;
-    },
-  });
+  } = useQuery(pushSubscriptionDeviceStatusQueryOptions);
 
   const { data: studentNotesData } = useQuery({
-    queryKey: ["student-notes"],
-    queryFn: notesApi.getStudentNotes,
+    ...studentNotesQueryOptions,
     enabled: user?.role === "USER",
   });
 
   const { data: trainerProfileData } = useQuery({
-    queryKey: ["trainer-public-profile", user?.username],
-    queryFn: async () => {
-      const res = await userApi.getPublicProfile(user?.username ?? "");
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля тренера");
-      return res;
-    },
+    ...trainerPublicProfileQueryOptions(user?.username ?? ""),
     enabled: user?.role === "TRAINER" && !!user?.username,
   });
 

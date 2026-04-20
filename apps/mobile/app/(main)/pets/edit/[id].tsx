@@ -8,7 +8,6 @@ import {
   Platform,
   Pressable,
   TextInput,
-  ActivityIndicator,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import {
   formatIsoBirthDateToDdMmYyyy,
@@ -171,7 +171,7 @@ export default function EditPetScreen() {
         >
           {isLoadingPet ? (
             <View style={styles.centerBlock}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
+              <MascotSpinner size="large" style={{ marginBottom: SPACING.sm }} />
               <Text style={styles.mutedText}>Загрузка…</Text>
             </View>
           ) : !petData ? (

@@ -6,7 +6,9 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { Loading } from "@/shared/components/ui";
-import { achievementsApi, coursesApi, type Course } from "@/shared/lib/api";
+import { achievementsQueryOptions } from "@/shared/lib/api/achievementsQuery";
+import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
+import { type Course } from "@/shared/lib/api";
 import type { AchievementData } from "@gafus/types";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
@@ -37,19 +39,9 @@ export default function AchievementsScreen() {
     isLoading: achievementsLoading,
     error: achievementsError,
     refetch: refetchAchievements,
-  } = useQuery({
-    queryKey: ["achievements"],
-    queryFn: achievementsApi.getAchievements,
-  });
+  } = useQuery(achievementsQueryOptions);
 
-  const { data: coursesRes } = useQuery({
-    queryKey: ["courses"],
-    queryFn: async () => {
-      const res = await coursesApi.getAll();
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки курсов");
-      return res;
-    },
-  });
+  const { data: coursesRes } = useQuery(coursesCatalogQueryOptions);
 
   const data = achievementsRes?.success ? achievementsRes.data : undefined;
   const courses =

@@ -1,17 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-  ScrollView,
-} from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { COLORS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING } from "@/constants";
 
 const PASS_THRESHOLD_PERCENT = 70;
 
@@ -115,7 +109,7 @@ export function TestQuestionsBlock({
   if (isLoading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
+        <MascotSpinner size="small" />
         <Text style={styles.loadingText}>Загрузка данных...</Text>
       </View>
     );
@@ -210,7 +204,7 @@ export function TestQuestionsBlock({
           disabled={!canSubmit}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color={COLORS.surface} />
+            <MascotSpinner size="small" />
           ) : (
             <Text style={[styles.submitBtnText, !canSubmit && styles.submitBtnTextDisabled]}>
               ЗАВЕРШИТЬ ТЕСТ

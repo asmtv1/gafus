@@ -1,9 +1,17 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import {
   View,
   StyleSheet,
   RefreshControl,
   Pressable,
+  InteractionManager,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
@@ -15,6 +23,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Loading } from "@/shared/components/ui";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { usePrefetchOtherTabsAfterCourses } from "@/shared/hooks/usePrefetchOtherTabsAfterCourses";
 import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -32,9 +41,15 @@ import {
   type ProgressFilterType,
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
+import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/constants";
 
-const LOGO_PREFETCH_LIMIT = 8;
+const LOGO_PREFETCH_LIMIT = 12;
+/** Первые карточки (карточка высокая — не завышать, иначе FlashList может не смонтировать все ячейки). */
+const VIEWPORT_COURSE_LOGO_GATE_COUNT = 3;
+const VIEWPORT_OVERLAY_SETTLE_MS = 96;
+/** Если гейт не закрылся (сеть, баг нативного слоя) — не блокировать UI навсегда. */
+const VIEWPORT_GATE_FORCE_MS = 12_000;
 
 function getCourseLogoUri(
   logoImg: string | null | undefined,
@@ -47,6 +62,17 @@ function getCourseLogoUri(
   const logoVersion =
     updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
   return `${baseLogoUri}${baseLogoUri.includes("?") ? "&" : "?"}v=${logoVersion}`;
+}
+
+function courseHasLogo(course: Course): boolean {
+  return getCourseLogoUri(course.logoImg, course.updatedAt) != null;
+}
+
+function getCourseLogoPrefetchUri(course: Course): string | null {
+  const base = getCourseLogoUri(course.logoImg, course.updatedAt);
+  if (!base) return null;
+  const candidates = getCourseLogoVariantCandidates(base);
+  return candidates[0] ?? null;
 }
 
 /**
@@ -77,11 +103,15 @@ export default function CoursesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [viewportReady, setViewportReady] = useState(false);
   const pushPromptAskedInSession = useRef(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
+
+  const catalogReady = !isLoading && !error;
+  usePrefetchOtherTabsAfterCourses({ catalogReady });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -131,19 +161,84 @@ export default function CoursesScreen() {
     () => filterAndSortCourses(allCourses, filters),
     [allCourses, filters],
   );
+  const favoritesSet = useMemo(() => new Set(favorites), [favorites]);
+  const pendingIdsSet = useMemo(() => new Set(pendingIds), [pendingIds]);
+
+  const gateCourses = useMemo(
+    () => filteredCourses.slice(0, VIEWPORT_COURSE_LOGO_GATE_COUNT),
+    [filteredCourses],
+  );
+
+  const viewportGateSyncKey = useMemo(
+    () => gateCourses.map((c) => `${c.id}:${new Date(c.updatedAt).getTime()}`).join("|"),
+    [gateCourses],
+  );
+
+  const viewportGatePendingIdsRef = useRef<Set<string>>(new Set());
+  const viewportGateKeyRef = useRef<string>("");
+
+  if (viewportGateKeyRef.current !== viewportGateSyncKey) {
+    viewportGateKeyRef.current = viewportGateSyncKey;
+    const next = new Set<string>();
+    for (const c of gateCourses) {
+      if (courseHasLogo(c)) next.add(c.id);
+    }
+    viewportGatePendingIdsRef.current = next;
+  }
+
+  useLayoutEffect(() => {
+    if (isLoading) {
+      setViewportReady(false);
+      return;
+    }
+    if (filteredCourses.length === 0) {
+      setViewportReady(true);
+      return;
+    }
+    setViewportReady(viewportGatePendingIdsRef.current.size === 0);
+  }, [isLoading, filteredCourses.length, viewportGateSyncKey]);
+
+  const handleViewportCoverReady = useCallback((courseId: string) => {
+    const pending = viewportGatePendingIdsRef.current;
+    if (!pending.has(courseId)) return;
+    pending.delete(courseId);
+    if (pending.size === 0) {
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              setViewportReady(true);
+            }, VIEWPORT_OVERLAY_SETTLE_MS);
+          });
+        });
+      });
+    }
+  }, []);
 
   useEffect(() => {
-    if (allCourses.length === 0) return;
+    if (isLoading || filteredCourses.length === 0) return;
+    const uris = filteredCourses
+      .slice(0, LOGO_PREFETCH_LIMIT)
+      .map((c) => getCourseLogoPrefetchUri(c))
+      .filter((u): u is string => u != null && u.length > 0);
+    if (uris.length === 0) return;
+    void Image.prefetch(uris, { cachePolicy: "memory-disk" });
+  }, [isLoading, filteredCourses]);
 
-    const logoUris = allCourses
-      .map((course) => getCourseLogoUri(course.logoImg, course.updatedAt))
-      .filter((uri): uri is string => typeof uri === "string" && uri.length > 0)
-      .slice(0, LOGO_PREFETCH_LIMIT);
-
-    if (logoUris.length === 0) return;
-
-    void Promise.allSettled(logoUris.map((uri) => Image.prefetch(uri)));
-  }, [allCourses]);
+  useEffect(() => {
+    if (isLoading || error || refreshing || filteredCourses.length === 0 || viewportReady) return;
+    const t = setTimeout(() => {
+      setViewportReady(true);
+    }, VIEWPORT_GATE_FORCE_MS);
+    return () => clearTimeout(t);
+  }, [
+    isLoading,
+    error,
+    refreshing,
+    filteredCourses.length,
+    viewportReady,
+    viewportGateSyncKey,
+  ]);
 
   const getResultsCount = useCallback(
     (f: {
@@ -206,21 +301,38 @@ export default function CoursesScreen() {
   );
 
   const renderCourseItem = useCallback(
-    ({ item }: { item: Course }) => {
-      const courseIsFavorite = favorites.includes(item.id) || item.isFavorite;
+    ({ item, index }: { item: Course; index: number }) => {
+      const courseIsFavorite = favoritesSet.has(item.id) || item.isFavorite;
       return (
         <CourseCard
           course={item}
           isFavorite={courseIsFavorite}
-          onToggleFavorite={() => handleToggleFavorite(item.id)}
-          disabled={pendingIds.includes(item.id)}
+          onToggleFavorite={handleToggleFavorite}
+          disabled={pendingIdsSet.has(item.id)}
+          listIndex={index}
+          viewportGateCount={VIEWPORT_COURSE_LOGO_GATE_COUNT}
+          onViewportCoverReady={handleViewportCoverReady}
         />
       );
     },
-    [favorites, handleToggleFavorite, pendingIds],
+    [favoritesSet, handleToggleFavorite, handleViewportCoverReady, pendingIdsSet],
   );
 
   const keyExtractor = useCallback((item: Course) => item.id, []);
+  const listExtraData = useMemo(
+    () => ({
+      favoritesKey: favorites.join("|"),
+      pendingKey: pendingIds.join("|"),
+    }),
+    [favorites, pendingIds],
+  );
+
+  const showViewportLoadingOverlay =
+    !error &&
+    !refreshing &&
+    !isLoading &&
+    filteredCourses.length > 0 &&
+    !viewportReady;
 
   const listHeader = (
     <View style={styles.headerFilters}>
@@ -267,28 +379,37 @@ export default function CoursesScreen() {
           </Pressable>
         </View>
       ) : (
-        <FlashList
-          data={filteredCourses}
-          renderItem={renderCourseItem}
-          keyExtractor={keyExtractor}
-          extraData={favorites}
-          overrideProps={{ estimatedItemSize: 380 }}
-          ListHeaderComponent={listHeader}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {filters.search
-                  ? `По запросу "${filters.search}" ничего не найдено`
-                  : "В этой категории пока нет курсов"}
-              </Text>
+        <View style={styles.listWrap}>
+          <FlashList
+            data={filteredCourses}
+            renderItem={renderCourseItem}
+            keyExtractor={keyExtractor}
+            extraData={listExtraData}
+            overrideProps={{
+              estimatedItemSize: 380,
+              initialDrawBatchSize: VIEWPORT_COURSE_LOGO_GATE_COUNT + 2,
+            }}
+            ListHeaderComponent={listHeader}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  {filters.search
+                    ? `По запросу "${filters.search}" ничего не найдено`
+                    : "В этой категории пока нет курсов"}
+                </Text>
+              </View>
+            }
+          />
+          {showViewportLoadingOverlay ? (
+            <View style={styles.viewportLoadingOverlay} pointerEvents="auto">
+              <Loading message="Загрузка курсов..." size="large" />
             </View>
-          }
-        >
-        </FlashList>
+          ) : null}
+        </View>
       )}
 
       <Snackbar
@@ -306,6 +427,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  listWrap: {
+    flex: 1,
+    position: "relative",
+  },
+  viewportLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerFilters: {
     paddingBottom: SPACING.sm,

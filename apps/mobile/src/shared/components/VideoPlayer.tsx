@@ -3,8 +3,10 @@ import { View, StyleSheet, Pressable } from "react-native";
 import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { VideoSource } from "expo-video";
-import { IconButton, ActivityIndicator, Text } from "react-native-paper";
+import { IconButton, Text } from "react-native-paper";
+
 import { COLORS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { reportClientError } from "@/shared/lib/tracer";
 
 /** Скорости воспроизведения для обучающих видео */
@@ -254,7 +256,7 @@ export function VideoPlayer({
           )}
           {isBuffering && !hasError && (
             <View style={styles.bufferingOverlay}>
-              <ActivityIndicator size="large" color="#fff" />
+              <MascotSpinner size="large" />
             </View>
           )}
           {!isPlaying && !hasError && (

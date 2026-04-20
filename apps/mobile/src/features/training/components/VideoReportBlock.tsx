@@ -1,20 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-  Platform,
-} from "react-native";
+import { View, Text, Pressable, StyleSheet, Platform } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import { getInfoAsync } from "expo-file-system/legacy";
 
+import { COLORS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { reportClientError } from "@/shared/lib/tracer";
-import { COLORS, SPACING } from "@/constants";
 
 const MAX_RECORDING_SEC = 120;
 const MAX_CLIENT_BYTES = 50 * 1024 * 1024;
@@ -337,7 +331,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
   if (isLoading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
+        <MascotSpinner size="small" style={{ marginBottom: SPACING.sm }} />
         <Text style={styles.loadingText}>Загрузка данных...</Text>
       </View>
     );
@@ -462,7 +456,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
               disabled={isSubmitting || oversized}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={COLORS.surface} />
+                <MascotSpinner size="small" />
               ) : (
                 <>
                   <MaterialCommunityIcons name="cloud-upload" size={20} color={COLORS.surface} />

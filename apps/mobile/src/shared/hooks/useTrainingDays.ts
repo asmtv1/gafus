@@ -14,6 +14,9 @@ export function useTrainingDays(courseType: string) {
   const getCachedTrainingDays = useTrainingStore((s) => s.getCachedTrainingDays);
   const setCachedTrainingDays = useTrainingStore((s) => s.setCachedTrainingDays);
   const getStepState = useStepStore((s) => s.getStepState);
+  const isNetworkErrorResponse = (response: ApiResponse<TrainingDaysResponse>): boolean => {
+    return response.code === "NETWORK_ERROR" || response.error === "Нет подключения к интернету";
+  };
 
   return useQuery<ApiResponse<TrainingDaysResponse>>({
     queryKey: ["trainingDays", courseType],
@@ -22,7 +25,17 @@ export function useTrainingDays(courseType: string) {
         const response = await trainingApi.getDays(courseType);
         if (response.success && response.data) {
           setCachedTrainingDays(courseType, response.data);
+          return response;
         }
+
+        if (isNetworkErrorResponse(response)) {
+          const meta = await getCourseMeta(courseType);
+          if (meta) {
+            const data = mapMetaToTrainingDaysResponse(meta, getStepState);
+            return { success: true, data };
+          }
+        }
+
         return response;
       } catch (err) {
         reportClientError(err, {

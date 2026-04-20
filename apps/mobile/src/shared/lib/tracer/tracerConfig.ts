@@ -50,6 +50,6 @@ export function getTracerConfig(): { appToken: string; versionName: string } | n
   const versionName =
     getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ??
     getExtra("appVersion") ??
-    "1.2.2";
+    "1.2.6";
   return { appToken, versionName };
 }

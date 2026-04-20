@@ -7,7 +7,6 @@ import {
   Platform,
   Pressable,
   TextInput,
-  ActivityIndicator,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +16,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { MascotSpinner } from "@/shared/components/ui";
 import { userApi, type UpdateProfileData } from "@/shared/lib/api";
 import {
   formatIsoBirthDateToDdMmYyyy,
@@ -162,7 +162,7 @@ export default function EditProfileScreen() {
         >
           {isLoading ? (
             <View style={styles.centerBlock}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
+              <MascotSpinner size="large" style={{ marginBottom: SPACING.sm }} />
               <Text style={styles.mutedText}>Загрузка профиля…</Text>
             </View>
           ) : error ? (
