@@ -9,9 +9,9 @@ import {
 import {
   CONSULTATION_SLA_JOB_ID,
   consultationSlaQueue,
+  removeConsultationSlaJob,
 } from "@gafus/queues";
 import { DateTime } from "luxon";
-import { Job } from "bullmq";
 import { createWebLogger } from "@gafus/logger";
 
 import { ConsultationForbiddenError, ConsultationNotFoundError, ConsultationSlotTakenError } from "./errors";
@@ -33,8 +33,7 @@ function isConsultationSlotActiveUniqueViolation(error: unknown): boolean {
 
 async function removeSlaJob(bookingId: string): Promise<void> {
   try {
-    const job = await Job.fromId(consultationSlaQueue, CONSULTATION_SLA_JOB_ID(bookingId));
-    await job?.remove();
+    await removeConsultationSlaJob(bookingId);
   } catch (e) {
     logger.warn("removeSlaJob", { bookingId, error: String(e) });
   }

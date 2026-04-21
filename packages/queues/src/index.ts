@@ -8,6 +8,7 @@ export { petPreventionReminderQueue } from "./pet-prevention-reminder-queue.js";
 export {
   consultationSlaQueue,
   CONSULTATION_SLA_JOB_ID,
+  removeConsultationSlaJob,
 } from "./consultation-sla-queue.js";
 export {
   consultationMailQueue,
