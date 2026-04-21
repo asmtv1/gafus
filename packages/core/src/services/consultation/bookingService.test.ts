@@ -7,7 +7,7 @@ import { ConsultationSlotTakenError } from "./errors";
 const enqueueConsultationEmail = vi.fn();
 const createTelemostConference = vi.fn();
 const queueAdd = vi.fn();
-const jobFromId = vi.fn();
+const removeConsultationSlaJob = vi.fn();
 
 vi.mock("./notificationService", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
@@ -29,12 +29,7 @@ vi.mock("@gafus/logger", () => ({
 vi.mock("@gafus/queues", () => ({
   consultationSlaQueue: { add: (...a: unknown[]) => queueAdd(...a) },
   CONSULTATION_SLA_JOB_ID: (id: string) => `sla:${id}`,
-}));
-
-vi.mock("bullmq", () => ({
-  Job: {
-    fromId: (...a: unknown[]) => jobFromId(...a),
-  },
+  removeConsultationSlaJob: (...a: unknown[]) => removeConsultationSlaJob(...a),
 }));
 
 const {
