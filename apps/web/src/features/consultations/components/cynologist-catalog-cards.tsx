@@ -2,7 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { getCDNUrl } from "@gafus/cdn-upload";
-import type { ListedCynologistCardDto } from "@gafus/core";
+import {
+  cynologistDisplayInitials,
+  plainConsultationAboutHtml,
+} from "@gafus/core/services/consultation/consultationCatalogPresentation";
+import type { ListedCynologistCardDto } from "@gafus/core/services/consultation/types";
 
 import styles from "./cynologist-catalog-cards.module.css";
 
@@ -15,25 +19,6 @@ function resolveAvatarUrl(avatarUrl: string | null): string | null {
     return null;
   }
   return avatarUrl.startsWith("http") ? avatarUrl : getCDNUrl(avatarUrl);
-}
-
-/** Убираем простые HTML-теги из «О себе»; переносы строк сохраняем для полного отображения. */
-function plainAbout(raw: string | null): string {
-  if (!raw?.trim()) {
-    return "";
-  }
-  return raw.replace(/<[^>]*>/g, "").trim();
-}
-
-function initials(displayName: string | null): string {
-  const s = (displayName ?? "К").trim();
-  const parts = s.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    const a = parts[0]?.[0] ?? "";
-    const b = parts[1]?.[0] ?? "";
-    return (a + b).toUpperCase();
-  }
-  return s.slice(0, 2).toUpperCase() || "К";
 }
 
 /**
@@ -56,7 +41,7 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
       <ul className={styles.list}>
         {cynologists.map((c) => {
           const src = resolveAvatarUrl(c.avatarUrl);
-          const about = plainAbout(c.about);
+          const about = plainConsultationAboutHtml(c.about);
           const title = c.displayName ?? "Кинолог";
 
           return (
@@ -79,7 +64,7 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
                       />
                     ) : (
                       <span className={styles.avatarPlaceholder} aria-hidden>
-                        {initials(c.displayName)}
+                        {cynologistDisplayInitials(c.displayName)}
                       </span>
                     )}
                   </div>

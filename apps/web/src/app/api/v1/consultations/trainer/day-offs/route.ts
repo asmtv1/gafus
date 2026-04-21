@@ -10,7 +10,7 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { addDayOff, dayOffInputSchema } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
-import { mapZodError } from "@/shared/lib/consultation-route-errors";
+import { logConsultationRouteError, mapZodError } from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-day-offs");
 
@@ -41,7 +41,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     if (zod) {
       return NextResponse.json(zod.body, { status: zod.status });
     }
-    logger.error("POST day-off", error as Error);
+    logConsultationRouteError(logger, "POST day-off", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

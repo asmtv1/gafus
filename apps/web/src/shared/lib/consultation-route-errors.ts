@@ -4,7 +4,22 @@ import {
   ConsultationSlotTakenError,
   TelemostUnavailableError,
 } from "@gafus/core";
+import type { Logger } from "@gafus/logger";
+import { isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
 import { z } from "zod";
+
+/** Без полного Zod issues.received (PII вроде clientProblem). */
+export function logConsultationRouteError(logger: Logger, label: string, error: unknown): void {
+  if (isZodErrorLike(error)) {
+    logger.error(label, undefined, sanitizeZodErrorForLogMeta(error));
+    return;
+  }
+  if (error instanceof Error) {
+    logger.error(label, error);
+    return;
+  }
+  logger.error(label, new Error(String(error)));
+}
 
 export function mapConsultationError(
   error: unknown,

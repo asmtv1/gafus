@@ -8,6 +8,8 @@ import { authOptions } from "@gafus/auth";
 import { listAllTrainersForAdmin } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-admin-cynologists");
 
 const ADMIN_ROLES: AuthRole[] = ["ADMIN", "MODERATOR"];
@@ -31,7 +33,7 @@ export async function GET() {
     const data = await listAllTrainersForAdmin();
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    logger.error("GET admin cynologists", error as Error);
+    logConsultationRouteError(logger, "GET admin cynologists", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

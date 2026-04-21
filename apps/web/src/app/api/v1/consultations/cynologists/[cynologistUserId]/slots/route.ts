@@ -14,6 +14,8 @@ import {
 import { AuthorizationError } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-slots");
 
 export async function GET(
@@ -46,7 +48,7 @@ export async function GET(
         { status: 401 },
       );
     }
-    logger.error("GET slots", error as Error);
+    logConsultationRouteError(logger, "GET slots", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

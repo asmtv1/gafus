@@ -8,6 +8,8 @@ import { authOptions } from "@gafus/auth";
 import { listTrainerBookings } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-trainer-bookings");
 
 const TRAINER_ROLES: AuthRole[] = ["TRAINER", "ADMIN", "MODERATOR"];
@@ -31,7 +33,7 @@ export async function GET() {
     const data = await listTrainerBookings(session.user.id, role);
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    logger.error("GET trainer bookings", error as Error);
+    logConsultationRouteError(logger, "GET trainer bookings", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

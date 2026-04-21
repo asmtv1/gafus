@@ -1,3 +1,7 @@
+export * from "./bookingStatusPresentation";
+export * from "./consultationCatalogPresentation";
+export * from "./consultationMskFormat";
+export * from "./consultationSlotsPresentation";
 export * from "./errors";
 export * from "./validation";
 export * from "./types";

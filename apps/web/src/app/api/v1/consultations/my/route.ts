@@ -9,6 +9,8 @@ import { cursorPaginationSchema, listClientBookings } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-my");
 
 export async function GET(request: NextRequest) {
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
         { status: 401 },
       );
     }
-    logger.error("GET my consultations", error as Error);
+    logConsultationRouteError(logger, "GET my consultations", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

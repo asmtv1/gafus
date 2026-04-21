@@ -89,7 +89,7 @@ export async function createTelemostConference(options?: {
     const id = json.id;
     const joinUrl = json.join_url;
     if (!id || !joinUrl) {
-      logger.error("Telemost unexpected body", new Error(JSON.stringify(json)));
+      logger.error("Telemost unexpected body", new Error("missing id or join_url in response"));
       throw new TelemostUnavailableError("Не удалось создать видеоконференцию");
     }
 

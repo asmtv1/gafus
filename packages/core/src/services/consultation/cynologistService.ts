@@ -88,7 +88,7 @@ export async function adminSetListedCynologists(
  * Все тренеры с флагом записи на консультации (для админки).
  */
 export async function listAllTrainersForAdmin(): Promise<
-  Array<{
+  {
     userId: string;
     username: string;
     fullName: string | null;
@@ -96,7 +96,7 @@ export async function listAllTrainersForAdmin(): Promise<
     about: string | null;
     isListed: boolean;
     cynologistId: string | null;
-  }>
+  }[]
 > {
   const trainers = await prisma.user.findMany({
     where: { role: TRAINER_ROLE },

@@ -10,7 +10,20 @@ import {
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 
-import type { ConsultationSlotDto, ListedCynologistCardDto } from "@gafus/core";
+import {
+  buildConsultationCalendarRangeDays,
+  filterConsultationSlotsExcludingDayOffs,
+  groupConsultationSlotsByMskDay,
+  type ConsultationSlotsByDay,
+} from "@gafus/core/services/consultation/consultationSlotsPresentation";
+import type { ConsultationSlotDto, ListedCynologistCardDto } from "@gafus/core/services/consultation/types";
+import {
+  consultationCalendarMonthKey as toMonthKey,
+  consultationMskDayKey as toDayKey,
+  formatConsultationDayLabelMsk as formatDayLabel,
+  formatConsultationMonthLabelMsk as formatMonthLabel,
+  formatConsultationTimeMsk as formatTime,
+} from "@gafus/core/services/consultation/consultationMskFormat";
 import { reportClientError } from "@gafus/error-handling";
 
 import { showErrorAlert } from "@shared/utils/sweetAlert";
@@ -26,61 +39,6 @@ interface SlotsResponse {
   data?: ConsultationSlotDto[];
   dayOffDates?: string[];
   error?: string;
-}
-
-interface SlotsByDay {
-  dateKey: string;
-  slots: ConsultationSlotDto[];
-}
-
-const CONSULTATION_TIMEZONE = "Europe/Moscow";
-
-function toDayKeyInTimezone(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("ru-RU", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const year = parts.find((p) => p.type === "year")?.value ?? "0000";
-  const month = parts.find((p) => p.type === "month")?.value ?? "01";
-  const day = parts.find((p) => p.type === "day")?.value ?? "01";
-  return `${year}-${month}-${day}`;
-}
-
-function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: CONSULTATION_TIMEZONE,
-  }).format(date);
-}
-
-function formatMonthLabel(date: Date): string {
-  return new Intl.DateTimeFormat("ru-RU", {
-    month: "long",
-    year: "numeric",
-    timeZone: CONSULTATION_TIMEZONE,
-  }).format(date);
-}
-
-function formatDayLabel(date: Date): string {
-  return new Intl.DateTimeFormat("ru-RU", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    timeZone: CONSULTATION_TIMEZONE,
-  }).format(date);
-}
-
-function toDayKey(date: Date): string {
-  return toDayKeyInTimezone(date, CONSULTATION_TIMEZONE);
-}
-
-function toMonthKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
 }
 
 /**
@@ -139,19 +97,10 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
     void loadSlots();
   }, [loadSlots]);
 
-  const rangeDays = useMemo(() => {
-    const out: Date[] = [];
-    const cursor = new Date(fromDate);
-    cursor.setHours(0, 0, 0, 0);
-    const end = new Date(toDate);
-    end.setHours(0, 0, 0, 0);
-
-    while (cursor <= end) {
-      out.push(new Date(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return out;
-  }, [fromDate, toDate]);
+  const rangeDays = useMemo(
+    () => buildConsultationCalendarRangeDays(fromDate, toDate),
+    [fromDate, toDate],
+  );
 
   const rangeDaySet = useMemo(() => {
     return new Set(rangeDays.map((d) => toDayKey(d)));
@@ -159,33 +108,15 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
 
   const dayOffSet = useMemo(() => new Set(dayOffDates), [dayOffDates]);
 
-  const visibleSlots = useMemo(() => {
-    return slots.filter((slot) => {
-      const slotDayKey = toDayKey(new Date(slot.startAtUtc));
-      return !dayOffSet.has(slotDayKey);
-    });
-  }, [dayOffSet, slots]);
+  const visibleSlots = useMemo(
+    () => filterConsultationSlotsExcludingDayOffs(slots, dayOffSet),
+    [dayOffSet, slots],
+  );
 
-  const slotsByDay = useMemo<SlotsByDay[]>(() => {
-    const grouped = new Map<string, ConsultationSlotDto[]>();
-    for (const slot of visibleSlots) {
-      const start = new Date(slot.startAtUtc);
-      const dateKey = toDayKey(start);
-      const bucket = grouped.get(dateKey);
-      if (bucket) {
-        bucket.push(slot);
-      } else {
-        grouped.set(dateKey, [slot]);
-      }
-    }
-
-    return Array.from(grouped.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([dateKey, daySlots]) => ({
-        dateKey,
-        slots: daySlots.sort((a, b) => a.startAtUtc.localeCompare(b.startAtUtc)),
-      }));
-  }, [visibleSlots]);
+  const slotsByDay = useMemo<ConsultationSlotsByDay[]>(
+    () => groupConsultationSlotsByMskDay(visibleSlots),
+    [visibleSlots],
+  );
 
   const slotsByDayMap = useMemo(() => {
     return new Map(slotsByDay.map((d) => [d.dateKey, d.slots]));
@@ -225,7 +156,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
     const first = new Date(year, month, 1);
     const last = new Date(year, month + 1, 0);
     const leadingEmpty = (first.getDay() + 6) % 7;
-    const out: Array<Date | null> = [];
+    const out: (Date | null)[] = [];
     for (let i = 0; i < leadingEmpty; i += 1) {
       out.push(null);
     }
@@ -303,7 +234,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
       <div className={styles.topMeta}>
         <span className={styles.metaPill}>Часовой пояс: МСК (UTC+3)</span>
         <span className={styles.metaPill}>
-          Длительность консультации: {cynologist.slotDurationMin} мин
+          Длительность консультации: до {cynologist.slotDurationMin} мин
         </span>
       </div>
 

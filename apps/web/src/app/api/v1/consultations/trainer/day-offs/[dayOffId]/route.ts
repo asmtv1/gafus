@@ -10,6 +10,8 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { removeDayOff } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-day-off-delete");
 
 const TRAINER_ROLES: AuthRole[] = ["TRAINER", "ADMIN", "MODERATOR"];
@@ -38,7 +40,7 @@ export const DELETE = withCSRFProtection(
       await removeDayOff(session.user.id, dayOffId);
       return NextResponse.json({ success: true, data: {} });
     } catch (error) {
-      logger.error("DELETE day-off", error as Error);
+      logConsultationRouteError(logger, "DELETE day-off", error);
       return NextResponse.json(
         { success: false, error: "Внутренняя ошибка сервера" },
         { status: 500 },

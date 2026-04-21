@@ -10,7 +10,7 @@ import { verifyConsultationSlotFreeForCynologist } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
-import { mapConsultationError } from "@/shared/lib/consultation-route-errors";
+import { logConsultationRouteError, mapConsultationError } from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-slot-verify");
 
@@ -37,7 +37,7 @@ export async function GET(
     if (mapped) {
       return NextResponse.json(mapped.body, { status: mapped.status });
     }
-    logger.error("GET slot verify", error as Error);
+    logConsultationRouteError(logger, "GET slot verify", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

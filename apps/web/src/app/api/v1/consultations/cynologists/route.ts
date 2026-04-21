@@ -8,6 +8,8 @@ import { listListedCynologists } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-cynologists");
 
 export async function GET() {
@@ -25,7 +27,7 @@ export async function GET() {
         { status: 401 },
       );
     }
-    logger.error("GET consultations/cynologists", error as Error);
+    logConsultationRouteError(logger, "GET consultations/cynologists", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

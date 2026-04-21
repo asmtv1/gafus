@@ -14,7 +14,11 @@ import {
   consultationTrainerBookingsTag,
   consultationUserBookingsTag,
 } from "@/shared/lib/consultation-cache-tags";
-import { mapConsultationError, mapZodError } from "@/shared/lib/consultation-route-errors";
+import {
+  logConsultationRouteError,
+  mapConsultationError,
+  mapZodError,
+} from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-book");
 
@@ -44,7 +48,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     if (zod) {
       return NextResponse.json(zod.body, { status: zod.status });
     }
-    logger.error("POST book", error as Error);
+    logConsultationRouteError(logger, "POST book", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

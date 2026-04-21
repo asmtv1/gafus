@@ -141,18 +141,17 @@ export async function ensureLogoImageVariantsForLogoUrl(
       const width = IMAGE_VARIANT_SIZE_WIDTH[size];
 
       for (const format of variantFormats) {
-        const outputBuffer = await sharp(originalBuffer)
+        const resized = sharp(originalBuffer)
           .rotate()
           .resize({
             width,
             fit: "inside",
             withoutEnlargement: true,
-          })
-          [format]({
-            quality: IMAGE_VARIANT_FORMAT_CONFIG[format].quality,
-            effort: 4,
-          })
-          .toBuffer();
+          });
+        const outputBuffer = await resized[format]({
+          quality: IMAGE_VARIANT_FORMAT_CONFIG[format].quality,
+          effort: 4,
+        }).toBuffer();
 
         const variantRelativePath = getVariantRelativePath(originalRelativePath, size, format);
         const variantUrl = await uploadBufferToCDN(

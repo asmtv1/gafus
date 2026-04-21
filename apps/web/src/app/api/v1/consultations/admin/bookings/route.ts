@@ -8,6 +8,8 @@ import { authOptions } from "@gafus/auth";
 import { listAdminBookings } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-admin-bookings");
 
 const ADMIN_ROLES: AuthRole[] = ["ADMIN", "MODERATOR"];
@@ -31,7 +33,7 @@ export async function GET() {
     const data = await listAdminBookings();
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    logger.error("GET admin bookings", error as Error);
+    logConsultationRouteError(logger, "GET admin bookings", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

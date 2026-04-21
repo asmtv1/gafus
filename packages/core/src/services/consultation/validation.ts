@@ -1,12 +1,16 @@
+import { ConsultationBookingStatus, ConsultationSlotStatus } from "@gafus/prisma";
 import { z } from "zod";
 
 const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const uuidV4 = z.string().uuid("Нужен Idempotency-Key (UUID в заголовке или теле)");
 
+/** ISO-строки from/to; верхняя граница длины — защита от чрезмерного ввода в query. */
 export const getSlotsQuerySchema = z.object({
-  from: z.string().min(1),
-  to: z.string().min(1),
+  from: z.string().min(1).max(64),
+  to: z.string().min(1).max(64),
+  /** «1» — календарь со всеми статусами слотов (как web с includeBusy). */
+  includeBusy: z.enum(["0", "1"]).optional(),
 }).refine(
   (d) => {
     const a = new Date(d.from).getTime();
@@ -81,6 +85,35 @@ export const cursorPaginationSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 });
+
+/** Id в Prisma — cuid/uuid-строки; не привязываемся к одному формату. */
+const consultationEntityIdSchema = z.string().min(1).max(128);
+
+/** Валидация JSON при replay идемпотентности брони (защита от подмены записи в БД). */
+const consultationSlotDtoSchema = z.object({
+  id: consultationEntityIdSchema,
+  startAtUtc: z.string().min(1),
+  endAtUtc: z.string().min(1),
+  status: z.nativeEnum(ConsultationSlotStatus),
+});
+
+const consultationBookingDtoSchema = z.object({
+  id: consultationEntityIdSchema,
+  status: z.nativeEnum(ConsultationBookingStatus),
+  slot: consultationSlotDtoSchema,
+  cynologistUserId: z.string().min(1),
+  cynologistDisplayName: z.string().nullable(),
+  clientProblem: z.string().nullable(),
+  joinUrl: z.string().nullable(),
+  watchUrl: z.string().nullable(),
+  confirmationDeadlineAt: z.string().min(1),
+  createdAt: z.string().min(1),
+});
+
+export const bookSlotResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("created"), booking: consultationBookingDtoSchema }),
+  z.object({ kind: z.literal("idempotent_replay"), booking: consultationBookingDtoSchema }),
+]);
 
 export type GetSlotsQuery = z.infer<typeof getSlotsQuerySchema>;
 export type BookSlotInput = z.infer<typeof bookSlotInputSchema>;

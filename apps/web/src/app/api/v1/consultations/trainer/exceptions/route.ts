@@ -10,7 +10,7 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { addSlotException, slotExceptionInputSchema } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
-import { mapZodError } from "@/shared/lib/consultation-route-errors";
+import { logConsultationRouteError, mapZodError } from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-exceptions");
 
@@ -46,7 +46,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     if (zod) {
       return NextResponse.json(zod.body, { status: zod.status });
     }
-    logger.error("POST slot exception", error as Error);
+    logConsultationRouteError(logger, "POST slot exception", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

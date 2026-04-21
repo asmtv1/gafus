@@ -127,7 +127,14 @@ export default function MainLayout() {
         name="consultations/mine"
         options={{
           headerShown: true,
-          title: "Мои записи",
+          title: "Мои консультации",
+        }}
+      />
+      <Stack.Screen
+        name="consultations/booking-confirm"
+        options={{
+          headerShown: true,
+          title: "Подтверждение",
         }}
       />
       <Stack.Screen

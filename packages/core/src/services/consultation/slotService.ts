@@ -43,18 +43,18 @@ function buildDesiredSlotIntervals(params: {
   slotDurationMin: number;
   fromUtc: Date;
   toUtc: Date;
-  rules: Array<{
+  rules: {
     weekday: number;
     startTime: string;
     endTime: string;
     isWorkingDay: boolean;
-  }>;
+  }[];
   dayOffDates: Set<string>;
-  exceptions: Array<{ startAt: Date; endAt: Date }>;
-}): Array<{ startAt: Date; endAt: Date }> {
+  exceptions: { startAt: Date; endAt: Date }[];
+}): { startAt: Date; endAt: Date }[] {
   const { slotDurationMin, fromUtc, toUtc, rules, dayOffDates, exceptions } = params;
   const zone = CONSULTATION_TIMEZONE;
-  const out: Array<{ startAt: Date; endAt: Date }> = [];
+  const out: { startAt: Date; endAt: Date }[] = [];
 
   let cursor = DateTime.fromJSDate(fromUtc, { zone: "utc" }).setZone(zone).startOf("day");
   const endDay = DateTime.fromJSDate(toUtc, { zone: "utc" }).setZone(zone).endOf("day");

@@ -12,7 +12,7 @@ import { createWebLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
 
 import { consultationTrainerBookingsTag } from "@/shared/lib/consultation-cache-tags";
-import { mapConsultationError } from "@/shared/lib/consultation-route-errors";
+import { logConsultationRouteError, mapConsultationError } from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-trainer-confirm");
 
@@ -47,7 +47,7 @@ export const POST = withCSRFProtection(
       if (mapped) {
         return NextResponse.json(mapped.body, { status: mapped.status });
       }
-      logger.error("POST confirm booking", error as Error);
+      logConsultationRouteError(logger, "POST confirm booking", error);
       return NextResponse.json(
         { success: false, error: "Внутренняя ошибка сервера" },
         { status: 500 },

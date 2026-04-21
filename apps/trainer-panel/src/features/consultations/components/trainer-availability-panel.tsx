@@ -270,7 +270,7 @@ export function TrainerAvailabilityPanel({
     const first = new Date(year, month, 1);
     const last = new Date(year, month + 1, 0);
     const leadingEmpty = (first.getDay() + 6) % 7;
-    const out: Array<Date | null> = [];
+    const out: (Date | null)[] = [];
 
     for (let i = 0; i < leadingEmpty; i += 1) {
       out.push(null);

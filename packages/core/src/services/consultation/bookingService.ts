@@ -18,7 +18,7 @@ import { ConsultationForbiddenError, ConsultationNotFoundError, ConsultationSlot
 import { enqueueConsultationEmail } from "./notificationService";
 import { createTelemostConference } from "./telemostService";
 import type { BookSlotResult, ConsultationBookingDto } from "./types";
-import type { BookSlotInput } from "./validation";
+import { bookSlotResultSchema, type BookSlotInput } from "./validation";
 
 const logger = createWebLogger("core-consultation-booking");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
@@ -111,9 +111,9 @@ export async function bookSlot(
     },
   });
   if (idem?.responseJson && idem.expiresAt > new Date()) {
-    const parsed = idem.responseJson as unknown as BookSlotResult;
-    if (parsed && typeof parsed === "object" && "booking" in parsed) {
-      return parsed;
+    const replay = bookSlotResultSchema.safeParse(idem.responseJson);
+    if (replay.success) {
+      return replay.data;
     }
   }
 

@@ -10,6 +10,8 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { removeSlotException } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
+import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
+
 const logger = createWebLogger("api-consultations-exception-delete");
 
 const TRAINER_ROLES: AuthRole[] = ["TRAINER", "ADMIN", "MODERATOR"];
@@ -38,7 +40,7 @@ export const DELETE = withCSRFProtection(
       await removeSlotException(session.user.id, exceptionId);
       return NextResponse.json({ success: true, data: {} });
     } catch (error) {
-      logger.error("DELETE exception", error as Error);
+      logConsultationRouteError(logger, "DELETE exception", error);
       return NextResponse.json(
         { success: false, error: "Внутренняя ошибка сервера" },
         { status: 500 },

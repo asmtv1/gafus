@@ -161,6 +161,26 @@
       "types": "./dist/core/src/services/consultation/adminBookingQueries.d.ts",
       "default": "./dist/core/src/services/consultation/adminBookingQueries.js"
     },
+    "./services/consultation/consultationMskFormat": {
+      "types": "./dist/core/src/services/consultation/consultationMskFormat.d.ts",
+      "default": "./dist/core/src/services/consultation/consultationMskFormat.js"
+    },
+    "./services/consultation/consultationSlotsPresentation": {
+      "types": "./dist/core/src/services/consultation/consultationSlotsPresentation.d.ts",
+      "default": "./dist/core/src/services/consultation/consultationSlotsPresentation.js"
+    },
+    "./services/consultation/consultationCatalogPresentation": {
+      "types": "./dist/core/src/services/consultation/consultationCatalogPresentation.d.ts",
+      "default": "./dist/core/src/services/consultation/consultationCatalogPresentation.js"
+    },
+    "./services/consultation/types": {
+      "types": "./dist/core/src/services/consultation/types.d.ts",
+      "default": "./dist/core/src/services/consultation/types.js"
+    },
+    "./services/consultation/bookingStatusPresentation": {
+      "types": "./dist/core/src/services/consultation/bookingStatusPresentation.d.ts",
+      "default": "./dist/core/src/services/consultation/bookingStatusPresentation.js"
+    },
     "./services/oferta": {
       "types": "./dist/core/src/services/oferta/index.d.ts",
       "default": "./dist/core/src/services/oferta/index.js"

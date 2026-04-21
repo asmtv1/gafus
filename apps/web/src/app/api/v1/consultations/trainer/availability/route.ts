@@ -14,7 +14,7 @@ import {
 } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
-import { mapZodError } from "@/shared/lib/consultation-route-errors";
+import { logConsultationRouteError, mapZodError } from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-trainer-availability");
 
@@ -47,7 +47,7 @@ export async function GET() {
     const data = await getTrainerAvailability(session!.user.id);
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    logger.error("GET trainer availability", error as Error);
+    logConsultationRouteError(logger, "GET trainer availability", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },
@@ -71,7 +71,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest) => {
     if (zod) {
       return NextResponse.json(zod.body, { status: zod.status });
     }
-    logger.error("PUT trainer availability", error as Error);
+    logConsultationRouteError(logger, "PUT trainer availability", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

@@ -12,7 +12,11 @@ import { createWebLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
 
 import { CONSULTATION_CYNOLOGISTS_TAG } from "@/shared/lib/consultation-cache-tags";
-import { mapConsultationError, mapZodError } from "@/shared/lib/consultation-route-errors";
+import {
+  logConsultationRouteError,
+  mapConsultationError,
+  mapZodError,
+} from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-admin-listed");
 
@@ -48,7 +52,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest) => {
     if (zod) {
       return NextResponse.json(zod.body, { status: zod.status });
     }
-    logger.error("PUT admin listed cynologists", error as Error);
+    logConsultationRouteError(logger, "PUT admin listed cynologists", error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },
       { status: 500 },

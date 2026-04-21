@@ -24,6 +24,7 @@ export {
   createAdminPanelLogger,
   createSilentLogger,
 } from "./LoggerFactory.js";
+export { isZodErrorLike, sanitizeZodErrorForLogMeta } from "./sanitizeErrorForLog.js";
 
 // Переэкспорт Pino для расширенного использования
 export { pino } from "pino";

@@ -5,6 +5,7 @@ import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material"
 import { useRouter } from "next/navigation";
 
 import { useCSRFStore } from "@gafus/csrf";
+import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
 import { reportClientError } from "@gafus/error-handling";
 
 import { showErrorAlert } from "@shared/utils/sweetAlert";
@@ -29,28 +30,6 @@ interface BookResponse {
   code?: string;
 }
 
-const CONSULTATION_TIMEZONE = "Europe/Moscow";
-
-function formatSlot(startAtUtc?: string, endAtUtc?: string): string {
-  if (!startAtUtc || !endAtUtc) {
-    return "Время будет подтверждено при бронировании";
-  }
-  const start = new Date(startAtUtc);
-  const end = new Date(endAtUtc);
-  const date = new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    timeZone: CONSULTATION_TIMEZONE,
-  }).format(start);
-  const time = new Intl.DateTimeFormat("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: CONSULTATION_TIMEZONE,
-  });
-  return `${date}, ${time.format(start)} - ${time.format(end)} (МСК)`;
-}
-
 export function ConsultationBookingConfirmClient({
   slotId,
   cynologistUserId,
@@ -69,7 +48,10 @@ export function ConsultationBookingConfirmClient({
       : `${Date.now()}-${Math.random()}`,
   );
 
-  const slotLabel = useMemo(() => formatSlot(startAtUtc, endAtUtc), [startAtUtc, endAtUtc]);
+  const slotLabel = useMemo(
+    () => formatConsultationConfirmSlotMsk(startAtUtc, endAtUtc),
+    [startAtUtc, endAtUtc],
+  );
 
   const slotsHref = `/consultations/${encodeURIComponent(cynologistUserId)}`;
 

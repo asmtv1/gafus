@@ -160,11 +160,34 @@
 }
 
 .cta {
-  margin-top: 4px;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 2px solid #636128;
+  background: linear-gradient(180deg, #fffef8 0%, #f2ead0 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 6px rgba(74, 73, 32, 0.18);
   font-size: 13px;
   font-weight: 600;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   color: #4a4920;
+  line-height: 1.2;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.card:hover .cta {
+  background: linear-gradient(180deg, #ffffff 0%, #ebe3c4 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 3px 10px rgba(74, 73, 32, 0.22);
+  transform: translateY(-1px);
 }
 
 @media (max-width: 600px) {
@@ -186,6 +209,10 @@
   .meta {
     align-items: center;
     width: 100%;
+  }
+
+  .cta {
+    align-self: center;
   }
 
   .metaRow {

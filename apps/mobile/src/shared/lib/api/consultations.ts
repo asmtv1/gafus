@@ -17,7 +17,8 @@ export type BookSlotApiResult = {
 };
 
 /**
- * Консультации с кинологом (apps/api, JWT).
+ * Консультации с кинологом (Bearer JWT → apps/api).
+ * Сегменты пути с id кодируются (`encodeURIComponent`); бизнес-правила и Zod — на сервере.
  */
 export const consultationsApi = {
   listCynologists: (): Promise<ApiResponse<ListedCynologistCardDto[]>> =>
@@ -34,13 +35,34 @@ export const consultationsApi = {
     );
   },
 
+  /** Календарь как на web: все статусы слотов + выходные кинолога. */
+  getSlotsCalendar: async (
+    cynologistUserId: string,
+    fromIso: string,
+    toIso: string,
+  ): Promise<ApiResponse<ConsultationSlotDto[]> & { dayOffDates?: string[] }> => {
+    const q = new URLSearchParams({ from: fromIso, to: toIso, includeBusy: "1" });
+    const res = await apiClient<ConsultationSlotDto[]>(
+      `/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots?${q}`,
+    );
+    return res as ApiResponse<ConsultationSlotDto[]> & { dayOffDates?: string[] };
+  },
+
+  verifySlotFree: (cynologistUserId: string, slotId: string): Promise<ApiResponse<unknown>> =>
+    apiClient(`/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots/${encodeURIComponent(slotId)}/verify`),
+
   book: (
     slotId: string,
     idempotencyKey: string,
+    clientProblem?: string,
   ): Promise<ApiResponse<BookSlotApiResult>> =>
     apiClient<BookSlotApiResult>("/api/v1/consultations/book", {
       method: "POST",
-      body: { slotId, idempotencyKey },
+      body: {
+        slotId,
+        idempotencyKey,
+        ...(clientProblem?.trim() ? { clientProblem: clientProblem.trim() } : {}),
+      },
     }),
 
   myBookings: (cursor?: string): Promise<ApiResponse<ConsultationsMyResponse>> => {

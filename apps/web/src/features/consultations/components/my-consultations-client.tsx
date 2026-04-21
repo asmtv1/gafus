@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCSRFStore } from "@gafus/csrf";
-import type { ConsultationBookingDto } from "@gafus/core";
+import { formatConsultationListDateTimeMsk } from "@gafus/core/services/consultation/consultationMskFormat";
+import type { ConsultationBookingDto } from "@gafus/core/services/consultation/types";
 import { reportClientError } from "@gafus/error-handling";
 
 import { getConsultationBookingStatusPresentation } from "@/features/consultations/lib/consultation-booking-status-ru";
@@ -13,19 +14,6 @@ import styles from "./my-consultations-client.module.css";
 
 interface MyConsultationsClientProps {
   initialItems: ConsultationBookingDto[];
-}
-
-const CONSULTATION_TIMEZONE = "Europe/Moscow";
-
-function formatConsultationDate(dateIso: string): string {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: CONSULTATION_TIMEZONE,
-  }).format(new Date(dateIso));
 }
 
 /**
@@ -108,7 +96,7 @@ export function MyConsultationsClient({ initialItems }: MyConsultationsClientPro
                 </div>
                 <p className={styles.description}>{pres.description}</p>
                 <p className={styles.titleLine}>
-                  {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationDate(b.slot.startAtUtc)}
+                  {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
                 </p>
                 {b.status === "CONFIRMED" && b.joinUrl ? (
                   <p className={styles.joinLink}>

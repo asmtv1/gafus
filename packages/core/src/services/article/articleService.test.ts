@@ -60,6 +60,7 @@ vi.mock("@gafus/logger", () => ({
 
 function listRow(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date("2024-01-01T00:00:00.000Z");
+  const updatedAt = new Date("2024-01-02T00:00:00.000Z");
   return {
     id: "a1",
     title: "Заголовок",
@@ -74,6 +75,7 @@ function listRow(overrides: Record<string, unknown> = {}) {
     viewCount: 0,
     description: "Описание",
     createdAt,
+    updatedAt,
     author: { username: "author", profile: { avatarUrl: null as string | null } },
     _count: { articleLikes: 2 },
     articleLikes: [] as { userId: string }[],

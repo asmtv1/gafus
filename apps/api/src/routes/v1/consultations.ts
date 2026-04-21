@@ -22,6 +22,8 @@ import {
   cursorPaginationSchema,
   dayOffInputSchema,
   getAvailableSlots,
+  getCalendarSlots,
+  getCynologistDayOffDates,
   getSlotsQuerySchema,
   getTrainerAvailability,
   listAdminBookings,
@@ -34,9 +36,10 @@ import {
   removeSlotException,
   setTrainerAvailability,
   slotExceptionInputSchema,
+  verifyConsultationSlotFreeForCynologist,
   trainerAvailabilityInputSchema,
 } from "@gafus/core/services/consultation";
-import { createWebLogger } from "@gafus/logger";
+import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
 
 import { requireRole } from "../../middleware/auth.js";
 import { consultationBookRateLimiter } from "../../middleware/rate-limit.js";
@@ -58,7 +61,11 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
   if (error instanceof TelemostUnavailableError) {
     return c.json({ success: false, error: error.message, code: error.code }, 503);
   }
-  logger.error("consultations route", error as Error);
+  if (isZodErrorLike(error)) {
+    logger.error("consultations route", undefined, sanitizeZodErrorForLogMeta(error));
+  } else {
+    logger.error("consultations route", error instanceof Error ? error : new Error(String(error)));
+  }
   return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
 }
 
@@ -71,15 +78,33 @@ consultationsRoutes.get("/cynologists", async (c) => {
   }
 });
 
+consultationsRoutes.get(
+  "/cynologists/:cynologistUserId/slots/:slotId/verify",
+  async (c) => {
+    try {
+      const { cynologistUserId, slotId } = c.req.param();
+      await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
+      return c.json({ success: true });
+    } catch (error) {
+      return handleConsultationError(c, error);
+    }
+  },
+);
+
 consultationsRoutes.get("/cynologists/:cynologistUserId/slots", zValidator("query", getSlotsQuerySchema), async (c) => {
   try {
     const { cynologistUserId } = c.req.param();
     const q = c.req.valid("query");
-    const data = await getAvailableSlots(
-      cynologistUserId,
-      new Date(q.from),
-      new Date(q.to),
-    );
+    const from = new Date(q.from);
+    const to = new Date(q.to);
+    const includeBusy = q.includeBusy === "1";
+    const data = includeBusy
+      ? await getCalendarSlots(cynologistUserId, from, to)
+      : await getAvailableSlots(cynologistUserId, from, to);
+    if (includeBusy) {
+      const dayOffDates = await getCynologistDayOffDates(cynologistUserId, from, to);
+      return c.json({ success: true, data, dayOffDates });
+    }
     return c.json({ success: true, data });
   } catch (error) {
     return handleConsultationError(c, error);
