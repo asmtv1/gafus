@@ -206,6 +206,9 @@ const nextConfig = {
 
   async redirects() {
     return [
+      { source: "/консультации/мои", destination: "/consultations/my", permanent: true },
+      { source: "/консультации", destination: "/consultations", permanent: true },
+      { source: "/консультации/:path*", destination: "/consultations/:path*", permanent: true },
       { source: "/guides", destination: "/articles", permanent: true },
       { source: "/guides/:path*", destination: "/articles/:path*", permanent: true },
       // Устаревший маршрут подтверждения номера (Telegram) — ссылки из старых писем/закладок

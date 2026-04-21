@@ -14,6 +14,7 @@
   "dependencies": {
     "@gafus/auth": "workspace:*",
     "@gafus/core": "workspace:*",
+    "@gafus/cdn-upload": "workspace:*",
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
     "@gafus/logger": "workspace:*",

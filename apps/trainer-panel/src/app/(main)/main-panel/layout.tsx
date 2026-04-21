@@ -19,6 +19,7 @@ import {
   Note,
   Cookie,
   MenuBook,
+  Pets,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
@@ -151,6 +152,10 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
         <Link href="/main-panel/faq" className={styles.button} onClick={closeMobileMenu}>
           <HelpOutline />
           Частые вопросы
+        </Link>
+        <Link href="/main-panel/consultations" className={styles.button} onClick={closeMobileMenu}>
+          <Pets />
+          Консультации кинолога
         </Link>
 
         <div className={styles.divider}></div>

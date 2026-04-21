@@ -1,6 +1,6 @@
 "use client";
 
-import { Article as ArticleIcon } from "@mui/icons-material";
+import { Article as ArticleIcon, Pets as PetsIcon } from "@mui/icons-material";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
@@ -106,6 +106,15 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 loading="lazy"
               />
               Курсы
+            </Link>
+            <Link
+              href="/consultations"
+              onClick={() => setMenuOpen(false)}
+              onMouseEnter={() => router.prefetch("/consultations")}
+              className={styles.menuButton}
+            >
+              <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+              Занятия с кинологом
             </Link>
             <Link
               href="/articles"

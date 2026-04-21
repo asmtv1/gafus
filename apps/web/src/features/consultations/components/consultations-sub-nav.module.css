@@ -1,0 +1,47 @@
+.subNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.subNavLink,
+.subNavLinkActive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 2px solid #636128;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.subNavLink {
+  background: #fff8e5;
+  color: #352e2e;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.subNavLink:hover {
+  background: #fff3d6;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.subNavLinkActive {
+  background: #636128;
+  color: #fff8e5;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.35);
+}
+
+.subNavLinkActive:hover {
+  filter: brightness(1.05);
+}

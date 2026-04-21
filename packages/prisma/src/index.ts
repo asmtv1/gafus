@@ -18,7 +18,6 @@ export type {
   User,
   UserCourse,
   UserProfile,
-  UserRole,
   UserStep,
   UserTraining,
 } from "@prisma/client";
@@ -27,6 +26,10 @@ export type {
 export {
   ConsentLogStatus,
   ConsentType,
+  ConsultationBookingStatus,
+  ConsultationEmailStatus,
+  ConsultationEmailType,
+  ConsultationSlotStatus,
   PetPreventionReminderKind,
   PetPreventionType,
   PetType,
@@ -34,6 +37,7 @@ export {
   StepType,
   TrainingStatus,
   TranscodingStatus,
+  UserRole,
 } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)

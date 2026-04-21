@@ -19,6 +19,8 @@ import "./video-transcoding-worker";
 import { startConsentLogCleanupWorker } from "./consent-log-cleanup-worker";
 import { startExamCleanupWorker } from "./exam-cleanup-worker";
 import { startPetPreventionReminderWorker } from "./pet-prevention-reminder-worker";
+import { startConsultationMailWorker } from "./consultation-mail-worker";
+import { startConsultationSlaWorker } from "./consultation-sla-worker";
 import { setupConsentLogCleanupSchedule } from "./schedules/consent-log-cleanup-schedule";
 import { setupExamCleanupSchedule } from "./schedules/exam-cleanup-schedule";
 import { setupPetPreventionReminderSchedule } from "./schedules/pet-prevention-reminder-schedule";
@@ -45,6 +47,9 @@ startPetPreventionReminderWorker();
 setupPetPreventionReminderSchedule().catch((error) => {
   logger.error("Failed to setup pet prevention reminder schedule", error as Error);
 });
+
+startConsultationSlaWorker();
+startConsultationMailWorker();
 
 // Запускаем cron-планировщик для re-engagement
 startCronJobs();

@@ -9,6 +9,8 @@ import {
   TrendingUp,
   Assessment,
   ShoppingCart,
+  Pets,
+  EventNote,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -71,6 +73,14 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/purchases" className={styles.button}>
               <ShoppingCart sx={{ mr: 1.5, fontSize: 20 }} />
               Покупки курсов
+            </Link>
+            <Link href="/main-panel/consultations" className={styles.button}>
+              <Pets sx={{ mr: 1.5, fontSize: 20 }} />
+              Консультации кинолога
+            </Link>
+            <Link href="/main-panel/consultations/bookings" className={styles.button}>
+              <EventNote sx={{ mr: 1.5, fontSize: 20 }} />
+              Все брони консультаций
             </Link>
           </>
         )}

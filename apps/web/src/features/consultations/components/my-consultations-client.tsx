@@ -1,0 +1,137 @@
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+
+import { useCSRFStore } from "@gafus/csrf";
+import type { ConsultationBookingDto } from "@gafus/core";
+import { reportClientError } from "@gafus/error-handling";
+
+import { getConsultationBookingStatusPresentation } from "@/features/consultations/lib/consultation-booking-status-ru";
+
+import styles from "./my-consultations-client.module.css";
+
+interface MyConsultationsClientProps {
+  initialItems: ConsultationBookingDto[];
+}
+
+const CONSULTATION_TIMEZONE = "Europe/Moscow";
+
+function formatConsultationDate(dateIso: string): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: CONSULTATION_TIMEZONE,
+  }).format(new Date(dateIso));
+}
+
+/**
+ * Список броней пользователя с отменой через CSRF.
+ */
+export function MyConsultationsClient({ initialItems }: MyConsultationsClientProps) {
+  const router = useRouter();
+  const { token: csrfToken, fetchToken } = useCSRFStore();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!csrfToken) void fetchToken();
+  }, [csrfToken, fetchToken]);
+
+  const handleCancel = useCallback(
+    (bookingId: string) => {
+      setError(null);
+      startTransition(() => {
+        void (async () => {
+          try {
+            if (!csrfToken) await fetchToken();
+            const token = csrfToken ?? useCSRFStore.getState().token;
+            if (!token) {
+              setError("Нет CSRF-токена");
+              return;
+            }
+            const res = await fetch(
+              `/api/v1/consultations/bookings/${encodeURIComponent(bookingId)}/cancel`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-csrf-token": token,
+                },
+                credentials: "include",
+                body: JSON.stringify({}),
+              },
+            );
+            const json = (await res.json()) as { success?: boolean; error?: string };
+            if (!res.ok || !json.success) {
+              setError(json.error ?? "Не удалось отменить");
+              return;
+            }
+            router.refresh();
+          } catch (e) {
+            reportClientError(e instanceof Error ? e : new Error(String(e)), {
+              issueKey: "consultation",
+              keys: { operation: "cancel" },
+            });
+            setError("Ошибка отмены");
+          }
+        })();
+      });
+    },
+    [csrfToken, fetchToken, router],
+  );
+
+  const canCancel = (status: string) =>
+    status === "PENDING_TRAINER_CONFIRMATION" || status === "CONFIRMED";
+
+  return (
+    <div className={styles.wrap}>
+      {error ? <div className={styles.errorBanner}>{error}</div> : null}
+      <p className={styles.hint}>Все консультации отображаются по времени МСК (UTC+3).</p>
+      {initialItems.length === 0 ? (
+        <div className={styles.empty}>
+          <p>Пока нет записей. Выберите кинолога в каталоге и забронируйте удобное время.</p>
+        </div>
+      ) : (
+        <ul className={styles.list}>
+          {initialItems.map((b) => {
+            const pres = getConsultationBookingStatusPresentation(b.status);
+            return (
+              <li key={b.id} className={styles.card}>
+                <div className={styles.statusRow}>
+                  <span className={styles.badge} data-tone={pres.tone}>
+                    {pres.badge}
+                  </span>
+                </div>
+                <p className={styles.description}>{pres.description}</p>
+                <p className={styles.titleLine}>
+                  {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationDate(b.slot.startAtUtc)}
+                </p>
+                {b.status === "CONFIRMED" && b.joinUrl ? (
+                  <p className={styles.joinLink}>
+                    <a href={b.joinUrl} target="_blank" rel="noopener noreferrer">
+                      Перейти к видеовстрече
+                    </a>
+                  </p>
+                ) : null}
+                {canCancel(b.status) ? (
+                  <button
+                    type="button"
+                    className={styles.cancelBtn}
+                    disabled={pending}
+                    onClick={() => handleCancel(b.id)}
+                  >
+                    Отменить запись
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

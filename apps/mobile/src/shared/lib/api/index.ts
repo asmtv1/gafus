@@ -63,6 +63,11 @@ export {
   type ReminderUpdatePayload,
 } from "./reminders";
 export {
+  consultationsApi,
+  type BookSlotApiResult,
+  type ConsultationsMyResponse,
+} from "./consultations";
+export {
   paymentsApi,
   type CreatePaymentData,
   type CreatePaymentParams,

@@ -117,3 +117,18 @@ export const usernameAvailableRateLimiter = rateLimiter({
   keyGenerator: (c) => `username-avail:${getClientIp(c)}`,
   store,
 });
+
+/** Лимит бронирования консультаций: 10 POST /book в минуту на пользователя. */
+export const consultationBookRateLimiter = rateLimiter({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => {
+    const user = c.get("user");
+    if (user) {
+      return `consult-book:${user.id}`;
+    }
+    return `consult-book-ip:${getClientIp(c)}`;
+  },
+  store,
+});

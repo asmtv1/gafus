@@ -5,3 +5,11 @@ export * from "./reengagement-queue.js";
 export * from "./video-transcoding-queue.js";
 export { examCleanupQueue } from "./push-queue.js";
 export { petPreventionReminderQueue } from "./pet-prevention-reminder-queue.js";
+export {
+  consultationSlaQueue,
+  CONSULTATION_SLA_JOB_ID,
+} from "./consultation-sla-queue.js";
+export {
+  consultationMailQueue,
+  CONSULTATION_MAIL_JOB_ID,
+} from "./consultation-mail-queue.js";

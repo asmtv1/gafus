@@ -14,9 +14,10 @@ const nextConfig: NextConfig = {
   // Включаем standalone режим для production (кроме явного отключения)
   ...((process.env.NODE_ENV === "production" || process.env.USE_STANDALONE === "true") &&
     process.env.DISABLE_STANDALONE !== "true" && { output: "standalone" }),
-  serverExternalPackages: ["@gafus/prisma", "@prisma/client"],
+  serverExternalPackages: ["@prisma/client"],
   transpilePackages: [
     "@gafus/core",
+    "@gafus/prisma",
     "@gafus/auth",
     "@gafus/logger",
     "@gafus/types",
@@ -69,6 +70,20 @@ const nextConfig: NextConfig = {
       "@gafus/ui-components": path.resolve(
         __dirname,
         "../../packages/ui-components/src/index.ts",
+      ),
+      /** Иначе webpack не резолвит named exports из dist CJS при импорте из core. */
+      "@gafus/prisma": path.resolve(__dirname, "../../packages/prisma/src/index.ts"),
+      "@gafus/core/services/consultation/cynologistService": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/cynologistService.ts",
+      ),
+      "@gafus/core/services/consultation/errors": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/errors.ts",
+      ),
+      "@gafus/core/services/consultation/adminBookingQueries": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/adminBookingQueries.ts",
       ),
     };
     if (isServer) {

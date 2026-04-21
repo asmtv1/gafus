@@ -11,6 +11,8 @@ import {
   TrendingUp,
   Assessment,
   ShoppingCart,
+  Pets,
+  EventNote,
   Menu,
   Close,
 } from "@mui/icons-material";
@@ -65,6 +67,18 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       href: "/main-panel/purchases",
       icon: ShoppingCart,
       label: "Покупки курсов",
+      show: ["ADMIN", "MODERATOR"].includes(userRole),
+    },
+    {
+      href: "/main-panel/consultations",
+      icon: Pets,
+      label: "Консультации кинолога",
+      show: ["ADMIN", "MODERATOR"].includes(userRole),
+    },
+    {
+      href: "/main-panel/consultations/bookings",
+      icon: EventNote,
+      label: "Все брони консультаций",
       show: ["ADMIN", "MODERATOR"].includes(userRole),
     },
   ].filter((item) => item.show);

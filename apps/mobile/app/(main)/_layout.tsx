@@ -110,6 +110,27 @@ export default function MainLayout() {
         }}
       />
       <Stack.Screen
+        name="consultations/index"
+        options={{
+          headerShown: true,
+          title: "Консультации",
+        }}
+      />
+      <Stack.Screen
+        name="consultations/[userId]"
+        options={{
+          headerShown: true,
+          title: "Запись",
+        }}
+      />
+      <Stack.Screen
+        name="consultations/mine"
+        options={{
+          headerShown: true,
+          title: "Мои записи",
+        }}
+      />
+      <Stack.Screen
         name="articles/[slug]"
         options={{ headerShown: false }}
       />

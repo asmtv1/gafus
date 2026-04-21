@@ -22,6 +22,7 @@
     "@gafus/core": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/logger": "workspace:*",
+    "@gafus/mailer": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/reengagement": "workspace:*",

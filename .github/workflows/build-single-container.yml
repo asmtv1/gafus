@@ -381,6 +381,10 @@ jobs:
                 echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
                 echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
                 echo ""
+                echo "# Яндекс Телемост (консультации)"
+                echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}"
+                echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}"
+                echo ""
                 echo "# Защита видео (HLS) - обязательно для API"
                 echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
                 echo "NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${{ secrets.NEXT_PUBLIC_ENABLE_HLS_PROTECTION || 'true' }}"
@@ -474,6 +478,14 @@ jobs:
                 echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}" >> ci-cd/docker/.env
                 echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}" >> ci-cd/docker/.env
                 echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^YANDEX_TELEMOST_API_BASE_URL=" ci-cd/docker/.env; then
+                echo "" >> ci-cd/docker/.env
+                echo "# Яндекс Телемост" >> ci-cd/docker/.env
+                echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^YANDEX_TELEMOST_OAUTH_TOKEN=" ci-cd/docker/.env; then
+                echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}" >> ci-cd/docker/.env
               fi
             fi
 

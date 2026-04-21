@@ -1,0 +1,158 @@
+/* Список «Мои консультации» — в одном стиле с каталогом и слотами */
+
+.wrap {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.hint {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(53, 46, 46, 0.78);
+  margin: 0 0 8px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  background: #fff8e5;
+  border-radius: 12px;
+  border: 2px solid #636128;
+  box-shadow: 0 4px 14px rgba(53, 46, 46, 0.1);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-block;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.badge[data-tone="pending"] {
+  background: rgba(180, 140, 40, 0.2);
+  color: #5c4810;
+}
+
+.badge[data-tone="success"] {
+  background: rgba(46, 125, 50, 0.18);
+  color: #1b5e20;
+}
+
+.badge[data-tone="danger"] {
+  background: rgba(183, 28, 28, 0.14);
+  color: #8b1c1c;
+}
+
+.badge[data-tone="neutral"] {
+  background: rgba(53, 46, 46, 0.1);
+  color: rgba(53, 46, 46, 0.85);
+}
+
+.description {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(53, 46, 46, 0.88);
+  margin: 0;
+}
+
+.titleLine {
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.25;
+  color: #352e2e;
+  margin: 0;
+}
+
+.joinLink {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.joinLink a {
+  color: var(--bg-2, #636128);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.joinLink a:hover {
+  opacity: 0.9;
+}
+
+.cancelBtn {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(183, 28, 28, 0.45);
+  background: #fff8e5;
+  color: #8b1c1c;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: rgba(183, 28, 28, 0.08);
+  border-color: rgba(183, 28, 28, 0.65);
+}
+
+.cancelBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.empty {
+  text-align: center;
+  padding: 36px 20px;
+  border-radius: 12px;
+  border: 2px dashed rgba(99, 97, 40, 0.35);
+  background: rgba(255, 248, 229, 0.65);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 16px;
+  color: rgba(53, 46, 46, 0.8);
+}
+
+.empty p {
+  margin: 0;
+}
+
+.errorBanner {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(183, 28, 28, 0.1);
+  border: 1px solid rgba(183, 28, 28, 0.35);
+  color: #5c1010;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+}

@@ -1,0 +1,47 @@
+/* Оболочка раздела консультаций в панели тренера */
+
+.layout {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+}
+
+.pageTitle {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.navLink {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0d47a1;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  text-decoration: underline;
+  color: #1565c0;
+}
+
+.paper {
+  background: #ffffff;
+  border: 1px solid #cfd8dc;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: 20px 22px;
+}
+
+@media (max-width: 600px) {
+  .layout {
+    padding: 16px 14px 24px;
+  }
+
+  .paper {
+    padding: 16px;
+  }
+}

@@ -739,6 +739,18 @@ export default function ProfileScreen() {
             <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
           </Pressable>
 
+          <Pressable
+            style={styles.remindersCard}
+            onPress={() => router.push("/consultations" as Href)}
+          >
+            <MaterialCommunityIcons name="dog-side" size={22} color={COLORS.primary} />
+            <View style={styles.remindersCardContent}>
+              <Text style={styles.remindersCardTitle}>Консультации с кинологом</Text>
+              <Text style={styles.remindersCardSubtitle}>Запись на онлайн-встречу</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
+          </Pressable>
+
           {user?.role === "USER" && (
             <View style={styles.notesCard}>
               <Text style={styles.notesTitle}>Заметки тренера</Text>

@@ -1,0 +1,271 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.topMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metaPill {
+  background: rgba(99, 97, 40, 0.12);
+  color: var(--bg-2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.calendarPanel,
+.slotsPanel {
+  border: 1px solid rgba(99, 97, 40, 0.26);
+  border-radius: 16px;
+  background: #f5f0e8;
+  box-shadow: 0 8px 18px rgba(53, 46, 46, 0.08);
+  padding: 14px;
+}
+
+.calendarPanel {
+  height: auto;
+  overflow: hidden;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.calendarMonth {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 400;
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  text-transform: capitalize;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.weekdays span {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(53, 46, 46, 0.75);
+  font-weight: 600;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.emptyCell {
+  min-height: 54px;
+}
+
+.dayCell {
+  min-height: 54px;
+  border: 1px solid rgba(99, 97, 40, 0.2);
+  border-radius: 10px;
+  background: var(--bg-1);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.dayCell[data-in-range="false"] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dayCell[data-weekend="true"] .dayNumber {
+  color: #b63a3a;
+}
+
+.dayCell[data-day-off="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+}
+
+.dayCell[data-day-off="true"] .dayNumber,
+.dayCell[data-day-off="true"] .dayCount {
+  color: #a12020;
+}
+
+.dayCell[data-day-off="true"][data-selected="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+  box-shadow: none;
+}
+
+.dayCell[data-no-free-slots="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+}
+
+.dayCell[data-no-free-slots="true"] .dayNumber,
+.dayCell[data-no-free-slots="true"] .dayCount {
+  color: #a12020;
+}
+
+.dayCell[data-no-free-slots="true"][data-selected="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+  box-shadow: none;
+}
+
+.dayCell[data-selected="true"] {
+  border-color: var(--bg-2);
+  box-shadow: 0 0 0 2px rgba(99, 97, 40, 0.24);
+  background: rgba(99, 97, 40, 0.14);
+}
+
+.dayNumber {
+  font-size: 14px;
+  color: #352e2e;
+  font-weight: 700;
+}
+
+.dayCount {
+  font-size: 10px;
+  color: rgba(53, 46, 46, 0.65);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 26px 0;
+}
+
+.emptyState {
+  border: 1px dashed rgba(99, 97, 40, 0.3);
+  background: rgba(255, 252, 245, 0.8);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slotsTitle {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  text-transform: capitalize;
+}
+
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slotRow {
+  border: 1px solid rgba(99, 97, 40, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255, 252, 245, 0.92);
+}
+
+.slotRow[data-status="BOOKED"] {
+  background: rgba(255, 242, 242, 0.9);
+  border-color: rgba(182, 58, 58, 0.28);
+}
+
+.slotRow[data-status="BLOCKED"] {
+  background: rgba(246, 246, 246, 0.9);
+  border-color: rgba(70, 70, 70, 0.18);
+}
+
+.slotTime {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #352e2e;
+  line-height: 1.2;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.slotStatus {
+  margin-top: 2px;
+  color: rgba(53, 46, 46, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.calendarPanel :global(.MuiButton-root),
+.slotsPanel :global(.MuiButton-root) {
+  border-radius: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.calendarPanel :global(.MuiButton-contained),
+.slotsPanel :global(.MuiButton-contained) {
+  background-color: var(--bg-2);
+  color: #f5f0e8;
+  border: 2px solid var(--bg-2);
+}
+
+.calendarPanel :global(.MuiButton-contained:hover),
+.slotsPanel :global(.MuiButton-contained:hover) {
+  background-color: #4e4c1f;
+  border-color: #4e4c1f;
+}
+
+.calendarPanel :global(.MuiButton-outlined),
+.slotsPanel :global(.MuiButton-outlined) {
+  border-color: var(--bg-2);
+  color: var(--bg-2);
+}
+
+.calendarPanel :global(.MuiButton-outlined:hover),
+.slotsPanel :global(.MuiButton-outlined:hover) {
+  border-color: #4e4c1f;
+  color: #4e4c1f;
+  background-color: rgba(99, 97, 40, 0.06);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .slotRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

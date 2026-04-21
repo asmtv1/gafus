@@ -145,6 +145,22 @@
       "types": "./dist/core/src/services/consent/index.d.ts",
       "default": "./dist/core/src/services/consent/index.js"
     },
+    "./services/consultation": {
+      "types": "./dist/core/src/services/consultation/index.d.ts",
+      "default": "./dist/core/src/services/consultation/index.js"
+    },
+    "./services/consultation/cynologistService": {
+      "types": "./dist/core/src/services/consultation/cynologistService.d.ts",
+      "default": "./dist/core/src/services/consultation/cynologistService.js"
+    },
+    "./services/consultation/bookingService": {
+      "types": "./dist/core/src/services/consultation/bookingService.d.ts",
+      "default": "./dist/core/src/services/consultation/bookingService.js"
+    },
+    "./services/consultation/adminBookingQueries": {
+      "types": "./dist/core/src/services/consultation/adminBookingQueries.d.ts",
+      "default": "./dist/core/src/services/consultation/adminBookingQueries.js"
+    },
     "./services/oferta": {
       "types": "./dist/core/src/services/oferta/index.d.ts",
       "default": "./dist/core/src/services/oferta/index.js"
@@ -203,13 +219,17 @@
     "@gafus/video-access": "workspace:*",
     "@gafus/webpush": "workspace:*",
     "bcryptjs": "^3.0.2",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "libphonenumber-js": "^1.12.8",
+    "luxon": "^3.7.2",
     "petrovich": "^0.2.1",
     "validator": "^13.15.26",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/luxon": "^3.7.1",
     "@types/node": "20.4.8",
     "@types/validator": "^13.15.10",
     "@vitest/coverage-v8": "^4.0.17",

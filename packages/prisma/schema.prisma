@@ -9,54 +9,54 @@ datasource db {
 }
 
 model Course {
-  id             String           @id @default(cuid())
-  name           String
-  type           String           @unique @db.VarChar(50)
-  description    String           @default("")
-  equipment      String           @default("")
-  trainingLevel  TrainingLevel
-  shortDesc      String           @default("")
-  duration       String
-  logoImg        String
-  isPrivate      Boolean          @default(false)
-  isPaid         Boolean          @default(false)
-  authorId       String
-  avgRating      Float?
-  videoUrl       String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  showInProfile  Boolean          @default(true)
-  priceRub       Decimal?         @db.Decimal(10, 2)
+  id                String             @id @default(cuid())
+  name              String
+  type              String             @unique @db.VarChar(50)
+  description       String             @default("")
+  equipment         String             @default("")
+  trainingLevel     TrainingLevel
+  shortDesc         String             @default("")
+  duration          String
+  logoImg           String
+  isPrivate         Boolean            @default(false)
+  isPaid            Boolean            @default(false)
+  authorId          String
+  avgRating         Float?
+  videoUrl          String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  showInProfile     Boolean            @default(true)
+  priceRub          Decimal?           @db.Decimal(10, 2)
   /// Apple IAP product id (ASC non-consumable), заполняется для платных курсов в iOS
-  appleIapProductId String?       @unique
-  isPersonalized Boolean          @default(false)
-  guideContent   String?           @db.Text
-  awards         Award[]
-  author         User             @relation(fields: [authorId], references: [id])
-  access         CourseAccess[]
-  reviews        CourseReview[]
-  dayLinks       DayOnCourse[]
-  favoritedBy    FavoriteCourse[]
-  payments       Payment[]
-  userCourses    UserCourse[]
+  appleIapProductId String?            @unique
+  isPersonalized    Boolean            @default(false)
+  guideContent      String?            @db.Text
+  awards            Award[]
+  author            User               @relation(fields: [authorId], references: [id])
+  access            CourseAccess[]
+  reviews           CourseReview[]
+  dayLinks          DayOnCourse[]
+  favoritedBy       FavoriteCourse[]
+  payments          Payment[]
+  userCourses       UserCourse[]
   ofertaAcceptances OfertaAcceptance[]
 }
 
 model TrainingDay {
-  id                   String        @id @default(cuid())
-  title                String
-  equipment            String        @default("")
-  description          String        @default("")
-  type                 String        @default("regular")
-  authorId             String
-  showCoursePathExport      Boolean   @default(false)
-  shareProgressAcrossCourses Boolean  @default(false)
-  createdAt                 DateTime @default(now())
-  updatedAt            DateTime      @updatedAt
-  dayLinks             DayOnCourse[]
-  diaryEntries         DiaryEntry[]
-  stepLinks            StepOnDay[]
-  author               User          @relation(fields: [authorId], references: [id])
+  id                         String        @id @default(cuid())
+  title                      String
+  equipment                  String        @default("")
+  description                String        @default("")
+  type                       String        @default("regular")
+  authorId                   String
+  showCoursePathExport       Boolean       @default(false)
+  shareProgressAcrossCourses Boolean       @default(false)
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+  dayLinks                   DayOnCourse[]
+  diaryEntries               DiaryEntry[]
+  stepLinks                  StepOnDay[]
+  author                     User          @relation(fields: [authorId], references: [id])
 }
 
 model Step {
@@ -197,61 +197,67 @@ model UserStep {
 }
 
 model User {
-  id                       String                 @id @default(cuid())
-  username                 String                 @unique
-  email                    String?                @unique
-  phone                    String?                @unique
-  password                 String
-  passwordSetAt            DateTime?
-  telegramId               String?                @unique
-  role                     UserRole               @default(USER)
-  registrationChannel      RegistrationChannel    @default(UNKNOWN)
-  passwordResetRequestedAt DateTime?
-  accountDeletionRequestedAt DateTime?
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @default(now())
-  accounts                 Account[]
-  sessions                 Session[]
-  authoredCourses          Course[]
-  courseAccesses           CourseAccess[]
-  courseReviews            CourseReview[]
-  diaryEntries             DiaryEntry[]
-  diplomas                 Diploma[]
-  reviewedExamResults      ExamResult[]           @relation("ExamResultReviewedBy")
-  favoriteCourses          FavoriteCourse[]
-  passwordResetTokens      PasswordResetToken[]
-  accountDeletionTokens    AccountDeletionToken[]
-  payments                 Payment[]
-  pets                     Pet[]
-  emailChangeTokens        EmailChangeToken[]
-  pushSubscriptions        PushSubscription[]
-  reengagementCampaigns    ReengagementCampaign[]
-  reengagementSettings     ReengagementSettings?
-  refreshTokens            RefreshToken[]
-  reminders                Reminder[]
-  createdSteps             Step[]
-  stepNotifications        StepNotification[]
-  createdStepTemplates     StepTemplate[]
-  trainerAIChats           TrainerAIChat[]
-  trainerAIConfig          TrainerAIConfig?
-  trainerNotes             TrainerNote[]          @relation("TrainerNotes")
-  studentNotes             TrainerNoteStudent[]   @relation("StudentNotes")
-  trainerVideos            TrainerVideo[]
-  trainings                Training[]
-  trainingAccesses         TrainingAccess[]
-  createdDays              TrainingDay[]
-  userCourses              UserCourse[]
-  profile                  UserProfile?
-  userTrainings            UserTraining[]
-  userVideoProgresses      UserVideoProgress[]
-  consentLogs              ConsentLog[]
-  ofertaAcceptances        OfertaAcceptance[]
-  petPreventionEntries     PetPreventionEntry[]
-  authoredArticles         Article[]           @relation("authoredArticles")
-  articleLikes             ArticleLike[]
-  articleAccesses          ArticleAccess[]
-  articlePayments          ArticlePayment[]
-  articleViews             ArticleViewer[]
+  id                             String                           @id @default(cuid())
+  username                       String                           @unique
+  email                          String?                          @unique
+  phone                          String?                          @unique
+  password                       String
+  passwordSetAt                  DateTime?
+  telegramId                     String?                          @unique
+  role                           UserRole                         @default(USER)
+  registrationChannel            RegistrationChannel              @default(UNKNOWN)
+  passwordResetRequestedAt       DateTime?
+  accountDeletionRequestedAt     DateTime?
+  createdAt                      DateTime                         @default(now())
+  updatedAt                      DateTime                         @default(now())
+  accounts                       Account[]
+  sessions                       Session[]
+  authoredCourses                Course[]
+  courseAccesses                 CourseAccess[]
+  courseReviews                  CourseReview[]
+  diaryEntries                   DiaryEntry[]
+  diplomas                       Diploma[]
+  reviewedExamResults            ExamResult[]                     @relation("ExamResultReviewedBy")
+  favoriteCourses                FavoriteCourse[]
+  passwordResetTokens            PasswordResetToken[]
+  accountDeletionTokens          AccountDeletionToken[]
+  payments                       Payment[]
+  pets                           Pet[]
+  emailChangeTokens              EmailChangeToken[]
+  pushSubscriptions              PushSubscription[]
+  reengagementCampaigns          ReengagementCampaign[]
+  reengagementSettings           ReengagementSettings?
+  refreshTokens                  RefreshToken[]
+  reminders                      Reminder[]
+  createdSteps                   Step[]
+  stepNotifications              StepNotification[]
+  createdStepTemplates           StepTemplate[]
+  trainerAIChats                 TrainerAIChat[]
+  trainerAIConfig                TrainerAIConfig?
+  trainerNotes                   TrainerNote[]                    @relation("TrainerNotes")
+  studentNotes                   TrainerNoteStudent[]             @relation("StudentNotes")
+  trainerVideos                  TrainerVideo[]
+  trainings                      Training[]
+  trainingAccesses               TrainingAccess[]
+  createdDays                    TrainingDay[]
+  userCourses                    UserCourse[]
+  profile                        UserProfile?
+  userTrainings                  UserTraining[]
+  userVideoProgresses            UserVideoProgress[]
+  consentLogs                    ConsentLog[]
+  ofertaAcceptances              OfertaAcceptance[]
+  petPreventionEntries           PetPreventionEntry[]
+  authoredArticles               Article[]                        @relation("authoredArticles")
+  articleLikes                   ArticleLike[]
+  articleAccesses                ArticleAccess[]
+  articlePayments                ArticlePayment[]
+  articleViews                   ArticleViewer[]
+  /// Профиль кинолога для консультаций (один к одному с пользователем-тренером)
+  consultationCynologist         ConsultationCynologist?
+  /// Бронирования консультаций как клиент
+  consultationBookingsAsClient   ConsultationBooking[]
+  /// Идемпотентность POST /book (ключ + клиент)
+  consultationBookingIdempotency ConsultationBookingIdempotency[]
 }
 
 enum ConsentType {
@@ -267,11 +273,11 @@ enum ConsentLogStatus {
 }
 
 model ConsentLog {
-  id             String          @id @default(cuid())
+  id             String           @id @default(cuid())
   tempSessionId  String
   consentType    ConsentType
   userId         String?
-  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   consentVersion String
   consentText    Json?
   consentDate    DateTime
@@ -279,8 +285,8 @@ model ConsentLog {
   userAgent      String?
   formData       Json?
   status         ConsentLogStatus
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@unique([tempSessionId, consentType])
   @@index([userId])
@@ -390,21 +396,21 @@ model UserCourse {
 }
 
 model Pet {
-  id                 String               @id @default(cuid())
-  ownerId            String
-  name               String
-  type               PetType
-  breed              String
-  birthDate          DateTime
-  heightCm           Float?
-  weightKg           Float?
-  photoUrl           String?
-  notes              String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @default(now())
-  awards             Award[]
-  owner              User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  preventionEntries  PetPreventionEntry[]
+  id                String               @id @default(cuid())
+  ownerId           String
+  name              String
+  type              PetType
+  breed             String
+  birthDate         DateTime
+  heightCm          Float?
+  weightKg          Float?
+  photoUrl          String?
+  notes             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @default(now())
+  awards            Award[]
+  owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  preventionEntries PetPreventionEntry[]
 }
 
 model Award {
@@ -427,34 +433,34 @@ model Award {
 }
 
 model PetPreventionEntry {
-  id                       String                     @id @default(cuid())
-  petId                    String
-  ownerId                  String
-  type                     PetPreventionType
-  performedAt              DateTime
-  productName              String?
-  notes                    String?
-  clientId                 String?
+  id                      String                    @id @default(cuid())
+  petId                   String
+  ownerId                 String
+  type                    PetPreventionType
+  performedAt             DateTime
+  productName             String?
+  notes                   String?
+  clientId                String?
   /// Включено ли push-напоминание по этой записи
-  reminderEnabled          Boolean                    @default(true)
+  reminderEnabled         Boolean                   @default(true)
   /// Способ задания даты напоминания: через N дней после выполненного или фиксированная дата
-  reminderKind             PetPreventionReminderKind  @default(AFTER_DAYS)
+  reminderKind            PetPreventionReminderKind @default(AFTER_DAYS)
   /// Интервал в днях после performedAt (только при reminderKind = AFTER_DAYS)
-  reminderDaysAfter        Int?
+  reminderDaysAfter       Int?
   /// Календарная дата напоминания (только при reminderKind = ON_DATE), хранится как date
-  reminderOnDate           DateTime?                  @db.Date
+  reminderOnDate          DateTime?                 @db.Date
   /// Вычисленный день срабатывания напоминания (для выборки воркером)
-  remindAt                 DateTime?                  @db.Date
+  remindAt                DateTime?                 @db.Date
   /// JSON-массив времён напоминания ["09:00","21:00"]; по умолчанию ["09:00"]
-  reminderTimes            Json                       @default("[\"09:00\"]")
+  reminderTimes           Json                      @default("[\"09:00\"]")
   /// Дата remindAt, по которой уже успешно отправили push (идемпотентность повторных прогонов)
-  lastNotifiedForRemindAt  DateTime?                  @db.Date
+  lastNotifiedForRemindAt DateTime?                 @db.Date
   /// Какие времена из reminderTimes уже отправлены для текущего remindAt (JSON массив строк)
-  sentTimesForRemindAt     Json?
-  createdAt                DateTime                   @default(now())
-  updatedAt                DateTime                   @updatedAt
-  pet                      Pet                        @relation(fields: [petId], references: [id], onDelete: Cascade)
-  owner                    User                       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sentTimesForRemindAt    Json?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  pet                     Pet                       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  owner                   User                      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@unique([petId, clientId])
   @@index([petId])
@@ -486,21 +492,21 @@ model CourseAccess {
 }
 
 model Payment {
-  id                String            @id @default(cuid())
-  userId            String
-  courseId          String
-  amountRub         Decimal           @db.Decimal(10, 2)
-  currency          String            @default("RUB")
-  provider          PaymentProvider   @default(YOOKASSA)
-  yookassaPaymentId String?           @unique
-  appleTransactionId String?          @unique
-  confirmationUrl   String?
-  status            PaymentStatus     @default(PENDING)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  course            Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ofertaAcceptances OfertaAcceptance[]
+  id                 String             @id @default(cuid())
+  userId             String
+  courseId           String
+  amountRub          Decimal            @db.Decimal(10, 2)
+  currency           String             @default("RUB")
+  provider           PaymentProvider    @default(YOOKASSA)
+  yookassaPaymentId  String?            @unique
+  appleTransactionId String?            @unique
+  confirmationUrl    String?
+  status             PaymentStatus      @default(PENDING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  course             Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ofertaAcceptances  OfertaAcceptance[]
 
   @@index([userId])
   @@index([courseId])
@@ -508,15 +514,15 @@ model Payment {
 }
 
 model OfertaAcceptance {
-  id               String    @id @default(cuid())
+  id               String   @id @default(cuid())
   userId           String
   courseId         String
   paymentId        String?
-  acceptedAt       DateTime  @default(now())
+  acceptedAt       DateTime @default(now())
   ipAddress        String?
   userAgent        String?
   documentVersions Json
-  source           String    @db.VarChar(10)
+  source           String   @db.VarChar(10)
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -974,7 +980,9 @@ enum TrainingStatus {
   RESET
 }
 
-/** Канал первой регистрации (email/пароль); для старых записей — UNKNOWN */
+/**
+ * Канал первой регистрации (email/пароль); для старых записей — UNKNOWN
+ */
 enum RegistrationChannel {
   WEB
   IOS
@@ -1052,28 +1060,28 @@ enum ArticleVisibility {
 }
 
 model Article {
-  id          String               @id @default(cuid())
+  id          String             @id @default(cuid())
   authorId    String
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   title       String
-  contentType ArticleContentType   @default(HTML)
-  content     String               @db.Text
-  visibility  ArticleVisibility    @default(PUBLIC)
-  priceRub    Decimal?             @db.Decimal(10, 2)
+  contentType ArticleContentType @default(HTML)
+  content     String             @db.Text
+  visibility  ArticleVisibility  @default(PUBLIC)
+  priceRub    Decimal?           @db.Decimal(10, 2)
   videoUrl    String?
-  logoImg     String               @default("")
-  imageUrls   String[]             @default([])
-  slug        String               @unique
-  viewCount   Int                  @default(0)
-  description String               @default("") @db.Text
+  logoImg     String             @default("")
+  imageUrls   String[]           @default([])
+  slug        String             @unique
+  viewCount   Int                @default(0)
+  description String             @default("") @db.Text
 
-  author        User              @relation("authoredArticles", fields: [authorId], references: [id])
-  articleLikes  ArticleLike[]
-  access        ArticleAccess[]
-  payments      ArticlePayment[]
-  viewers       ArticleViewer[]
-  guestViews    ArticleGuestView[]
+  author       User               @relation("authoredArticles", fields: [authorId], references: [id])
+  articleLikes ArticleLike[]
+  access       ArticleAccess[]
+  payments     ArticlePayment[]
+  viewers      ArticleViewer[]
+  guestViews   ArticleGuestView[]
 
   @@index([authorId])
   @@index([createdAt])
@@ -1107,7 +1115,9 @@ model ArticleAccess {
   @@index([userId])
 }
 
-/** Уникальные авторизованные просмотры (для аналитики тренера); общий счётчик — Article.viewCount */
+/**
+ * Уникальные авторизованные просмотры (для аналитики тренера); общий счётчик — Article.viewCount
+ */
 model ArticleViewer {
   articleId     String
   userId        String
@@ -1122,7 +1132,9 @@ model ArticleViewer {
   @@index([userId])
 }
 
-/** Уникальные гостевые просмотры по ключу с клиента (localStorage / AsyncStorage) */
+/**
+ * Уникальные гостевые просмотры по ключу с клиента (localStorage / AsyncStorage)
+ */
 model ArticleGuestView {
   articleId     String
   visitorKey    String
@@ -1135,18 +1147,18 @@ model ArticleGuestView {
 }
 
 model ArticlePayment {
-  id                String            @id @default(cuid())
+  id                String        @id @default(cuid())
   userId            String
   articleId         String
-  amountRub         Decimal           @db.Decimal(10, 2)
-  currency          String            @default("RUB")
-  yookassaPaymentId String?           @unique
+  amountRub         Decimal       @db.Decimal(10, 2)
+  currency          String        @default("RUB")
+  yookassaPaymentId String?       @unique
   confirmationUrl   String?
-  status            PaymentStatus     @default(PENDING)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  article           Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  article           Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([articleId])
@@ -1158,4 +1170,178 @@ model AppFeatureFlag {
   key       String   @id @db.VarChar(64)
   enabled   Boolean  @default(false)
   updatedAt DateTime @updatedAt
+}
+
+// --- Консультации с кинологом (web + mobile) ---
+
+enum ConsultationSlotStatus {
+  FREE
+  BOOKED
+  BLOCKED
+}
+
+enum ConsultationBookingStatus {
+  PENDING_TRAINER_CONFIRMATION
+  CONFIRMED
+  CANCELLED_BY_TRAINER
+  CANCELLED_BY_USER
+  CANCELLED_BY_SLA
+  CANCELLED_BY_SYSTEM
+  COMPLETED
+  NO_SHOW
+}
+
+enum ConsultationEmailType {
+  TRAINER_CONFIRM_REQUEST
+  CLIENT_BOOKING_RECEIVED
+  CLIENT_BOOKING_CONFIRMED
+  TRAINER_BOOKING_CONFIRMED
+  CLIENT_BOOKING_CANCELLED_BY_TRAINER
+  TRAINER_BOOKING_CANCELLED_BY_USER
+  CLIENT_BOOKING_CANCELLED_BY_SLA
+}
+
+enum ConsultationEmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// Настройки кинолога для консультаций (роль TRAINER проверяется в core)
+model ConsultationCynologist {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  isListed           Boolean  @default(false)
+  telemostHostEmail  String?
+  slotDurationMin    Int      @default(30)
+  timezone           String   @default("Europe/Moscow")
+  bookingLeadTimeMin Int      @default(60)
+  slotHorizonDays    Int      @default(60)
+  confirmationSlaMin Int      @default(120)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user              User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilityRules ConsultationAvailabilityRule[]
+  dayOffs           ConsultationDayOff[]
+  slotExceptions    ConsultationSlotException[]
+  slots             ConsultationSlot[]
+  bookings          ConsultationBooking[]
+
+  @@index([isListed])
+}
+
+model ConsultationAvailabilityRule {
+  id           String   @id @default(cuid())
+  cynologistId String
+  weekday      Int
+  startTime    String
+  endTime      String
+  isWorkingDay Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+
+  @@unique([cynologistId, weekday])
+  @@index([cynologistId])
+}
+
+model ConsultationDayOff {
+  id           String   @id @default(cuid())
+  cynologistId String
+  date         DateTime @db.Date
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+
+  @@unique([cynologistId, date])
+  @@index([cynologistId])
+}
+
+model ConsultationSlotException {
+  id           String   @id @default(cuid())
+  cynologistId String
+  startAt      DateTime
+  endAt        DateTime
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+
+  @@index([cynologistId, startAt])
+}
+
+model ConsultationSlot {
+  id           String                 @id @default(cuid())
+  cynologistId String
+  startAt      DateTime
+  endAt        DateTime
+  status       ConsultationSlotStatus @default(FREE)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+  bookings   ConsultationBooking[]
+
+  @@unique([cynologistId, startAt])
+  @@index([cynologistId, status, startAt])
+}
+
+model ConsultationBooking {
+  id                     String                    @id @default(cuid())
+  clientId               String
+  cynologistId           String
+  slotId                 String
+  clientProblem          String?
+  status                 ConsultationBookingStatus @default(PENDING_TRAINER_CONFIRMATION)
+  telemostConferenceId   String?
+  telemostJoinUrl        String?
+  telemostWatchUrl       String?
+  trainerConfirmedAt     DateTime?
+  cancelReason           String?
+  confirmationDeadlineAt DateTime
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  client     User                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+  slot       ConsultationSlot       @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  emailLogs  ConsultationEmailLog[]
+
+  @@index([slotId])
+  @@index([cynologistId, status])
+  @@index([clientId, createdAt])
+}
+
+model ConsultationEmailLog {
+  id        String                  @id @default(cuid())
+  bookingId String
+  type      ConsultationEmailType
+  status    ConsultationEmailStatus @default(PENDING)
+  attempts  Int                     @default(0)
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  booking ConsultationBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, type])
+}
+
+model ConsultationBookingIdempotency {
+  clientId     String
+  key          String
+  bookingId    String?
+  responseJson Json
+  expiresAt    DateTime
+
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, key])
+  @@index([expiresAt])
 }
