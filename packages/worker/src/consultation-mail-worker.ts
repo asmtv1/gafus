@@ -3,12 +3,14 @@ import { prisma } from "@gafus/prisma";
 import { connection } from "@gafus/queues";
 import { sendTransactionalMail } from "@gafus/mailer";
 import { createWorkerLogger } from "@gafus/logger";
-import { DateTime } from "luxon";
+import {
+  formatConsultationListDateTimeMsk,
+  formatConsultationTimeMsk,
+} from "@gafus/core/services/consultation";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
 const logger = createWorkerLogger("consultation-mail-worker");
-const CONSULTATION_TIMEZONE = "Europe/Moscow";
 
 interface MailJobData {
   emailLogId: string;
@@ -61,12 +63,11 @@ async function buildBody(logId: string, type: ConsultationEmailType): Promise<{
   }
 
   const b = log.booking;
-  const slotStartMsk = DateTime.fromJSDate(b.slot.startAt, { zone: "utc" })
-    .setZone(CONSULTATION_TIMEZONE)
-    .toFormat("dd.LL.yyyy HH:mm");
-  const slotEndMsk = DateTime.fromJSDate(b.slot.endAt, { zone: "utc" })
-    .setZone(CONSULTATION_TIMEZONE)
-    .toFormat("HH:mm");
+  const slotStartMsk = formatConsultationListDateTimeMsk(b.slot.startAt.toISOString()).replace(
+    /,\s*/,
+    " ",
+  );
+  const slotEndMsk = formatConsultationTimeMsk(b.slot.endAt);
   const base =
     `Бронирование ${b.id}. Слот: ${slotStartMsk} — ${slotEndMsk} (МСК, UTC+3).\n` +
     "Все времена консультаций рассчитываются по МСК.";
