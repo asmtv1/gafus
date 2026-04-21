@@ -1447,6 +1447,9 @@ importers:
       '@gafus/webpush':
         specifier: workspace:*
         version: link:../webpush
+      '@types/luxon':
+        specifier: ^3.7.1
+        version: 3.7.1
       bullmq:
         specifier: 5.2.0
         version: 5.2.0
@@ -1466,9 +1469,6 @@ importers:
         specifier: 3.6.6
         version: 3.6.6
     devDependencies:
-      '@types/luxon':
-        specifier: ^3.4.2
-        version: 3.7.1
       '@types/node':
         specifier: 20.4.8
         version: 20.4.8
