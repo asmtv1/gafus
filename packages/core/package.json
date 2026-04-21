@@ -153,6 +153,10 @@
       "types": "./dist/core/src/services/consultation/cynologistService.d.ts",
       "default": "./dist/core/src/services/consultation/cynologistService.js"
     },
+    "./services/consultation/errors": {
+      "types": "./dist/core/src/services/consultation/errors.d.ts",
+      "default": "./dist/core/src/services/consultation/errors.js"
+    },
     "./services/consultation/bookingService": {
       "types": "./dist/core/src/services/consultation/bookingService.d.ts",
       "default": "./dist/core/src/services/consultation/bookingService.js"
