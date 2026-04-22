@@ -3,7 +3,7 @@ import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatConsultationConfirmSlotMsk } from "@gafus/core";
+import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 

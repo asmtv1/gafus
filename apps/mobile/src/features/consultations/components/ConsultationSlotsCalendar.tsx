@@ -10,16 +10,18 @@ import {
 import { Text } from "react-native-paper";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  buildConsultationCalendarRangeDays,
-  consultationCalendarMonthKey as toMonthKey,
-  consultationMskDayKey as toDayKey,
-  filterConsultationSlotsExcludingDayOffs,
   formatConsultationDayLabelMsk as formatDayLabel,
   formatConsultationMonthLabelMsk as formatMonthLabel,
   formatConsultationTimeMsk as formatTimeMsk,
+  consultationCalendarMonthKey as toMonthKey,
+  consultationMskDayKey as toDayKey,
+} from "@gafus/core/services/consultation/consultationMskFormat";
+import {
+  buildConsultationCalendarRangeDays,
+  filterConsultationSlotsExcludingDayOffs,
   groupConsultationSlotsByMskDay,
-  type ConsultationSlotDto,
-} from "@gafus/core";
+} from "@gafus/core/services/consultation/consultationSlotsPresentation";
+import type { ConsultationSlotDto } from "@gafus/core/services/consultation/types";
 import type { Href } from "expo-router";
 import { useNavigation, useRouter } from "expo-router";
 

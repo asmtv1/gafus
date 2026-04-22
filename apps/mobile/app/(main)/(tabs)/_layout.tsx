@@ -36,10 +36,10 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="courses"
         options={{
-          title: "Курсы",
-          tabBarIcon: ({ color, size }) => renderIcon("book-open-variant", color, size),
+          title: "Избранное",
+          tabBarIcon: ({ color, size }) => renderIcon("heart", color, size),
         }}
       />
       <Tabs.Screen
@@ -51,17 +51,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="courses"
+        name="index"
         options={{
-          title: "Избранное",
-          tabBarIcon: ({ color, size }) => renderIcon("heart", color, size),
+          title: "Курсы",
+          tabBarIcon: ({ color, size }) => renderIcon("book-open-variant", color, size),
         }}
       />
       <Tabs.Screen
-        name="achievements"
+        name="consultations"
         options={{
-          title: "Достижения",
-          tabBarIcon: ({ color, size }) => renderIcon("trophy", color, size),
+          title: "Консультация",
+          tabBarIcon: ({ color, size }) => renderIcon("dog-side", color, size),
         }}
       />
       <Tabs.Screen
@@ -69,6 +69,14 @@ export default function TabsLayout() {
         options={{
           title: "Профиль",
           tabBarIcon: ({ color, size }) => renderIcon("account", color, size),
+        }}
+      />
+      <Tabs.Screen
+        name="achievements"
+        options={{
+          href: null,
+          title: "Достижения",
+          tabBarIcon: ({ color, size }) => renderIcon("trophy", color, size),
         }}
       />
     </Tabs>

@@ -4,7 +4,7 @@ import { getTrainerAvailability, getTrainerEditableSlots } from "@gafus/core";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { TrainerAvailabilityPanel } from "@/features/consultations/components/trainer-availability-panel";
+import { TrainerAvailabilityPanelContainer } from "@/features/consultations/components/trainer-availability-panel-container";
 import {
   addDaysToIsoDayKey,
   moscowDayRangeToUtcBounds,
@@ -14,22 +14,28 @@ import {
 import shellStyles from "../trainer-consultations-shell.module.css";
 
 /**
- * Расписание и исключения для консультаций кинолога.
+ * Расписание и исключения для консультаций кинолога (только роль TRAINER).
+ * ADMIN/MODERATOR — в админке «Расписания тренеров».
  */
 export default async function TrainerConsultationsAvailabilityPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
   }
-  if (!["TRAINER", "ADMIN", "MODERATOR"].includes(session.user.role)) {
+  if (session.user.role === "ADMIN" || session.user.role === "MODERATOR") {
+    const base = (process.env.ADMIN_PANEL_URL ?? "https://adminka.gafus.ru").replace(/\/$/, "");
+    redirect(`${base}/main-panel/consultations/trainers-schedules`);
+  }
+  if (session.user.role !== "TRAINER") {
     redirect("/main-panel");
   }
 
-  const data = await getTrainerAvailability(session.user.id);
+  const trainerUserId = session.user.id;
+  const data = await getTrainerAvailability(trainerUserId);
   const slotPickerMinDayKey = moscowTodayKey();
   const slotPickerMaxDayKey = addDaysToIsoDayKey(slotPickerMinDayKey, 14);
   const { fromUtc, toUtc } = moscowDayRangeToUtcBounds(slotPickerMinDayKey, slotPickerMaxDayKey);
-  const editableSlots = await getTrainerEditableSlots(session.user.id, fromUtc, toUtc);
+  const editableSlots = await getTrainerEditableSlots(trainerUserId, fromUtc, toUtc);
 
   return (
     <div className={shellStyles.layout}>
@@ -38,7 +44,8 @@ export default async function TrainerConsultationsAvailabilityPage() {
         ← К заявкам
       </Link>
       <div className={shellStyles.paper}>
-        <TrainerAvailabilityPanel
+        <TrainerAvailabilityPanelContainer
+          trainerUserId={trainerUserId}
           initial={data}
           editableSlots={editableSlots}
           slotPickerMinDayKey={slotPickerMinDayKey}

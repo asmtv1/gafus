@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Pets,
   EventNote,
+  CalendarMonth,
   Menu,
   Close,
 } from "@mui/icons-material";
@@ -79,6 +80,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       href: "/main-panel/consultations/bookings",
       icon: EventNote,
       label: "Все брони консультаций",
+      show: ["ADMIN", "MODERATOR"].includes(userRole),
+    },
+    {
+      href: "/main-panel/consultations/trainers-schedules",
+      icon: CalendarMonth,
+      label: "Расписания тренеров",
       show: ["ADMIN", "MODERATOR"].includes(userRole),
     },
   ].filter((item) => item.show);

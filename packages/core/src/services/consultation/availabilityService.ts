@@ -3,9 +3,9 @@ import { createWebLogger } from "@gafus/logger";
 
 import { ensureConsultationCynologistRow } from "./cynologistService";
 import { ConsultationForbiddenError, ConsultationNotFoundError } from "./errors";
-import { rebuildSlotsForCynologist } from "./slotService";
 import type {
   ConsultationAvailabilityRuleDto,
+  ConsultationSlotDto,
   DayOffDto,
   SlotExceptionDto,
 } from "./types";
@@ -92,6 +92,7 @@ export async function setTrainerAvailability(
   });
 
   const { from, to } = horizonRangeUtc(cyn.slotHorizonDays);
+  const { rebuildSlotsForCynologist } = await import("./slotService");
   await rebuildSlotsForCynologist(cynId, from, to);
   logger.success("setTrainerAvailability", { trainerUserId });
 }
@@ -126,6 +127,7 @@ export async function addDayOff(
   }
 
   const { from, to } = horizonRangeUtc(cyn.slotHorizonDays);
+  const { rebuildSlotsForCynologist } = await import("./slotService");
   await rebuildSlotsForCynologist(cynId, from, to);
 }
 
@@ -144,6 +146,7 @@ export async function removeDayOff(trainerUserId: string, dayOffId: string): Pro
   await prisma.consultationDayOff.delete({ where: { id: dayOffId } });
   if (cyn) {
     const { from, to } = horizonRangeUtc(cyn.slotHorizonDays);
+    const { rebuildSlotsForCynologist } = await import("./slotService");
     await rebuildSlotsForCynologist(cynId, from, to);
   }
 }
@@ -173,6 +176,7 @@ export async function addSlotException(
   });
 
   const { from, to } = horizonRangeUtc(cyn.slotHorizonDays);
+  const { rebuildSlotsForCynologist } = await import("./slotService");
   await rebuildSlotsForCynologist(cynId, from, to);
 }
 
@@ -191,8 +195,21 @@ export async function removeSlotException(trainerUserId: string, exceptionId: st
   await prisma.consultationSlotException.delete({ where: { id: exceptionId } });
   if (cyn) {
     const { from, to } = horizonRangeUtc(cyn.slotHorizonDays);
+    const { rebuildSlotsForCynologist } = await import("./slotService");
     await rebuildSlotsForCynologist(cynId, from, to);
   }
+}
+
+/**
+ * Свободные слоты для UI расписания (ленивый импорт slotService — без Prisma enums в графе только чтения).
+ */
+export async function getTrainerEditableSlots(
+  trainerUserId: string,
+  fromUtc: Date,
+  toUtc: Date,
+): Promise<ConsultationSlotDto[]> {
+  const { getTrainerEditableSlotsImpl } = await import("./slotService");
+  return getTrainerEditableSlotsImpl(trainerUserId, fromUtc, toUtc);
 }
 
 export async function getCynologistDayOffDates(

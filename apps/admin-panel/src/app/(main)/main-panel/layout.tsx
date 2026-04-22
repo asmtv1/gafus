@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Pets,
   EventNote,
+  CalendarMonth,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -81,6 +82,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/consultations/bookings" className={styles.button}>
               <EventNote sx={{ mr: 1.5, fontSize: 20 }} />
               Все брони консультаций
+            </Link>
+            <Link href="/main-panel/consultations/trainers-schedules" className={styles.button}>
+              <CalendarMonth sx={{ mr: 1.5, fontSize: 20 }} />
+              Расписания тренеров
             </Link>
           </>
         )}

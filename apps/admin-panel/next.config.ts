@@ -67,6 +67,7 @@ const nextConfig: NextConfig = {
   webpack: (config: WebpackConfig, { isServer }: { isServer: boolean }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
+      "@trainer-panel": path.resolve(__dirname, "../trainer-panel/src"),
       "@gafus/ui-components": path.resolve(
         __dirname,
         "../../packages/ui-components/src/index.ts",
@@ -84,6 +85,18 @@ const nextConfig: NextConfig = {
       "@gafus/core/services/consultation/adminBookingQueries": path.resolve(
         __dirname,
         "../../packages/core/src/services/consultation/adminBookingQueries.ts",
+      ),
+      "@gafus/core/services/consultation/availabilityService": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/availabilityService.ts",
+      ),
+      "@gafus/core/services/consultation/validation": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/validation.ts",
+      ),
+      "@gafus/core/services/consultation/types": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/types.ts",
       ),
     };
     if (isServer) {

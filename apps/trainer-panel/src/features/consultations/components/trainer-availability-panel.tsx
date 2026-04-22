@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import {
   Alert,
   Button,
   Checkbox,
   FormControlLabel,
+  IconButton,
   Stack,
   TextField,
 } from "@mui/material";
@@ -19,13 +22,7 @@ import type {
 } from "@gafus/core";
 import { reportClientError } from "@gafus/error-handling";
 
-import {
-  addDayOffAction,
-  addSlotExceptionAction,
-  removeDayOffAction,
-  removeSlotExceptionAction,
-  saveTrainerAvailabilityAction,
-} from "../lib/trainer-availability-actions";
+import type { TrainerAvailabilityHandlers } from "../lib/trainer-availability-handlers";
 import {
   CONSULTATION_TIMEZONE,
   enumerateIsoDayKeysInclusive,
@@ -79,6 +76,7 @@ interface TrainerAvailabilityPanelProps {
   /** Календарные границы блока «Недоступные слоты» (МСК, YYYY-MM-DD), согласованы с сервером */
   slotPickerMinDayKey: string;
   slotPickerMaxDayKey: string;
+  handlers: TrainerAvailabilityHandlers;
 }
 
 /**
@@ -89,6 +87,7 @@ export function TrainerAvailabilityPanel({
   editableSlots,
   slotPickerMinDayKey,
   slotPickerMaxDayKey,
+  handlers,
 }: TrainerAvailabilityPanelProps) {
   const router = useRouter();
   const [rules, setRules] = useState(() => rulesToFormState(initial.rules));
@@ -119,7 +118,7 @@ export function TrainerAvailabilityPanel({
     setError(null);
     startTransition(() => {
       void (async () => {
-        const res = await saveTrainerAvailabilityAction({ rules });
+        const res = await handlers.saveRules(rules);
         if (!res.success) {
           setError(res.error);
           return;
@@ -133,7 +132,7 @@ export function TrainerAvailabilityPanel({
         setError("Ошибка сохранения");
       });
     });
-  }, [rules, router]);
+  }, [handlers, rules, router]);
 
   const handleAddDayOff = useCallback(() => {
     if (selectedDayOffDates.length === 0) {
@@ -144,7 +143,7 @@ export function TrainerAvailabilityPanel({
     startTransition(() => {
       void (async () => {
         for (const date of selectedDayOffDates) {
-          const res = await addDayOffAction(date);
+          const res = await handlers.addDayOff(date);
           if (!res.success) {
             setError(res.error);
             return;
@@ -160,14 +159,14 @@ export function TrainerAvailabilityPanel({
         setError("Ошибка");
       });
     });
-  }, [router, selectedDayOffDates]);
+  }, [handlers, router, selectedDayOffDates]);
 
   const handleRemoveDayOff = useCallback(
     (id: string) => {
       setError(null);
       startTransition(() => {
         void (async () => {
-          const res = await removeDayOffAction(id);
+          const res = await handlers.removeDayOff(id);
           if (!res.success) {
             setError(res.error);
             return;
@@ -182,7 +181,7 @@ export function TrainerAvailabilityPanel({
         });
       });
     },
-    [router],
+    [handlers, router],
   );
 
   const handleAddExceptions = useCallback(() => {
@@ -199,7 +198,7 @@ export function TrainerAvailabilityPanel({
           if (!slot) {
             continue;
           }
-          const res = await addSlotExceptionAction(slot.startAtUtc, slot.endAtUtc);
+          const res = await handlers.addSlotException(slot.startAtUtc, slot.endAtUtc);
           if (!res.success) {
             setError(res.error);
             return;
@@ -215,14 +214,14 @@ export function TrainerAvailabilityPanel({
         setError("Ошибка");
       });
     });
-  }, [editableSlots, router, selectedUnavailableSlotIds]);
+  }, [editableSlots, handlers, router, selectedUnavailableSlotIds]);
 
   const handleRemoveException = useCallback(
     (id: string) => {
       setError(null);
       startTransition(() => {
         void (async () => {
-          const res = await removeSlotExceptionAction(id);
+          const res = await handlers.removeSlotException(id);
           if (!res.success) {
             setError(res.error);
             return;
@@ -237,7 +236,7 @@ export function TrainerAvailabilityPanel({
         });
       });
     },
-    [router],
+    [handlers, router],
   );
 
   const sortedRules = useMemo(
@@ -367,8 +366,11 @@ export function TrainerAvailabilityPanel({
         </Alert>
       ) : null}
       <p className={styles.meta}>
-        Часовой пояс: <strong>МСК (UTC+3)</strong>. Длительность слота:{" "}
-        <strong>{initial.slotDurationMin}</strong> мин.
+        <span className={styles.metaBadge}>МСК · UTC+3</span>
+        <span className={styles.metaDot} aria-hidden />
+        <span>
+          Слот: <strong>{initial.slotDurationMin} мин</strong>
+        </span>
       </p>
 
       <section className={styles.block}>
@@ -417,27 +419,31 @@ export function TrainerAvailabilityPanel({
         <h2 className={styles.blockTitle}>Выходные</h2>
         <div className={styles.dayOffCalendar}>
           <div className={styles.dayOffCalendarHeader}>
-            <Button
+            <IconButton
               size="small"
+              className={styles.calendarNavBtn}
+              aria-label="Предыдущий месяц"
               onClick={() => {
                 setDayOffMonthCursor(
                   new Date(dayOffMonthCursor.getFullYear(), dayOffMonthCursor.getMonth() - 1, 1),
                 );
               }}
             >
-              {"<"}
-            </Button>
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
             <span className={styles.dayOffCalendarMonth}>{dayOffMonthLabel}</span>
-            <Button
+            <IconButton
               size="small"
+              className={styles.calendarNavBtn}
+              aria-label="Следующий месяц"
               onClick={() => {
                 setDayOffMonthCursor(
                   new Date(dayOffMonthCursor.getFullYear(), dayOffMonthCursor.getMonth() + 1, 1),
                 );
               }}
             >
-              {">"}
-            </Button>
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
           </div>
           <div className={styles.dayOffCalendarWeekdays}>
             {CALENDAR_WEEKDAY_LABELS.map((weekday) => (
@@ -476,23 +482,23 @@ export function TrainerAvailabilityPanel({
           </div>
         </div>
         <Button
-          variant="outlined"
+          variant="contained"
           color="primary"
+          className={styles.blockAction}
           disabled={pending || selectedDayOffDates.length === 0}
           onClick={handleAddDayOff}
-          sx={{ mt: 1.5 }}
         >
           Добавить выбранные дни
         </Button>
-        <ul className={styles.list}>
+        <ul className={styles.itemList}>
           {initial.dayOffs.map((d) => (
-            <li key={d.id}>
-              <span>{d.date}</span>
+            <li key={d.id} className={styles.itemListRow}>
+              <span className={styles.itemListText}>{d.date}</span>
               <Button
                 size="small"
                 variant="text"
                 color="error"
-                className={styles.inlineButton}
+                className={styles.dangerTextBtn}
                 onClick={() => handleRemoveDayOff(d.id)}
               >
                 Удалить
@@ -505,8 +511,9 @@ export function TrainerAvailabilityPanel({
       <section className={styles.block}>
         <h2 className={styles.blockTitle}>Недоступные слоты</h2>
         <p className={styles.caption}>
-          Список дней: с сегодняшнего (МСК) и на 14 дней вперёд — все дни показываются, даже если свободных
-          слотов уже нет (занято исключениями). Отметьте интервалы, которые нужно скрыть для записи.
+          <span className={styles.captionLead}>Список дней:</span> с сегодняшнего (МСК) и на 14 дней
+          вперёд — все дни показываются, даже если свободных слотов уже нет (занято исключениями).
+          Отметьте интервалы, которые нужно скрыть для записи.
         </p>
         <div className={styles.slotDays}>
           {slotsByDay.map((entry) => (
@@ -539,18 +546,18 @@ export function TrainerAvailabilityPanel({
           )}
         </div>
         <Button
-          variant="outlined"
+          variant="contained"
           color="primary"
+          className={styles.blockAction}
           disabled={pending || selectedUnavailableSlotIds.length === 0}
           onClick={handleAddExceptions}
-          sx={{ mt: 1.5 }}
         >
           Сделать выбранные слоты недоступными
         </Button>
-        <ul className={styles.list}>
+        <ul className={styles.itemList}>
           {initial.exceptions.map((ex) => (
-            <li key={ex.id}>
-              <span>
+            <li key={ex.id} className={styles.itemListRow}>
+              <span className={styles.itemListText}>
                 {new Date(ex.startAtUtc).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })} —{" "}
                 {new Date(ex.endAtUtc).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })}
               </span>
@@ -558,7 +565,7 @@ export function TrainerAvailabilityPanel({
                 size="small"
                 variant="text"
                 color="error"
-                className={styles.inlineButton}
+                className={styles.dangerTextBtn}
                 onClick={() => handleRemoveException(ex.id)}
               >
                 Удалить

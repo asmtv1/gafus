@@ -3,10 +3,8 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  formatConsultationListDateTimeMsk,
-  getConsultationBookingStatusPresentation,
-} from "@gafus/core";
+import { getConsultationBookingStatusPresentation } from "@gafus/core/services/consultation/bookingStatusPresentation";
+import { formatConsultationListDateTimeMsk } from "@gafus/core/services/consultation/consultationMskFormat";
 import * as Linking from "expo-linking";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -60,7 +58,7 @@ export default function ConsultationsMineScreen() {
 
   const onCatalog = useCallback(() => {
     hapticFeedback.light();
-    router.push("/consultations" as Href);
+    router.push("/(main)/(tabs)/consultations" as Href);
   }, [router]);
 
   return (

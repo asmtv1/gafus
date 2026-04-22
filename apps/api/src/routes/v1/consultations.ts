@@ -1,6 +1,8 @@
 /**
  * Консультации с кинологом (mobile + паритет с web Route Handlers).
  */
+import type { AuthRole } from "@gafus/auth";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -34,6 +36,7 @@ import {
   rejectBookingByTrainer,
   removeDayOff,
   removeSlotException,
+  resolveTargetTrainerUserIdForStaff,
   setTrainerAvailability,
   slotExceptionInputSchema,
   verifyConsultationSlotFreeForCynologist,
@@ -47,6 +50,15 @@ import { consultationBookRateLimiter } from "../../middleware/rate-limit.js";
 const logger = createWebLogger("api-consultations");
 
 export const consultationsRoutes = new Hono();
+
+async function targetTrainerIdFromRequest(c: Context): Promise<string> {
+  const user = c.get("user");
+  const q = c.req.query("trainerUserId");
+  return resolveTargetTrainerUserIdForStaff(
+    { id: user.id, role: user.role as AuthRole },
+    q ?? undefined,
+  );
+}
 
 function handleConsultationError(c: import("hono").Context, error: unknown) {
   if (error instanceof ConsultationSlotTakenError) {
@@ -201,8 +213,8 @@ consultationsRoutes.post(
 
 consultationsRoutes.get("/trainer/availability", requireRole("TRAINER", "ADMIN", "MODERATOR"), async (c) => {
   try {
-    const user = c.get("user");
-    const data = await getTrainerAvailability(user.id);
+    const targetId = await targetTrainerIdFromRequest(c);
+    const data = await getTrainerAvailability(targetId);
     return c.json({ success: true, data });
   } catch (error) {
     return handleConsultationError(c, error);
@@ -215,9 +227,9 @@ consultationsRoutes.put(
   zValidator("json", trainerAvailabilityInputSchema),
   async (c) => {
     try {
-      const user = c.get("user");
+      const targetId = await targetTrainerIdFromRequest(c);
       const body = c.req.valid("json");
-      await setTrainerAvailability(user.id, body);
+      await setTrainerAvailability(targetId, body);
       return c.json({ success: true, data: {} });
     } catch (error) {
       return handleConsultationError(c, error);
@@ -231,9 +243,9 @@ consultationsRoutes.post(
   zValidator("json", dayOffInputSchema),
   async (c) => {
     try {
-      const user = c.get("user");
+      const targetId = await targetTrainerIdFromRequest(c);
       const body = c.req.valid("json");
-      await addDayOff(user.id, body.date, body.reason);
+      await addDayOff(targetId, body.date, body.reason);
       return c.json({ success: true, data: {} });
     } catch (error) {
       return handleConsultationError(c, error);
@@ -243,9 +255,9 @@ consultationsRoutes.post(
 
 consultationsRoutes.delete("/trainer/day-offs/:dayOffId", requireRole("TRAINER", "ADMIN", "MODERATOR"), async (c) => {
   try {
-    const user = c.get("user");
+    const targetId = await targetTrainerIdFromRequest(c);
     const dayOffId = c.req.param("dayOffId");
-    await removeDayOff(user.id, dayOffId);
+    await removeDayOff(targetId, dayOffId);
     return c.json({ success: true, data: {} });
   } catch (error) {
     return handleConsultationError(c, error);
@@ -258,10 +270,10 @@ consultationsRoutes.post(
   zValidator("json", slotExceptionInputSchema),
   async (c) => {
     try {
-      const user = c.get("user");
+      const targetId = await targetTrainerIdFromRequest(c);
       const body = c.req.valid("json");
       await addSlotException(
-        user.id,
+        targetId,
         new Date(body.startAt),
         new Date(body.endAt),
         body.reason,
@@ -278,9 +290,9 @@ consultationsRoutes.delete(
   requireRole("TRAINER", "ADMIN", "MODERATOR"),
   async (c) => {
     try {
-      const user = c.get("user");
+      const targetId = await targetTrainerIdFromRequest(c);
       const exceptionId = c.req.param("exceptionId");
-      await removeSlotException(user.id, exceptionId);
+      await removeSlotException(targetId, exceptionId);
       return c.json({ success: true, data: {} });
     } catch (error) {
       return handleConsultationError(c, error);

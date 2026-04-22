@@ -14,6 +14,8 @@ export type AuthStackParamList = {
 export type MainTabsParamList = {
   index: undefined;
   courses: undefined;
+  articles: undefined;
+  consultations: undefined;
   achievements: undefined;
   profile: undefined;
 };

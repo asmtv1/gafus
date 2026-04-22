@@ -55,6 +55,22 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@gafus/core/utils/retry": path.resolve(__dirname, "../../packages/core/src/utils/retry"),
+      "@gafus/core/services/consultation/cynologistService": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/cynologistService.ts",
+      ),
+      "@gafus/core/services/consultation/errors": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/errors.ts",
+      ),
+      "@gafus/core/services/consultation/availabilityService": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/availabilityService.ts",
+      ),
+      "@gafus/core/services/consultation/validation": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/consultation/validation.ts",
+      ),
     };
 
     // Создаем dummy-файл lib/worker.js, чтобы подавить попытки загрузки thread-stream/worker

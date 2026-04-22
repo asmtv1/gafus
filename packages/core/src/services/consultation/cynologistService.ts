@@ -123,6 +123,35 @@ export async function listAllTrainersForAdmin(): Promise<
 }
 
 /**
+ * Кто может править расписание: тренер — только себя; ADMIN/MODERATOR — любого тренера (нужен `requestedTrainerUserId`).
+ */
+export async function resolveTargetTrainerUserIdForStaff(
+  actor: { id: string; role: AuthRole },
+  requestedTrainerUserId: string | undefined,
+): Promise<string> {
+  if (actor.role === "TRAINER") {
+    if (requestedTrainerUserId && requestedTrainerUserId !== actor.id) {
+      throw new ConsultationForbiddenError();
+    }
+    return actor.id;
+  }
+  if (actor.role === "ADMIN" || actor.role === "MODERATOR") {
+    if (!requestedTrainerUserId?.trim()) {
+      throw new ConsultationForbiddenError("Укажите тренера (параметр trainerUserId)");
+    }
+    const u = await prisma.user.findUnique({
+      where: { id: requestedTrainerUserId },
+      select: { role: true },
+    });
+    if (!u || u.role !== TRAINER_ROLE) {
+      throw new ConsultationForbiddenError("Указанный пользователь не тренер");
+    }
+    return requestedTrainerUserId;
+  }
+  throw new ConsultationForbiddenError();
+}
+
+/**
  * Убедиться, что у тренера есть строка ConsultationCynologist (создать с дефолтами).
  */
 export async function ensureConsultationCynologistRow(trainerUserId: string): Promise<string> {

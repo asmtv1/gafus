@@ -3,37 +3,43 @@
 .layout {
   max-width: 920px;
   margin: 0 auto;
-  padding: 24px 20px 32px;
+  padding: 24px 20px 40px;
 }
 
 .pageTitle {
   margin: 0 0 8px;
   font-size: 1.75rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
   line-height: 1.25;
 }
 
 .navLink {
-  display: inline-block;
-  margin-bottom: 20px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #0d47a1;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2563eb;
   text-decoration: none;
+  border-radius: 8px;
+  padding: 0.2rem 0.15rem 0.2rem 0;
+  transition: color 0.12s ease;
 }
 
 .navLink:hover {
+  color: #1d4ed8;
   text-decoration: underline;
-  color: #1565c0;
+  text-underline-offset: 3px;
 }
 
 .paper {
-  background: #ffffff;
-  border: 1px solid #cfd8dc;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  padding: 20px 22px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgb(15 23 42 / 0.06);
+  padding: 22px 24px 26px;
 }
 
 @media (max-width: 600px) {

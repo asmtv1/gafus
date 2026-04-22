@@ -1,0 +1,3 @@
+import ConsultationsCynologistsListScreen from "@/features/consultations/screens/ConsultationsCynologistsListScreen";
+
+export default ConsultationsCynologistsListScreen;

@@ -1,229 +1,468 @@
-/* Расписание и исключения консультаций — контрастные блоки */
+/* Расписание консультаций: спокойная палитра, читаемая иерархия */
 
 .root {
+  --pa-bg: #f8fafc;
+  --pa-surface: #ffffff;
+  --pa-border: #e2e8f0;
+  --pa-border-strong: #cbd5e1;
+  --pa-text: #0f172a;
+  --pa-muted: #64748b;
+  --pa-accent: #2563eb;
+  --pa-accent-hover: #1d4ed8;
+  --pa-accent-soft: #eff6ff;
+  --pa-accent-border: #bfdbfe;
+  --pa-danger: #dc2626;
+  --pa-danger-soft: #fef2f2;
+  --pa-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  --pa-shadow-md: 0 4px 16px rgb(15 23 42 / 0.07);
+  --pa-radius: 14px;
+  --pa-radius-sm: 10px;
+
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.5rem;
 }
 
 .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
   margin: 0;
-  font-size: 0.95rem;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.9rem;
   line-height: 1.5;
-  color: #37474f;
+  color: var(--pa-muted);
+  background: var(--pa-accent-soft);
+  border: 1px solid var(--pa-accent-border);
+  border-radius: var(--pa-radius-sm);
   font-weight: 500;
 }
 
+.metaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1e40af;
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-accent-border);
+}
+
+.metaDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pa-border-strong);
+  flex-shrink: 0;
+}
+
 .block {
-  padding: 18px 20px;
-  background: #fafafa;
-  border: 1px solid #b0bec5;
-  border-radius: 10px;
+  position: relative;
+  padding: 1.25rem 1.35rem 1.35rem;
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius);
+  box-shadow: var(--pa-shadow);
+}
+
+.block::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.85rem;
+  bottom: 0.85rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--pa-accent) 0%, #38bdf8 100%);
+  opacity: 0.85;
 }
 
 .blockTitle {
-  margin: 0 0 14px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  margin: 0 0 1rem;
+  padding-left: 0.4rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--pa-text);
 }
 
 .caption {
   display: block;
-  margin: 0 0 12px;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: #455a64;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--pa-muted);
+  background: var(--pa-bg);
+  border-radius: var(--pa-radius-sm);
+  border: 1px solid var(--pa-border);
+}
+
+.captionLead {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+  color: var(--pa-text);
 }
 
 .ruleRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  background: #ffffff;
-  border: 1px solid #cfd8dc;
-  border-radius: 8px;
+  gap: 0.6rem 0.75rem;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--pa-bg);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ruleRow:last-of-type {
+  margin-bottom: 0;
+}
+
+.ruleRow:hover {
+  border-color: var(--pa-border-strong);
+  box-shadow: var(--pa-shadow);
 }
 
 .weekday {
-  min-width: 32px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: #1a1a1a;
+  min-width: 2rem;
+  font-weight: 800;
+  font-size: 0.875rem;
+  color: var(--pa-accent);
+  letter-spacing: 0.02em;
 }
 
 .saveButton {
-  margin-top: 14px;
+  margin-top: 1rem;
+  min-width: 12rem;
+  text-transform: none;
+  font-weight: 700;
+  border-radius: 10px;
+  box-shadow: none;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
 }
 
+.blockAction {
+  margin-top: 0.5rem;
+  text-transform: none;
+  font-weight: 700;
+  border-radius: 10px;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+  box-shadow: 0 2px 6px rgb(37 99 235 / 0.25);
+}
+
+.blockAction:disabled {
+  box-shadow: none;
+}
+
+/* Календарь выходных */
 .dayOffCalendar {
-  border: 1px solid #cfd8dc;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 12px;
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-sm);
+  background: var(--pa-bg);
+  padding: 0.9rem 0.85rem 1rem;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6);
 }
 
 .dayOffCalendarHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0 0.1rem;
+}
+
+.calendarNavBtn {
+  color: var(--pa-accent) !important;
+  background: var(--pa-surface) !important;
+  border: 1px solid var(--pa-border) !important;
+  box-shadow: var(--pa-shadow);
+}
+
+.calendarNavBtn:hover {
+  background: var(--pa-accent-soft) !important;
+  border-color: var(--pa-accent-border) !important;
 }
 
 .dayOffCalendarMonth {
   font-size: 0.95rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-weight: 800;
+  color: var(--pa-text);
   text-transform: capitalize;
+  letter-spacing: -0.01em;
 }
 
 .dayOffCalendarWeekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
 }
 
 .dayOffCalendarWeekdays span {
   text-align: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #455a64;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pa-muted);
 }
 
 .dayOffCalendarGrid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 0.4rem;
 }
 
 .dayOffCalendarEmptyCell {
-  height: 34px;
+  height: 2.4rem;
 }
 
 .dayOffCalendarCell {
-  height: 34px;
-  border: 1px solid #cfd8dc;
-  border-radius: 6px;
-  background: #fafafa;
-  color: #1a1a1a;
-  font-size: 0.85rem;
-  font-weight: 600;
+  height: 2.4rem;
+  border: 1px solid var(--pa-border);
+  border-radius: 8px;
+  background: var(--pa-surface);
+  color: var(--pa-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.1s ease;
+}
+
+.dayOffCalendarCell:hover:not(:disabled) {
+  border-color: var(--pa-accent);
+  background: var(--pa-accent-soft);
+  transform: translateY(-1px);
+}
+
+.dayOffCalendarCell:focus-visible {
+  outline: 2px solid var(--pa-accent);
+  outline-offset: 2px;
 }
 
 .dayOffCalendarCell[data-selected="true"] {
-  background: #1976d2;
-  border-color: #1976d2;
-  color: #ffffff;
+  background: var(--pa-accent);
+  border-color: var(--pa-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgb(37 99 235 / 0.35);
 }
 
 .dayOffCalendarCell[data-existing="true"] {
-  background: #e3f2fd;
-  border-color: #64b5f6;
-  color: #0d47a1;
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
+
+.dayOffCalendarCell[data-existing="true"][data-selected="true"] {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #fff;
 }
 
 .dayOffCalendarCell:disabled {
-  cursor: default;
-  opacity: 0.75;
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
 }
 
+/* Чипы дней: горизонтальный скролл, ровные ряды */
 .slotDays {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 10px;
-  border: 1px solid #d9e1e4;
-  border-radius: 10px;
-  background: #ffffff;
-  max-height: 200px;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.6rem;
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-sm);
+  background: var(--pa-surface);
+  max-height: 7.5rem;
+  overflow-x: auto;
   overflow-y: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pa-border-strong) transparent;
+}
+
+.slotDays::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.slotDays::-webkit-scrollbar-thumb {
+  background: var(--pa-border-strong);
+  border-radius: 999px;
 }
 
 .slotDayButton {
-  border: 1px solid #cfd8dc;
+  flex: 0 0 auto;
+  max-width: 100%;
+  border: 1px solid var(--pa-border);
   border-radius: 999px;
-  background: #ffffff;
-  color: #263238;
-  padding: 6px 12px;
-  font-size: 0.85rem;
+  background: var(--pa-bg);
+  color: var(--pa-text);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   text-transform: capitalize;
+  line-height: 1.3;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+  box-shadow: var(--pa-shadow);
+}
+
+.slotDayButton:hover {
+  border-color: var(--pa-accent-border);
+  background: var(--pa-accent-soft);
+}
+
+.slotDayButton:focus-visible {
+  outline: 2px solid var(--pa-accent);
+  outline-offset: 2px;
 }
 
 .slotDayButton[data-selected="true"] {
-  background: #1976d2;
-  border-color: #1976d2;
-  color: #ffffff;
+  background: var(--pa-accent);
+  border-color: var(--pa-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgb(37 99 235 / 0.3);
 }
 
 .slotChoices {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid #d9e1e4;
-  border-radius: 10px;
-  background: #ffffff;
-  min-height: 54px;
+  gap: 0.5rem;
+  padding: 0.75rem 0.65rem;
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-sm);
+  background: var(--pa-surface);
+  min-height: 3.4rem;
+  align-content: flex-start;
 }
 
 .slotChoice {
-  border: 1px solid #cfd8dc;
+  border: 1px solid var(--pa-border);
   border-radius: 8px;
-  background: #ffffff;
-  color: #1a1a1a;
-  padding: 8px 10px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  background: var(--pa-bg);
+  color: var(--pa-text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
-}
-
-.slotChoice[data-selected="true"] {
-  background: #ffebee;
-  border-color: #ef5350;
-  color: #b71c1c;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .slotChoice:hover {
-  border-color: #90a4ae;
-  background: #f7fafb;
+  border-color: var(--pa-accent);
+  background: var(--pa-accent-soft);
 }
 
-.list {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: #263238;
-  font-size: 0.9rem;
-  line-height: 1.6;
+.slotChoice:focus-visible {
+  outline: 2px solid var(--pa-accent);
+  outline-offset: 2px;
 }
 
-.list li {
-  margin-bottom: 8px;
+.slotChoice[data-selected="true"] {
+  background: var(--pa-danger-soft);
+  border-color: #fecaca;
+  color: var(--pa-danger);
+  box-shadow: inset 0 0 0 1px rgb(220 38 38 / 0.12);
 }
 
-.inlineButton {
-  margin-left: 6px;
-  vertical-align: baseline;
+/* Списки выходных и исключений */
+.itemList {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-/* Подписи и ввод внутри блоков — не «серое на сером» */
+.itemListRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--pa-bg);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-sm);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--pa-text);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.itemListRow:hover {
+  border-color: var(--pa-border-strong);
+  box-shadow: var(--pa-shadow);
+}
+
+.itemListText {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.dangerTextBtn {
+  flex-shrink: 0;
+  text-transform: none;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  border-radius: 8px;
+}
+
+.dangerTextBtn:hover {
+  background: var(--pa-danger-soft);
+}
+
+/* Подписи и ввод MUI */
 .block :global(.MuiFormLabel-root) {
-  color: #37474f;
+  color: #475569;
+  font-size: 0.8rem;
 }
 
 .block :global(.MuiOutlinedInput-input) {
-  color: #1a1a1a;
+  color: var(--pa-text);
+  font-weight: 600;
+  font-size: 0.875rem;
 }
 
 .block :global(.MuiFormControlLabel-label) {
-  color: #263238;
-  font-weight: 500;
+  color: var(--pa-text);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.block :global(.MuiCheckbox-root) {
+  padding: 0.4rem;
 }

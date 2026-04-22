@@ -1,5 +1,17 @@
-import { ConsultationBookingStatus, ConsultationSlotStatus } from "@gafus/prisma";
 import { z } from "zod";
+
+/** Литералы Prisma enum — не `z.nativeEnum` из @gafus/prisma: в server-бандлах Next именованные экспорты Prisma-enum иногда undefined. */
+const CONSULTATION_SLOT_STATUS = ["FREE", "BOOKED", "BLOCKED"] as const;
+const CONSULTATION_BOOKING_STATUS = [
+  "PENDING_TRAINER_CONFIRMATION",
+  "CONFIRMED",
+  "CANCELLED_BY_TRAINER",
+  "CANCELLED_BY_USER",
+  "CANCELLED_BY_SLA",
+  "CANCELLED_BY_SYSTEM",
+  "COMPLETED",
+  "NO_SHOW",
+] as const;
 
 const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -94,12 +106,12 @@ const consultationSlotDtoSchema = z.object({
   id: consultationEntityIdSchema,
   startAtUtc: z.string().min(1),
   endAtUtc: z.string().min(1),
-  status: z.nativeEnum(ConsultationSlotStatus),
+  status: z.enum(CONSULTATION_SLOT_STATUS),
 });
 
 const consultationBookingDtoSchema = z.object({
   id: consultationEntityIdSchema,
-  status: z.nativeEnum(ConsultationBookingStatus),
+  status: z.enum(CONSULTATION_BOOKING_STATUS),
   slot: consultationSlotDtoSchema,
   cynologistUserId: z.string().min(1),
   cynologistDisplayName: z.string().nullable(),

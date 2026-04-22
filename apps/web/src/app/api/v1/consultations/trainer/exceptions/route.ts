@@ -1,5 +1,6 @@
 /**
  * POST /api/v1/consultations/trainer/exceptions
+ * Query: trainerUserId — для ADMIN/MODERATOR.
  */
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -7,10 +8,15 @@ import { getServerSession } from "next-auth";
 import type { AuthRole } from "@gafus/auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { addSlotException, slotExceptionInputSchema } from "@gafus/core";
+import { addSlotException, ConsultationForbiddenError, slotExceptionInputSchema } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 
-import { logConsultationRouteError, mapZodError } from "@/shared/lib/consultation-route-errors";
+import {
+  logConsultationRouteError,
+  mapConsultationError,
+  mapZodError,
+} from "@/shared/lib/consultation-route-errors";
+import { resolveTrainerUserIdFromSession } from "@/shared/lib/consultation-target-trainer";
 
 const logger = createWebLogger("api-consultations-exceptions");
 
@@ -32,10 +38,21 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         { status: 403 },
       );
     }
+    const trainerUserId = request.nextUrl.searchParams.get("trainerUserId");
+    let targetId: string;
+    try {
+      targetId = await resolveTrainerUserIdFromSession(session, trainerUserId);
+    } catch (e) {
+      const mapped = e instanceof ConsultationForbiddenError ? mapConsultationError(e) : null;
+      if (mapped) {
+        return NextResponse.json(mapped.body, { status: mapped.status });
+      }
+      throw e;
+    }
     const json = await request.json();
     const body = slotExceptionInputSchema.parse(json);
     await addSlotException(
-      session.user.id,
+      targetId,
       new Date(body.startAt),
       new Date(body.endAt),
       body.reason,

@@ -41,7 +41,7 @@ export default function ConsultationSlotsScreen() {
     <SafeAreaView style={styles.root} edges={["bottom"]}>
       <Pressable
         style={styles.linkRow}
-        onPress={() => router.push("/consultations" as Href)}
+        onPress={() => router.push("/(main)/(tabs)/consultations" as Href)}
       >
         <Text style={styles.linkText}>← Все кинологи</Text>
       </Pressable>
