@@ -12,6 +12,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.js
 # Копируем исходный код
 COPY packages ./packages
 COPY apps/admin-panel ./apps/admin-panel
+# admin-panel импортирует исходники из trainer-panel (next.config alias @trainer-panel)
+COPY apps/trainer-panel ./apps/trainer-panel
 
 # Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile
