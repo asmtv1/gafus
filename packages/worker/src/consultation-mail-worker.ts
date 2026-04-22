@@ -1,12 +1,8 @@
-import { ConsultationEmailStatus, ConsultationEmailType } from "@gafus/prisma";
+import { ConsultationEmailStatus } from "@gafus/prisma";
 import { prisma } from "@gafus/prisma";
 import { connection } from "@gafus/queues";
-import { sendTransactionalMail } from "@gafus/mailer";
 import { createWorkerLogger } from "@gafus/logger";
-import {
-  formatConsultationListDateTimeMsk,
-  formatConsultationTimeMsk,
-} from "@gafus/core/services/consultation";
+import { sendConsultationEmailFromLog } from "@gafus/core/services/consultation";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
@@ -14,87 +10,6 @@ const logger = createWorkerLogger("consultation-mail-worker");
 
 interface MailJobData {
   emailLogId: string;
-}
-
-function subjectForType(t: ConsultationEmailType): string {
-  switch (t) {
-    case ConsultationEmailType.TRAINER_CONFIRM_REQUEST:
-      return "Новая заявка на консультацию — требуется подтверждение";
-    case ConsultationEmailType.CLIENT_BOOKING_RECEIVED:
-      return "Заявка на консультацию получена";
-    case ConsultationEmailType.CLIENT_BOOKING_CONFIRMED:
-      return "Консультация подтверждена";
-    case ConsultationEmailType.TRAINER_BOOKING_CONFIRMED:
-      return "Вы подтвердили консультацию";
-    case ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER:
-      return "Консультация отменена тренером";
-    case ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER:
-      return "Клиент отменил консультацию";
-    case ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_SLA:
-      return "Консультация отменена (истекло время подтверждения)";
-    default:
-      return "Уведомление о консультации";
-  }
-}
-
-async function buildBody(logId: string, type: ConsultationEmailType): Promise<{
-  to: string;
-  text: string;
-  subject: string;
-}> {
-  const log = await prisma.consultationEmailLog.findUnique({
-    where: { id: logId },
-    include: {
-      booking: {
-        include: {
-          client: { select: { email: true, username: true } },
-          cynologist: {
-            include: {
-              user: { select: { email: true, username: true, profile: { select: { fullName: true } } } },
-            },
-          },
-          slot: true,
-        },
-      },
-    },
-  });
-  if (!log?.booking) {
-    throw new Error("booking not found for email log");
-  }
-
-  const b = log.booking;
-  const slotStartMsk = formatConsultationListDateTimeMsk(b.slot.startAt.toISOString()).replace(
-    /,\s*/,
-    " ",
-  );
-  const slotEndMsk = formatConsultationTimeMsk(b.slot.endAt);
-  const base =
-    `Бронирование ${b.id}. Слот: ${slotStartMsk} — ${slotEndMsk} (МСК, UTC+3).\n` +
-    "Все времена консультаций рассчитываются по МСК.";
-  const problem = b.clientProblem?.trim()
-    ? `\n\nКраткое изложение проблемы от клиента:\n${b.clientProblem.trim()}`
-    : "";
-
-  let to = b.client.email ?? "";
-  if (
-    type === ConsultationEmailType.TRAINER_CONFIRM_REQUEST ||
-    type === ConsultationEmailType.TRAINER_BOOKING_CONFIRMED ||
-    type === ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER
-  ) {
-    to = b.cynologist.user.email ?? "";
-  }
-  if (type === ConsultationEmailType.CLIENT_BOOKING_RECEIVED || type === ConsultationEmailType.CLIENT_BOOKING_CONFIRMED || type === ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER || type === ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_SLA) {
-    to = b.client.email ?? "";
-  }
-
-  if (!to) {
-    throw new Error("Получатель без email");
-  }
-
-  const subject = subjectForType(type);
-  const text = `${subject}\n\n${base}${problem}\n\nСсылка на видео: ${b.telemostJoinUrl ?? "—"}`;
-
-  return { to, text, subject };
 }
 
 export function startConsultationMailWorker(): void {
@@ -114,8 +29,7 @@ export function startConsultationMailWorker(): void {
       }
 
       try {
-        const { to, text, subject } = await buildBody(emailLogId, log.type);
-        await sendTransactionalMail({ to, subject, text });
+        await sendConsultationEmailFromLog(emailLogId, log.type);
         await prisma.consultationEmailLog.update({
           where: { id: emailLogId },
           data: {

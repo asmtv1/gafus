@@ -14,3 +14,8 @@ export {
   consultationMailQueue,
   CONSULTATION_MAIL_JOB_ID,
 } from "./consultation-mail-queue.js";
+export {
+  consultationReminderQueue,
+  CONSULTATION_REMINDER_JOB_ID,
+  removeConsultationReminderJob,
+} from "./consultation-reminder-queue.js";

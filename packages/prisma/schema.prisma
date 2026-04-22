@@ -1199,6 +1199,12 @@ enum ConsultationEmailType {
   CLIENT_BOOKING_CANCELLED_BY_TRAINER
   TRAINER_BOOKING_CANCELLED_BY_USER
   CLIENT_BOOKING_CANCELLED_BY_SLA
+  /// Телемост не создался при записи, бронь снята системой
+  CLIENT_BOOKING_TELEMOST_FAILED
+  /// Напоминание за 30 минут (клиент)
+  CLIENT_CONSULTATION_REMINDER_30M
+  /// Напоминание за 30 минут (кинолог)
+  TRAINER_CONSULTATION_REMINDER_30M
 }
 
 enum ConsultationEmailStatus {

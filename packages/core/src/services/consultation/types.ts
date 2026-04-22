@@ -23,6 +23,8 @@ export interface ConsultationBookingDto {
   cynologistUserId: string;
   cynologistDisplayName: string | null;
   clientProblem: string | null;
+  /** Комментарий при отмене/отклонении кинологом (если указали). */
+  cancelReason: string | null;
   joinUrl: string | null;
   watchUrl: string | null;
   confirmationDeadlineAt: string;

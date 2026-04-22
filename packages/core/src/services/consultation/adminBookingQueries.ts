@@ -31,6 +31,7 @@ export async function listAdminBookings(): Promise<ConsultationBookingDto[]> {
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
     clientProblem: b.clientProblem,
+    cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),

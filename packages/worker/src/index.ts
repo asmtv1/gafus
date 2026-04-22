@@ -20,6 +20,7 @@ import { startConsentLogCleanupWorker } from "./consent-log-cleanup-worker";
 import { startExamCleanupWorker } from "./exam-cleanup-worker";
 import { startPetPreventionReminderWorker } from "./pet-prevention-reminder-worker";
 import { startConsultationMailWorker } from "./consultation-mail-worker";
+import { startConsultationReminderWorker } from "./consultation-reminder-worker";
 import { startConsultationSlaWorker } from "./consultation-sla-worker";
 import { setupConsentLogCleanupSchedule } from "./schedules/consent-log-cleanup-schedule";
 import { setupExamCleanupSchedule } from "./schedules/exam-cleanup-schedule";
@@ -50,6 +51,7 @@ setupPetPreventionReminderSchedule().catch((error) => {
 
 startConsultationSlaWorker();
 startConsultationMailWorker();
+startConsultationReminderWorker();
 
 // Запускаем cron-планировщик для re-engagement
 startCronJobs();

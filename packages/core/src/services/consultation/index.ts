@@ -13,3 +13,4 @@ export * from "./slotService";
 export * from "./telemostService";
 export * from "./notificationService";
 export * from "./bookingService";
+export { sendConsultationEmailFromLog } from "./consultationTransactionalMail";

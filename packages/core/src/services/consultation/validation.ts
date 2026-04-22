@@ -116,6 +116,7 @@ const consultationBookingDtoSchema = z.object({
   cynologistUserId: z.string().min(1),
   cynologistDisplayName: z.string().nullable(),
   clientProblem: z.string().nullable(),
+  cancelReason: z.string().nullable(),
   joinUrl: z.string().nullable(),
   watchUrl: z.string().nullable(),
   confirmationDeadlineAt: z.string().min(1),

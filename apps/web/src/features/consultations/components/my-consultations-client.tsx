@@ -86,7 +86,9 @@ export function MyConsultationsClient({ initialItems }: MyConsultationsClientPro
       ) : (
         <ul className={styles.list}>
           {initialItems.map((b) => {
-            const pres = getConsultationBookingStatusPresentation(b.status);
+            const pres = getConsultationBookingStatusPresentation(b.status, {
+              cancelReason: b.cancelReason,
+            });
             return (
               <li key={b.id} className={styles.card}>
                 <div className={styles.statusRow}>
@@ -95,6 +97,12 @@ export function MyConsultationsClient({ initialItems }: MyConsultationsClientPro
                   </span>
                 </div>
                 <p className={styles.description}>{pres.description}</p>
+                {pres.cancelReason ? (
+                  <p className={styles.cancelReason}>
+                    <span className={styles.cancelReasonLabel}>Комментарий кинолога: </span>
+                    {pres.cancelReason}
+                  </p>
+                ) : null}
                 <p className={styles.titleLine}>
                   {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
                 </p>

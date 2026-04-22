@@ -92,13 +92,21 @@ export default function ConsultationsMineScreen() {
         ) : null}
 
         {items.map((b) => {
-          const pres = getConsultationBookingStatusPresentation(b.status);
+          const pres = getConsultationBookingStatusPresentation(b.status, {
+            cancelReason: b.cancelReason,
+          });
           return (
             <View key={b.id} style={styles.card}>
               <View style={styles.badgeWrap}>
                 <Text style={[styles.badge, badgeToneStyle(pres.tone)]}>{pres.badge}</Text>
               </View>
               <Text style={styles.description}>{pres.description}</Text>
+              {pres.cancelReason ? (
+                <Text style={styles.cancelReason}>
+                  <Text style={styles.cancelReasonLabel}>Комментарий кинолога: </Text>
+                  {pres.cancelReason}
+                </Text>
+              ) : null}
               <Text style={styles.titleLine}>
                 {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
               </Text>
@@ -200,6 +208,19 @@ const styles = StyleSheet.create({
   badgeDanger: { backgroundColor: "rgba(180, 60, 60, 0.15)", color: COLORS.text },
   badgeNeutral: { backgroundColor: COLORS.borderLight, color: COLORS.textSecondary },
   description: { fontFamily: FONTS.montserrat, fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
+  cancelReason: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.text,
+    marginTop: SPACING.xs,
+    padding: SPACING.sm,
+    backgroundColor: "rgba(139, 90, 43, 0.1)",
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  cancelReasonLabel: { fontFamily: FONTS.montserratMedium, color: COLORS.text },
   titleLine: {
     fontFamily: FONTS.montserratMedium,
     fontSize: 15,

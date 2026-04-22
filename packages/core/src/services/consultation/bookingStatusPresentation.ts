@@ -6,20 +6,27 @@ export interface ConsultationBookingStatusPresentation {
   badge: string;
   description: string;
   tone: ConsultationStatusTone;
+  /** Непустой комментарий кинолога при отмене с его стороны (когда передан в options). */
+  cancelReason?: string | null;
 }
+
+export type ConsultationBookingStatusPresentationOptions = {
+  cancelReason?: string | null;
+};
 
 /**
  * Тексты статусов брони для экрана «Мои консультации» (не показываем сырые enum).
  */
 export function getConsultationBookingStatusPresentation(
   status: ConsultationBookingStatus,
+  options?: ConsultationBookingStatusPresentationOptions,
 ): ConsultationBookingStatusPresentation {
   switch (status) {
     case "PENDING_TRAINER_CONFIRMATION":
       return {
         badge: "Ожидает подтверждения",
         description:
-          "Ваша консультация ещё не подтверждена тренером. Ожидайте подтверждения — на почту придёт уведомление.",
+          "Ваша консультация ещё не подтверждена кинологом. Ожидайте подтверждения — на почту придёт уведомление.",
         tone: "pending",
       };
     case "CONFIRMED":
@@ -29,12 +36,15 @@ export function getConsultationBookingStatusPresentation(
           "Встреча подтверждена. За несколько минут до начала можно перейти по ссылке на видеовстречу.",
         tone: "success",
       };
-    case "CANCELLED_BY_TRAINER":
+    case "CANCELLED_BY_TRAINER": {
+      const cr = options?.cancelReason?.trim() ?? null;
       return {
-        badge: "Отменена тренером",
-        description: "Тренер отменил эту запись. При необходимости выберите другой слот у кинолога.",
+        badge: "Отменена кинологом",
+        description: "Кинолог отменил эту запись. При необходимости выберите другой слот у кинолога.",
         tone: "danger",
+        cancelReason: cr || null,
       };
+    }
     case "CANCELLED_BY_USER":
       return {
         badge: "Отменена вами",
@@ -45,7 +55,7 @@ export function getConsultationBookingStatusPresentation(
       return {
         badge: "Отменена по времени",
         description:
-          "Запись автоматически отменена: тренер не подтвердил встречу в отведённый срок. Вы можете записаться снова.",
+          "Запись автоматически отменена: кинолог не подтвердил встречу в отведённый срок. Вы можете записаться снова.",
         tone: "danger",
       };
     case "CANCELLED_BY_SYSTEM":

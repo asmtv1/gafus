@@ -142,6 +142,7 @@ describe("bookSlot", () => {
         cynologistUserId: "u1",
         cynologistDisplayName: null,
         clientProblem: null,
+        cancelReason: null,
         joinUrl: null,
         watchUrl: null,
         confirmationDeadlineAt: new Date().toISOString(),

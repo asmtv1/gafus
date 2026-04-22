@@ -7,8 +7,11 @@ import {
   prisma,
 } from "@gafus/prisma";
 import {
+  CONSULTATION_REMINDER_JOB_ID,
   CONSULTATION_SLA_JOB_ID,
+  consultationReminderQueue,
   consultationSlaQueue,
+  removeConsultationReminderJob,
   removeConsultationSlaJob,
 } from "@gafus/queues";
 import { DateTime } from "luxon";
@@ -36,6 +39,57 @@ async function removeSlaJob(bookingId: string): Promise<void> {
     await removeConsultationSlaJob(bookingId);
   } catch (e) {
     logger.warn("removeSlaJob", { bookingId, error: String(e) });
+  }
+}
+
+async function removeConsultationRemindJobSafe(bookingId: string): Promise<void> {
+  try {
+    await removeConsultationReminderJob(bookingId);
+  } catch (e) {
+    logger.warn("removeConsultationReminderJob", { bookingId, error: String(e) });
+  }
+}
+
+/** Напоминание за 30 минут до startAt; если до окна «минус 30» меньше минуты — не планируем. */
+async function scheduleConsultationReminderIfNeeded(bookingId: string, slotStartAt: Date): Promise<void> {
+  const runAt = new Date(slotStartAt.getTime() - 30 * 60 * 1000);
+  const delay = runAt.getTime() - Date.now();
+  if (delay < 60 * 1000) {
+    logger.info("reminder-30m: слишком близко к началу или в прошлом, пропуск", { bookingId });
+    return;
+  }
+  await consultationReminderQueue.add(
+    "remind-30m",
+    { bookingId },
+    {
+      jobId: CONSULTATION_REMINDER_JOB_ID(bookingId),
+      delay,
+      removeOnComplete: { count: 1000 },
+      removeOnFail: { count: 500 },
+    },
+  );
+  logger.info("reminder-30m запланирован", { bookingId, runAt: runAt.toISOString() });
+}
+
+async function tryConsultationPush(
+  userId: string,
+  title: string,
+  body: string,
+  url: string,
+  logCtx: { bookingId?: string; kind: string },
+): Promise<void> {
+  try {
+    const { sendImmediatePushNotification } = await import("@gafus/webpush");
+    const pushResult = await sendImmediatePushNotification({ userId, title, body, url });
+    if (!pushResult.success) {
+      logger.warn("пуш не отправлен", { ...logCtx, error: pushResult.error });
+    }
+  } catch (err) {
+    logger.error(
+      "ошибка пуша консультации",
+      err instanceof Error ? err : new Error(String(err)),
+      logCtx,
+    );
   }
 }
 
@@ -81,6 +135,7 @@ export async function toBookingDto(bookingId: string): Promise<ConsultationBooki
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
     clientProblem: b.clientProblem,
+    cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
@@ -193,6 +248,23 @@ export async function bookSlot(
           data: { status: ConsultationSlotStatus.FREE },
         });
       });
+      const failedBooking = await prisma.consultationBooking.findUnique({
+        where: { id: result.bookingId },
+        select: { clientId: true },
+      });
+      if (failedBooking) {
+        await enqueueConsultationEmail(
+          result.bookingId,
+          ConsultationEmailType.CLIENT_BOOKING_TELEMOST_FAILED,
+        );
+        await tryConsultationPush(
+          failedBooking.clientId,
+          "Не удалось оформить консультацию",
+          "Техническая ошибка при создании видеовстречи. Бронь отменена. Оформите запись снова при необходимости.",
+          "/consultations",
+          { bookingId: result.bookingId, kind: "telemost-fail" },
+        );
+      }
       throw e;
     }
 
@@ -208,6 +280,20 @@ export async function bookSlot(
     await enqueueConsultationEmail(result.bookingId, ConsultationEmailType.TRAINER_CONFIRM_REQUEST);
     await enqueueConsultationEmail(result.bookingId, ConsultationEmailType.CLIENT_BOOKING_RECEIVED);
     await scheduleSlaJob(result.bookingId, result.deadline);
+
+    const trainerForPush = await prisma.consultationBooking.findUnique({
+      where: { id: result.bookingId },
+      include: { cynologist: { select: { userId: true } } },
+    });
+    if (trainerForPush) {
+      await tryConsultationPush(
+        trainerForPush.cynologist.userId,
+        "Новая заявка на консультацию",
+        "В панели кинолога появилась новая заявка. Подтвердите или отклоните её в срок.",
+        "/main-panel/consultations",
+        { bookingId: result.bookingId, kind: "trainer-new-request" },
+      );
+    }
 
     const dto = await toBookingDto(result.bookingId);
     if (!dto) {
@@ -251,7 +337,7 @@ export async function confirmBookingByTrainer(
 ): Promise<void> {
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
-    include: { cynologist: true },
+    include: { cynologist: true, slot: true },
   });
   if (!b) {
     throw new ConsultationNotFoundError("Бронирование");
@@ -275,30 +361,15 @@ export async function confirmBookingByTrainer(
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CONFIRMED);
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CONFIRMED);
+  await scheduleConsultationReminderIfNeeded(bookingId, b.slot.startAt);
 
-  try {
-    const { sendImmediatePushNotification } = await import("@gafus/webpush");
-    const pushResult = await sendImmediatePushNotification({
-      userId: b.clientId,
-      title: "Консультация подтверждена",
-      body:
-        "Ваша заявка на консультацию подтверждена кинологом. Подробности смотрите в письме на почте или в приложении.",
-      url: "/consultations/my",
-    });
-    if (!pushResult.success) {
-      logger.warn("Пуш о подтверждении консультации не отправлен", {
-        userId: b.clientId,
-        bookingId,
-        error: pushResult.error,
-      });
-    }
-  } catch (pushError) {
-    logger.error(
-      "Ошибка пуша при подтверждении консультации (не критично)",
-      pushError instanceof Error ? pushError : new Error(String(pushError)),
-      { bookingId, clientId: b.clientId },
-    );
-  }
+  await tryConsultationPush(
+    b.clientId,
+    "Консультация подтверждена",
+    "Ваша заявка на консультацию подтверждена кинологом. Подробности в письме или в разделе «Мои консультации».",
+    "/consultations/my",
+    { bookingId, kind: "client-confirmed" },
+  );
 }
 
 export async function rejectBookingByTrainer(
@@ -317,18 +388,22 @@ export async function rejectBookingByTrainer(
   if (!trainerMayActOnBooking(actorRole, actorUserId, b.cynologist.userId)) {
     throw new ConsultationForbiddenError();
   }
-  if (b.status !== ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION) {
+  if (
+    b.status !== ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION &&
+    b.status !== ConsultationBookingStatus.CONFIRMED
+  ) {
     throw new ConsultationForbiddenError("Некорректный статус");
   }
 
   await removeSlaJob(bookingId);
+  await removeConsultationRemindJobSafe(bookingId);
 
   await prisma.$transaction(async (tx) => {
     await tx.consultationBooking.update({
       where: { id: bookingId },
       data: {
         status: ConsultationBookingStatus.CANCELLED_BY_TRAINER,
-        cancelReason: reason ?? null,
+        cancelReason: reason?.trim() || null,
       },
     });
     await tx.consultationSlot.update({
@@ -338,12 +413,23 @@ export async function rejectBookingByTrainer(
   });
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER);
+  await tryConsultationPush(
+    b.clientId,
+    b.trainerConfirmedAt
+      ? "Встреча отменена кинологом"
+      : "Заявка на консультацию отклонена",
+    b.trainerConfirmedAt
+      ? "Кинолог отменил запланированную встречу. Подробности в письме."
+      : "Кинолог отклонил заявку. Подробности в письме.",
+    "/consultations/my",
+    { bookingId, kind: "client-cancelled-by-trainer" },
+  );
 }
 
 export async function cancelBookingByUser(clientId: string, bookingId: string): Promise<void> {
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
-    include: { slot: true },
+    include: { slot: true, cynologist: { select: { userId: true } } },
   });
   if (!b) {
     throw new ConsultationNotFoundError("Бронирование");
@@ -358,9 +444,10 @@ export async function cancelBookingByUser(clientId: string, bookingId: string): 
     throw new ConsultationForbiddenError("Отмена недоступна");
   }
 
-  await removeSlaJob(bookingId);
+  const wasConfirmed = b.status === ConsultationBookingStatus.CONFIRMED;
 
-  const wasPending = b.status === ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION;
+  await removeSlaJob(bookingId);
+  await removeConsultationRemindJobSafe(bookingId);
 
   await prisma.$transaction(async (tx) => {
     await tx.consultationBooking.update({
@@ -375,9 +462,16 @@ export async function cancelBookingByUser(clientId: string, bookingId: string): 
     });
   });
 
-  if (wasPending) {
-    await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER);
-  }
+  await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER);
+  await tryConsultationPush(
+    b.cynologist.userId,
+    wasConfirmed ? "Клиент отменил встречу" : "Клиент отменил заявку",
+    wasConfirmed
+      ? "Запланированная консультация отменена клиентом. Подробности в письме."
+      : "Заявка на консультацию отменена клиентом. Слот снова свободен.",
+    "/main-panel/consultations",
+    { bookingId, kind: "trainer-user-cancel" },
+  );
 }
 
 /** Worker: SLA истёк, тренер не подтвердил. */
@@ -393,6 +487,8 @@ export async function processBookingSlaTimeout(bookingId: string): Promise<void>
     return;
   }
 
+  const clientId = b.clientId;
+
   await prisma.$transaction(async (tx) => {
     await tx.consultationBooking.update({
       where: { id: bookingId },
@@ -405,6 +501,57 @@ export async function processBookingSlaTimeout(bookingId: string): Promise<void>
   });
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_SLA);
+  await tryConsultationPush(
+    clientId,
+    "Консультация не подтверждена",
+    "Кинолог не ответил в срок, бронь снята. Можно записаться снова в разделе консультаций.",
+    "/consultations/my",
+    { bookingId, kind: "client-sla" },
+  );
+}
+
+/**
+ * Воркер: за 30 минут до встречи — письма и пуши клиенту и кинологу (если бронь ещё CONFIRMED).
+ */
+export async function processConsultationReminder(bookingId: string): Promise<void> {
+  const b = await prisma.consultationBooking.findUnique({
+    where: { id: bookingId },
+    include: {
+      slot: true,
+      cynologist: { include: { user: { select: { id: true } } } },
+      client: { select: { id: true } },
+    },
+  });
+  if (!b || b.status !== ConsultationBookingStatus.CONFIRMED) {
+    return;
+  }
+
+  const slotMsk = new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: CONSULTATION_TIMEZONE,
+  }).format(b.slot.startAt);
+
+  await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M);
+  await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M);
+
+  await tryConsultationPush(
+    b.clientId,
+    "Скоро консультация",
+    `Напоминание: начало примерно в ${slotMsk} (МСК). Проверьте связь и ссылку на встречу в письме или в «Мои консультации».`,
+    "/consultations/my",
+    { bookingId, kind: "remind-client" },
+  );
+  await tryConsultationPush(
+    b.cynologist.userId,
+    "Скоро консультация",
+    `Напоминание: встреча с клиентом примерно в ${slotMsk} (МСК). Ссылка на Телемост в панели кинолога.`,
+    "/main-panel/consultations",
+    { bookingId, kind: "remind-trainer" },
+  );
 }
 
 export async function listClientBookings(
@@ -458,6 +605,7 @@ export async function listClientBookings(
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
     clientProblem: b.clientProblem,
+    cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
@@ -516,6 +664,7 @@ export async function listTrainerBookings(
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
     clientProblem: b.clientProblem,
+    cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
