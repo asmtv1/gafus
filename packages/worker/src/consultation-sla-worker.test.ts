@@ -7,8 +7,8 @@ const { processBookingSlaTimeoutMock, workerCapture } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@gafus/core", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@gafus/core")>();
+vi.mock("@gafus/core/services/consultation", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@gafus/core/services/consultation")>();
   return {
     ...mod,
     processBookingSlaTimeout: processBookingSlaTimeoutMock,

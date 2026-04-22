@@ -1,4 +1,4 @@
-import { processBookingSlaTimeout } from "@gafus/core";
+import { processBookingSlaTimeout } from "@gafus/core/services/consultation";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
