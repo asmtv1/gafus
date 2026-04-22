@@ -4,6 +4,7 @@ import { Button, Text, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
+import { randomUUID } from "expo-crypto";
 import type { Href } from "expo-router";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
@@ -30,11 +31,8 @@ export default function ConsultationBookingConfirmScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [clientProblem, setClientProblem] = useState("");
-  const [idemKey] = useState(() =>
-    typeof globalThis.crypto !== "undefined" && globalThis.crypto.randomUUID
-      ? globalThis.crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`,
-  );
+  /** Сервер: `z.string().uuid()` — только v4, без слабого fallback. */
+  const [idemKey] = useState(() => randomUUID());
 
   const cynologistUserId = one(params.cynologistUserId);
   const slotId = one(params.slotId);
@@ -89,9 +87,13 @@ export default function ConsultationBookingConfirmScreen() {
       }
       reportClientError(e instanceof Error ? e : new Error(String(e)), {
         issueKey: "consultation",
-        keys: { screen: "booking-confirm" },
+        keys: { screen: "booking-confirm", code: code || undefined },
       });
-      Alert.alert("Ошибка", "Не удалось забронировать.");
+      const detail =
+        msg && !["BOOK_FAILED", "VERIFY_FAILED"].includes(msg)
+          ? msg
+          : "Не удалось забронировать. Попробуйте позже.";
+      Alert.alert("Ошибка", detail);
     },
   });
 
@@ -179,9 +181,19 @@ const styles = StyleSheet.create({
   },
   metaRow: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.text },
   metaLabel: { fontFamily: FONTS.montserratMedium, color: COLORS.text },
-  metaHint: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary, marginTop: SPACING.xs },
+  metaHint: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
   input: { backgroundColor: COLORS.surface, minHeight: 120 },
-  notice: { fontFamily: FONTS.montserrat, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+  notice: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
   actions: { flexDirection: "column", gap: SPACING.sm, marginTop: SPACING.md },
   error: { color: COLORS.error, padding: SPACING.md, fontFamily: FONTS.montserrat },
 });

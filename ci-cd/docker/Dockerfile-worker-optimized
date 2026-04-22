@@ -54,6 +54,7 @@ COPY --from=base /app/packages/logger/dist ./packages/logger/dist
 COPY --from=base /app/packages/reengagement/dist ./packages/reengagement/dist
 COPY --from=base /app/packages/cdn-upload/dist ./packages/cdn-upload/dist
 COPY --from=base /app/packages/core/dist ./packages/core/dist
+COPY --from=base /app/packages/mailer/dist ./packages/mailer/dist
 
 # Копируем только package.json файлы
 COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
@@ -65,6 +66,7 @@ COPY --from=base /app/packages/types/package.json ./packages/types/package.json
 COPY --from=base /app/packages/logger/package.json ./packages/logger/package.json
 COPY --from=base /app/packages/cdn-upload/package.json ./packages/cdn-upload/package.json
 COPY --from=base /app/packages/core/package.json ./packages/core/package.json
+COPY --from=base /app/packages/mailer/package.json ./packages/mailer/package.json
 
 # Устанавливаем только production зависимости (expo-server-sdk нужен для push в мобильное приложение)
 # bcryptjs, libphonenumber-js, zod, petrovich — deps @gafus/core
@@ -83,7 +85,8 @@ RUN npm init -y && \
     bcryptjs@^3.0.2 \
     libphonenumber-js@^1.12.8 \
     zod@^3.24.1 \
-    petrovich@^0.2.1
+    petrovich@^0.2.1 \
+    nodemailer@^7.0.10
 
 # Копируем весь сгенерированный Prisma client из base stage (включая runtime файлы)
 COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma ./node_modules/.prisma
@@ -101,7 +104,8 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/logger /app/node_modules/@gafus/logger \
   && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload \
   && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement \
-  && ln -s /app/packages/core /app/node_modules/@gafus/core
+  && ln -s /app/packages/core /app/node_modules/@gafus/core \
+  && ln -s /app/packages/mailer /app/node_modules/@gafus/mailer
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app

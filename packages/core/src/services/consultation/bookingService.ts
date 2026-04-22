@@ -275,6 +275,30 @@ export async function confirmBookingByTrainer(
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CONFIRMED);
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CONFIRMED);
+
+  try {
+    const { sendImmediatePushNotification } = await import("@gafus/webpush");
+    const pushResult = await sendImmediatePushNotification({
+      userId: b.clientId,
+      title: "Консультация подтверждена",
+      body:
+        "Ваша заявка на консультацию подтверждена кинологом. Подробности смотрите в письме на почте или в приложении.",
+      url: "/consultations/my",
+    });
+    if (!pushResult.success) {
+      logger.warn("Пуш о подтверждении консультации не отправлен", {
+        userId: b.clientId,
+        bookingId,
+        error: pushResult.error,
+      });
+    }
+  } catch (pushError) {
+    logger.error(
+      "Ошибка пуша при подтверждении консультации (не критично)",
+      pushError instanceof Error ? pushError : new Error(String(pushError)),
+      { bookingId, clientId: b.clientId },
+    );
+  }
 }
 
 export async function rejectBookingByTrainer(

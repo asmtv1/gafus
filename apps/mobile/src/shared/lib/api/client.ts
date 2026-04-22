@@ -26,6 +26,41 @@ type SafeJsonOk = { ok: true; value: unknown };
 type SafeJsonErr = { ok: false; error: string; preview?: string };
 
 /**
+ * Текст ошибки при HTTP 4xx/5xx: наш API отдаёт `error: string`, иные клиенты — `message` или Zod `issues`.
+ */
+function extractHttpErrorMessage(data: unknown, response: Response): string {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const o = data as Record<string, unknown>;
+    if (typeof o.error === "string" && o.error.trim()) {
+      return o.error;
+    }
+    if (typeof o.message === "string" && o.message.trim()) {
+      return o.message;
+    }
+    const issues = o.issues;
+    if (Array.isArray(issues) && issues.length > 0) {
+      const first = issues[0] as { message?: unknown } | undefined;
+      if (first && typeof first.message === "string" && first.message.trim()) {
+        return first.message;
+      }
+    }
+  }
+  const st = response.statusText?.trim();
+  if (st) {
+    return `Ошибка запроса (HTTP ${response.status}: ${st})`;
+  }
+  return `Ошибка запроса (HTTP ${response.status})`;
+}
+
+function extractHttpErrorCode(data: unknown): string | undefined {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const c = (data as { code?: unknown }).code;
+    return typeof c === "string" ? c : undefined;
+  }
+  return undefined;
+}
+
+/**
  * Читает тело ответа как текст и парсит JSON.
  * Прокси/HTML/текст вместо JSON дают понятную ошибку вместо «Unexpected character: T».
  */
@@ -161,15 +196,10 @@ export async function apiClient<T>(
     const data = parsed.value;
 
     if (!response.ok) {
-      const errObj =
-        data && typeof data === "object" && !Array.isArray(data)
-          ? (data as { error?: unknown; code?: unknown })
-          : null;
       return {
         success: false,
-        error:
-          errObj && typeof errObj.error === "string" ? errObj.error : "Ошибка запроса",
-        code: errObj && typeof errObj.code === "string" ? errObj.code : undefined,
+        error: extractHttpErrorMessage(data, response),
+        code: extractHttpErrorCode(data),
       };
     }
 
@@ -251,15 +281,10 @@ export async function apiClientMultipart<T>(
     const data = parsed.value;
 
     if (!response.ok) {
-      const errObj =
-        data && typeof data === "object" && !Array.isArray(data)
-          ? (data as { error?: unknown; code?: unknown })
-          : null;
       return {
         success: false,
-        error:
-          errObj && typeof errObj.error === "string" ? errObj.error : "Ошибка запроса",
-        code: errObj && typeof errObj.code === "string" ? errObj.code : undefined,
+        error: extractHttpErrorMessage(data, response),
+        code: extractHttpErrorCode(data),
       };
     }
 
