@@ -1,6 +1,10 @@
 import type { ConsultationSlotDto } from "./types";
 
-import { consultationMskDayKey } from "./consultationMskFormat";
+import {
+  addDaysToConsultationMskDayKey,
+  consultationMskDayKey,
+  consultationMskDayKeyToDate,
+} from "./consultationMskFormat";
 
 export interface ConsultationSlotsByDay {
   dateKey: string;
@@ -10,13 +14,11 @@ export interface ConsultationSlotsByDay {
 /** Дни календаря от from до to (полуночь локально, границы как на web/mobile). */
 export function buildConsultationCalendarRangeDays(fromDate: Date, toDate: Date): Date[] {
   const out: Date[] = [];
-  const cursor = new Date(fromDate);
-  cursor.setHours(0, 0, 0, 0);
-  const end = new Date(toDate);
-  end.setHours(0, 0, 0, 0);
-  while (cursor <= end) {
-    out.push(new Date(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+  let cursorKey = consultationMskDayKey(fromDate);
+  const endKey = consultationMskDayKey(toDate);
+  while (cursorKey <= endKey) {
+    out.push(consultationMskDayKeyToDate(cursorKey));
+    cursorKey = addDaysToConsultationMskDayKey(cursorKey, 1);
   }
   return out;
 }

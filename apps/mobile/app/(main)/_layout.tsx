@@ -119,22 +119,19 @@ export default function MainLayout() {
       <Stack.Screen
         name="consultations/[userId]"
         options={{
-          headerShown: true,
-          title: "Запись",
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="consultations/mine"
         options={{
-          headerShown: true,
-          title: "Мои консультации",
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="consultations/booking-confirm"
         options={{
-          headerShown: true,
-          title: "Подтверждение",
+          headerShown: false,
         }}
       />
       <Stack.Screen

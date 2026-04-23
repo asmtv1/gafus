@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
 import { ConsultationSlotsCalendar } from "@/features/consultations/components/ConsultationSlotsCalendar";
@@ -31,19 +31,18 @@ export default function ConsultationSlotsScreen() {
 
   if (!userId) {
     return (
-      <SafeAreaView style={styles.root} edges={["bottom"]}>
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <Text style={styles.error}>Не указан кинолог.</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.root} edges={["bottom"]}>
-      <Pressable
-        style={styles.linkRow}
-        onPress={() => router.push("/(main)/(tabs)/consultations" as Href)}
-      >
-        <Text style={styles.linkText}>← Все кинологи</Text>
+    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      <Stack.Screen options={{ headerBackVisible: false }} />
+      <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+        <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+        <Text style={styles.backRowText}>Назад</Text>
       </Pressable>
       <ConsultationSlotsCalendar
         cynologistUserId={userId}
@@ -56,7 +55,19 @@ export default function ConsultationSlotsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  linkRow: { paddingHorizontal: SPACING.md, paddingTop: SPACING.xs, marginBottom: SPACING.xs },
-  linkText: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.primary },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  backRowText: {
+    marginLeft: 2,
+    color: COLORS.primary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 18,
+  },
   error: { color: COLORS.error, padding: SPACING.md, fontFamily: FONTS.montserrat },
 });

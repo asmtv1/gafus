@@ -7,7 +7,7 @@ import { getConsultationBookingStatusPresentation } from "@gafus/core/services/c
 import { formatConsultationListDateTimeMsk } from "@gafus/core/services/consultation/consultationMskFormat";
 import * as Linking from "expo-linking";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
 import { consultationsApi } from "@/shared/lib/api";
@@ -62,9 +62,12 @@ export default function ConsultationsMineScreen() {
   }, [router]);
 
   return (
-    <SafeAreaView style={styles.root} edges={["bottom"]}>
+    <SafeAreaView style={styles.root} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.pageTitle}>Мои консультации</Text>
+        <Stack.Screen options={{ headerBackVisible: false }} />
+        <View style={styles.header}>
+          <Text style={styles.pageTitle}>Мои консультации</Text>
+        </View>
 
         <View style={styles.subNav}>
           <Pressable style={styles.subNavItem} onPress={onCatalog}>
@@ -74,10 +77,6 @@ export default function ConsultationsMineScreen() {
             <Text style={[styles.subNavText, styles.subNavTextActive]}>Мои консультации</Text>
           </View>
         </View>
-
-        <Pressable style={styles.linkRow} onPress={onCatalog}>
-          <Text style={styles.linkText}>← К списку кинологов</Text>
-        </Pressable>
 
         <Text style={styles.hint}>Все консультации отображаются по времени МСК (UTC+3).</Text>
 
@@ -155,35 +154,51 @@ function badgeToneStyle(tone: "pending" | "success" | "danger" | "neutral") {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { padding: SPACING.md, paddingBottom: SPACING.xl },
+  scroll: {
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xl,
+  },
+  header: {
+    paddingBottom: SPACING.sm,
+  },
   pageTitle: {
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 22,
-    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: "400",
+    fontFamily: FONTS.impact,
+    color: "#352E2E",
+    textAlign: "center",
+    marginTop: SPACING.md,
     marginBottom: SPACING.md,
   },
   subNav: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.sm,
+    gap: SPACING.xs,
     marginBottom: SPACING.md,
   },
   subNavItem: {
-    paddingVertical: SPACING.xs,
+    flex: 1,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: SPACING.md,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     backgroundColor: COLORS.surface,
   },
   subNavItemActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: "rgba(139, 90, 43, 0.08)",
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryDark,
+    backgroundColor: "rgba(139, 90, 43, 0.12)",
   },
-  subNavText: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
-  subNavTextActive: { fontFamily: FONTS.montserratMedium, color: COLORS.primary },
-  linkRow: { marginBottom: SPACING.sm },
-  linkText: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.primary },
+  subNavText: {
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+  subNavTextActive: { color: COLORS.primaryDark },
   hint: {
     fontFamily: FONTS.montserrat,
     fontSize: 13,
@@ -208,10 +223,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  badgePending: { backgroundColor: "rgba(180, 140, 60, 0.2)", color: COLORS.text },
-  badgeSuccess: { backgroundColor: "rgba(60, 140, 80, 0.2)", color: COLORS.text },
-  badgeDanger: { backgroundColor: "rgba(180, 60, 60, 0.15)", color: COLORS.text },
-  badgeNeutral: { backgroundColor: COLORS.borderLight, color: COLORS.textSecondary },
+  badgePending: { backgroundColor: "rgba(139, 90, 43, 0.12)", color: COLORS.primaryDark },
+  badgeSuccess: { backgroundColor: "rgba(72, 130, 86, 0.14)", color: "#2f5d3a" },
+  badgeDanger: { backgroundColor: "rgba(180, 60, 60, 0.12)", color: "#7d2f2f" },
+  badgeNeutral: { backgroundColor: "rgba(0, 0, 0, 0.06)", color: COLORS.textSecondary },
   description: { fontFamily: FONTS.montserrat, fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
   cancelReason: {
     fontFamily: FONTS.montserrat,
@@ -239,7 +254,16 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   link: { marginTop: SPACING.sm, color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 14 },
-  cancelBtn: { alignSelf: "flex-start", marginTop: SPACING.sm },
+  cancelBtn: {
+    alignSelf: "flex-start",
+    marginTop: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    borderRadius: 10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    backgroundColor: "rgba(180, 60, 60, 0.06)",
+  },
   cancelText: { color: COLORS.error, fontFamily: FONTS.montserratMedium, fontSize: 14 },
   muted: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },

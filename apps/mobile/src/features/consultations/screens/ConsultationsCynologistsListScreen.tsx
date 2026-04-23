@@ -58,9 +58,11 @@ export default function ConsultationsCynologistsListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.root} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.pageTitle}>Консультации с кинологом</Text>
+        <View style={styles.header}>
+          <Text style={styles.pageTitle}>Консультации с кинологом</Text>
+        </View>
 
         <View style={styles.subNav}>
           <View style={[styles.subNavItem, styles.subNavItemActive]}>
@@ -70,7 +72,7 @@ export default function ConsultationsCynologistsListScreen() {
             style={styles.subNavItem}
             onPress={() => {
               hapticFeedback.light();
-              router.push("/consultations/mine" as Href);
+              router.push("/(main)/(tabs)/consultations?view=mine" as Href);
             }}
           >
             <Text style={styles.subNavText}>Мои консультации</Text>
@@ -143,33 +145,51 @@ export default function ConsultationsCynologistsListScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { padding: SPACING.md, paddingBottom: SPACING.xl },
+  scroll: {
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xl,
+  },
+  header: {
+    paddingBottom: SPACING.sm,
+  },
   pageTitle: {
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 22,
-    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: "400",
+    fontFamily: FONTS.impact,
+    color: "#352E2E",
+    textAlign: "center",
+    marginTop: SPACING.md,
     marginBottom: SPACING.md,
   },
   subNav: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.sm,
+    gap: SPACING.xs,
     marginBottom: SPACING.md,
   },
   subNavItem: {
-    paddingVertical: SPACING.xs,
+    flex: 1,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: SPACING.md,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     backgroundColor: COLORS.surface,
   },
   subNavItemActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: "rgba(139, 90, 43, 0.08)",
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryDark,
+    backgroundColor: "rgba(139, 90, 43, 0.12)",
   },
-  subNavText: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
-  subNavTextActive: { fontFamily: FONTS.montserratMedium, color: COLORS.primary },
+  subNavText: {
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+  subNavTextActive: { color: COLORS.primaryDark },
   intro: {
     fontFamily: FONTS.montserrat,
     fontSize: 14,
@@ -228,22 +248,17 @@ const styles = StyleSheet.create({
   ctaPill: {
     alignSelf: "flex-start",
     marginTop: SPACING.sm,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.cardBackground,
-    shadowColor: "#4a4920",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primaryDark,
+    backgroundColor: COLORS.primary,
   },
   cta: {
     fontFamily: FONTS.montserratMedium,
     fontSize: 14,
-    color: COLORS.primaryDark,
+    color: "#ECE5D2",
   },
   muted: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },

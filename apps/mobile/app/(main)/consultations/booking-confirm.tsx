@@ -13,9 +13,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
 import { isLikelyValidRuPhoneInput } from "@gafus/core/services/consultation/ruPhone";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { randomUUID } from "expo-crypto";
 import type { Href } from "expo-router";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
 import {
@@ -138,7 +139,7 @@ export default function ConsultationBookingConfirmScreen() {
       setServerError(null);
       await queryClient.invalidateQueries({ queryKey: ["consultations"] });
       hapticFeedback.medium();
-      router.replace("/consultations/mine" as Href);
+      router.replace("/(main)/(tabs)/consultations?view=mine" as Href);
     },
     onError: (e: unknown) => {
       const code = typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
@@ -186,7 +187,7 @@ export default function ConsultationBookingConfirmScreen() {
 
   if (!cynologistUserId || !slotId) {
     return (
-      <SafeAreaView style={styles.root} edges={["bottom"]}>
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <Text style={styles.error}>Не указаны параметры записи.</Text>
       </SafeAreaView>
     );
@@ -197,13 +198,18 @@ export default function ConsultationBookingConfirmScreen() {
     (clientPhone.length > 0 && !isLikelyValidRuPhoneInput(clientPhone));
 
   return (
-    <SafeAreaView style={styles.root} edges={["bottom"]}>
+    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+      <Stack.Screen options={{ headerBackVisible: false }} />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+            <Text style={styles.backRowText}>Назад</Text>
+          </Pressable>
           <Text style={styles.screenTitle}>Подтверждение записи</Text>
           <Text style={styles.lead}>
             Заполните данные владельца и питомца — кинолог увидит их в заявке.
@@ -398,6 +404,18 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   keyboardView: { flex: 1 },
   scroll: { padding: SPACING.md, paddingBottom: SPACING.xl, gap: SPACING.sm },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginBottom: SPACING.xs,
+  },
+  backRowText: {
+    marginLeft: 2,
+    color: COLORS.primary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 18,
+  },
   screenTitle: {
     fontFamily: FONTS.montserratMedium,
     fontSize: 20,

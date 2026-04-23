@@ -10,8 +10,9 @@ import {
 import { Text } from "react-native-paper";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  consultationBookingCalendarWindowMsk,
+  consultationMskDayKeyToDate,
   formatConsultationDayLabelMsk as formatDayLabel,
-  formatConsultationMonthLabelMsk as formatMonthLabel,
   formatConsultationTimeMsk as formatTimeMsk,
   consultationCalendarMonthKey as toMonthKey,
   consultationMskDayKey as toDayKey,
@@ -36,6 +37,13 @@ interface ConsultationSlotsCalendarProps {
   displayName?: string;
 }
 
+function formatCalendarMonthLabel(date: Date): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 function slotStatusLabel(status: string): string {
   if (status === "BOOKED") return "Занято";
   if (status === "BLOCKED") return "Недоступно";
@@ -58,11 +66,13 @@ export function ConsultationSlotsCalendar({
   const [verifyingSlotId, setVerifyingSlotId] = useState<string | null>(null);
 
   const { fromDate, toDate, fromIso, toIso } = useMemo(() => {
-    const from = new Date();
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(from);
-    to.setDate(to.getDate() + 14);
-    return { fromDate: from, toDate: to, fromIso: from.toISOString(), toIso: to.toISOString() };
+    const window = consultationBookingCalendarWindowMsk(14);
+    return {
+      fromDate: consultationMskDayKeyToDate(window.fromKey),
+      toDate: consultationMskDayKeyToDate(window.toKey),
+      fromIso: window.fromUtc.toISOString(),
+      toIso: window.toUtc.toISOString(),
+    };
   }, []);
 
   const slotsQuery = useQuery({
@@ -123,21 +133,20 @@ export function ConsultationSlotsCalendar({
   }, [selectedMonthKey]);
 
   const monthCells = useMemo(() => {
-    if (!currentMonthDate) return [];
-    const year = currentMonthDate.getFullYear();
-    const month = currentMonthDate.getMonth();
-    const first = new Date(year, month, 1);
-    const last = new Date(year, month + 1, 0);
-    const leadingEmpty = (first.getDay() + 6) % 7;
-    const out: Array<Date | null> = [];
-    for (let i = 0; i < leadingEmpty; i += 1) {
+    if (!selectedMonthKey) return [];
+    const [year, month] = selectedMonthKey.split("-").map(Number);
+    if (!year || !month) return [];
+    const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const out: Array<string | null> = [];
+    for (let i = 0; i < firstWeekday; i += 1) {
       out.push(null);
     }
-    for (let day = 1; day <= last.getDate(); day += 1) {
-      out.push(new Date(year, month, day));
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      out.push(`${selectedMonthKey}-${String(day).padStart(2, "0")}`);
     }
     return out;
-  }, [currentMonthDate]);
+  }, [selectedMonthKey]);
 
   const selectedDaySlots = useMemo(() => {
     return slotsByDayMap.get(selectedDayKey) ?? [];
@@ -245,7 +254,7 @@ export function ConsultationSlotsCalendar({
                 <Text style={styles.monthNavText}>{"<"}</Text>
               </Pressable>
               <Text style={styles.calendarMonth}>
-                {currentMonthDate ? formatMonthLabel(currentMonthDate) : ""}
+                {currentMonthDate ? formatCalendarMonthLabel(currentMonthDate) : ""}
               </Text>
               <Pressable
                 style={styles.monthNavBtn}
@@ -267,13 +276,13 @@ export function ConsultationSlotsCalendar({
               ))}
             </View>
             <View style={styles.calendarGrid}>
-              {monthCells.map((day, idx) => {
-                if (!day) {
+              {monthCells.map((dayKey, idx) => {
+                if (!dayKey) {
                   return <View key={`empty-${idx}`} style={styles.emptyCell} />;
                 }
-                const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
                 const inRange = rangeDaySet.has(dayKey);
-                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                const dayDate = consultationMskDayKeyToDate(dayKey);
+                const isWeekend = dayDate.getUTCDay() === 0 || dayDate.getUTCDay() === 6;
                 const isSelected = selectedDayKey === dayKey;
                 const daySlots = slotsByDayMap.get(dayKey) ?? [];
                 const freeCount = daySlots.filter((s) => s.status === "FREE").length;
@@ -292,7 +301,7 @@ export function ConsultationSlotsCalendar({
                     disabled={!inRange}
                     onPress={() => setSelectedDayKey(dayKey)}
                   >
-                    <Text style={styles.dayNumber}>{day.getDate()}</Text>
+                    <Text style={styles.dayNumber}>{dayDate.getUTCDate()}</Text>
                     <Text style={styles.dayCount} numberOfLines={1}>
                       {inRange
                         ? isDayOff

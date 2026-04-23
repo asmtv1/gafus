@@ -2,6 +2,7 @@
  * Форматирование дат/времени консультаций в часовом поясе МСК (общее для web и mobile).
  */
 export const CONSULTATION_TIMEZONE = "Europe/Moscow" as const;
+const MSK_UTC_OFFSET = "+03:00" as const;
 
 export function toDayKeyInTimezone(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("ru-RU", {
@@ -21,11 +22,49 @@ export function consultationMskDayKey(date: Date): string {
   return toDayKeyInTimezone(date, CONSULTATION_TIMEZONE);
 }
 
-/** YYYY-MM по локальному календарю месяца (навигация по месяцам в календаре). */
+/** YYYY-MM по календарному месяцу МСК (навигация по месяцам в календаре). */
 export function consultationCalendarMonthKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  return toDayKeyInTimezone(date, CONSULTATION_TIMEZONE).slice(0, 7);
+}
+
+/** YYYY-MM-DD (МСК) -> стабильная Date для календарной отрисовки (12:00 UTC). */
+export function consultationMskDayKeyToDate(dayKey: string): Date {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  if (!y || !m || !d) {
+    return new Date("invalid");
+  }
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+}
+
+function consultationMskDayStartUtc(dayKey: string): Date {
+  return new Date(`${dayKey}T00:00:00.000${MSK_UTC_OFFSET}`);
+}
+
+function consultationMskDayEndUtc(dayKey: string): Date {
+  return new Date(`${dayKey}T23:59:59.999${MSK_UTC_OFFSET}`);
+}
+
+/** Сдвиг ключа дня (МСК) на N суток. */
+export function addDaysToConsultationMskDayKey(dayKey: string, days: number): string {
+  const d = consultationMskDayStartUtc(dayKey);
+  d.setUTCDate(d.getUTCDate() + days);
+  return consultationMskDayKey(d);
+}
+
+/**
+ * Рабочее окно календаря консультаций:
+ * from = завтра (МСК), to = from + daysForward (включительно).
+ */
+export function consultationBookingCalendarWindowMsk(daysForward = 14, now = new Date()) {
+  const todayKey = consultationMskDayKey(now);
+  const fromKey = addDaysToConsultationMskDayKey(todayKey, 1);
+  const toKey = addDaysToConsultationMskDayKey(fromKey, daysForward);
+  return {
+    fromKey,
+    toKey,
+    fromUtc: consultationMskDayStartUtc(fromKey),
+    toUtc: consultationMskDayEndUtc(toKey),
+  };
 }
 
 export function formatConsultationTimeMsk(date: Date): string {

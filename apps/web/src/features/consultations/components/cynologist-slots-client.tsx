@@ -18,10 +18,11 @@ import {
 } from "@gafus/core/services/consultation/consultationSlotsPresentation";
 import type { ConsultationSlotDto, ListedCynologistCardDto } from "@gafus/core/services/consultation/types";
 import {
+  consultationBookingCalendarWindowMsk,
   consultationCalendarMonthKey as toMonthKey,
+  consultationMskDayKeyToDate,
   consultationMskDayKey as toDayKey,
   formatConsultationDayLabelMsk as formatDayLabel,
-  formatConsultationMonthLabelMsk as formatMonthLabel,
   formatConsultationTimeMsk as formatTime,
 } from "@gafus/core/services/consultation/consultationMskFormat";
 import { reportClientError } from "@gafus/error-handling";
@@ -41,6 +42,13 @@ interface SlotsResponse {
   error?: string;
 }
 
+function formatCalendarMonthLabel(date: Date): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 /**
  * Загрузка свободных слотов и бронирование с Idempotency-Key и CSRF.
  */
@@ -56,11 +64,13 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>("");
 
   const { fromDate, toDate, fromIso, toIso } = useMemo(() => {
-    const from = new Date();
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(from);
-    to.setDate(to.getDate() + 14);
-    return { fromDate: from, toDate: to, fromIso: from.toISOString(), toIso: to.toISOString() };
+    const window = consultationBookingCalendarWindowMsk(14);
+    return {
+      fromDate: consultationMskDayKeyToDate(window.fromKey),
+      toDate: consultationMskDayKeyToDate(window.toKey),
+      fromIso: window.fromUtc.toISOString(),
+      toIso: window.toUtc.toISOString(),
+    };
   }, []);
 
   const loadSlots = useCallback(async () => {
@@ -148,23 +158,24 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
   }, [selectedMonthKey]);
 
   const monthCells = useMemo(() => {
-    if (!currentMonthDate) {
+    if (!selectedMonthKey) {
       return [];
     }
-    const year = currentMonthDate.getFullYear();
-    const month = currentMonthDate.getMonth();
-    const first = new Date(year, month, 1);
-    const last = new Date(year, month + 1, 0);
-    const leadingEmpty = (first.getDay() + 6) % 7;
-    const out: (Date | null)[] = [];
-    for (let i = 0; i < leadingEmpty; i += 1) {
+    const [year, month] = selectedMonthKey.split("-").map(Number);
+    if (!year || !month) {
+      return [];
+    }
+    const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const out: (string | null)[] = [];
+    for (let i = 0; i < firstWeekday; i += 1) {
       out.push(null);
     }
-    for (let day = 1; day <= last.getDate(); day += 1) {
-      out.push(new Date(year, month, day));
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      out.push(`${selectedMonthKey}-${String(day).padStart(2, "0")}`);
     }
     return out;
-  }, [currentMonthDate]);
+  }, [selectedMonthKey]);
 
   const selectedDaySlots = useMemo(() => {
     return slotsByDayMap.get(selectedDayKey) ?? [];
@@ -263,7 +274,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                 {"<"}
               </Button>
               <Typography className={styles.calendarMonth}>
-                {currentMonthDate ? formatMonthLabel(currentMonthDate) : ""}
+                {currentMonthDate ? formatCalendarMonthLabel(currentMonthDate) : ""}
               </Typography>
               <Button
                 size="small"
@@ -283,13 +294,13 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
               ))}
             </div>
             <div className={styles.calendarGrid}>
-              {monthCells.map((day, idx) => {
-                if (!day) {
+              {monthCells.map((dayKey, idx) => {
+                if (!dayKey) {
                   return <div key={`empty-${idx}`} className={styles.emptyCell} />;
                 }
-                const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
                 const inRange = rangeDaySet.has(dayKey);
-                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                const dayDate = consultationMskDayKeyToDate(dayKey);
+                const isWeekend = dayDate.getUTCDay() === 0 || dayDate.getUTCDay() === 6;
                 const isSelected = selectedDayKey === dayKey;
                 const daySlots = slotsByDayMap.get(dayKey) ?? [];
                 const freeCount = daySlots.filter((s) => s.status === "FREE").length;
@@ -311,7 +322,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                       setSelectedDayKey(dayKey);
                     }}
                   >
-                    <span className={styles.dayNumber}>{day.getDate()}</span>
+                    <span className={styles.dayNumber}>{dayDate.getUTCDate()}</span>
                     <span className={styles.dayCount}>
                       {inRange ? (isDayOff ? "0 св." : `${freeCount} св.`) : ""}
                     </span>
