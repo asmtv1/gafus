@@ -11,6 +11,7 @@ export async function listAdminBookings(): Promise<ConsultationBookingDto[]> {
     take: 500,
     include: {
       slot: true,
+      client: { select: { username: true } },
       cynologist: {
         include: {
           user: { include: { profile: { select: { fullName: true } } } },
@@ -30,7 +31,15 @@ export async function listAdminBookings(): Promise<ConsultationBookingDto[]> {
     },
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
+    clientUsername: b.client.username,
+    clientOwnerName: b.clientOwnerName,
+    clientPhone: b.clientPhone,
+    petName: b.petName,
+    petGender: b.petGender,
+    petAge: b.petAge,
+    petBreed: b.petBreed,
     clientProblem: b.clientProblem,
+    clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,

@@ -82,9 +82,39 @@
   box-shadow: 0 5px 14px rgba(99, 97, 40, 0.24);
 }
 
-.primaryButton:hover {
+/* Пока не все поля заполнены — явно «не готова», без яркого ховера */
+.primaryButtonMuted {
+  opacity: 0.62;
+  box-shadow: none !important;
+  background-color: #8a8860 !important;
+  border-color: #8a8860 !important;
+  color: #f0ebe0 !important;
+  cursor: pointer;
+}
+
+.primaryButtonMuted:hover {
+  background-color: #7a7854 !important;
+  border-color: #7a7854 !important;
+}
+
+.primaryButton:disabled,
+.primaryButton.Mui-disabled {
+  opacity: 0.45;
+  box-shadow: none !important;
+  background-color: #a8a59a !important;
+  border-color: #a8a59a !important;
+  color: #ece8e0 !important;
+  cursor: not-allowed !important;
+}
+
+.primaryButton:hover:not(:disabled):not(.Mui-disabled) {
   background-color: #4e4c1f !important;
   border-color: #4e4c1f !important;
+}
+
+.primaryButton.primaryButtonMuted:hover:not(:disabled):not(.Mui-disabled) {
+  background-color: #7a7854 !important;
+  border-color: #7a7854 !important;
 }
 
 .secondaryButton:hover {

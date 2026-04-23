@@ -1,4 +1,8 @@
-import type { ConsultationBookingStatus, ConsultationSlotStatus } from "@gafus/prisma";
+import type {
+  ConsultationBookingStatus,
+  ConsultationPetGender,
+  ConsultationSlotStatus,
+} from "@gafus/prisma";
 
 export interface ListedCynologistCardDto {
   id: string;
@@ -22,7 +26,16 @@ export interface ConsultationBookingDto {
   slot: ConsultationSlotDto;
   cynologistUserId: string;
   cynologistDisplayName: string | null;
+  /** Логин клиента в «Гафусе». */
+  clientUsername: string | null;
+  clientOwnerName: string | null;
+  clientPhone: string | null;
+  petName: string | null;
+  petGender: ConsultationPetGender | null;
+  petAge: string | null;
+  petBreed: string | null;
   clientProblem: string | null;
+  clientSelfHelpAttempt: string | null;
   /** Комментарий при отмене/отклонении кинологом (если указали). */
   cancelReason: string | null;
   joinUrl: string | null;

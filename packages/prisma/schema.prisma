@@ -1191,6 +1191,11 @@ enum ConsultationBookingStatus {
   NO_SHOW
 }
 
+enum ConsultationPetGender {
+  MALE
+  FEMALE
+}
+
 enum ConsultationEmailType {
   TRAINER_CONFIRM_REQUEST
   CLIENT_BOOKING_RECEIVED
@@ -1302,7 +1307,17 @@ model ConsultationBooking {
   clientId               String
   cynologistId           String
   slotId                 String
+  /// Имя владельца (как указано при записи)
+  clientOwnerName        String?
+  /// Телефон для связи, E.164 (+7…)
+  clientPhone            String?
+  petName                String?
+  petGender              ConsultationPetGender?
+  petAge                 String?
+  petBreed               String?
   clientProblem          String?
+  /// Как пытались решить проблему самостоятельно
+  clientSelfHelpAttempt  String?
   status                 ConsultationBookingStatus @default(PENDING_TRAINER_CONFIRMATION)
   telemostConferenceId   String?
   telemostJoinUrl        String?

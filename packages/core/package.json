@@ -169,6 +169,14 @@
       "types": "./dist/core/src/services/consultation/consultationMskFormat.d.ts",
       "default": "./dist/core/src/services/consultation/consultationMskFormat.js"
     },
+    "./services/consultation/ruPhone": {
+      "types": "./dist/core/src/services/consultation/ruPhone.d.ts",
+      "default": "./dist/core/src/services/consultation/ruPhone.js"
+    },
+    "./services/consultation/consultationIntakeDisplay": {
+      "types": "./dist/core/src/services/consultation/consultationIntakeDisplay.d.ts",
+      "default": "./dist/core/src/services/consultation/consultationIntakeDisplay.js"
+    },
     "./services/consultation/consultationSlotsPresentation": {
       "types": "./dist/core/src/services/consultation/consultationSlotsPresentation.d.ts",
       "default": "./dist/core/src/services/consultation/consultationSlotsPresentation.js"

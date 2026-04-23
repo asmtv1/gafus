@@ -107,6 +107,14 @@
   margin: 0;
 }
 
+.intakeShort {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(53, 46, 46, 0.88);
+  margin: 0;
+}
+
 .joinLink {
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-size: 15px;

@@ -1,11 +1,25 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
+  Select,
+  type SelectChangeEvent,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useRouter } from "next/navigation";
 
 import { useCSRFStore } from "@gafus/csrf";
 import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
+import { isLikelyValidRuPhoneInput } from "@gafus/core/services/consultation/ruPhone";
 import { reportClientError } from "@gafus/error-handling";
 
 import { showErrorAlert } from "@shared/utils/sweetAlert";
@@ -14,6 +28,23 @@ import styles from "./consultation-booking-confirm-client.module.css";
 
 const SLOT_TAKEN_MESSAGE =
   "Извините, этот слот уже занят. Выберите другое время.";
+
+const CONSULT_NAME_MAX = 15;
+const CONSULT_TEXT_MAX = 1000;
+const CONSULT_PROBLEM_MIN = 10;
+
+function isOwnerOrPetName(s: string): boolean {
+  const t = s.trim();
+  return t.length >= 2 && t.length <= CONSULT_NAME_MAX;
+}
+function isProblemField(s: string): boolean {
+  const t = s.trim();
+  return t.length >= CONSULT_PROBLEM_MIN && t.length <= CONSULT_TEXT_MAX;
+}
+function isSelfHelpField(s: string): boolean {
+  const t = s.trim();
+  return t.length >= 1 && t.length <= CONSULT_TEXT_MAX;
+}
 
 interface ConsultationBookingConfirmClientProps {
   slotId: string;
@@ -39,8 +70,16 @@ export function ConsultationBookingConfirmClient({
 }: ConsultationBookingConfirmClientProps) {
   const router = useRouter();
   const { token: csrfToken, fetchToken } = useCSRFStore();
+  const [clientOwnerName, setClientOwnerName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [petName, setPetName] = useState("");
+  const [petGender, setPetGender] = useState<"MALE" | "FEMALE" | "">("");
+  const [petAge, setPetAge] = useState("");
+  const [petBreed, setPetBreed] = useState("");
   const [clientProblem, setClientProblem] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [clientSelfHelpAttempt, setClientSelfHelpAttempt] = useState("");
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
   const [pending, startTransition] = useTransition();
   const [idempotencyKey] = useState<string>(() =>
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -55,13 +94,49 @@ export function ConsultationBookingConfirmClient({
 
   const slotsHref = `/consultations/${encodeURIComponent(cynologistUserId)}`;
 
+  const canSubmit = useMemo(() => {
+    return (
+      isOwnerOrPetName(clientOwnerName) &&
+      isLikelyValidRuPhoneInput(clientPhone) &&
+      isOwnerOrPetName(petName) &&
+      (petGender === "MALE" || petGender === "FEMALE") &&
+      petAge.trim().length > 0 &&
+      petBreed.trim().length > 0 &&
+      isProblemField(clientProblem) &&
+      isSelfHelpField(clientSelfHelpAttempt)
+    );
+  }, [
+    clientOwnerName,
+    clientPhone,
+    petName,
+    petGender,
+    petAge,
+    petBreed,
+    clientProblem,
+    clientSelfHelpAttempt,
+  ]);
+
+  useEffect(() => {
+    if (canSubmit) {
+      setShowFieldErrors(false);
+    }
+  }, [canSubmit]);
+
   const handleSlotUnavailable = useCallback(async () => {
     await showErrorAlert(SLOT_TAKEN_MESSAGE);
     router.push(slotsHref);
   }, [router, slotsHref]);
 
-  const handleSubmit = useCallback(() => {
-    setError(null);
+  const onPrimaryClick = useCallback(() => {
+    if (pending) {
+      return;
+    }
+    if (!canSubmit) {
+      setShowFieldErrors(true);
+      return;
+    }
+    setServerError(null);
+    setShowFieldErrors(false);
     startTransition(() => {
       void (async () => {
         try {
@@ -75,7 +150,7 @@ export function ConsultationBookingConfirmClient({
               return;
             }
             const vJson = (await verifyRes.json().catch(() => ({}))) as { error?: string };
-            setError(vJson.error ?? "Не удалось проверить слот");
+            setServerError(vJson.error ?? "Не удалось проверить слот");
             return;
           }
 
@@ -84,7 +159,7 @@ export function ConsultationBookingConfirmClient({
           }
           const token = csrfToken ?? useCSRFStore.getState().token;
           if (!token) {
-            setError("Нет CSRF-токена");
+            setServerError("Нет CSRF-токена");
             return;
           }
           const res = await fetch("/api/v1/consultations/book", {
@@ -97,7 +172,14 @@ export function ConsultationBookingConfirmClient({
             body: JSON.stringify({
               slotId,
               idempotencyKey,
-              clientProblem: clientProblem.trim() || undefined,
+              clientOwnerName: clientOwnerName.trim(),
+              clientPhone: clientPhone.trim(),
+              petName: petName.trim(),
+              petGender,
+              petAge: petAge.trim(),
+              petBreed: petBreed.trim(),
+              clientProblem: clientProblem.trim(),
+              clientSelfHelpAttempt: clientSelfHelpAttempt.trim(),
             }),
           });
           const json = (await res.json()) as BookResponse;
@@ -106,7 +188,7 @@ export function ConsultationBookingConfirmClient({
               await handleSlotUnavailable();
               return;
             }
-            setError(json.error ?? "Не удалось забронировать");
+            setServerError(json.error ?? "Не удалось забронировать");
             return;
           }
           router.push("/consultations/my");
@@ -115,20 +197,39 @@ export function ConsultationBookingConfirmClient({
             issueKey: "consultation",
             keys: { operation: "confirmBooking" },
           });
-          setError("Ошибка бронирования");
+          setServerError("Ошибка бронирования");
         }
       })();
     });
   }, [
+    canSubmit,
+    clientOwnerName,
+    clientPhone,
     clientProblem,
+    clientSelfHelpAttempt,
     csrfToken,
     cynologistUserId,
     fetchToken,
     handleSlotUnavailable,
     idempotencyKey,
+    petAge,
+    petBreed,
+    petGender,
+    petName,
     router,
     slotId,
   ]);
+
+  const phoneFieldError =
+    (showFieldErrors && !isLikelyValidRuPhoneInput(clientPhone)) ||
+    (clientPhone.length > 0 && !isLikelyValidRuPhoneInput(clientPhone));
+
+  const onPetGender = useCallback((e: SelectChangeEvent<string>) => {
+    const v = e.target.value;
+    if (v === "MALE" || v === "FEMALE") {
+      setPetGender(v);
+    }
+  }, []);
 
   return (
     <Box className={styles.card}>
@@ -138,7 +239,7 @@ export function ConsultationBookingConfirmClient({
             Подтверждение записи
           </Typography>
           <Typography variant="body2" className={styles.subtle}>
-            Проверьте детали перед финальным бронированием.
+            Заполните данные владельца и питомца — кинолог увидит их в заявке.
           </Typography>
         </div>
 
@@ -156,12 +257,140 @@ export function ConsultationBookingConfirmClient({
 
         <TextField
           className={styles.input}
-          label="Краткое изложение проблемы (для кинолога)"
+          label="Имя владельца *"
+          value={clientOwnerName}
+          onChange={(e) => setClientOwnerName(e.target.value.slice(0, CONSULT_NAME_MAX))}
+          fullWidth
+          autoComplete="name"
+          inputProps={{ maxLength: CONSULT_NAME_MAX }}
+          error={showFieldErrors && !isOwnerOrPetName(clientOwnerName)}
+          helperText={
+            showFieldErrors && !isOwnerOrPetName(clientOwnerName)
+              ? "От 2 до 15 символов"
+              : undefined
+          }
+        />
+        <TextField
+          className={styles.input}
+          label="Номер телефона для связи *"
+          value={clientPhone}
+          onChange={(e) => setClientPhone(e.target.value)}
+          placeholder="+7 … или +998 … (с кодом страны)"
+          fullWidth
+          type="tel"
+          inputMode="tel"
+          error={phoneFieldError}
+          helperText={
+            phoneFieldError
+              ? "Укажите номер с кодом страны, например +7 или +998"
+              : undefined
+          }
+        />
+        <TextField
+          className={styles.input}
+          label="Имя питомца *"
+          value={petName}
+          onChange={(e) => setPetName(e.target.value.slice(0, CONSULT_NAME_MAX))}
+          fullWidth
+          inputProps={{ maxLength: CONSULT_NAME_MAX }}
+          error={showFieldErrors && !isOwnerOrPetName(petName)}
+          helperText={showFieldErrors && !isOwnerOrPetName(petName) ? "От 2 до 15 символов" : undefined}
+        />
+        <FormControl
+          fullWidth
+          className={styles.input}
+          error={showFieldErrors && petGender === ""}
+          variant="outlined"
+        >
+          {/*
+            shrink: при value="" и displayEmpty + renderValue MUI иначе не поднимает label,
+            и «Выберите пол» накладывается на подпись «Пол питомца».
+          */}
+          <InputLabel id="pet-gender-label" shrink>
+            Пол питомца *
+          </InputLabel>
+          <Select<"" | "MALE" | "FEMALE">
+            labelId="pet-gender-label"
+            id="pet-gender"
+            value={petGender}
+            label="Пол питомца *"
+            onChange={onPetGender}
+            displayEmpty
+            renderValue={(selected) => {
+              if (selected === "") {
+                return (
+                  <Box
+                    component="span"
+                    sx={{
+                      color: "text.secondary",
+                      display: "block",
+                      pt: "2px",
+                    }}
+                  >
+                    Выберите пол
+                  </Box>
+                );
+              }
+              return selected === "MALE" ? "Мальчик" : "Девочка";
+            }}
+          >
+            <MenuItem value="MALE">Мальчик</MenuItem>
+            <MenuItem value="FEMALE">Девочка</MenuItem>
+          </Select>
+          {showFieldErrors && petGender === "" ? (
+            <FormHelperText>Выберите пол питомца</FormHelperText>
+          ) : null}
+        </FormControl>
+        <TextField
+          className={styles.input}
+          label="Возраст питомца *"
+          value={petAge}
+          onChange={(e) => setPetAge(e.target.value)}
+          fullWidth
+          placeholder="например, 2 года"
+          error={showFieldErrors && !petAge.trim()}
+          helperText={showFieldErrors && !petAge.trim() ? "Укажите возраст" : undefined}
+        />
+        <TextField
+          className={styles.input}
+          label="Порода *"
+          value={petBreed}
+          onChange={(e) => setPetBreed(e.target.value)}
+          fullWidth
+          error={showFieldErrors && !petBreed.trim()}
+          helperText={showFieldErrors && !petBreed.trim() ? "Укажите породу" : undefined}
+        />
+        <TextField
+          className={styles.input}
+          label="Проблема *"
           multiline
-          minRows={4}
+          minRows={3}
           value={clientProblem}
-          onChange={(e) => setClientProblem(e.target.value)}
-          placeholder="Опишите, что беспокоит, как давно это происходит, что уже пробовали."
+          onChange={(e) => setClientProblem(e.target.value.slice(0, CONSULT_TEXT_MAX))}
+          fullWidth
+          inputProps={{ maxLength: CONSULT_TEXT_MAX }}
+          error={showFieldErrors && !isProblemField(clientProblem)}
+          helperText={
+            showFieldErrors && !isProblemField(clientProblem)
+              ? "От 10 до 1000 символов"
+              : undefined
+          }
+        />
+        <TextField
+          className={styles.input}
+          label="Как пытались решить сами *"
+          multiline
+          minRows={3}
+          value={clientSelfHelpAttempt}
+          onChange={(e) => setClientSelfHelpAttempt(e.target.value.slice(0, CONSULT_TEXT_MAX))}
+          fullWidth
+          inputProps={{ maxLength: CONSULT_TEXT_MAX }}
+          error={showFieldErrors && !isSelfHelpField(clientSelfHelpAttempt)}
+          helperText={
+            showFieldErrors && !isSelfHelpField(clientSelfHelpAttempt)
+              ? "Заполните поле, не более 1000 символов"
+              : undefined
+          }
         />
         <div className={styles.noticeBlock}>
           <Typography variant="body2" className={styles.noticeText}>
@@ -172,7 +401,19 @@ export function ConsultationBookingConfirmClient({
             Если письмо со ссылкой не пришло, проверьте папку «Спам» или напишите в поддержку.
           </Typography>
         </div>
-        {error ? <Alert severity="error">{error}</Alert> : null}
+        {showFieldErrors && !canSubmit ? (
+          <Alert
+            severity="warning"
+            onClose={() => setShowFieldErrors(false)}
+          >
+            Заполните все обязательные поля — пустые поля подсвечены красным.
+          </Alert>
+        ) : null}
+        {serverError ? (
+          <Alert severity="error" onClose={() => setServerError(null)}>
+            {serverError}
+          </Alert>
+        ) : null}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
           <Button
             variant="outlined"
@@ -182,7 +423,27 @@ export function ConsultationBookingConfirmClient({
           >
             Назад к слотам
           </Button>
-          <Button variant="contained" className={styles.primaryButton} onClick={handleSubmit} disabled={pending}>
+          <Button
+            type="button"
+            variant="contained"
+            className={
+              !canSubmit && !pending
+                ? `${styles.primaryButton} ${styles.primaryButtonMuted}`
+                : styles.primaryButton
+            }
+            onClick={onPrimaryClick}
+            disabled={pending}
+            title={
+              !canSubmit
+                ? "Нажмите, чтобы увидеть, какие поля нужно заполнить"
+                : "Отправить заявку на выбранный слот"
+            }
+            aria-label={
+              !canSubmit
+                ? "Забронировать: сначала заполните все обязательные поля"
+                : "Забронировать консультацию"
+            }
+          >
             Забронировать
           </Button>
         </Stack>

@@ -112,6 +112,7 @@ export async function toBookingDto(bookingId: string): Promise<ConsultationBooki
     where: { id: bookingId },
     include: {
       slot: true,
+      client: { select: { username: true } },
       cynologist: {
         include: {
           user: { include: { profile: { select: { fullName: true } } } },
@@ -134,7 +135,15 @@ export async function toBookingDto(bookingId: string): Promise<ConsultationBooki
     },
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
+    clientUsername: b.client.username,
+    clientOwnerName: b.clientOwnerName,
+    clientPhone: b.clientPhone,
+    petName: b.petName,
+    petGender: b.petGender,
+    petAge: b.petAge,
+    petBreed: b.petBreed,
     clientProblem: b.clientProblem,
+    clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,
@@ -167,7 +176,14 @@ export async function bookSlot(
   if (idem?.responseJson && idem.expiresAt > new Date()) {
     const replay = bookSlotResultSchema.safeParse(idem.responseJson);
     if (replay.success) {
-      return replay.data;
+      const d = replay.data;
+      return {
+        ...d,
+        booking: {
+          ...d.booking,
+          clientUsername: d.booking.clientUsername ?? null,
+        },
+      };
     }
   }
 
@@ -218,7 +234,14 @@ export async function bookSlot(
             clientId,
             cynologistId: slot.cynologistId,
             slotId: slot.id,
-            clientProblem: input.clientProblem?.trim() || null,
+            clientOwnerName: input.clientOwnerName,
+            clientPhone: input.clientPhone,
+            petName: input.petName,
+            petGender: input.petGender,
+            petAge: input.petAge,
+            petBreed: input.petBreed,
+            clientProblem: input.clientProblem,
+            clientSelfHelpAttempt: input.clientSelfHelpAttempt,
             status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
             confirmationDeadlineAt: deadline,
           },
@@ -583,6 +606,7 @@ export async function listClientBookings(
     take: take + 1,
     include: {
       slot: true,
+      client: { select: { username: true } },
       cynologist: {
         include: {
           user: { include: { profile: { select: { fullName: true } } } },
@@ -604,7 +628,15 @@ export async function listClientBookings(
     },
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
+    clientUsername: b.client.username,
+    clientOwnerName: b.clientOwnerName,
+    clientPhone: b.clientPhone,
+    petName: b.petName,
+    petGender: b.petGender,
+    petAge: b.petAge,
+    petBreed: b.petBreed,
     clientProblem: b.clientProblem,
+    clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,
@@ -644,6 +676,7 @@ export async function listTrainerBookings(
     take: 200,
     include: {
       slot: true,
+      client: { select: { username: true } },
       cynologist: {
         include: {
           user: { include: { profile: { select: { fullName: true } } } },
@@ -663,7 +696,15 @@ export async function listTrainerBookings(
     },
     cynologistUserId: b.cynologist.userId,
     cynologistDisplayName: b.cynologist.user.profile?.fullName ?? null,
+    clientUsername: b.client.username,
+    clientOwnerName: b.clientOwnerName,
+    clientPhone: b.clientPhone,
+    petName: b.petName,
+    petGender: b.petGender,
+    petAge: b.petAge,
+    petBreed: b.petBreed,
     clientProblem: b.clientProblem,
+    clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
     joinUrl: b.telemostJoinUrl,
     watchUrl: b.telemostWatchUrl,

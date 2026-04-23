@@ -106,6 +106,11 @@ export function MyConsultationsClient({ initialItems }: MyConsultationsClientPro
                 <p className={styles.titleLine}>
                   {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
                 </p>
+                {b.clientOwnerName?.trim() || b.petName?.trim() ? (
+                  <p className={styles.intakeShort}>
+                    {[b.clientOwnerName?.trim(), b.petName?.trim()].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
                 {b.status === "CONFIRMED" && b.joinUrl ? (
                   <p className={styles.joinLink}>
                     <a href={b.joinUrl} target="_blank" rel="noopener noreferrer">

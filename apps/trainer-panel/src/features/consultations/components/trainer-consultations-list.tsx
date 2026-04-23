@@ -15,6 +15,8 @@ import {
 } from "@mui/material";
 
 import type { ConsultationBookingDto } from "@gafus/core";
+import { formatConsultationPetGenderRu } from "@gafus/core/services/consultation/consultationIntakeDisplay";
+import { formatRuPhoneForDisplay } from "@gafus/core/services/consultation/ruPhone";
 import type { ConsultationBookingStatus } from "@gafus/prisma";
 import { reportClientError } from "@gafus/error-handling";
 
@@ -234,9 +236,43 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
                 {confirmed ? " (московское время)" : null}
               </p>
             </div>
-            {b.clientProblem ? (
-              <p className={styles.meta}>Проблема клиента: {b.clientProblem}</p>
-            ) : null}
+            <div className={styles.intakeBlock}>
+              <p className={styles.intakeTitle}>Данные заявки</p>
+              <p className={styles.meta}>
+                <span className={styles.intakeField}>Ник в «Гафусе»: </span>
+                {b.clientUsername?.trim() || "—"}
+              </p>
+              <p className={styles.meta}>
+                <span className={styles.intakeField}>Владелец: </span>
+                {b.clientOwnerName?.trim() || "—"}
+              </p>
+              <p className={styles.meta}>
+                <span className={styles.intakeField}>Телефон: </span>
+                {b.clientPhone ? formatRuPhoneForDisplay(b.clientPhone) : "—"}
+              </p>
+              <p className={styles.meta}>
+                <span className={styles.intakeField}>Питомец: </span>
+                {b.petName?.trim() || "—"} ({formatConsultationPetGenderRu(b.petGender)})
+                {b.petAge?.trim() ? `, ${b.petAge.trim()}` : ""}
+                {b.petBreed?.trim() ? `, ${b.petBreed.trim()}` : ""}
+              </p>
+              {b.clientProblem?.trim() ? (
+                <p className={styles.meta}>
+                  <span className={styles.intakeField}>Проблема: </span>
+                  {b.clientProblem.trim()}
+                </p>
+              ) : (
+                <p className={styles.meta}>Проблема: —</p>
+              )}
+              {b.clientSelfHelpAttempt?.trim() ? (
+                <p className={styles.meta}>
+                  <span className={styles.intakeField}>Самостоятельные попытки: </span>
+                  {b.clientSelfHelpAttempt.trim()}
+                </p>
+              ) : (
+                <p className={styles.meta}>Самостоятельные попытки: —</p>
+              )}
+            </div>
             {status === "CANCELLED_BY_TRAINER" && b.cancelReason?.trim() ? (
               <p className={styles.cancelReason}>
                 <span className={styles.cancelReasonLabel}>Комментарий при отклонении: </span>

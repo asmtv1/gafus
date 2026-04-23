@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { ConsultationBookingStatus, ConsultationSlotStatus, Prisma } from "@gafus/prisma";
+import {
+  ConsultationBookingStatus,
+  ConsultationPetGender,
+  ConsultationSlotStatus,
+  Prisma,
+} from "@gafus/prisma";
 
 import { ConsultationSlotTakenError } from "./errors";
 
@@ -121,6 +126,17 @@ describe("processBookingSlaTimeout", () => {
   });
 });
 
+const bookBodyBase = {
+  clientOwnerName: "Анна",
+  clientPhone: "+79991234567",
+  petName: "Жучка",
+  petGender: "MALE" as const,
+  petAge: "3 года",
+  petBreed: "Собака",
+  clientProblem: "Описание проблемы не менее десяти символов",
+  clientSelfHelpAttempt: "Самолечение",
+};
+
 describe("bookSlot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -141,7 +157,15 @@ describe("bookSlot", () => {
         },
         cynologistUserId: "u1",
         cynologistDisplayName: null,
-        clientProblem: null,
+        clientUsername: null,
+        clientOwnerName: "Анна",
+        clientPhone: "+79991234567",
+        petName: "Жучка",
+        petGender: ConsultationPetGender.MALE,
+        petAge: "3 года",
+        petBreed: "Собака",
+        clientProblem: "Описание проблемы не менее десяти символов",
+        clientSelfHelpAttempt: "Самолечение",
         cancelReason: null,
         joinUrl: null,
         watchUrl: null,
@@ -157,6 +181,7 @@ describe("bookSlot", () => {
     const out = await bookSlot("client1", {
       slotId: "s1",
       idempotencyKey: "k1",
+      ...bookBodyBase,
     });
     expect(out).toEqual(cached);
     expect(prismaTransaction).not.toHaveBeenCalled();
@@ -176,7 +201,7 @@ describe("bookSlot", () => {
     });
     const { bookSlot } = await import("./bookingService");
     await expect(
-      bookSlot("c1", { slotId: "s1", idempotencyKey: "k2" }),
+      bookSlot("c1", { slotId: "s1", idempotencyKey: "k2", ...bookBodyBase }),
     ).rejects.toBeInstanceOf(ConsultationSlotTakenError);
   });
 
@@ -211,7 +236,7 @@ describe("bookSlot", () => {
     });
     const { bookSlot } = await import("./bookingService");
     await expect(
-      bookSlot("c1", { slotId: "slot1", idempotencyKey: "k-p2002" }),
+      bookSlot("c1", { slotId: "slot1", idempotencyKey: "k-p2002", ...bookBodyBase }),
     ).rejects.toBeInstanceOf(ConsultationSlotTakenError);
   });
 
@@ -258,7 +283,7 @@ describe("bookSlot", () => {
 
     const { bookSlot } = await import("./bookingService");
     await expect(
-      bookSlot("c1", { slotId: "slot1", idempotencyKey: "k3" }),
+      bookSlot("c1", { slotId: "slot1", idempotencyKey: "k3", ...bookBodyBase }),
     ).rejects.toThrow("telemost down");
     expect(compBookingUpdate).toHaveBeenCalled();
     expect(compSlotUpdate).toHaveBeenCalled();

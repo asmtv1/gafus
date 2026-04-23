@@ -51,17 +51,31 @@ export const consultationsApi = {
   verifySlotFree: (cynologistUserId: string, slotId: string): Promise<ApiResponse<unknown>> =>
     apiClient(`/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots/${encodeURIComponent(slotId)}/verify`),
 
-  book: (
-    slotId: string,
-    idempotencyKey: string,
-    clientProblem?: string,
-  ): Promise<ApiResponse<BookSlotApiResult>> =>
+  book: (body: {
+    slotId: string;
+    idempotencyKey: string;
+    clientOwnerName: string;
+    clientPhone: string;
+    petName: string;
+    petGender: "MALE" | "FEMALE";
+    petAge: string;
+    petBreed: string;
+    clientProblem: string;
+    clientSelfHelpAttempt: string;
+  }): Promise<ApiResponse<BookSlotApiResult>> =>
     apiClient<BookSlotApiResult>("/api/v1/consultations/book", {
       method: "POST",
       body: {
-        slotId,
-        idempotencyKey,
-        ...(clientProblem?.trim() ? { clientProblem: clientProblem.trim() } : {}),
+        slotId: body.slotId,
+        idempotencyKey: body.idempotencyKey,
+        clientOwnerName: body.clientOwnerName,
+        clientPhone: body.clientPhone,
+        petName: body.petName,
+        petGender: body.petGender,
+        petAge: body.petAge,
+        petBreed: body.petBreed,
+        clientProblem: body.clientProblem,
+        clientSelfHelpAttempt: body.clientSelfHelpAttempt,
       },
     }),
 

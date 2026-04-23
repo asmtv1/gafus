@@ -110,6 +110,11 @@ export default function ConsultationsMineScreen() {
               <Text style={styles.titleLine}>
                 {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
               </Text>
+              {b.clientOwnerName?.trim() || b.petName?.trim() ? (
+                <Text style={styles.intakeShort}>
+                  {[b.clientOwnerName?.trim(), b.petName?.trim()].filter(Boolean).join(" · ")}
+                </Text>
+              ) : null}
               {b.status === "CONFIRMED" && b.joinUrl ? (
                 <Pressable onPress={() => void Linking.openURL(b.joinUrl!)}>
                   <Text style={styles.link}>Перейти к видеовстрече</Text>
@@ -226,6 +231,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.text,
     marginTop: SPACING.sm,
+  },
+  intakeShort: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   link: { marginTop: SPACING.sm, color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 14 },
   cancelBtn: { alignSelf: "flex-start", marginTop: SPACING.sm },

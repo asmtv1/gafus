@@ -31,6 +31,12 @@
       "@gafus/core/services/consultation/consultationMskFormat": [
         "../../packages/core/src/services/consultation/consultationMskFormat.ts"
       ],
+      "@gafus/core/services/consultation/ruPhone": [
+        "../../packages/core/src/services/consultation/ruPhone.ts"
+      ],
+      "@gafus/core/services/consultation/consultationIntakeDisplay": [
+        "../../packages/core/src/services/consultation/consultationIntakeDisplay.ts"
+      ],
       "@gafus/core/services/consultation/consultationSlotsPresentation": [
         "../../packages/core/src/services/consultation/consultationSlotsPresentation.ts"
       ],

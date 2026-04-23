@@ -1,7 +1,7 @@
 /**
  * Письма по консультациям: тот же HTML-шаблон, что «Подтвердите email» (логотип, CTA, подпись).
  */
-import type { ConsultationEmailType } from "@gafus/prisma";
+import type { ConsultationEmailType, ConsultationPetGender } from "@gafus/prisma";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
@@ -13,6 +13,8 @@ import {
   sendTransactionalEmailWithLayout,
 } from "../mail/transactionalEmailLayout";
 import { getPublicWebBaseUrl } from "../mail/publicWebBaseUrl";
+import { formatConsultationPetGenderRu } from "./consultationIntakeDisplay";
+import { formatRuPhoneForDisplay } from "./ruPhone";
 import { formatConsultationConfirmSlotMsk } from "./consultationMskFormat";
 
 const SUBJECT_BRAND = " — Гафус";
@@ -86,7 +88,14 @@ function slotMskLine(booking: { slot: { startAt: Date; endAt: Date } }): string 
 type BookingForMail = {
   id: string;
   telemostJoinUrl: string | null;
+  clientOwnerName: string | null;
+  clientPhone: string | null;
+  petName: string | null;
+  petGender: ConsultationPetGender | null;
+  petAge: string | null;
+  petBreed: string | null;
   clientProblem: string | null;
+  clientSelfHelpAttempt: string | null;
   cancelReason: string | null;
   /** Если была подтверждена — отмена назначенной встречи (другое письмо, чем отклонение заявки). */
   trainerConfirmedAt: Date | null;
@@ -96,6 +105,69 @@ type BookingForMail = {
   };
   slot: { startAt: Date; endAt: Date };
 };
+
+function intakeAnketLinesPlain(b: BookingForMail): string[] {
+  return [
+    `Имя владельца: ${b.clientOwnerName?.trim() || "—"}`,
+    `Телефон: ${b.clientPhone ? formatRuPhoneForDisplay(b.clientPhone) : "—"}`,
+    `Питомец: ${b.petName?.trim() || "—"}`,
+    `Пол: ${formatConsultationPetGenderRu(b.petGender)}`,
+    `Возраст: ${b.petAge?.trim() || "—"}`,
+    `Порода: ${b.petBreed?.trim() || "—"}`,
+    `Проблема:\n${b.clientProblem?.trim() || "—"}`,
+    `Как пытались решить сами:\n${b.clientSelfHelpAttempt?.trim() || "—"}`,
+  ];
+}
+
+function intakeAnketBlockHtml(b: BookingForMail): string {
+  const line = (label: string, value: string) =>
+    `<p style="margin:0 0 8px 0;color:#333333;"><strong>${escapeHtml(
+      label,
+    )}</strong> ${escapeHtml(value).replace(/\n/g, "<br/>")}</p>`;
+  return [
+    line("Владелец", b.clientOwnerName?.trim() || "—"),
+    line("Телефон", b.clientPhone ? formatRuPhoneForDisplay(b.clientPhone) : "—"),
+    line("Питомец", b.petName?.trim() || "—"),
+    line("Пол", formatConsultationPetGenderRu(b.petGender)),
+    line("Возраст", b.petAge?.trim() || "—"),
+    line("Порода", b.petBreed?.trim() || "—"),
+    `<p style="margin:0 0 8px 0;color:#333333;"><strong>Проблема</strong><br/>${escapeHtml(
+      b.clientProblem?.trim() || "—",
+    ).replace(/\n/g, "<br/>")}</p>`,
+    `<p style="margin:0 0 16px 0;color:#333333;"><strong>Как пытались решить</strong><br/>${escapeHtml(
+      b.clientSelfHelpAttempt?.trim() || "—",
+    ).replace(/\n/g, "<br/>")}</p>`,
+  ].join("");
+}
+
+/** Краткое содержимое письма кинологу: без телефона и данных питомца (они только в панели). */
+function trainerInbriefLinesPlain(b: BookingForMail): string[] {
+  const login = b.client.username?.trim() || "—";
+  return [
+    `Логин в «Гафусе»: ${login}`,
+    `Имя владельца: ${b.clientOwnerName?.trim() || "—"}`,
+    `Проблема:\n${b.clientProblem?.trim() || "—"}`,
+    `Как пытались решить сами:\n${b.clientSelfHelpAttempt?.trim() || "—"}`,
+  ];
+}
+
+function trainerInbriefBlockHtml(b: BookingForMail): string {
+  const line = (label: string, value: string) =>
+    `<p style="margin:0 0 8px 0;color:#333333;"><strong>${escapeHtml(
+      label,
+    )}</strong> ${escapeHtml(value).replace(/\n/g, "<br/>")}</p>`;
+  const login = b.client.username?.trim() || "—";
+  return [
+    line("Логин в «Гафусе»", login),
+    line("Имя владельца", b.clientOwnerName?.trim() || "—"),
+    `<p style="margin:0 0 8px 0;color:#333333;"><strong>Проблема</strong><br/>${escapeHtml(
+      b.clientProblem?.trim() || "—",
+    ).replace(/\n/g, "<br/>")}</p>`,
+    `<p style="margin:0 0 16px 0;color:#333333;"><strong>Как пытались решить</strong><br/>${escapeHtml(
+      b.clientSelfHelpAttempt?.trim() || "—",
+    ).replace(/\n/g, "<br/>")}</p>`,
+  ].join("");
+}
 
 async function loadBookingForLog(logId: string): Promise<BookingForMail> {
   const log = await prisma.consultationEmailLog.findUnique({
@@ -145,17 +217,6 @@ function buildPayload(
 
   switch (type) {
     case "CLIENT_BOOKING_RECEIVED": {
-      const problemTrim = b.clientProblem?.trim() ?? "";
-      const problemTextLine = problemTrim || "не указано";
-      const problemHtml = problemTrim
-        ? `<p style="margin:0 0 16px 0;color:#333333;white-space:pre-wrap;">${escapeHtml(problemTrim).replace(
-            /\n/g,
-            "<br/>",
-          )}</p>`
-        : paragraphHtml(
-            "Вы не указали краткое описание — это не обязательно, кинолог увидит заявку в системе и сможет связаться с вами после подтверждения.",
-          );
-
       const text = [
         "Здравствуйте!",
         "",
@@ -163,8 +224,8 @@ function buildPayload(
         "",
         `Созвон запланирован на: ${slotLine}.`,
         "",
-        "Краткое изложение проблемы, с которой вы обратились:",
-        problemTextLine,
+        "Данные из заявки:",
+        ...intakeAnketLinesPlain(b),
         "",
         "Ожидаем, пока наш кинолог подтвердит встречу со своей стороны.",
         "",
@@ -178,8 +239,8 @@ function buildPayload(
           `Вы оставили заявку на первичную бесплатную онлайн-консультацию у кинолога ${cynNameHtml}.`,
         ),
         paragraphHtml(`Созвон запланирован на: ${slotEsc}.`),
-        paragraphHtml("Краткое изложение проблемы, с которой вы обратились:"),
-        problemHtml,
+        paragraphHtml("Данные из заявки:"),
+        intakeAnketBlockHtml(b),
         paragraphHtml("Ожидаем, пока наш кинолог подтвердит встречу со своей стороны."),
       ];
       return { text, blocksHtml };
@@ -230,14 +291,12 @@ function buildPayload(
         "",
         "У вас новая заявка на онлайн-консультацию в сервисе «Гафус».",
         "",
-        `Клиент: ${clientName}`,
         `Время слота (московское): ${slotLine}`,
         "",
-        b.clientProblem?.trim()
-          ? `Кратко о запросе:\n${b.clientProblem.trim()}`
-          : "Клиент не оставил краткого описания в заявке.",
+        "Кратко по заявке (телефон, питомец и остальное — в панели кинолога):",
+        ...trainerInbriefLinesPlain(b),
         "",
-        "Откройте панель кинолога, чтобы подтвердить или отклонить заявку.",
+        "Откройте панель кинолога, чтобы подтвердить или отклонить заявку и увидеть полные данные.",
         "",
         panelUrl,
         "",
@@ -247,23 +306,13 @@ function buildPayload(
       const blocksHtml: string[] = [
         paragraphHtml("Здравствуйте!"),
         paragraphHtml("У вас новая заявка на онлайн-консультацию в сервисе «Гафус»."),
-        paragraphHtml(`Клиент: ${clientNameEsc}.`),
         paragraphHtml(`Время слота (московское): ${slotEsc}.`),
-      ];
-      if (b.clientProblem?.trim()) {
-        blocksHtml.push(
-          `<p style="margin:0 0 16px 0;color:#333333;"><strong>Кратко о запросе:</strong><br/>${escapeHtml(
-            b.clientProblem.trim(),
-          ).replace(/\n/g, "<br/>")}</p>`,
-        );
-      } else {
-        blocksHtml.push(paragraphHtml("Клиент не оставил краткого описания в заявке — вы увидите детали после связи с клиентом."));
-      }
-      blocksHtml.push(
-        paragraphHtml("Откройте панель кинолога, чтобы подтвердить или отклонить заявку."),
+        paragraphHtml("Кратко по заявке. Телефон, данные питомца и прочее смотрите в панели:"),
+        trainerInbriefBlockHtml(b),
+        paragraphHtml("Откройте панель, чтобы подтвердить или отклонить заявку и увидеть полные данные."),
         ctaButtonHtml(panelUrl, "Перейти к заявкам"),
         plainLinkFallbackHtml(panelUrl),
-      );
+      ];
       return { text, blocksHtml };
     }
     case "TRAINER_BOOKING_CONFIRMED": {

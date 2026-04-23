@@ -29,6 +29,7 @@ export {
   ConsultationBookingStatus,
   ConsultationEmailStatus,
   ConsultationEmailType,
+  ConsultationPetGender,
   ConsultationSlotStatus,
   PetPreventionReminderKind,
   PetPreventionType,
