@@ -6,6 +6,9 @@ const mockPushSubscriptionFindMany = vi.fn();
 const mockPushSubscriptionDeleteMany = vi.fn();
 const mockSendNotifications = vi.fn();
 const mockShouldDeleteSubscription = vi.fn();
+const mockPartitionPushSubscriptions = vi.fn();
+const mockSendExpoPushNotifications = vi.fn();
+const mockSendRustorePushNotifications = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -30,14 +33,36 @@ vi.mock("@gafus/webpush", () => ({
     fromEnvironment: () => ({
       sendNotifications: (...args: unknown[]) => mockSendNotifications(...args),
     }),
-    shouldDeleteSubscription: (...args: unknown[]) =>
-      mockShouldDeleteSubscription(...args),
+    shouldDeleteSubscription: (...args: unknown[]) => mockShouldDeleteSubscription(...args),
   },
+  partitionPushSubscriptions: (...args: unknown[]) => mockPartitionPushSubscriptions(...args),
+  sendExpoPushNotifications: (...args: unknown[]) => mockSendExpoPushNotifications(...args),
+  sendRustorePushNotifications: (...args: unknown[]) => mockSendRustorePushNotifications(...args),
 }));
 
 describe("sendBroadcastPush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPartitionPushSubscriptions.mockImplementation((subs: { endpoint: string; keys: unknown }[]) => ({
+      web: subs.map((s) => {
+        const keys = s.keys as { p256dh: string; auth: string };
+        return { endpoint: s.endpoint, keys };
+      }),
+      expo: [],
+      rustore: [],
+    }));
+    mockSendExpoPushNotifications.mockResolvedValue({
+      successCount: 0,
+      failureCount: 0,
+      deletedCount: 0,
+      temporaryFailureCount: 0,
+    });
+    mockSendRustorePushNotifications.mockResolvedValue({
+      successCount: 0,
+      failureCount: 0,
+      deletedCount: 0,
+      temporaryFailureCount: 0,
+    });
   });
 
   it("returns error when title empty", async () => {
@@ -71,6 +96,11 @@ describe("sendBroadcastPush", () => {
         userId: "u1",
       },
     ]);
+    mockPartitionPushSubscriptions.mockReturnValue({
+      web: [{ endpoint: "https://push.example.com/1", keys: { p256dh: "key1", auth: "auth1" } }],
+      expo: [],
+      rustore: [],
+    });
     mockSendNotifications.mockResolvedValue({
       successCount: 1,
       failureCount: 0,
@@ -85,6 +115,8 @@ describe("sendBroadcastPush", () => {
     expect(result.sentCount).toBe(1);
     expect(result.failedCount).toBe(0);
     expect(mockSendNotifications).toHaveBeenCalled();
+    expect(mockSendExpoPushNotifications).not.toHaveBeenCalled();
+    expect(mockSendRustorePushNotifications).not.toHaveBeenCalled();
   });
 
   it("deletes invalid subscriptions when shouldDeleteSubscription returns true", async () => {
@@ -95,6 +127,11 @@ describe("sendBroadcastPush", () => {
         userId: "u1",
       },
     ]);
+    mockPartitionPushSubscriptions.mockReturnValue({
+      web: [{ endpoint: "https://invalid.example.com/1", keys: { p256dh: "k", auth: "a" } }],
+      expo: [],
+      rustore: [],
+    });
     mockSendNotifications.mockResolvedValue({
       successCount: 0,
       failureCount: 1,

@@ -3,12 +3,13 @@ import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
-import { PushNotificationService } from "@gafus/webpush";
-
 import type { PushSubscription } from "@gafus/prisma";
-import { sendExpoPushNotifications } from "./lib/expoPush";
-import { sendRustorePushNotifications } from "./lib/rustorePush";
-import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
+import {
+  PushNotificationService,
+  partitionPushSubscriptions,
+  sendExpoPushNotifications,
+  sendRustorePushNotifications,
+} from "@gafus/webpush";
 // Создаем логгеры для разных компонентов
 const notificationLogger = createWorkerLogger("notification-processor");
 const workerLogger = createWorkerLogger("push-worker");

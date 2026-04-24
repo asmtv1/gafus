@@ -1,5 +1,10 @@
 import { prisma } from "@gafus/prisma";
-import { PushNotificationService } from "@gafus/webpush";
+import {
+  PushNotificationService,
+  partitionPushSubscriptions,
+  sendExpoPushNotifications,
+  sendRustorePushNotifications,
+} from "@gafus/webpush";
 import { createWebLogger } from "@gafus/logger";
 
 import type { BroadcastResult } from "./types";
@@ -32,15 +37,14 @@ export async function sendBroadcastPush(
   }
 
   try {
-    const subscriptions = await prisma.pushSubscription.findMany({
+    const rows = await prisma.pushSubscription.findMany({
       select: {
         endpoint: true,
         keys: true,
-        userId: true,
       },
     });
 
-    if (subscriptions.length === 0) {
+    if (rows.length === 0) {
       logger.info("Нет пользователей с активными push-подписками");
       return {
         success: true,
@@ -50,66 +54,77 @@ export async function sendBroadcastPush(
       };
     }
 
-    logger.info(`Найдено ${subscriptions.length} активных подписок`);
+    const subscriptionLikes = rows.map((r) => ({ endpoint: r.endpoint, keys: r.keys }));
+    const partitioned = partitionPushSubscriptions(subscriptionLikes);
+    const totalTargets =
+      partitioned.web.length + partitioned.expo.length + partitioned.rustore.length;
 
-    const pushSubscriptions = subscriptions
-      .map((sub) => {
-        const keysRaw = sub.keys as unknown;
-        if (
-          keysRaw &&
-          typeof keysRaw === "object" &&
-          !Array.isArray(keysRaw) &&
-          "p256dh" in keysRaw &&
-          "auth" in keysRaw &&
-          typeof (keysRaw as { p256dh: string; auth: string }).p256dh === "string" &&
-          typeof (keysRaw as { p256dh: string; auth: string }).auth === "string"
-        ) {
-          const keys = keysRaw as { p256dh: string; auth: string };
-          return {
-            endpoint: sub.endpoint,
-            keys: { p256dh: keys.p256dh, auth: keys.auth },
-          };
-        }
-        return null;
-      })
-      .filter(
-        (sub): sub is { endpoint: string; keys: { p256dh: string; auth: string } } => sub !== null,
-      );
+    logger.info(`Найдено подписок: всего записей ${rows.length}, валидных к отправке ${totalTargets}`);
 
-    const pushService = PushNotificationService.fromEnvironment();
-    const payload = {
+    const linkUrl = url?.trim() || "/";
+    const webPayload = {
       title,
       body,
       icon: "/icons/icon-192x192.png",
       badge: "/icons/badge-72x72.png",
-      ...(url && { url }),
+      url: linkUrl,
     };
 
-    const result = await pushService.sendNotifications(pushSubscriptions, payload);
+    const pushService = PushNotificationService.fromEnvironment();
 
-    const invalidEndpoints = result.results
-      .filter((r) => !r.success && PushNotificationService.shouldDeleteSubscription(r.error))
-      .map((r) => r.endpoint);
+    let sentCount = 0;
+    let failedCount = 0;
 
-    if (invalidEndpoints.length > 0) {
-      await prisma.pushSubscription.deleteMany({
-        where: { endpoint: { in: invalidEndpoints } },
+    if (partitioned.web.length > 0) {
+      const result = await pushService.sendNotifications(partitioned.web, webPayload);
+      sentCount += result.successCount;
+      failedCount += result.failureCount;
+
+      const invalidEndpoints = result.results
+        .filter((r) => !r.success && PushNotificationService.shouldDeleteSubscription(r.error))
+        .map((r) => r.endpoint);
+
+      if (invalidEndpoints.length > 0) {
+        await prisma.pushSubscription.deleteMany({
+          where: { endpoint: { in: invalidEndpoints } },
+        });
+        logger.info(`Удалено ${invalidEndpoints.length} недействительных web-подписок`);
+      }
+    }
+
+    if (partitioned.expo.length > 0) {
+      const expoResult = await sendExpoPushNotifications(partitioned.expo, {
+        title,
+        body,
+        url: linkUrl,
       });
-      logger.info(`Удалено ${invalidEndpoints.length} недействительных подписок`);
+      sentCount += expoResult.successCount;
+      failedCount += expoResult.failureCount;
+    }
+
+    if (partitioned.rustore.length > 0) {
+      const rustoreResult = await sendRustorePushNotifications(partitioned.rustore, {
+        title,
+        body,
+        url: linkUrl,
+      });
+      sentCount += rustoreResult.successCount;
+      failedCount += rustoreResult.failureCount;
     }
 
     logger.success("Массовая рассылка завершена", {
-      totalSubscriptions: pushSubscriptions.length,
-      sent: result.successCount,
-      failed: result.failureCount,
-      invalidRemoved: invalidEndpoints.length,
+      web: partitioned.web.length,
+      expo: partitioned.expo.length,
+      rustore: partitioned.rustore.length,
+      sent: sentCount,
+      failed: failedCount,
     });
 
     return {
       success: true,
-      totalUsers: pushSubscriptions.length,
-      sentCount: result.successCount,
-      failedCount: result.failureCount,
+      totalUsers: totalTargets,
+      sentCount,
+      failedCount,
     };
   } catch (error) {
     logger.error("Ошибка при массовой рассылке push-уведомлений", error as Error);

@@ -6,9 +6,11 @@
 import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";
-import { partitionPushSubscriptions } from "./lib/partitionPushSubscriptions";
-import { sendExpoPushNotifications } from "./lib/expoPush";
-import { sendRustorePushNotifications } from "./lib/rustorePush";
+import {
+  partitionPushSubscriptions,
+  sendExpoPushNotifications,
+  sendRustorePushNotifications,
+} from "@gafus/webpush";
 import { TRAINING_REMINDER_TIME_TOLERANCE_MINUTES } from "./training-reminder-schedule";
 
 const logger = createWorkerLogger("training-reminders-sender");

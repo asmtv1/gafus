@@ -7,18 +7,21 @@
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
+    "expo-server-sdk": "^3.15.0",
     "web-push": "3.6.6"
   },
   "devDependencies": {
     "@types/node": "20.4.8",
     "@types/web-push": "3.6.4",
     "rimraf": "5.0.1",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17"
   }
 }

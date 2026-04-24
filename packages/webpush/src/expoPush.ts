@@ -88,7 +88,7 @@ export async function sendExpoPushNotifications(
 
     failureCount++;
     if (shouldDeleteByCode(ticket.details?.error)) {
-      invalidEndpoints.add(expoTokens[index]);
+      invalidEndpoints.add(expoTokens[index]!);
     } else {
       temporaryFailureCount++;
     }
@@ -105,7 +105,7 @@ export async function sendExpoPushNotifications(
       if (ticketIndex == null) continue;
 
       if (shouldDeleteByCode(receipt.details?.error)) {
-        invalidEndpoints.add(expoTokens[ticketIndex]);
+        invalidEndpoints.add(expoTokens[ticketIndex]!);
       }
     }
   }
