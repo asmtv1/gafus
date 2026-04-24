@@ -13,29 +13,39 @@ import {
   Typography,
 } from "@mui/material";
 
-import { setMobileVkLoginOnIosAction } from "@/shared/lib/actions/mobileAppFeatureFlagsActions";
+import {
+  setMobileIosRuCardPaymentHintAction,
+  setMobileVkLoginOnIosAction,
+} from "@/shared/lib/actions/mobileAppFeatureFlagsActions";
 
 interface MobileAppFeaturesCardProps {
   initialVkLoginOnIos: boolean;
+  initialIosRuCardPaymentHintEnabled: boolean;
 }
 
 /**
  * Управление публичными флагами мобильного клиента (читаются через API без JWT).
  */
-export function MobileAppFeaturesCard({ initialVkLoginOnIos }: MobileAppFeaturesCardProps) {
-  const [checked, setChecked] = useState(initialVkLoginOnIos);
+export function MobileAppFeaturesCard({
+  initialVkLoginOnIos,
+  initialIosRuCardPaymentHintEnabled,
+}: MobileAppFeaturesCardProps) {
+  const [vkChecked, setVkChecked] = useState(initialVkLoginOnIos);
+  const [iosRuCardHintChecked, setIosRuCardHintChecked] = useState(
+    initialIosRuCardPaymentHintEnabled,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleChange = (_event: unknown, next: boolean) => {
+  const handleVkChange = (_event: unknown, next: boolean) => {
     setError(null);
-    const previous = checked;
-    setChecked(next);
+    const previous = vkChecked;
+    setVkChecked(next);
     startTransition(async () => {
       try {
         const result = await setMobileVkLoginOnIosAction(next);
         if (!result.success) {
-          setChecked(previous);
+          setVkChecked(previous);
           setError(result.error ?? "Не удалось сохранить");
         }
       } catch (err) {
@@ -43,7 +53,29 @@ export function MobileAppFeaturesCard({ initialVkLoginOnIos }: MobileAppFeatures
           issueKey: "MobileAppFeaturesCard",
           keys: { operation: "setMobileVkLoginOnIos" },
         });
-        setChecked(previous);
+        setVkChecked(previous);
+        setError(err instanceof Error ? err.message : "Ошибка сохранения");
+      }
+    });
+  };
+
+  const handleIosRuCardHintChange = (_event: unknown, next: boolean) => {
+    setError(null);
+    const previous = iosRuCardHintChecked;
+    setIosRuCardHintChecked(next);
+    startTransition(async () => {
+      try {
+        const result = await setMobileIosRuCardPaymentHintAction(next);
+        if (!result.success) {
+          setIosRuCardHintChecked(previous);
+          setError(result.error ?? "Не удалось сохранить");
+        }
+      } catch (err) {
+        reportClientError(err, {
+          issueKey: "MobileAppFeaturesCard",
+          keys: { operation: "setMobileIosRuCardPaymentHint" },
+        });
+        setIosRuCardHintChecked(previous);
         setError(err instanceof Error ? err.message : "Ошибка сохранения");
       }
     });
@@ -64,13 +96,24 @@ export function MobileAppFeaturesCard({ initialVkLoginOnIos }: MobileAppFeatures
         <FormControlLabel
           control={
             <Switch
-              checked={checked}
-              onChange={handleChange}
+              checked={vkChecked}
+              onChange={handleVkChange}
               disabled={isPending}
               color="primary"
             />
           }
           label="Показывать вход через VK на iOS"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={iosRuCardHintChecked}
+              onChange={handleIosRuCardHintChange}
+              disabled={isPending}
+              color="primary"
+            />
+          }
+          label="Показывать подсказку «Оплата картами РФ доступна на сайте» в платных курсах iOS"
         />
         {error ? (
           <Alert severity="error" sx={{ mt: 2 }}>

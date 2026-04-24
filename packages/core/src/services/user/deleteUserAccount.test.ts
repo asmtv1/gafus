@@ -19,6 +19,7 @@ const mockArticleCount = vi.fn();
 const mockRefreshUpdateMany = vi.fn();
 const mockConsentLogUpdateMany = vi.fn();
 const mockUserDelete = vi.fn();
+const mockExecuteRaw = vi.fn();
 const mockTransaction = vi.fn();
 const mockSendDeletionEmail = vi.fn();
 
@@ -70,6 +71,7 @@ describe("deleteUserAccount", () => {
         refreshToken: { updateMany: mockRefreshUpdateMany },
         consentLog: { updateMany: mockConsentLogUpdateMany },
         user: { delete: mockUserDelete, update: mockUserUpdate },
+        $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
       };
       return fn(tx);
     });
@@ -81,6 +83,7 @@ describe("deleteUserAccount", () => {
     mockRefreshUpdateMany.mockResolvedValue({ count: 1 });
     mockConsentLogUpdateMany.mockResolvedValue({ count: 0 });
     mockUserDelete.mockResolvedValue({});
+    mockExecuteRaw.mockResolvedValue(1);
     mockAccountDeletionDeleteMany.mockResolvedValue({ count: 1 });
     mockAccountDeletionFindFirst.mockResolvedValue({
       id: "tok1",
@@ -106,6 +109,7 @@ describe("deleteUserAccount", () => {
     expect(mockAccountDeletionDeleteMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
     expect(mockRefreshUpdateMany).toHaveBeenCalled();
     expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
+    expect(mockExecuteRaw).toHaveBeenCalledTimes(2);
   });
 
   it("allows PREMIUM with valid code", async () => {

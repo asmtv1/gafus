@@ -125,10 +125,6 @@
       "types": "./dist/core/src/services/adminReengagement/index.d.ts",
       "default": "./dist/core/src/services/adminReengagement/index.js"
     },
-    "./services/adminPresentation": {
-      "types": "./dist/core/src/services/adminPresentation/index.d.ts",
-      "default": "./dist/core/src/services/adminPresentation/index.js"
-    },
     "./services/adminStorage": {
       "types": "./dist/core/src/services/adminStorage/index.d.ts",
       "default": "./dist/core/src/services/adminStorage/index.js"

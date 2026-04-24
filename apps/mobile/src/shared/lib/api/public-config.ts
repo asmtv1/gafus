@@ -2,6 +2,7 @@ import { apiClient, type ApiResponse } from "./client";
 
 export interface MobileAppPublicConfig {
   vkLoginEnabledOnIos: boolean;
+  iosRuCardPaymentHintEnabled: boolean;
 }
 
 /**

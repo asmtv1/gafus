@@ -9,7 +9,6 @@ import {
   AdminPanelSettings,
   Notifications,
   TrendingUp,
-  Assessment,
   ShoppingCart,
   Pets,
   EventNote,
@@ -57,12 +56,6 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       icon: TrendingUp,
       label: "Re-engagement",
       show: userRole === "ADMIN",
-    },
-    {
-      href: "/main-panel/presentation-stats",
-      icon: Assessment,
-      label: "Стата по презентации",
-      show: ["ADMIN", "MODERATOR"].includes(userRole),
     },
     {
       href: "/main-panel/purchases",

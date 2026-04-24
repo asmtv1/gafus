@@ -43,6 +43,7 @@ import {
 } from "@/shared/utils/courseFilters";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/constants";
+import { fetchMobileAppPublicConfig } from "@/shared/lib/api/public-config";
 
 const LOGO_PREFETCH_LIMIT = 12;
 /** Первые карточки (карточка высокая — не завышать, иначе FlashList может не смонтировать все ячейки). */
@@ -104,11 +105,36 @@ export default function CoursesScreen() {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [viewportReady, setViewportReady] = useState(false);
+  const [iosRuCardPaymentHintEnabled, setIosRuCardPaymentHintEnabled] = useState(false);
+  const [iosConfigLoaded, setIosConfigLoaded] = useState(Platform.OS !== "ios");
   const pushPromptAskedInSession = useRef(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
+  const username = useAuthStore((s) => s.user?.username ?? null);
+  const isTestUser = username?.toLowerCase() === "testuser";
+
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchMobileAppPublicConfig();
+        if (!cancelled && res.success && res.data) {
+          setIosRuCardPaymentHintEnabled(res.data.iosRuCardPaymentHintEnabled);
+        }
+      } finally {
+        if (!cancelled) {
+          setIosConfigLoaded(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const catalogReady = !isLoading && !error;
   usePrefetchOtherTabsAfterCourses({ catalogReady });
@@ -309,13 +335,27 @@ export default function CoursesScreen() {
           isFavorite={courseIsFavorite}
           onToggleFavorite={handleToggleFavorite}
           disabled={pendingIdsSet.has(item.id)}
+          showIosRuCardPaymentHint={
+            Platform.OS === "ios" &&
+            iosConfigLoaded &&
+            iosRuCardPaymentHintEnabled &&
+            !isTestUser
+          }
           listIndex={index}
           viewportGateCount={VIEWPORT_COURSE_LOGO_GATE_COUNT}
           onViewportCoverReady={handleViewportCoverReady}
         />
       );
     },
-    [favoritesSet, handleToggleFavorite, handleViewportCoverReady, pendingIdsSet],
+    [
+      favoritesSet,
+      handleToggleFavorite,
+      handleViewportCoverReady,
+      isTestUser,
+      iosConfigLoaded,
+      iosRuCardPaymentHintEnabled,
+      pendingIdsSet,
+    ],
   );
 
   const keyExtractor = useCallback((item: Course) => item.id, []);

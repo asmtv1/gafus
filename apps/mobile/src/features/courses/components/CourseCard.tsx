@@ -112,6 +112,7 @@ function areCourseCardPropsEqual(prev: CourseCardProps, next: CourseCardProps): 
   return (
     prev.isFavorite === next.isFavorite &&
     prev.disabled === next.disabled &&
+    prev.showIosRuCardPaymentHint === next.showIosRuCardPaymentHint &&
     prev.listIndex === next.listIndex &&
     prev.viewportGateCount === next.viewportGateCount &&
     prev.onToggleFavorite === next.onToggleFavorite &&
@@ -160,6 +161,7 @@ export interface CourseCardProps {
   course: Course;
   isFavorite: boolean;
   onToggleFavorite: (courseId: string) => void;
+  showIosRuCardPaymentHint?: boolean;
   /** Блокировка кнопки избранного (напр. во время запроса) */
   disabled?: boolean;
   /** Индекс в списке: для вкладки «Курсы» — готовность лого до снятия полноэкранного оверлея */
@@ -175,6 +177,7 @@ function CourseCardComponent({
   course,
   isFavorite,
   onToggleFavorite,
+  showIosRuCardPaymentHint = false,
   disabled = false,
   listIndex,
   viewportGateCount = 0,
@@ -453,6 +456,11 @@ function CourseCardComponent({
                   )}
                 </View>
               )}
+              {isPaidWithoutAccess && showIosRuCardPaymentHint ? (
+                <Text style={styles.iosPaymentHintText}>
+                  Оплата картами РФ доступна на сайте
+                </Text>
+              ) : null}
             </View>
           </Pressable>
         </Link>
@@ -786,6 +794,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#352e2e",
     fontFamily: FONTS.montserrat,
+  },
+  iosPaymentHintText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: COLORS.secondary,
+    fontFamily: FONTS.montserratMedium,
   },
   rating: {
     flexDirection: "row",

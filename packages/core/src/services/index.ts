@@ -26,7 +26,6 @@ export * from "./reengagement";
 export * from "./adminUser";
 export * from "./adminPurchase";
 export * from "./adminReengagement";
-export * from "./adminPresentation";
 export * from "./adminStorage";
 export * from "./adminBroadcast";
 export * from "./appFeatureFlags";

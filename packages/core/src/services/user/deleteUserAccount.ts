@@ -254,6 +254,8 @@ export async function deleteUserAccount(
     }
 
     const hadEmail = gate.user.email != null && gate.user.email.length > 0;
+    const deletionRole = gate.user.role;
+    const deletionTimestamp = new Date();
 
     await prisma.$transaction(async (tx) => {
       await tx.accountDeletionToken.deleteMany({ where: { userId: actorUserId } });
@@ -270,6 +272,29 @@ export async function deleteUserAccount(
         },
       });
       await tx.user.delete({ where: { id: actorUserId } });
+      await tx.$executeRaw`
+        INSERT INTO "AccountDeletionAudit"
+          ("id", "userId", "role", "hadEmail", "initiatedBy", "deletedAt", "createdAt", "updatedAt")
+        VALUES
+          (
+            ${crypto.randomUUID()},
+            ${actorUserId},
+            ${deletionRole}::"UserRole",
+            ${hadEmail},
+            'SELF_SERVICE',
+            ${deletionTimestamp},
+            ${deletionTimestamp},
+            ${deletionTimestamp}
+          )
+      `;
+      await tx.$executeRaw`
+        INSERT INTO "AccountDeletionCounter" ("id", "totalDeleted", "createdAt", "updatedAt")
+        VALUES ('global', 1, ${deletionTimestamp}, ${deletionTimestamp})
+        ON CONFLICT ("id")
+        DO UPDATE
+          SET "totalDeleted" = "AccountDeletionCounter"."totalDeleted" + 1,
+              "updatedAt" = EXCLUDED."updatedAt"
+      `;
     });
 
     logger.success("Аккаунт удалён", { userId: actorUserId, hadEmail });

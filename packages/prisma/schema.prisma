@@ -583,6 +583,29 @@ model AccountDeletionToken {
   @@index([userId])
 }
 
+/// Аудит фактов удаления аккаунтов (для аналитики и расследований).
+model AccountDeletionAudit {
+  id          String   @id @default(cuid())
+  userId      String
+  role        UserRole
+  hadEmail    Boolean  @default(false)
+  initiatedBy String   @default("SELF_SERVICE")
+  deletedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([deletedAt])
+  @@index([userId])
+}
+
+/// Глобальный счетчик удаленных аккаунтов (одна строка с id = "global").
+model AccountDeletionCounter {
+  id           String   @id
+  totalDeleted Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 /// Подтверждение смены email: письмо на новый адрес со ссылкой по token.
 model EmailChangeToken {
   id        String   @id @default(cuid())

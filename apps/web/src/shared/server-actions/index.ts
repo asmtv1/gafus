@@ -34,11 +34,7 @@ export {
 export { getUserTrainingDatesAction } from "./achievements";
 
 // Tracking Actions
-export {
-  trackPresentationViewAction,
-  trackPresentationEventAction,
-  trackReengagementClickAction,
-} from "./tracking";
+export { trackReengagementClickAction } from "./tracking";
 
 // Notification Actions
 export {
