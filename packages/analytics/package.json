@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@gafus/types": "workspace:*",
+    "posthog-js": "^1.372.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -44,6 +45,8 @@
     "react-native": ">=0.78.0"
   },
   "peerDependenciesMeta": {
-    "posthog-react-native": { "optional": true }
+    "posthog-react-native": {
+      "optional": true
+    }
   }
 }
