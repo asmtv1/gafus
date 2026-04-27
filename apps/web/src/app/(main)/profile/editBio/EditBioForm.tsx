@@ -1,6 +1,7 @@
 "use client";
 
 import { reportClientError } from "@gafus/error-handling";
+import { trackEvent } from "@gafus/analytics";
 import { FormField } from "@shared/components/ui/FormField";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
@@ -70,6 +71,7 @@ export default function EditBioForm() {
   // Получаем session только после гидратации
   const { data: session } = useSession();
   const username = isHydrated ? session?.user?.username : undefined;
+  const pathOrScreen = "/profile/editBio";
 
   // Показываем загрузку до завершения гидратации
   if (!isHydrated) {
@@ -102,6 +104,12 @@ export default function EditBioForm() {
   }
 
   const onSubmit = async (data: UserProfileFormSchema) => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen,
+      elementId: "profile-bio-save-submit",
+    });
     try {
       // Преобразуем данные в формат, ожидаемый updateProfile
       const updateData: UpdateUserProfileInput = {
@@ -114,6 +122,12 @@ export default function EditBioForm() {
       };
       await updateProfile(updateData);
       await clearProfilePageCache(username);
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId: "profile-bio-save-success",
+      });
       reset(data);
       // Используем router.push вместо window.history.back() для надежности
       // Сохраняем параметр username при редиректе

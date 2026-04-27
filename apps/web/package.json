@@ -18,6 +18,7 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.0",
+    "@gafus/analytics": "workspace:*",
     "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:^",
     "@gafus/core": "workspace:*",
@@ -70,6 +71,7 @@
     "@types/react": "19.1.9",
     "@types/react-dom": "19.1.7",
     "copy-webpack-plugin": "^13.0.1",
+    "dotenv": "17.2.0",
     "eslint-config-next": "15.4.5",
     "swagger-ui-react": "^5.29.0"
   },

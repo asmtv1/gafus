@@ -16,7 +16,7 @@ export default function Index() {
     })),
   );
 
-  if (isAuthenticated) return <Redirect href="/(main)" />;
+  if (isAuthenticated) return <Redirect href="/(main)/(tabs)" />;
   if (pendingVkConsent) return <Redirect href="/vk-consent" />;
   if (pendingVkPhone) return <Redirect href="/vk-set-phone" />;
   return <Redirect href="/welcome" />;

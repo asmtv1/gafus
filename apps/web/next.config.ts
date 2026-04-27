@@ -8,6 +8,17 @@ interface WebpackConfig {
 }
 
 const _path = require("path");
+
+/* Monorepo: Next по умолчанию читает только apps/web/.env*; NEXT_PUBLIC_* нужны при build из корня. */
+try {
+  const dotenv = require("dotenv");
+  const monorepoRoot = _path.resolve(__dirname, "../..");
+  dotenv.config({ path: _path.join(monorepoRoot, ".env"), override: true });
+  dotenv.config({ path: _path.join(monorepoRoot, ".env.local"), override: true });
+} catch {
+  /* dotenv может быть недоступен в редких install — остаётся только apps/web/.env* */
+}
+
 const withPWAInit = require("@ducanh2912/next-pwa").default;
 
 // Bundle analyzer

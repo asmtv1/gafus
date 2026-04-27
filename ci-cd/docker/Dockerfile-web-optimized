@@ -40,6 +40,9 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 
 # Собираем в явном порядке, как локально: сначала core (и deps), потом web
 # Убирает расхождение с CI, где turbo мог по-другому разрешать граф
+# NEXT_PUBLIC_* — на этапе build (секрет GitHub → build-arg в CI)
+ARG NEXT_PUBLIC_YM_COUNTER_ID=""
+ENV NEXT_PUBLIC_YM_COUNTER_ID=${NEXT_PUBLIC_YM_COUNTER_ID}
 ENV USE_STANDALONE=true
 RUN pnpm --filter @gafus/mailer build && \
     pnpm build --filter '@gafus/core...'

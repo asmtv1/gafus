@@ -1,7 +1,8 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import Link from "next/link";
+import { trackEvent } from "@gafus/analytics";
 
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
@@ -22,6 +23,7 @@ interface PetCardProps {
   onEdit: (pet: PetFromPublicProfile) => void;
   onDelete: (petId: string, petName: string) => void;
   isPending: boolean;
+  pathOrScreen: string;
 }
 
 const PetCard = memo(function PetCard({
@@ -30,7 +32,34 @@ const PetCard = memo(function PetCard({
   onEdit,
   onDelete,
   isPending,
+  pathOrScreen,
 }: PetCardProps) {
+  const trackProfilePetClick = useCallback(
+    (elementId: string) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId,
+      });
+    },
+    [pathOrScreen],
+  );
+
+  const handlePreventionLinkClick = useCallback(() => {
+    trackProfilePetClick("profile-pet-prevention-open");
+  }, [trackProfilePetClick]);
+
+  const handleEditIconClick = useCallback(() => {
+    trackProfilePetClick("profile-pet-edit-click");
+    onEdit(pet);
+  }, [onEdit, pet, trackProfilePetClick]);
+
+  const handleDeleteIconClick = useCallback(() => {
+    trackProfilePetClick("profile-pet-delete-click");
+    onDelete(pet.id, pet.name);
+  }, [onDelete, pet.id, pet.name, trackProfilePetClick]);
+
   return (
     <li className={styles.dog_item}>
       {isOwner ? (
@@ -80,7 +109,11 @@ const PetCard = memo(function PetCard({
         {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
         {pet.notes && <p>Заметки: {pet.notes}</p>}
         {isOwner && (
-          <Link href={`/profile/pets/${pet.id}/prevention`} className={styles.preventionLink}>
+          <Link
+            href={`/profile/pets/${pet.id}/prevention`}
+            className={styles.preventionLink}
+            onClick={handlePreventionLinkClick}
+          >
             <ListAltOutlinedIcon className={styles.preventionLinkIcon} fontSize="small" />
             Записи о процедурах
           </Link>
@@ -89,14 +122,14 @@ const PetCard = memo(function PetCard({
       {isOwner ? (
         <div className={styles.dog_actions}>
           <IconButton
-            onClick={() => onEdit(pet)}
+            onClick={handleEditIconClick}
             size="small"
             aria-label="Редактировать питомца"
           >
             <EditRoundedIcon />
           </IconButton>
           <IconButton
-            onClick={() => onDelete(pet.id, pet.name)}
+            onClick={handleDeleteIconClick}
             size="small"
             aria-label="Удалить питомца"
             disabled={isPending}

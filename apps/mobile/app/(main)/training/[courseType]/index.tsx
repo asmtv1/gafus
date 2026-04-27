@@ -34,6 +34,7 @@ import { CourseDescription } from "@/features/training/components";
 import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
+import { trackEvent } from "@/shared/lib/analytics";
 
 /**
  * Экран списка дней тренировок курса
@@ -45,6 +46,7 @@ export default function TrainingDaysScreen() {
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const trainingScreenPath = `/training/${courseType}`;
 
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDays(courseType);
   const courseData = data?.success && data.data ? data.data : undefined;
@@ -128,6 +130,21 @@ export default function TrainingDaysScreen() {
     refetch();
   }, [refetch]);
 
+  /* F12: не на каждом рендере — только смена курса; courseId подставляется при наличии */
+  useEffect(() => {
+    if (!courseType) {
+      return;
+    }
+    trackEvent({
+      eventName: "course_open",
+      platform: "mobile",
+      pathOrScreen: trainingScreenPath,
+      courseType,
+      courseId: courseData?.courseId,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- намеренно только courseType (F12)
+  }, [courseType]);
+
   const pollAccessAfterPayment = useCallback(async () => {
     setIsPaymentChecking(true);
     await refetch();
@@ -136,6 +153,13 @@ export default function TrainingDaysScreen() {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       const next = await refetch();
       if (next.data?.success) {
+        trackEvent({
+          eventName: "booking_confirm",
+          platform: "mobile",
+          pathOrScreen: trainingScreenPath,
+          courseType,
+          courseId: courseData?.courseId,
+        });
         setSnackbar({ visible: true, message: "Оплата подтверждена. Доступ открыт." });
         setIsPaymentChecking(false);
         return;
@@ -147,11 +171,28 @@ export default function TrainingDaysScreen() {
       message: "Оплата обрабатывается. Обновите экран через несколько секунд.",
     });
     setIsPaymentChecking(false);
-  }, [refetch]);
+  }, [refetch, trainingScreenPath, courseType, courseData?.courseId]);
 
   const handleCreatePayment = useCallback(async () => {
     void hapticFeedback.light();
     if (isCreatingPayment) return;
+
+    const payCourseId = courseForPay?.id ?? courseData?.courseId;
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: trainingScreenPath,
+      elementId: "cta-pay-start",
+      courseId: payCourseId,
+      courseType,
+    });
+    trackEvent({
+      eventName: "booking_start",
+      platform: "mobile",
+      pathOrScreen: trainingScreenPath,
+      courseId: payCourseId,
+      courseType,
+    });
 
     if (Platform.OS === "ios") {
       if (!courseType) {
@@ -203,7 +244,14 @@ export default function TrainingDaysScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [courseForPay?.id, courseType, isCreatingPayment, pollAccessAfterPayment]);
+  }, [
+    courseForPay?.id,
+    courseType,
+    courseData?.courseId,
+    isCreatingPayment,
+    pollAccessAfterPayment,
+    trainingScreenPath,
+  ]);
 
   const handlePayOnWebsite = useCallback(() => {
     void hapticFeedback.light();

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
+import { trackEvent } from "@gafus/analytics";
 
 import AddIcon from "@mui/icons-material/Add";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
@@ -91,6 +93,7 @@ export function PreventionEntryForm({
   onCancel,
   open,
 }: PreventionEntryFormProps) {
+  const pathname = usePathname() ?? `/profile/pets/${petId}/prevention`;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -156,6 +159,12 @@ export function PreventionEntryForm({
   }, [type, entry, open]);
 
   const handleSubmit = () => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: entry ? "profile-prevention-save-edit-submit" : "profile-prevention-save-create-submit",
+    });
     setError(null);
     if (!type || !performedAt) {
       setError("Тип и дата обязательны");
@@ -201,6 +210,12 @@ export function PreventionEntryForm({
         : await createPreventionEntry(petId, payload);
 
       if (result.success) {
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen: pathname,
+          elementId: `profile-prevention-save-success-${type.toLowerCase()}`,
+        });
         onSuccess();
       } else {
         setError(result.error ?? "Ошибка сохранения");
@@ -235,6 +250,7 @@ export function PreventionEntryForm({
           <FormControl fullWidth>
             <InputLabel>Тип</InputLabel>
             <Select
+              autoFocus
               value={type}
               label="Тип"
               onChange={(e) => setType(e.target.value)}

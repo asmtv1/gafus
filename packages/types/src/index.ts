@@ -1,3 +1,6 @@
+// Product analytics (контракт событий)
+export * from "./analytics";
+
 // Auth
 export * from "./auth";
 

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { usePathname } from "expo-router";
 import {
   View,
   StyleSheet,
@@ -17,6 +18,7 @@ import { z } from "zod";
 import { suggestRegisterEmailDomain } from "@gafus/core/validation/emailDomainSuggestion";
 import { coreRegisterEmailSchema } from "@gafus/core/validation/registerEmailDomain";
 import * as Crypto from "expo-crypto";
+import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
 import { getOtaRuntimeFingerprintText } from "@/shared/lib/otaRuntimeFingerprint";
@@ -66,6 +68,7 @@ type FormErrors = {
  */
 export default function RegisterScreen() {
   const layout = useLayout();
+  const pathname = usePathname() ?? "/register";
   const register = useAuthStore((s) => s.register);
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 320);
@@ -194,6 +197,13 @@ export default function RegisterScreen() {
     applyEmailTypoHint(emailTextRef.current || form.email);
     if (!validateRegisterForm()) return;
 
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: pathname,
+      elementId: "cta-register-submit",
+    });
+
     if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, email: form.email, tempSessionId });
     submittingRef.current = true;
     setIsLoading(true);
@@ -219,6 +229,12 @@ export default function RegisterScreen() {
       if (__DEV__) console.log("[Register] register result", result);
 
       if (result.success) {
+        trackEvent({
+          eventName: "register_success",
+          platform: "mobile",
+          pathOrScreen: pathname,
+          flow: "email",
+        });
         await hapticFeedback.success();
         setSnackbar({ visible: true, message: "Регистрация успешна" });
       } else {

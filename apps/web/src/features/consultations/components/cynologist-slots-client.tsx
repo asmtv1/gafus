@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type MouseEvent,
+} from "react";
 import {
   Alert,
   Box,
@@ -9,6 +16,8 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { trackEvent } from "@gafus/analytics";
 
 import {
   buildConsultationCalendarRangeDays,
@@ -54,6 +63,7 @@ function formatCalendarMonthLabel(date: Date): string {
  */
 export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps) {
   const router = useRouter();
+  const pathname = usePathname() ?? `/consultations/${cynologist.userId}`;
   const [slots, setSlots] = useState<ConsultationSlotDto[]>([]);
   const [dayOffDates, setDayOffDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +101,12 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
       }
       setSlots(json.data.filter((slot) => slot.status !== "BLOCKED"));
       setDayOffDates(Array.isArray(json.dayOffDates) ? json.dayOffDates : []);
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "consultation-slots-loaded",
+      });
     } catch (e) {
       reportClientError(e instanceof Error ? e : new Error(String(e)), {
         issueKey: "consultation",
@@ -101,7 +117,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
     } finally {
       setLoading(false);
     }
-  }, [cynologist.userId, fromIso, toIso]);
+  }, [cynologist.userId, fromIso, pathname, toIso]);
 
   useEffect(() => {
     void loadSlots();
@@ -190,10 +206,44 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
 
   const selectedMonthIndex = monthKeys.indexOf(selectedMonthKey);
 
+  const handleCalendarGridClick = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-consultation-day-key]",
+      );
+      if (!btn || !e.currentTarget.contains(btn) || btn.disabled) {
+        return;
+      }
+      const dayKey = btn.getAttribute("data-consultation-day-key");
+      if (!dayKey) {
+        return;
+      }
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "consultation-day-select",
+      });
+      setSelectedDayKey(dayKey);
+    },
+    [pathname],
+  );
+
   const openConfirm = useCallback(
     (slotId: string, startAtUtc: string, endAtUtc: string) => {
       setError(null);
       try {
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen: pathname,
+          elementId: "consultation-open-confirm",
+        });
+        trackEvent({
+          eventName: "booking_start",
+          platform: "web",
+          pathOrScreen: pathname,
+        });
         const params = new URLSearchParams({ slotId, startAtUtc, endAtUtc });
         router.push(`/consultations/${encodeURIComponent(cynologist.userId)}/confirm?${params}`);
       } catch (e) {
@@ -204,11 +254,17 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
         setError("Не удалось открыть подтверждение");
       }
     },
-    [cynologist.userId, router],
+    [cynologist.userId, pathname, router],
   );
 
   const verifyAndBook = useCallback(
     async (slotId: string, startAtUtc: string, endAtUtc: string) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "consultation-slot-select",
+      });
       setVerifyingSlotId(slotId);
       setError(null);
       try {
@@ -237,7 +293,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
         setVerifyingSlotId(null);
       }
     },
-    [cynologist.userId, loadSlots, openConfirm],
+    [cynologist.userId, loadSlots, openConfirm, pathname],
   );
 
   return (
@@ -293,7 +349,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                 <span key={w}>{w}</span>
               ))}
             </div>
-            <div className={styles.calendarGrid}>
+            <div className={styles.calendarGrid} onClick={handleCalendarGridClick} role="presentation">
               {monthCells.map((dayKey, idx) => {
                 if (!dayKey) {
                   return <div key={`empty-${idx}`} className={styles.emptyCell} />;
@@ -313,14 +369,12 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                     type="button"
                     className={styles.dayCell}
                     disabled={!inRange}
+                    data-consultation-day-key={dayKey}
                     data-weekend={isWeekend}
                     data-selected={isSelected}
                     data-in-range={inRange}
                     data-day-off={isDayOff}
                     data-no-free-slots={hasNoFreeSlots}
-                    onClick={() => {
-                      setSelectedDayKey(dayKey);
-                    }}
                   >
                     <span className={styles.dayNumber}>{dayDate.getUTCDate()}</span>
                     <span className={styles.dayCount}>

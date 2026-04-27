@@ -3,7 +3,9 @@
 import PetsOutlinedIcon from "@mui/icons-material/PetsOutlined";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
+import { trackEvent } from "@gafus/analytics";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller } from "react-hook-form";
 import { useSession } from "next-auth/react";
@@ -49,6 +51,7 @@ export default function AddPetForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const pathname = usePathname() ?? "/profile/addPet";
   const { data: session } = useSession();
   const { form, handleSubmit, formState: { errors } } = useCreatePetZodForm();
 
@@ -57,6 +60,12 @@ export default function AddPetForm() {
   }, []);
 
   const onSubmit = async (data: PetFormSchema) => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "profile-add-pet-submit",
+    });
     setIsSubmitting(true);
     try {
       const { photoUrl: _photoUrl, ...petData } = data;
@@ -66,6 +75,12 @@ export default function AddPetForm() {
       });
       const username = session?.user?.username ?? null;
       await clearProfilePageCache(username);
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "profile-add-pet-success",
+      });
       if (username) {
         router.push(`/profile?username=${username}`);
       } else {

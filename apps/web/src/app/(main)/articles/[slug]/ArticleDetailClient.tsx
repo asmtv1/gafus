@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
@@ -14,7 +14,9 @@ import {
 import { getCDNUrl } from "@gafus/cdn-upload";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
+import { trackEvent } from "@gafus/analytics";
 import type { ArticleDetailDto } from "@gafus/types";
+import { usePathname } from "next/navigation";
 
 import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
 
@@ -31,12 +33,19 @@ function PaidArticleBlock({
   userId,
   csrfToken,
 }: PaidArticleBlockProps) {
+  const pathname = usePathname() ?? `/articles/${article.slug}`;
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const isGuest = userId === undefined;
 
   const handlePay = useCallback(async () => {
     if (!csrfToken || isGuest) return;
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "article-pay-start",
+    });
     setPayError(null);
     setPayLoading(true);
     try {
@@ -65,7 +74,7 @@ function PaidArticleBlock({
     } finally {
       setPayLoading(false);
     }
-  }, [article.id, csrfToken, isGuest]);
+  }, [article.id, csrfToken, isGuest, pathname]);
 
   return (
     <main style={{ padding: 24, maxWidth: 600, margin: "0 auto" }}>
@@ -121,10 +130,12 @@ export default function ArticleDetailClient({
   article,
   userId,
 }: ArticleDetailClientProps) {
+  const pathname = usePathname() ?? `/articles/${article.slug}`;
   const { token: csrfToken, fetchToken } = useCSRFStore();
   const [isLiked, setIsLiked] = useState(article.isLiked);
   const [likeCount, setLikeCount] = useState(article.likeCount);
   const [isPending, startTransition] = useTransition();
+  const hasTrackedReadEndRef = useRef(false);
 
   useEffect(() => {
     if (!csrfToken) void fetchToken();
@@ -149,6 +160,37 @@ export default function ArticleDetailClient({
       });
     });
   }, [article.slug, csrfToken]);
+
+  useEffect(() => {
+    if (article.content === null || hasTrackedReadEndRef.current) {
+      return;
+    }
+    const handleScroll = () => {
+      if (hasTrackedReadEndRef.current) {
+        return;
+      }
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (maxScroll <= 0) {
+        return;
+      }
+      const progress = window.scrollY / maxScroll;
+      if (progress < 0.9) {
+        return;
+      }
+      hasTrackedReadEndRef.current = true;
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "article-read-end",
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [article.content, pathname]);
 
   const handleLike = () => {
     if (!csrfToken) return;

@@ -316,9 +316,23 @@ export default [
     },
   },
 
+  // Аналитика: без Tracer в catch (F10)
+  {
+    files: [
+      "packages/analytics/**/*.ts",
+      "apps/web/src/shared/components/analytics/**/*.{ts,tsx}",
+      "apps/mobile/src/shared/lib/analytics.ts",
+    ],
+    rules: {
+      "@gafus/require-client-catch-tracer": "off",
+    },
+  },
+
   // Строгие правила для инфраструктурных пакетов
   {
-    files: ["packages/{auth,csrf,error-handling,queues,swr,types,webpush,worker}/**/*.{ts,tsx,js}"],
+    files: [
+      "packages/{analytics,auth,csrf,error-handling,queues,swr,types,webpush,worker}/**/*.{ts,tsx,js}",
+    ],
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/consistent-type-definitions": "warn",

@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
@@ -11,7 +12,7 @@ import { checkLoginRateLimit } from "@shared/server-actions";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import styles from "./login.module.css";
 
@@ -21,6 +22,7 @@ export default function LoginForm() {
   const [catchError] = useCaughtError();
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
   const router = useRouter();
+  const pathname = usePathname() ?? "/login";
   const {
     form,
     handleSubmit,
@@ -45,6 +47,13 @@ export default function LoginForm() {
         return;
       }
 
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "cta-login-submit",
+      });
+
       // Отключаем авто-редирект next-auth и вручную направляем на текущем хосте
       const res = await signIn("credentials", {
         username,
@@ -56,6 +65,13 @@ export default function LoginForm() {
         alert(res.error);
         return;
       }
+
+      trackEvent({
+        eventName: "login_success",
+        platform: "web",
+        pathOrScreen: pathname,
+        method: "credentials",
+      });
 
       // На успешный логин переходим на курсы в рамках текущего origin,
       // чтобы избежать смены хоста (например, на localhost:3002)

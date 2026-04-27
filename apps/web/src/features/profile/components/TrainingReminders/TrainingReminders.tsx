@@ -1,6 +1,8 @@
 "use client";
 
 import { reportClientError } from "@gafus/error-handling";
+import { trackEvent } from "@gafus/analytics";
+import { usePathname } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   getTrainingReminders,
@@ -25,6 +27,7 @@ const DEFAULT_TIME = "09:00";
 const MAX_REMINDERS = 5;
 
 export default function TrainingReminders() {
+  const pathname = usePathname() ?? "/profile";
   const [reminders, setReminders] = useState<TrainingReminderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{
@@ -70,10 +73,22 @@ export default function TrainingReminders() {
     }
 
     try {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "profile-reminder-add-click",
+      });
       const name = `задай название ${reminders.length + 1}`;
       const result = await createTrainingReminder(name, DEFAULT_TIME, undefined, browserTimezone);
 
       if (result.success && result.data) {
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen: pathname,
+          elementId: "profile-reminder-add-success",
+        });
         setReminders((prev) => [...prev, result.data!]);
         setMessage({
           type: "success",
@@ -92,13 +107,25 @@ export default function TrainingReminders() {
         text: "Произошла ошибка",
       });
     }
-  }, [reminders, browserTimezone]);
+  }, [reminders.length, browserTimezone, pathname]);
 
   const handleDeleteReminder = useCallback(async (id: string) => {
     try {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "profile-reminder-delete-click",
+      });
       const result = await deleteTrainingReminder(id);
 
       if (result.success) {
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen: pathname,
+          elementId: "profile-reminder-delete-success",
+        });
         setReminders((prev) => prev.filter((r) => r.id !== id));
         setMessage({
           type: "success",
@@ -117,7 +144,7 @@ export default function TrainingReminders() {
         text: "Произошла ошибка",
       });
     }
-  }, []); // Пустой массив благодаря функциональному обновлению
+  }, [pathname]); // Пустой массив благодаря функциональному обновлению
 
   const handleUpdateReminder = useCallback(
     async (id: string, data: Partial<Omit<TrainingReminderData, "id">>) => {
@@ -136,6 +163,12 @@ export default function TrainingReminders() {
         const result = await updateTrainingReminder(id, updateData);
 
         if (result.success && result.data) {
+          trackEvent({
+            eventName: "button_click",
+            platform: "web",
+            pathOrScreen: pathname,
+            elementId: "profile-reminder-update-success",
+          });
           setReminders((prev) => prev.map((r) => (r.id === id ? result.data! : r)));
           return true;
         } else {
@@ -154,7 +187,7 @@ export default function TrainingReminders() {
         return false;
       }
     },
-    [browserTimezone],
+    [browserTimezone, pathname],
   ); // Только browserTimezone, reminders не нужен благодаря функциональному обновлению
 
   const handleCloseMessage = useCallback(() => {

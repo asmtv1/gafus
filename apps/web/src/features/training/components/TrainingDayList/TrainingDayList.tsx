@@ -1,7 +1,9 @@
 "use client";
 
-import { memo, useCallback, useEffect } from "react";
+import { trackEvent } from "@gafus/analytics";
+import { memo, useCallback, useEffect, type MouseEvent } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { createWebLogger } from "@gafus/logger";
 import { useCachedTrainingDays } from "@shared/hooks/useCachedTrainingDays";
@@ -10,6 +12,7 @@ import {
   calculateDayStatus,
   DAY_TYPE_LABELS,
   getDayDisplayStatus,
+  type StepStates,
 } from "@gafus/core/utils/training";
 import { showLockedDayAlert, showPrivateCourseAccessDeniedAlert } from "@shared/utils/sweetAlert";
 import { LockIcon } from "@shared/utils/muiImports";
@@ -17,21 +20,23 @@ import styles from "./TrainingDayList.module.css";
 
 const logger = createWebLogger("TrainingDayList");
 
+interface TrainingDayListDay {
+  trainingDayId: string;
+  dayOnCourseId: string;
+  title: string;
+  type: string;
+  courseId: string;
+  userStatus: string;
+  estimatedDuration?: number;
+  theoryMinutes?: number;
+  equipment?: string;
+  isLocked?: boolean;
+}
+
 interface TrainingDayListProps {
   courseType: string;
   initialData?: {
-    trainingDays: {
-      trainingDayId: string;
-      dayOnCourseId: string;
-      title: string;
-      type: string;
-      courseId: string;
-      userStatus: string;
-      estimatedDuration?: number;
-      theoryMinutes?: number;
-      equipment?: string;
-      isLocked?: boolean;
-    }[];
+    trainingDays: TrainingDayListDay[];
     courseDescription: string | null;
     courseId: string | null;
     courseVideoUrl: string | null;
@@ -39,11 +44,113 @@ interface TrainingDayListProps {
   initialError?: string | null;
 }
 
+interface TrainingDayListDayItemProps {
+  courseType: string;
+  day: TrainingDayListDay;
+  dayNumber: number;
+  getItemClass: (status: string, dayNumber: number) => string;
+  pathname: string;
+  stepStates: StepStates;
+}
+
+const TrainingDayListDayItem = memo(function TrainingDayListDayItem({
+  courseType,
+  day,
+  dayNumber,
+  getItemClass,
+  pathname,
+  stepStates,
+}: TrainingDayListDayItemProps) {
+  if (process.env.NODE_ENV !== "production") {
+    logger.debug("Day time", {
+      dayOnCourseId: day.dayOnCourseId,
+      title: day.title,
+      estimatedDuration: day.estimatedDuration,
+      theoryMinutes: day.theoryMinutes,
+      type: day.type,
+    });
+  }
+
+  const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
+  const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
+  const itemClassName = getItemClass(finalStatus, dayNumber);
+
+  const handleLinkClick = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>) => {
+      if (day.isLocked) {
+        e.preventDefault();
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen: pathname,
+          elementId: "course-day-locked-click",
+          courseType,
+          courseId: day.courseId,
+        });
+        showLockedDayAlert();
+        return;
+      }
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "course-day-open-click",
+        courseType,
+        courseId: day.courseId,
+      });
+    },
+    [courseType, day.courseId, day.isLocked, pathname],
+  );
+
+  return (
+    <li className={itemClassName}>
+      <Link
+        href={`/trainings/${courseType}/${day.trainingDayId}`}
+        className={`${styles.link} ${day.isLocked ? styles.locked : ""}`}
+        prefetch={false}
+        onClick={handleLinkClick}
+      >
+        {(day.estimatedDuration ?? 0) > 0 || (day.theoryMinutes ?? 0) > 0 ? (
+          <div className={styles.timeBadgeWrapper}>
+            {(day.estimatedDuration ?? 0) > 0 && (
+              <div className={styles.timeBadge}>
+                <div>{day.estimatedDuration}</div>
+                <span>мин</span>
+              </div>
+            )}
+            {(day.theoryMinutes ?? 0) > 0 && (
+              <div className={styles.timeBadgeTheory}>
+                <div>{day.theoryMinutes}</div>
+                <span>мин</span>
+              </div>
+            )}
+          </div>
+        ) : null}
+        <div className={`${styles.card} ${day.isLocked ? styles.locked : ""}`}>
+          {day.isLocked && (
+            <div className={styles.lockBadge}>
+              <LockIcon className={styles.lockIcon} />
+              <span>Заблокировано</span>
+            </div>
+          )}
+          <div className={styles.titleWithLock}>
+            <h2 className={styles.dayTitle}>{day.title}</h2>
+          </div>
+          <p className={styles.subtitle}>({DAY_TYPE_LABELS[day.type] || day.type})</p>
+          <p>Что понадобится:</p>
+          <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
+        </div>
+      </Link>
+    </li>
+  );
+});
+
 const TrainingDayList = memo(function TrainingDayList({
   courseType,
   initialData,
   initialError,
 }: TrainingDayListProps) {
+  const pathname = usePathname() ?? `/trainings/${courseType}`;
   const { data, loading, error, refetch } = useCachedTrainingDays(courseType, {
     initialData,
     initialError,
@@ -111,71 +218,17 @@ const TrainingDayList = memo(function TrainingDayList({
 
   return (
     <ul className={styles.list}>
-      {displayData.trainingDays.map((day, index) => {
-        if (process.env.NODE_ENV !== "production") {
-          logger.debug("Day time", {
-            dayOnCourseId: day.dayOnCourseId,
-            title: day.title,
-            estimatedDuration: day.estimatedDuration,
-            theoryMinutes: day.theoryMinutes,
-            type: day.type,
-          });
-        }
-
-        return (
-          <li
-            key={`${day.courseId}-${day.dayOnCourseId}`}
-            className={(() => {
-              const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
-              const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
-              return getItemClass(finalStatus, index + 1);
-            })()}
-          >
-            <Link
-              href={`/trainings/${courseType}/${day.trainingDayId}`}
-              className={`${styles.link} ${day.isLocked ? styles.locked : ""}`}
-              prefetch={false}
-              onClick={(e) => {
-                if (day.isLocked) {
-                  e.preventDefault();
-                  showLockedDayAlert();
-                }
-              }}
-            >
-              {(day.estimatedDuration ?? 0) > 0 || (day.theoryMinutes ?? 0) > 0 ? (
-                <div className={styles.timeBadgeWrapper}>
-                  {(day.estimatedDuration ?? 0) > 0 && (
-                    <div className={styles.timeBadge}>
-                      <div>{day.estimatedDuration}</div>
-                      <span>мин</span>
-                    </div>
-                  )}
-                  {(day.theoryMinutes ?? 0) > 0 && (
-                    <div className={styles.timeBadgeTheory}>
-                      <div>{day.theoryMinutes}</div>
-                      <span>мин</span>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-              <div className={`${styles.card} ${day.isLocked ? styles.locked : ""}`}>
-                {day.isLocked && (
-                  <div className={styles.lockBadge}>
-                    <LockIcon className={styles.lockIcon} />
-                    <span>Заблокировано</span>
-                  </div>
-                )}
-                <div className={styles.titleWithLock}>
-                  <h2 className={styles.dayTitle}>{day.title}</h2>
-                </div>
-                <p className={styles.subtitle}>({DAY_TYPE_LABELS[day.type] || day.type})</p>
-                <p>Что понадобится:</p>
-                <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
-              </div>
-            </Link>
-          </li>
-        );
-      })}
+      {displayData.trainingDays.map((day, index) => (
+        <TrainingDayListDayItem
+          key={`${day.courseId}-${day.dayOnCourseId}`}
+          courseType={courseType}
+          day={day}
+          dayNumber={index + 1}
+          getItemClass={getItemClass}
+          pathname={pathname}
+          stepStates={stepStates}
+        />
+      ))}
     </ul>
   );
 });

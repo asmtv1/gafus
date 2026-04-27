@@ -21,7 +21,7 @@ export default function AuthLayout() {
 
   // Полностью авторизован → переходим в main; (auth) layout размонтируется, циклов нет
   if (isAuthenticated && !pendingVkPhone && !pendingVkConsent) {
-    return <Redirect href="/(main)" />;
+    return <Redirect href="/(main)/(tabs)" />;
   }
 
   // Pending-состояния: редирект только если пользователь не на нужном экране

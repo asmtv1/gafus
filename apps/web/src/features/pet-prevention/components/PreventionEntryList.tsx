@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { trackEvent } from "@gafus/analytics";
 
 import { Box, Button, Chip, IconButton, List, ListItem, ListItemText, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -30,27 +32,68 @@ const CHIP_CLASS: Record<string, string> = {
 
 export function PreventionEntryList({ entries, petId }: PreventionEntryListProps) {
   const router = useRouter();
+  const pathname = usePathname() ?? `/profile/pets/${petId}/prevention`;
   const [isPending, startTransition] = useTransition();
   const [editEntry, setEditEntry] = useState<PreventionEntryDisplay | null>(
     null,
   );
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = useCallback(() => {
     setEditEntry(null);
     setShowAddForm(false);
     router.refresh();
-  };
+  }, [router]);
 
-  const handleDelete = (entryId: string) => {
-    startTransition(async () => {
-      const result = await deletePreventionEntry(petId, entryId);
-      if (result.success) {
-        setEditEntry(null);
-        router.refresh();
-      }
+  const handleDelete = useCallback(
+    (entryId: string) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "profile-prevention-delete-click",
+      });
+      startTransition(async () => {
+        const result = await deletePreventionEntry(petId, entryId);
+        if (result.success) {
+          trackEvent({
+            eventName: "button_click",
+            platform: "web",
+            pathOrScreen: pathname,
+            elementId: "profile-prevention-delete-success",
+          });
+          setEditEntry(null);
+          router.refresh();
+        }
+      });
+    },
+    [pathname, petId, router, startTransition],
+  );
+
+  const handleShowAddForm = useCallback(() => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "profile-prevention-add-open",
     });
-  };
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    requestAnimationFrame(() => setShowAddForm(true));
+  }, [pathname]);
+
+  const openEditForEntry = useCallback(
+    (entry: PreventionEntryDisplay) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId: "profile-prevention-edit-open",
+      });
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      requestAnimationFrame(() => setEditEntry(entry));
+    },
+    [pathname],
+  );
 
   const formatDate = (d: Date | string) =>
     new Date(d).toLocaleDateString("ru-RU", {
@@ -65,7 +108,7 @@ export function PreventionEntryList({ entries, petId }: PreventionEntryListProps
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setShowAddForm(true)}
+          onClick={handleShowAddForm}
           className={styles.addButton}
           disableElevation
         >
@@ -125,7 +168,7 @@ export function PreventionEntryList({ entries, petId }: PreventionEntryListProps
                 <Box className={styles.listItemActions}>
                   <IconButton
                     aria-label="Редактировать"
-                    onClick={() => setEditEntry(entry)}
+                    onClick={() => openEditForEntry(entry)}
                     disabled={isPending}
                     className={styles.iconBtn}
                     size="small"

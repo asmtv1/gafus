@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useCallback, useTransition } from "react";
 import { useSession } from "next-auth/react";
+import { trackEvent } from "@gafus/analytics";
 
 import { createWebLogger } from "@gafus/logger";
 import { reportClientError } from "@gafus/error-handling";
@@ -27,6 +28,7 @@ const logger = createWebLogger("web-pet-list");
 const handleDelete = async (
   petId: string,
   petName: string,
+  pathOrScreen: string,
   router: ReturnType<typeof useRouter>,
   startTransition: (callback: () => void) => void,
   isPending: boolean,
@@ -62,6 +64,12 @@ const handleDelete = async (
         try {
           await deletePet(petId, profileRevalidatePath);
           await invalidateProfileCache();
+          trackEvent({
+            eventName: "button_click",
+            platform: "web",
+            pathOrScreen,
+            elementId: "profile-pet-delete-success",
+          });
           await showSuccessAlert(`Питомец "${petName}" успешно удален!`);
           router.refresh();
         } catch (error) {
@@ -93,8 +101,9 @@ export default function PetList({
   const { data: session } = useSession();
   const username = session?.user?.username ?? null;
   const profileRevalidatePath = profilePagePath(username ?? undefined, "revalidate");
+  const pathOrScreen = username ? `/profile?username=${username}` : "/profile";
 
-  const invalidateProfileCache = async () => {
+  const invalidateProfileCache = useCallback(async () => {
     try {
       await clearProfilePageCache(username);
     } catch (error) {
@@ -108,9 +117,15 @@ export default function PetList({
         operation: "warn",
       });
     }
-  };
+  }, [username]);
 
-  const handleEditClick = async (pet: PetFromPublicProfile) => {
+  const handleEditClick = useCallback(async (pet: PetFromPublicProfile) => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen,
+      elementId: "profile-pet-edit-open",
+    });
     // Преобразуем PetFromPublicProfile в PetFormData для SweetAlert
     const petForEdit: PetFormData = {
       id: pet.id,
@@ -136,6 +151,12 @@ export default function PetList({
           try {
             await savePet(updatedPetData);
             await invalidateProfileCache();
+            trackEvent({
+              eventName: "button_click",
+              platform: "web",
+              pathOrScreen,
+              elementId: "profile-pet-edit-success",
+            });
             await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
             router.refresh();
           } catch (error) {
@@ -153,7 +174,30 @@ export default function PetList({
         keys: { operation: "show_edit_form" },
       });
     }
-  };
+  }, [invalidateProfileCache, pathOrScreen, router, startTransition]);
+
+  const handlePetDelete = useCallback(
+    (petId: string, petName: string) => {
+      void handleDelete(
+        petId,
+        petName,
+        pathOrScreen,
+        router,
+        startTransition,
+        isPending,
+        invalidateProfileCache,
+        profileRevalidatePath,
+      );
+    },
+    [
+      invalidateProfileCache,
+      isPending,
+      pathOrScreen,
+      profileRevalidatePath,
+      router,
+      startTransition,
+    ],
+  );
 
   return (
     <div className={styles.container}>
@@ -168,18 +212,9 @@ export default function PetList({
               pet={pet}
               isOwner={isOwner}
               onEdit={handleEditClick}
-              onDelete={(id, name) =>
-                handleDelete(
-                  id,
-                  name,
-                  router,
-                  startTransition,
-                  isPending,
-                  invalidateProfileCache,
-                  profileRevalidatePath,
-                )
-              }
+              onDelete={handlePetDelete}
               isPending={isPending}
+              pathOrScreen={pathOrScreen}
             />
           ))}
         </ul>

@@ -1,5 +1,7 @@
 # Мониторинг ошибок: Tracer
 
+**Продуктовая аналитика (PostHog, воронки, клики)** — отдельный слой [`@gafus/analytics`](../packages/analytics.md); не смешивать с Tracer и не отправлять ошибки аналитики в `reportClientError`.
+
 Серверные ошибки → Tracer. Логи — stdout (docker logs). Клиентские ошибки (web, trainer-panel, mobile) — через SDK `@apptracer/sdk`. Mobile — кастомный RN-клиент (POST в Tracer API).
 
 ## Переменные окружения

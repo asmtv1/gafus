@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { trackEvent } from "@gafus/analytics";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { reportClientError } from "@gafus/error-handling";
@@ -14,6 +15,7 @@ import styles from "../register/register.module.css";
 
 export function VkConsentForm() {
   const router = useRouter();
+  const pathname = usePathname() ?? "/vk-consent";
   const searchParams = useSearchParams();
   const vkToken = searchParams.get("vk_id_token");
 
@@ -58,6 +60,12 @@ export function VkConsentForm() {
         if (res?.error) {
           router.replace("/login?error=vk_id_auth_failed");
         } else {
+          trackEvent({
+            eventName: "login_success",
+            platform: "web",
+            pathOrScreen: pathname,
+            method: "vk",
+          });
           router.replace("/courses", { scroll: false });
           router.refresh();
         }

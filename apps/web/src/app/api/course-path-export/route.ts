@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
       .trim() || "курс";
     const fileName = `Ваш-путь-${sanitized}.pdf`;
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(new Uint8Array(pdfBytes), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

@@ -1,3 +1,5 @@
+import { initAnalyticsMobile } from "@gafus/analytics/mobile";
+import Constants from "expo-constants";
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -13,6 +15,8 @@ import {
   Montserrat_700Bold,
 } from "@expo-google-fonts/montserrat";
 import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
+import { AnalyticsNavigationListener } from "@/shared/components/AnalyticsNavigationListener";
+import { getOrCreateMobileAnalyticsId } from "@/shared/lib/analytics-id";
 import { installGlobalJsErrorHandler, reportClientError } from "@/shared/lib/tracer";
 import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
@@ -72,6 +76,24 @@ export default function RootLayout() {
 
   useOtaAutoApply();
 
+  useEffect(() => {
+    if ((!fontsLoaded && !fontError) || authLoading) {
+      return;
+    }
+    const extra = Constants.expoConfig?.extra as
+      | { posthogApiKey?: string; posthogHost?: string; posthogEnabled?: boolean }
+      | undefined;
+    void (async () => {
+      const anon = await getOrCreateMobileAnalyticsId();
+      await initAnalyticsMobile({
+        apiKey: extra?.posthogApiKey ?? "",
+        host: extra?.posthogHost ?? "https://eu.posthog.com",
+        devAllowCapture: extra?.posthogEnabled === true,
+        anonymousId: anon,
+      });
+    })();
+  }, [fontsLoaded, fontError, authLoading]);
+
   // DEBUG: лог любых deep link на Android для отладки VK redirect
   useEffect(() => {
     if (!__DEV__ || Platform.OS !== "android") return;
@@ -94,6 +116,7 @@ export default function RootLayout() {
             <ThemeProvider>
               <AuthProvider>
                 <View style={styles.container}>
+                  <AnalyticsNavigationListener />
                   <OfflineIndicator />
                   <SyncProgressOnReconnect />
                   <SyncPreventionOnReconnect />

@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Typography } from "@mui/material";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { trackEvent } from "@gafus/analytics";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { useOfflineStore } from "@shared/stores/offlineStore";
@@ -73,8 +74,20 @@ export default function TrainingPageClient({
   const [personalizationError, setPersonalizationError] = useState<string | null>(null);
   const [personalizationSaving, setPersonalizationSaving] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const paidReturnFlag = searchParams.get("paid") === "1";
   const personalizationShownRef = useRef(false);
+
+  useEffect(() => {
+    trackEvent({
+      eventName: "course_open",
+      platform: "web",
+      pathOrScreen: `/trainings/${courseType}`,
+      courseType,
+      courseId: initialData?.courseId ?? undefined,
+    });
+  }, [courseType, initialData?.courseId]);
 
   const courseIsPersonalized = initialData?.courseIsPersonalized === true;
   const userCoursePersonalization = initialData?.userCoursePersonalization ?? null;
@@ -126,8 +139,16 @@ export default function TrainingPageClient({
 
   // Обработка успешной оплаты: показываем notification и автоматически обновляем через 5 секунд
   useEffect(() => {
-    if (searchParams.get("paid") === "1" && !accessDenied) {
+    if (paidReturnFlag && !accessDenied) {
       setShowPaymentSuccess(true);
+
+      trackEvent({
+        eventName: "booking_confirm",
+        platform: "web",
+        pathOrScreen: pathname,
+        courseType,
+        courseId: initialData?.courseId ?? undefined,
+      });
 
       // Очистить параметр из URL
       const url = new URL(window.location.href);
@@ -149,7 +170,7 @@ export default function TrainingPageClient({
         clearTimeout(refreshTimeout);
       };
     }
-  }, [searchParams, accessDenied, router]);
+  }, [paidReturnFlag, accessDenied, router, pathname, courseType, initialData?.courseId]);
 
   const isAccessDenied =
     accessDenied || initialError === "COURSE_ACCESS_DENIED";
@@ -163,6 +184,21 @@ export default function TrainingPageClient({
 
   const handlePay = useCallback(async () => {
     if (!courseForPay || !csrfToken || !userId) return;
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "cta-pay-start",
+      courseId: courseForPay.id,
+      courseType: courseForPay.type,
+    });
+    trackEvent({
+      eventName: "booking_start",
+      platform: "web",
+      pathOrScreen: pathname,
+      courseId: courseForPay.id,
+      courseType: courseForPay.type,
+    });
     setPayError(null);
     setPayLoading(true);
     try {
@@ -191,7 +227,7 @@ export default function TrainingPageClient({
     } finally {
       setPayLoading(false);
     }
-  }, [courseForPay, csrfToken, userId]);
+  }, [courseForPay, csrfToken, userId, pathname]);
 
   const handleChangePersonalization = useCallback(async () => {
     if (!initialData?.courseId) return;

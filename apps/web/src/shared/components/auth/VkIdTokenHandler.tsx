@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@gafus/analytics";
 import { signIn } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -12,6 +13,7 @@ export function VkIdTokenHandler() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  const searchQueryKey = searchParams.toString();
 
   useEffect(() => {
     const vkToken = searchParams.get("vk_id_token");
@@ -29,11 +31,18 @@ export function VkIdTokenHandler() {
       if (res?.error) {
         router.replace("/login?error=vk_id_auth_failed");
       } else {
+        trackEvent({
+          eventName: "login_success",
+          platform: "web",
+          pathOrScreen: "/courses",
+          method: "vk",
+        });
         router.replace(cleanUrl, { scroll: false });
         router.refresh();
       }
     });
-  }, [searchParams, pathname, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchParams нестабилен; смена query — searchQueryKey.
+  }, [searchQueryKey, pathname, router]);
 
   return null;
 }

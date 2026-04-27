@@ -20,6 +20,7 @@
 | `CookieConsentBanner` | Баннер согласия на cookies (см. ниже) |
 | `resetCookieConsent` | Сброс согласия, повторный показ баннера |
 | `COOKIE_CONSENT_STORAGE_KEY` | Ключ localStorage: `gafus:cookieConsent:v1` |
+| `COOKIE_CONSENT_CHANGE_EVENT` | Имя custom event `gafus:cookieConsentChange` (для подписчиков в той же вкладке) |
 | `ConsentValue` | Тип: `"accepted" \| "declined"` |
 
 ## CookieConsentBanner

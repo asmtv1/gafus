@@ -134,6 +134,7 @@ jobs:
               echo "# Next.js публичные переменные"
               echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
               echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
+              echo "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}"
               echo ""
               echo "# Инвалидация кэша web при изменении курсов (trainer-panel → web)"
               echo "REVALIDATE_SECRET_TOKEN=${{ secrets.REVALIDATE_SECRET_TOKEN }}"

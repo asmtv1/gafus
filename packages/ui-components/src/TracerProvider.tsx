@@ -1,6 +1,9 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect } from "react";
+
+/** Один bootstrap на вкладку: React Strict Mode монтирует эффект дважды — ref сбрасывается, SDK падает с «already initialized». */
+let tracerBootstrapPromise: Promise<void> | null = null;
 
 declare global {
   interface Window {
@@ -21,10 +24,7 @@ interface TracerProviderProps {
 }
 
 function TracerProviderInner({ children }: TracerProviderProps) {
-  const initRef = useRef(false);
-
   useEffect(() => {
-    if (initRef.current) return;
     const token = process.env.NEXT_PUBLIC_TRACER_APP_TOKEN;
     const enabled =
       token &&
@@ -32,9 +32,9 @@ function TracerProviderInner({ children }: TracerProviderProps) {
         process.env.NEXT_PUBLIC_ENABLE_TRACER === "true");
 
     if (!enabled) return;
+    if (tracerBootstrapPromise) return;
 
-    initRef.current = true;
-    void (async () => {
+    tracerBootstrapPromise = (async () => {
       const {
         initTracerError,
         initTracerErrorUploader,
@@ -58,7 +58,13 @@ function TracerProviderInner({ children }: TracerProviderProps) {
       initTracerPerformanceUploader(uploaderConfig);
       window.__gafusReportError = (error, data) =>
         tracerError.error(error, data);
-    })();
+    })().catch((err) => {
+      tracerBootstrapPromise = null;
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console -- диагностика bootstrap Tracer
+        console.warn("[TracerProvider] bootstrap не удался", err);
+      }
+    });
   }, []);
 
   return <>{children}</>;

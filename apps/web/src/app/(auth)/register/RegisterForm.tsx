@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { FormField, TextField } from "@shared/components/ui/FormField";
@@ -12,7 +13,7 @@ import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import type { ConsentPayload } from "@shared/constants/consent";
 import { suggestRegisterEmailDomain } from "@gafus/core/validation/email-domain-suggestion";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import styles from "./register.module.css";
@@ -21,6 +22,7 @@ import type { RegisterFormSchema } from "@shared/lib/validation/authSchemas";
 
 export function RegisterForm() {
   const router = useRouter();
+  const pathname = usePathname() ?? "/register";
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
 
   const {
@@ -78,6 +80,13 @@ export function RegisterForm() {
 
     const username = data.name.toLowerCase().trim();
 
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "cta-register-submit",
+    });
+
     setIsPending(true);
     try {
       const result = await registerUserAction(
@@ -105,6 +114,13 @@ export function RegisterForm() {
         setIsPending(false);
         return;
       }
+
+      trackEvent({
+        eventName: "register_success",
+        platform: "web",
+        pathOrScreen: pathname,
+        flow: "email",
+      });
 
       router.replace("/courses");
     } catch (error) {

@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
+import { identifyUser, resetAnalyticsUser } from "@/shared/lib/analytics";
 import { reportClientError } from "@/shared/lib/tracer";
 
 import { setGetUserId } from "./getUserId";
@@ -98,6 +99,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           set({ user, isAuthenticated: true, pendingVkPhone: false });
+          identifyUser(user.id);
           if (__DEV__) console.log("[authStore] login → isAuthenticated: true");
           return { success: true };
         } catch (error) {
@@ -157,6 +159,7 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             pendingVkPhone: false,
           });
+          identifyUser(profileRes.data.id);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkLogin" });
@@ -212,6 +215,7 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             pendingVkPhone: false,
           });
+          identifyUser(profileRes.data.id);
           if (__DEV__) console.log("[authStore] register success, userId:", profileRes.data.id);
           return { success: true };
         } catch (error) {
@@ -248,6 +252,7 @@ export const useAuthStore = create<AuthStore>()(
           pendingVkConsent: false,
           vkConsentToken: null,
         });
+        resetAnalyticsUser();
       },
 
       /**
@@ -295,6 +300,7 @@ export const useAuthStore = create<AuthStore>()(
             }
 
             set({ user: userData, isAuthenticated: true, isLoading: false, pendingVkPhone: false });
+            identifyUser(userData.id);
             if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
           } else if (isNetworkError && persistedUser) {
             if (__DEV__) {
@@ -308,6 +314,7 @@ export const useAuthStore = create<AuthStore>()(
               isLoading: false,
               pendingVkPhone: false,
             });
+            identifyUser(persistedUser.id);
           } else {
             if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
             await SecureStore.deleteItemAsync("auth_token");
@@ -341,6 +348,7 @@ export const useAuthStore = create<AuthStore>()(
           pendingVkConsent: false,
           vkConsentToken: null,
         });
+        resetAnalyticsUser();
       },
 
       /**
@@ -385,6 +393,7 @@ export const useAuthStore = create<AuthStore>()(
               pendingVkConsent: false,
               vkConsentToken: null,
             });
+            identifyUser(profileRes.data.id);
           }
           return { success: true };
         } catch (error) {
@@ -414,6 +423,7 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             pendingVkPhone: false,
           });
+          identifyUser(user.id);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkPhoneSet" });

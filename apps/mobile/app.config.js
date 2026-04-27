@@ -68,5 +68,8 @@ module.exports = ({ config }) => ({
     vkClientIdIos: process.env.VK_CLIENT_ID_IOS ?? "",
     vkClientIdAndroid: process.env.VK_CLIENT_ID_ANDROID ?? "",
     vkMobileRedirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "gafus://auth/vk",
+    posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? "",
+    posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "https://eu.posthog.com",
+    posthogEnabled: process.env.EXPO_PUBLIC_POSTHOG_ENABLED === "true",
   },
 });

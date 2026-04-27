@@ -51,6 +51,7 @@ flowchart TB
 | `@gafus/logger` | Логирование (Pino → stdout, errors → Tracer) |
 | `@gafus/csrf` | CSRF-защита |
 | `@gafus/queues` | BullMQ очереди |
+| `@gafus/analytics` | Продуктовая аналитика (события UI, PostHog); не путать с Tracer |
 
 ## Связанные документы
 

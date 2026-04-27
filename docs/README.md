@@ -15,6 +15,7 @@
 - [@gafus/auth](./packages/auth.md) — аутентификация и авторизация
 - [@gafus/prisma](./packages/prisma.md) — БД и ORM
 - [@gafus/types](./packages/types.md) — общие типы TypeScript
+- [@gafus/analytics](./packages/analytics.md) — продуктовая аналитика (контракт событий, PostHog)
 - [@gafus/logger](./packages/logger.md) — логирование
 - [@gafus/error-handling](./packages/error-handling.md) — обработка ошибок
 - [@gafus/csrf](./packages/csrf.md) — защита от CSRF
@@ -43,6 +44,7 @@
 
 ### Фичи
 
+- [Cookie consent](./features/cookie-consent.md) — баннер и события согласия (в т.ч. для запуска аналитики на web)
 - [Удаление аккаунта](./features/account-deletion.md) — необратимое удаление (web, mobile, API v1; Apple 5.1.1(v))
 - [Shared Day Progress](./features/shared-day-progress.md) — прогресс дня с `shareProgressAcrossCourses` засчитывается во всех курсах
 - [Мини-гайд (тип курса)](./features/guide-course-type.md) — курс с полным HTML вместо дней (чек-листы, справочники)
@@ -111,4 +113,4 @@ pnpm dev
 
 Поддержка: issue в репозитории, раздел [Troubleshooting](./troubleshooting/README.md).
 
-_Обновлено: март 2026_
+_Обновлено: апрель 2026_

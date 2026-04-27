@@ -1,5 +1,6 @@
 "use client";
 
+import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import {
@@ -10,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 export interface PaidCourseDrawerCourse {
@@ -27,6 +29,7 @@ interface PaidCourseDrawerProps {
 }
 
 export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDrawerProps) {
+  const pathname = usePathname() ?? "/";
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -52,6 +55,21 @@ export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDr
 
   const handlePay = useCallback(async () => {
     if (!course || !csrfToken || isGuest) return;
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "cta-pay-start",
+      courseId: course.id,
+      courseType: course.type,
+    });
+    trackEvent({
+      eventName: "booking_start",
+      platform: "web",
+      pathOrScreen: pathname,
+      courseId: course.id,
+      courseType: course.type,
+    });
     setPayError(null);
     setPayLoading(true);
     try {
@@ -80,7 +98,7 @@ export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDr
     } finally {
       setPayLoading(false);
     }
-  }, [course, csrfToken, isGuest]);
+  }, [course, csrfToken, isGuest, pathname]);
 
   if (!course) return null;
 

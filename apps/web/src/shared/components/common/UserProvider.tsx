@@ -1,5 +1,6 @@
 "use client";
 
+import AnalyticsIdentityBridge from "@shared/components/analytics/AnalyticsIdentityBridge";
 import { useStepStore } from "@shared/stores/stepStore";
 import { useUserStore } from "@shared/stores";
 import { usePushStore } from "@shared/stores/push/pushStore";
@@ -51,5 +52,10 @@ export default function UserProvider({ children }: UserProviderProps) {
     }
   }, [session, status, setUser, clearUser, clearAllSteps, setUserId]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <AnalyticsIdentityBridge />
+      {children}
+    </>
+  );
 }

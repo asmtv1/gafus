@@ -18,10 +18,12 @@
     "paths": {
       "@/*": ["./src/*"],
       "@gafus/types": ["../../packages/types/src"],
+      "@gafus/analytics": ["../../packages/analytics/src/index.ts"],
+      "@gafus/analytics/mobile": ["../../packages/analytics/src/mobile.ts"],
       "@gafus/core/*": ["../../packages/core/src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "global.d.ts"],
   "exclude": ["node_modules"],
   "extends": "expo/tsconfig.base"
 }

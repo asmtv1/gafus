@@ -3,10 +3,11 @@ import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/shared/components/ui";
+import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
@@ -14,6 +15,7 @@ import { COLORS, SPACING } from "@/constants";
 
 export default function VkConsentScreen() {
   const router = useRouter();
+  const pathname = usePathname() ?? "/vk-consent";
   const { vkConsentToken, submitVkConsentComplete, clearPendingVkConsent } = useAuthStore(
     useShallow((s) => ({
       vkConsentToken: s.vkConsentToken,
@@ -61,6 +63,14 @@ export default function VkConsentScreen() {
 
     if (result.success) {
       hapticFeedback.success();
+      if (useAuthStore.getState().isAuthenticated) {
+        trackEvent({
+          eventName: "login_success",
+          platform: "mobile",
+          pathOrScreen: pathname,
+          method: "vk",
+        });
+      }
       // AuthProvider перенаправит (pendingVkPhone → vk-set-phone или isAuthenticated → main)
     } else {
       setSnackbar({ visible: true, message: result.error || "Ошибка сохранения" });

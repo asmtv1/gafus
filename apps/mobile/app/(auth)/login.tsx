@@ -9,12 +9,13 @@ import {
   TextInput,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { Link } from "expo-router";
+import { Link, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
+import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -37,6 +38,7 @@ type FormErrors = {
  */
 export default function LoginScreen() {
   const layout = useLayout();
+  const pathname = usePathname() ?? "/login";
   const login = useAuthStore((s) => s.login);
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 280);
@@ -69,6 +71,13 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: pathname,
+      elementId: "cta-login-submit",
+    });
+
     if (__DEV__) console.log("[Login] handleLogin start", { username });
     setIsLoading(true);
     try {
@@ -76,6 +85,12 @@ export default function LoginScreen() {
       if (__DEV__) console.log("[Login] login result", result);
 
       if (result.success) {
+        trackEvent({
+          eventName: "login_success",
+          platform: "mobile",
+          pathOrScreen: pathname,
+          method: "credentials",
+        });
         await hapticFeedback.success();
       } else {
         setSnackbar({

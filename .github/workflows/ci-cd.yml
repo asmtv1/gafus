@@ -175,6 +175,8 @@ jobs:
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      # Совпадает с образом web: счётчик Метрики в клиентской сборке
+      NEXT_PUBLIC_YM_COUNTER_ID: ${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -274,6 +276,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             --target base \
+            --build-arg "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}" \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest \
             --cache-from type=gha \
             --cache-to type=gha,mode=max \
@@ -333,6 +336,7 @@ jobs:
           platforms: linux/amd64
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            NEXT_PUBLIC_YM_COUNTER_ID=${{ matrix.image.name == 'web' && secrets.NEXT_PUBLIC_YM_COUNTER_ID || '' }}
 
   # Deploy to staging (develop branch)
   # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
@@ -519,6 +523,7 @@ jobs:
               echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
               echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
               echo "NEXT_PUBLIC_APP_URL=https://trainer.gafus.ru"
+              echo "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}"
               echo ""
               echo "# Инвалидация кэша web при изменении курсов (trainer-panel → web)"
               echo "REVALIDATE_SECRET_TOKEN=${{ secrets.REVALIDATE_SECRET_TOKEN }}"

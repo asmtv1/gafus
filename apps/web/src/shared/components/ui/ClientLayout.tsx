@@ -2,6 +2,7 @@
 
 import { CookieConsentBanner } from "@gafus/ui-components";
 import { CSRFProvider } from "@gafus/csrf";
+import AnalyticsProvider from "@shared/components/analytics/AnalyticsProvider";
 import { setupGlobalErrorHandling } from "@shared/lib/global-error-handler";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -30,6 +31,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <CSRFProvider>
+      <AnalyticsProvider>
       <div className={styles.container}>
         {loading && (
           <div
@@ -50,6 +52,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           }
         />
       </div>
+      </AnalyticsProvider>
     </CSRFProvider>
   );
 }

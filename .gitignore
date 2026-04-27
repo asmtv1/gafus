@@ -7,6 +7,12 @@ package-lock.json
 yarn.lock
 npm-shrinkwrap.json
 
+# Локальные данные контейнеров (ClickHouse и т.п.)
+docker-data/
+
+# PostHog hobby runtime (клон + compose, см. docker/posthog/README.md)
+docker/posthog/runtime/
+
 # Environment variables
 .env
 .env.local

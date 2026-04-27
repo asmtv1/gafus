@@ -41,6 +41,7 @@
 - **Material-UI** для компонентов интерфейса
 - **PWA** с Service Worker
 - **Офлайн поддержка** с кэшированием
+- **Product analytics** — `@gafus/analytics/web`: `ClientLayout` → `AnalyticsProvider` **снаружи** `SessionWrapper` (F3: аналитика не тянет next-auth). Init Яндекс.Метрики после согласия на cookies; внутри провайдера `NavigationAnalytics` в `Suspense` (`page_view`); `AnalyticsIdentityBridge` в `UserProvider` (identify / `reset` при смене сессии). События: auth-формы (логин/регистрация/VK consent), `course_open` на клиенте тренировок при смене курса, выход из шапки сбрасывает пользователя в аналитике. Подробности: [docs/packages/analytics.md](../packages/analytics.md).
 
 ## 🏗️ Архитектура
 
@@ -413,6 +414,9 @@ NEXT_PUBLIC_PWA_SHORT_NAME=GAFUS
 
 # Страница /contacts — статический public/contacts.html (rewrite в next.config)
 # NEXT_PUBLIC_CONTACT_* больше не используются (реквизиты захардкожены в contacts.html)
+
+# Yandex Metrica (product analytics)
+# NEXT_PUBLIC_YM_COUNTER_ID=
 ```
 
 ### Docker

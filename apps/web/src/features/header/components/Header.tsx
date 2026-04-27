@@ -1,12 +1,14 @@
 "use client";
 
+import { resetAnalyticsUser, trackEvent } from "@gafus/analytics";
 import { Article as ArticleIcon, Pets as PetsIcon } from "@mui/icons-material";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
 
@@ -17,6 +19,19 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
   const menuRef = useRef<HTMLDivElement>(null);
   const burgerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
+  const pathname = usePathname() ?? "/";
+
+  const trackMenuClick = useCallback(
+    (elementId: string) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen: pathname,
+        elementId,
+      });
+    },
+    [pathname],
+  );
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -46,7 +61,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
       <button
         ref={burgerRef}
         className={styles.burgerButton}
-        onClick={() => setMenuOpen((v) => !v)}
+        onClick={() => {
+          trackMenuClick("tab-menu-toggle");
+          setMenuOpen((v) => !v);
+        }}
         aria-label="Открыть меню"
       >
         <BurgerIcon active={menuOpen} />
@@ -58,7 +76,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             <Link
               className={styles.menuButton}
               href={{ pathname: "/profile", query: { username: userName } }}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                trackMenuClick("tab-profile");
+                setMenuOpen(false);
+              }}
             >
               <div className={styles.avatarWrapper}>
                 {userName ? (
@@ -94,7 +115,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             )}
             <Link
               href="/courses"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                trackMenuClick("tab-courses");
+                setMenuOpen(false);
+              }}
               onMouseEnter={() => router.prefetch("/courses")}
               className={styles.menuButton}
             >
@@ -109,7 +133,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             </Link>
             <Link
               href="/consultations"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                trackMenuClick("tab-consultations");
+                setMenuOpen(false);
+              }}
               onMouseEnter={() => router.prefetch("/consultations")}
               className={styles.menuButton}
             >
@@ -118,7 +145,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             </Link>
             <Link
               href="/articles"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                trackMenuClick("tab-articles");
+                setMenuOpen(false);
+              }}
               onMouseEnter={() => router.prefetch("/articles")}
               className={styles.menuButton}
             >
@@ -127,7 +157,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             </Link>
             <Link
               href="/favorites"
-              onClick={() => setMenuOpen(false)}
+              onClick={() => {
+                trackMenuClick("tab-favorites");
+                setMenuOpen(false);
+              }}
               onMouseEnter={() => router.prefetch("/favorites")}
               className={styles.menuButton}
             >
@@ -151,7 +184,9 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               <button
                 className={styles.logoutButton}
                 onClick={() => {
+                  trackMenuClick("tab-logout");
                   setMenuOpen(false);
+                  resetAnalyticsUser();
                   signOut({ callbackUrl: "/" });
                 }}
               >

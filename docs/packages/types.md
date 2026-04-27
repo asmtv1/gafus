@@ -23,6 +23,7 @@
 - **Stores** - Типы для управления состоянием
 - **Utils** - Утилитарные типы
 - **Error Handling** - Типы обработки ошибок
+- **Analytics** - контракт product analytics: `ANALYTICS_EVENT_NAMES`, `AnalyticsTrackPayload` и др. (`src/analytics.ts`); валидация и адаптеры — в [@gafus/analytics](./analytics.md)
 
 ## 📦 Установка и использование
 

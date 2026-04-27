@@ -16,6 +16,8 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { trackEvent } from "@gafus/analytics";
 
 import { useCSRFStore } from "@gafus/csrf";
 import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
@@ -69,6 +71,7 @@ export function ConsultationBookingConfirmClient({
   endAtUtc,
 }: ConsultationBookingConfirmClientProps) {
   const router = useRouter();
+  const pathname = usePathname() ?? `/consultations/${cynologistUserId}/confirm`;
   const { token: csrfToken, fetchToken } = useCSRFStore();
   const [clientOwnerName, setClientOwnerName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -128,6 +131,12 @@ export function ConsultationBookingConfirmClient({
   }, [router, slotsHref]);
 
   const onPrimaryClick = useCallback(() => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen: pathname,
+      elementId: "consultation-booking-confirm-submit",
+    });
     if (pending) {
       return;
     }
@@ -191,6 +200,11 @@ export function ConsultationBookingConfirmClient({
             setServerError(json.error ?? "Не удалось забронировать");
             return;
           }
+          trackEvent({
+            eventName: "booking_confirm",
+            platform: "web",
+            pathOrScreen: pathname,
+          });
           router.push("/consultations/my");
         } catch (e) {
           reportClientError(e instanceof Error ? e : new Error(String(e)), {
@@ -217,6 +231,7 @@ export function ConsultationBookingConfirmClient({
     petGender,
     petName,
     router,
+    pathname,
     slotId,
   ]);
 

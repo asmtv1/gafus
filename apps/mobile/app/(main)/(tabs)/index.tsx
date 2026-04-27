@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Pressable,
   InteractionManager,
+  Platform,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";

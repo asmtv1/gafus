@@ -85,6 +85,17 @@ import { resetCookieConsent } from "@gafus/ui-components";
 </button>
 ```
 
+## События согласия (custom events)
+
+Помимо `storage` (только **другие вкладки**), модули в **той же вкладке** (например, аналитика) подписываются на:
+
+| Событие | Когда | `detail` |
+|--------|--------|----------|
+| `gafus:cookieConsentChange` | Пользователь нажал «Принять»/«Отклонить», либо сброс через «Управление cookies» | `{ value: "accepted" \| "declined" }` или `{ value: null }` при сбросе |
+| `gafus:cookieConsentReset` | Сброс согласия (`resetCookieConsent`) — дублирует уведомление баннера | (без payload) |
+
+Константа имени: `COOKIE_CONSENT_CHANGE_EVENT` в `@gafus/ui-components` (`cookieConsentUtils.ts`).
+
 ### Проверка текущего статуса согласия
 
 ```tsx
@@ -104,4 +115,5 @@ if (consent === "accepted") {
 
 - [Consent at Registration](consent-registration.md) — сохранение согласий при регистрации (ConsentLog в БД)
 - [@gafus/ui-components](../packages/ui-components.md) — API компонента и утилит
+- [@gafus/analytics](../packages/analytics.md) — запуск product analytics на web после `accepted`
 - `.cursor/rules/security.mdc` — архитектурное решение localStorage vs cookie

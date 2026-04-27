@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyticsLink";
 
 import styles from "./Bio.module.css";
 import EditableAvatar from "../EditableAvatar";
@@ -49,6 +49,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
   const profileEmpty = !profile || Object.values(profile).every((v) => v == null);
   const diplomasEmpty = diplomas.length === 0;
   const showEmptyNotice = profileEmpty && diplomasEmpty;
+  const profilePathOrScreen = username
+    ? `/profile?username=${encodeURIComponent(username)}`
+    : "/profile";
 
   return (
     <section className={styles.wrapper}>
@@ -147,9 +150,14 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         {showEmptyNotice && <div className={styles.emptyNotice}>Информация о себе не внесена</div>}
 
         {isOwner && (
-          <Link className={`${styles.editBioButton} ${styles.buttonLink}`} href="/profile/editBio">
+          <ProfileAnalyticsLink
+            className={`${styles.editBioButton} ${styles.buttonLink}`}
+            elementId="profile-bio-edit-link-click"
+            href="/profile/editBio"
+            pathOrScreen={profilePathOrScreen}
+          >
             Внести/Изменить «О себе»
-          </Link>
+          </ProfileAnalyticsLink>
         )}
       </div>
 
@@ -157,9 +165,14 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         <PetList pets={pets} isOwner={isOwner} />
 
         {isOwner && (
-          <Link className={`${styles.editBioButton} ${styles.addpet}`} href="/profile/addPet">
+          <ProfileAnalyticsLink
+            className={`${styles.editBioButton} ${styles.addpet}`}
+            elementId="profile-add-pet-link-click"
+            href="/profile/addPet"
+            pathOrScreen={profilePathOrScreen}
+          >
             Добавить питомца
-          </Link>
+          </ProfileAnalyticsLink>
         )}
       </div>
       {publicData.role === "TRAINER" && <TrainerCoursesSection publicData={publicData} />}

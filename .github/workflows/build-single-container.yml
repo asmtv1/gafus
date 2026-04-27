@@ -172,6 +172,8 @@ jobs:
       github.event.inputs.container == 'admin-panel' ||
       github.event.inputs.container == 'api'
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_YM_COUNTER_ID: ${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -286,6 +288,7 @@ jobs:
           platforms: linux/amd64
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            NEXT_PUBLIC_YM_COUNTER_ID=${{ github.event.inputs.container == 'web' && secrets.NEXT_PUBLIC_YM_COUNTER_ID || '' }}
 
   # Деплой на сервер (опционально)
   deploy:
@@ -396,6 +399,7 @@ jobs:
                 echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
                 echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
                 echo "NEXT_PUBLIC_APP_URL=https://trainer.gafus.ru"
+                echo "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}"
                 echo ""
                 echo "# Анализ бандла (только для разработки)"
                 echo "ANALYZE=false"

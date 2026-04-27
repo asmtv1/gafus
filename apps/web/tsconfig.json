@@ -115,7 +115,10 @@
       "@gafus/webpush": ["../../packages/webpush/dist/index.js"],
       "@gafus/webpush/*": ["../../packages/webpush/dist/*"],
       "@gafus/ui-components": ["../../packages/ui-components/src/index.ts"],
-      "@gafus/ui-components/*": ["../../packages/ui-components/src/*"]
+      "@gafus/ui-components/*": ["../../packages/ui-components/src/*"],
+      "@gafus/analytics": ["../../packages/analytics/src/index.ts"],
+      "@gafus/analytics/web": ["../../packages/analytics/src/web.ts"],
+      "@gafus/analytics/mobile": ["../../packages/analytics/src/mobile.ts"]
     },
     /* Типы */
     "typeRoots": ["./types", "../../node_modules/@types"],

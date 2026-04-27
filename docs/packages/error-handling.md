@@ -103,14 +103,14 @@ function App() {
 #### Обработка ошибок с callback
 
 ```typescript
-import { ErrorBoundary } from '@gafus/error-handling';
+import { ErrorBoundary, reportClientError } from "@gafus/error-handling";
 
 function App() {
   const handleError = (error: Error, errorInfo: ErrorInfo) => {
-    // Дополнительная обработка (например, аналитика)
-    analytics.track('error_boundary_caught', {
-      error: error.message,
-      componentStack: errorInfo.componentStack
+    // Ошибки — в Tracer через reportClientError; product analytics (@gafus/analytics) для ошибок не используем
+    void reportClientError(error, {
+      issueKey: "ErrorBoundary",
+      keys: { componentStack: errorInfo.componentStack ?? "" },
     });
   };
 
