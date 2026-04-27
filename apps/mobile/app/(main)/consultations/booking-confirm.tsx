@@ -8,7 +8,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Button, Chip, Text, TextInput } from "react-native-paper";
+import { Button, Chip, Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
@@ -28,6 +28,7 @@ import {
   isSelfHelpField,
   SLOT_TAKEN_MESSAGE,
 } from "@/features/consultations/lib/bookingIntakeForm";
+import { Input } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -244,41 +245,38 @@ export default function ConsultationBookingConfirmScreen() {
             </View>
           ) : null}
 
-          <TextInput
-            mode="outlined"
+          <Input
             label="Имя владельца *"
             value={clientOwnerName}
             onChangeText={(t) => setClientOwnerName(t.slice(0, CONSULT_NAME_MAX))}
             maxLength={CONSULT_NAME_MAX}
             style={styles.field}
-            error={showFieldErrors && !isOwnerOrPetName(clientOwnerName)}
+            error={showFieldErrors && !isOwnerOrPetName(clientOwnerName) ? " " : undefined}
           />
           {showFieldErrors && !isOwnerOrPetName(clientOwnerName) ? (
             <Text style={styles.fieldError}>От 2 до 15 символов</Text>
           ) : null}
-          <TextInput
-            mode="outlined"
+          <Input
             label="Номер телефона для связи *"
             value={clientPhone}
             onChangeText={setClientPhone}
             placeholder="+7 … или +998 … (с кодом страны)"
             keyboardType="phone-pad"
             style={styles.field}
-            error={phoneInvalid}
+            error={phoneInvalid ? " " : undefined}
           />
           {phoneInvalid ? (
             <Text style={styles.fieldError}>
               Укажите номер с кодом страны, например +7 или +998
             </Text>
           ) : null}
-          <TextInput
-            mode="outlined"
+          <Input
             label="Имя питомца *"
             value={petName}
             onChangeText={(t) => setPetName(t.slice(0, CONSULT_NAME_MAX))}
             maxLength={CONSULT_NAME_MAX}
             style={styles.field}
-            error={showFieldErrors && !isOwnerOrPetName(petName)}
+            error={showFieldErrors && !isOwnerOrPetName(petName) ? " " : undefined}
           />
           {showFieldErrors && !isOwnerOrPetName(petName) ? (
             <Text style={styles.fieldError}>От 2 до 15 символов</Text>
@@ -294,7 +292,13 @@ export default function ConsultationBookingConfirmScreen() {
               mode={petGender === "MALE" ? "flat" : "outlined"}
               selected={petGender === "MALE"}
               onPress={() => setPetGender("MALE")}
-              style={styles.genderChip}
+              style={[
+                styles.genderChip,
+                petGender === "MALE" ? styles.genderChipActive : styles.genderChipInactive,
+              ]}
+              textStyle={
+                petGender === "MALE" ? styles.genderChipTextActive : styles.genderChipTextInactive
+              }
             >
               Мальчик
             </Chip>
@@ -302,7 +306,15 @@ export default function ConsultationBookingConfirmScreen() {
               mode={petGender === "FEMALE" ? "flat" : "outlined"}
               selected={petGender === "FEMALE"}
               onPress={() => setPetGender("FEMALE")}
-              style={styles.genderChip}
+              style={[
+                styles.genderChip,
+                petGender === "FEMALE" ? styles.genderChipActive : styles.genderChipInactive,
+              ]}
+              textStyle={
+                petGender === "FEMALE"
+                  ? styles.genderChipTextActive
+                  : styles.genderChipTextInactive
+              }
             >
               Девочка
             </Chip>
@@ -310,31 +322,28 @@ export default function ConsultationBookingConfirmScreen() {
           {showFieldErrors && petGender == null ? (
             <Text style={styles.fieldError}>Выберите пол питомца</Text>
           ) : null}
-          <TextInput
-            mode="outlined"
+          <Input
             label="Возраст питомца *"
             value={petAge}
             onChangeText={setPetAge}
             placeholder="например, 2 года"
             style={styles.field}
-            error={showFieldErrors && !petAge.trim()}
+            error={showFieldErrors && !petAge.trim() ? " " : undefined}
           />
           {showFieldErrors && !petAge.trim() ? (
             <Text style={styles.fieldError}>Укажите возраст</Text>
           ) : null}
-          <TextInput
-            mode="outlined"
+          <Input
             label="Порода *"
             value={petBreed}
             onChangeText={setPetBreed}
             style={styles.field}
-            error={showFieldErrors && !petBreed.trim()}
+            error={showFieldErrors && !petBreed.trim() ? " " : undefined}
           />
           {showFieldErrors && !petBreed.trim() ? (
             <Text style={styles.fieldError}>Укажите породу</Text>
           ) : null}
-          <TextInput
-            mode="outlined"
+          <Input
             label="Проблема *"
             multiline
             numberOfLines={4}
@@ -342,13 +351,12 @@ export default function ConsultationBookingConfirmScreen() {
             onChangeText={(t) => setClientProblem(t.slice(0, CONSULT_TEXT_MAX))}
             maxLength={CONSULT_TEXT_MAX}
             style={styles.textArea}
-            error={showFieldErrors && !isProblemField(clientProblem)}
+            error={showFieldErrors && !isProblemField(clientProblem) ? " " : undefined}
           />
           {showFieldErrors && !isProblemField(clientProblem) ? (
             <Text style={styles.fieldError}>От 10 до 1000 символов</Text>
           ) : null}
-          <TextInput
-            mode="outlined"
+          <Input
             label="Как пытались решить сами *"
             multiline
             numberOfLines={4}
@@ -356,7 +364,7 @@ export default function ConsultationBookingConfirmScreen() {
             onChangeText={(t) => setClientSelfHelpAttempt(t.slice(0, CONSULT_TEXT_MAX))}
             maxLength={CONSULT_TEXT_MAX}
             style={styles.textArea}
-            error={showFieldErrors && !isSelfHelpField(clientSelfHelpAttempt)}
+            error={showFieldErrors && !isSelfHelpField(clientSelfHelpAttempt) ? " " : undefined}
           />
           {showFieldErrors && !isSelfHelpField(clientSelfHelpAttempt) ? (
             <Text style={styles.fieldError}>Заполните поле, не более 1000 символов</Text>
@@ -476,6 +484,22 @@ const styles = StyleSheet.create({
   },
   genderRow: { flexDirection: "row", gap: SPACING.sm, flexWrap: "wrap" },
   genderChip: { alignSelf: "flex-start" },
+  genderChipInactive: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+  },
+  genderChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  genderChipTextInactive: {
+    color: COLORS.text,
+    fontFamily: FONTS.montserratMedium,
+  },
+  genderChipTextActive: {
+    color: COLORS.cardBackground,
+    fontFamily: FONTS.montserratMedium,
+  },
   textArea: { backgroundColor: COLORS.surface, minHeight: 100 },
   notice: {
     fontFamily: FONTS.montserrat,

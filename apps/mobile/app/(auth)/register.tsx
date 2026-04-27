@@ -267,7 +267,7 @@ export default function RegisterScreen() {
               source={require("../../assets/images/register-logo.png")}
               style={[
                 styles.logo,
-                { width: formWidth, height: formWidth * 0.74 },
+                { width: formWidth * 0.8, height: formWidth * 0.8 * 0.74 },
               ]}
               contentFit="contain"
             />
@@ -407,18 +407,25 @@ export default function RegisterScreen() {
             <View style={[styles.consentsContainer, { width: formWidth }]}>
               <View style={styles.consentRow}>
                 <Pressable
-                  style={[styles.checkbox, consents.acceptPersonalData && styles.checkboxChecked]}
+                  style={styles.checkboxHit}
                   onPress={() => toggleConsent("acceptPersonalData")}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: consents.acceptPersonalData }}
                 >
-                  {consents.acceptPersonalData && (
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={14}
-                      color={COLORS.cardBackground}
-                    />
-                  )}
+                  <View
+                    style={[
+                      styles.checkboxBox,
+                      consents.acceptPersonalData && styles.checkboxBoxChecked,
+                    ]}
+                  >
+                    {consents.acceptPersonalData && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={COLORS.cardBackground}
+                      />
+                    )}
+                  </View>
                 </Pressable>
                 <Text style={styles.consentText}>
                   Даю согласие на{" "}
@@ -432,18 +439,25 @@ export default function RegisterScreen() {
               </View>
               <View style={styles.consentRow}>
                 <Pressable
-                  style={[styles.checkbox, consents.acceptPrivacyPolicy && styles.checkboxChecked]}
+                  style={styles.checkboxHit}
                   onPress={() => toggleConsent("acceptPrivacyPolicy")}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: consents.acceptPrivacyPolicy }}
                 >
-                  {consents.acceptPrivacyPolicy && (
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={14}
-                      color={COLORS.cardBackground}
-                    />
-                  )}
+                  <View
+                    style={[
+                      styles.checkboxBox,
+                      consents.acceptPrivacyPolicy && styles.checkboxBoxChecked,
+                    ]}
+                  >
+                    {consents.acceptPrivacyPolicy && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={COLORS.cardBackground}
+                      />
+                    )}
+                  </View>
                 </Pressable>
                 <Text style={styles.consentText}>
                   Ознакомлен(а) с{" "}
@@ -457,21 +471,25 @@ export default function RegisterScreen() {
               </View>
               <View style={styles.consentRow}>
                 <Pressable
-                  style={[
-                    styles.checkbox,
-                    consents.acceptDataDistribution && styles.checkboxChecked,
-                  ]}
+                  style={styles.checkboxHit}
                   onPress={() => toggleConsent("acceptDataDistribution")}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: consents.acceptDataDistribution }}
                 >
-                  {consents.acceptDataDistribution && (
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={14}
-                      color={COLORS.cardBackground}
-                    />
-                  )}
+                  <View
+                    style={[
+                      styles.checkboxBox,
+                      consents.acceptDataDistribution && styles.checkboxBoxChecked,
+                    ]}
+                  >
+                    {consents.acceptDataDistribution && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={COLORS.cardBackground}
+                      />
+                    )}
+                  </View>
                 </Pressable>
                 <Text style={styles.consentText}>
                   Даю согласие на{" "}
@@ -685,21 +703,28 @@ const styles = StyleSheet.create({
   },
   consentRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
   },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderWidth: 2,
-    borderColor: "#636128",
-    borderRadius: 3,
+  checkboxHit: {
+    width: Platform.OS === "ios" ? 44 : 48,
+    height: Platform.OS === "ios" ? 44 : 48,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    marginTop: 1,
+    marginTop: 0,
+    marginLeft: -6,
   },
-  checkboxChecked: {
+  checkboxBox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#636128",
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxBoxChecked: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },

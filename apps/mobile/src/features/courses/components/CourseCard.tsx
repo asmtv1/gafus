@@ -79,6 +79,11 @@ function getReviewText(reviewsCount: number, userStatus: string): string {
   return `${reviewsCount} ${decl(reviewsCount)}`;
 }
 
+function formatPriceRub(priceRub?: number | null): string {
+  if (priceRub == null) return "уточняется";
+  return `${new Intl.NumberFormat("ru-RU").format(priceRub)} ₽`;
+}
+
 function toTimestamp(value: Date | string | null | undefined): number {
   if (!value) return 0;
   const timestamp = new Date(value).getTime();
@@ -95,6 +100,7 @@ function areCourseVisualFieldsEqual(prev: Course, next: Course): boolean {
     prev.trainingLevel === next.trainingLevel &&
     prev.userStatus === next.userStatus &&
     prev.isPaid === next.isPaid &&
+    prev.priceRub === next.priceRub &&
     prev.isPrivate === next.isPrivate &&
     prev.hasAccess === next.hasAccess &&
     prev.logoImg === next.logoImg &&
@@ -434,6 +440,11 @@ function CourseCardComponent({
                 </Text>
               </View>
               <View style={styles.description}>
+                {course.isPaid ? (
+                  <Text style={styles.descriptionText}>
+                    <Text style={styles.metaBold}>Стоимость:</Text> {formatPriceRub(course.priceRub)}
+                  </Text>
+                ) : null}
                 <Text style={styles.descriptionText}>
                   <Text style={styles.metaBold}>Уровень сложности:</Text>{" "}
                   {LEVEL_LABELS[course.trainingLevel] ?? course.trainingLevel}

@@ -42,6 +42,14 @@ const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" |
   }
 };
 
+const formatPriceRub = (priceRub: number | null) => {
+  if (priceRub == null) {
+    return "уточняется";
+  }
+
+  return `${new Intl.NumberFormat("ru-RU").format(priceRub)} ₽`;
+};
+
 const getDownloadTitle = (courseName: string) => `Скачивание курса: ${courseName}`;
 
 const getDownloadModalHtml = (progress: number) => {
@@ -363,6 +371,11 @@ export const CourseCard = ({
               </div>
             </div>
             <div className={styles.description}>
+              {isPaid && (
+                <p>
+                  <b>Стоимость:</b> {formatPriceRub(priceRub)}
+                </p>
+              )}
               <p>
                 <b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}
               </p>

@@ -8,8 +8,9 @@ import {
   Share,
   Linking,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
-import { Text, Surface, Snackbar, TextInput } from "react-native-paper";
+import { Text, Surface, Snackbar } from "react-native-paper";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -21,7 +22,7 @@ import { WebView } from "react-native-webview";
 import { fetchProducts, initConnection } from "expo-iap";
 import type { Product } from "expo-iap";
 
-import { Loading, MascotSpinner } from "@/shared/components/ui";
+import { Input, Loading, MascotSpinner } from "@/shared/components/ui";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
@@ -111,7 +112,17 @@ export default function TrainingDaysScreen() {
     setPetNameAcc(existing.petNameAcc ?? "");
     setPetNameIns(existing.petNameIns ?? "");
     setPetNamePre(existing.petNamePre ?? "");
-  }, [courseData?.userCoursePersonalization]);
+  }, [
+    courseData?.userCoursePersonalization?.userDisplayName,
+    courseData?.userCoursePersonalization?.userGender,
+    courseData?.userCoursePersonalization?.petName,
+    courseData?.userCoursePersonalization?.petGender,
+    courseData?.userCoursePersonalization?.petNameGen,
+    courseData?.userCoursePersonalization?.petNameDat,
+    courseData?.userCoursePersonalization?.petNameAcc,
+    courseData?.userCoursePersonalization?.petNameIns,
+    courseData?.userCoursePersonalization?.petNamePre,
+  ]);
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -637,221 +648,226 @@ export default function TrainingDaysScreen() {
   if (needPersonalization) {
     return (
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable
-          style={styles.backRow}
-          onPress={() => {
-            void hapticFeedback.light();
-            router.back();
-          }}
-          hitSlop={12}
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
         >
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
-        <ScrollView contentContainerStyle={styles.personalizationScrollContent}>
-          <View style={styles.personalizationCard}>
-            <Text style={styles.personalizationTitle}>Персонализация курса</Text>
-            <Text style={styles.personalizationText}>
-              Заполните данные для персонализированного курса, чтобы продолжить тренировки.
-            </Text>
+          <Pressable
+            style={styles.backRow}
+            onPress={() => {
+              void hapticFeedback.light();
+              router.back();
+            }}
+            hitSlop={12}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+            <Text style={styles.backText}>Назад</Text>
+          </Pressable>
+          <ScrollView
+            contentContainerStyle={styles.personalizationScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+            showsVerticalScrollIndicator={true}
+          >
+            <View style={styles.personalizationCard}>
+              <Text style={styles.personalizationTitle}>Персонализация курса</Text>
+              <Text style={styles.personalizationText}>
+                Заполните данные для персонализированного курса, чтобы продолжить тренировки.
+              </Text>
 
-            <TextInput
-              label="Ваше имя"
-              value={userDisplayName}
-              onChangeText={setUserDisplayName}
-              mode="outlined"
-              style={styles.personalizationInput}
-              autoCapitalize="words"
-            />
+              <Input
+                label="Ваше имя"
+                value={userDisplayName}
+                onChangeText={setUserDisplayName}
+                style={styles.personalizationInput}
+                autoCapitalize="words"
+              />
 
-            <Text style={styles.personalizationLabel}>Ваш пол</Text>
-            <View style={styles.genderRow}>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.selection();
-                  setUserGender("male");
-                }}
-                style={[
-                  styles.genderButton,
-                  userGender === "male" && styles.genderButtonActive,
-                ]}
-              >
-                <Text
+              <Text style={styles.personalizationLabel}>Ваш пол</Text>
+              <View style={styles.genderRow}>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.selection();
+                    setUserGender("male");
+                  }}
                   style={[
-                    styles.genderButtonText,
-                    userGender === "male" && styles.genderButtonTextActive,
+                    styles.genderButton,
+                    userGender === "male" && styles.genderButtonActive,
                   ]}
                 >
-                  Мужской
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.selection();
-                  setUserGender("female");
-                }}
-                style={[
-                  styles.genderButton,
-                  userGender === "female" && styles.genderButtonActive,
-                ]}
-              >
-                <Text
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      userGender === "male" && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    Мужской
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.selection();
+                    setUserGender("female");
+                  }}
                   style={[
-                    styles.genderButtonText,
-                    userGender === "female" && styles.genderButtonTextActive,
+                    styles.genderButton,
+                    userGender === "female" && styles.genderButtonActive,
                   ]}
                 >
-                  Женский
-                </Text>
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      userGender === "female" && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    Женский
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Input
+                label="Кличка питомца"
+                value={petName}
+                onChangeText={setPetName}
+                onBlur={handleFillDeclensions}
+                style={styles.personalizationInput}
+                autoCapitalize="words"
+              />
+
+              <Text style={styles.personalizationLabel}>
+                Пол питомца (опционально). Нужен для правильного склонения клички
+              </Text>
+              <View style={styles.genderRow}>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.selection();
+                    setPetGender("male");
+                  }}
+                  style={[
+                    styles.genderButton,
+                    petGender === "male" && styles.genderButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      petGender === "male" && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    Самец
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.selection();
+                    setPetGender("female");
+                  }}
+                  style={[
+                    styles.genderButton,
+                    petGender === "female" && styles.genderButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      petGender === "female" && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    Самка
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.selection();
+                    setPetGender(null);
+                  }}
+                  style={[
+                    styles.genderButton,
+                    petGender == null && styles.genderButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      petGender == null && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    Не указывать
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.personalizationLabel}>Склонения клички</Text>
+              <Input
+                label="Родительный (кого? — нет кого)"
+                value={petNameGen}
+                onChangeText={setPetNameGen}
+                style={styles.personalizationInput}
+                placeholder="Например: Барсика"
+              />
+              <Input
+                label="Дательный (кому?)"
+                value={petNameDat}
+                onChangeText={setPetNameDat}
+                style={styles.personalizationInput}
+                placeholder="Например: Барсику"
+              />
+              <Input
+                label="Винительный (кого? — вижу кого)"
+                value={petNameAcc}
+                onChangeText={setPetNameAcc}
+                style={styles.personalizationInput}
+                placeholder="Например: Барсика"
+              />
+              <Input
+                label="Творительный (кем?)"
+                value={petNameIns}
+                onChangeText={setPetNameIns}
+                style={styles.personalizationInput}
+                placeholder="Например: Барсиком"
+              />
+              <Input
+                label="Предложный (о ком?)"
+                value={petNamePre}
+                onChangeText={setPetNamePre}
+                style={styles.personalizationInput}
+                placeholder="Например: о Барсике"
+              />
+              <Pressable
+                onPress={handleFillDeclensions}
+                style={[styles.genderButton, styles.personalizationFillButton]}
+              >
+                <Text style={styles.personalizationFillButtonText}>Подставить склонения</Text>
               </Pressable>
+
+              <View style={styles.personalizationButtons}>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.light();
+                    void handleSavePersonalization();
+                  }}
+                  disabled={isSavingPersonalization}
+                  style={styles.paywallPrimaryButton}
+                >
+                  <Text style={styles.paywallPrimaryButtonText}>
+                    {isSavingPersonalization ? "Сохранение..." : "Сохранить и продолжить"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    void hapticFeedback.light();
+                    router.replace("/(main)/(tabs)/courses" as const);
+                  }}
+                  style={styles.paywallSecondaryButton}
+                >
+                  <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
+                </Pressable>
+              </View>
             </View>
-
-            <TextInput
-              label="Кличка питомца"
-              value={petName}
-              onChangeText={setPetName}
-              onBlur={handleFillDeclensions}
-              mode="outlined"
-              style={styles.personalizationInput}
-              autoCapitalize="words"
-            />
-
-            <Text style={styles.personalizationLabel}>
-              Пол питомца (опционально). Нужен для правильного склонения клички
-            </Text>
-            <View style={styles.genderRow}>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.selection();
-                  setPetGender("male");
-                }}
-                style={[
-                  styles.genderButton,
-                  petGender === "male" && styles.genderButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.genderButtonText,
-                    petGender === "male" && styles.genderButtonTextActive,
-                  ]}
-                >
-                  Самец
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.selection();
-                  setPetGender("female");
-                }}
-                style={[
-                  styles.genderButton,
-                  petGender === "female" && styles.genderButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.genderButtonText,
-                    petGender === "female" && styles.genderButtonTextActive,
-                  ]}
-                >
-                  Самка
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.selection();
-                  setPetGender(null);
-                }}
-                style={[
-                  styles.genderButton,
-                  petGender == null && styles.genderButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.genderButtonText,
-                    petGender == null && styles.genderButtonTextActive,
-                  ]}
-                >
-                  Не указывать
-                </Text>
-              </Pressable>
-            </View>
-
-            <Text style={styles.personalizationLabel}>Склонения клички</Text>
-            <TextInput
-              label="Родительный (кого? — нет кого)"
-              value={petNameGen}
-              onChangeText={setPetNameGen}
-              mode="outlined"
-              style={styles.personalizationInput}
-              placeholder="Например: Барсика"
-            />
-            <TextInput
-              label="Дательный (кому?)"
-              value={petNameDat}
-              onChangeText={setPetNameDat}
-              mode="outlined"
-              style={styles.personalizationInput}
-              placeholder="Например: Барсику"
-            />
-            <TextInput
-              label="Винительный (кого? — вижу кого)"
-              value={petNameAcc}
-              onChangeText={setPetNameAcc}
-              mode="outlined"
-              style={styles.personalizationInput}
-              placeholder="Например: Барсика"
-            />
-            <TextInput
-              label="Творительный (кем?)"
-              value={petNameIns}
-              onChangeText={setPetNameIns}
-              mode="outlined"
-              style={styles.personalizationInput}
-              placeholder="Например: Барсиком"
-            />
-            <TextInput
-              label="Предложный (о ком?)"
-              value={petNamePre}
-              onChangeText={setPetNamePre}
-              mode="outlined"
-              style={styles.personalizationInput}
-              placeholder="Например: о Барсике"
-            />
-            <Pressable
-              onPress={handleFillDeclensions}
-              style={[styles.genderButton, styles.personalizationFillButton]}
-            >
-              <Text style={styles.personalizationFillButtonText}>Подставить склонения</Text>
-            </Pressable>
-
-            <View style={styles.personalizationButtons}>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.light();
-                  void handleSavePersonalization();
-                }}
-                disabled={isSavingPersonalization}
-                style={styles.paywallPrimaryButton}
-              >
-                <Text style={styles.paywallPrimaryButtonText}>
-                  {isSavingPersonalization ? "Сохранение..." : "Сохранить и продолжить"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.light();
-                  router.replace("/(main)/(tabs)/courses" as const);
-                }}
-                style={styles.paywallSecondaryButton}
-              >
-                <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
-              </Pressable>
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
         <Snackbar
           visible={snackbar.visible}
           onDismiss={() => setSnackbar({ visible: false, message: "" })}
@@ -1069,6 +1085,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   backRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1100,7 +1119,7 @@ const styles = StyleSheet.create({
   },
   personalizationScrollContent: {
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.xxl,
   },
   personalizationCard: {
     marginTop: SPACING.md,
