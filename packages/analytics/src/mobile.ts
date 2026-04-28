@@ -1,9 +1,10 @@
 import {
   setAnalyticsAdapter,
   setAnalyticsCaptureEnabled,
+  setAnalyticsDebugEnabled,
   setSessionIdProvider,
 } from "./client";
-import { createPostHogMobileAdapter } from "./posthog-mobile";
+import { createAppMetricaMobileAdapter } from "./appmetrica-mobile";
 
 import type { AnalyticsAdapter } from "./adapter";
 
@@ -28,14 +29,15 @@ function isDevBundle(): boolean {
 }
 
 /**
- * F8: в dev capture только при devAllowCapture; в prod — при непустом apiKey.
+ * Mobile (RN): Яндекс AppMetrica.
+ * В dev capture только при devAllowCapture; в prod — при непустом apiKey.
  * anonymousId готовит приложение (AsyncStorage), чтобы не тянуть RN в типах пакета.
  */
 export async function initAnalyticsMobile(options: {
   apiKey: string;
-  host: string;
   devAllowCapture: boolean;
   anonymousId: string;
+  debugEnabled?: boolean;
 }): Promise<void> {
   const apiKey = options.apiKey?.trim() ?? "";
   if (!apiKey) {
@@ -50,12 +52,13 @@ export async function initAnalyticsMobile(options: {
     }
     mobileInstance = null;
     // eslint-disable-next-line no-console -- F4
-    console.warn("[analytics] смена mobile POSTHOG key (dev) — пересоздаём");
+    console.warn("[analytics] смена mobile AppMetrica key (dev) — пересоздаём");
   }
   if (!mobileInstance) {
-    mobileInstance = await createPostHogMobileAdapter(apiKey, options.host);
+    mobileInstance = await createAppMetricaMobileAdapter(apiKey);
   }
   lastKey = apiKey;
+  setAnalyticsDebugEnabled(options.debugEnabled === true);
   setSessionIdProvider(() => options.anonymousId);
   setAnalyticsAdapter(mobileInstance);
   setAnalyticsCaptureEnabled(true);

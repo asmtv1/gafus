@@ -18,6 +18,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
 import { remindersApi, type Reminder } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { trackEvent } from "@/shared/lib/analytics";
 
 const DAYS_OF_WEEK = [
   { id: "1", label: "Пн" },
@@ -164,6 +165,12 @@ export default function RemindersScreen() {
       setAllDays(false);
       setSelectedDays([]);
       await queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      trackEvent({
+        eventName: "button_click",
+        platform: "mobile",
+        pathOrScreen: "/reminders",
+        elementId: "training-reminder-create-success",
+      });
       void hapticFeedback.success();
       setSnackbar({ visible: true, message: "Напоминание добавлено" });
     },
@@ -237,6 +244,12 @@ export default function RemindersScreen() {
       reminderTime: timeString,
       reminderDays: reminderDaysForCreate(allDays, selectedDays),
       timezone: deviceTimeZone,
+    });
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: "/reminders",
+      elementId: "training-reminder-create-submit",
     });
   };
 
@@ -355,6 +368,12 @@ export default function RemindersScreen() {
                     color={COLORS.primary}
                     onValueChange={(enabled) => {
                       void hapticFeedback.selection();
+                      trackEvent({
+                        eventName: "button_click",
+                        platform: "mobile",
+                        pathOrScreen: "/reminders",
+                        elementId: enabled ? "training-reminder-enabled" : "training-reminder-disabled",
+                      });
                       updateMutation.mutate({ id: r.id, enabled });
                     }}
                   />

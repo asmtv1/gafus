@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS } from "@/constants";
+import { trackEvent } from "@/shared/lib/analytics";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const TAB_ICON_SIZE = 30;
@@ -15,6 +16,15 @@ const TAB_BAR_BG = "#F5F0E8";
  * Layout нижней навигации — цвета из дизайна приложения, не зависят от темы.
  */
 export default function TabsLayout() {
+  const trackTabClick = (tabName: string) => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: "/(main)/(tabs)",
+      elementId: `tab-${tabName}`,
+    });
+  };
+
   const renderIcon = (name: IconName, color: string) => (
     <MaterialCommunityIcons name={name} size={TAB_ICON_SIZE} color={color} />
   );
@@ -46,6 +56,9 @@ export default function TabsLayout() {
           title: "Избранное",
           tabBarIcon: ({ color }) => renderIcon("heart", color),
         }}
+        listeners={{
+          tabPress: () => trackTabClick("favorites"),
+        }}
       />
       <Tabs.Screen
         name="articles"
@@ -54,12 +67,18 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) =>
             renderIcon("newspaper-variant-outline", color),
         }}
+        listeners={{
+          tabPress: () => trackTabClick("articles"),
+        }}
       />
       <Tabs.Screen
         name="index"
         options={{
           title: "Курсы",
           tabBarIcon: ({ color }) => renderIcon("book-open-variant", color),
+        }}
+        listeners={{
+          tabPress: () => trackTabClick("courses"),
         }}
       />
       <Tabs.Screen
@@ -71,12 +90,18 @@ export default function TabsLayout() {
           },
           tabBarIcon: ({ color }) => renderIcon("dog-side", color),
         }}
+        listeners={{
+          tabPress: () => trackTabClick("consultations"),
+        }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Профиль",
           tabBarIcon: ({ color }) => renderIcon("account", color),
+        }}
+        listeners={{
+          tabPress: () => trackTabClick("profile"),
         }}
       />
       <Tabs.Screen

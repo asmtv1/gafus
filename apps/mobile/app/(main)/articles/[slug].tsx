@@ -22,6 +22,7 @@ import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
 import { Loading, MascotSpinner } from "@/shared/components/ui";
+import { trackEvent } from "@/shared/lib/analytics";
 
 /** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
 const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
@@ -77,6 +78,7 @@ export default function ArticleDetailScreen() {
   /** Таймаут 3.5s выставил 800px — без внутреннего скролла контент длинных статей обрежется. */
   const [articleHeightIsTimeoutFallback, setArticleHeightIsTimeoutFallback] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [isReadCompleteTracked, setIsReadCompleteTracked] = useState(false);
 
   useEffect(() => {
     if (slug && article) {
@@ -93,6 +95,7 @@ export default function ArticleDetailScreen() {
     setHtmlHeight(null);
     setWebViewReady(false);
     setArticleHeightIsTimeoutFallback(false);
+    setIsReadCompleteTracked(false);
   }, [article?.id]);
 
   // Fallback: высота и ready, если postMessage не пришёл
@@ -127,6 +130,12 @@ export default function ArticleDetailScreen() {
 
   const handlePay = useCallback(async () => {
     if (!article) return;
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: `/articles/${article.slug}`,
+      elementId: "article-paid-pay-click",
+    });
     setPayError(null);
     setPayLoading(true);
     try {
@@ -150,6 +159,22 @@ export default function ArticleDetailScreen() {
       : ARTICLE_WEBVIEW_LOADING_HEIGHT;
   const articleWebViewScrollInside =
     !hasMeasuredArticleHtml || articleHeightIsTimeoutFallback;
+  const handleArticleReadProgress = useCallback(
+    (offsetY: number, contentHeight: number, layoutHeight: number) => {
+      if (isReadCompleteTracked || !article?.id) return;
+      if (contentHeight <= 0 || layoutHeight <= 0) return;
+      const progress = (offsetY + layoutHeight) / contentHeight;
+      if (progress < 0.95) return;
+      setIsReadCompleteTracked(true);
+      trackEvent({
+        eventName: "button_click",
+        platform: "mobile",
+        pathOrScreen: `/articles/${article.slug}`,
+        elementId: "article-read-complete",
+      });
+    },
+    [article?.id, article?.slug, isReadCompleteTracked],
+  );
 
   if (error) {
     return (
@@ -191,6 +216,11 @@ export default function ArticleDetailScreen() {
           styles.scrollContent,
           isHtmlArticle && styles.scrollContentHtmlArticle,
         ]}
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          handleArticleReadProgress(contentOffset.y, contentSize.height, layoutMeasurement.height);
+        }}
+        scrollEventThrottle={200}
       >
         <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
@@ -199,8 +229,6 @@ export default function ArticleDetailScreen() {
 
         <Text style={styles.title}>{article.title}</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>{article.authorUsername}</Text>
-          <Text style={styles.metaDot}>•</Text>
           <Text style={styles.metaText}>
             {new Date(article.createdAt).toLocaleDateString("ru-RU")}
           </Text>
@@ -420,10 +448,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     fontFamily: FONTS.montserrat,
-  },
-  metaDot: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
   },
   likeButton: {
     flexDirection: "row",

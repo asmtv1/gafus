@@ -21,6 +21,7 @@ import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { trackEvent } from "@/shared/lib/analytics";
 
 import type {
   PetPreventionType,
@@ -181,6 +182,12 @@ export default function PreventionScreen() {
   };
 
   const openAdd = () => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: `/pets/${petId}/prevention`,
+      elementId: "pet-prevention-add-open",
+    });
     setEditingEntry(null);
     resetFormDefaults();
     setShowModal(true);
@@ -221,6 +228,12 @@ export default function PreventionScreen() {
       petsApi.addPreventionEntry(petId, data),
     onSuccess: (res) => {
       if (res.success) {
+        trackEvent({
+          eventName: "button_click",
+          platform: "mobile",
+          pathOrScreen: `/pets/${petId}/prevention`,
+          elementId: `pet-prevention-add-success-${type.toLowerCase()}`,
+        });
         queryClient.invalidateQueries({ queryKey: ["petPrevention", petId] });
         hapticFeedback.success();
         setShowModal(false);
@@ -310,6 +323,15 @@ export default function PreventionScreen() {
       resetFormDefaults();
     } else {
       addMutation.mutate(data);
+    }
+
+    if (reminderEnabled) {
+      trackEvent({
+        eventName: "button_click",
+        platform: "mobile",
+        pathOrScreen: `/pets/${petId}/prevention`,
+        elementId: "pet-prevention-reminder-enabled",
+      });
     }
   };
 

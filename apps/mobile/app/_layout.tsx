@@ -81,15 +81,15 @@ export default function RootLayout() {
       return;
     }
     const extra = Constants.expoConfig?.extra as
-      | { posthogApiKey?: string; posthogHost?: string; posthogEnabled?: boolean }
+      | { ymMobileApiKey?: string; ymMobileEnabled?: boolean; analyticsDebug?: boolean }
       | undefined;
     void (async () => {
       const anon = await getOrCreateMobileAnalyticsId();
       await initAnalyticsMobile({
-        apiKey: extra?.posthogApiKey ?? "",
-        host: extra?.posthogHost ?? "https://eu.posthog.com",
-        devAllowCapture: extra?.posthogEnabled === true,
+        apiKey: extra?.ymMobileApiKey ?? "",
+        devAllowCapture: extra?.ymMobileEnabled === true,
         anonymousId: anon,
+        debugEnabled: extra?.analyticsDebug === true,
       });
     })();
   }, [fontsLoaded, fontError, authLoading]);

@@ -17,6 +17,7 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
+import { trackEvent } from "@/shared/lib/analytics";
 
 /**
  * Каталог кинологов — паритет с web (карточки, поднавигация, тексты).
@@ -48,6 +49,12 @@ export default function ConsultationsCynologistsListScreen() {
   const onOpen = useCallback(
     (c: ListedCynologistCardDto) => {
       hapticFeedback.medium();
+      trackEvent({
+        eventName: "button_click",
+        platform: "mobile",
+        pathOrScreen: "/consultations",
+        elementId: "consultation-cynologist-open",
+      });
       const q = new URLSearchParams({
         displayName: c.displayName ?? "",
         slotDurationMin: String(c.slotDurationMin),

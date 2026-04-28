@@ -15,7 +15,27 @@ import type { AnalyticsAdapter } from "./adapter";
  * env NEXT_PUBLIC_GAFUS_ANALYTICS_DEBUG — только dev или localhost/LAN, не боевой домен.
  */
 function shouldLogAnalyticsVerbose(): boolean {
-  if (typeof window !== "undefined" && window.localStorage.getItem("gafus:analyticsDebug") === "1") {
+  if (analyticsDebugEnabled) {
+    return true;
+  }
+
+  const isReactNativeDev =
+    typeof globalThis !== "undefined" &&
+    (globalThis as { __DEV__?: boolean }).__DEV__ === true;
+  if (isReactNativeDev) {
+    const mobileDebugEnv =
+      (typeof process !== "undefined" && process.env.EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1") ||
+      (typeof process !== "undefined" && process.env.NEXT_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1");
+    if (mobileDebugEnv) {
+      return true;
+    }
+  }
+
+  if (
+    typeof window !== "undefined" &&
+    typeof window.localStorage !== "undefined" &&
+    window.localStorage.getItem("gafus:analyticsDebug") === "1"
+  ) {
     return true;
   }
   const envOn =
@@ -39,7 +59,7 @@ function shouldLogAnalyticsVerbose(): boolean {
   return isLocalHost;
 }
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
   queueMicrotask(() => {
     if (window.localStorage.getItem("gafus:analyticsDebug") === "1") {
       // eslint-disable-next-line no-console -- явная метка, что бандл подхватил флаг (после F5)
@@ -48,6 +68,17 @@ if (typeof window !== "undefined") {
       );
     }
   });
+}
+
+if (
+  typeof window === "undefined" &&
+  typeof globalThis !== "undefined" &&
+  (globalThis as { __DEV__?: boolean }).__DEV__ === true &&
+  typeof process !== "undefined" &&
+  process.env.EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1"
+) {
+  // eslint-disable-next-line no-console -- явная метка mobile debug-режима
+  console.log("[gafus:analytics] mobile debug enabled (EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG=1)");
 }
 
 function hasYmCounterInClientBundle(): boolean {
@@ -99,6 +130,7 @@ function logAnalyticsVerbose(payload: AnalyticsTrackPayload, phase: "queued" | "
 
 let adapter: AnalyticsAdapter | null = null;
 let captureEnabled = false;
+let analyticsDebugEnabled = false;
 /** F4: идемпотентность init на стороне web/mobile — lastKey в `web.ts` / `mobile.ts`. */
 let sessionIdGetter: () => string = () => "unknown";
 const eventQueue: AnalyticsTrackPayload[] = [];
@@ -243,5 +275,14 @@ export function setAnalyticsCaptureEnabled(flag: boolean): void {
   captureEnabled = flag;
   if (shouldSendNow()) {
     flushQueuedEvents();
+  }
+}
+
+/** @internal */
+export function setAnalyticsDebugEnabled(flag: boolean): void {
+  analyticsDebugEnabled = flag;
+  if (flag && process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console -- явный маркер включения debug в RN/web
+    console.log("[gafus:analytics] debug enabled via runtime config");
   }
 }

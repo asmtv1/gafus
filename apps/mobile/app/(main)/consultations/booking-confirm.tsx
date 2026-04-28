@@ -32,6 +32,7 @@ import { Input } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { trackEvent } from "@/shared/lib/analytics";
 
 function one(param: string | string[] | undefined): string {
   return Array.isArray(param) ? (param[0] ?? "") : (param ?? "");
@@ -138,6 +139,11 @@ export default function ConsultationBookingConfirmScreen() {
     },
     onSuccess: async () => {
       setServerError(null);
+      trackEvent({
+        eventName: "booking_confirm",
+        platform: "mobile",
+        pathOrScreen: "/consultations/booking-confirm",
+      });
       await queryClient.invalidateQueries({ queryKey: ["consultations"] });
       hapticFeedback.medium();
       router.replace("/(main)/(tabs)/consultations?view=mine" as Href);
@@ -182,6 +188,17 @@ export default function ConsultationBookingConfirmScreen() {
       return;
     }
     setServerError(null);
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: "/consultations/booking-confirm",
+      elementId: "consultation-booking-submit",
+    });
+    trackEvent({
+      eventName: "booking_start",
+      platform: "mobile",
+      pathOrScreen: "/consultations/booking-confirm",
+    });
     hapticFeedback.light();
     bookMutation.mutate();
   }, [bookMutation, canSubmit, cynologistUserId, slotId]);

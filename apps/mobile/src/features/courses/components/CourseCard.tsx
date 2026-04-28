@@ -30,6 +30,7 @@ const LEVEL_LABELS: Record<string, string> = {
  * для того же courseId + версии логотипа.
  */
 const displayedCourseLogoVersionKeys = new Set<string>();
+const SHOW_AUTHOR_AND_FAVORITE_BLOCK = false;
 
 function getStatusText(status: string): string {
   return (
@@ -221,26 +222,6 @@ function CourseCardComponent({
     downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
-  const [authorAvatarError, setAuthorAvatarError] = useState(false);
-
-  useEffect(() => {
-    setAuthorAvatarError(false);
-  }, [course.id, course.authorAvatarUrl]);
-
-  const authorAvatarUrl = (
-    course.authorAvatarUrl ??
-    (
-      course as { author?: { profile?: { avatarUrl?: string | null } } }
-    ).author?.profile?.avatarUrl ??
-    null
-  ) as string | null | undefined;
-  const authorAvatarUri =
-    authorAvatarUrl && !authorAvatarError
-      ? authorAvatarUrl.startsWith("/")
-        ? `${API_BASE_URL.replace(/\/$/, "")}${authorAvatarUrl}`
-        : authorAvatarUrl
-      : null;
-
   const logoImgUri =
     course.logoImg?.startsWith("/")
       ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
@@ -372,15 +353,6 @@ function CourseCardComponent({
     }
   };
 
-  const handleAuthorPress = () => {
-    if (course.authorUsername) {
-      router.push({
-        pathname: "/profile/[username]",
-        params: { username: course.authorUsername },
-      });
-    }
-  };
-
   return (
     <View style={styles.courseCard}>
       <View style={styles.courseCardContent}>
@@ -498,58 +470,32 @@ function CourseCardComponent({
           </Pressable>
         </View>
       </View>
-      <View style={styles.author}>
-        <View style={styles.authorPill}>
-          <Pressable
-            onPress={handleAuthorPress}
-            disabled={!course.authorUsername}
-            style={styles.authorInfo}
-          >
-            <View style={styles.authorAvatar}>
-              {authorAvatarUri ? (
-                <Image
-                  source={{ uri: authorAvatarUri }}
-                  style={styles.authorAvatarImg}
-                  contentFit="cover"
-                  onError={() => setAuthorAvatarError(true)}
-                />
-              ) : null}
-            </View>
-            <View style={styles.authorTextWrap}>
-              <Text
-                style={styles.authorLine}
-                numberOfLines={1}
-                {...(Platform.OS === "android" && { includeFontPadding: false })}
+      {SHOW_AUTHOR_AND_FAVORITE_BLOCK ? (
+        <View style={styles.author}>
+          <View style={styles.authorPill}>
+            <View style={styles.authorBookmarkWrap}>
+              <Pressable
+                onPress={() => {
+                  void hapticFeedback.selection();
+                  onToggleFavorite(course.id);
+                }}
+                disabled={disabled}
+                style={({ pressed }) => [
+                  styles.favoriteButton,
+                  pressed && styles.favoriteButtonPressed,
+                ]}
+                hitSlop={12}
               >
-                <Text style={styles.authorLabel}>Автор курса: </Text>
-                <Text style={styles.authorLink} numberOfLines={1}>
-                  {course.authorUsername ?? "Неизвестный автор"}
-                </Text>
-              </Text>
+                <MaterialCommunityIcons
+                  name={isFavorite ? "bookmark" : "bookmark-outline"}
+                  size={28}
+                  color={isFavorite ? "#E6B800" : COLORS.primary}
+                />
+              </Pressable>
             </View>
-          </Pressable>
-          <View style={styles.authorBookmarkWrap}>
-            <Pressable
-              onPress={() => {
-                void hapticFeedback.selection();
-                onToggleFavorite(course.id);
-              }}
-              disabled={disabled}
-              style={({ pressed }) => [
-                styles.favoriteButton,
-                pressed && styles.favoriteButtonPressed,
-              ]}
-              hitSlop={12}
-            >
-              <MaterialCommunityIcons
-                name={isFavorite ? "bookmark" : "bookmark-outline"}
-                size={28}
-                color={isFavorite ? "#E6B800" : COLORS.primary}
-              />
-            </Pressable>
           </View>
         </View>
-      </View>
+      ) : null}
       <View style={styles.offlineActions}>
         {isDownloaded ? (
           <>

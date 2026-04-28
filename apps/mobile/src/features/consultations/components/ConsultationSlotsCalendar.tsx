@@ -30,6 +30,7 @@ import { COLORS, FONTS, SPACING } from "@/constants";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { trackEvent } from "@/shared/lib/analytics";
 
 interface ConsultationSlotsCalendarProps {
   cynologistUserId: string;
@@ -183,10 +184,22 @@ export function ConsultationSlotsCalendar({
     async (slot: ConsultationSlotDto) => {
       if (slot.status !== "FREE") return;
       hapticFeedback.medium();
+      trackEvent({
+        eventName: "button_click",
+        platform: "mobile",
+        pathOrScreen: `/consultations/${cynologistUserId}`,
+        elementId: "consultation-slot-select",
+      });
       setVerifyingSlotId(slot.id);
       try {
         const res = await consultationsApi.verifySlotFree(cynologistUserId, slot.id);
         if (res.success) {
+          trackEvent({
+            eventName: "button_click",
+            platform: "mobile",
+            pathOrScreen: `/consultations/${cynologistUserId}`,
+            elementId: "consultation-booking-confirm-open",
+          });
           openConfirm(slot);
           return;
         }
@@ -299,7 +312,15 @@ export function ConsultationSlotsCalendar({
                       !inRange && styles.dayCellOut,
                     ]}
                     disabled={!inRange}
-                    onPress={() => setSelectedDayKey(dayKey)}
+                    onPress={() => {
+                      trackEvent({
+                        eventName: "button_click",
+                        platform: "mobile",
+                        pathOrScreen: `/consultations/${cynologistUserId}`,
+                        elementId: "consultation-day-select",
+                      });
+                      setSelectedDayKey(dayKey);
+                    }}
                   >
                     <Text style={styles.dayNumber}>{dayDate.getUTCDate()}</Text>
                     <Text style={styles.dayCount} numberOfLines={1}>

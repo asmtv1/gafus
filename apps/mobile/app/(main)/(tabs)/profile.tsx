@@ -28,6 +28,7 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/constants";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
+import { trackEvent } from "@/shared/lib/analytics";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const AVATAR_MAX_SIZE_MB = 5;
@@ -414,6 +415,15 @@ export default function ProfileScreen() {
   };
   const roleColor = getRoleColor(user?.role);
 
+  const trackProfileClick = useCallback((elementId: string) => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: "/profile",
+      elementId,
+    });
+  }, []);
+
   const handleLogout = () => {
     Alert.alert("Выход из аккаунта", "Вы уверены, что хотите выйти?", [
       { text: "Отмена", style: "cancel" },
@@ -621,7 +631,10 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.editBioButton}
-            onPress={() => router.push({ pathname: "/profile/edit" })}
+            onPress={() => {
+              trackProfileClick("profile-edit-open");
+              router.push({ pathname: "/profile/edit" });
+            }}
           >
             <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
           </Pressable>
@@ -729,7 +742,10 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.remindersCard}
-            onPress={() => router.push({ pathname: "/reminders" })}
+            onPress={() => {
+              trackProfileClick("training-reminders-open");
+              router.push({ pathname: "/reminders" });
+            }}
           >
             <MaterialCommunityIcons name="bell-ring-outline" size={22} color={COLORS.primary} />
             <View style={styles.remindersCardContent}>
@@ -860,9 +876,12 @@ export default function ProfileScreen() {
                         pressed && styles.petProcedureButtonPressed,
                       ]}
                       onPress={() =>
-                        router.push(
-                          `/pets/${pet.id}/prevention` as Parameters<typeof router.push>[0],
-                        )
+                        {
+                          trackProfileClick("pet-prevention-open");
+                          router.push(
+                            `/pets/${pet.id}/prevention` as Parameters<typeof router.push>[0],
+                          );
+                        }
                       }
                     >
                       <Text style={styles.petProcedureIcon}>📋</Text>
@@ -876,7 +895,10 @@ export default function ProfileScreen() {
                           styles.petManageButton,
                           pressed && styles.petActionButtonPressed,
                         ]}
-                        onPress={() => handleEditPet(pet)}
+                        onPress={() => {
+                          trackProfileClick("pet-edit-open");
+                          handleEditPet(pet);
+                        }}
                       >
                         <Text style={styles.petActionIcon}>✏️</Text>
                         <Text style={styles.petActionText} numberOfLines={2}>
@@ -906,7 +928,13 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <Pressable style={styles.addPetButton} onPress={() => router.push({ pathname: "/pets/add" })}>
+          <Pressable
+            style={styles.addPetButton}
+            onPress={() => {
+              trackProfileClick("pet-add-open");
+              router.push({ pathname: "/pets/add" });
+            }}
+          >
             <Text style={styles.addPetButtonText}>Добавить питомца</Text>
           </Pressable>
         </View>

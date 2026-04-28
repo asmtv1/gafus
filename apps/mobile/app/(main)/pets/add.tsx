@@ -19,6 +19,7 @@ import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
 import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { validatePetBirthDateInput } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { trackEvent } from "@/shared/lib/analytics";
 
 const LOG_PREFIX = "[AddPetScreen]";
 
@@ -44,6 +45,12 @@ export default function AddPetScreen() {
   const createMutation = useMutation({
     mutationFn: petsApi.create,
     onSuccess: (data) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "mobile",
+        pathOrScreen: "/pets/add",
+        elementId: "pet-add-success",
+      });
       if (__DEV__) {
         console.log(`${LOG_PREFIX} Питомец успешно создан`, {
           petId: data.data?.id,
@@ -158,6 +165,12 @@ export default function AddPetScreen() {
     }
 
     createMutation.mutate(petData);
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: "/pets/add",
+      elementId: "pet-add-submit",
+    });
   };
 
   return (

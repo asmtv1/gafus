@@ -26,6 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@appmetrica/react-native-analytics": "^3.6.0",
     "@gafus/types": "workspace:*",
     "posthog-js": "^1.372.3",
     "zod": "^3.24.1"
@@ -36,17 +37,8 @@
     "typescript": "^5.8.3",
     "vitest": "^4.0.17"
   },
-  "optionalDependencies": {
-    "posthog-react-native": "^3.0.0"
-  },
   "peerDependencies": {
-    "posthog-react-native": "^3.0.0",
     "react": ">=19.0.0",
     "react-native": ">=0.78.0"
-  },
-  "peerDependenciesMeta": {
-    "posthog-react-native": {
-      "optional": true
-    }
   }
 }
