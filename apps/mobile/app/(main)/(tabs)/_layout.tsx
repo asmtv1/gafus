@@ -6,6 +6,7 @@ import { trackEvent } from "@/shared/lib/analytics";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const TAB_ICON_SIZE = 30;
+const SHOW_FAVORITES_TAB = false;
 
 /** Цвет неактивного таба (иконка и подпись) */
 const TAB_INACTIVE = "#6A6A6A";
@@ -53,11 +54,22 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="courses"
         options={{
+          href: SHOW_FAVORITES_TAB ? undefined : null,
           title: "Избранное",
           tabBarIcon: ({ color }) => renderIcon("heart", color),
         }}
         listeners={{
           tabPress: () => trackTabClick("favorites"),
+        }}
+      />
+      <Tabs.Screen
+        name="pets"
+        options={{
+          title: "Питомцы",
+          tabBarIcon: ({ color }) => renderIcon("paw", color),
+        }}
+        listeners={{
+          tabPress: () => trackTabClick("pets"),
         }}
       />
       <Tabs.Screen

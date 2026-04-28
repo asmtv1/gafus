@@ -15,13 +15,11 @@ import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
 import { subscriptionsApi } from "@/shared/lib/api";
 import {
-  petsQueryOptions,
   pushSubscriptionDeviceStatusQueryOptions,
   studentNotesQueryOptions,
   trainerPublicProfileQueryOptions,
   userProfileQueryOptions,
 } from "@/shared/lib/api/profileTabQueries";
-import { petsApi, type Pet } from "@/shared/lib/api/pets";
 import { userApi } from "@/shared/lib/api/user";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -32,7 +30,6 @@ import { trackEvent } from "@/shared/lib/analytics";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const AVATAR_MAX_SIZE_MB = 5;
-const PET_PHOTO_MAX_SIZE_MB = 2;
 
 const WEB_BASE_URL = "https://gafus.ru";
 const DOCUMENT_URLS = {
@@ -75,40 +72,6 @@ const getAge = (birthDate: string | null): number | null => {
   }
 };
 
-// Функция для получения возраста с месяцами (как в web-версии, для питомцев)
-const getAgeWithMonths = (
-  birthDateString: string | null,
-): { years: number; months: number } | null => {
-  if (!birthDateString) return null;
-  try {
-    const birthDate = new Date(birthDateString);
-    const now = new Date();
-
-    // Используем UTC даты для консистентности между сервером и клиентом
-    const birthUTC = new Date(
-      Date.UTC(birthDate.getFullYear(), birthDate.getMonth(), birthDate.getDate()),
-    );
-    const nowUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-
-    let years = nowUTC.getUTCFullYear() - birthUTC.getUTCFullYear();
-    let months = nowUTC.getUTCMonth() - birthUTC.getUTCMonth();
-
-    if (months < 0) {
-      years--;
-      months += 12;
-    }
-
-    return { years, months };
-  } catch {
-    reportClientError(new Error("parse_pet_birth_date"), {
-      severity: "warning",
-      issueKey: "ProfileScreen",
-      keys: { operation: "parse_pet_birth_date" },
-    });
-    return null;
-  }
-};
-
 // Функция для склонения
 const declOfNum = (n: number, forms: [string, string, string]) => {
   const cases = [2, 0, 1, 1, 1, 2];
@@ -145,18 +108,6 @@ const getRoleColor = (role?: string) => {
       return "#B6C582";
     default:
       return "#636128";
-  }
-};
-
-// Функция для получения метки типа питомца
-const getPetTypeLabel = (type: string) => {
-  switch (type) {
-    case "DOG":
-      return "Собака";
-    case "CAT":
-      return "Кошка";
-    default:
-      return type;
   }
 };
 
@@ -212,9 +163,6 @@ export default function ProfileScreen() {
     setUser(profileData.data);
   }, [profileData, setUser]);
 
-  // Загрузка питомцев
-  const { data: petsData } = useQuery(petsQueryOptions);
-
   const {
     data: pushDeviceStatus,
     isPending: pushDeviceStatusPending,
@@ -229,18 +177,6 @@ export default function ProfileScreen() {
   const { data: trainerProfileData } = useQuery({
     ...trainerPublicProfileQueryOptions(user?.username ?? ""),
     enabled: user?.role === "TRAINER" && !!user?.username,
-  });
-
-  // Удаление питомца
-  const deleteMutation = useMutation({
-    mutationFn: petsApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pets"] });
-      hapticFeedback.success();
-    },
-    onError: (error) => {
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось удалить питомца");
-    },
   });
 
   // Загрузка аватара пользователя
@@ -281,32 +217,6 @@ export default function ProfileScreen() {
     },
     onError: (error) => {
       Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось загрузить аватар");
-    },
-  });
-
-  // Загрузка фото питомца
-  const petPhotoUploadMutation = useMutation({
-    mutationFn: async ({
-      petId,
-      uri,
-      mimeType,
-      fileName,
-    }: {
-      petId: string;
-      uri: string;
-      mimeType: string;
-      fileName: string;
-    }) => petsApi.uploadPhoto(petId, uri, mimeType, fileName),
-    onSuccess: (result) => {
-      if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ["pets"] });
-        hapticFeedback.success();
-      } else {
-        Alert.alert("Ошибка", result.error ?? "Не удалось загрузить фото");
-      }
-    },
-    onError: (error) => {
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось загрузить фото");
     },
   });
 
@@ -389,30 +299,12 @@ export default function ProfileScreen() {
   const avatarCacheKey = avatarUrl
     ? `user-avatar-${profileUser?.id ?? user?.id ?? "me"}-${avatarUrl}`
     : "user-avatar-placeholder";
-  const pets = petsData?.data || [];
   const displayRole = getRoleLabel(user?.role);
   const pushServerDetermined = pushDeviceStatus?.determined === true;
   const hasThisDevicePushOnServer = pushDeviceStatus?.hasThisDeviceSubscription === true;
   const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
   const trainerCourses = trainerProfileData?.data?.courses ?? [];
 
-  const handleEditPet = (pet: Pet) => {
-    router.push({
-      pathname: "/pets/edit/[id]",
-      params: { id: pet.id },
-    });
-  };
-
-  const handleDeletePet = (pet: Pet) => {
-    Alert.alert("Удалить питомца", `Вы уверены, что хотите удалить ${pet.name}?`, [
-      { text: "Отмена", style: "cancel" },
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: () => deleteMutation.mutate(pet.id),
-      },
-    ]);
-  };
   const roleColor = getRoleColor(user?.role);
 
   const trackProfileClick = useCallback((elementId: string) => {
@@ -479,42 +371,6 @@ export default function ProfileScreen() {
       reportClientError(err, {
         issueKey: "ProfileScreen",
         keys: { operation: "pick_avatar" },
-      });
-      Alert.alert("Ошибка", "Не удалось выбрать фото");
-    }
-  };
-
-  const pickImageAndUploadPetPhoto = async (petId: string) => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Доступ", "Нужен доступ к фото для смены фото питомца");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      if (result.canceled || !result.assets[0]) return;
-      const asset = result.assets[0];
-      const mimeType = asset.mimeType ?? "image/jpeg";
-      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
-        Alert.alert("Ошибка", "Разрешены только JPEG, PNG, WebP, GIF");
-        return;
-      }
-      const sizeMB = (asset.fileSize ?? 0) / (1024 * 1024);
-      if (sizeMB > PET_PHOTO_MAX_SIZE_MB) {
-        Alert.alert("Ошибка", `Максимальный размер фото — ${PET_PHOTO_MAX_SIZE_MB} МБ`);
-        return;
-      }
-      const fileName = asset.uri.split("/").pop() ?? "photo.jpg";
-      petPhotoUploadMutation.mutate({ petId, uri: asset.uri, mimeType, fileName });
-    } catch (err) {
-      reportClientError(err, {
-        issueKey: "ProfileScreen",
-        keys: { operation: "pick_pet_photo" },
       });
       Alert.alert("Ошибка", "Не удалось выбрать фото");
     }
@@ -798,145 +654,6 @@ export default function ProfileScreen() {
               )}
             </View>
           )}
-        </View>
-
-        {/* Список питомцев */}
-        <View style={styles.petListContainer}>
-          <Text style={styles.petListTitle}>Питомцы</Text>
-          {pets.length === 0 ? (
-            <Text style={styles.noPets}>Питомцы не добавлены</Text>
-          ) : (
-            <View style={styles.petsList}>
-              {pets.map((pet) => (
-                <View key={pet.id} style={styles.petItem}>
-                  <View style={styles.petMainInfo}>
-                    <Pressable
-                      onPress={() => pickImageAndUploadPetPhoto(pet.id)}
-                      disabled={petPhotoUploadMutation.isPending}
-                      style={styles.petAvatarPressable}
-                    >
-                      {pet.photoUrl ? (
-                        <Image
-                          source={{ uri: pet.photoUrl }}
-                          style={styles.petAvatar}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <Image
-                          source={require("../../../assets/images/pet-avatar.png")}
-                          style={styles.petAvatar}
-                          contentFit="cover"
-                        />
-                      )}
-                      <View style={styles.petAvatarEditBadge}>
-                        <Text style={styles.petAvatarEditText}>✏️</Text>
-                      </View>
-                    </Pressable>
-                    <View style={styles.petInfo}>
-                      <Text style={styles.petName}>
-                        {pet.name} ({getPetTypeLabel(pet.type)})
-                      </Text>
-                      {pet.breed && <Text style={styles.petDetail}>Порода: {pet.breed}</Text>}
-                      {pet.birthDate &&
-                        (() => {
-                          const age = getAgeWithMonths(pet.birthDate);
-                          if (!age) return null;
-
-                          // Показываем только месяцы и годы
-                          if (age.years === 0) {
-                            // Только месяцы
-                            return (
-                              <Text style={styles.petDetail}>
-                                Возраст: {age.months}{" "}
-                                {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                              </Text>
-                            );
-                          } else {
-                            // Годы и месяцы
-                            return (
-                              <Text style={styles.petDetail}>
-                                Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                                {age.months > 0 &&
-                                  ` ${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}`}
-                              </Text>
-                            );
-                          }
-                        })()}
-                      {pet.heightCm && (
-                        <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>
-                      )}
-                      {pet.weightKg && <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>}
-                      {pet.notes && <Text style={styles.petDetail}>Заметки: {pet.notes}</Text>}
-                    </View>
-                  </View>
-                  <View style={styles.petCardActions}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.petProcedureButton,
-                        pressed && styles.petProcedureButtonPressed,
-                      ]}
-                      onPress={() =>
-                        {
-                          trackProfileClick("pet-prevention-open");
-                          router.push(
-                            `/pets/${pet.id}/prevention` as Parameters<typeof router.push>[0],
-                          );
-                        }
-                      }
-                    >
-                      <Text style={styles.petProcedureIcon}>📋</Text>
-                      <Text style={styles.petProcedureLabel} numberOfLines={1}>
-                        Записи о процедурах
-                      </Text>
-                    </Pressable>
-                    <View style={styles.petManageActions}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.petManageButton,
-                          pressed && styles.petActionButtonPressed,
-                        ]}
-                        onPress={() => {
-                          trackProfileClick("pet-edit-open");
-                          handleEditPet(pet);
-                        }}
-                      >
-                        <Text style={styles.petActionIcon}>✏️</Text>
-                        <Text style={styles.petActionText} numberOfLines={2}>
-                          Изменить
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.petManageButton,
-                          styles.petActionButtonDelete,
-                          pressed && styles.petActionButtonPressed,
-                        ]}
-                        onPress={() => handleDeletePet(pet)}
-                      >
-                        <Text style={styles.petActionIcon}>🗑️</Text>
-                        <Text
-                          style={[styles.petActionText, styles.petActionTextDelete]}
-                          numberOfLines={2}
-                        >
-                          Удалить
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <Pressable
-            style={styles.addPetButton}
-            onPress={() => {
-              trackProfileClick("pet-add-open");
-              router.push({ pathname: "/pets/add" });
-            }}
-          >
-            <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-          </Pressable>
         </View>
 
         {!hasVkLinked ? (
@@ -1532,220 +1249,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: FONTS.montserrat,
-  },
-  // Список питомцев
-  petListContainer: {
-    width: "100%",
-    marginBottom: SPACING.lg,
-    backgroundColor: "#F5F0E8",
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    borderRadius: 12,
-    padding: SPACING.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  petListTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#352E2E",
-    marginBottom: SPACING.md,
-    fontFamily: FONTS.impact,
-  },
-  noPets: {
-    color: "#636128",
-    fontSize: 14,
-    fontStyle: "italic",
-    textAlign: "center",
-    padding: SPACING.md,
-    fontFamily: FONTS.montserrat,
-  },
-  petsList: {
-    flexDirection: "column",
-    gap: SPACING.md,
-  },
-  petItem: {
-    flexDirection: "column",
-    padding: SPACING.md,
-    backgroundColor: "#ECE5D2",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    marginBottom: SPACING.sm,
-  },
-  petMainInfo: {
-    flexDirection: "row",
-    gap: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  petAvatarPressable: {
-    position: "relative",
-    width: 60,
-    height: 60,
-  },
-  petAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  petAvatarEditBadge: {
-    position: "absolute",
-    right: -4,
-    bottom: -4,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  petAvatarEditText: {
-    fontSize: 10,
-  },
-  petAvatarPlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary + "15",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  petAvatarText: {
-    fontSize: 24,
-  },
-  petInfo: {
-    flex: 1,
-  },
-  petName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#352E2E",
-    marginBottom: SPACING.xs,
-    fontFamily: FONTS.montserrat,
-  },
-  petDetail: {
-    fontSize: 12,
-    color: "#352E2E",
-    marginBottom: 2,
-    fontFamily: FONTS.montserrat,
-  },
-  petCardActions: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(212, 196, 168, 0.5)",
-    gap: SPACING.sm,
-  },
-  petProcedureButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.sm,
-    paddingVertical: SPACING.sm + 2,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: "#FFF8E5",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#C4B896",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1,
-    minHeight: 48,
-  },
-  petProcedureButtonPressed: {
-    backgroundColor: "#F5F0E8",
-    borderColor: "#B6C582",
-    transform: [{ scale: 0.99 }],
-  },
-  petProcedureIcon: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  petProcedureLabel: {
-    flexShrink: 1,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#636128",
-    fontFamily: FONTS.montserrat,
-    letterSpacing: 0.1,
-  },
-  petManageActions: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(212, 196, 168, 0.4)",
-  },
-  petManageButton: {
-    flex: 1,
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.xs,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: 4,
-    backgroundColor: "#FFF8E5",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    minHeight: 56,
-  },
-  petActionButtonPressed: {
-    backgroundColor: "#F5F0E8",
-    borderColor: "#B6C582",
-    transform: [{ scale: 0.98 }],
-  },
-  petActionButtonDelete: {
-    backgroundColor: "#FFF8E5",
-    borderColor: "#D4C4A8",
-  },
-  petActionIcon: {
-    fontSize: 16,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  petActionText: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#636128",
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    letterSpacing: 0.1,
-    textAlign: "center",
-    width: "100%",
-  },
-  petActionTextDelete: {
-    color: "#8B4513",
-  },
-  addPetButton: {
-    backgroundColor: "#636128",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    marginTop: SPACING.md,
-    shadowColor: "#636128",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  addPetButtonText: {
-    color: "#ECE5D2",
-    fontSize: 15,
-    fontWeight: "600",
-    textAlign: "center",
-    fontFamily: FONTS.impact,
   },
   passwordButton: {
     backgroundColor: "#636128",

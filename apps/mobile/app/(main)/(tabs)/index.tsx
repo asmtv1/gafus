@@ -52,6 +52,7 @@ const VIEWPORT_COURSE_LOGO_GATE_COUNT = 3;
 const VIEWPORT_OVERLAY_SETTLE_MS = 96;
 /** Если гейт не закрылся (сеть, баг нативного слоя) — не блокировать UI навсегда. */
 const VIEWPORT_GATE_FORCE_MS = 12_000;
+const SHOW_COURSES_SEARCH = false;
 
 function getCourseLogoUri(
   logoImg: string | null | undefined,
@@ -378,10 +379,12 @@ export default function CoursesScreen() {
   const listHeader = (
     <View style={styles.headerFilters}>
       <Text style={styles.pageTitle}>Курсы</Text>
-      <CourseSearch
-        value={filters.search}
-        onChange={(v) => setFilter("search", v)}
-      />
+      {SHOW_COURSES_SEARCH ? (
+        <CourseSearch
+          value={filters.search}
+          onChange={(v) => setFilter("search", v)}
+        />
+      ) : null}
       <CourseFilters
         activeTab={filters.tab}
         onTabChange={(tab) => setFilter("tab", tab)}
