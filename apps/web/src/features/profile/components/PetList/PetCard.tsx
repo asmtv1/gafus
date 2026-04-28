@@ -1,8 +1,9 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { trackEvent } from "@gafus/analytics";
+import { useCSRFStore } from "@gafus/csrf";
 
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
@@ -12,8 +13,18 @@ import { Avatar, IconButton } from "@shared/utils/muiImports";
 
 import EditablePetAvatar from "../EditablePetAvatar";
 import styles from "./PetList.module.css";
+import {
+  deletePetDocumentById,
+  uploadPetDocument,
+} from "@shared/lib/pets/pet-documents";
 
-import type { PublicProfile } from "@gafus/types";
+import {
+  PET_DOCUMENT_ALLOWED_MIME_TYPES,
+  PET_DOCUMENT_MAX_SIZE_BYTES,
+  type PetDocumentDto,
+  type PublicProfile,
+} from "@gafus/types";
+import type { ChangeEvent } from "react";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
 
@@ -24,6 +35,9 @@ interface PetCardProps {
   onDelete: (petId: string, petName: string) => void;
   isPending: boolean;
   pathOrScreen: string;
+  initialDocuments: PetDocumentDto[];
+  documentsLoading: boolean;
+  documentsError: string | null;
 }
 
 const PetCard = memo(function PetCard({
@@ -33,7 +47,25 @@ const PetCard = memo(function PetCard({
   onDelete,
   isPending,
   pathOrScreen,
+  initialDocuments,
+  documentsLoading,
+  documentsError,
 }: PetCardProps) {
+  const { token: csrfToken, fetchToken } = useCSRFStore();
+  const [documents, setDocuments] = useState<PetDocumentDto[]>(initialDocuments);
+  const [localDocumentsError, setLocalDocumentsError] = useState<string | null>(null);
+  const [documentsBusy, setDocumentsBusy] = useState(false);
+
+  useEffect(() => {
+    if (!csrfToken) {
+      void fetchToken();
+    }
+  }, [csrfToken, fetchToken]);
+
+  useEffect(() => {
+    setDocuments(initialDocuments);
+  }, [initialDocuments]);
+
   const trackProfilePetClick = useCallback(
     (elementId: string) => {
       trackEvent({
@@ -59,6 +91,113 @@ const PetCard = memo(function PetCard({
     trackProfilePetClick("profile-pet-delete-click");
     onDelete(pet.id, pet.name);
   }, [onDelete, pet.id, pet.name, trackProfilePetClick]);
+
+  const handleDocumentUpload = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.currentTarget.value = "";
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId: "pet-document-upload",
+      });
+      if (!file) {
+        return;
+      }
+      if (!PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(file.type as (typeof PET_DOCUMENT_ALLOWED_MIME_TYPES)[number])) {
+        setLocalDocumentsError("Недопустимый тип документа. Разрешены PDF, JPEG и PNG");
+        return;
+      }
+      if (file.size > PET_DOCUMENT_MAX_SIZE_BYTES) {
+        setLocalDocumentsError("Размер документа превышает 10 МБ");
+        return;
+      }
+      if (!csrfToken) {
+        setLocalDocumentsError("Не удалось получить CSRF-токен");
+        return;
+      }
+
+      setDocumentsBusy(true);
+      setLocalDocumentsError(null);
+      const response = await uploadPetDocument(pet.id, file, csrfToken);
+      if (!response.success) {
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen,
+          elementId: "pet-document-upload",
+        });
+        setLocalDocumentsError(response.error ?? "Не удалось загрузить документ");
+        setDocumentsBusy(false);
+        return;
+      }
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId: "pet-document-upload",
+      });
+
+      setDocuments((prev) => {
+        const next = [response.data as PetDocumentDto, ...prev];
+        return next.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+      });
+      setDocumentsBusy(false);
+    },
+    [csrfToken, pathOrScreen, pet.id],
+  );
+
+  const handleDocumentDelete = useCallback(
+    async (documentId: string, name: string) => {
+      const confirmed = window.confirm(`Удалить документ "${name}"?`);
+      if (!confirmed) {
+        return;
+      }
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId: "pet-document-delete",
+      });
+      if (!csrfToken) {
+        setLocalDocumentsError("Не удалось получить CSRF-токен");
+        return;
+      }
+      setDocumentsBusy(true);
+      setLocalDocumentsError(null);
+      const response = await deletePetDocumentById(pet.id, documentId, csrfToken);
+      if (!response.success) {
+        trackEvent({
+          eventName: "button_click",
+          platform: "web",
+          pathOrScreen,
+          elementId: "pet-document-delete",
+        });
+        setLocalDocumentsError(response.error ?? "Не удалось удалить документ");
+        setDocumentsBusy(false);
+        return;
+      }
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId: "pet-document-delete",
+      });
+      setDocuments((prev) => prev.filter((document) => document.id !== documentId));
+      setDocumentsBusy(false);
+    },
+    [csrfToken, pathOrScreen, pet.id],
+  );
+
+  const handleDocumentOpen = useCallback(() => {
+    trackEvent({
+      eventName: "button_click",
+      platform: "web",
+      pathOrScreen,
+      elementId: "pet-document-open-click",
+    });
+  }, [pathOrScreen]);
 
   return (
     <li className={styles.dog_item}>
@@ -136,6 +275,57 @@ const PetCard = memo(function PetCard({
           >
             <DeleteRoundedIcon />
           </IconButton>
+        </div>
+      ) : null}
+      {isOwner ? (
+        <div className={styles.documentsSection}>
+          <div className={styles.documentsHeader}>
+            <span className={styles.documentsTitle}>Документы</span>
+            <label className={styles.documentUploadLabel} aria-disabled={documentsBusy}>
+              Добавить
+              <input
+                type="file"
+                accept={PET_DOCUMENT_ALLOWED_MIME_TYPES.join(",")}
+                className={styles.documentUploadInput}
+                onChange={handleDocumentUpload}
+                disabled={documentsBusy}
+              />
+            </label>
+          </div>
+          {documentsLoading ? <p className={styles.documentsHint}>Загрузка документов...</p> : null}
+          {documentsError ? <p className={styles.documentsError}>{documentsError}</p> : null}
+          {localDocumentsError ? (
+            <p className={styles.documentsError}>{localDocumentsError}</p>
+          ) : null}
+          {!documentsLoading && !documentsError && !localDocumentsError && documents.length === 0 ? (
+            <p className={styles.documentsHint}>Документы пока не добавлены</p>
+          ) : null}
+          {documents.map((document) => (
+            <div key={document.id} className={styles.documentItem}>
+              <span className={styles.documentName} title={document.name}>
+                {document.name}
+              </span>
+              <div className={styles.documentActions}>
+                <a
+                  href={document.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.documentOpen}
+                  onClick={handleDocumentOpen}
+                >
+                  Открыть
+                </a>
+                <button
+                  type="button"
+                  className={styles.documentDelete}
+                  onClick={() => handleDocumentDelete(document.id, document.name)}
+                  disabled={documentsBusy}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       ) : null}
     </li>

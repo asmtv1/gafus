@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
 import { trackEvent } from "@gafus/analytics";
 
@@ -14,11 +14,12 @@ import { formatIsoBirthDateToDdMmYyyy } from "@shared/lib/validation/petSchemas"
 import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
+import { getAllPetDocuments } from "@shared/lib/pets/pet-documents";
 
 import PetCard from "./PetCard";
 import styles from "./PetList.module.css";
 
-import type { PublicProfile, PetFormData } from "@gafus/types";
+import type { PetDocumentDto, PublicProfile, PetFormData } from "@gafus/types";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
 
@@ -102,6 +103,56 @@ export default function PetList({
   const username = session?.user?.username ?? null;
   const profileRevalidatePath = profilePagePath(username ?? undefined, "revalidate");
   const pathOrScreen = username ? `/profile?username=${username}` : "/profile";
+  const [documentsByPetId, setDocumentsByPetId] = useState<Record<string, PetDocumentDto[]>>({});
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const petIdsKey = useMemo(() => pets.map((pet) => pet.id).join(","), [pets]);
+
+  useEffect(() => {
+    if (!isOwner || pets.length === 0) {
+      setDocumentsByPetId({});
+      setDocumentsError(null);
+      setDocumentsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const loadDocuments = async () => {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+      const response = await getAllPetDocuments();
+      if (cancelled) {
+        return;
+      }
+      if (!response.success) {
+        setDocumentsError(response.error ?? "Не удалось загрузить документы");
+        setDocumentsLoading(false);
+        return;
+      }
+
+      const grouped: Record<string, PetDocumentDto[]> = {};
+      for (const document of response.data ?? []) {
+        if (!grouped[document.petId]) {
+          grouped[document.petId] = [];
+        }
+        grouped[document.petId].push(document);
+      }
+      setDocumentsByPetId(grouped);
+      setDocumentsLoading(false);
+    };
+
+    loadDocuments().catch(() => {
+      if (cancelled) {
+        return;
+      }
+      setDocumentsError("Не удалось загрузить документы");
+      setDocumentsLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, petIdsKey, pets.length]);
 
   const invalidateProfileCache = useCallback(async () => {
     try {
@@ -215,6 +266,9 @@ export default function PetList({
               onDelete={handlePetDelete}
               isPending={isPending}
               pathOrScreen={pathOrScreen}
+              initialDocuments={documentsByPetId[pet.id] ?? []}
+              documentsLoading={documentsLoading}
+              documentsError={documentsError}
             />
           ))}
         </ul>

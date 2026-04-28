@@ -1,4 +1,8 @@
 import * as SecureStore from "expo-secure-store";
+import {
+  type PetDocumentDto,
+  PET_DOCUMENT_ALLOWED_MIME_TYPES,
+} from "@gafus/types";
 
 import { API_BASE_URL } from "@/constants";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -41,6 +45,7 @@ export interface CreatePetData {
 }
 
 export interface UpdatePetData extends Partial<CreatePetData> {}
+export type PetDocument = PetDocumentDto;
 
 export type PetPreventionType = "VACCINATION" | "DEWORMING" | "TICKS_FLEAS";
 
@@ -296,6 +301,78 @@ export const petsApi = {
       };
     }
     return data;
+  },
+
+  getDocuments: async (petId: string): Promise<ApiResponse<PetDocument[]>> => {
+    try {
+      return await apiClient<PetDocument[]>(`/api/v1/pets/${petId}/documents`);
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "get_documents" },
+      });
+      throw error;
+    }
+  },
+
+  uploadDocument: async (
+    petId: string,
+    uri: string,
+    mimeType: string,
+    fileName: string,
+  ): Promise<ApiResponse<PetDocument>> => {
+    const token = await SecureStore.getItemAsync("auth_token");
+    if (!token) {
+      return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
+    }
+    if (
+      !PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(
+        mimeType as (typeof PET_DOCUMENT_ALLOWED_MIME_TYPES)[number],
+      )
+    ) {
+      return {
+        success: false,
+        error: "Недопустимый тип документа. Разрешены PDF, JPEG и PNG",
+        code: "INVALID_DOCUMENT_TYPE",
+      };
+    }
+
+    const formData = new FormData();
+    formData.append("file", {
+      uri,
+      type: mimeType,
+      name: fileName,
+    } as unknown as Blob);
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/pets/${petId}/documents`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || "Ошибка загрузки документа",
+        code: data.code,
+      };
+    }
+    return data;
+  },
+
+  deleteDocument: async (petId: string, documentId: string): Promise<ApiResponse<void>> => {
+    try {
+      return await apiClient<void>(`/api/v1/pets/${petId}/documents/${documentId}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "delete_document" },
+      });
+      throw error;
+    }
   },
 
   // ==================== Prevention Journal ====================

@@ -5,6 +5,7 @@ export * from "./common";
 export * from "./course";
 export * from "./login-form";
 export * from "./pet";
+export * from "./pet-document";
 export * from "./pet-input";
 export * from "./pet-prevention";
 export * from "./push";

@@ -223,6 +223,7 @@ model User {
   accountDeletionTokens          AccountDeletionToken[]
   payments                       Payment[]
   pets                           Pet[]
+  petDocuments                   PetDocument[]
   emailChangeTokens              EmailChangeToken[]
   pushSubscriptions              PushSubscription[]
   reengagementCampaigns          ReengagementCampaign[]
@@ -409,8 +410,26 @@ model Pet {
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @default(now())
   awards            Award[]
+  documents         PetDocument[]
   owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   preventionEntries PetPreventionEntry[]
+}
+
+model PetDocument {
+  id        String   @id @default(cuid())
+  petId     String
+  ownerId   String
+  name      String
+  mimeType  String
+  sizeBytes Int
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([petId, createdAt])
+  @@index([ownerId])
 }
 
 model Award {

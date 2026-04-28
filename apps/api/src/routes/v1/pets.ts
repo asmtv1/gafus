@@ -12,14 +12,51 @@ import {
   createPet,
   updatePet,
   deletePet,
+  deletePetDocument,
+  listPetDocuments,
+  uploadPetDocument,
   updatePetPhoto,
 } from "@gafus/core/services/pets";
 import { createWebLogger } from "@gafus/logger";
+import {
+  PET_DOCUMENT_ALLOWED_MIME_TYPES,
+  PET_DOCUMENT_MAX_SIZE_BYTES,
+  PET_DOCUMENTS_MAX_PER_PET,
+} from "@gafus/types";
 
 const MAX_PET_PHOTO_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const logger = createWebLogger("api-pets");
+
+function mapPetDocumentError(error: unknown): { status: number; error: string; code: string } {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "Питомец не найден") {
+    return { status: 404, error: "Питомец не найден", code: "PET_NOT_FOUND" };
+  }
+  if (message === "Недопустимый тип документа") {
+    return {
+      status: 400,
+      error: "Недопустимый тип документа. Разрешены PDF, JPEG и PNG",
+      code: "INVALID_DOCUMENT_TYPE",
+    };
+  }
+  if (message === "Размер документа превышает 10 МБ") {
+    return {
+      status: 400,
+      error: "Размер документа превышает 10 МБ",
+      code: "DOCUMENT_TOO_LARGE",
+    };
+  }
+  if (message === "Достигнут лимит документов питомца") {
+    return {
+      status: 400,
+      error: `Достигнут лимит документов: ${PET_DOCUMENTS_MAX_PER_PET}`,
+      code: "DOCUMENT_LIMIT_REACHED",
+    };
+  }
+  return { status: 500, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" };
+}
 
 export const petsRoutes = new Hono();
 
@@ -129,6 +166,94 @@ petsRoutes.post("/:petId/photo", async (c) => {
     logger.error("Error uploading pet photo", error as Error);
     return c.json(
       { success: false, error: "Ошибка загрузки фото питомца" },
+      500,
+    );
+  }
+});
+
+// ==================== GET /pets/:petId/documents ====================
+// Получить список документов питомца
+petsRoutes.get("/:petId/documents", async (c) => {
+  try {
+    const user = c.get("user");
+    const petId = c.req.param("petId");
+    const documents = await listPetDocuments(petId, user.id);
+    return c.json({ success: true, data: documents });
+  } catch (error) {
+    const mappedError = mapPetDocumentError(error);
+    if (mappedError.status >= 500) {
+      logger.error("Error fetching pet documents", error as Error);
+    }
+    return c.json(
+      { success: false, error: mappedError.error, code: mappedError.code },
+      mappedError.status as 400 | 404 | 500,
+    );
+  }
+});
+
+// ==================== POST /pets/:petId/documents ====================
+// Загрузить документ питомца (multipart/form-data, поле "file")
+petsRoutes.post("/:petId/documents", async (c) => {
+  try {
+    const user = c.get("user");
+    const petId = c.req.param("petId");
+    const body = await c.req.parseBody();
+    const file = body["file"];
+    if (!file || typeof file === "string") {
+      return c.json({ success: false, error: "Файл не найден", code: "FILE_REQUIRED" }, 400);
+    }
+
+    const uploadedFile = file as File;
+    if (!PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(uploadedFile.type as (typeof PET_DOCUMENT_ALLOWED_MIME_TYPES)[number])) {
+      return c.json(
+        {
+          success: false,
+          error: "Недопустимый тип документа. Разрешены PDF, JPEG и PNG",
+          code: "INVALID_DOCUMENT_TYPE",
+        },
+        400,
+      );
+    }
+    if (uploadedFile.size > PET_DOCUMENT_MAX_SIZE_BYTES) {
+      return c.json(
+        { success: false, error: "Размер документа превышает 10 МБ", code: "DOCUMENT_TOO_LARGE" },
+        400,
+      );
+    }
+
+    const document = await uploadPetDocument(petId, user.id, uploadedFile);
+    return c.json({ success: true, data: document }, 201);
+  } catch (error) {
+    const mappedError = mapPetDocumentError(error);
+    if (mappedError.status >= 500) {
+      logger.error("Error uploading pet document", error as Error);
+    }
+    return c.json(
+      { success: false, error: mappedError.error, code: mappedError.code },
+      mappedError.status as 400 | 404 | 500,
+    );
+  }
+});
+
+// ==================== DELETE /pets/:petId/documents/:documentId ====================
+// Удалить документ питомца
+petsRoutes.delete("/:petId/documents/:documentId", async (c) => {
+  try {
+    const user = c.get("user");
+    const petId = c.req.param("petId");
+    const documentId = c.req.param("documentId");
+    const deleted = await deletePetDocument(documentId, user.id, petId);
+    if (!deleted) {
+      return c.json(
+        { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },
+        404,
+      );
+    }
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error("Error deleting pet document", error as Error);
+    return c.json(
+      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
       500,
     );
   }

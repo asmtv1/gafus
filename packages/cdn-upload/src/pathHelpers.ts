@@ -33,6 +33,23 @@ export function getPetPhotoPath(
 }
 
 /**
+ * Генерирует путь для документа питомца
+ * @param userId - ID пользователя (владелец питомца)
+ * @param petId - ID питомца
+ * @param uuid - UUID файла (или будет сгенерирован автоматически)
+ * @param ext - Расширение файла
+ * @returns Путь вида: users/{userId}/pets/{petId}/documents/{uuid}.{ext}
+ */
+export function getPetDocumentPath(
+  userId: string,
+  petId: string,
+  uuid: string = randomUUID(),
+  ext: string,
+): string {
+  return `users/${userId}/pets/${petId}/documents/${uuid}.${ext}`;
+}
+
+/**
  * Генерирует путь для изображения шага
  * @param trainerId - ID тренера (автора шага)
  * @param stepId - ID шага

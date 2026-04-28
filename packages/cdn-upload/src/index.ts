@@ -16,6 +16,7 @@ export {
 } from "./utils";
 export {
   getUserAvatarPath,
+  getPetDocumentPath,
   getPetPhotoPath,
   getStepImagePath,
   getCourseImagePath,
