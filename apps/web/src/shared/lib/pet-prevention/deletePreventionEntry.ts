@@ -12,7 +12,7 @@ export async function deletePreventionEntry(petId: string, entryId: string) {
     const userId = await getCurrentUserId();
     const result = await deleteEntry(userId, petId, entryId);
     if (result.success) {
-      revalidatePath(`/profile/pets/${petId}/prevention`);
+      revalidatePath("/pets");
     }
     return result;
   } catch (error) {

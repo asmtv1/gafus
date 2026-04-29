@@ -22,7 +22,7 @@ export async function createPreventionEntry(
     const validated = createEntrySchema.parse(data);
     const result = await createEntry(userId, petId, validated);
     if (result.success) {
-      revalidatePath(`/profile/pets/${petId}/prevention`);
+      revalidatePath("/pets");
     }
     return result;
   } catch (error) {

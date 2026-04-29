@@ -46,6 +46,13 @@ const apps = [
 ];
 
 function ensureBuilt(app) {
+  if (app.filter === "@gafus/web") {
+    console.warn(`[${app.name}] Пересобираю web и зависимости для консистентного runtime...`);
+    execSync("pnpm --filter ...@gafus/web build", { stdio: "inherit" });
+    execSync("sleep 2", { stdio: "ignore" });
+    return;
+  }
+
   if (app.type === "worker") {
     // Для worker'а ВСЕГДА пересобираем для актуальности
     const cwd = "packages/worker";

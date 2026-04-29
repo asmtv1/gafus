@@ -410,9 +410,11 @@ model Pet {
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @default(now())
   awards            Award[]
-  documents         PetDocument[]
+  documents         PetDocument[]          @relation("PetDocumentsByOwner")
   owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   preventionEntries PetPreventionEntry[]
+
+  @@unique([id, ownerId])
 }
 
 model PetDocument {
@@ -425,7 +427,7 @@ model PetDocument {
   url       String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet       Pet      @relation("PetDocumentsByOwner", fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([petId, createdAt])

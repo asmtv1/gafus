@@ -114,6 +114,18 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               </Link>
             )}
             <Link
+              href="/pets"
+              onClick={() => {
+                trackMenuClick("tab-pets");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/pets")}
+              className={styles.menuButton}
+            >
+              <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+              Питомцы
+            </Link>
+            <Link
               href="/courses"
               onClick={() => {
                 trackMenuClick("tab-courses");
@@ -154,24 +166,6 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             >
               <ArticleIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
               Статьи
-            </Link>
-            <Link
-              href="/favorites"
-              onClick={() => {
-                trackMenuClick("tab-favorites");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/favorites")}
-              className={styles.menuButton}
-            >
-              <Image
-                src="/uploads/header/favorites.svg"
-                alt="favorites"
-                width={24}
-                height={24}
-                loading="lazy"
-              />
-              Избранное
             </Link>
             <div className={styles.menuButton}>
               <Image

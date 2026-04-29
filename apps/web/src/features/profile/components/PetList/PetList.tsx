@@ -15,11 +15,13 @@ import { clearProfilePageCache } from "@shared/utils/clearProfileCache";
 import { showEditPetAlert, showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 import { getAllPetDocuments } from "@shared/lib/pets/pet-documents";
+import { getPetsPreventionEntries } from "@shared/lib/pet-prevention/pet-prevention-client";
 
 import PetCard from "./PetCard";
 import styles from "./PetList.module.css";
 
 import type { PetDocumentDto, PublicProfile, PetFormData } from "@gafus/types";
+import type { PreventionEntryDisplay } from "@features/pet-prevention/types";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
 
@@ -93,17 +95,26 @@ const handleDelete = async (
 export default function PetList({
   pets,
   isOwner,
+  pathOrScreen: pathOrScreenProp,
+  revalidatePath: revalidatePathProp,
 }: {
   pets: PetFromPublicProfile[];
   isOwner: boolean;
+  pathOrScreen?: string;
+  revalidatePath?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { data: session } = useSession();
   const username = session?.user?.username ?? null;
-  const profileRevalidatePath = profilePagePath(username ?? undefined, "revalidate");
-  const pathOrScreen = username ? `/profile?username=${username}` : "/profile";
+  const profileRevalidatePath =
+    revalidatePathProp ?? profilePagePath(username ?? undefined, "revalidate");
+  const pathOrScreen =
+    pathOrScreenProp ?? (username ? `/profile?username=${username}` : "/profile");
   const [documentsByPetId, setDocumentsByPetId] = useState<Record<string, PetDocumentDto[]>>({});
+  const [preventionEntriesByPetId, setPreventionEntriesByPetId] = useState<
+    Record<string, PreventionEntryDisplay[]>
+  >({});
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
   const petIdsKey = useMemo(() => pets.map((pet) => pet.id).join(","), [pets]);
@@ -111,6 +122,7 @@ export default function PetList({
   useEffect(() => {
     if (!isOwner || pets.length === 0) {
       setDocumentsByPetId({});
+      setPreventionEntriesByPetId({});
       setDocumentsError(null);
       setDocumentsLoading(false);
       return;
@@ -121,6 +133,7 @@ export default function PetList({
       setDocumentsLoading(true);
       setDocumentsError(null);
       const response = await getAllPetDocuments();
+      const preventionResponse = await getPetsPreventionEntries(pets.map((pet) => pet.id));
       if (cancelled) {
         return;
       }
@@ -138,6 +151,14 @@ export default function PetList({
         grouped[document.petId].push(document);
       }
       setDocumentsByPetId(grouped);
+      if (!preventionResponse.success) {
+        logger.warn("Не удалось загрузить записи о процедурах пачкой", {
+          error: preventionResponse.error ?? "unknown",
+        });
+        setPreventionEntriesByPetId({});
+      } else {
+        setPreventionEntriesByPetId(preventionResponse.data ?? {});
+      }
       setDocumentsLoading(false);
     };
 
@@ -269,6 +290,7 @@ export default function PetList({
               initialDocuments={documentsByPetId[pet.id] ?? []}
               documentsLoading={documentsLoading}
               documentsError={documentsError}
+              initialPreventionEntries={preventionEntriesByPetId[pet.id] ?? []}
             />
           ))}
         </ul>

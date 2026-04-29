@@ -24,7 +24,7 @@ export async function updatePreventionEntry(
     const validated = updateEntrySchema.parse(data);
     const result = await updateEntry(userId, petId, entryId, validated);
     if (result.success) {
-      revalidatePath(`/profile/pets/${petId}/prevention`);
+      revalidatePath("/pets");
     }
     return result;
   } catch (error) {

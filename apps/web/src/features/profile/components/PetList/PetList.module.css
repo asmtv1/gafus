@@ -213,6 +213,23 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
+.preventionSection {
+  margin-top: 0.4rem;
+  width: 100%;
+  flex-basis: 100%;
+  padding: 0.9rem;
+  border: 1px solid #d4c4a8;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff8e5 0%, #f9f2df 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.preventionAlert {
+  margin-bottom: 0.75rem;
+  border: 1px solid #d4c4a8;
+  border-radius: 10px;
+}
+
 .documentsHeader {
   display: flex;
   align-items: center;

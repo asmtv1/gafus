@@ -51,6 +51,7 @@ const formatPriceRub = (priceRub: number | null) => {
 };
 
 const getDownloadTitle = (courseName: string) => `Скачивание курса: ${courseName}`;
+const SHOW_COURSE_AUTHOR_PILL = false;
 
 const getDownloadModalHtml = (progress: number) => {
   const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
@@ -431,39 +432,41 @@ export const CourseCard = ({
         </div>
       </div>
 
-      <div className={styles.author}>
-        <div className={styles.authorPill}>
-          <div className={styles.authorInfo}>
-            <div className={styles.authorAvatar}>
-              {authorAvatarUrl ? (
-                <Image
-                  src={authorAvatarUrl}
-                  alt=""
-                  width={44}
-                  height={44}
-                  className={styles.authorAvatarImg}
-                  unoptimized={authorAvatarUrl.startsWith("http")}
-                />
-              ) : null}
-            </div>
-            <div className={styles.authorTextWrap}>
-              <div className={styles.authorLine}>
-                <span className={styles.authorLabel}>Автор курса: </span>
-                {authorUsername ? (
-                  <NextLink href={`/profile?username=${authorUsername}`} className={styles.authorlink}>
-                    {authorUsername}
-                  </NextLink>
-                ) : (
-                  <span>Неизвестный автор</span>
-                )}
+      {SHOW_COURSE_AUTHOR_PILL ? (
+        <div className={styles.author}>
+          <div className={styles.authorPill}>
+            <div className={styles.authorInfo}>
+              <div className={styles.authorAvatar}>
+                {authorAvatarUrl ? (
+                  <Image
+                    src={authorAvatarUrl}
+                    alt=""
+                    width={44}
+                    height={44}
+                    className={styles.authorAvatarImg}
+                    unoptimized={authorAvatarUrl.startsWith("http")}
+                  />
+                ) : null}
+              </div>
+              <div className={styles.authorTextWrap}>
+                <div className={styles.authorLine}>
+                  <span className={styles.authorLabel}>Автор курса: </span>
+                  {authorUsername ? (
+                    <NextLink href={`/profile?username=${authorUsername}`} className={styles.authorlink}>
+                      {authorUsername}
+                    </NextLink>
+                  ) : (
+                    <span>Неизвестный автор</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <div className={styles.authorBookmarkWrap}>
-            <FavoriteButton id={id} isFavorite={isFavorite} onUnfavorite={() => onUnfavorite?.(id)} />
+            <div className={styles.authorBookmarkWrap}>
+              <FavoriteButton id={id} isFavorite={isFavorite} onUnfavorite={() => onUnfavorite?.(id)} />
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       {!isChecking && (
         <div className={styles.offlineActions}>

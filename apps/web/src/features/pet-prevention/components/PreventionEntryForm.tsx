@@ -93,7 +93,7 @@ export function PreventionEntryForm({
   onCancel,
   open,
 }: PreventionEntryFormProps) {
-  const pathname = usePathname() ?? `/profile/pets/${petId}/prevention`;
+  const pathname = usePathname() ?? "/pets";
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 

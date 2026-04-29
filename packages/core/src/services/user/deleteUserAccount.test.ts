@@ -22,14 +22,23 @@ const mockUserDelete = vi.fn();
 const mockExecuteRaw = vi.fn();
 const mockTransaction = vi.fn();
 const mockSendDeletionEmail = vi.fn();
+const mockPetFindMany = vi.fn();
+const mockDeleteFileFromCDN = vi.fn();
+const mockGetRelativePathFromCDNUrl = vi.fn();
 
 vi.mock("../auth/transactionalAuthMail", () => ({
   sendAccountDeletionCodeEmail: (...args: unknown[]) => mockSendDeletionEmail(...args),
 }));
 
+vi.mock("@gafus/cdn-upload", () => ({
+  deleteFileFromCDN: (...args: unknown[]) => mockDeleteFileFromCDN(...args),
+  getRelativePathFromCDNUrl: (...args: unknown[]) => mockGetRelativePathFromCDNUrl(...args),
+}));
+
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
+    pet: { findMany: (...args: unknown[]) => mockPetFindMany(...args) },
     accountDeletionToken: {
       findFirst: (...args: unknown[]) => mockAccountDeletionFindFirst(...args),
     },
@@ -85,6 +94,9 @@ describe("deleteUserAccount", () => {
     mockUserDelete.mockResolvedValue({});
     mockExecuteRaw.mockResolvedValue(1);
     mockAccountDeletionDeleteMany.mockResolvedValue({ count: 1 });
+    mockPetFindMany.mockResolvedValue([]);
+    mockDeleteFileFromCDN.mockResolvedValue(undefined);
+    mockGetRelativePathFromCDNUrl.mockImplementation((url: string) => `relative/${url}`);
     mockAccountDeletionFindFirst.mockResolvedValue({
       id: "tok1",
       userId: "u1",
@@ -110,6 +122,22 @@ describe("deleteUserAccount", () => {
     expect(mockRefreshUpdateMany).toHaveBeenCalled();
     expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
     expect(mockExecuteRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it("deletes pet assets from CDN after user deletion", async () => {
+    mockPetFindMany.mockResolvedValue([
+      {
+        id: "pet-1",
+        photoUrl: "https://cdn.example.com/pets/p1.jpg",
+        documents: [{ id: "doc-1", url: "https://cdn.example.com/docs/d1.pdf" }],
+      },
+    ]);
+
+    const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
+
+    expect(result).toEqual({ success: true });
+    expect(mockGetRelativePathFromCDNUrl).toHaveBeenCalledTimes(2);
+    expect(mockDeleteFileFromCDN).toHaveBeenCalledTimes(2);
   });
 
   it("allows PREMIUM with valid code", async () => {

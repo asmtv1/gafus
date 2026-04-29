@@ -205,6 +205,34 @@ export default [
     },
   },
 
+  // Web client boundaries: don't import server-only pets entry or core services
+  {
+    files: [
+      "apps/web/src/shared/stores/**/*.{ts,tsx}",
+      "apps/web/src/shared/hooks/**/*.{ts,tsx}",
+      "apps/web/src/features/**/*.{ts,tsx}",
+      "apps/web/src/widgets/**/*.{ts,tsx}",
+      "apps/web/src/app/**/components/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@shared/lib/pets/server"],
+              message: "Используйте client entrypoint в клиентском коде.",
+            },
+            {
+              group: ["@gafus/core/services/*"],
+              message: "Бизнес-сервисы core нельзя импортировать в клиентский код web.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Trainer Panel specific configuration
   {
     files: ["apps/trainer-panel/**/*.{js,jsx,ts,tsx}"],

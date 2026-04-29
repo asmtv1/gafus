@@ -22,6 +22,7 @@ import styles from "./prevention-ui.module.css";
 interface PreventionEntryListProps {
   entries: PreventionEntryDisplay[];
   petId: string;
+  onEntriesChanged?: () => Promise<void> | void;
 }
 
 const CHIP_CLASS: Record<string, string> = {
@@ -30,9 +31,13 @@ const CHIP_CLASS: Record<string, string> = {
   TICKS_FLEAS: styles.chipTicks,
 };
 
-export function PreventionEntryList({ entries, petId }: PreventionEntryListProps) {
+export function PreventionEntryList({
+  entries,
+  petId,
+  onEntriesChanged,
+}: PreventionEntryListProps) {
   const router = useRouter();
-  const pathname = usePathname() ?? `/profile/pets/${petId}/prevention`;
+  const pathname = usePathname() ?? "/pets";
   const [isPending, startTransition] = useTransition();
   const [editEntry, setEditEntry] = useState<PreventionEntryDisplay | null>(
     null,
@@ -42,8 +47,9 @@ export function PreventionEntryList({ entries, petId }: PreventionEntryListProps
   const handleFormSuccess = useCallback(() => {
     setEditEntry(null);
     setShowAddForm(false);
+    void onEntriesChanged?.();
     router.refresh();
-  }, [router]);
+  }, [onEntriesChanged, router]);
 
   const handleDelete = useCallback(
     (entryId: string) => {
@@ -63,11 +69,12 @@ export function PreventionEntryList({ entries, petId }: PreventionEntryListProps
             elementId: "profile-prevention-delete-success",
           });
           setEditEntry(null);
+          void onEntriesChanged?.();
           router.refresh();
         }
       });
     },
-    [pathname, petId, router, startTransition],
+    [onEntriesChanged, pathname, petId, router, startTransition],
   );
 
   const handleShowAddForm = useCallback(() => {

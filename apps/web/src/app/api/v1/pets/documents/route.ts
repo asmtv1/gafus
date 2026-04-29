@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
+import { listUserPetDocuments } from "@shared/lib/pets/server";
 
 const logger = createWebLogger("web-api-pet-documents-list");
 
@@ -16,8 +17,8 @@ export async function GET() {
       );
     }
 
-    const { listUserPetDocuments } = await import("@gafus/core/services/pets");
     const documents = await listUserPetDocuments(userId);
+
     return NextResponse.json({ success: true, data: documents });
   } catch (error) {
     logger.error("Ошибка при получении документов питомцев пользователя", error as Error);

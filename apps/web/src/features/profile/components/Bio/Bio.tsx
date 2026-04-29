@@ -3,7 +3,6 @@ import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyt
 import styles from "./Bio.module.css";
 import EditableAvatar from "../EditableAvatar";
 import NotificationStatus from "../NotificationStatus";
-import PetList from "../PetList";
 import ProfileAvatar from "../ProfileAvatar";
 import TrainerCoursesSection from "../TrainerCoursesSection";
 
@@ -17,7 +16,6 @@ import { InstagramIcon, TelegramIcon, WebsiteIcon } from "../SocialIcons";
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
   const profile = publicData.profile;
   const diplomas = publicData.diplomas;
-  const pets = publicData.pets;
   const safeWebsite =
     profile?.website?.startsWith("http") ? profile.website : null;
 
@@ -161,20 +159,6 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         )}
       </div>
 
-      <div className={styles.petList}>
-        <PetList pets={pets} isOwner={isOwner} />
-
-        {isOwner && (
-          <ProfileAnalyticsLink
-            className={`${styles.editBioButton} ${styles.addpet}`}
-            elementId="profile-add-pet-link-click"
-            href="/profile/addPet"
-            pathOrScreen={profilePathOrScreen}
-          >
-            Добавить питомца
-          </ProfileAnalyticsLink>
-        )}
-      </div>
       {publicData.role === "TRAINER" && <TrainerCoursesSection publicData={publicData} />}
       {isOwner && (
         <div className={styles.notificationStatus}>

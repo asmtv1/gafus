@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
+import { deletePetDocumentForUser } from "@shared/lib/pets/server";
 
 const logger = createWebLogger("web-api-pet-document-item");
 
@@ -22,8 +23,7 @@ async function deleteHandler(_request: Request, context: RouteContext) {
     }
 
     const { petId, documentId } = await context.params;
-    const { deletePetDocument } = await import("@gafus/core/services/pets");
-    const deleted = await deletePetDocument(documentId, userId, petId);
+    const deleted = await deletePetDocumentForUser(documentId, userId, petId);
     if (!deleted) {
       return NextResponse.json(
         { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },

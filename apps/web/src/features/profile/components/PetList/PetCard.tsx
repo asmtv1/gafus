@@ -1,15 +1,15 @@
 "use client";
 
 import { memo, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
 
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { getAgeWithMonths, declOfNum, getPetTypeLabel } from "@gafus/core/utils";
 import { Avatar, IconButton } from "@shared/utils/muiImports";
+import { Alert } from "@mui/material";
+import { PreventionEntryList } from "@features/pet-prevention/components";
 
 import EditablePetAvatar from "../EditablePetAvatar";
 import styles from "./PetList.module.css";
@@ -17,6 +17,7 @@ import {
   deletePetDocumentById,
   uploadPetDocument,
 } from "@shared/lib/pets/pet-documents";
+import { getPetPreventionEntries } from "@shared/lib/pet-prevention/pet-prevention-client";
 
 import {
   PET_DOCUMENT_ALLOWED_MIME_TYPES,
@@ -25,6 +26,7 @@ import {
   type PublicProfile,
 } from "@gafus/types";
 import type { ChangeEvent } from "react";
+import type { PreventionEntryDisplay } from "@features/pet-prevention/types";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
 
@@ -38,6 +40,7 @@ interface PetCardProps {
   initialDocuments: PetDocumentDto[];
   documentsLoading: boolean;
   documentsError: string | null;
+  initialPreventionEntries: PreventionEntryDisplay[];
 }
 
 const PetCard = memo(function PetCard({
@@ -50,11 +53,15 @@ const PetCard = memo(function PetCard({
   initialDocuments,
   documentsLoading,
   documentsError,
+  initialPreventionEntries,
 }: PetCardProps) {
   const { token: csrfToken, fetchToken } = useCSRFStore();
   const [documents, setDocuments] = useState<PetDocumentDto[]>(initialDocuments);
   const [localDocumentsError, setLocalDocumentsError] = useState<string | null>(null);
   const [documentsBusy, setDocumentsBusy] = useState(false);
+  const [preventionEntries, setPreventionEntries] = useState<PreventionEntryDisplay[]>([]);
+  const [preventionLoading, setPreventionLoading] = useState(false);
+  const [preventionError, setPreventionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!csrfToken) {
@@ -65,6 +72,10 @@ const PetCard = memo(function PetCard({
   useEffect(() => {
     setDocuments(initialDocuments);
   }, [initialDocuments]);
+
+  useEffect(() => {
+    setPreventionEntries(initialPreventionEntries);
+  }, [initialPreventionEntries]);
 
   const trackProfilePetClick = useCallback(
     (elementId: string) => {
@@ -77,10 +88,6 @@ const PetCard = memo(function PetCard({
     },
     [pathOrScreen],
   );
-
-  const handlePreventionLinkClick = useCallback(() => {
-    trackProfilePetClick("profile-pet-prevention-open");
-  }, [trackProfilePetClick]);
 
   const handleEditIconClick = useCallback(() => {
     trackProfilePetClick("profile-pet-edit-click");
@@ -199,6 +206,23 @@ const PetCard = memo(function PetCard({
     });
   }, [pathOrScreen]);
 
+  const reloadPreventionEntries = useCallback(async () => {
+    if (!isOwner) {
+      return;
+    }
+    setPreventionLoading(true);
+    setPreventionError(null);
+    const response = await getPetPreventionEntries(pet.id);
+    if (!response.success) {
+      setPreventionError(response.error ?? "Не удалось загрузить записи о процедурах");
+      setPreventionEntries([]);
+      setPreventionLoading(false);
+      return;
+    }
+    setPreventionEntries(response.data ?? []);
+    setPreventionLoading(false);
+  }, [isOwner, pet.id]);
+
   return (
     <li className={styles.dog_item}>
       {isOwner ? (
@@ -247,16 +271,6 @@ const PetCard = memo(function PetCard({
         {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
         {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
         {pet.notes && <p>Заметки: {pet.notes}</p>}
-        {isOwner && (
-          <Link
-            href={`/profile/pets/${pet.id}/prevention`}
-            className={styles.preventionLink}
-            onClick={handlePreventionLinkClick}
-          >
-            <ListAltOutlinedIcon className={styles.preventionLinkIcon} fontSize="small" />
-            Записи о процедурах
-          </Link>
-        )}
       </div>
       {isOwner ? (
         <div className={styles.dog_actions}>
@@ -275,6 +289,27 @@ const PetCard = memo(function PetCard({
           >
             <DeleteRoundedIcon />
           </IconButton>
+        </div>
+      ) : null}
+      {isOwner ? (
+        <div className={styles.preventionSection}>
+          <div className={styles.documentsHeader}>
+            <span className={styles.documentsTitle}>Записи о процедурах</span>
+          </div>
+          <Alert severity="info" className={styles.preventionAlert}>
+            Данные носят справочный характер и не заменяют консультацию ветеринара.
+          </Alert>
+          {preventionLoading ? (
+            <p className={styles.documentsHint}>Загрузка записей...</p>
+          ) : preventionError ? (
+            <p className={styles.documentsError}>{preventionError}</p>
+          ) : (
+            <PreventionEntryList
+              entries={preventionEntries}
+              petId={pet.id}
+              onEntriesChanged={reloadPreventionEntries}
+            />
+          )}
         </div>
       ) : null}
       {isOwner ? (

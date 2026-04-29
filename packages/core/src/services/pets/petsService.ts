@@ -59,6 +59,20 @@ interface UploadPetDocumentInput {
   size: number;
 }
 
+interface PrismaErrorLike {
+  code?: string;
+  message?: string;
+}
+
+function isPetDocumentTableMissingError(error: unknown): boolean {
+  const prismaError = error as PrismaErrorLike;
+  return (
+    prismaError?.code === "P2021" &&
+    typeof prismaError.message === "string" &&
+    prismaError.message.includes("PetDocument")
+  );
+}
+
 function toPetDocumentDto(document: {
   id: string;
   petId: string;
@@ -273,11 +287,21 @@ export async function listPetDocuments(petId: string, userId: string): Promise<P
  * Получить все документы питомцев пользователя
  */
 export async function listUserPetDocuments(userId: string): Promise<PetDocumentDto[]> {
-  const documents = await prisma.petDocument.findMany({
-    where: { ownerId: userId },
-    orderBy: [{ createdAt: "desc" }],
-  });
-  return documents.map(toPetDocumentDto);
+  try {
+    const documents = await prisma.petDocument.findMany({
+      where: { ownerId: userId },
+      orderBy: [{ createdAt: "desc" }],
+    });
+    return documents.map(toPetDocumentDto);
+  } catch (error) {
+    if (isPetDocumentTableMissingError(error)) {
+      logger.warn("Таблица документов питомцев отсутствует, возвращаем пустой список", {
+        userId,
+      });
+      return [];
+    }
+    throw error;
+  }
 }
 
 /**

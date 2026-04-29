@@ -116,6 +116,10 @@ export type GetEntriesResult =
   | { success: true; data: EntrySelect[] }
   | { success: false; error: string };
 
+export type GetEntriesByPetsResult =
+  | { success: true; data: Record<string, EntrySelect[]> }
+  | { success: false; error: string };
+
 export type BatchResult =
   | { success: true; data: { created: number; updated: number; errors: string[] } }
   | { success: false; error: string };
@@ -376,6 +380,87 @@ export async function getEntriesByPet(
       };
     }
     logPetPreventionFailure("getEntriesByPet failed", error, ctx);
+    return { success: false, error: USER_MSG_LOAD_FAILED };
+  }
+}
+
+/**
+ * Получение записей профилактики по набору питомцев пользователя
+ */
+export async function getEntriesByPets(
+  userId: string,
+  petIds: string[],
+): Promise<GetEntriesByPetsResult> {
+  try {
+    if (petIds.length === 0) {
+      return { success: true, data: {} };
+    }
+
+    const ownedPets = await prisma.pet.findMany({
+      where: {
+        ownerId: userId,
+        id: { in: petIds },
+      },
+      select: { id: true },
+    });
+    const ownedPetIds = new Set(ownedPets.map((pet) => pet.id));
+    if (ownedPetIds.size === 0) {
+      return { success: true, data: {} };
+    }
+
+    const entries = await prisma.petPreventionEntry.findMany({
+      where: {
+        ownerId: userId,
+        petId: { in: Array.from(ownedPetIds) },
+      },
+      orderBy: { performedAt: "desc" },
+      take: 500,
+      select: {
+        petId: true,
+        ...SELECT_ENTRY,
+      },
+    });
+
+    const grouped: Record<string, EntrySelect[]> = {};
+    for (const entry of entries) {
+      if (!grouped[entry.petId]) {
+        grouped[entry.petId] = [];
+      }
+      grouped[entry.petId].push({
+        id: entry.id,
+        type: entry.type,
+        performedAt: entry.performedAt,
+        productName: entry.productName,
+        notes: entry.notes,
+        clientId: entry.clientId,
+        reminderEnabled: entry.reminderEnabled,
+        reminderKind: entry.reminderKind,
+        reminderDaysAfter: entry.reminderDaysAfter,
+        reminderOnDate: entry.reminderOnDate,
+        remindAt: entry.remindAt,
+        lastNotifiedForRemindAt: entry.lastNotifiedForRemindAt,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+      });
+    }
+
+    return { success: true, data: grouped };
+  } catch (error) {
+    const ctx = { userId, petsCount: petIds.length };
+    if (error instanceof ZodError) {
+      logPetPreventionFailure("getEntriesByPets failed", error, ctx);
+      return { success: false, error: USER_MSG_VALIDATION };
+    }
+    try {
+      handlePrismaError(error, "Записи профилактики");
+    } catch (serviceError) {
+      logPetPreventionFailure("getEntriesByPets failed", serviceError, ctx);
+      return {
+        success: false,
+        error: mapServiceErrorToUserMessage(serviceError, USER_MSG_LOAD_FAILED),
+      };
+    }
+    logPetPreventionFailure("getEntriesByPets failed", error, ctx);
     return { success: false, error: USER_MSG_LOAD_FAILED };
   }
 }

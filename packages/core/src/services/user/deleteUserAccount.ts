@@ -5,6 +5,7 @@
 
 import crypto from "crypto";
 
+import { deleteFileFromCDN, getRelativePathFromCDNUrl } from "@gafus/cdn-upload";
 import { prisma, Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
@@ -16,6 +17,7 @@ const logger = createWebLogger("core-delete-user-account");
 const DELETION_CODE_TTL_MS = 15 * 60 * 1000;
 const DELETION_REQUEST_THROTTLE_MS = 120_000;
 const SHORT_CODE_ATTEMPTS = 8;
+const CDN_DELETE_BATCH_SIZE = 20;
 
 export const deleteUserAccountBodySchema = z.object({
   code: z
@@ -55,6 +57,48 @@ const ROLE_SELF_DELETE = new Set(["USER", "PREMIUM"]);
 function randomSixDigitCode(): string {
   const n = crypto.randomInt(0, 1_000_000);
   return String(n).padStart(6, "0");
+}
+
+interface PetAssetForDeletion {
+  id: string;
+  photoUrl: string | null;
+  documents: {
+    id: string;
+    url: string;
+  }[];
+}
+
+async function deleteUserPetAssetsFromCDN(
+  userId: string,
+  pets: PetAssetForDeletion[],
+): Promise<void> {
+  const filesToDelete = pets.flatMap((pet) => {
+    const photoPaths = pet.photoUrl ? [pet.photoUrl] : [];
+    const documentPaths = pet.documents.map((document) => document.url);
+    return [...photoPaths, ...documentPaths];
+  });
+
+  if (filesToDelete.length === 0) {
+    return;
+  }
+
+  for (let i = 0; i < filesToDelete.length; i += CDN_DELETE_BATCH_SIZE) {
+    const batch = filesToDelete.slice(i, i + CDN_DELETE_BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (url) => {
+        try {
+          const relativePath = getRelativePathFromCDNUrl(url);
+          await deleteFileFromCDN(relativePath);
+        } catch (error) {
+          logger.warn("Не удалось удалить файл питомца из CDN при удалении пользователя", {
+            userId,
+            fileUrl: url,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }),
+    );
+  }
 }
 
 async function assertSelfDeletionUser(actorUserId: string): Promise<
@@ -256,6 +300,19 @@ export async function deleteUserAccount(
     const hadEmail = gate.user.email != null && gate.user.email.length > 0;
     const deletionRole = gate.user.role;
     const deletionTimestamp = new Date();
+    const petAssets = await prisma.pet.findMany({
+      where: { ownerId: actorUserId },
+      select: {
+        id: true,
+        photoUrl: true,
+        documents: {
+          select: {
+            id: true,
+            url: true,
+          },
+        },
+      },
+    });
 
     await prisma.$transaction(async (tx) => {
       await tx.accountDeletionToken.deleteMany({ where: { userId: actorUserId } });
@@ -296,6 +353,7 @@ export async function deleteUserAccount(
               "updatedAt" = EXCLUDED."updatedAt"
       `;
     });
+    await deleteUserPetAssetsFromCDN(actorUserId, petAssets);
 
     logger.success("Аккаунт удалён", { userId: actorUserId, hadEmail });
     return { success: true };
