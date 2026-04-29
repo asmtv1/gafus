@@ -89,6 +89,19 @@ export const bookSlotInputSchema = z.object({
     .max(1000, "Не длиннее 1000 символов"),
 });
 
+interface BookSlotInputShape {
+  slotId: string;
+  idempotencyKey: string;
+  clientOwnerName: string;
+  clientPhone: string;
+  petName: string;
+  petGender: "MALE" | "FEMALE";
+  petAge: string;
+  petBreed: string;
+  clientProblem: string;
+  clientSelfHelpAttempt: string;
+}
+
 export const trainerConfirmInputSchema = z.object({
   bookingId: z.string().min(1),
 });
@@ -191,6 +204,6 @@ export const bookSlotResultSchema = z.discriminatedUnion("kind", [
 ]);
 
 export type GetSlotsQuery = z.infer<typeof getSlotsQuerySchema>;
-export type BookSlotInput = z.infer<typeof bookSlotInputSchema>;
+export type BookSlotInput = BookSlotInputShape;
 export type TrainerAvailabilityInput = z.infer<typeof trainerAvailabilityInputSchema>;
 export type AdminListedCynologistsInput = z.infer<typeof adminListedCynologistsInputSchema>;
