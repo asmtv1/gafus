@@ -391,6 +391,34 @@ export async function deletePetDocument(
 }
 
 /**
+ * Обновить название документа питомца
+ */
+export async function renamePetDocument(
+  documentId: string,
+  userId: string,
+  name: string,
+  petId?: string,
+): Promise<PetDocumentDto | null> {
+  const nextName = name.trim();
+  if (!nextName) {
+    throw new Error("Название документа не может быть пустым");
+  }
+
+  const existingDocument = await prisma.petDocument.findFirst({
+    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
+  });
+  if (!existingDocument) {
+    return null;
+  }
+
+  const updatedDocument = await prisma.petDocument.update({
+    where: { id: documentId },
+    data: { name: nextName },
+  });
+  return toPetDocumentDto(updatedDocument);
+}
+
+/**
  * Удалить питомца
  */
 export async function deletePet(petId: string, userId: string): Promise<boolean> {

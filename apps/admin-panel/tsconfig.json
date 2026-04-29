@@ -45,7 +45,7 @@
         "../../packages/error-handling/src"
       ],
       "@gafus/prisma": [
-        "../../packages/prisma/src"
+        "../../packages/prisma/src/index.ts"
       ],
       "@gafus/auth": [
         "../../packages/auth/src"

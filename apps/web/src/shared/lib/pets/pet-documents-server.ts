@@ -113,3 +113,30 @@ export async function deletePetDocumentForUser(
     throw error;
   }
 }
+
+export async function renamePetDocumentForUser(
+  documentId: string,
+  userId: string,
+  name: string,
+  petId?: string,
+): Promise<PetDocumentDto | null> {
+  try {
+    const corePetsModule = await import("@gafus/core/services/pets");
+    const renamePetDocumentFromCore = corePetsModule.renamePetDocument;
+    if (typeof renamePetDocumentFromCore !== "function") {
+      logger.error(
+        "Экспорт renamePetDocument отсутствует в @gafus/core/services/pets",
+        new Error("CORE_EXPORT_MISSING"),
+      );
+      throw new Error("Не удалось обновить название документа питомца");
+    }
+    return await renamePetDocumentFromCore(documentId, userId, name, petId);
+  } catch (error) {
+    logger.error("Ошибка при обновлении названия документа питомца", error as Error, {
+      documentId,
+      userId,
+      petId,
+    });
+    throw error;
+  }
+}

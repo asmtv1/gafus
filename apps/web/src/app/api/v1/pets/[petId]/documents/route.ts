@@ -119,7 +119,11 @@ async function postHandler(request: NextRequest, context: RouteContext) {
     }
     logger.error("Ошибка при загрузке документа питомца", error as Error);
     return NextResponse.json(
-      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+      {
+        success: false,
+        error: "Внутренняя ошибка сервера",
+        code: "INTERNAL_SERVER_ERROR",
+      },
       { status: 500 },
     );
   }

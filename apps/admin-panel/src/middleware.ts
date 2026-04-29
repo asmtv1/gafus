@@ -1,16 +1,26 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { createAdminPanelLogger } from "@gafus/logger";
-
-// Создаем логгер для admin-panel (отключена отправка в error-dashboard)
-const logger = createAdminPanelLogger("admin-panel-middleware");
 
 // Роли, которым разрешен доступ к admin-panel
 const ALLOWED_ROLES = ["ADMIN", "MODERATOR"];
 
 // Публичные пути
 const PUBLIC_PATHS = ["/login"];
+
+function edgeLog(level: "info" | "warn", message: string, meta?: Record<string, unknown>) {
+  const payload = {
+    scope: "admin-panel-middleware",
+    message,
+    ...(meta ?? {}),
+  };
+
+  if (level === "warn") {
+    console.warn(payload);
+    return;
+  }
+  console.info(payload);
+}
 
 function isPublicAsset(pathname: string): boolean {
   return (
@@ -31,31 +41,10 @@ export default async function middleware(req: NextRequest) {
   const { nextUrl, url } = req;
   const pathname = nextUrl.pathname;
 
-  logger.info(`MIDDLEWARE START for ${pathname}`, {
-    pathname: pathname,
-    url: url,
+  edgeLog("info", "middleware_start", {
+    pathname,
+    url,
     method: req.method,
-    operation: "middleware_start",
-  });
-
-  logger.info("Request headers logged", {
-    hasAuth: req.headers.has("authorization"),
-    hasUserAgent: req.headers.has("user-agent"),
-    operation: "log_headers",
-  });
-
-  // Логируем cookies для отладки
-  const cookies = req.cookies;
-  logger.info("Cookies logged", {
-    cookieCount: Object.keys(cookies).length,
-    hasSessionToken: cookies.has("next-auth.session-token"),
-    operation: "log_cookies",
-  });
-
-  logger.info("Environment variables checked", {
-    hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
-    nodeEnv: process.env.NODE_ENV,
-    operation: "check_env",
   });
 
   const token = await getToken({
@@ -65,21 +54,11 @@ export default async function middleware(req: NextRequest) {
     cookieName: "next-auth.session-token",
   });
 
-  logger.info("Token retrieved", {
+  edgeLog("info", "token_retrieved", {
     hasToken: !!token,
     tokenEmail: token?.email,
     tokenRole: token?.role,
-    operation: "get_token",
   });
-  if (token) {
-    logger.info("Token details logged", {
-      hasToken: !!token,
-      tokenId: token?.id,
-      tokenUsername: token?.username,
-      tokenRole: token?.role,
-      operation: "log_token_details",
-    });
-  }
 
   // Пропускаем публичные ресурсы
   if (isPublicAsset(pathname)) return NextResponse.next();
@@ -99,38 +78,34 @@ export default async function middleware(req: NextRequest) {
 
   // Проверяем авторизацию
   if (!token) {
-    logger.warn("Redirecting to login - no token", {
-      pathname: pathname,
+    edgeLog("warn", "redirect_no_token", {
+      pathname,
       hasToken: !!token,
-      operation: "redirect_no_token",
     });
     return NextResponse.redirect(new URL("/login", url));
   }
 
-  logger.info(`Token found for path ${pathname}`, {
-    pathname: pathname,
+  edgeLog("info", "token_found", {
+    pathname,
     tokenId: token.id,
     tokenUsername: token.username,
     tokenRole: token.role,
-    operation: "token_found",
   });
 
   // Проверяем роль пользователя
   const userRole = token.role as string;
   if (!ALLOWED_ROLES.includes(userRole)) {
-    logger.warn("Redirecting to login - insufficient role", {
-      pathname: pathname,
-      userRole: userRole,
+    edgeLog("warn", "redirect_insufficient_role", {
+      pathname,
+      userRole,
       allowedRoles: ALLOWED_ROLES,
-      operation: "redirect_insufficient_role",
     });
     return NextResponse.redirect(new URL("/login", url));
   }
 
-  logger.success(`MIDDLEWARE SUCCESS for ${pathname}`, {
-    pathname: pathname,
-    userRole: userRole,
-    operation: "middleware_success",
+  edgeLog("info", "middleware_success", {
+    pathname,
+    userRole,
   });
   return NextResponse.next();
 }
