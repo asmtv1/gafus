@@ -18,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  getPetDocumentDisplayName,
   PET_DOCUMENT_ALLOWED_MIME_TYPES,
   PET_DOCUMENT_MAX_SIZE_BYTES,
   type PetDocumentDto,
@@ -319,14 +320,18 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
       pathOrScreen: "/pets-tab",
       elementId: "pet-document-delete",
     });
-    Alert.alert("Удаление документа", `Удалить документ "${document.name}"?`, [
-      { text: "Отмена", style: "cancel" },
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: () => deleteDocumentMutation.mutate({ documentId: document.id }),
-      },
-    ]);
+    Alert.alert(
+      "Удаление документа",
+      `Удалить документ "${getPetDocumentDisplayName(document.name)}"?`,
+      [
+        { text: "Отмена", style: "cancel" },
+        {
+          text: "Удалить",
+          style: "destructive",
+          onPress: () => deleteDocumentMutation.mutate({ documentId: document.id }),
+        },
+      ],
+    );
   };
 
   return (
@@ -361,7 +366,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
             </View>
           )}
           <Text style={styles.documentName} numberOfLines={1}>
-            {document.name}
+            {getPetDocumentDisplayName(document.name)}
           </Text>
           <View style={styles.documentActions}>
             <Pressable

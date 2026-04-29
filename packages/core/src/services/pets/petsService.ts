@@ -99,6 +99,63 @@ function getDocumentExtension(file: UploadPetDocumentInput): string {
   return MIME_TYPE_TO_EXTENSION[knownMimeType] ?? "bin";
 }
 
+function getExtensionFromFileName(fileName: string): string | null {
+  const ext = fileName.split(".").pop()?.trim().toLowerCase() ?? "";
+  if (!ext || ext === fileName.toLowerCase()) {
+    return null;
+  }
+  return ext;
+}
+
+/** Макс. длина базового имени (без расширения) — защита от раздувания строки в БД и заголовках. */
+const PET_DOCUMENT_BASE_NAME_MAX_LENGTH = 200;
+
+/**
+ * Убирает управляющие символы и типичные «путь/файл»-символы из базы имени файла.
+ * Имя хранится только как метаданные (путь в CDN от UUID), но так безопаснее для UI и Content-Disposition.
+ */
+function sanitizePetDocumentFileBaseName(rawBase: string): string {
+  const withoutControlChars = Array.from(rawBase)
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      return !(code <= 31 || code === 127);
+    })
+    .join("");
+
+  const collapsed = withoutControlChars
+    .replace(/[/\\:*?"<>|]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+  return collapsed.slice(0, PET_DOCUMENT_BASE_NAME_MAX_LENGTH);
+}
+
+function buildDocumentNameWithOriginalExtension(name: string, currentFileName: string, mimeType: string): string {
+  const normalizedName = name.trim();
+  const originalExtension =
+    getExtensionFromFileName(currentFileName) ??
+    MIME_TYPE_TO_EXTENSION[mimeType as PetDocumentAllowedMimeType] ??
+    "bin";
+
+  const extLower = originalExtension.toLowerCase();
+  let basePart: string;
+
+  if (normalizedName.toLowerCase().endsWith(`.${extLower}`)) {
+    basePart = normalizedName.slice(0, normalizedName.length - extLower.length - 1);
+  } else {
+    basePart = normalizedName.replace(/\.[^./\\]+$/, "").trim();
+    if (!basePart) {
+      basePart = normalizedName;
+    }
+  }
+
+  const safeBase = sanitizePetDocumentFileBaseName(basePart);
+  if (!safeBase) {
+    return `document.${originalExtension}`;
+  }
+
+  return `${safeBase}.${originalExtension}`;
+}
+
 function validatePetDocumentFile(file: UploadPetDocumentInput): void {
   if (!PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(file.type as PetDocumentAllowedMimeType)) {
     throw new Error("Недопустимый тип документа");
@@ -411,11 +468,73 @@ export async function renamePetDocument(
     return null;
   }
 
+  const nextFileName = buildDocumentNameWithOriginalExtension(
+    nextName,
+    existingDocument.name,
+    existingDocument.mimeType,
+  );
+
   const updatedDocument = await prisma.petDocument.update({
     where: { id: documentId },
-    data: { name: nextName },
+    data: { name: nextFileName },
   });
   return toPetDocumentDto(updatedDocument);
+}
+
+/**
+ * Получить документ питомца для скачивания
+ */
+export async function getPetDocumentById(
+  documentId: string,
+  userId: string,
+  petId?: string,
+): Promise<PetDocumentDto | null> {
+  const document = await prisma.petDocument.findFirst({
+    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
+  });
+  if (!document) {
+    return null;
+  }
+  return toPetDocumentDto(document);
+}
+
+export interface PetDocumentDownloadPayload {
+  documentId: string;
+  fileName: string;
+  mimeType: PetDocumentAllowedMimeType;
+  sizeBytes: number;
+  downloadUrl: string;
+}
+
+/**
+ * Подготовить данные документа питомца для скачивания
+ */
+export async function preparePetDocumentDownload(
+  documentId: string,
+  userId: string,
+  petId?: string,
+): Promise<PetDocumentDownloadPayload | null> {
+  const document = await prisma.petDocument.findFirst({
+    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
+    select: {
+      id: true,
+      name: true,
+      mimeType: true,
+      sizeBytes: true,
+      url: true,
+    },
+  });
+  if (!document) {
+    return null;
+  }
+
+  return {
+    documentId: document.id,
+    fileName: document.name,
+    mimeType: document.mimeType as PetDocumentAllowedMimeType,
+    sizeBytes: document.sizeBytes,
+    downloadUrl: document.url,
+  };
 }
 
 /**

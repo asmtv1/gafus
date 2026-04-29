@@ -140,3 +140,63 @@ export async function renamePetDocumentForUser(
     throw error;
   }
 }
+
+export async function getPetDocumentByIdForUser(
+  documentId: string,
+  userId: string,
+  petId?: string,
+): Promise<PetDocumentDto | null> {
+  try {
+    const corePetsModule = await import("@gafus/core/services/pets");
+    const getPetDocumentByIdFromCore = corePetsModule.getPetDocumentById;
+    if (typeof getPetDocumentByIdFromCore !== "function") {
+      logger.error(
+        "Экспорт getPetDocumentById отсутствует в @gafus/core/services/pets",
+        new Error("CORE_EXPORT_MISSING"),
+      );
+      throw new Error("Не удалось получить документ питомца");
+    }
+    return await getPetDocumentByIdFromCore(documentId, userId, petId);
+  } catch (error) {
+    logger.error("Ошибка при получении документа питомца", error as Error, {
+      documentId,
+      userId,
+      petId,
+    });
+    throw error;
+  }
+}
+
+export interface PetDocumentDownloadPayload {
+  documentId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  downloadUrl: string;
+}
+
+export async function preparePetDocumentDownloadForUser(
+  documentId: string,
+  userId: string,
+  petId?: string,
+): Promise<PetDocumentDownloadPayload | null> {
+  try {
+    const corePetsModule = await import("@gafus/core/services/pets");
+    const preparePetDocumentDownloadFromCore = corePetsModule.preparePetDocumentDownload;
+    if (typeof preparePetDocumentDownloadFromCore !== "function") {
+      logger.error(
+        "Экспорт preparePetDocumentDownload отсутствует в @gafus/core/services/pets",
+        new Error("CORE_EXPORT_MISSING"),
+      );
+      throw new Error("Не удалось подготовить документ питомца к скачиванию");
+    }
+    return await preparePetDocumentDownloadFromCore(documentId, userId, petId);
+  } catch (error) {
+    logger.error("Ошибка при подготовке документа питомца к скачиванию", error as Error, {
+      documentId,
+      userId,
+      petId,
+    });
+    throw error;
+  }
+}

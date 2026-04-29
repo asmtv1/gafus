@@ -81,11 +81,8 @@ export default function AddPetForm() {
         pathOrScreen: pathname,
         elementId: "profile-add-pet-success",
       });
-      if (username) {
-        router.push(`/profile?username=${username}`);
-      } else {
-        router.back();
-      }
+      //router.replace("/pets"); мы уже в /pets
+      router.refresh();
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       reportClientError(error, { issueKey: "ProfilePets", keys: { operation: "submit" } });

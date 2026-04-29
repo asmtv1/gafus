@@ -107,54 +107,58 @@
   align-items: center;
 }
 
-.dog_actions .MuiIconButton-root {
+.dogActionButton {
   background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
   color: #ece5d2;
   border-radius: 10px;
-  padding: 10px;
-  transition: all 0.3s ease;
-  box-shadow: 0 3px 8px rgba(99, 97, 40, 0.25);
+  padding: 8px;
+  transition: background 0.2s ease;
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
   border: 1px solid #636128;
+  width: 40px;
+  height: 40px;
   min-width: 40px;
   min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.dog_actions .MuiIconButton-root:hover {
+.dogActionButton:hover {
   background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(99, 97, 40, 0.4);
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
   border-color: #4a4a1a;
 }
 
-.dog_actions .MuiIconButton-root[aria-label*="Редактировать"] {
-  background: linear-gradient(135deg, #b6c582 0%, #9ba86a 100%);
-  border-color: #b6c582;
-  box-shadow: 0 3px 8px rgba(182, 197, 130, 0.3);
+.dogActionEdit {
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  border-color: #636128;
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
 }
 
-.dog_actions .MuiIconButton-root[aria-label*="Редактировать"]:hover {
-  background: linear-gradient(135deg, #9ba86a 0%, #7a8a4f 100%);
-  box-shadow: 0 5px 15px rgba(182, 197, 130, 0.5);
-  border-color: #9ba86a;
+.dogActionEdit:hover {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
+  border-color: #4a4a1a;
 }
 
-.dog_actions .MuiIconButton-root[aria-label*="Удалить"] {
+.dogActionDelete {
   background: linear-gradient(135deg, #8b4513 0%, #6b3410 100%);
   border-color: #8b4513;
-  box-shadow: 0 3px 8px rgba(139, 69, 19, 0.3);
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
 }
 
-.dog_actions .MuiIconButton-root[aria-label*="Удалить"]:hover {
+.dogActionDelete:hover {
   background: linear-gradient(135deg, #6b3410 0%, #4a2c0a 100%);
-  box-shadow: 0 5px 15px rgba(139, 69, 19, 0.5);
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
   border-color: #6b3410;
 }
 
-.dog_actions .MuiIconButton-root:disabled {
+.dogActionButton:disabled {
   background: #d4c4a8;
   color: #636128;
   cursor: not-allowed;
-  transform: none;
   box-shadow: none;
   border-color: #d4c4a8;
 }
@@ -347,7 +351,7 @@
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: wrap;
   color: #352e2e;
   font-size: 0.9rem;
   font-family: var(--font-montserrat), system-ui, sans-serif;
@@ -378,6 +382,20 @@
   flex-shrink: 0;
 }
 
+.documentPreviewTrigger {
+  border: none;
+  padding: 0;
+  background: transparent;
+  border-radius: 8px;
+  cursor: zoom-in;
+  line-height: 0;
+}
+
+.documentPreviewTrigger:focus-visible {
+  outline: 2px solid #636128;
+  outline-offset: 2px;
+}
+
 .documentActions {
   display: flex;
   align-items: center;
@@ -385,38 +403,60 @@
   gap: 0.5rem;
 }
 
-.documentOpen {
-  color: #4a4a1a;
-  font-size: 0.8rem;
-  font-weight: 600;
+.documentActionIcon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 8px;
+  border: 1px solid #636128;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s ease;
-}
-
-.documentOpen:hover {
-  border-bottom-color: #4a4a1a;
-}
-
-.documentDelete {
-  border: 1px solid #8b4513;
-  background: rgba(255, 255, 255, 0.6);
-  color: #8b4513;
-  border-radius: 8px;
-  padding: 0.28rem 0.58rem;
-  font-size: 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease;
+  box-shadow: 0 2px 6px rgba(99, 97, 40, 0.25);
 }
 
-.documentDelete:hover:not(:disabled) {
-  background: #8b4513;
-  color: #fff8e5;
+.documentActionDownload {
+  background: linear-gradient(135deg, #5c6f8d 0%, #44566f 100%);
+  border-color: #5c6f8d;
+  color: #eef3fb;
 }
 
-.documentDelete:disabled {
+.documentActionEdit {
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  border-color: #636128;
+  color: #ece5d2;
+}
+
+.documentActionDelete {
+  background: linear-gradient(135deg, #8b4513 0%, #6b3410 100%);
+  border-color: #8b4513;
+  color: #f8e8de;
+}
+
+.documentActionIcon:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
+}
+
+.documentActionDownload:hover:not(:disabled) {
+  background: linear-gradient(135deg, #44566f 0%, #34465e 100%);
+}
+
+.documentActionDelete:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6b3410 0%, #4a2c0a 100%);
+}
+
+.documentActionIcon:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
+  background: #d4c4a8;
+  color: #636128;
+  border-color: #d4c4a8;
 }
 
 .pendingDocumentCard {
@@ -658,7 +698,7 @@
     font-size: 0.8rem;
   }
 
-  .dog_actions .MuiIconButton-root {
+  .dogActionButton {
     padding: 6px;
   }
 }

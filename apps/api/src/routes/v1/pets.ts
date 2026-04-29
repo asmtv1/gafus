@@ -14,6 +14,7 @@ import {
   deletePet,
   deletePetDocument,
   listPetDocuments,
+  preparePetDocumentDownload,
   uploadPetDocument,
   updatePetPhoto,
 } from "@gafus/core/services/pets";
@@ -252,6 +253,30 @@ petsRoutes.delete("/:petId/documents/:documentId", async (c) => {
     return c.json({ success: true });
   } catch (error) {
     logger.error("Error deleting pet document", error as Error);
+    return c.json(
+      { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
+      500,
+    );
+  }
+});
+
+// ==================== GET /pets/:petId/documents/:documentId/download ====================
+// Подготовить ссылку для скачивания документа питомца
+petsRoutes.get("/:petId/documents/:documentId/download", async (c) => {
+  try {
+    const user = c.get("user");
+    const petId = c.req.param("petId");
+    const documentId = c.req.param("documentId");
+    const downloadPayload = await preparePetDocumentDownload(documentId, user.id, petId);
+    if (!downloadPayload) {
+      return c.json(
+        { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },
+        404,
+      );
+    }
+    return c.json({ success: true, data: downloadPayload });
+  } catch (error) {
+    logger.error("Error preparing pet document download", error as Error);
     return c.json(
       { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
       500,

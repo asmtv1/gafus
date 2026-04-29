@@ -20,3 +20,14 @@ export interface PetDocumentDto {
   createdAt: Date | string;
   updatedAt: Date | string;
 }
+
+/** Расширения, допустимые для документов питомца — убираем из подписи в UI */
+const PET_DOCUMENT_VISIBLE_NAME_EXTENSION = /\.(pdf|jpe?g|png)$/i;
+
+/**
+ * Имя файла для отображения пользователю (без .pdf / .jpg и т.п.).
+ * Полное имя с расширением хранится в БД и используется при скачивании.
+ */
+export function getPetDocumentDisplayName(storedFileName: string): string {
+  return storedFileName.replace(PET_DOCUMENT_VISIBLE_NAME_EXTENSION, "");
+}
