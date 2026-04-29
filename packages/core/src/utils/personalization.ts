@@ -1,4 +1,4 @@
-/// <reference path="../types/petrovich.d.ts" />
+/// <reference path="../petrovich.d.ts" />
 import petrovich from "petrovich";
 
 type PetrovichPerson = {
