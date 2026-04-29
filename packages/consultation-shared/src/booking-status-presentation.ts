@@ -1,4 +1,4 @@
-import type { ConsultationBookingStatus } from "./types";
+import type { ConsultationBookingStatus } from "./types.js";
 
 export type ConsultationStatusTone = "pending" | "success" | "danger" | "neutral";
 
