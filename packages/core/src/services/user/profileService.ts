@@ -361,7 +361,7 @@ export async function getUserWithTrainings(userId: string): Promise<UserWithTrai
       const completedDays = trainingsForCourse
         .filter((t) => t.status === TrainingStatus.COMPLETED)
         .map((t) => t.dayOnCourse.order)
-        .toSorted((a, b) => a - b);
+        .sort((a: number, b: number) => a - b);
 
       return {
         courseId: uc.courseId,
