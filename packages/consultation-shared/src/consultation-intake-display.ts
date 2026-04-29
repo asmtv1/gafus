@@ -1,4 +1,4 @@
-import type { ConsultationPetGender } from "./types.js";
+import type { ConsultationPetGender } from "./types";
 
 export function formatConsultationPetGenderRu(
   gender: ConsultationPetGender | null | undefined,

@@ -40,7 +40,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node ./scripts/fix-dist-esm-imports.mjs",
     "clean": "rimraf dist",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"

@@ -1,10 +1,10 @@
-import type { ConsultationSlotDto } from "./types.js";
+import type { ConsultationSlotDto } from "./types";
 
 import {
   addDaysToConsultationMskDayKey,
   consultationMskDayKey,
   consultationMskDayKeyToDate,
-} from "./consultation-msk-format.js";
+} from "./consultation-msk-format";
 
 export interface ConsultationSlotsByDay {
   dateKey: string;
