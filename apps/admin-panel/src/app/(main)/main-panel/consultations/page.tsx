@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { listAllTrainersForAdmin } from "@gafus/core/services/consultation/cynologistService";
+import { listAllTrainersForAdmin } from "@gafus/core";
 import { Box, Button, Paper, Typography } from "@mui/material";
 import Link from "next/link";
 import { redirect } from "next/navigation";

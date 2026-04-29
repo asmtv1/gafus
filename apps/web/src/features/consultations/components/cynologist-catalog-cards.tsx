@@ -5,8 +5,8 @@ import { getCDNUrl } from "@gafus/cdn-upload";
 import {
   cynologistDisplayInitials,
   plainConsultationAboutHtml,
-} from "@gafus/core/services/consultation/consultationCatalogPresentation";
-import type { ListedCynologistCardDto } from "@gafus/core/services/consultation/types";
+  type ListedCynologistCardDto,
+} from "@gafus/consultation-shared";
 
 import styles from "./cynologist-catalog-cards.module.css";
 

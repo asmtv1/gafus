@@ -22,6 +22,7 @@
     "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:^",
     "@gafus/core": "workspace:*",
+    "@gafus/consultation-shared": "workspace:*",
     "@gafus/csrf": "workspace:*",
     "@gafus/error-handling": "workspace:*",
     "@gafus/logger": "workspace:*",

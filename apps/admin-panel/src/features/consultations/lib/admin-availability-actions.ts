@@ -3,15 +3,15 @@
 import type { AuthRole } from "@gafus/auth";
 import { authOptions } from "@gafus/auth";
 import {
+  ConsultationForbiddenError,
   addDayOff,
   addSlotException,
   removeDayOff,
+  resolveTargetTrainerUserIdForStaff,
   removeSlotException,
   setTrainerAvailability,
-} from "@gafus/core/services/consultation/availabilityService";
-import { resolveTargetTrainerUserIdForStaff } from "@gafus/core/services/consultation/cynologistService";
-import { ConsultationForbiddenError } from "@gafus/core/services/consultation/errors";
-import { trainerAvailabilityInputSchema } from "@gafus/core/services/consultation/validation";
+  trainerAvailabilityInputSchema,
+} from "@gafus/core";
 import { createAdminPanelLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";

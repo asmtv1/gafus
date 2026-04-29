@@ -3,4 +3,4 @@ export {
   type ConsultationBookingStatusPresentation,
   type ConsultationBookingStatusPresentationOptions,
   type ConsultationStatusTone,
-} from "@gafus/core/services/consultation/bookingStatusPresentation";
+} from "@gafus/consultation-shared/booking-status-presentation";

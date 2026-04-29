@@ -27,7 +27,7 @@ import {
 import {
   DEFAULT_REMINDER_DAYS,
   type PetPreventionTypeKey,
-} from "@gafus/core/services/petPrevention";
+} from "@shared/lib/pet-prevention/constants";
 
 import {
   createPreventionEntry,

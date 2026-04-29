@@ -20,7 +20,12 @@
       "@gafus/types": ["../../packages/types/src"],
       "@gafus/analytics": ["../../packages/analytics/src/index.ts"],
       "@gafus/analytics/mobile": ["../../packages/analytics/src/mobile.ts"],
-      "@gafus/core/*": ["../../packages/core/src/*"]
+      "@gafus/consultation-shared": ["../../packages/consultation-shared/src/index.ts"],
+      "@gafus/consultation-shared/*": ["../../packages/consultation-shared/src/*"],
+      "@gafus/core/utils": ["../../packages/core/src/utils/index.ts"],
+      "@gafus/core/utils/*": ["../../packages/core/src/utils/*"],
+      "@gafus/core/validation/*": ["../../packages/core/src/validation/*"],
+      "@gafus/core/services/auth/*": ["../../packages/core/src/services/auth/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "global.d.ts"],

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@gafus/auth": "workspace:*",
+    "@gafus/consultation-shared": "workspace:*",
     "@gafus/core": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/csrf": "workspace:*",

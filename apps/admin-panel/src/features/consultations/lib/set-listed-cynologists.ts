@@ -2,8 +2,7 @@
 
 import type { AuthRole } from "@gafus/auth";
 import { authOptions } from "@gafus/auth";
-import { adminSetListedCynologists } from "@gafus/core/services/consultation/cynologistService";
-import { ConsultationForbiddenError } from "@gafus/core/services/consultation/errors";
+import { adminSetListedCynologists, ConsultationForbiddenError } from "@gafus/core";
 import { createAdminPanelLogger } from "@gafus/logger";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";

@@ -13,12 +13,14 @@ import {
   DialogTitle,
   TextField,
 } from "@mui/material";
+import {
+  type ConsultationBookingDto,
+  formatConsultationPetGenderRu,
+  formatRuPhoneForDisplay,
+} from "@gafus/consultation-shared";
 
-import type { ConsultationBookingDto } from "@gafus/core";
-import { formatConsultationPetGenderRu } from "@gafus/core/services/consultation/consultationIntakeDisplay";
-import { formatRuPhoneForDisplay } from "@gafus/core/services/consultation/ruPhone";
-import type { ConsultationBookingStatus } from "@gafus/prisma";
 import { reportClientError } from "@gafus/error-handling";
+import type { ConsultationBookingStatus } from "@gafus/prisma";
 
 import {
   confirmBookingTrainerAction,

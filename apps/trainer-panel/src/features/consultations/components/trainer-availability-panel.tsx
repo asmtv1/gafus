@@ -19,7 +19,7 @@ import type {
   ConsultationSlotDto,
   DayOffDto,
   SlotExceptionDto,
-} from "@gafus/core";
+} from "@gafus/consultation-shared";
 import { reportClientError } from "@gafus/error-handling";
 
 import type { TrainerAvailabilityHandlers } from "../lib/trainer-availability-handlers";

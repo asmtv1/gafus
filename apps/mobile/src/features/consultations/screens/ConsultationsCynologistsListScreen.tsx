@@ -6,8 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   cynologistDisplayInitials,
   plainConsultationAboutHtml,
-} from "@gafus/core/services/consultation/consultationCatalogPresentation";
-import type { ListedCynologistCardDto } from "@gafus/core/services/consultation/types";
+} from "@gafus/consultation-shared";
+import type { ListedCynologistCardDto } from "@gafus/consultation-shared";
 import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";

@@ -11,8 +11,8 @@ import {
 import { Button, Chip, Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
-import { isLikelyValidRuPhoneInput } from "@gafus/core/services/consultation/ruPhone";
+import { formatConsultationConfirmSlotMsk } from "@gafus/consultation-shared";
+import { isLikelyValidRuPhoneInput } from "@gafus/consultation-shared";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { randomUUID } from "expo-crypto";
 import type { Href } from "expo-router";

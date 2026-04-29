@@ -309,9 +309,16 @@ export default [
   {
     files: ["apps/mobile/**/*.{ts,tsx}"],
     rules: {
-      "import/no-unresolved": [
+      "no-restricted-imports": [
         "error",
-        { ignore: ["^@gafus/", "^react-native-rustore-push$"] },
+        {
+          patterns: [
+            {
+              group: ["@gafus/core/services/consultation/*"],
+              message: "Используйте @gafus/consultation-shared в клиентском коде mobile.",
+            },
+          ],
+        },
       ],
       "import/no-unresolved": [
         "error",
@@ -327,6 +334,28 @@ export default [
       "unused-imports/no-unused-imports": "warn",
       "unused-imports/no-unused-vars": "warn",
       "prefer-const": "warn",
+    },
+  },
+  {
+    files: [
+      "apps/web/src/features/**/*.{ts,tsx}",
+      "apps/web/src/shared/components/**/*.{ts,tsx}",
+      "apps/web/src/shared/hooks/**/*.{ts,tsx}",
+      "apps/trainer-panel/src/features/**/*.{ts,tsx}",
+      "apps/admin-panel/src/features/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@gafus/core/services/consultation/*"],
+              message: "Используйте @gafus/consultation-shared в клиентском коде.",
+            },
+          ],
+        },
+      ],
     },
   },
 

@@ -3,8 +3,8 @@ import { authOptions } from "@gafus/auth";
 import {
   getTrainerAvailability,
   getTrainerEditableSlots,
-} from "@gafus/core/services/consultation/availabilityService";
-import { listAllTrainersForAdmin } from "@gafus/core/services/consultation/cynologistService";
+  listAllTrainersForAdmin,
+} from "@gafus/core";
 import { Box, Button, Link as MuiLink, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 import { redirect } from "next/navigation";

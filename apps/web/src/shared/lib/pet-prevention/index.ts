@@ -6,3 +6,7 @@ export {
   getPreventionEntriesByPetForUser,
   getPreventionEntriesByPetsForUser,
 } from "./getPreventionEntriesByUser";
+export {
+  DEFAULT_REMINDER_DAYS,
+  type PetPreventionTypeKey,
+} from "./constants";

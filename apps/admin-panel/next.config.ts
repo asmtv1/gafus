@@ -74,30 +74,6 @@ const nextConfig: NextConfig = {
       ),
       /** Иначе webpack не резолвит named exports из dist CJS при импорте из core. */
       "@gafus/prisma": path.resolve(__dirname, "../../packages/prisma/src/index.ts"),
-      "@gafus/core/services/consultation/cynologistService": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/consultation/cynologistService.ts",
-      ),
-      "@gafus/core/services/consultation/errors": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/consultation/errors.ts",
-      ),
-      "@gafus/core/services/consultation/adminBookingQueries": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/consultation/adminBookingQueries.ts",
-      ),
-      "@gafus/core/services/consultation/availabilityService": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/consultation/availabilityService.ts",
-      ),
-      "@gafus/core/services/consultation/validation": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/consultation/validation.ts",
-      ),
-      "@gafus/core/services/consultation/types": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/consultation/types.ts",
-      ),
     };
     if (isServer) {
       const { PrismaPlugin } = require("@prisma/nextjs-monorepo-workaround-plugin");

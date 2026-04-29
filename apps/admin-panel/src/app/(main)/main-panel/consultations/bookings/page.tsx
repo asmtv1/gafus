@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { listAdminBookings } from "@gafus/core/services/consultation/adminBookingQueries";
+import { listAdminBookings } from "@gafus/core";
 import {
   Box,
   Link as MuiLink,
@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import type { ConsultationBookingDto } from "@gafus/core/services/consultation/types";
+import type { ConsultationBookingDto } from "@gafus/consultation-shared";
 
 function bookingStatusLabel(status: ConsultationBookingDto["status"]): string {
   const map: Record<ConsultationBookingDto["status"], string> = {

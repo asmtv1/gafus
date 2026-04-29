@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCSRFStore } from "@gafus/csrf";
-import { formatConsultationListDateTimeMsk } from "@gafus/core/services/consultation/consultationMskFormat";
-import type { ConsultationBookingDto } from "@gafus/core/services/consultation/types";
 import { reportClientError } from "@gafus/error-handling";
+import {
+  formatConsultationListDateTimeMsk,
+  type ConsultationBookingDto,
+} from "@gafus/consultation-shared";
 
 import { getConsultationBookingStatusPresentation } from "@/features/consultations/lib/consultation-booking-status-ru";
 

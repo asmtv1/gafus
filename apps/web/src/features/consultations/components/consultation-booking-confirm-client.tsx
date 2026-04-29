@@ -20,10 +20,12 @@ import { usePathname } from "next/navigation";
 import { trackEvent } from "@gafus/analytics";
 
 import { useCSRFStore } from "@gafus/csrf";
-import { formatConsultationConfirmSlotMsk } from "@gafus/core/services/consultation/consultationMskFormat";
-import { isLikelyValidRuPhoneInput } from "@gafus/core/services/consultation/ruPhone";
 import { reportClientError } from "@gafus/error-handling";
 
+import {
+  formatConsultationConfirmSlotMsk,
+  isLikelyValidRuPhoneInput,
+} from "@gafus/consultation-shared";
 import { showErrorAlert } from "@shared/utils/sweetAlert";
 
 import styles from "./consultation-booking-confirm-client.module.css";
@@ -84,10 +86,10 @@ export function ConsultationBookingConfirmClient({
   const [serverError, setServerError] = useState<string | null>(null);
   const [showFieldErrors, setShowFieldErrors] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [idempotencyKey] = useState<string>(() =>
-    typeof crypto !== "undefined" && crypto.randomUUID
+  const [idempotencyKey] = useState<string | null>(() =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`,
+      : null,
   );
 
   const slotLabel = useMemo(
@@ -142,6 +144,10 @@ export function ConsultationBookingConfirmClient({
     }
     if (!canSubmit) {
       setShowFieldErrors(true);
+      return;
+    }
+    if (!idempotencyKey) {
+      setServerError("Не удалось подготовить безопасный ключ запроса. Обновите страницу.");
       return;
     }
     setServerError(null);

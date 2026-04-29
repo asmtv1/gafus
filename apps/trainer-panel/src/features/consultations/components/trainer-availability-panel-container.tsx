@@ -1,7 +1,10 @@
 "use client";
 
-import type { ConsultationAvailabilityRuleDto, ConsultationSlotDto } from "@gafus/core";
 import { useMemo } from "react";
+import type {
+  ConsultationAvailabilityRuleDto,
+  ConsultationSlotDto,
+} from "@gafus/consultation-shared";
 
 import {
   addDayOffAction,

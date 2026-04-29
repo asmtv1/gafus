@@ -1,4 +1,4 @@
-import type { ConsultationAvailabilityRuleDto } from "@gafus/core";
+import type { ConsultationAvailabilityRuleDto } from "@gafus/consultation-shared";
 
 /** Инъекция server actions для панели расписания (тренер vs админка). */
 export type TrainerAvailabilityActionOk = { success: true } | { success: false; error: string };

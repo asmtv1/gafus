@@ -23,17 +23,16 @@ import {
   buildConsultationCalendarRangeDays,
   filterConsultationSlotsExcludingDayOffs,
   groupConsultationSlotsByMskDay,
-  type ConsultationSlotsByDay,
-} from "@gafus/core/services/consultation/consultationSlotsPresentation";
-import type { ConsultationSlotDto, ListedCynologistCardDto } from "@gafus/core/services/consultation/types";
-import {
   consultationBookingCalendarWindowMsk,
   consultationCalendarMonthKey as toMonthKey,
-  consultationMskDayKeyToDate,
   consultationMskDayKey as toDayKey,
+  consultationMskDayKeyToDate,
   formatConsultationDayLabelMsk as formatDayLabel,
   formatConsultationTimeMsk as formatTime,
-} from "@gafus/core/services/consultation/consultationMskFormat";
+  type ConsultationSlotDto,
+  type ConsultationSlotsByDay,
+  type ListedCynologistCardDto,
+} from "@gafus/consultation-shared";
 import { reportClientError } from "@gafus/error-handling";
 
 import { showErrorAlert } from "@shared/utils/sweetAlert";

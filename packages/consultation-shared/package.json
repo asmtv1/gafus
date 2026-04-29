@@ -1,0 +1,57 @@
+{
+  "name": "@gafus/consultation-shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./consultation-msk-format": {
+      "types": "./dist/consultation-msk-format.d.ts",
+      "default": "./dist/consultation-msk-format.js"
+    },
+    "./ru-phone": {
+      "types": "./dist/ru-phone.d.ts",
+      "default": "./dist/ru-phone.js"
+    },
+    "./booking-status-presentation": {
+      "types": "./dist/booking-status-presentation.d.ts",
+      "default": "./dist/booking-status-presentation.js"
+    },
+    "./consultation-catalog-presentation": {
+      "types": "./dist/consultation-catalog-presentation.d.ts",
+      "default": "./dist/consultation-catalog-presentation.js"
+    },
+    "./consultation-intake-display": {
+      "types": "./dist/consultation-intake-display.d.ts",
+      "default": "./dist/consultation-intake-display.js"
+    },
+    "./consultation-slots-presentation": {
+      "types": "./dist/consultation-slots-presentation.d.ts",
+      "default": "./dist/consultation-slots-presentation.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "libphonenumber-js": "^1.12.8"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "rimraf": "5.0.1",
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17"
+  }
+}

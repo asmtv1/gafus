@@ -16,13 +16,13 @@ import {
   formatConsultationTimeMsk as formatTimeMsk,
   consultationCalendarMonthKey as toMonthKey,
   consultationMskDayKey as toDayKey,
-} from "@gafus/core/services/consultation/consultationMskFormat";
+} from "@gafus/consultation-shared";
 import {
   buildConsultationCalendarRangeDays,
   filterConsultationSlotsExcludingDayOffs,
   groupConsultationSlotsByMskDay,
-} from "@gafus/core/services/consultation/consultationSlotsPresentation";
-import type { ConsultationSlotDto } from "@gafus/core/services/consultation/types";
+} from "@gafus/consultation-shared";
+import type { ConsultationSlotDto } from "@gafus/consultation-shared";
 import type { Href } from "expo-router";
 import { useNavigation, useRouter } from "expo-router";
 
@@ -37,6 +37,9 @@ interface ConsultationSlotsCalendarProps {
   slotDurationMin: number;
   displayName?: string;
 }
+
+const EMPTY_SLOTS: ConsultationSlotDto[] = [];
+const EMPTY_DAY_OFF_DATES: string[] = [];
 
 function formatCalendarMonthLabel(date: Date): string {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -89,8 +92,8 @@ export function ConsultationSlotsCalendar({
     },
   });
 
-  const slots = slotsQuery.data?.slots ?? [];
-  const dayOffDates = slotsQuery.data?.dayOffDates ?? [];
+  const slots = slotsQuery.data?.slots ?? EMPTY_SLOTS;
+  const dayOffDates = slotsQuery.data?.dayOffDates ?? EMPTY_DAY_OFF_DATES;
   const dayOffSet = useMemo(() => new Set(dayOffDates), [dayOffDates]);
 
   const rangeDays = useMemo(
@@ -139,7 +142,7 @@ export function ConsultationSlotsCalendar({
     if (!year || !month) return [];
     const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    const out: Array<string | null> = [];
+    const out: (string | null)[] = [];
     for (let i = 0; i < firstWeekday; i += 1) {
       out.push(null);
     }

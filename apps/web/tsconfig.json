@@ -28,27 +28,8 @@
       "@gafus/core/services/user": ["../../packages/core/src/services/user/index.ts"],
       "@gafus/core/services/auth": ["../../packages/core/src/services/auth/index.ts"],
       "@gafus/core/services/consent": ["../../packages/core/src/services/consent/index.ts"],
-      "@gafus/core/services/consultation/consultationMskFormat": [
-        "../../packages/core/src/services/consultation/consultationMskFormat.ts"
-      ],
-      "@gafus/core/services/consultation/ruPhone": [
-        "../../packages/core/src/services/consultation/ruPhone.ts"
-      ],
-      "@gafus/core/services/consultation/consultationIntakeDisplay": [
-        "../../packages/core/src/services/consultation/consultationIntakeDisplay.ts"
-      ],
-      "@gafus/core/services/consultation/consultationSlotsPresentation": [
-        "../../packages/core/src/services/consultation/consultationSlotsPresentation.ts"
-      ],
-      "@gafus/core/services/consultation/consultationCatalogPresentation": [
-        "../../packages/core/src/services/consultation/consultationCatalogPresentation.ts"
-      ],
-      "@gafus/core/services/consultation/types": [
-        "../../packages/core/src/services/consultation/types.ts"
-      ],
-      "@gafus/core/services/consultation/bookingStatusPresentation": [
-        "../../packages/core/src/services/consultation/bookingStatusPresentation.ts"
-      ],
+      "@gafus/consultation-shared": ["../../packages/consultation-shared/src/index.ts"],
+      "@gafus/consultation-shared/*": ["../../packages/consultation-shared/src/*"],
       "@gafus/core/services/notifications": [
         "../../packages/core/src/services/notifications/index.ts"
       ],

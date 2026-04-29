@@ -2,7 +2,7 @@ import type {
   ConsultationBookingDto,
   ConsultationSlotDto,
   ListedCynologistCardDto,
-} from "@gafus/core/services/consultation/types";
+} from "@gafus/consultation-shared";
 
 import { apiClient, type ApiResponse } from "./client";
 
