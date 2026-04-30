@@ -1,6 +1,7 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
+import { consultationMskDayKey } from "./consultationMskFormat";
 import { ensureConsultationCynologistRow } from "./cynologistService";
 import { ConsultationForbiddenError, ConsultationNotFoundError } from "./errors";
 import type {
@@ -238,7 +239,7 @@ export async function getCynologistDayOffDates(
     orderBy: { date: "asc" },
   });
 
-  return dayOffs.map((d) => d.date.toISOString().slice(0, 10));
+  return dayOffs.map((d) => consultationMskDayKey(d.date));
 }
 
 export async function assertTrainerOwnsCynologist(

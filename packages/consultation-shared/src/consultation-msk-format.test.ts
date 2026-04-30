@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   consultationBookingCalendarWindowMsk,
+  consultationCalendarMonthKeyFromDayKey,
   consultationMskDayKey,
   formatConsultationConfirmSlotMsk,
 } from "./consultation-msk-format";
@@ -26,5 +27,13 @@ describe("consultation-msk-format", () => {
   it("строит ключ дня в МСК", () => {
     const dayKey = consultationMskDayKey(new Date("2026-01-10T21:10:00.000Z"));
     expect(dayKey).toBe("2026-01-11");
+  });
+
+  it("корректно вычисляет ключ месяца из dayKey без timezone-сдвига", () => {
+    expect(consultationCalendarMonthKeyFromDayKey("2026-05-01")).toBe("2026-05");
+  });
+
+  it("безопасно обрабатывает невалидный dayKey", () => {
+    expect(consultationCalendarMonthKeyFromDayKey("invalid")).toBe("invalid");
   });
 });

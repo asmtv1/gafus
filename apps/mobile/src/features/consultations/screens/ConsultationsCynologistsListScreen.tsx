@@ -176,10 +176,10 @@ const styles = StyleSheet.create({
   },
   subNavItem: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
@@ -192,7 +192,8 @@ const styles = StyleSheet.create({
   },
   subNavText: {
     fontFamily: FONTS.montserratMedium,
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 20,
     color: COLORS.textSecondary,
     textAlign: "center",
   },

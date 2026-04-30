@@ -543,29 +543,42 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
               </>
             ) : (
               <Pressable
-                style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
+                style={({ pressed }) => [
+                  styles.documentManageButton,
+                  pressed && styles.petActionButtonPressed,
+                ]}
                 onPress={() => handleStartRenameDocument(document)}
               >
-                <Text style={styles.documentSecondaryText}>Изменить</Text>
+                <Text style={styles.documentManageIcon}>✏️</Text>
+                <Text style={styles.documentManageText}>Изменить</Text>
               </Pressable>
             )}
-            <Pressable
-              style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
-              onPress={() => void handleShareDocument(document)}
-            >
-              <Text style={styles.documentSecondaryText}>Поделиться</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.documentSecondaryButton,
-                styles.documentDeleteButton,
-                pressed && styles.documentActionPressed,
-              ]}
-              onPress={() => handleDeleteDocument(document)}
-              disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
-            >
-              <Text style={styles.documentDeleteText}>Удалить</Text>
-            </Pressable>
+            {editingDocumentId !== document.id ? (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentManageButton,
+                    pressed && styles.petActionButtonPressed,
+                  ]}
+                  onPress={() => void handleShareDocument(document)}
+                >
+                  <Text style={styles.documentManageIcon}>🔗</Text>
+                  <Text style={styles.documentManageText}>Поделиться</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentManageButton,
+                    styles.documentManageButtonDelete,
+                    pressed && styles.petActionButtonPressed,
+                  ]}
+                  onPress={() => handleDeleteDocument(document)}
+                  disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentManageIcon}>🗑️</Text>
+                  <Text style={[styles.documentManageText, styles.documentManageTextDelete]}>Удалить</Text>
+                </Pressable>
+              </>
+            ) : null}
           </View>
         </View>
       ))}
@@ -1543,20 +1556,22 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   documentActionButton: {
-    minHeight: 36,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    minHeight: 44,
+    minWidth: 108,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,
     backgroundColor: COLORS.primary,
   },
   documentActionText: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 13,
+    lineHeight: 18,
     color: COLORS.onPrimary,
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
+    textAlign: "center",
   },
   documentSecondaryButton: {
     minHeight: 40,
@@ -1593,6 +1608,44 @@ const styles = StyleSheet.create({
   },
   documentActionPressed: {
     opacity: 0.85,
+  },
+  documentManageButton: {
+    flex: 1,
+    minWidth: 108,
+    minHeight: 64,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  documentManageButtonDelete: {
+    borderColor: "#8B4513",
+  },
+  documentManageIcon: {
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  documentManageText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: COLORS.primary,
+    fontFamily: FONTS.montserrat,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  documentManageTextDelete: {
+    color: "#8B4513",
   },
   documentModalOverlay: {
     flex: 1,

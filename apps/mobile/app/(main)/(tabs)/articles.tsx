@@ -29,7 +29,7 @@ import { articlesApi } from "@/shared/lib/api";
 import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, FONTS, BORDER_RADIUS, UI_TIMEOUTS } from "@/constants";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 /** Сколько обложек префетчим в фоне (ускорение без привязки к снятию оверлея). */
@@ -38,6 +38,8 @@ const ARTICLE_COVER_PREFETCH_LIMIT = 12;
 const VIEWPORT_ARTICLE_COVER_GATE_COUNT = 6;
 /** После onDisplay у expo-image — короткая пауза, чтобы не было «вспышки» между оверлеем и списком. */
 const VIEWPORT_OVERLAY_SETTLE_MS = 96;
+/** Failsafe: если события обложек не пришли, не держим оверлей бесконечно. */
+const VIEWPORT_GATE_FAILSAFE_MS = UI_TIMEOUTS.articleViewportGateFailsafe;
 
 function formatViews(n: number): string {
   const last = n % 10;
@@ -127,6 +129,10 @@ const ArticleCard = memo(function ArticleCard({
   }, [article.id]);
 
   useEffect(() => {
+    setCoverCandidateIndex(0);
+  }, [coverUrl]);
+
+  useEffect(() => {
     if (coverPlaceholderDelayTimeoutRef.current) {
       clearTimeout(coverPlaceholderDelayTimeoutRef.current);
       coverPlaceholderDelayTimeoutRef.current = null;
@@ -205,6 +211,9 @@ const ArticleCard = memo(function ArticleCard({
                   }
                   setIsCoverLoading(false);
                   setShowCoverPlaceholder(false);
+                  if (!hasNextCoverFallback) {
+                    maybeReportViewportCoverReady();
+                  }
                 }}
                 onDisplay={() => {
                   if (coverPlaceholderDelayTimeoutRef.current) {
@@ -305,6 +314,7 @@ export default function ArticlesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [viewportReady, setViewportReady] = useState(false);
   const queryClient = useQueryClient();
+  const viewportFailsafeTrackedKeyRef = useRef<string>("");
 
   const { data, isPending, error, refetch } = useQuery(articlesQueryOptions);
 
@@ -373,6 +383,23 @@ export default function ArticlesScreen() {
     if (uris.length === 0) return;
     void Image.prefetch(uris, { cachePolicy: "memory-disk" });
   }, [isPending, articles]);
+
+  useEffect(() => {
+    if (isPending || articles.length === 0 || viewportReady) return;
+    const timeout = setTimeout(() => {
+      if (viewportFailsafeTrackedKeyRef.current !== viewportGateSyncKey) {
+        viewportFailsafeTrackedKeyRef.current = viewportGateSyncKey;
+        trackEvent({
+          eventName: "button_click",
+          platform: "mobile",
+          pathOrScreen: "/(main)/(tabs)/articles",
+          elementId: "articles-viewport-gate-failsafe",
+        });
+      }
+      setViewportReady(true);
+    }, VIEWPORT_GATE_FAILSAFE_MS);
+    return () => clearTimeout(timeout);
+  }, [articles.length, isPending, viewportReady, viewportGateSyncKey]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

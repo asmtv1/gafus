@@ -186,6 +186,15 @@ export async function bookSlot(
       };
     }
   }
+  if (idem?.bookingId && idem.expiresAt > new Date()) {
+    const replayDto = await toBookingDto(idem.bookingId);
+    if (
+      replayDto &&
+      replayDto.status !== ConsultationBookingStatus.CANCELLED_BY_SYSTEM
+    ) {
+      return { kind: "idempotent_replay", booking: replayDto };
+    }
+  }
 
   let bookingId: string | null = null;
 
@@ -257,6 +266,22 @@ export async function bookSlot(
       return { bookingId: booking.id, cynologistId: slot.cynologistId, deadline };
     });
 
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await prisma.consultationBookingIdempotency.upsert({
+      where: { clientId_key: { clientId, key: input.idempotencyKey } },
+      create: {
+        clientId,
+        key: input.idempotencyKey,
+        bookingId: result.bookingId,
+        responseJson: { state: "BOOKING_CREATED" },
+        expiresAt,
+      },
+      update: {
+        bookingId: result.bookingId,
+        expiresAt,
+      },
+    });
+
     let telemost: { id: string; joinUrl: string; watchUrl: string | null };
     try {
       telemost = await createTelemostConference({ requestId });
@@ -324,8 +349,6 @@ export async function bookSlot(
     }
 
     const payload: BookSlotResult = { kind: "created", booking: dto };
-
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await prisma.consultationBookingIdempotency.upsert({
       where: { clientId_key: { clientId, key: input.idempotencyKey } },
       create: {

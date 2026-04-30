@@ -187,6 +187,110 @@ describe("bookSlot", () => {
     expect(prismaTransaction).not.toHaveBeenCalled();
   });
 
+  it("делает replay по bookingId при частичном состоянии идемпотентности", async () => {
+    idemFindUnique.mockResolvedValue({
+      bookingId: "b-replay",
+      responseJson: { state: "BOOKING_CREATED" },
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-replay",
+      status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+      slot: {
+        id: "sid",
+        startAt: new Date("2026-05-01T10:00:00.000Z"),
+        endAt: new Date("2026-05-01T10:30:00.000Z"),
+        status: ConsultationSlotStatus.BOOKED,
+      },
+      cynologist: {
+        userId: "trainer-1",
+        user: {
+          profile: { fullName: "Кинолог Тест" },
+        },
+      },
+      client: { username: "user1" },
+      clientOwnerName: "Анна",
+      clientPhone: "+79991234567",
+      petName: "Жучка",
+      petGender: ConsultationPetGender.MALE,
+      petAge: "3 года",
+      petBreed: "Собака",
+      clientProblem: "Описание проблемы не менее десяти символов",
+      clientSelfHelpAttempt: "Самолечение",
+      cancelReason: null,
+      telemostJoinUrl: null,
+      telemostWatchUrl: null,
+      confirmationDeadlineAt: new Date("2026-05-01T09:00:00.000Z"),
+      createdAt: new Date("2026-04-30T09:00:00.000Z"),
+    });
+    const { bookSlot } = await import("./bookingService");
+    const out = await bookSlot("client1", {
+      slotId: "s1",
+      idempotencyKey: "k-replay",
+      ...bookBodyBase,
+    });
+    expect(out.kind).toBe("idempotent_replay");
+    expect(out.booking.id).toBe("b-replay");
+    expect(prismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it("не делает replay по bookingId, если бронь уже CANCELLED_BY_SYSTEM", async () => {
+    idemFindUnique.mockResolvedValue({
+      bookingId: "b-cancelled",
+      responseJson: { state: "BOOKING_CREATED" },
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-cancelled",
+      status: ConsultationBookingStatus.CANCELLED_BY_SYSTEM,
+      slot: {
+        id: "sid",
+        startAt: new Date("2026-05-01T10:00:00.000Z"),
+        endAt: new Date("2026-05-01T10:30:00.000Z"),
+        status: ConsultationSlotStatus.FREE,
+      },
+      cynologist: {
+        userId: "trainer-1",
+        user: {
+          profile: { fullName: "Кинолог Тест" },
+        },
+      },
+      client: { username: "user1" },
+      clientOwnerName: "Анна",
+      clientPhone: "+79991234567",
+      petName: "Жучка",
+      petGender: ConsultationPetGender.MALE,
+      petAge: "3 года",
+      petBreed: "Собака",
+      clientProblem: "Описание проблемы не менее десяти символов",
+      clientSelfHelpAttempt: "Самолечение",
+      cancelReason: null,
+      telemostJoinUrl: null,
+      telemostWatchUrl: null,
+      confirmationDeadlineAt: new Date("2026-05-01T09:00:00.000Z"),
+      createdAt: new Date("2026-04-30T09:00:00.000Z"),
+    });
+    txUpdateMany.mockResolvedValue({ count: 0 });
+    prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        consultationSlot: {
+          updateMany: txUpdateMany,
+          findUnique: txFindUnique,
+        },
+        consultationBooking: { create: txCreateBooking },
+      };
+      return cb(tx);
+    });
+    const { bookSlot } = await import("./bookingService");
+    await expect(
+      bookSlot("client1", {
+        slotId: "s1",
+        idempotencyKey: "k-cancelled",
+        ...bookBodyBase,
+      }),
+    ).rejects.toBeInstanceOf(ConsultationSlotTakenError);
+  });
+
   it("бросает ConsultationSlotTakenError, если слот уже занят", async () => {
     idemFindUnique.mockResolvedValue(null);
     prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {

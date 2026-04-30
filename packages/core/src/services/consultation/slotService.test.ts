@@ -4,9 +4,10 @@ import { ConsultationSlotStatus } from "@gafus/prisma";
 
 import { ConsultationNotFoundError } from "./errors";
 
-const { cynologistFindUnique, slotFindMany } = vi.hoisted(() => ({
+const { cynologistFindUnique, slotFindMany, dayOffFindMany } = vi.hoisted(() => ({
   cynologistFindUnique: vi.fn(),
   slotFindMany: vi.fn(),
+  dayOffFindMany: vi.fn(),
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -32,6 +33,10 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
         ...mod.prisma.consultationSlot,
         findMany: slotFindMany,
       },
+      consultationDayOff: {
+        ...mod.prisma.consultationDayOff,
+        findMany: dayOffFindMany,
+      },
     },
   };
 });
@@ -39,6 +44,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 describe("getAvailableSlots", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dayOffFindMany.mockResolvedValue([]);
   });
 
   it("бросает ConsultationNotFoundError, если кинолог не найден", async () => {

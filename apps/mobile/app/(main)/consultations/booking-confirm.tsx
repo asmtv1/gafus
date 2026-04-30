@@ -400,6 +400,9 @@ export default function ConsultationBookingConfirmScreen() {
               mode="outlined"
               onPress={() => router.replace(`/consultations/${cynologistUserId}` as Href)}
               disabled={bookMutation.isPending}
+              style={styles.actionButton}
+              contentStyle={styles.actionButtonContent}
+              labelStyle={styles.actionButtonLabel}
             >
               Назад к слотам
             </Button>
@@ -408,7 +411,12 @@ export default function ConsultationBookingConfirmScreen() {
               onPress={onSubmit}
               loading={bookMutation.isPending}
               disabled={bookMutation.isPending}
-              style={!canSubmit && !bookMutation.isPending ? styles.bookBtnInactive : undefined}
+              style={[
+                styles.actionButton,
+                !canSubmit && !bookMutation.isPending ? styles.bookBtnInactive : null,
+              ]}
+              contentStyle={styles.actionButtonContent}
+              labelStyle={styles.actionButtonLabel}
               buttonColor={COLORS.primary}
               accessibilityLabel={
                 !canSubmit
@@ -525,6 +533,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: { flexDirection: "column", gap: SPACING.sm, marginTop: SPACING.md },
+  actionButton: {
+    borderRadius: 14,
+  },
+  actionButtonContent: {
+    minHeight: 48,
+    paddingVertical: 2,
+  },
+  actionButtonLabel: {
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 18,
+    lineHeight: 22,
+  },
   bookBtnInactive: { opacity: 0.6 },
   validationBanner: {
     backgroundColor: "rgba(180, 140, 40, 0.15)",

@@ -965,10 +965,13 @@ const styles = StyleSheet.create({
   },
   editBioButton: {
     backgroundColor: "#636128",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    minHeight: 48,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 12,
     marginTop: SPACING.sm,
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#636128",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -977,7 +980,8 @@ const styles = StyleSheet.create({
   },
   editBioButtonText: {
     color: "#ECE5D2",
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: "600",
     textAlign: "center",
     fontFamily: FONTS.impact,
@@ -1066,13 +1070,14 @@ const styles = StyleSheet.create({
   notifyActionButton: {
     flex: 1,
     backgroundColor: "#636128",
-    borderRadius: 8,
+    minHeight: 48,
+    borderRadius: 12,
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   notifyActionDanger: {
     backgroundColor: "#8B4513",
@@ -1083,7 +1088,8 @@ const styles = StyleSheet.create({
   notifyActionText: {
     color: "#ECE5D2",
     fontFamily: FONTS.impact,
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 18,
   },
   remindersCard: {
     flexDirection: "row",

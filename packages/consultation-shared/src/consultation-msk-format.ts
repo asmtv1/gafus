@@ -25,6 +25,14 @@ export function consultationCalendarMonthKey(date: Date): string {
   return toDayKeyInTimezone(date, CONSULTATION_TIMEZONE).slice(0, 7);
 }
 
+export function consultationCalendarMonthKeyFromDayKey(dayKey: string): string {
+  const date = consultationMskDayKeyToDate(dayKey);
+  if (Number.isNaN(date.getTime())) {
+    return dayKey.slice(0, 7);
+  }
+  return consultationCalendarMonthKey(date);
+}
+
 export function consultationMskDayKeyToDate(dayKey: string): Date {
   const [y, m, d] = dayKey.split("-").map(Number);
   if (!y || !m || !d) {

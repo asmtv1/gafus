@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   consultationBookingCalendarWindowMsk,
   consultationMskDayKeyToDate,
+  consultationCalendarMonthKeyFromDayKey as toMonthKeyFromDayKey,
   formatConsultationDayLabelMsk as formatDayLabel,
   formatConsultationTimeMsk as formatTimeMsk,
   consultationCalendarMonthKey as toMonthKey,
@@ -126,7 +127,7 @@ export function ConsultationSlotsCalendar({
     const firstDay = toDayKey(rangeDays[0]);
     const initialDay = slotsByDay[0]?.dateKey ?? firstDay;
     setSelectedDayKey((prev) => prev || initialDay);
-    setSelectedMonthKey((prev) => prev || toMonthKey(new Date(`${initialDay}T00:00:00`)));
+    setSelectedMonthKey((prev) => prev || toMonthKeyFromDayKey(initialDay));
   }, [rangeDays, slotsByDay]);
 
   const currentMonthDate = useMemo(() => {
@@ -489,9 +490,13 @@ const styles = StyleSheet.create({
   slotStatus: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   slotBtn: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    minWidth: 140,
+    minHeight: 40,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
     borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   slotBtnDisabled: { backgroundColor: COLORS.borderLight },
   slotBtnText: { color: "#fff", fontFamily: FONTS.montserratMedium, fontSize: 13 },

@@ -25,6 +25,7 @@ import {
   groupConsultationSlotsByMskDay,
   consultationBookingCalendarWindowMsk,
   consultationCalendarMonthKey as toMonthKey,
+  consultationCalendarMonthKeyFromDayKey as toMonthKeyFromDayKey,
   consultationMskDayKey as toDayKey,
   consultationMskDayKeyToDate,
   formatConsultationDayLabelMsk as formatDayLabel,
@@ -158,7 +159,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
     const firstDay = toDayKey(rangeDays[0]);
     const initialDay = slotsByDay[0]?.dateKey ?? firstDay;
     setSelectedDayKey((prev) => prev || initialDay);
-    setSelectedMonthKey((prev) => prev || toMonthKey(new Date(`${initialDay}T00:00:00`)));
+    setSelectedMonthKey((prev) => prev || toMonthKeyFromDayKey(initialDay));
   }, [rangeDays, slotsByDay]);
 
   const currentMonthDate = useMemo(() => {

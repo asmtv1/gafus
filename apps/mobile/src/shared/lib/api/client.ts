@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-import { API_BASE_URL } from "@/constants";
+import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/constants";
 import { reportClientError } from "@/shared/lib/tracer";
 
 interface ApiClientOptions {
@@ -24,6 +24,7 @@ let refreshPromise: Promise<boolean> | null = null;
 
 type SafeJsonOk = { ok: true; value: unknown };
 type SafeJsonErr = { ok: false; error: string; preview?: string };
+const API_REQUEST_TIMEOUT_MS = NETWORK_TIMEOUTS.request;
 
 /**
  * Текст ошибки при HTTP 4xx/5xx: наш API отдаёт `error: string`, иные клиенты — `message` или Zod `issues`.
@@ -83,6 +84,31 @@ async function safeParseResponseJson(response: Response): Promise<SafeJsonOk | S
   }
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = API_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function getAbortTimeoutError(): ApiResponse<never> {
+  return {
+    success: false,
+    error: "Сервер долго не отвечает. Попробуйте снова.",
+    code: "REQUEST_TIMEOUT",
+  };
+}
+
 /**
  * Обновляет access token используя refresh token
  */
@@ -98,7 +124,7 @@ async function refreshAccessToken(): Promise<boolean> {
       const refreshToken = await SecureStore.getItemAsync("refresh_token");
       if (!refreshToken) return false;
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken }),
@@ -159,7 +185,7 @@ export async function apiClient<T>(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, config);
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth) {
@@ -206,6 +232,9 @@ export async function apiClient<T>(
     return data as ApiResponse<T>;
   } catch (error) {
     reportClientError(error, { issueKey: "ApiClient", keys: { endpoint } });
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return getAbortTimeoutError();
+    }
     // Обработка сетевых ошибок
     if (error instanceof TypeError && error.message === "Network request failed") {
       return {
@@ -240,7 +269,7 @@ export async function apiClientMultipart<T>(
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    return fetch(url, {
+    return fetchWithTimeout(url, {
       method: "POST",
       headers,
       body: buildFormData(),
@@ -291,6 +320,9 @@ export async function apiClientMultipart<T>(
     return data as ApiResponse<T>;
   } catch (error) {
     reportClientError(error, { issueKey: "ApiClientMultipart", keys: { endpoint } });
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return getAbortTimeoutError();
+    }
     if (error instanceof TypeError && error.message === "Network request failed") {
       return {
         success: false,

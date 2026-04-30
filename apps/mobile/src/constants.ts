@@ -11,6 +11,16 @@ export const CACHE_DURATIONS = {
   DAY: 24 * 60 * 60 * 1000, // 24 часа
 } as const;
 
+// Сетевые таймауты (в миллисекундах)
+export const NETWORK_TIMEOUTS = {
+  request: 20_000,
+} as const;
+
+// UI таймауты (в миллисекундах)
+export const UI_TIMEOUTS = {
+  articleViewportGateFailsafe: 2200,
+} as const;
+
 // Цвета темы (соответствуют веб-версии)
 export const COLORS = {
   // Основные цвета бренда (как в web)
