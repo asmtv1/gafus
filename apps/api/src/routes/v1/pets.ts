@@ -15,6 +15,7 @@ import {
   deletePetDocument,
   listPetDocuments,
   preparePetDocumentDownload,
+  renamePetDocument,
   uploadPetDocument,
   updatePetPhoto,
 } from "@gafus/core/services/pets";
@@ -56,6 +57,13 @@ function mapPetDocumentError(error: unknown): { status: number; error: string; c
       code: "DOCUMENT_LIMIT_REACHED",
     };
   }
+  if (message === "Название документа не может быть пустым") {
+    return {
+      status: 400,
+      error: "Название документа не может быть пустым",
+      code: "INVALID_NAME",
+    };
+  }
   return { status: 500, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" };
 }
 
@@ -83,6 +91,38 @@ const updatePetSchema = z.object({
   photoUrl: z.string().optional(),
   notes: z.string().optional(),
 });
+
+const renamePetDocumentSchema = z.object({
+  name: z.string().trim().min(1, "Название документа не может быть пустым"),
+});
+
+async function handleRenamePetDocument(c: Parameters<Parameters<typeof petsRoutes.put>[2]>[0]) {
+  try {
+    const user = c.get("user");
+    const petId = c.req.param("petId");
+    const documentId = c.req.param("documentId");
+    const { name } = c.req.valid("json");
+
+    const updated = await renamePetDocument(documentId, user.id, name, petId);
+    if (!updated) {
+      return c.json(
+        { success: false, error: "Документ не найден", code: "DOCUMENT_NOT_FOUND" },
+        404,
+      );
+    }
+
+    return c.json({ success: true, data: updated });
+  } catch (error) {
+    const mappedError = mapPetDocumentError(error);
+    if (mappedError.status >= 500) {
+      logger.error("Error renaming pet document", error as Error);
+    }
+    return c.json(
+      { success: false, error: mappedError.error, code: mappedError.code },
+      mappedError.status as 400 | 404 | 500,
+    );
+  }
+}
 
 // ==================== GET /pets ====================
 // Получить список питомцев пользователя
@@ -259,6 +299,14 @@ petsRoutes.delete("/:petId/documents/:documentId", async (c) => {
     );
   }
 });
+
+// ==================== PUT /pets/:petId/documents/:documentId ====================
+// Переименовать документ питомца
+petsRoutes.put(
+  "/:petId/documents/:documentId",
+  zValidator("json", renamePetDocumentSchema),
+  handleRenamePetDocument,
+);
 
 // ==================== GET /pets/:petId/documents/:documentId/download ====================
 // Подготовить ссылку для скачивания документа питомца

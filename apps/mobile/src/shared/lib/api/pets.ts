@@ -375,6 +375,25 @@ export const petsApi = {
     }
   },
 
+  renameDocument: async (
+    petId: string,
+    documentId: string,
+    name: string,
+  ): Promise<ApiResponse<PetDocument>> => {
+    try {
+      return await apiClient<PetDocument>(`/api/v1/pets/${petId}/documents/${documentId}`, {
+        method: "PUT",
+        body: { name },
+      });
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsApi",
+        keys: { operation: "rename_document" },
+      });
+      throw error;
+    }
+  },
+
   // ==================== Prevention Journal ====================
 
   getPreventionEntries: async (

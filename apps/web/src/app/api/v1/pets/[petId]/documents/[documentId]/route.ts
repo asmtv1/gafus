@@ -43,7 +43,7 @@ async function deleteHandler(_request: Request, context: RouteContext) {
 
 export const DELETE = withCSRFProtection(deleteHandler);
 
-async function patchHandler(request: Request, context: RouteContext) {
+async function renameHandler(request: Request, context: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
@@ -82,4 +82,4 @@ async function patchHandler(request: Request, context: RouteContext) {
   }
 }
 
-export const PATCH = withCSRFProtection(patchHandler);
+export const PUT = withCSRFProtection(renameHandler);

@@ -2,20 +2,23 @@ import { useCallback, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Platform,
   Pressable,
+  Share,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getPetDocumentDisplayName,
@@ -112,6 +115,9 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   const queryClient = useQueryClient();
   const [pendingDocument, setPendingDocument] = useState<PendingDocumentUpload | null>(null);
   const [documentTitle, setDocumentTitle] = useState("");
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [editingDocumentName, setEditingDocumentName] = useState("");
+  const [openedDocumentIndex, setOpenedDocumentIndex] = useState<number | null>(null);
   const {
     data: documentsResponse,
     isLoading,
@@ -121,7 +127,9 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
     queryFn: () => petsApi.getDocuments(pet.id),
   });
 
-  const documents = documentsResponse?.data ?? [];
+  const documents = [...(documentsResponse?.data ?? [])].sort(
+    (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+  );
 
   const isImageDocument = (mimeType: string) => mimeType.startsWith("image/");
 
@@ -283,6 +291,51 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
     },
   });
 
+  const renameDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, name }: { documentId: string; name: string }) => {
+      console.log("[PetDocumentsRename] request", {
+        petId: pet.id,
+        documentId,
+        name,
+      });
+      const response = await petsApi.renameDocument(pet.id, documentId, name);
+      console.log("[PetDocumentsRename] response", {
+        petId: pet.id,
+        documentId,
+        success: response.success,
+        code: response.code,
+        error: response.error,
+      });
+      return response;
+    },
+    onSuccess: (response) => {
+      if (!response.success) {
+        console.log("[PetDocumentsRename] unsuccessful", {
+          petId: pet.id,
+          code: response.code,
+          error: response.error,
+        });
+        Alert.alert("Ошибка", response.error ?? "Не удалось обновить название документа");
+        return;
+      }
+      console.log("[PetDocumentsRename] success", { petId: pet.id });
+      queryClient.invalidateQueries({ queryKey: ["pets", "documents", pet.id] });
+      setEditingDocumentId(null);
+      setEditingDocumentName("");
+    },
+    onError: (error) => {
+      console.error("[PetDocumentsRename] onError", {
+        petId: pet.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsScreen",
+        keys: { operation: "rename_pet_document", petId: pet.id },
+      });
+      Alert.alert("Ошибка", "Не удалось обновить название документа");
+    },
+  });
+
   const handleOpenDocument = async (document: PetDocumentDto) => {
     trackEvent({
       eventName: "button_click",
@@ -291,7 +344,11 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
       elementId: "pet-document-open-click",
     });
     try {
-      await Linking.openURL(document.url);
+      const documentIndex = documents.findIndex((item) => item.id === document.id);
+      if (documentIndex === -1) {
+        return;
+      }
+      setOpenedDocumentIndex(documentIndex);
       trackEvent({
         eventName: "button_click",
         platform: "mobile",
@@ -334,14 +391,86 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
     );
   };
 
+  const handleStartRenameDocument = (document: PetDocument) => {
+    setEditingDocumentId(document.id);
+    setEditingDocumentName(getPetDocumentDisplayName(document.name));
+  };
+
+  const handleCancelRenameDocument = () => {
+    setEditingDocumentId(null);
+    setEditingDocumentName("");
+  };
+
+  const handleSaveRenameDocument = () => {
+    if (!editingDocumentId) {
+      return;
+    }
+    const nextName = editingDocumentName.trim();
+    if (!nextName) {
+      Alert.alert("Ошибка", "Название документа не может быть пустым");
+      return;
+    }
+    console.log("[PetDocumentsRename] save_click", {
+      petId: pet.id,
+      documentId: editingDocumentId,
+      name: nextName,
+    });
+    renameDocumentMutation.mutate({ documentId: editingDocumentId, name: nextName });
+  };
+
+  const handleShareDocument = async (document: PetDocument) => {
+    try {
+      await Share.share({
+        message: document.url,
+        url: document.url,
+      });
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsScreen",
+        keys: { operation: "share_pet_document", petId: pet.id, documentId: document.id },
+      });
+      Alert.alert("Ошибка", "Не удалось поделиться документом");
+    }
+  };
+
+  const handleDownloadDocument = async (document: PetDocument) => {
+    try {
+      const extensionByMimeType: Record<string, string> = {
+        "application/pdf": "pdf",
+        "image/jpeg": "jpg",
+        "image/png": "png",
+      };
+      const ext = extensionByMimeType[document.mimeType] ?? "bin";
+      const safeName = getPetDocumentDisplayName(document.name).replace(/[^\w.-]/g, "_");
+      const fileName = safeName.includes(".") ? safeName : `${safeName}.${ext}`;
+      const destinationUri = `${FileSystem.cacheDirectory}${Date.now()}_${fileName}`;
+      await FileSystem.downloadAsync(document.url, destinationUri);
+
+      await Share.share({
+        message: "Документ скачан. Выберите приложение для сохранения или отправки.",
+        url: destinationUri,
+      });
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "PetsScreen",
+        keys: { operation: "download_pet_document", petId: pet.id, documentId: document.id },
+      });
+      Alert.alert("Ошибка", "Не удалось скачать документ");
+    }
+  };
+
+  const openedDocument = openedDocumentIndex !== null ? documents[openedDocumentIndex] : null;
+
+  const handleCloseDocumentPreview = () => {
+    setOpenedDocumentIndex(null);
+  };
+
   return (
     <View style={styles.documentsSection}>
       <View style={styles.documentsHeader}>
         <View style={styles.documentsTitleWrap}>
           <Text style={styles.documentsTitle}>Документы</Text>
-          {!isLoading && !isError && documents.length === 0 ? (
-            <Text style={styles.documentHint}>Документы пока не добавлены</Text>
-          ) : null}
+          <Text style={styles.documentHint}>Фото ветпаспорта, справки и другие файлы питомца</Text>
         </View>
         <Pressable
           style={({ pressed }) => [styles.documentActionButton, pressed && styles.documentActionPressed]}
@@ -355,25 +484,76 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
 
       {isLoading ? <Text style={styles.documentHint}>Загрузка документов...</Text> : null}
       {isError ? <Text style={styles.documentError}>Не удалось загрузить документы</Text> : null}
+      {!isLoading && !isError && documents.length === 0 ? (
+        <Text style={styles.documentHint}>Документов пока нет</Text>
+      ) : null}
 
       {documents.map((document) => (
         <View key={document.id} style={styles.documentItem}>
-          {isImageDocument(document.mimeType) ? (
-            <Image source={{ uri: document.url }} style={styles.documentPreviewImage} contentFit="cover" />
+          <Pressable onPress={() => void handleOpenDocument(document)}>
+            {isImageDocument(document.mimeType) ? (
+              <Image
+                source={{ uri: document.url }}
+                style={styles.documentPreviewImage}
+                contentFit="contain"
+              />
+            ) : (
+              <View style={styles.documentPreviewFile}>
+                <Text style={styles.documentPreviewFileText}>PDF</Text>
+              </View>
+            )}
+          </Pressable>
+          {editingDocumentId === document.id ? (
+            <TextInput
+              value={editingDocumentName}
+              onChangeText={setEditingDocumentName}
+              style={styles.documentNameInput}
+              editable={!renameDocumentMutation.isPending}
+              placeholder="Название документа"
+              placeholderTextColor={COLORS.textSecondary}
+            />
           ) : (
-            <View style={styles.documentPreviewFile}>
-              <Text style={styles.documentPreviewFileText}>PDF</Text>
-            </View>
+            <Text style={styles.documentName} numberOfLines={1}>
+              {getPetDocumentDisplayName(document.name)}
+            </Text>
           )}
-          <Text style={styles.documentName} numberOfLines={1}>
-            {getPetDocumentDisplayName(document.name)}
-          </Text>
           <View style={styles.documentActions}>
+            {editingDocumentId === document.id ? (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentSecondaryButton,
+                    pressed && styles.documentActionPressed,
+                  ]}
+                  onPress={handleSaveRenameDocument}
+                  disabled={renameDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentSecondaryText}>Сохранить</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentSecondaryButton,
+                    pressed && styles.documentActionPressed,
+                  ]}
+                  onPress={handleCancelRenameDocument}
+                  disabled={renameDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentSecondaryText}>Отмена</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
+                onPress={() => handleStartRenameDocument(document)}
+              >
+                <Text style={styles.documentSecondaryText}>Изменить</Text>
+              </Pressable>
+            )}
             <Pressable
               style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
-              onPress={() => handleOpenDocument(document)}
+              onPress={() => void handleShareDocument(document)}
             >
-              <Text style={styles.documentSecondaryText}>Открыть</Text>
+              <Text style={styles.documentSecondaryText}>Поделиться</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -382,7 +562,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
                 pressed && styles.documentActionPressed,
               ]}
               onPress={() => handleDeleteDocument(document)}
-              disabled={deleteDocumentMutation.isPending}
+              disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
             >
               <Text style={styles.documentDeleteText}>Удалить</Text>
             </Pressable>
@@ -439,6 +619,63 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
               </Pressable>
             </View>
           </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={openedDocument !== null}
+        animationType="fade"
+        onRequestClose={handleCloseDocumentPreview}
+      >
+        <View style={styles.documentViewerContainer}>
+          {openedDocument ? (
+            <>
+              <View style={styles.documentViewerHeader}>
+                <Text style={styles.documentViewerTitle} numberOfLines={1}>
+                  {getPetDocumentDisplayName(openedDocument.name)}
+                </Text>
+                <View style={styles.documentViewerActions}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.documentViewerButton,
+                      pressed && styles.documentActionPressed,
+                    ]}
+                    onPress={() => void handleShareDocument(openedDocument)}
+                  >
+                    <Text style={styles.documentViewerButtonText}>Поделиться ссылкой</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.documentViewerButton,
+                      pressed && styles.documentActionPressed,
+                    ]}
+                    onPress={() => void handleDownloadDocument(openedDocument)}
+                  >
+                    <Text style={styles.documentViewerButtonText}>Скачать</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.documentViewerCloseButton,
+                      pressed && styles.documentActionPressed,
+                    ]}
+                    onPress={handleCloseDocumentPreview}
+                  >
+                    <Text style={styles.documentViewerCloseText}>Закрыть</Text>
+                  </Pressable>
+                </View>
+              </View>
+              <View style={styles.documentViewerBody}>
+                {openedDocument.mimeType === "application/pdf" ? (
+                  <WebView source={{ uri: openedDocument.url }} style={styles.documentViewerContent} />
+                ) : (
+                  <Image
+                    source={{ uri: openedDocument.url }}
+                    style={styles.documentViewerContent}
+                    contentFit="contain"
+                  />
+                )}
+              </View>
+            </>
+          ) : null}
         </View>
       </Modal>
     </View>
@@ -1046,8 +1283,6 @@ export default function PetsTabScreen() {
                   </View>
                 </View>
                 <View style={styles.petCardActions}>
-                  <PetPreventionSection pet={pet} />
-                  <PetDocumentsSection pet={pet} />
                   <View style={styles.petManageActions}>
                     <Pressable
                       style={({ pressed }) => [
@@ -1078,6 +1313,8 @@ export default function PetsTabScreen() {
                       </Text>
                     </Pressable>
                   </View>
+                  <PetPreventionSection pet={pet} />
+                  <PetDocumentsSection pet={pet} />
                 </View>
               </View>
             ))}
@@ -1220,9 +1457,6 @@ const styles = StyleSheet.create({
   },
   petCardActions: {
     marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(212, 196, 168, 0.5)",
     gap: SPACING.sm,
   },
   documentsSection: {
@@ -1270,7 +1504,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: "#F3EFE6",
   },
   documentPreviewFile: {
     height: 72,
@@ -1292,9 +1526,21 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
   },
+  documentNameInput: {
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    fontSize: 12,
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    backgroundColor: COLORS.cardBackground,
+  },
   documentActions: {
     flexDirection: "row",
     gap: SPACING.xs,
+    flexWrap: "wrap",
   },
   documentActionButton: {
     minHeight: 36,
@@ -1313,27 +1559,37 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   documentSecondaryButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    minHeight: 40,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     backgroundColor: COLORS.cardBackground,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 108,
+    flexGrow: 1,
+    flexShrink: 0,
   },
   documentSecondaryText: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     color: COLORS.primary,
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
+    textAlign: "center",
   },
   documentDeleteButton: {
     borderColor: "#8B4513",
   },
   documentDeleteText: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     color: "#8B4513",
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
+    textAlign: "center",
   },
   documentActionPressed: {
     opacity: 0.85,
@@ -1372,6 +1628,80 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     alignItems: "center",
     justifyContent: "center",
+  },
+  documentViewerContainer: {
+    flex: 1,
+    backgroundColor: "#101010",
+  },
+  documentViewerHeader: {
+    paddingTop: 54,
+    paddingHorizontal: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.14)",
+    gap: SPACING.sm,
+    alignItems: "center",
+  },
+  documentViewerTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: FONTS.montserrat,
+    fontWeight: "600",
+    textAlign: "center",
+    width: "100%",
+  },
+  documentViewerActions: {
+    flexDirection: "row",
+    gap: SPACING.xs,
+    flexWrap: "wrap",
+    justifyContent: "center",
+    width: "100%",
+  },
+  documentViewerButton: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  documentViewerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: FONTS.montserrat,
+    fontWeight: "600",
+  },
+  documentViewerCloseButton: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#8B4513",
+    backgroundColor: "rgba(139,69,19,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  documentViewerCloseText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: FONTS.montserrat,
+    fontWeight: "600",
+  },
+  documentViewerBody: {
+    flex: 1,
+    padding: SPACING.sm,
+  },
+  documentViewerContent: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#1A1A1A",
+    borderRadius: 8,
   },
   preventionSection: {
     borderWidth: 1,
@@ -1564,9 +1894,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     gap: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(212, 196, 168, 0.4)",
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(212, 196, 168, 0.4)",
   },
   petManageButton: {
     flex: 1,

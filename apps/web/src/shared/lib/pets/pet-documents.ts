@@ -72,7 +72,7 @@ export async function renamePetDocumentById(
   csrfToken: string,
 ): Promise<ApiResponse<PetDocumentDto>> {
   const response = await fetch(`/api/v1/pets/${petId}/documents/${documentId}`, {
-    method: "PATCH",
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
       "x-csrf-token": csrfToken,
