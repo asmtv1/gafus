@@ -16,10 +16,12 @@ import {
 
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
 import DayAnalytics from "./DayAnalytics";
+import { formatRuDate, formatRuDateTime } from "./date-format";
+import { getSafeImageSrc } from "./image-safety";
 import OpenersAnalytics from "./OpenersAnalytics";
 import ProgressAnalytics from "./ProgressAnalytics";
 import SocialAnalytics from "./SocialAnalytics";
@@ -135,6 +137,36 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
     }
   };
 
+  const filteredUserCourses = useMemo(() => {
+    return course.userCourses
+      .filter((uc) => {
+        const status = uc.status;
+        if (status === "COMPLETED" && !showCompleted) return false;
+        if (status === "IN_PROGRESS" && !showInProgress) return false;
+        if (dateFrom || dateTo) {
+          const dateValue = dateType === "started" ? uc.startedAt : uc.completedAt;
+          if (!dateValue) return false;
+          const userDate = normalizeDateToLocalMidnight(dateValue);
+          if (dateFrom) {
+            const fromDate = normalizeDateToLocalMidnight(dateFrom);
+            if (userDate < fromDate) return false;
+          }
+          if (dateTo) {
+            const toDate = normalizeDateToLocalMidnight(dateTo);
+            if (userDate > toDate) return false;
+          }
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const getDate = (uc: (typeof course.userCourses)[number]) =>
+          dateType === "started" ? uc.startedAt : uc.completedAt;
+        const da = getDate(a) ? new Date(getDate(a) as Date).getTime() : 0;
+        const db = getDate(b) ? new Date(getDate(b) as Date).getTime() : 0;
+        return db - da;
+      });
+  }, [course.userCourses, dateFrom, dateTo, dateType, showCompleted, showInProgress]);
+
   return (
     <Box sx={{ px: { xs: 1, sm: 2 }, maxWidth: "100%", overflow: "hidden" }}>
       {/* Заголовок курса */}
@@ -154,7 +186,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
             mb: { xs: 2, sm: 0 },
             borderRadius: 2,
           }}
-          src={course.logoImg || "/uploads/course-logo.webp"}
+          src={getSafeImageSrc(course.logoImg, "/uploads/course-logo.webp")}
           alt={course.name}
           variant="rounded"
         />
@@ -519,44 +551,17 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
             </Box>
 
             <Box sx={{ maxHeight: 600, overflowY: "auto" }}>
-              {course.userCourses
-                .filter((uc) => {
-                  const status = uc.status;
-                  if (status === "COMPLETED" && !showCompleted) return false;
-                  if (status === "IN_PROGRESS" && !showInProgress) return false;
-                  if (dateFrom || dateTo) {
-                    const dateValue = dateType === "started" ? uc.startedAt : uc.completedAt;
-                    if (!dateValue) return false;
-                    const userDate = normalizeDateToLocalMidnight(dateValue);
-                    if (dateFrom) {
-                      const fromDate = normalizeDateToLocalMidnight(dateFrom);
-                      if (userDate < fromDate) return false;
-                    }
-                    if (dateTo) {
-                      const toDate = normalizeDateToLocalMidnight(dateTo);
-                      if (userDate > toDate) return false;
-                    }
-                  }
-                  return true;
-                })
-                .sort((a, b) => {
-                  const getDate = (uc: typeof a) =>
-                    dateType === "started" ? uc.startedAt : uc.completedAt;
-                  const da = getDate(a) ? new Date(getDate(a) as Date).getTime() : 0;
-                  const db = getDate(b) ? new Date(getDate(b) as Date).getTime() : 0;
-                  return db - da;
-                })
-                .map((userCourse, index: number) => (
-                  <UserProgressAccordion
-                    key={index}
-                    userCourse={userCourse}
-                    courseId={course.id}
-                    onUsernameClick={() => {
-                      setSelectedUsername(userCourse.user.username);
-                      setUserModalOpen(true);
-                    }}
-                  />
-                ))}
+              {filteredUserCourses.map((userCourse) => (
+                <UserProgressAccordion
+                  key={userCourse.userId}
+                  userCourse={userCourse}
+                  courseId={course.id}
+                  onUsernameClick={() => {
+                    setSelectedUsername(userCourse.user.username);
+                    setUserModalOpen(true);
+                  }}
+                />
+              ))}
             </Box>
           </Box>
         )}
@@ -597,7 +602,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                         height: { xs: 32, sm: 40 },
                         flexShrink: 0,
                       }}
-                      src={review.user?.profile?.avatarUrl || "/uploads/avatar.svg"}
+                      src={getSafeImageSrc(review.user?.profile?.avatarUrl, "/uploads/avatar.svg")}
                       alt={review.user?.username || "user"}
                     />
                     <Box sx={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
@@ -626,7 +631,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
                           color="text.secondary"
                           sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
                         >
-                          {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ""}
+                          {review.createdAt ? formatRuDate(review.createdAt) : ""}
                         </Typography>
                       </Box>
                       <Box
@@ -772,6 +777,11 @@ function UserProgressAccordion({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
+  const avatarSrc = useMemo(
+    () => getSafeImageSrc(userCourse.user.profile?.avatarUrl, "/uploads/avatar.svg"),
+    [userCourse.user.profile?.avatarUrl],
+  );
+
   useEffect(() => {
     if (expanded && !progress && !loading) {
       setLoading(true);
@@ -832,7 +842,7 @@ function UserProgressAccordion({
           >
             <Avatar
               sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, flexShrink: 0 }}
-              src={userCourse.user.profile?.avatarUrl || "/uploads/avatar.svg"}
+              src={avatarSrc}
               alt={userCourse.user.username}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -886,7 +896,7 @@ function UserProgressAccordion({
                 color="text.secondary"
                 sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
               >
-                Начал: {new Date(userCourse.startedAt).toLocaleDateString()}
+                Начал: {formatRuDate(userCourse.startedAt)}
               </Typography>
             )}
             {userCourse.completedAt && (
@@ -895,7 +905,7 @@ function UserProgressAccordion({
                 color="success.main"
                 sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
               >
-                Завершил: {new Date(userCourse.completedAt).toLocaleDateString()}
+                Завершил: {formatRuDate(userCourse.completedAt)}
               </Typography>
             )}
           </Box>
@@ -986,7 +996,7 @@ function UserProgressAccordion({
                       color="text.secondary"
                       sx={{ mb: 1, fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
                     >
-                      Завершен: {new Date(day.dayCompletedAt).toLocaleDateString()}
+                      Завершен: {formatRuDate(day.dayCompletedAt)}
                     </Typography>
                   )}
                   {activeSteps.length > 0 && (
@@ -1040,13 +1050,7 @@ function UserProgressAccordion({
                             >
                               {step.status === TrainingStatus.COMPLETED && step.completedAt ? (
                                 <Chip
-                                  label={new Date(step.completedAt).toLocaleString("ru-RU", {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
+                                  label={formatRuDateTime(step.completedAt)}
                                   color="success"
                                   size="small"
                                   sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
@@ -1078,13 +1082,7 @@ function UserProgressAccordion({
                                       sx={{ fontSize: { xs: "0.625rem", sm: "0.75rem" } }}
                                     >
                                       Начат:{" "}
-                                      {new Date(step.startedAt).toLocaleString("ru-RU", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
+                                      {formatRuDateTime(step.startedAt)}
                                     </Typography>
                                   )}
                                 </>

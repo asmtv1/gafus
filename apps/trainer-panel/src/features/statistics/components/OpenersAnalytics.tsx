@@ -10,6 +10,8 @@ import {
   Paper,
   Typography,
 } from "@/utils/muiImports";
+import { formatRuDateTime } from "./date-format";
+import { getSafeImageSrc } from "./image-safety";
 
 interface OpenersAnalyticsProps {
   openersAnalytics: {
@@ -76,7 +78,7 @@ export default function OpenersAnalytics({
               >
                 <Avatar
                   sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, flexShrink: 0 }}
-                  src={opener.avatarUrl ?? "/uploads/avatar.svg"}
+                  src={getSafeImageSrc(opener.avatarUrl, "/uploads/avatar.svg")}
                   alt={opener.username}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "/uploads/avatar.svg";
@@ -122,13 +124,7 @@ export default function OpenersAnalytics({
                     sx={{ mb: 0.5, fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
                   >
                     День {day.dayOrder}: {day.dayTitle} —{" "}
-                    {new Date(day.openedAt).toLocaleString("ru-RU", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatRuDateTime(day.openedAt)}
                   </Typography>
                 ))}
               </Box>

@@ -377,35 +377,56 @@ export async function getDetailedCourseStatistics(
     {
       username: string;
       avatarUrl: string | null;
-      openedDays: { dayOrder: number; dayTitle: string; openedAt: Date }[];
+      openedDaysByDayOnCourseId: Map<
+        string,
+        { dayOrder: number; dayTitle: string; openedAt: Date }
+      >;
     }
   >();
 
   for (const training of userTrainings) {
+    if (training.status === PrismaTrainingStatus.NOT_STARTED) {
+      continue;
+    }
+
     const uid = training.userId;
     if (!openersMap.has(uid)) {
       openersMap.set(uid, {
         username: training.user?.username ?? "Неизвестный",
         avatarUrl: training.user?.profile?.avatarUrl ?? null,
-        openedDays: [],
+        openedDaysByDayOnCourseId: new Map(),
       });
     }
     const entry = openersMap.get(uid)!;
-    entry.openedDays.push({
+    const existingOpenDay = entry.openedDaysByDayOnCourseId.get(training.dayOnCourseId);
+    const nextOpenDay = {
       dayOrder: training.dayOnCourse.order,
       dayTitle: training.dayOnCourse.day.title,
       openedAt: training.createdAt,
-    });
+    };
+    if (!existingOpenDay || nextOpenDay.openedAt < existingOpenDay.openedAt) {
+      entry.openedDaysByDayOnCourseId.set(training.dayOnCourseId, nextOpenDay);
+    }
   }
 
   const openers = Array.from(openersMap.entries()).map(([userId, data]) => ({
     userId,
     username: data.username,
     avatarUrl: data.avatarUrl,
-    openedDays: data.openedDays.sort((a, b) => a.dayOrder - b.dayOrder),
+    openedDays: Array.from(data.openedDaysByDayOnCourseId.values()).sort((a, b) => {
+      if (a.dayOrder !== b.dayOrder) {
+        return a.dayOrder - b.dayOrder;
+      }
+      return a.openedAt.getTime() - b.openedAt.getTime();
+    }),
   }));
 
-  openers.sort((a, b) => b.openedDays.length - a.openedDays.length);
+  openers.sort((a, b) => {
+    if (b.openedDays.length !== a.openedDays.length) {
+      return b.openedDays.length - a.openedDays.length;
+    }
+    return a.username.localeCompare(b.username, "ru-RU");
+  });
 
   const openersAnalytics = {
     totalOpeners: openers.length,
@@ -555,15 +576,33 @@ function mergeUserCourses(
   const merged = new Map<string, UserCourse>();
   const getStartedAtFromSteps = (userId: string) => startedStepsMap?.get(userId)?.startedAt ?? null;
   const hasStartedStep = (userId: string) => Boolean(startedStepsMap?.has(userId));
+  const getStartedAtFromTrainings = (summary: TrainingSummary | undefined): Date | null => {
+    if (!summary || summary.trainings.length === 0) {
+      return null;
+    }
+    return summary.trainings.reduce(
+      (earliest, training) => (training.createdAt < earliest ? training.createdAt : earliest),
+      summary.trainings[0].createdAt,
+    );
+  };
+  const hasTrainingParticipation = (summary: TrainingSummary | undefined): boolean =>
+    Boolean(summary?.trainings.some((training) => training.status !== TrainingStatus.NOT_STARTED));
 
-  // Добавляем пользователей из courseUserCourses, но только тех, кто начал хотя бы один шаг
+  // Добавляем пользователей из courseUserCourses с учетом участия в курсе даже после изменений структуры.
   courseUserCourses.forEach((uc) => {
-    if (!hasStartedStep(uc.userId)) {
+    const summary = trainingSummaryMap?.get(uc.userId);
+    const hasParticipation =
+      uc.status !== TrainingStatus.NOT_STARTED ||
+      Boolean(uc.startedAt) ||
+      Boolean(uc.completedAt) ||
+      hasStartedStep(uc.userId) ||
+      hasTrainingParticipation(summary);
+    if (!hasParticipation) {
       return;
     }
 
-    const summary = trainingSummaryMap?.get(uc.userId);
-    const startedAt = getStartedAtFromSteps(uc.userId);
+    const startedAt =
+      getStartedAtFromSteps(uc.userId) ?? uc.startedAt ?? getStartedAtFromTrainings(summary);
     const progress = summary
       ? computeStatusFromTrainings(summary, totalDays, startedAt)
       : {
@@ -595,10 +634,10 @@ function mergeUserCourses(
       if (summary.trainings.length === 0) {
         return;
       }
-      if (!hasStartedStep(userId)) {
+      if (!hasStartedStep(userId) && !hasTrainingParticipation(summary)) {
         return;
       }
-      const startedAt = getStartedAtFromSteps(userId);
+      const startedAt = getStartedAtFromSteps(userId) ?? getStartedAtFromTrainings(summary);
       const { status, completedAt } = computeStatusFromTrainings(summary, totalDays, startedAt);
       if (status === TrainingStatus.NOT_STARTED) {
         return;
@@ -629,8 +668,11 @@ function mergeUserCourses(
     });
   }
 
-  // Финальная фильтрация: оставляем только пользователей с фактом начала шага
-  const userCourses = Array.from(merged.values()).filter(
+  const mergedUsers = Array.from(merged.values());
+  const notStartedUsers = mergedUsers.filter((uc) => uc.status === TrainingStatus.NOT_STARTED).length;
+
+  // Финальная фильтрация: оставляем только пользователей с фактом участия
+  const userCourses = mergedUsers.filter(
     (uc) => uc.status !== TrainingStatus.NOT_STARTED,
   );
 
@@ -639,7 +681,7 @@ function mergeUserCourses(
     totalUsers: userCourses.length,
     completedUsers: userCourses.filter((uc) => uc.status === TrainingStatus.COMPLETED).length,
     inProgressUsers: userCourses.filter((uc) => uc.status === TrainingStatus.IN_PROGRESS).length,
-    notStartedUsers: userCourses.filter((uc) => uc.status === TrainingStatus.NOT_STARTED).length,
+    notStartedUsers,
   };
 }
 
@@ -653,14 +695,29 @@ function computeStatusFromTrainings(
   completedAt: Date | null;
 } {
   const trainings = summary.trainings;
-  const completedDays = trainings.filter((t) => t.status === TrainingStatus.COMPLETED).length;
+  const completedUniqueDays = new Set(
+    trainings
+      .filter((t) => t.status === TrainingStatus.COMPLETED)
+      .map((training) => training.dayOrder),
+  ).size;
   const isCourseCompleted =
-    totalDays > 0 && completedDays === totalDays && trainings.length === totalDays;
+    totalDays > 0 && completedUniqueDays === totalDays;
+  const hasTrainingParticipation = trainings.some(
+    (training) => training.status !== TrainingStatus.NOT_STARTED,
+  );
+  const startedAtFromTrainings =
+    trainings.length > 0
+      ? trainings.reduce(
+          (earliest, training) => (training.createdAt < earliest ? training.createdAt : earliest),
+          trainings[0].createdAt,
+        )
+      : null;
+  const resolvedStartedAt = startedAt ?? startedAtFromTrainings;
 
   let status = TrainingStatus.NOT_STARTED;
   if (isCourseCompleted) {
     status = TrainingStatus.COMPLETED;
-  } else if (startedAt) {
+  } else if (resolvedStartedAt || hasTrainingParticipation) {
     status = TrainingStatus.IN_PROGRESS;
   }
 
@@ -672,7 +729,7 @@ function computeStatusFromTrainings(
         )
       : null;
 
-  return { status, startedAt, completedAt };
+  return { status, startedAt: resolvedStartedAt, completedAt };
 }
 
 function getStatusPriority(status: TrainingStatus): number {
