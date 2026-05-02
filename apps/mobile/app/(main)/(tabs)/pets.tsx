@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { Text } from "react-native-paper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -117,6 +116,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   const [documentTitle, setDocumentTitle] = useState("");
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [editingDocumentName, setEditingDocumentName] = useState("");
+  const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
   const [openedDocumentIndex, setOpenedDocumentIndex] = useState<number | null>(null);
   const {
     data: documentsResponse,
@@ -207,18 +207,24 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   });
 
   const handlePickDocument = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: true,
-      multiple: false,
-      type: [...PET_DOCUMENT_ALLOWED_MIME_TYPES],
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Доступ", "Нужен доступ к галерее для выбора документа");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 1,
     });
-    if (result.canceled || !result.assets?.[0]) {
+    if (result.canceled || !result.assets[0]) {
       return;
     }
 
     const file = result.assets[0];
     const mimeType = file.mimeType ?? "";
-    const size = file.size ?? 0;
+    const size = file.fileSize ?? 0;
 
     if (
       !PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(
@@ -233,7 +239,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
       return;
     }
 
-    const originalName = file.name || `document_${Date.now()}`;
+    const originalName = file.fileName || `document_${Date.now()}`;
     setPendingDocument({
       uri: file.uri,
       mimeType,
@@ -322,6 +328,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
       queryClient.invalidateQueries({ queryKey: ["pets", "documents", pet.id] });
       setEditingDocumentId(null);
       setEditingDocumentName("");
+      setIsRenameModalVisible(false);
     },
     onError: (error) => {
       console.error("[PetDocumentsRename] onError", {
@@ -394,11 +401,13 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   const handleStartRenameDocument = (document: PetDocument) => {
     setEditingDocumentId(document.id);
     setEditingDocumentName(getPetDocumentDisplayName(document.name));
+    setIsRenameModalVisible(true);
   };
 
   const handleCancelRenameDocument = () => {
     setEditingDocumentId(null);
     setEditingDocumentName("");
+    setIsRenameModalVisible(false);
   };
 
   const handleSaveRenameDocument = () => {
@@ -503,82 +512,44 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
               </View>
             )}
           </Pressable>
-          {editingDocumentId === document.id ? (
-            <TextInput
-              value={editingDocumentName}
-              onChangeText={setEditingDocumentName}
-              style={styles.documentNameInput}
-              editable={!renameDocumentMutation.isPending}
-              placeholder="Название документа"
-              placeholderTextColor={COLORS.textSecondary}
-            />
-          ) : (
-            <Text style={styles.documentName} numberOfLines={1}>
-              {getPetDocumentDisplayName(document.name)}
-            </Text>
-          )}
+          <Text style={styles.documentName} numberOfLines={1}>
+            Название файла: {getPetDocumentDisplayName(document.name)}
+          </Text>
           <View style={styles.documentActions}>
-            {editingDocumentId === document.id ? (
-              <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentSecondaryButton,
-                    pressed && styles.documentActionPressed,
-                  ]}
-                  onPress={handleSaveRenameDocument}
-                  disabled={renameDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentSecondaryText}>Сохранить</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentSecondaryButton,
-                    pressed && styles.documentActionPressed,
-                  ]}
-                  onPress={handleCancelRenameDocument}
-                  disabled={renameDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentSecondaryText}>Отмена</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.documentManageButton,
-                  pressed && styles.petActionButtonPressed,
-                ]}
-                onPress={() => handleStartRenameDocument(document)}
-              >
-                <Text style={styles.documentManageIcon}>✏️</Text>
-                <Text style={styles.documentManageText}>Изменить</Text>
-              </Pressable>
-            )}
-            {editingDocumentId !== document.id ? (
-              <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentManageButton,
-                    pressed && styles.petActionButtonPressed,
-                  ]}
-                  onPress={() => void handleShareDocument(document)}
-                >
-                  <Text style={styles.documentManageIcon}>🔗</Text>
-                  <Text style={styles.documentManageText}>Поделиться</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentManageButton,
-                    styles.documentManageButtonDelete,
-                    pressed && styles.petActionButtonPressed,
-                  ]}
-                  onPress={() => handleDeleteDocument(document)}
-                  disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentManageIcon}>🗑️</Text>
-                  <Text style={[styles.documentManageText, styles.documentManageTextDelete]}>Удалить</Text>
-                </Pressable>
-              </>
-            ) : null}
+            <Pressable
+              style={({ pressed }) => [
+                styles.documentManageButton,
+                pressed && styles.petActionButtonPressed,
+              ]}
+              onPress={() => handleStartRenameDocument(document)}
+            >
+              <Text style={styles.documentManageIcon}>✏️</Text>
+              <Text style={styles.documentManageText}>Изменить название</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.documentManageButton,
+                pressed && styles.petActionButtonPressed,
+              ]}
+              onPress={() => void handleShareDocument(document)}
+            >
+              <Text style={styles.documentManageIcon}>🔗</Text>
+              <Text style={styles.documentManageText}>Поделиться файлом</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.documentManageButton,
+                styles.documentManageButtonDelete,
+                pressed && styles.petActionButtonPressed,
+              ]}
+              onPress={() => handleDeleteDocument(document)}
+              disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
+            >
+              <Text style={styles.documentManageIcon}>🗑️</Text>
+              <Text style={[styles.documentManageText, styles.documentManageTextDelete]}>
+                Удалить файл
+              </Text>
+            </Pressable>
           </View>
         </View>
       ))}
@@ -633,6 +604,51 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
             </View>
           </View>
         </View>
+      </Modal>
+      <Modal
+        visible={isRenameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelRenameDocument}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.documentModalOverlay}
+        >
+          <Pressable style={styles.documentRenameModalDismiss} onPress={handleCancelRenameDocument} />
+          <View style={styles.documentModalCard}>
+            <Text style={styles.documentsTitle}>Изменить название</Text>
+            <TextInput
+              value={editingDocumentName}
+              onChangeText={setEditingDocumentName}
+              style={styles.documentNameInput}
+              editable={!renameDocumentMutation.isPending}
+              placeholder="Название документа"
+              placeholderTextColor={COLORS.textSecondary}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleSaveRenameDocument}
+            />
+            <View style={styles.documentActions}>
+              <Pressable
+                style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
+                onPress={handleCancelRenameDocument}
+                disabled={renameDocumentMutation.isPending}
+              >
+                <Text style={styles.documentSecondaryText}>Отмена</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.documentActionButton, pressed && styles.documentActionPressed]}
+                onPress={handleSaveRenameDocument}
+                disabled={renameDocumentMutation.isPending}
+              >
+                <Text style={styles.documentActionText}>
+                  {renameDocumentMutation.isPending ? "Сохранение..." : "Сохранить"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
       <Modal
         visible={openedDocument !== null}
@@ -950,7 +966,10 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
             }}
           />
           <View style={styles.preventionModalSheet}>
-            <ScrollView contentContainerStyle={styles.preventionModalScroll}>
+            <ScrollView
+              contentContainerStyle={styles.preventionModalScroll}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.preventionModalTitle}>
                 {editingEntry ? "Изменить запись" : "Добавить запись"}
               </Text>
@@ -984,12 +1003,14 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
                 value={performedAt}
                 onChangeText={setPerformedAt}
                 placeholder="YYYY-MM-DD"
+                style={styles.preventionInput}
               />
               <Input
                 label="Препарат"
                 value={productName}
                 onChangeText={setProductName}
                 placeholder="Название (необязательно)"
+                style={styles.preventionInput}
               />
               <Input
                 label="Заметки"
@@ -1021,7 +1042,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
 
               {reminderEnabled ? (
                 <>
-                  <View style={styles.preventionTypeRow}>
+                  <View style={[styles.preventionTypeRow, styles.preventionReminderTypeRow]}>
                     <Pressable
                       style={[
                         styles.preventionTypeChip,
@@ -1061,6 +1082,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
                       value={String(reminderDaysAfter)}
                       onChangeText={(value) => setReminderDaysAfter(parseInt(value, 10) || 1)}
                       keyboardType="number-pad"
+                      style={styles.preventionInput}
                     />
                   ) : (
                     <Input
@@ -1068,6 +1090,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
                       value={reminderOnDate}
                       onChangeText={setReminderOnDate}
                       placeholder="YYYY-MM-DD"
+                      style={styles.preventionInput}
                     />
                   )}
                 </>
@@ -1215,7 +1238,7 @@ export default function PetsTabScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.pageTitle}>Питомцы</Text>
         {pets.length === 0 ? (
           <View style={styles.emptyStateWrap}>
@@ -1309,20 +1332,20 @@ export default function PetsTabScreen() {
                     >
                       <Text style={styles.petActionIcon}>✏️</Text>
                       <Text style={styles.petActionText} numberOfLines={2}>
-                        Изменить
+                        Изменить питомца
                       </Text>
                     </Pressable>
                     <Pressable
                       style={({ pressed }) => [
                         styles.petManageButton,
                         styles.petActionButtonDelete,
-                        pressed && styles.petActionButtonPressed,
+                        pressed && styles.petActionButtonPressedDelete,
                       ]}
                       onPress={() => handleDeletePet(pet)}
                     >
                       <Text style={styles.petActionIcon}>🗑️</Text>
                       <Text style={[styles.petActionText, styles.petActionTextDelete]} numberOfLines={2}>
-                        Удалить
+                        Удалить питомца
                       </Text>
                     </Pressable>
                   </View>
@@ -1369,10 +1392,10 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
   },
   emptyCard: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: "#F5F0E8",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: "#D4C4A8",
     padding: SPACING.lg,
     marginBottom: SPACING.md,
   },
@@ -1403,10 +1426,10 @@ const styles = StyleSheet.create({
   petItem: {
     flexDirection: "column",
     padding: SPACING.md,
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: "#F5F0E8",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: "#D4C4A8",
     marginBottom: SPACING.xs,
   },
   petMainInfo: {
@@ -1474,10 +1497,10 @@ const styles = StyleSheet.create({
   },
   documentsSection: {
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: 8,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
     padding: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: "#ECE5D2",
     gap: SPACING.xs,
   },
   documentsHeader: {
@@ -1517,7 +1540,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    backgroundColor: "#F3EFE6",
+    backgroundColor: "#FFF8E5",
   },
   documentPreviewFile: {
     height: 72,
@@ -1577,10 +1600,10 @@ const styles = StyleSheet.create({
     minHeight: 40,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    backgroundColor: COLORS.cardBackground,
+    borderColor: "#D4C4A8",
+    backgroundColor: "#F5F0E8",
     alignItems: "center",
     justifyContent: "center",
     minWidth: 108,
@@ -1596,12 +1619,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   documentDeleteButton: {
-    borderColor: "#8B4513",
+    borderColor: "#c62828",
   },
   documentDeleteText: {
     fontSize: 12,
     lineHeight: 16,
-    color: "#8B4513",
+    color: "#c62828",
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
     textAlign: "center",
@@ -1615,8 +1638,8 @@ const styles = StyleSheet.create({
     minHeight: 64,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    backgroundColor: COLORS.surface,
+    borderColor: "#D4C4A8",
+    backgroundColor: "#F5F0E8",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
@@ -1629,7 +1652,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   documentManageButtonDelete: {
-    borderColor: "#8B4513",
+    borderColor: "#c62828",
   },
   documentManageIcon: {
     fontSize: 16,
@@ -1645,7 +1668,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   documentManageTextDelete: {
-    color: "#8B4513",
+    color: "#c62828",
   },
   documentModalOverlay: {
     flex: 1,
@@ -1657,12 +1680,16 @@ const styles = StyleSheet.create({
   documentModalCard: {
     width: "100%",
     maxWidth: 360,
-    backgroundColor: COLORS.surface,
+    backgroundColor: "#F5F0E8",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: "#D4C4A8",
     padding: SPACING.md,
     gap: SPACING.sm,
+  },
+  documentRenameModalDismiss: {
+    flex: 1,
+    width: "100%",
   },
   documentModalPreview: {
     width: "100%",
@@ -1758,10 +1785,10 @@ const styles = StyleSheet.create({
   },
   preventionSection: {
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: 8,
+    borderColor: "#D4C4A8",
+    borderRadius: 12,
     padding: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: "#ECE5D2",
     gap: SPACING.xs,
   },
   preventionHeader: {
@@ -1846,13 +1873,17 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: SPACING.md,
   },
+  preventionReminderTypeRow: {
+    marginTop: SPACING.xs,
+  },
   preventionTypeChip: {
     flex: 1,
     minWidth: 0,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#D4C4A8",
@@ -1863,7 +1894,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   preventionTypeChipText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "500",
     color: COLORS.textSecondary,
     textAlign: "center",
@@ -1879,17 +1910,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: SPACING.md,
+    minHeight: 52,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    backgroundColor: "#FFF",
+    backgroundColor: "#F5F0E8",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#D4C4A8",
   },
   preventionToggle: {
-    width: 48,
-    height: 28,
-    borderRadius: 14,
+    width: 52,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.borderLight,
     justifyContent: "center",
     paddingHorizontal: 2,
@@ -1898,9 +1930,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   preventionToggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORS.surface,
   },
   preventionToggleThumbActive: {
@@ -1913,6 +1945,7 @@ const styles = StyleSheet.create({
   },
   preventionCancelButton: {
     flex: 1,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
@@ -1928,6 +1961,7 @@ const styles = StyleSheet.create({
   },
   preventionSaveButton: {
     flex: 1,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
@@ -1942,6 +1976,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     fontFamily: FONTS.montserrat,
+  },
+  preventionInput: {
+    minHeight: 52,
   },
   petManageActions: {
     flexDirection: "row",
@@ -1959,10 +1996,10 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     paddingVertical: SPACING.sm,
     paddingHorizontal: 4,
-    backgroundColor: COLORS.surface,
-    borderRadius: 6,
+    backgroundColor: "#F5F0E8",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: "#D4C4A8",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1971,13 +2008,18 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   petActionButtonPressed: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: "#ECE5D2",
     borderColor: COLORS.primary,
     transform: [{ scale: 0.98 }],
   },
   petActionButtonDelete: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.borderLight,
+    backgroundColor: "#F5F0E8",
+    borderColor: "#c62828",
+  },
+  petActionButtonPressedDelete: {
+    backgroundColor: "#ECE5D2",
+    borderColor: "#c62828",
+    transform: [{ scale: 0.98 }],
   },
   petActionIcon: {
     fontSize: 16,
@@ -1995,7 +2037,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   petActionTextDelete: {
-    color: "#8B4513",
+    color: "#c62828",
   },
   addPetButton: {
     backgroundColor: COLORS.primary,

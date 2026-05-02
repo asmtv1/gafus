@@ -143,3 +143,7 @@ apps/mobile/ios
 apps/mobile/credentials.json
 apps/mobile/credentials/
 apps/mobile/rustore-signing/
+
+# Локальные артефакты мобильных сборок
+apps/mobile/Gafus.app/
+apps/mobile/build-*.tar.gz

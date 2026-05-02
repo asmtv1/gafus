@@ -4,7 +4,7 @@ import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
 import Markdown from "react-native-markdown-display";
@@ -33,7 +33,6 @@ const ARTICLE_WEBVIEW_FALLBACK_HEIGHT = 800;
 
 export default function ArticleDetailScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
   const { data: res, isLoading, error } = useQuery({
@@ -44,30 +43,6 @@ export default function ArticleDetailScreen() {
       return r;
     },
     enabled: !!slug,
-  });
-
-  const toggleLikeMutation = useMutation({
-    mutationFn: (articleId: string) => articlesApi.toggleLike(articleId),
-    onSuccess: (res, articleId) => {
-      void queryClient.invalidateQueries({ queryKey: ["article", slug] });
-      const newIsLiked = res?.data?.isLiked;
-      if (typeof newIsLiked !== "boolean") return;
-      const delta = newIsLiked ? 1 : -1;
-      queryClient.setQueryData(
-        ["articles"],
-        (old: { success?: boolean; data?: Array<{ id: string; likeCount: number; isLiked: boolean }> } | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((a) =>
-              a.id === articleId
-                ? { ...a, isLiked: newIsLiked, likeCount: Math.max(0, (a.likeCount ?? 0) + delta) }
-                : a,
-            ),
-          };
-        },
-      );
-    },
   });
 
   const article = res?.data;
@@ -123,10 +98,6 @@ export default function ArticleDetailScreen() {
     }, 4000);
     return () => clearTimeout(t);
   }, [article?.id, article?.contentType, article?.content]);
-
-  const handleLike = () => {
-    if (article) toggleLikeMutation.mutate(article.id);
-  };
 
   const handlePay = useCallback(async () => {
     if (!article) return;
@@ -233,24 +204,6 @@ export default function ArticleDetailScreen() {
             {new Date(article.createdAt).toLocaleDateString("ru-RU")}
           </Text>
         </View>
-
-        <Pressable
-          style={({ pressed }) => [styles.likeButton, pressed && styles.likeButtonPressed]}
-          onPress={handleLike}
-          disabled={toggleLikeMutation.isPending}
-          hitSlop={12}
-          accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
-          accessibilityRole="button"
-        >
-          <MaterialCommunityIcons
-            name={article.isLiked ? "heart" : "heart-outline"}
-            size={20}
-            color={article.isLiked ? "#e63946" : COLORS.textSecondary}
-          />
-          <Text style={[styles.likeCount, article.isLiked && styles.likeCountLiked]}>
-            {article.likeCount}
-          </Text>
-        </Pressable>
 
         {article.videoUrl && (
           <View style={styles.videoFrame}>
@@ -448,34 +401,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     fontFamily: FONTS.montserrat,
-  },
-  likeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: SPACING.md,
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.06)",
-    borderRadius: 24,
-    minWidth: 96,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.1)",
-  },
-  likeButtonPressed: {
-    opacity: 0.8,
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
-  },
-  likeCount: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
-  likeCountLiked: {
-    color: "#e63946",
   },
   paidBlock: {
     padding: SPACING.xxl,

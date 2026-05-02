@@ -1,11 +1,13 @@
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text, View } from "react-native";
 
-import { COLORS } from "@/constants";
+import { COLORS, FONTS } from "@/constants";
 import { trackEvent } from "@/shared/lib/analytics";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-const TAB_ICON_SIZE = 30;
+const TAB_ICON_SIZE = 20;
+const TAB_LABEL_FONT_SIZE = 10;
 const SHOW_FAVORITES_TAB = false;
 
 /** Цвет неактивного таба (иконка и подпись) */
@@ -26,8 +28,20 @@ export default function TabsLayout() {
     });
   };
 
-  const renderIcon = (name: IconName, color: string) => (
-    <MaterialCommunityIcons name={name} size={TAB_ICON_SIZE} color={color} />
+  const renderIcon = (name: IconName, color: string, focused: boolean) => (
+    <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+      <MaterialCommunityIcons name={name} size={TAB_ICON_SIZE} color={color} />
+    </View>
+  );
+  const renderTabLabel = (label: string, color: string, focused: boolean) => (
+    <Text
+      style={[styles.tabLabel, { color }, focused && styles.tabLabelActive]}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.85}
+    >
+      {label}
+    </Text>
   );
 
   return (
@@ -38,12 +52,24 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: TAB_INACTIVE,
         tabBarAllowFontScaling: false,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontFamily: FONTS.montserrat,
+          fontSize: TAB_LABEL_FONT_SIZE,
+          lineHeight: 12,
+          textAlign: "center",
+          includeFontPadding: false,
+        },
+        tabBarItemStyle: {
+          minHeight: 50,
+          paddingHorizontal: 2,
+          paddingVertical: 2,
         },
         tabBarStyle: {
           backgroundColor: TAB_BAR_BG,
           borderTopWidth: 1,
           borderTopColor: COLORS.borderLight,
+          minHeight: 62,
+          paddingTop: 2,
+          paddingBottom: 6,
         },
         headerStyle: {
           backgroundColor: COLORS.surface,
@@ -56,7 +82,7 @@ export default function TabsLayout() {
         options={{
           href: SHOW_FAVORITES_TAB ? undefined : null,
           title: "Избранное",
-          tabBarIcon: ({ color }) => renderIcon("heart", color),
+          tabBarIcon: ({ color, focused }) => renderIcon("heart", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("favorites"),
@@ -66,7 +92,8 @@ export default function TabsLayout() {
         name="pets"
         options={{
           title: "Питомцы",
-          tabBarIcon: ({ color }) => renderIcon("paw", color),
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Питомцы", color, focused),
+          tabBarIcon: ({ color, focused }) => renderIcon("paw", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("pets"),
@@ -76,8 +103,9 @@ export default function TabsLayout() {
         name="articles"
         options={{
           title: "Статьи",
-          tabBarIcon: ({ color }) =>
-            renderIcon("newspaper-variant-outline", color),
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Статьи", color, focused),
+          tabBarIcon: ({ color, focused }) =>
+            renderIcon("newspaper-variant-outline", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("articles"),
@@ -87,7 +115,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Курсы",
-          tabBarIcon: ({ color }) => renderIcon("book-open-variant", color),
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Курсы", color, focused),
+          tabBarIcon: ({ color, focused }) => renderIcon("book-open-variant", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("courses"),
@@ -97,10 +126,8 @@ export default function TabsLayout() {
         name="consultations"
         options={{
           title: "Консультации",
-          tabBarLabelStyle: {
-            fontSize: 9,
-          },
-          tabBarIcon: ({ color }) => renderIcon("dog-side", color),
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Консультации", color, focused),
+          tabBarIcon: ({ color, focused }) => renderIcon("dog-side", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("consultations"),
@@ -110,7 +137,8 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Профиль",
-          tabBarIcon: ({ color }) => renderIcon("account", color),
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Профиль", color, focused),
+          tabBarIcon: ({ color, focused }) => renderIcon("account", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("profile"),
@@ -121,9 +149,32 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Достижения",
-          tabBarIcon: ({ color }) => renderIcon("trophy", color),
+          tabBarIcon: ({ color, focused }) => renderIcon("trophy", color, focused),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = {
+  tabIconWrap: {
+    minWidth: 34,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  tabIconWrapActive: {
+    backgroundColor: "rgba(99, 97, 40, 0.16)",
+  },
+  tabLabel: {
+    fontFamily: FONTS.montserrat,
+    fontSize: TAB_LABEL_FONT_SIZE,
+    lineHeight: 11,
+    textAlign: "center" as const,
+  },
+  tabLabelActive: {
+    fontFamily: FONTS.montserratMedium,
+    color: COLORS.primary,
+  },
+};

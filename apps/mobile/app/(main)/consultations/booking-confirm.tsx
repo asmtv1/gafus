@@ -456,11 +456,11 @@ const styles = StyleSheet.create({
   },
   lead: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   metaBlock: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: "#F5F0E8",
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: "#D4C4A8",
     gap: SPACING.xs,
   },
   metaRow: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.text },
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     paddingHorizontal: 4,
   },
-  field: { backgroundColor: COLORS.surface },
+  field: { backgroundColor: "#F5F0E8" },
   fieldError: {
     color: COLORS.error,
     fontSize: 12,
@@ -510,8 +510,8 @@ const styles = StyleSheet.create({
   genderRow: { flexDirection: "row", gap: SPACING.sm, flexWrap: "wrap" },
   genderChip: { alignSelf: "flex-start" },
   genderChipInactive: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
+    backgroundColor: "#F5F0E8",
+    borderColor: "#D4C4A8",
   },
   genderChipActive: {
     backgroundColor: COLORS.primary,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     color: COLORS.cardBackground,
     fontFamily: FONTS.montserratMedium,
   },
-  textArea: { backgroundColor: COLORS.surface, minHeight: 100 },
+  textArea: { backgroundColor: "#F5F0E8", minHeight: 100 },
   notice: {
     fontFamily: FONTS.montserrat,
     fontSize: 13,
