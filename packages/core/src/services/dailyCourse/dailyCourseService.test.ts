@@ -4,6 +4,7 @@ import {
   getDailyCourseCandidates,
   getDailyCourseBundleStepCandidates,
   getDailyCourseDayWithUserSteps,
+  getDailyCourseScheduleStatistics,
   getMoscowDateKey,
   getTodayDailyCourse,
   updateDailyCourseStepAndDay,
@@ -250,6 +251,143 @@ describe("dailyCourseService", () => {
     ).rejects.toThrow("INVALID_TIMER");
 
     expect(mocks.dailyCourseUserStepUpdate).not.toHaveBeenCalled();
+  });
+
+  it("builds daily course schedule statistics for users who opened the selected day", async () => {
+    const openedAt = new Date("2026-05-04T08:00:00.000Z");
+    const startedAt = new Date("2026-05-04T08:05:00.000Z");
+    const completedAt = new Date("2026-05-04T08:10:00.000Z");
+
+    mocks.dailyCourseScheduleFindFirst.mockResolvedValue({
+      id: "schedule-1",
+      date: new Date("2026-05-04T00:00:00.000Z"),
+      isPublished: true,
+      bundle: {
+        id: "bundle-1",
+        title: "Morning routine",
+        authorId: "trainer-1",
+        stepLinks: [
+          {
+            id: "bundle-step-1",
+            order: 0,
+            step: { id: "step-1", title: "Warm up" },
+          },
+          {
+            id: "bundle-step-2",
+            order: 1,
+            step: { id: "step-2", title: "Main drill" },
+          },
+        ],
+      },
+      userTrainings: [
+        {
+          id: "training-opened",
+          userId: "user-opened",
+          status: "NOT_STARTED",
+          currentStepIndex: 0,
+          createdAt: openedAt,
+          updatedAt: openedAt,
+          user: { id: "user-opened", username: "opened_only" },
+          steps: [],
+        },
+        {
+          id: "training-started",
+          userId: "user-started",
+          status: "IN_PROGRESS",
+          currentStepIndex: 1,
+          createdAt: startedAt,
+          updatedAt: completedAt,
+          user: { id: "user-started", username: "started_user" },
+          steps: [
+            {
+              id: "user-step-1",
+              bundleStepId: "bundle-step-1",
+              status: "COMPLETED",
+              paused: false,
+              remainingSec: null,
+              createdAt: startedAt,
+              updatedAt: completedAt,
+            },
+            {
+              id: "user-step-2",
+              bundleStepId: "bundle-step-2",
+              status: "IN_PROGRESS",
+              paused: true,
+              remainingSec: 45,
+              createdAt: startedAt,
+              updatedAt: startedAt,
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await getDailyCourseScheduleStatistics(
+      { id: "trainer-1", role: "TRAINER" },
+      { scheduleId: "schedule-1" },
+    );
+
+    expect(result).toMatchObject({
+      scheduleId: "schedule-1",
+      mskDate: "2026-05-04",
+      title: "Morning routine",
+      totalSteps: 2,
+      summary: {
+        openedUsers: 2,
+        startedUsers: 1,
+        completedUsers: 0,
+        openedWithoutStartUsers: 1,
+      },
+    });
+    expect(result?.users).toHaveLength(2);
+    expect(result?.users[0]).toMatchObject({
+      userId: "user-started",
+      username: "started_user",
+      status: "IN_PROGRESS",
+      completedSteps: 1,
+      totalSteps: 2,
+      currentStepTitle: "Main drill",
+    });
+    expect(result?.users[0]?.steps).toEqual([
+      expect.objectContaining({
+        bundleStepId: "bundle-step-1",
+        title: "Warm up",
+        status: "COMPLETED",
+      }),
+      expect.objectContaining({
+        bundleStepId: "bundle-step-2",
+        title: "Main drill",
+        status: "IN_PROGRESS",
+        paused: true,
+        remainingSec: 45,
+      }),
+    ]);
+    expect(result?.users[1]).toMatchObject({
+      userId: "user-opened",
+      username: "opened_only",
+      status: "NOT_STARTED",
+      completedSteps: 0,
+      currentStepTitle: "Warm up",
+    });
+  });
+
+  it("does not expose another trainer's daily course statistics to a non-elevated trainer", async () => {
+    mocks.dailyCourseScheduleFindFirst.mockResolvedValue(null);
+
+    const result = await getDailyCourseScheduleStatistics(
+      { id: "trainer-1", role: "TRAINER" },
+      { scheduleId: "schedule-2" },
+    );
+
+    expect(result).toBeNull();
+    expect(mocks.dailyCourseScheduleFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "schedule-2",
+          bundle: { authorId: "trainer-1" },
+        },
+      }),
+    );
   });
 });
 

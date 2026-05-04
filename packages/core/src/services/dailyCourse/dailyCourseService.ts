@@ -137,6 +137,45 @@ export interface DailyCourseStepCandidateDto {
   authorUsername: string;
 }
 
+export interface DailyCourseStatisticsStepDto {
+  bundleStepId: string;
+  stepId: string;
+  title: string;
+  order: number;
+  status: TrainingStatus;
+  paused: boolean;
+  remainingSec: number | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export interface DailyCourseStatisticsUserDto {
+  userId: string;
+  username: string;
+  openedAt: Date;
+  status: TrainingStatus;
+  completedSteps: number;
+  totalSteps: number;
+  lastActivityAt: Date;
+  currentStepTitle: string | null;
+  steps: DailyCourseStatisticsStepDto[];
+}
+
+export interface DailyCourseScheduleStatisticsDto {
+  scheduleId: string;
+  mskDate: string;
+  bundleId: string;
+  title: string;
+  totalSteps: number;
+  summary: {
+    openedUsers: number;
+    startedUsers: number;
+    completedUsers: number;
+    openedWithoutStartUsers: number;
+  };
+  users: DailyCourseStatisticsUserDto[];
+}
+
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 type StepLinkForDailyCourse = {
@@ -687,6 +726,142 @@ export async function updateDailyCourseStepAndDay(
     },
     { timeout: 10000 },
   );
+}
+
+export async function getDailyCourseScheduleStatistics(
+  actor: DailyCourseActor,
+  input: { scheduleId: string },
+): Promise<DailyCourseScheduleStatisticsDto | null> {
+  assertCanManageDailyCourse(actor);
+
+  const schedule = await prisma.dailyCourseSchedule.findFirst({
+    where: {
+      id: input.scheduleId,
+      ...(isElevated(actor) ? {} : { bundle: { authorId: actor.id } }),
+    },
+    select: {
+      id: true,
+      date: true,
+      bundle: {
+        select: {
+          id: true,
+          title: true,
+          authorId: true,
+          stepLinks: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              order: true,
+              step: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      userTrainings: {
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          currentStepIndex: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          steps: {
+            select: {
+              id: true,
+              bundleStepId: true,
+              status: true,
+              paused: true,
+              remainingSec: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!schedule) return null;
+
+  const totalSteps = schedule.bundle.stepLinks.length;
+  const users = schedule.userTrainings
+    .map((training): DailyCourseStatisticsUserDto => {
+      const userStepByBundleStepId = new Map(
+        training.steps.map((step) => [step.bundleStepId, step]),
+      );
+      const orderedSteps = schedule.bundle.stepLinks.map((link): DailyCourseStatisticsStepDto => {
+        const userStep = userStepByBundleStepId.get(link.id);
+        return {
+          bundleStepId: link.id,
+          stepId: link.step.id,
+          title: link.step.title,
+          order: link.order,
+          status: mapStepStatus(userStep?.status),
+          paused: userStep?.paused ?? false,
+          remainingSec: userStep?.remainingSec ?? null,
+          createdAt: userStep?.createdAt ?? null,
+          updatedAt: userStep?.updatedAt ?? null,
+        };
+      });
+      const completedSteps = orderedSteps.filter(
+        (step) => step.status === TrainingStatus.COMPLETED,
+      ).length;
+      const lastStepActivityAt = orderedSteps
+        .map((step) => step.updatedAt)
+        .filter((date): date is Date => Boolean(date))
+        .sort((a, b) => b.getTime() - a.getTime())[0];
+      const firstIncompleteStepIndex = orderedSteps.findIndex(
+        (step) => step.status !== TrainingStatus.COMPLETED,
+      );
+      const currentStepIndex =
+        training.currentStepIndex != null && training.currentStepIndex >= 0
+          ? training.currentStepIndex
+          : firstIncompleteStepIndex;
+
+      return {
+        userId: training.userId,
+        username: training.user.username,
+        openedAt: training.createdAt,
+        status: mapStepStatus(training.status),
+        completedSteps,
+        totalSteps,
+        lastActivityAt: lastStepActivityAt ?? training.updatedAt,
+        currentStepTitle: orderedSteps[currentStepIndex < 0 ? 0 : currentStepIndex]?.title ?? null,
+        steps: orderedSteps,
+      };
+    })
+    .sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
+
+  const startedUsers = users.filter((user) =>
+    user.steps.some((step) => step.status !== TrainingStatus.NOT_STARTED),
+  ).length;
+
+  return {
+    scheduleId: schedule.id,
+    mskDate: toDateKey(schedule.date),
+    bundleId: schedule.bundle.id,
+    title: schedule.bundle.title,
+    totalSteps,
+    summary: {
+      openedUsers: users.length,
+      startedUsers,
+      completedUsers: users.filter((user) => user.status === TrainingStatus.COMPLETED).length,
+      openedWithoutStartUsers: users.length - startedUsers,
+    },
+    users,
+  };
 }
 
 export async function getDailyCourseScheduleRange(
