@@ -56,6 +56,12 @@ const VIEWPORT_OVERLAY_SETTLE_MS = 96;
 /** Если гейт не закрылся (сеть, баг нативного слоя) — не блокировать UI навсегда. */
 const VIEWPORT_GATE_FORCE_MS = 12_000;
 const SHOW_COURSES_SEARCH = false;
+const DAILY_COURSE_LOGO = {
+  url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png",
+  alt: "Курс дня",
+};
+const DAILY_COURSE_DESCRIPTION =
+  "Это курс, в котором каждый день появляются новые мини-задания для спокойного и понятного прогресса.";
 
 function getCourseLogoUri(
   logoImg: string | null | undefined,
@@ -103,13 +109,26 @@ function DailyCourseCard({
   return (
     <Pressable style={styles.dailyCourseCard} onPress={() => onPress(data.scheduleId!)}>
       <View style={styles.dailyCourseHeader}>
+        <Image
+          source={{ uri: DAILY_COURSE_LOGO.url }}
+          style={styles.dailyCourseImage}
+          contentFit="cover"
+          accessibilityLabel={DAILY_COURSE_LOGO.alt}
+        />
         <View style={styles.dailyCourseText}>
-          <Text style={styles.dailyCourseEyebrow}>Курс дня · {data.mskDate}</Text>
-          <Text style={styles.dailyCourseTitle}>{data.day.title}</Text>
-          <Text style={styles.dailyCourseMeta}>
-            {data.day.stepsCount} шаг. · прогресс {progress}
-          </Text>
+          <View style={styles.dailyCoursePill}>
+            <Text style={styles.dailyCoursePillText}>Обновляется ежедневно</Text>
+          </View>
+          <Text style={styles.dailyCourseTitle}>Курс дня</Text>
+          <Text style={styles.dailyCourseDescription}>{DAILY_COURSE_DESCRIPTION}</Text>
+          <View style={styles.dailyCourseProgressRow}>
+            <Text style={styles.dailyCourseMeta}>{data.day.stepsCount} упражнения</Text>
+            <Text style={styles.dailyCourseMeta}>{progress} выполнено</Text>
+          </View>
         </View>
+      </View>
+      <View style={styles.dailyCourseFooter}>
+        <Text style={styles.dailyCourseDate}>{data.mskDate}</Text>
         <View style={styles.dailyCourseAction}>
           <Text style={styles.dailyCourseActionText}>{actionText}</Text>
         </View>
@@ -565,8 +584,14 @@ const styles = StyleSheet.create({
   },
   dailyCourseHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
     gap: SPACING.md,
+  },
+  dailyCourseImage: {
+    width: 112,
+    minHeight: 132,
+    borderRadius: 8,
+    backgroundColor: "#EFE7DF",
   },
   dailyCourseText: {
     flex: 1,
@@ -578,13 +603,48 @@ const styles = StyleSheet.create({
   },
   dailyCourseTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
     marginBottom: SPACING.xs,
+  },
+  dailyCoursePill: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    backgroundColor: "#EAF3FF",
+    marginBottom: SPACING.xs,
+  },
+  dailyCoursePillText: {
+    color: COLORS.secondary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dailyCourseDescription: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: SPACING.sm,
+  },
+  dailyCourseProgressRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: SPACING.sm,
   },
   dailyCourseMeta: {
     color: COLORS.textSecondary,
     fontSize: 14,
+  },
+  dailyCourseFooter: {
+    marginTop: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.sm,
+  },
+  dailyCourseDate: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
   },
   dailyCourseAction: {
     minHeight: 40,

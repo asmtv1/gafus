@@ -145,7 +145,8 @@ export default function DailyCourseDayScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Surface style={styles.header} elevation={0}>
         <Text style={styles.eyebrow}>{dayData.mskDate}</Text>
-        <Text style={styles.title}>{dayData.title}</Text>
+        <Text style={styles.title}>Курс дня</Text>
+        <Text style={styles.bundleTitle}>{dayData.title}</Text>
         {dayData.description ? <Text style={styles.description}>{dayData.description}</Text> : null}
         <Text style={styles.progress}>Прогресс: {progressText}</Text>
       </Surface>
@@ -197,6 +198,12 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: FONTS.impact,
     fontSize: 28,
+    marginBottom: SPACING.xs,
+  },
+  bundleTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "700",
     marginBottom: SPACING.sm,
   },
   description: {

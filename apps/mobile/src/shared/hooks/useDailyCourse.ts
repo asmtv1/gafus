@@ -46,8 +46,8 @@ export function useDailyCourseDay(scheduleId: string) {
           scheduleId,
           response.data.steps.map((step, index) => ({
             stepIndex: index,
-            status: step.status || "NOT_STARTED",
-            remainingSec: step.remainingSec ?? null,
+            status: step.isPausedOnServer ? "PAUSED" : step.status || "NOT_STARTED",
+            remainingSec: step.remainingSecOnServer ?? step.remainingSec ?? null,
             durationSec: step.step?.durationSec ?? undefined,
           })),
         );
