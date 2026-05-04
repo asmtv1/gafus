@@ -135,6 +135,14 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           Курс дня
         </Link>
         <Link
+          href="/main-panel/daily-course/statistics"
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
+          <TrendingUp />
+          Статистика курса дня
+        </Link>
+        <Link
           href="/main-panel/daily-course/bundles"
           className={styles.button}
           onClick={closeMobileMenu}
