@@ -12,7 +12,6 @@ import {
   InputLabel,
   MenuItem,
   Select,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -104,7 +103,6 @@ export default function DailyCourseClient({
                 <TableCell>Дата</TableCell>
                 <TableCell>Статус</TableCell>
                 <TableCell>Связка</TableCell>
-                <TableCell>Публикация</TableCell>
                 <TableCell align="right">Действия</TableCell>
               </TableRow>
             </TableHead>
@@ -162,9 +160,6 @@ export default function DailyCourseClient({
                           Сохранить
                         </Button>
                       </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Switch checked={item?.isPublished ?? true} disabled />
                     </TableCell>
                     <TableCell align="right">
                       {item && (
