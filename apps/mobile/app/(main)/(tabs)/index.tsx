@@ -61,7 +61,7 @@ const DAILY_COURSE_LOGO = {
   alt: "Курс дня",
 };
 const DAILY_COURSE_DESCRIPTION =
-  "Это курс, в котором каждый день появляются новые мини-задания для спокойного и понятного прогресса.";
+  "Это курс, в котором каждый день появляются новые мини-задания для каждодневного прогресса.";
 
 function getCourseLogoUri(
   logoImg: string | null | undefined,
