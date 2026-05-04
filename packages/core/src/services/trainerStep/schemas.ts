@@ -39,6 +39,7 @@ const createStepBaseSchema = z.object({
   requiresVideoReport: z.boolean(),
   requiresWrittenFeedback: z.boolean(),
   hasTestQuestions: z.boolean(),
+  isDailyCourse: z.boolean().default(false),
 });
 
 export const createStepSchema = createStepBaseSchema

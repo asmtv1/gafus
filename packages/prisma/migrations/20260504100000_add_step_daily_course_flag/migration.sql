@@ -1,0 +1,1 @@
+ALTER TABLE "Step" ADD COLUMN "isDailyCourse" BOOLEAN NOT NULL DEFAULT false;

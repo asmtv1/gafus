@@ -22,6 +22,13 @@ export interface UseStepTimerParams {
   totalSteps: number;
   onRun: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
+  serverActions?: {
+    startStep?: (stepIndex: number, durationSec: number) => Promise<{ success: boolean }>;
+    completeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
+    resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+  };
 }
 
 export function useStepTimer({
@@ -35,6 +42,7 @@ export function useStepTimer({
   totalSteps,
   onRun,
   onReset,
+  serverActions,
 }: UseStepTimerParams) {
   const [isPausing, setIsPausing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -73,6 +81,78 @@ export function useStepTimer({
   const { startSync, finishSync, addPendingChange, removePendingChange } = useSyncStatus();
   const { updateStepProgress } = useCacheManager();
 
+  const runStartStepWithServer = useCallback(
+    async (nextDurationSec: number) => {
+      if (serverActions?.startStep) {
+        await serverActions.startStep(stepIndex, nextDurationSec);
+        return;
+      }
+      await startStepWithServer(courseId, dayOnCourseId, stepIndex, nextDurationSec);
+    },
+    [courseId, dayOnCourseId, serverActions, startStepWithServer, stepIndex],
+  );
+
+  const runCompleteStepWithServer = useCallback(
+    async () => {
+      if (serverActions?.completeStep) {
+        await serverActions.completeStep(stepIndex);
+        return;
+      }
+      await finishStepWithServer(courseId, dayOnCourseId, stepIndex, stepTitle, stepOrder);
+    },
+    [
+      courseId,
+      dayOnCourseId,
+      finishStepWithServer,
+      serverActions,
+      stepIndex,
+      stepOrder,
+      stepTitle,
+    ],
+  );
+
+  const runPauseStepWithServer = useCallback(
+    async (timeLeftSec: number) => {
+      if (serverActions?.pauseStep) {
+        await serverActions.pauseStep(stepIndex, timeLeftSec);
+        return;
+      }
+      await pauseStepWithServer(courseId, dayOnCourseId, stepIndex, timeLeftSec);
+    },
+    [courseId, dayOnCourseId, pauseStepWithServer, serverActions, stepIndex],
+  );
+
+  const runResumeStepWithServer = useCallback(
+    async (nextDurationSec: number) => {
+      if (serverActions?.resumeStep) {
+        await serverActions.resumeStep(stepIndex);
+        return;
+      }
+      await resumeStepWithServer(courseId, dayOnCourseId, stepIndex, nextDurationSec);
+    },
+    [courseId, dayOnCourseId, resumeStepWithServer, serverActions, stepIndex],
+  );
+
+  const runResetStepWithServer = useCallback(
+    async () => {
+      if (serverActions?.resetStep) {
+        await serverActions.resetStep(stepIndex);
+        resetStep(courseId, dayOnCourseId, stepIndex, durationSec);
+        return;
+      }
+      await resetStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
+    },
+    [
+      courseId,
+      dayOnCourseId,
+      durationSec,
+      resetStep,
+      resetStepWithServer,
+      serverActions,
+      stepIndex,
+    ],
+  );
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -98,13 +178,7 @@ export function useStepTimer({
         setLiveTimeLeft(stepKey, null);
         finishStep(courseId, dayOnCourseId, stepIndex);
         try {
-          await finishStepWithServer(
-            courseId,
-            dayOnCourseId,
-            stepIndex,
-            stepTitle,
-            stepOrder,
-          );
+          await runCompleteStepWithServer();
         } catch {
           // Ошибка обрабатывается в очереди синхронизации
         }
@@ -118,12 +192,10 @@ export function useStepTimer({
     stepIndex,
     stepKey,
     stepState?.timeLeft,
-    stepTitle,
-    stepOrder,
     startTimer,
     setLiveTimeLeft,
     finishStep,
-    finishStepWithServer,
+    runCompleteStepWithServer,
     onRun,
   ]);
 
@@ -186,7 +258,7 @@ export function useStepTimer({
           addPendingChange();
           startSync();
           try {
-            await finishStepWithServer(courseId, dayOnCourseId, stepIndex, stepTitle, stepOrder);
+            await runCompleteStepWithServer();
             finishSync(true);
             removePendingChange();
           } catch (finishErr) {
@@ -217,9 +289,6 @@ export function useStepTimer({
       setLiveTimeLeft,
       stepKey,
       stepState?.timeLeft,
-      finishStepWithServer,
-      stepTitle,
-      stepOrder,
       onRun,
       updateStepProgress,
       addPendingChange,
@@ -227,6 +296,7 @@ export function useStepTimer({
       removePendingChange,
       startSync,
       totalSteps,
+      runCompleteStepWithServer,
     ],
   );
 
@@ -237,7 +307,7 @@ export function useStepTimer({
     }
     startTransition(async () => {
       try {
-        await startStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
+        await runStartStepWithServer(durationSec);
         updateStepProgress(
           courseId,
           dayOnCourseId,
@@ -270,13 +340,13 @@ export function useStepTimer({
     courseId,
     dayOnCourseId,
     stepIndex,
-    startStepWithServer,
     durationSec,
     onRun,
     startStepTimer,
     updateStepProgress,
     totalSteps,
     startTransition,
+    runStartStepWithServer,
   ]);
 
   const togglePause = useCallback(() => {
@@ -287,7 +357,7 @@ export function useStepTimer({
           try {
             const liveFromStore = useTimerStore.getState().liveTimeLeftByStepKey[stepKey];
             const timeToSave = liveFromStore ?? stepState?.timeLeft ?? durationSec;
-            await pauseStepWithServer(courseId, dayOnCourseId, stepIndex, timeToSave);
+            await runPauseStepWithServer(timeToSave);
             updateStepProgress(courseId, dayOnCourseId, stepIndex, "PAUSED", undefined, totalSteps);
           } catch (error) {
             reportClientError(error, {
@@ -303,12 +373,7 @@ export function useStepTimer({
         setIsPausing(true);
         startTransition(async () => {
           try {
-            await resumeStepWithServer(
-              courseId,
-              dayOnCourseId,
-              stepIndex,
-              stepState?.timeLeft ?? durationSec,
-            );
+            await runResumeStepWithServer(stepState?.timeLeft ?? durationSec);
             updateStepProgress(
               courseId,
               dayOnCourseId,
@@ -332,12 +397,7 @@ export function useStepTimer({
       setIsPausing(true);
       startTransition(async () => {
         try {
-          await resumeStepWithServer(
-            courseId,
-            dayOnCourseId,
-            stepIndex,
-            stepState?.timeLeft ?? durationSec,
-          );
+          await runResumeStepWithServer(stepState?.timeLeft ?? durationSec);
           updateStepProgress(
             courseId,
             dayOnCourseId,
@@ -361,24 +421,24 @@ export function useStepTimer({
     stepState?.status,
     stepState?.timeLeft,
     isActuallyRunning,
-    pauseStepWithServer,
     courseId,
     dayOnCourseId,
     stepIndex,
     updateStepProgress,
-    resumeStepWithServer,
     durationSec,
     startStepTimer,
     setLiveTimeLeft,
     stepKey,
     totalSteps,
     startTransition,
+    runPauseStepWithServer,
+    runResumeStepWithServer,
   ]);
 
   const handleReset = useCallback(() => {
     startTransition(async () => {
       try {
-        await resetStepWithServer(courseId, dayOnCourseId, stepIndex, durationSec);
+        await runResetStepWithServer();
         setLiveTimeLeft(stepKey, null);
         onReset(stepIndex);
       } catch (error) {
@@ -393,7 +453,6 @@ export function useStepTimer({
       }
     });
   }, [
-    resetStepWithServer,
     courseId,
     dayOnCourseId,
     stepIndex,
@@ -404,6 +463,7 @@ export function useStepTimer({
     resetStep,
     onReset,
     startTransition,
+    runResetStepWithServer,
   ]);
 
   return {

@@ -38,6 +38,13 @@ if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
 
 export const trainingRoutes = new Hono();
 
+const courseIdSchema = z
+  .string()
+  .min(1, "courseId обязателен")
+  .refine((value) => z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success, {
+    message: "courseId должен быть CUID или UUID",
+  });
+
 // ==================== GET /training/days ====================
 // Получить дни тренировок курса
 const daysQuerySchema = z.object({
@@ -107,7 +114,7 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
 
 // ==================== POST /training/step/start ====================
 const startStepBodySchema = z.object({
-  courseId: z.string().cuid("courseId должен быть CUID"),
+  courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   status: z.literal("IN_PROGRESS").optional(),
@@ -155,7 +162,7 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
 
 // ==================== POST /training/step/pause ====================
 const pauseStepBodySchema = z.object({
-  courseId: z.string().cuid("courseId должен быть CUID"),
+  courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   timeLeftSec: z.number().int().min(0, "timeLeftSec >= 0"),
@@ -203,7 +210,7 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
 
 // ==================== POST /training/step/resume ====================
 const resumeStepBodySchema = z.object({
-  courseId: z.string().cuid("courseId должен быть CUID"),
+  courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
 });
@@ -247,7 +254,7 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
 
 // ==================== POST /training/step/reset ====================
 const resetStepBodySchema = z.object({
-  courseId: z.string().cuid("courseId должен быть CUID"),
+  courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   durationSec: z.number().int().min(0, "durationSec >= 0").optional(),
@@ -305,7 +312,7 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
 
 // ==================== POST /training/step/complete/practice ====================
 const completePracticeBodySchema = z.object({
-  courseId: z.string().cuid("courseId должен быть CUID"),
+  courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   stepTitle: z.string().optional(),
@@ -344,7 +351,7 @@ trainingRoutes.post(
 );
 
 const completeTheoryBodySchema = z.object({
-  courseId: z.string().cuid("courseId должен быть CUID"),
+  courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
   stepTitle: z.string().optional(),

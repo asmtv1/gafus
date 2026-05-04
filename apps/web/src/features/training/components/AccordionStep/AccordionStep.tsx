@@ -47,6 +47,7 @@ export function AccordionStep({
   hasTestQuestions,
   userStepId,
   stepId,
+  serverActions,
 }: AccordionStepProps) {
   const {
     stepState,
@@ -69,6 +70,7 @@ export function AccordionStep({
     totalSteps,
     onRun,
     onReset,
+    serverActions,
   });
 
   const {
@@ -113,13 +115,17 @@ export function AccordionStep({
         startSync();
 
         try {
-          await markPracticeStepAsCompleted(
-            courseId,
-            dayOnCourseId,
-            stepIndex,
-            stepTitle,
-            stepOrder,
-          );
+          if (serverActions?.completeStep) {
+            await serverActions.completeStep(stepIndex);
+          } else {
+            await markPracticeStepAsCompleted(
+              courseId,
+              dayOnCourseId,
+              stepIndex,
+              stepTitle,
+              stepOrder,
+            );
+          }
           finishSync(true);
           removePendingChange();
         } catch (markErr) {
@@ -166,6 +172,7 @@ export function AccordionStep({
     finishSync,
     removePendingChange,
     startCompleteTransition,
+    serverActions,
   ]);
 
   if (!stepState) return null;

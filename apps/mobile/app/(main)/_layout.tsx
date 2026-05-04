@@ -35,6 +35,10 @@ export default function MainLayout() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="daily-course/[scheduleId]"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="trainings/[courseType]/index"
         options={{ headerShown: false }}
       />

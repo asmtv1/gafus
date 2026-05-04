@@ -23,6 +23,9 @@
       "@widgets/*": ["./src/widgets/*"],
       "@gafus/core": ["../../packages/core/src/index.ts"],
       "@gafus/core/services/course": ["../../packages/core/src/services/course/index.ts"],
+      "@gafus/core/services/dailyCourse": [
+        "../../packages/core/src/services/dailyCourse/index.ts"
+      ],
       "@gafus/core/services/coursePath": ["../../packages/core/src/services/coursePath/index.ts"],
       "@gafus/core/services/diary": ["../../packages/core/src/services/diary/index.ts"],
       "@gafus/core/services/user": ["../../packages/core/src/services/user/index.ts"],
@@ -43,6 +46,7 @@
       "@gafus/core/services/achievements": [
         "../../packages/core/src/services/achievements/index.ts"
       ],
+      "@gafus/metadata": ["../../packages/metadata/src/index.ts"],
       "@gafus/core/services/training": [
         "../../packages/core/dist/core/src/services/training/index.d.ts"
       ],

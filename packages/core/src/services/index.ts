@@ -2,6 +2,7 @@ export * from "./article";
 export * from "./cache";
 export * from "./common";
 export * from "./course";
+export * from "./dailyCourse";
 export * from "./diary";
 export * from "./user";
 export * from "./auth";

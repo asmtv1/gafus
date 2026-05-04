@@ -58,6 +58,7 @@ export default function TrainingDayScreen() {
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const hasHandledPaymentReturnRef = useRef(false);
+  const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
   /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
   const diaryListFetchGenerationRef = useRef(0);
   const { isOffline } = useNetworkStatus();
@@ -142,6 +143,69 @@ export default function TrainingDayScreen() {
       }
     }
   }, [dayData?.steps, courseId, dayId, initializeStep]);
+
+  useEffect(() => {
+    if (isOffline || !dayData?.steps?.length || !courseId || !dayId) return;
+
+    let cancelled = false;
+    const recoverCompletedSteps = async () => {
+      let recoveredAny = false;
+
+      for (let index = 0; index < dayData.steps.length; index += 1) {
+        const serverStep = dayData.steps[index];
+        const serverStatus = "status" in serverStep ? serverStep.status : "NOT_STARTED";
+        if (serverStatus === "COMPLETED") continue;
+
+        const localState = useStepStore.getState().getStepState(courseId, dayId, index);
+        if (localState?.status !== "COMPLETED") continue;
+
+        const recoveryKey = `${courseId}:${dayId}:${index}`;
+        if (recoveredCompletedStepsRef.current.has(recoveryKey)) continue;
+        recoveredCompletedStepsRef.current.add(recoveryKey);
+
+        const stepData = getStepContent(serverStep);
+        const params = {
+          courseId,
+          dayOnCourseId: dayId,
+          stepIndex: index,
+          stepTitle: stepData.title,
+          stepOrder: stepData.order,
+        };
+
+        const response =
+          stepData.type === "THEORY" || stepData.type === "DIARY"
+            ? await trainingApi.completeTheoryStep(params)
+            : await trainingApi.completePracticeStep(params);
+
+        if (!response.success) {
+          recoveredCompletedStepsRef.current.delete(recoveryKey);
+          reportClientError(new Error(response.error ?? "Не удалось восстановить прогресс шага"), {
+            issueKey: "TrainingDay",
+            keys: {
+              operation: "recover_completed_step",
+              courseId,
+              dayId,
+              stepIndex: String(index),
+              code: response.code ?? "",
+            },
+          });
+          continue;
+        }
+
+        recoveredAny = true;
+      }
+
+      if (recoveredAny && !cancelled) {
+        void refetch();
+      }
+    };
+
+    void recoverCompletedSteps();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, dayData?.steps, dayId, isOffline, refetch]);
 
   // Обработчики
   const handleToggleStep = useCallback(
@@ -275,10 +339,13 @@ export default function TrainingDayScreen() {
           stepOrder,
         };
 
-        if (isTheory) {
-          await completeTheoryMutation.mutateAsync(params);
-        } else {
-          await completePracticeMutation.mutateAsync(params);
+        const result =
+          isTheory
+            ? await completeTheoryMutation.mutateAsync(params)
+            : await completePracticeMutation.mutateAsync(params);
+
+        if (!result.success) {
+          throw new Error(result.error ?? "Не удалось сохранить прогресс");
         }
 
         setSnackbar({ visible: true, message: "Шаг выполнен!" });

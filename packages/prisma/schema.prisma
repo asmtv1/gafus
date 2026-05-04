@@ -72,12 +72,14 @@ model Step {
   requiresVideoReport     Boolean      @default(false)
   requiresWrittenFeedback Boolean      @default(false)
   hasTestQuestions        Boolean      @default(false)
+  isDailyCourse           Boolean      @default(false)
   authorId                String
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @default(now())
   estimatedDurationSec    Int?
   examResults             ExamResult[]
   author                  User         @relation(fields: [authorId], references: [id])
+  dailyCourseBundleLinks  DailyCourseBundleStep[]
   stepLinks               StepOnDay[]
 }
 
@@ -165,6 +167,37 @@ model StepOnDay {
   @@index([dayId, order])
 }
 
+model DailyCourseBundle {
+  id            String                    @id @default(cuid())
+  title         String
+  equipment     String                    @default("")
+  description   String                    @default("")
+  type          String                    @default("regular")
+  authorId      String
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  author        User                      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  schedules     DailyCourseSchedule[]
+  stepLinks     DailyCourseBundleStep[]
+
+  @@index([authorId])
+  @@index([updatedAt])
+}
+
+model DailyCourseBundleStep {
+  id                    String                  @id @default(cuid())
+  bundleId              String
+  stepId                String
+  order                 Int
+  bundle                DailyCourseBundle       @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  step                  Step                    @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  dailyCourseUserSteps  DailyCourseUserStep[]
+
+  @@unique([bundleId, order])
+  @@index([bundleId, order])
+  @@index([stepId])
+}
+
 model UserTraining {
   id               String         @id @default(cuid())
   userId           String
@@ -194,6 +227,57 @@ model UserStep {
   userTraining   UserTraining   @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
 
   @@unique([userTrainingId, stepOnDayId])
+}
+
+model DailyCourseSchedule {
+  id            String                    @id @default(cuid())
+  date          DateTime                  @unique @db.Date
+  bundleId      String
+  createdById   String
+  isPublished   Boolean                   @default(true)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  bundle        DailyCourseBundle         @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  createdBy     User                      @relation("DailyCourseSchedulesCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  userTrainings DailyCourseUserTraining[]
+
+  @@index([date])
+  @@index([bundleId])
+  @@index([createdById])
+}
+
+model DailyCourseUserTraining {
+  id               String                @id @default(cuid())
+  userId           String
+  scheduleId       String
+  status           TrainingStatus        @default(NOT_STARTED)
+  currentStepIndex Int?                  @default(0)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  schedule         DailyCourseSchedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps            DailyCourseUserStep[]
+
+  @@unique([userId, scheduleId])
+  @@index([scheduleId])
+  @@index([userId])
+}
+
+model DailyCourseUserStep {
+  id                         String                  @id @default(cuid())
+  dailyCourseUserTrainingId  String
+  bundleStepId               String
+  status                     TrainingStatus          @default(NOT_STARTED)
+  paused                     Boolean                 @default(false)
+  remainingSec               Int?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  dailyCourseUserTraining    DailyCourseUserTraining @relation(fields: [dailyCourseUserTrainingId], references: [id], onDelete: Cascade)
+  bundleStep                 DailyCourseBundleStep   @relation(fields: [bundleStepId], references: [id], onDelete: Cascade)
+
+  @@unique([dailyCourseUserTrainingId, bundleStepId])
+  @@index([dailyCourseUserTrainingId])
+  @@index([bundleStepId])
 }
 
 model User {
@@ -241,6 +325,7 @@ model User {
   trainings                      Training[]
   trainingAccesses               TrainingAccess[]
   createdDays                    TrainingDay[]
+  dailyCourseBundles             DailyCourseBundle[]
   userCourses                    UserCourse[]
   profile                        UserProfile?
   userTrainings                  UserTraining[]
@@ -259,6 +344,8 @@ model User {
   consultationBookingsAsClient   ConsultationBooking[]
   /// Идемпотентность POST /book (ключ + клиент)
   consultationBookingIdempotency ConsultationBookingIdempotency[]
+  createdDailyCourseSchedules    DailyCourseSchedule[]           @relation("DailyCourseSchedulesCreatedBy")
+  dailyCourseUserTrainings       DailyCourseUserTraining[]
 }
 
 enum ConsentType {

@@ -39,6 +39,7 @@ const visibleStepsSelect = {
   imageUrls: true,
   pdfUrls: true,
   checklist: true,
+  isDailyCourse: true,
   authorId: true,
   createdAt: true,
   updatedAt: true,
@@ -100,6 +101,7 @@ export async function createStep(
         requiresWrittenFeedback:
           input.type === "EXAMINATION" ? input.requiresWrittenFeedback : false,
         hasTestQuestions: input.type === "EXAMINATION" ? input.hasTestQuestions : false,
+        isDailyCourse: input.isDailyCourse,
         authorId,
       },
     });
@@ -163,6 +165,7 @@ export async function updateStep(
         requiresWrittenFeedback:
           input.type === "EXAMINATION" ? input.requiresWrittenFeedback : false,
         hasTestQuestions: input.type === "EXAMINATION" ? input.hasTestQuestions : false,
+        isDailyCourse: input.isDailyCourse,
       },
     });
 
@@ -224,7 +227,9 @@ export async function getVisibleSteps(
   authorId: string | null,
   isAdminOrModerator: boolean,
 ) {
-  const where = isAdminOrModerator ? undefined : { authorId: authorId! };
+  const where = isAdminOrModerator
+    ? { isDailyCourse: false }
+    : { authorId: authorId!, isDailyCourse: false };
   return prisma.step.findMany({
     where,
     select: visibleStepsSelect,

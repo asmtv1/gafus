@@ -52,6 +52,8 @@ export interface UserStep {
   stepIndex: number;
   status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "RESET";
   remainingSec: number | null;
+  isPausedOnServer?: boolean;
+  remainingSecOnServer?: number | null;
   completedAt: string | null;
   step: StepContent;
 }

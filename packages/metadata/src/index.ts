@@ -6,7 +6,7 @@
  */
 
 // Константы
-export { SITE_CONFIG, DEFAULT_OG_IMAGE, SOCIAL, DESCRIPTIONS } from "./constants";
+export { SITE_CONFIG, DEFAULT_OG_IMAGE, DAILY_COURSE_LOGO, SOCIAL, DESCRIPTIONS } from "./constants";
 
 // Типы
 export type {

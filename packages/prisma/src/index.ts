@@ -4,6 +4,11 @@ export type {
   Course,
   CourseAccess,
   CourseReview,
+  DailyCourseBundle,
+  DailyCourseBundleStep,
+  DailyCourseSchedule,
+  DailyCourseUserStep,
+  DailyCourseUserTraining,
   DayOnCourse,
   ErrorLog,
   FavoriteCourse,
@@ -66,6 +71,11 @@ export interface DatabaseClient {
   userProfile: PrismaClient["userProfile"];
   userTraining: PrismaClient["userTraining"];
   userStep: PrismaClient["userStep"];
+  dailyCourseSchedule: PrismaClient["dailyCourseSchedule"];
+  dailyCourseBundle: PrismaClient["dailyCourseBundle"];
+  dailyCourseBundleStep: PrismaClient["dailyCourseBundleStep"];
+  dailyCourseUserTraining: PrismaClient["dailyCourseUserTraining"];
+  dailyCourseUserStep: PrismaClient["dailyCourseUserStep"];
   pet: PrismaClient["pet"];
   $connect: () => Promise<void>;
   $disconnect: () => Promise<void>;

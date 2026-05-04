@@ -25,6 +25,10 @@
       "types": "./dist/core/src/services/course/index.d.ts",
       "default": "./dist/core/src/services/course/index.js"
     },
+    "./services/dailyCourse": {
+      "types": "./dist/core/src/services/dailyCourse/index.d.ts",
+      "default": "./dist/core/src/services/dailyCourse/index.js"
+    },
     "./services/user": {
       "types": "./dist/core/src/services/user/index.d.ts",
       "default": "./dist/core/src/services/user/index.js"

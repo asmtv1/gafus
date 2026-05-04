@@ -1,10 +1,12 @@
 .container {
   margin: 0 auto;
   background-color: var(--bg-1);
+  width: 100%;
   padding-bottom: 10px;
 }
 
 .title {
+  margin: 58px 0 34px;
   color: #352e2e;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   font-weight: 400;
@@ -21,6 +23,147 @@
 
 .guidesSection + .coursesSection {
   margin-top: 32px;
+}
+
+.dailyCourseSection {
+  margin: 0 auto 36px;
+  max-width: 330px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.dailyCourseCard {
+  display: flex;
+  flex-direction: column;
+  width: 330px;
+  gap: 0;
+  border: 2px solid var(--bg-2, #636128);
+  border-radius: 12px;
+  background: #fff8e5;
+  color: #352e2e;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.dailyCourseMedia {
+  width: 100%;
+  padding-top: 10px;
+  padding-left: 30px;
+  padding-right: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dailyCourseImage {
+  width: 245px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.dailyCourseCard:hover {
+  box-shadow: 0 8px 18px rgba(53, 46, 46, 0.14);
+  transform: translateY(-1px);
+}
+
+.dailyCourseContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  padding-top: 10px;
+  padding-inline: 30px;
+  align-items: center;
+  text-align: center;
+}
+
+.dailyCourseHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dailyCourseEyebrow,
+.dailyCoursePill,
+.dailyCourseDescription,
+.dailyCourseProgressRow {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.dailyCourseEyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 9999px;
+  background: var(--bg-2, #636128);
+  color: #fff8e5;
+  padding: 0 12px;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dailyCoursePill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 9999px;
+  border: 1px solid rgba(99, 97, 40, 0.2);
+  background: rgba(255, 248, 229, 0.92);
+  color: #636128;
+  padding: 0 12px;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.dailyCourseDescription {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+  color: #352e2e;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  margin: 12px 0 10px;
+}
+
+.dailyCourseProgressRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(53, 46, 46, 0.78);
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: auto;
+}
+
+.dailyCourseProgressTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(99, 97, 40, 0.18);
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.dailyCourseProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bg-2, #636128);
 }
 
 .coursesSection {
@@ -64,8 +207,43 @@
 
 /* Мобильная адаптация */
 @media (max-width: 768px) {
+  .title {
+    margin: 38px 0 26px;
+    font-size: 64px;
+  }
+
+  .dailyCourseSection {
+    padding: 0 14px;
+    margin-bottom: 30px;
+  }
+
+  .dailyCourseCard {
+    width: 100%;
+    max-width: 330px;
+  }
+
+  .dailyCourseMedia {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .dailyCourseDescription {
+    font-size: 12px;
+  }
+
   .courseList {
     padding: 0 10px;
     gap: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    margin: 30px 0 22px;
+    font-size: 52px;
+  }
+
+  .dailyCourseDescription {
+    font-size: 12px;
   }
 }

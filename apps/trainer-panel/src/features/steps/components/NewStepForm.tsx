@@ -39,6 +39,7 @@ interface StepFormData {
   requiresVideoReport: boolean;
   requiresWrittenFeedback: boolean;
   hasTestQuestions: boolean;
+  isDailyCourse: boolean;
 }
 
 interface StepInitialData {
@@ -55,6 +56,7 @@ interface StepInitialData {
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;
+  isDailyCourse?: boolean;
 }
 
 type ServerAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -114,6 +116,7 @@ export default function NewStepForm({
       requiresVideoReport: initialData?.requiresVideoReport ?? false,
       requiresWrittenFeedback: initialData?.requiresWrittenFeedback ?? false,
       hasTestQuestions: initialData?.hasTestQuestions ?? false,
+      isDailyCourse: initialData?.isDailyCourse ?? false,
     },
   });
 
@@ -133,6 +136,7 @@ export default function NewStepForm({
         requiresVideoReport: initialData.requiresVideoReport ?? false,
         requiresWrittenFeedback: initialData.requiresWrittenFeedback ?? false,
         hasTestQuestions: initialData.hasTestQuestions ?? false,
+        isDailyCourse: initialData.isDailyCourse ?? false,
       });
       setImageFiles([]);
       setPdfUrls(initialData.pdfUrls ?? []);
@@ -219,6 +223,7 @@ export default function NewStepForm({
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("type", data.type);
+      formData.append("isDailyCourse", String(data.isDailyCourse));
 
       // Для тренировочных, теоретических и практических шагов добавляем длительность и видео
       if (data.type === "TRAINING" || data.type === "THEORY" || data.type === "PRACTICE") {
@@ -380,6 +385,20 @@ export default function NewStepForm({
               { value: "DIARY", label: "Дневник успехов" },
             ]}
           />
+
+          <Box className={sharedStyles.formField}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={form.watch("isDailyCourse")}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    form.setValue("isDailyCourse", e.target.checked);
+                  }}
+                />
+              }
+              label="Для курса дня"
+            />
+          </Box>
 
           <Alert severity="info" sx={{ mt: 2, mb: 2 }}>
             <AlertTitle>Различия между типами шагов:</AlertTitle>

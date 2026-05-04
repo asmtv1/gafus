@@ -2,7 +2,7 @@
  * Pets Routes
  * Endpoints для работы с питомцами: список, создание, обновление, удаление
  */
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
@@ -96,11 +96,18 @@ const renamePetDocumentSchema = z.object({
   name: z.string().trim().min(1, "Название документа не может быть пустым"),
 });
 
-async function handleRenamePetDocument(c: Parameters<Parameters<typeof petsRoutes.put>[2]>[0]) {
+type RenamePetDocumentContext = Context & {
+  req: Context["req"] & {
+    valid: (target: "json") => z.infer<typeof renamePetDocumentSchema>;
+    param: (name: "petId" | "documentId") => string;
+  };
+};
+
+async function handleRenamePetDocument(c: RenamePetDocumentContext) {
   try {
-    const user = c.get("user");
-    const petId = c.req.param("petId");
-    const documentId = c.req.param("documentId");
+    const user = c.get("user") as { id: string };
+    const petId = String(c.req.param("petId"));
+    const documentId = String(c.req.param("documentId"));
     const { name } = c.req.valid("json");
 
     const updated = await renamePetDocument(documentId, user.id, name, petId);
@@ -305,7 +312,7 @@ petsRoutes.delete("/:petId/documents/:documentId", async (c) => {
 petsRoutes.put(
   "/:petId/documents/:documentId",
   zValidator("json", renamePetDocumentSchema),
-  handleRenamePetDocument,
+  async (c) => handleRenamePetDocument(c as unknown as RenamePetDocumentContext),
 );
 
 // ==================== GET /pets/:petId/documents/:documentId/download ====================

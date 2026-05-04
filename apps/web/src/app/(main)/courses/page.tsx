@@ -1,5 +1,7 @@
 // app/courses/page.tsx
 import { getCoursesWithProgressCached } from "@shared/lib/actions/cachedCourses";
+import { getTodayDailyCourseForWeb } from "@shared/lib/daily-course/actions";
+import type { TodayDailyCourseResponse } from "@gafus/core/services/dailyCourse";
 import { getServerSession } from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -21,15 +23,20 @@ export default async function CoursesPage() {
   const userId = session?.user?.id;
 
   let coursesData: Awaited<ReturnType<typeof getCoursesWithProgressCached>>["data"] | null = null;
+  let dailyCourse: TodayDailyCourseResponse | null = null;
   let error: string | null = null;
 
   try {
-    const result = await getCoursesWithProgressCached(userId ?? undefined);
+    const [result, dailyCourseResult] = await Promise.all([
+      getCoursesWithProgressCached(userId ?? undefined),
+      userId ? getTodayDailyCourseForWeb() : Promise.resolve(null),
+    ]);
     if (result.success) {
       coursesData = result.data;
     } else {
       error = result.error ?? null;
     }
+    dailyCourse = dailyCourseResult;
   } catch (err) {
     error = err instanceof Error ? err.message : "Ошибка загрузки курсов";
   }
@@ -37,7 +44,12 @@ export default async function CoursesPage() {
   return (
     <main className={styles.container}>
       <h1 className={styles.title}>Курсы</h1>
-      <CoursesClient initialCourses={coursesData} initialError={error} userId={userId} />
+      <CoursesClient
+        initialCourses={coursesData}
+        initialError={error}
+        userId={userId}
+        initialDailyCourse={dailyCourse}
+      />
     </main>
   );
 }

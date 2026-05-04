@@ -37,6 +37,7 @@ export interface Step {
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;
+  isDailyCourse?: boolean;
 }
 
 export interface TrainingDay {

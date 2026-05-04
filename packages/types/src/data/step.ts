@@ -13,6 +13,7 @@ export interface StepData {
   requiresVideoReport: boolean;
   requiresWrittenFeedback: boolean;
   hasTestQuestions: boolean;
+  isDailyCourse: boolean;
 }
 
 export interface StepFormData {
@@ -32,6 +33,7 @@ export interface TrainerStep {
   title: string;
   description: string;
   type: string;
+  isDailyCourse?: boolean;
   timer?: number | null;
   embedUrl?: string | null;
   repetitions?: number | null;

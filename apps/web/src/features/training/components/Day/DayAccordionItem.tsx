@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useTransition } from "react";
+import dynamic from "next/dynamic";
 
 import { getStepDisplayStatus, STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus, type TrainingDetail } from "@gafus/types";
@@ -8,9 +9,13 @@ import { reportClientError } from "@gafus/error-handling";
 import { useStepState, useStepStore } from "@shared/stores/stepStore";
 import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
-import { AccordionStep } from "../AccordionStep";
 
 import styles from "./Day.module.css";
+
+const AccordionStep = dynamic(
+  () => import("../AccordionStep").then((mod) => mod.AccordionStep),
+  { ssr: false },
+);
 
 const STEP_STATUS_CONFIG = {
   NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
@@ -30,6 +35,13 @@ interface DayAccordionItemProps {
   onOpenChange: (newOpenIndex: number | null) => void;
   onStepStart: (stepIndex: number) => void;
   onReset: (stepIndex: number) => void;
+  serverActions?: {
+    startStep?: (stepIndex: number, durationSec: number) => Promise<{ success: boolean }>;
+    completeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
+    resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+  };
 }
 
 export const DayAccordionItem = memo(function DayAccordionItem({
@@ -42,10 +54,11 @@ export const DayAccordionItem = memo(function DayAccordionItem({
   onOpenChange,
   onStepStart,
   onReset,
+  serverActions,
 }: DayAccordionItemProps) {
   const stepState = useStepState(training.courseId, training.dayOnCourseId, index);
   const updateStepStatus = useStepStore((s) => s.updateStepStatus);
-  const [isTheoryPending, startTheoryTransition] = useTransition();
+  const [, startTheoryTransition] = useTransition();
 
   const isBreakStep = step.type === "BREAK";
   const isDiaryStep = step.type === "DIARY";
@@ -66,13 +79,17 @@ export const DayAccordionItem = memo(function DayAccordionItem({
       if (step.type === "THEORY" && currentStatus === TrainingStatus.NOT_STARTED) {
         startTheoryTransition(async () => {
           try {
-            await markTheoryStepAsCompleted(
-              training.courseId,
-              training.dayOnCourseId,
-              index,
-              step.title,
-              step.order,
-            );
+            if (serverActions?.completeStep) {
+              await serverActions.completeStep(index);
+            } else {
+              await markTheoryStepAsCompleted(
+                training.courseId,
+                training.dayOnCourseId,
+                index,
+                step.title,
+                step.order,
+              );
+            }
             updateStepStatus(training.courseId, training.dayOnCourseId, index, "COMPLETED");
           } catch (e) {
             reportClientError(e, {
@@ -92,6 +109,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
     stepState,
     updateStepStatus,
     startTheoryTransition,
+    serverActions,
   ]);
 
   return (
@@ -154,6 +172,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
             hasTestQuestions={step.hasTestQuestions}
             userStepId={step.userStepId}
             stepId={step.id}
+            serverActions={serverActions}
           />
         </div>
       )}

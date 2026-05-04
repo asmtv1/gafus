@@ -36,6 +36,15 @@ export {
   type CompleteStepParams,
 } from "./training";
 export {
+  dailyCourseApi,
+  getDailyCourseStoreCourseId,
+  type DailyCourseDayResponse,
+  type DailyCoursePauseStepParams,
+  type DailyCourseStartStepParams,
+  type DailyCourseStepActionParams,
+  type TodayDailyCourseResponse,
+} from "./dailyCourse";
+export {
   parsePetKind,
   petsApi,
   type CreatePetData,

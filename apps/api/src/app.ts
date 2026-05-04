@@ -24,6 +24,7 @@ import { coursesRoutes } from "./routes/v1/courses.js";
 import { petsRoutes } from "./routes/v1/pets.js";
 import { petPreventionRoutes } from "./routes/v1/pet-prevention.js";
 import { trainingRoutes } from "./routes/v1/training.js";
+import { dailyCourseRoutes } from "./routes/v1/daily-course.js";
 import { examRoutes } from "./routes/v1/exam.js";
 import { offlineRoutes } from "./routes/v1/offline.js";
 import { achievementsRoutes } from "./routes/v1/achievements.js";
@@ -82,6 +83,10 @@ app.route("/api/v1/pets", petPreventionRoutes);
 app.use("/api/v1/training/*", apiRateLimiter);
 app.use("/api/v1/training/*", authMiddleware);
 app.route("/api/v1/training", trainingRoutes);
+
+app.use("/api/v1/daily-course/*", apiRateLimiter);
+app.use("/api/v1/daily-course/*", authMiddleware);
+app.route("/api/v1/daily-course", dailyCourseRoutes);
 
 app.use("/api/v1/exam/*", apiRateLimiter);
 app.use("/api/v1/exam/*", authMiddleware);

@@ -50,8 +50,13 @@ export const optionalCourseIdSchema = courseIdSchema.optional();
 // CUID v1 для DayOnCourse.id (день курса с порядком)
 export const dayOnCourseIdSchema = z.string().cuid("dayOnCourseId должен быть CUID");
 
-// CUID v1 для Course.id (когда в API передаётся именно ID сущности, не courseType)
-export const courseIdEntitySchema = z.string().cuid("courseId должен быть CUID");
+// Course.id в старых курсах CUID, в некоторых платных курсах UUID.
+export const courseIdEntitySchema = z
+  .string()
+  .min(1, "courseId обязателен")
+  .refine((value) => z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success, {
+    message: "courseId должен быть CUID или UUID",
+  });
 
 // CUID v1 для UserStep.id (экзамен)
 export const userStepIdSchema = z.string().cuid("userStepId должен быть CUID");

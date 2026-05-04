@@ -20,6 +20,8 @@ import {
   Cookie,
   MenuBook,
   Pets,
+  CalendarToday,
+  FormatListBulleted,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
@@ -127,6 +129,18 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
         <Link href="/main-panel/days" className={styles.button} onClick={closeMobileMenu}>
           <Schedule />
           Созданные дни
+        </Link>
+        <Link href="/main-panel/daily-course" className={styles.button} onClick={closeMobileMenu}>
+          <CalendarToday />
+          Курс дня
+        </Link>
+        <Link
+          href="/main-panel/daily-course/bundles"
+          className={styles.button}
+          onClick={closeMobileMenu}
+        >
+          <FormatListBulleted />
+          Связки для курса дня
         </Link>
         <Link href="/main-panel/templates" className={styles.button} onClick={closeMobileMenu}>
           <AutoStories />

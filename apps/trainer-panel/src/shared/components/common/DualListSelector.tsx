@@ -42,6 +42,7 @@ interface Props<T> {
   title?: string;
   allowDuplicates?: boolean;
   getItemSearchText?: (item: T) => string;
+  getItemSecondaryText?: (item: T) => string | undefined;
 }
 
 interface SortableSelectedItemProps<T> {
@@ -122,6 +123,7 @@ export default function DualListSelector<T>({
   title = "Выбор элементов",
   allowDuplicates = false,
   getItemSearchText,
+  getItemSecondaryText,
 }: Props<T>) {
   const [availableItems, setAvailableItems] = useState<T[]>([]);
   const [selected, setSelected] = useState<T[]>([]);
@@ -296,7 +298,10 @@ export default function DualListSelector<T>({
                       minHeight: { xs: "44px", sm: "auto" },
                     }}
                   >
-                    <ListItemText primary={getItemLabel(item)} />
+                    <ListItemText
+                      primary={getItemLabel(item)}
+                      secondary={getItemSecondaryText ? getItemSecondaryText(item) : undefined}
+                    />
                   </ListItemButton>
                 ))}
               </List>

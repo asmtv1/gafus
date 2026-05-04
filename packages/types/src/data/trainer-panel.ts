@@ -46,6 +46,7 @@ export interface TrainerStepTableRow {
   description: string;
   durationSec: number;
   estimatedDurationSec?: number | null;
+  isDailyCourse?: boolean;
   createdAt?: Date;
   author?: {
     username: string;

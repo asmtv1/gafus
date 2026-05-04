@@ -28,6 +28,13 @@ export const DEFAULT_OG_IMAGE = {
   alt: "Гафус",
 } as const;
 
+export const DAILY_COURSE_LOGO = {
+  url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png",
+  width: 1658,
+  height: 949,
+  alt: "Курс дня",
+} as const;
+
 export const SOCIAL = {
   twitterCard: "summary_large_image" as const,
 } as const;

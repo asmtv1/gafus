@@ -37,6 +37,7 @@ export async function createStep(
     const videoUrl = formData.get("videoUrl")?.toString() || "";
     const type = formData.get("type")?.toString() || "TRAINING";
     const checklistStr = formData.get("checklist")?.toString() || "";
+    const isDailyCourse = formData.get("isDailyCourse")?.toString() === "true";
 
     const requiresVideoReport =
       formData.get("requiresVideoReport")?.toString() === "true";
@@ -170,6 +171,7 @@ export async function createStep(
       requiresWrittenFeedback:
         type === "EXAMINATION" ? requiresWrittenFeedback : false,
       hasTestQuestions: type === "EXAMINATION" ? hasTestQuestions : false,
+      isDailyCourse,
     };
 
     const parsed = createStepSchema.safeParse(payload);

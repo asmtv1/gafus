@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 
 import { reportClientError } from "@gafus/error-handling";
+import type { TodayDailyCourseResponse } from "@gafus/core/services/dailyCourse";
+import { DAILY_COURSE_LOGO } from "@gafus/metadata";
 import type { CourseWithProgressData } from "@gafus/types";
 
 import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
@@ -98,12 +102,14 @@ interface CoursesClientProps {
   initialCourses?: CourseWithProgressData[] | null;
   initialError?: string | null;
   userId?: string;
+  initialDailyCourse?: TodayDailyCourseResponse | null;
 }
 
 export default function CoursesClient({
   initialCourses,
   initialError,
   userId,
+  initialDailyCourse,
 }: CoursesClientProps) {
   const [filters, setFilters] = useState(() => loadFiltersFromStorage());
   const {
@@ -239,11 +245,60 @@ export default function CoursesClient({
       sorting: activeSorting,
     }).length;
   };
+  const dailyCourseProgressPercent =
+    initialDailyCourse?.stepsSummary.total
+      ? Math.round(
+          (initialDailyCourse.stepsSummary.completed / initialDailyCourse.stepsSummary.total) *
+            100,
+        )
+      : 0;
 
   return (
     <div className={styles.container}>
       {/* Индикатор синхронизации */}
       <SyncStatusIndicator className={styles.syncIndicator} />
+
+      {initialDailyCourse?.scheduleId && initialDailyCourse.day && (
+        <section className={styles.dailyCourseSection} aria-label="Курс дня">
+          <Link
+            href={`/daily-course/${initialDailyCourse.scheduleId}`}
+            className={styles.dailyCourseCard}
+          >
+            <div className={styles.dailyCourseMedia}>
+              <Image
+                src={DAILY_COURSE_LOGO.url}
+                alt={DAILY_COURSE_LOGO.alt}
+                width={245}
+                height={140}
+                className={styles.dailyCourseImage}
+                priority
+              />
+            </div>
+            <div className={styles.dailyCourseContent}>
+              <div className={styles.dailyCourseHeader}>
+                <span className={styles.dailyCoursePill}>Обновляется ежедневно</span>
+              </div>
+              <p className={styles.dailyCourseDescription}>
+                Это курс, в котором каждый день появляются новые мини-задания для спокойного и
+                понятного прогресса.
+              </p>
+              <div className={styles.dailyCourseProgressRow}>
+                <span>{initialDailyCourse.day.stepsCount} упражнения</span>
+                <span>
+                  {initialDailyCourse.stepsSummary.completed}/
+                  {initialDailyCourse.stepsSummary.total} выполнено
+                </span>
+              </div>
+              <div className={styles.dailyCourseProgressTrack} aria-hidden="true">
+                <span
+                  className={styles.dailyCourseProgressFill}
+                  style={{ width: `${dailyCourseProgressPercent}%` }}
+                />
+              </div>
+            </div>
+          </Link>
+        </section>
+      )}
 
       {/* Поиск */}
       <CourseSearch value={searchQuery} onChange={setSearchQuery} />

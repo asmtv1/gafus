@@ -100,13 +100,13 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
   const { open: toastOpen, message, severity, showToast, closeToast } = useToast();
   const router = useRouter();
 
-  if (!course) return null;
-
   // Функция для нормализации даты к началу дня в локальном времени
   const normalizeDateToLocalMidnight = (date: Date | string): Date => {
     const d = new Date(date);
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   };
+
+  const userCourses = course?.userCourses ?? [];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -138,7 +138,7 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
   };
 
   const filteredUserCourses = useMemo(() => {
-    return course.userCourses
+    return userCourses
       .filter((uc) => {
         const status = uc.status;
         if (status === "COMPLETED" && !showCompleted) return false;
@@ -159,13 +159,15 @@ export default function CourseStatsContent({ course, onDeleted }: CourseStatsCon
         return true;
       })
       .sort((a, b) => {
-        const getDate = (uc: (typeof course.userCourses)[number]) =>
+        const getDate = (uc: (typeof userCourses)[number]) =>
           dateType === "started" ? uc.startedAt : uc.completedAt;
         const da = getDate(a) ? new Date(getDate(a) as Date).getTime() : 0;
         const db = getDate(b) ? new Date(getDate(b) as Date).getTime() : 0;
         return db - da;
       });
-  }, [course.userCourses, dateFrom, dateTo, dateType, showCompleted, showInProgress]);
+  }, [dateFrom, dateTo, dateType, showCompleted, showInProgress, userCourses]);
+
+  if (!course) return null;
 
   return (
     <Box sx={{ px: { xs: 1, sm: 2 }, maxWidth: "100%", overflow: "hidden" }}>

@@ -50,6 +50,10 @@ const gafusAliases = {
   ),
   "@gafus/core$": _path.resolve(__dirname, "../../packages/core/src"),
   "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
+  "@gafus/core/services/dailyCourse": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/dailyCourse",
+  ),
   "@gafus/core/services/coursePath": _path.resolve(
     __dirname,
     "../../packages/core/src/services/coursePath",

@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { reportClientError } from "@/shared/lib/tracer";
-import { trainingApi } from "@/shared/lib/api";
+import { dailyCourseApi, trainingApi } from "@/shared/lib/api";
 import { zustandStorage } from "./storage";
 
 const MAX_401_BEFORE_STOP = 3;
@@ -16,7 +16,12 @@ export type QueuedAction =
   | { type: "resumeStep"; params: Parameters<typeof trainingApi.resumeStep>[0] }
   | { type: "resetStep"; params: Parameters<typeof trainingApi.resetStep>[0] }
   | { type: "completeTheoryStep"; params: Parameters<typeof trainingApi.completeTheoryStep>[0] }
-  | { type: "completePracticeStep"; params: Parameters<typeof trainingApi.completePracticeStep>[0] };
+  | { type: "completePracticeStep"; params: Parameters<typeof trainingApi.completePracticeStep>[0] }
+  | { type: "dailyCourseStartStep"; params: Parameters<typeof dailyCourseApi.startStep>[0] }
+  | { type: "dailyCoursePauseStep"; params: Parameters<typeof dailyCourseApi.pauseStep>[0] }
+  | { type: "dailyCourseResumeStep"; params: Parameters<typeof dailyCourseApi.resumeStep>[0] }
+  | { type: "dailyCourseResetStep"; params: Parameters<typeof dailyCourseApi.resetStep>[0] }
+  | { type: "dailyCourseCompleteStep"; params: Parameters<typeof dailyCourseApi.completeStep>[0] };
 
 interface ProgressSyncState {
   queue: QueuedAction[];
@@ -67,6 +72,21 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
               break;
             case "completePracticeStep":
               result = await trainingApi.completePracticeStep(head.params);
+              break;
+            case "dailyCourseStartStep":
+              result = await dailyCourseApi.startStep(head.params);
+              break;
+            case "dailyCoursePauseStep":
+              result = await dailyCourseApi.pauseStep(head.params);
+              break;
+            case "dailyCourseResumeStep":
+              result = await dailyCourseApi.resumeStep(head.params);
+              break;
+            case "dailyCourseResetStep":
+              result = await dailyCourseApi.resetStep(head.params);
+              break;
+            case "dailyCourseCompleteStep":
+              result = await dailyCourseApi.completeStep(head.params);
               break;
           }
         } catch (error) {

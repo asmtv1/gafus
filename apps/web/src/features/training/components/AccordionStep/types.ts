@@ -25,4 +25,11 @@ export interface AccordionStepProps {
   hasTestQuestions?: boolean;
   userStepId?: string;
   stepId: string;
+  serverActions?: {
+    startStep?: (stepIndex: number, durationSec: number) => Promise<{ success: boolean }>;
+    completeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
+    resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+  };
 }

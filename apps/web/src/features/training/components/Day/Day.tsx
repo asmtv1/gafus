@@ -21,9 +21,17 @@ import styles from "./Day.module.css";
 interface DayProps {
   training: TrainingDetail;
   courseType: string;
+  titleOverride?: string;
+  serverActions?: {
+    startStep?: (stepIndex: number, durationSec: number) => Promise<{ success: boolean }>;
+    completeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
+    resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+  };
 }
 
-export function Day({ training, courseType }: DayProps) {
+export function Day({ training, courseType, titleOverride, serverActions }: DayProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -46,7 +54,11 @@ export function Day({ training, courseType }: DayProps) {
 
   const handleStepStart = useCallback(
     async (stepIndex: number) => {
-      setStoreRunningIndex(training.courseId, training.dayOnCourseId, stepIndex === -1 ? null : stepIndex);
+      setStoreRunningIndex(
+        training.courseId,
+        training.dayOnCourseId,
+        stepIndex === -1 ? null : stepIndex,
+      );
     },
     [training.courseId, training.dayOnCourseId, setStoreRunningIndex],
   );
@@ -122,7 +134,7 @@ export function Day({ training, courseType }: DayProps) {
     <div className={styles.main}>
       <div className={styles.dayHeader}>
         <h2 className={styles.dayTitle}>
-          {getDayTitle(training.type, training.displayDayNumber)}
+          {titleOverride ?? getDayTitle(training.type, training.displayDayNumber)}
         </h2>
       </div>
       <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ""}`}>
@@ -204,6 +216,7 @@ export function Day({ training, courseType }: DayProps) {
             onOpenChange={handleOpenChange}
             onStepStart={handleStepStart}
             onReset={handleReset}
+            serverActions={serverActions}
           />
         );
       })}

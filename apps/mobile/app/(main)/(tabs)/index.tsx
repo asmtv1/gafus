@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,8 +25,10 @@ import { useShallow } from "zustand/react/shallow";
 import { Loading } from "@/shared/components/ui";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { getMobileMoscowDateKey, useTodayDailyCourse } from "@/shared/hooks/useDailyCourse";
 import { usePrefetchOtherTabsAfterCourses } from "@/shared/hooks/usePrefetchOtherTabsAfterCourses";
 import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
+import type { TodayDailyCourseResponse } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
@@ -78,12 +81,50 @@ function getCourseLogoPrefetchUri(course: Course): string | null {
   return candidates[0] ?? null;
 }
 
+function DailyCourseCard({
+  data,
+  onPress,
+}: {
+  data: TodayDailyCourseResponse | null;
+  onPress: (scheduleId: string) => void;
+}) {
+  if (!data?.scheduleId || !data.day) {
+    return (
+      <View style={styles.dailyCourseCard}>
+        <Text style={styles.dailyCourseEyebrow}>Курс дня</Text>
+        <Text style={styles.dailyCourseTitle}>Сегодня связка не запланирована</Text>
+      </View>
+    );
+  }
+
+  const progress = `${data.stepsSummary.completed}/${data.stepsSummary.total}`;
+  const actionText = data.userStatus === "NOT_STARTED" ? "Начать" : "Продолжить";
+
+  return (
+    <Pressable style={styles.dailyCourseCard} onPress={() => onPress(data.scheduleId!)}>
+      <View style={styles.dailyCourseHeader}>
+        <View style={styles.dailyCourseText}>
+          <Text style={styles.dailyCourseEyebrow}>Курс дня · {data.mskDate}</Text>
+          <Text style={styles.dailyCourseTitle}>{data.day.title}</Text>
+          <Text style={styles.dailyCourseMeta}>
+            {data.day.stepsCount} шаг. · прогресс {progress}
+          </Text>
+        </View>
+        <View style={styles.dailyCourseAction}>
+          <Text style={styles.dailyCourseActionText}>{actionText}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 /**
  * Страница со всеми курсами: поиск и фильтры как в web.
  * При офлайне показывается экран «Скачанные курсы».
  */
 export default function CoursesScreen() {
   const { isOffline } = useNetworkStatus();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const {
     filters,
@@ -117,6 +158,10 @@ export default function CoursesScreen() {
 
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
+  const {
+    data: dailyCourseData,
+    refetch: refetchDailyCourse,
+  } = useTodayDailyCourse();
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;
@@ -143,9 +188,9 @@ export default function CoursesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchDailyCourse()]);
     setRefreshing(false);
-  }, [refetch]);
+  }, [refetch, refetchDailyCourse]);
 
   useEffect(() => {
     if (!isAuthenticated || authLoading) return;
@@ -379,6 +424,10 @@ export default function CoursesScreen() {
   const listHeader = (
     <View style={styles.headerFilters}>
       <Text style={styles.pageTitle}>Курсы</Text>
+      <DailyCourseCard
+        data={dailyCourseData?.data ?? null}
+        onPress={(scheduleId) => router.push(`/daily-course/${scheduleId}`)}
+      />
       {SHOW_COURSES_SEARCH ? (
         <CourseSearch
           value={filters.search}
@@ -403,8 +452,18 @@ export default function CoursesScreen() {
   );
 
   if (isOffline) {
+    const cachedDailyCourse = dailyCourseData?.data;
+    const canShowCachedDailyCourse =
+      cachedDailyCourse?.scheduleId != null &&
+      cachedDailyCourse.mskDate === getMobileMoscowDateKey();
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
+        {canShowCachedDailyCourse ? (
+          <DailyCourseCard
+            data={cachedDailyCourse}
+            onPress={(scheduleId) => router.push(`/daily-course/${scheduleId}`)}
+          />
+        ) : null}
         <OfflineDownloadedScreen />
       </SafeAreaView>
     );
@@ -494,6 +553,50 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
     fontFamily: FONTS.impact,
+  },
+  dailyCourseCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    padding: SPACING.md,
+    marginHorizontal: SPACING.sm,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#E2D8D0",
+  },
+  dailyCourseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+  },
+  dailyCourseText: {
+    flex: 1,
+  },
+  dailyCourseEyebrow: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginBottom: SPACING.xs,
+  },
+  dailyCourseTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: SPACING.xs,
+  },
+  dailyCourseMeta: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+  },
+  dailyCourseAction: {
+    minHeight: 40,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.secondary,
+  },
+  dailyCourseActionText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
   listContent: {
     paddingHorizontal: SPACING.sm,
