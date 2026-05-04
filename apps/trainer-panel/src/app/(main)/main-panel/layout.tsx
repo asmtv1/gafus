@@ -130,6 +130,9 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           <Schedule />
           Созданные дни
         </Link>
+
+        <div className={styles.divider}></div>
+
         <Link href="/main-panel/daily-course" className={styles.button} onClick={closeMobileMenu}>
           <CalendarToday />
           Курс дня
@@ -150,6 +153,9 @@ export default function MainPanelLayout({ children }: MainPanelLayoutProps) {
           <FormatListBulleted />
           Связки для курса дня
         </Link>
+
+        <div className={styles.divider}></div>
+
         <Link href="/main-panel/templates" className={styles.button} onClick={closeMobileMenu}>
           <AutoStories />
           Библиотека шаблонов
