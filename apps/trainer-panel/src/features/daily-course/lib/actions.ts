@@ -7,6 +7,7 @@ import {
   getDailyCourseBundles,
   getDailyCourseBundleStepCandidates,
   getDailyCourseScheduleRange,
+  getDailyCourseScheduleStatistics,
   upsertDailyCourseBundle,
   upsertDailyCourseSchedule,
   deleteDailyCourseBundle,
@@ -18,6 +19,7 @@ import type {
   DailyCourseBundleDto,
   DailyCourseCandidateDto,
   DailyCourseScheduleDto,
+  DailyCourseScheduleStatisticsDto,
   DailyCourseStepCandidateDto,
 } from "@gafus/core/services/dailyCourse";
 import { createTrainerPanelLogger } from "@gafus/logger";
@@ -67,6 +69,33 @@ export async function getDailyCourseBundlesPageData(): Promise<{
     getDailyCourseBundleStepCandidates(actor),
   ]);
   return { bundles, steps };
+}
+
+export async function getDailyCourseStatisticsPageData(input: {
+  from: string;
+  to: string;
+  scheduleId?: string;
+}): Promise<{
+  schedule: DailyCourseScheduleDto[];
+  selectedScheduleId: string | null;
+  statistics: DailyCourseScheduleStatisticsDto | null;
+}> {
+  const actor = await getDailyCourseActor();
+  const parsed = dailyCourseRangeSchema.parse({ from: input.from, to: input.to });
+  const schedule = await getDailyCourseScheduleRange(actor, parsed);
+  const selectedScheduleId =
+    input.scheduleId && schedule.some((item) => item.id === input.scheduleId)
+      ? input.scheduleId
+      : (schedule[0]?.id ?? null);
+  const statistics = selectedScheduleId
+    ? await getDailyCourseScheduleStatistics(actor, { scheduleId: selectedScheduleId })
+    : null;
+
+  return {
+    schedule,
+    selectedScheduleId,
+    statistics,
+  };
 }
 
 export async function upsertDailyCourseScheduleAction(
