@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
 import { Card } from "@/shared/components/ui";
+import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
 import { subscriptionsApi } from "@/shared/lib/api";
@@ -117,6 +118,7 @@ const getRoleColor = (role?: string) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const startOnboardingTour = useMobileOnboardingTourStore((s) => s.startTour);
   const { user, logout, setUser } = useAuthStore(
     useShallow((s) => ({
       user: s.user,
@@ -193,20 +195,23 @@ export default function ProfileScreen() {
     onSuccess: (result) => {
       if (result.success && result.data?.avatarUrl) {
         // Сразу подставляем URL с CDN в кэш, чтобы аватар отобразился без ожидания refetch
-        queryClient.setQueryData(["user-profile"], (old: Awaited<ReturnType<typeof userApi.getProfile>> | undefined) => {
-          if (!old?.data) return old;
-          const url = result.data!.avatarUrl;
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              profile: {
-                ...(old.data.profile ?? {}),
-                avatarUrl: url,
+        queryClient.setQueryData(
+          ["user-profile"],
+          (old: Awaited<ReturnType<typeof userApi.getProfile>> | undefined) => {
+            if (!old?.data) return old;
+            const url = result.data!.avatarUrl;
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                profile: {
+                  ...(old.data.profile ?? {}),
+                  avatarUrl: url,
+                },
               },
-            },
-          };
-        });
+            };
+          },
+        );
         queryClient.invalidateQueries({ queryKey: ["user-profile"] });
         hapticFeedback.success();
       } else if (!result.success) {
@@ -223,7 +228,9 @@ export default function ProfileScreen() {
   const enablePushMutation = useMutation({
     mutationFn: async () => {
       const ok = await setupPushNotifications();
-      return ok ? { success: true } : { success: false, error: "Не удалось включить push-уведомления" };
+      return ok
+        ? { success: true }
+        : { success: false, error: "Не удалось включить push-уведомления" };
     },
     onSuccess: async (result) => {
       void refreshOsPermission();
@@ -337,6 +344,11 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleRepeatOnboardingTour = () => {
+    trackProfileClick("mobile-onboarding-repeat");
+    startOnboardingTour();
+  };
+
   const age = profile?.birthDate ? getAge(profile.birthDate) : null;
   const hasSocialLinks = profile?.instagram || profile?.telegram || profile?.website;
 
@@ -408,12 +420,7 @@ export default function ProfileScreen() {
           </Pressable>
           <View style={styles.profileInfo}>
             <Text style={styles.greeting}>Привет, {greetingName}!</Text>
-            <Text
-              style={[
-                styles.contactInfo,
-                !displayEmail ? styles.contactInfoMissing : null,
-              ]}
-            >
+            <Text style={[styles.contactInfo, !displayEmail ? styles.contactInfoMissing : null]}>
               {displayEmail || USER_EMAIL_MISSING_HINT}
             </Text>
             {displayRole && (
@@ -503,15 +510,19 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.notifyStatusBadge,
-                  osPermission === "granted" ? styles.notifyBadgeOk
-                  : osPermission === "denied" ? styles.notifyBadgeFail
-                  : styles.notifyBadgeWarn,
+                  osPermission === "granted"
+                    ? styles.notifyBadgeOk
+                    : osPermission === "denied"
+                      ? styles.notifyBadgeFail
+                      : styles.notifyBadgeWarn,
                 ]}
               >
                 <Text style={styles.notifyBadgeText}>
-                  {osPermission === "granted" ? "✅ Разрешено"
-                  : osPermission === "denied" ? "❌ Запрещено"
-                  : "⏳ Не запрошено"}
+                  {osPermission === "granted"
+                    ? "✅ Разрешено"
+                    : osPermission === "denied"
+                      ? "❌ Запрещено"
+                      : "⏳ Не запрошено"}
                 </Text>
               </View>
             </View>
@@ -521,19 +532,27 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.notifyStatusBadge,
-                  pushDeviceStatusPending ? styles.notifyBadgeWarn
-                  : pushDeviceStatusError ? styles.notifyBadgeFail
-                  : !pushServerDetermined ? styles.notifyBadgeWarn
-                  : hasThisDevicePushOnServer ? styles.notifyBadgeOk
-                  : styles.notifyBadgeFail,
+                  pushDeviceStatusPending
+                    ? styles.notifyBadgeWarn
+                    : pushDeviceStatusError
+                      ? styles.notifyBadgeFail
+                      : !pushServerDetermined
+                        ? styles.notifyBadgeWarn
+                        : hasThisDevicePushOnServer
+                          ? styles.notifyBadgeOk
+                          : styles.notifyBadgeFail,
                 ]}
               >
                 <Text style={styles.notifyBadgeText}>
-                  {pushDeviceStatusPending ? "⏳ Проверка…"
-                  : pushDeviceStatusError ? "❌ Ошибка"
-                  : !pushServerDetermined ? "⚠️ Нет токена"
-                  : hasThisDevicePushOnServer ? "✅ Активна"
-                  : "❌ Неактивна"}
+                  {pushDeviceStatusPending
+                    ? "⏳ Проверка…"
+                    : pushDeviceStatusError
+                      ? "❌ Ошибка"
+                      : !pushServerDetermined
+                        ? "⚠️ Нет токена"
+                        : hasThisDevicePushOnServer
+                          ? "✅ Активна"
+                          : "❌ Неактивна"}
                 </Text>
               </View>
             </View>
@@ -548,14 +567,14 @@ export default function ProfileScreen() {
               <View style={styles.notifyWarningBox}>
                 <MaterialCommunityIcons name="alert" size={14} color="#8B4513" />
                 <Text style={styles.notifyWarningText}>
-                  Сервер пытается отправлять пуши, но телефон их блокирует. Разрешите уведомления
-                  в настройках телефона.
+                  Сервер пытается отправлять пуши, но телефон их блокирует. Разрешите уведомления в
+                  настройках телефона.
                 </Text>
               </View>
             )}
 
             <View style={styles.notificationsActions}>
-              {osPermission === "denied" ?
+              {osPermission === "denied" ? (
                 <Pressable
                   style={[styles.notifyActionButton, styles.notifyActionSettings]}
                   onPress={() => void Linking.openSettings()}
@@ -563,7 +582,7 @@ export default function ProfileScreen() {
                   <MaterialCommunityIcons name="cog-outline" size={15} color="#ECE5D2" />
                   <Text style={styles.notifyActionText}>Открыть настройки телефона</Text>
                 </Pressable>
-              : osPermission === "undetermined" ?
+              ) : osPermission === "undetermined" ? (
                 <Pressable
                   style={styles.notifyActionButton}
                   disabled={enablePushMutation.isPending}
@@ -573,7 +592,7 @@ export default function ProfileScreen() {
                     {enablePushMutation.isPending ? "Загрузка..." : "Включить уведомления"}
                   </Text>
                 </Pressable>
-              : pushServerDetermined && hasThisDevicePushOnServer ?
+              ) : pushServerDetermined && hasThisDevicePushOnServer ? (
                 <Pressable
                   style={[styles.notifyActionButton, styles.notifyActionDanger]}
                   disabled={disablePushMutation.isPending}
@@ -583,7 +602,8 @@ export default function ProfileScreen() {
                     {disablePushMutation.isPending ? "Загрузка..." : "Отключить уведомления"}
                   </Text>
                 </Pressable>
-              : <Pressable
+              ) : (
+                <Pressable
                   style={styles.notifyActionButton}
                   disabled={enablePushMutation.isPending}
                   onPress={() => enablePushMutation.mutate()}
@@ -592,7 +612,7 @@ export default function ProfileScreen() {
                     {enablePushMutation.isPending ? "Загрузка..." : "Включить подписку"}
                   </Text>
                 </Pressable>
-              }
+              )}
             </View>
           </View>
 
@@ -607,6 +627,15 @@ export default function ProfileScreen() {
             <View style={styles.remindersCardContent}>
               <Text style={styles.remindersCardTitle}>Напоминания о тренировках</Text>
               <Text style={styles.remindersCardSubtitle}>Настроить время и дни</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
+          </Pressable>
+
+          <Pressable style={styles.remindersCard} onPress={handleRepeatOnboardingTour}>
+            <MaterialCommunityIcons name="map-search-outline" size={22} color={COLORS.primary} />
+            <View style={styles.remindersCardContent}>
+              <Text style={styles.remindersCardTitle}>Повторить экскурсию</Text>
+              <Text style={styles.remindersCardSubtitle}>Коротко показать основные разделы</Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
           </Pressable>
@@ -727,18 +756,13 @@ export default function ProfileScreen() {
             <Text style={styles.infoIcon}>ℹ️</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>О приложении</Text>
-              <Text style={styles.infoItemDesc}>
-                Версия {Constants.expoConfig?.version ?? "—"}
-              </Text>
+              <Text style={styles.infoItemDesc}>Версия {Constants.expoConfig?.version ?? "—"}</Text>
             </View>
           </View>
 
           <View style={styles.infoDivider} />
 
-          <Pressable
-            style={styles.infoItem}
-            onPress={() => Linking.openURL(GAFUS_TELEGRAM_URL)}
-          >
+          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(GAFUS_TELEGRAM_URL)}>
             <Text style={styles.infoIcon}>📢</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>Наш Telegram</Text>
@@ -748,10 +772,7 @@ export default function ProfileScreen() {
 
           <View style={styles.infoDivider} />
 
-          <Pressable
-            style={styles.infoItem}
-            onPress={() => Linking.openURL(DOCUMENT_URLS.policy)}
-          >
+          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(DOCUMENT_URLS.policy)}>
             <Text style={styles.infoIcon}>🔒</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>Политика конфиденциальности</Text>
@@ -761,10 +782,7 @@ export default function ProfileScreen() {
 
           <View style={styles.infoDivider} />
 
-          <Pressable
-            style={styles.infoItem}
-            onPress={() => Linking.openURL(DOCUMENT_URLS.oferta)}
-          >
+          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(DOCUMENT_URLS.oferta)}>
             <Text style={styles.infoIcon}>📄</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>Оферта</Text>
@@ -800,10 +818,7 @@ export default function ProfileScreen() {
 
           <View style={styles.infoDivider} />
 
-          <Pressable
-            style={styles.infoItem}
-            onPress={() => Linking.openURL(SUPPORT_TELEGRAM_URL)}
-          >
+          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(SUPPORT_TELEGRAM_URL)}>
             <Text style={styles.infoIcon}>💬</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>Связаться с поддержкой</Text>

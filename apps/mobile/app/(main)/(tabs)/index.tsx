@@ -1,11 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -15,6 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
+import type { FlashListRef } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Text, Snackbar } from "react-native-paper";
@@ -32,11 +26,8 @@ import type { TodayDailyCourseResponse } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
-import {
-  CourseCard,
-  CourseSearch,
-  CourseFilters,
-} from "@/features/courses/components";
+import { CourseCard, CourseSearch, CourseFilters } from "@/features/courses/components";
+import { TourTarget, useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { OfflineDownloadedScreen } from "@/features/offline";
 import {
   filterAndSortCourses,
@@ -55,6 +46,7 @@ const VIEWPORT_COURSE_LOGO_GATE_COUNT = 3;
 const VIEWPORT_OVERLAY_SETTLE_MS = 96;
 /** Если гейт не закрылся (сеть, баг нативного слоя) — не блокировать UI навсегда. */
 const VIEWPORT_GATE_FORCE_MS = 12_000;
+const TOUR_COURSES_SCROLL_FALLBACK_OFFSET = 680;
 const SHOW_COURSES_SEARCH = false;
 const DAILY_COURSE_LOGO = {
   url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png?v=20260505-1620",
@@ -71,8 +63,7 @@ function getCourseLogoUri(
   const baseLogoUri = logoImg.startsWith("/")
     ? `${API_BASE_URL.replace(/\/$/, "")}${logoImg}`
     : logoImg;
-  const logoVersion =
-    updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
+  const logoVersion = updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
   return `${baseLogoUri}${baseLogoUri.includes("?") ? "&" : "?"}v=${logoVersion}`;
 }
 
@@ -97,6 +88,7 @@ function DailyCourseCard({
   if (!data?.scheduleId || !data.day) {
     return (
       <View style={styles.dailyCourseCard}>
+        <TourTarget id="daily-course-card" style={styles.tourTargetFill} />
         <Text style={styles.dailyCourseEyebrow}>Курс дня</Text>
         <Text style={styles.dailyCourseTitle}>Сегодня связка не запланирована</Text>
       </View>
@@ -111,6 +103,7 @@ function DailyCourseCard({
 
   return (
     <Pressable style={styles.dailyCourseCard} onPress={() => onPress(data.scheduleId!)}>
+      <TourTarget id="daily-course-card" style={styles.tourTargetFill} />
       <View style={styles.dailyCourseMedia}>
         <Image
           source={{ uri: DAILY_COURSE_LOGO.url }}
@@ -153,23 +146,20 @@ export default function CoursesScreen() {
   const { isOffline } = useNetworkStatus();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const {
-    filters,
-    setFilter,
-    addToFavorites,
-    removeFromFavorites,
-    isFavorite,
-    favorites,
-  } = useCourseStore(
-    useShallow((s) => ({
-      filters: s.filters,
-      setFilter: s.setFilter,
-      addToFavorites: s.addToFavorites,
-      removeFromFavorites: s.removeFromFavorites,
-      isFavorite: s.isFavorite,
-      favorites: s.favorites,
-    })),
-  );
+  const courseListRef = useRef<FlashListRef<Course> | null>(null);
+  const tourIsActive = useMobileOnboardingTourStore((s) => s.isActive);
+  const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
+  const { filters, setFilter, addToFavorites, removeFromFavorites, isFavorite, favorites } =
+    useCourseStore(
+      useShallow((s) => ({
+        filters: s.filters,
+        setFilter: s.setFilter,
+        addToFavorites: s.addToFavorites,
+        removeFromFavorites: s.removeFromFavorites,
+        isFavorite: s.isFavorite,
+        favorites: s.favorites,
+      })),
+    );
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
@@ -183,12 +173,8 @@ export default function CoursesScreen() {
   const username = useAuthStore((s) => s.user?.username ?? null);
   const isTestUser = username?.toLowerCase() === "testuser";
 
-
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
-  const {
-    data: dailyCourseData,
-    refetch: refetchDailyCourse,
-  } = useTodayDailyCourse();
+  const { data: dailyCourseData, refetch: refetchDailyCourse } = useTodayDailyCourse();
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;
@@ -331,14 +317,42 @@ export default function CoursesScreen() {
       setViewportReady(true);
     }, VIEWPORT_GATE_FORCE_MS);
     return () => clearTimeout(t);
-  }, [
-    isLoading,
-    error,
-    refreshing,
-    filteredCourses.length,
-    viewportReady,
-    viewportGateSyncKey,
-  ]);
+  }, [isLoading, error, refreshing, filteredCourses.length, viewportReady, viewportGateSyncKey]);
+
+  useEffect(() => {
+    if (!tourIsActive || isLoading || error) return;
+
+    const timeoutHandles: ReturnType<typeof setTimeout>[] = [];
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      const timeout = setTimeout(() => {
+        if (tourStepId === "courses" && filteredCourses.length > 0) {
+          try {
+            courseListRef.current?.scrollToIndex({
+              index: 0,
+              animated: true,
+              viewPosition: 0.08,
+            });
+          } catch {
+            courseListRef.current?.scrollToOffset({
+              offset: TOUR_COURSES_SCROLL_FALLBACK_OFFSET,
+              animated: true,
+            });
+          }
+          return;
+        }
+
+        if (tourStepId === "daily-course") {
+          courseListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }
+      }, 120);
+      timeoutHandles.push(timeout);
+    });
+
+    return () => {
+      interaction.cancel();
+      timeoutHandles.forEach(clearTimeout);
+    };
+  }, [error, filteredCourses.length, isLoading, tourIsActive, tourStepId]);
 
   const getResultsCount = useCallback(
     (f: {
@@ -365,10 +379,7 @@ export default function CoursesScreen() {
       }
       setPendingIds((prev) => [...prev, courseId]);
       try {
-        const res = await coursesApi.toggleFavorite(
-          courseId,
-          wasFavorite ? "remove" : "add",
-        );
+        const res = await coursesApi.toggleFavorite(courseId, wasFavorite ? "remove" : "add");
         if (res.success) {
           queryClient.invalidateQueries({ queryKey: ["favorites"] });
         } else {
@@ -392,34 +403,28 @@ export default function CoursesScreen() {
         setPendingIds((prev) => prev.filter((id) => id !== courseId));
       }
     },
-    [
-      isFavorite,
-      addToFavorites,
-      removeFromFavorites,
-      queryClient,
-    ],
+    [isFavorite, addToFavorites, removeFromFavorites, queryClient],
   );
 
   const renderCourseItem = useCallback(
     ({ item, index }: { item: Course; index: number }) => {
       const courseIsFavorite = favoritesSet.has(item.id) || item.isFavorite;
-      return (
+      const card = (
         <CourseCard
           course={item}
           isFavorite={courseIsFavorite}
           onToggleFavorite={handleToggleFavorite}
           disabled={pendingIdsSet.has(item.id)}
           showIosRuCardPaymentHint={
-            Platform.OS === "ios" &&
-            iosConfigLoaded &&
-            iosRuCardPaymentHintEnabled &&
-            !isTestUser
+            Platform.OS === "ios" && iosConfigLoaded && iosRuCardPaymentHintEnabled && !isTestUser
           }
           listIndex={index}
           viewportGateCount={VIEWPORT_COURSE_LOGO_GATE_COUNT}
           onViewportCoverReady={handleViewportCoverReady}
+          tourTargetId={index === 0 ? "courses-list" : undefined}
         />
       );
+      return card;
     },
     [
       favoritesSet,
@@ -442,11 +447,7 @@ export default function CoursesScreen() {
   );
 
   const showViewportLoadingOverlay =
-    !error &&
-    !refreshing &&
-    !isLoading &&
-    filteredCourses.length > 0 &&
-    !viewportReady;
+    !error && !refreshing && !isLoading && filteredCourses.length > 0 && !viewportReady;
 
   const listHeader = (
     <View style={styles.headerFilters}>
@@ -456,10 +457,7 @@ export default function CoursesScreen() {
         onPress={(scheduleId) => router.push(`/daily-course/${scheduleId}`)}
       />
       {SHOW_COURSES_SEARCH ? (
-        <CourseSearch
-          value={filters.search}
-          onChange={(v) => setFilter("search", v)}
-        />
+        <CourseSearch value={filters.search} onChange={(v) => setFilter("search", v)} />
       ) : null}
       <CourseFilters
         activeTab={filters.tab}
@@ -511,6 +509,7 @@ export default function CoursesScreen() {
       ) : (
         <View style={styles.listWrap}>
           <FlashList
+            ref={courseListRef}
             data={filteredCourses}
             renderItem={renderCourseItem}
             keyExtractor={keyExtractor}
@@ -521,9 +520,7 @@ export default function CoursesScreen() {
             }}
             ListHeaderComponent={listHeader}
             contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>
@@ -582,6 +579,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
   },
   dailyCourseCard: {
+    position: "relative",
     width: "100%",
     alignSelf: "stretch",
     backgroundColor: "#FFF8E5",
@@ -594,6 +592,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  tourTargetFill: {
+    ...StyleSheet.absoluteFillObject,
   },
   dailyCourseHeader: {
     flexDirection: "row",

@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 
 import { COLORS, FONTS } from "@/constants";
+import { TourTarget, type MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { trackEvent } from "@/shared/lib/analytics";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -33,6 +34,12 @@ export default function TabsLayout() {
       <MaterialCommunityIcons name={name} size={TAB_ICON_SIZE} color={color} />
     </View>
   );
+  const renderTargetedIcon = (
+    targetId: MobileOnboardingTourTargetId,
+    name: IconName,
+    color: string,
+    focused: boolean,
+  ) => <TourTarget id={targetId}>{renderIcon(name, color, focused)}</TourTarget>;
   const renderTabLabel = (label: string, color: string, focused: boolean) => (
     <Text
       style={[styles.tabLabel, { color }, focused && styles.tabLabelActive]}
@@ -93,7 +100,7 @@ export default function TabsLayout() {
         options={{
           title: "Питомцы",
           tabBarLabel: ({ color, focused }) => renderTabLabel("Питомцы", color, focused),
-          tabBarIcon: ({ color, focused }) => renderIcon("paw", color, focused),
+          tabBarIcon: ({ color, focused }) => renderTargetedIcon("tab-pets", "paw", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("pets"),
@@ -116,7 +123,8 @@ export default function TabsLayout() {
         options={{
           title: "Курсы",
           tabBarLabel: ({ color, focused }) => renderTabLabel("Курсы", color, focused),
-          tabBarIcon: ({ color, focused }) => renderIcon("book-open-variant", color, focused),
+          tabBarIcon: ({ color, focused }) =>
+            renderTargetedIcon("tab-courses", "book-open-variant", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("courses"),
@@ -127,7 +135,8 @@ export default function TabsLayout() {
         options={{
           title: "Консультации",
           tabBarLabel: ({ color, focused }) => renderTabLabel("Кинолог", color, focused),
-          tabBarIcon: ({ color, focused }) => renderIcon("dog-side", color, focused),
+          tabBarIcon: ({ color, focused }) =>
+            renderTargetedIcon("tab-consultations", "dog-side", color, focused),
         }}
         listeners={{
           tabPress: () => trackTabClick("consultations"),

@@ -27,6 +27,7 @@ import {
 } from "@gafus/types";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
+import { TourTarget } from "@/features/onboarding-tour";
 import { Input } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
@@ -262,7 +263,8 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   };
 
   const deleteDocumentMutation = useMutation({
-    mutationFn: ({ documentId }: { documentId: string }) => petsApi.deleteDocument(pet.id, documentId),
+    mutationFn: ({ documentId }: { documentId: string }) =>
+      petsApi.deleteDocument(pet.id, documentId),
     onSuccess: (response) => {
       if (!response.success) {
         trackEvent({
@@ -475,239 +477,264 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   };
 
   return (
-    <View style={styles.documentsSection}>
-      <View style={styles.documentsHeader}>
-        <View style={styles.documentsTitleWrap}>
-          <Text style={styles.documentsTitle}>Документы</Text>
-          <Text style={styles.documentHint}>Фото ветпаспорта, справки и другие файлы питомца</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [styles.documentActionButton, pressed && styles.documentActionPressed]}
-          onPress={handlePickDocument}
-          disabled={uploadDocumentMutation.isPending}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        >
-          <Text style={styles.documentActionText}>Добавить</Text>
-        </Pressable>
-      </View>
-
-      {isLoading ? <Text style={styles.documentHint}>Загрузка документов...</Text> : null}
-      {isError ? <Text style={styles.documentError}>Не удалось загрузить документы</Text> : null}
-      {!isLoading && !isError && documents.length === 0 ? (
-        <Text style={styles.documentHint}>Документов пока нет</Text>
-      ) : null}
-
-      {documents.map((document) => (
-        <View key={document.id} style={styles.documentItem}>
-          <Pressable onPress={() => void handleOpenDocument(document)}>
-            {isImageDocument(document.mimeType) ? (
-              <Image
-                source={{ uri: document.url }}
-                style={styles.documentPreviewImage}
-                contentFit="contain"
-              />
-            ) : (
-              <View style={styles.documentPreviewFile}>
-                <Text style={styles.documentPreviewFileText}>PDF</Text>
-              </View>
-            )}
+    <TourTarget id="pet-documents-section">
+      <View style={styles.documentsSection}>
+        <View style={styles.documentsHeader}>
+          <View style={styles.documentsTitleWrap}>
+            <Text style={styles.documentsTitle}>Документы</Text>
+            <Text style={styles.documentHint}>
+              Фото ветпаспорта, справки и другие файлы питомца
+            </Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.documentActionButton,
+              pressed && styles.documentActionPressed,
+            ]}
+            onPress={handlePickDocument}
+            disabled={uploadDocumentMutation.isPending}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Text style={styles.documentActionText}>Добавить</Text>
           </Pressable>
-          <Text style={styles.documentName} numberOfLines={1}>
-            Название файла: {getPetDocumentDisplayName(document.name)}
-          </Text>
-          <View style={styles.documentActions}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.documentManageButton,
-                pressed && styles.petActionButtonPressed,
-              ]}
-              onPress={() => handleStartRenameDocument(document)}
-            >
-              <Text style={styles.documentManageIcon}>✏️</Text>
-              <Text style={styles.documentManageText}>Изменить название</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.documentManageButton,
-                pressed && styles.petActionButtonPressed,
-              ]}
-              onPress={() => void handleShareDocument(document)}
-            >
-              <Text style={styles.documentManageIcon}>🔗</Text>
-              <Text style={styles.documentManageText}>Поделиться файлом</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.documentManageButton,
-                styles.documentManageButtonDelete,
-                pressed && styles.petActionButtonPressed,
-              ]}
-              onPress={() => handleDeleteDocument(document)}
-              disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
-            >
-              <Text style={styles.documentManageIcon}>🗑️</Text>
-              <Text style={[styles.documentManageText, styles.documentManageTextDelete]}>
-                Удалить файл
-              </Text>
-            </Pressable>
-          </View>
         </View>
-      ))}
 
-      <Modal
-        visible={pendingDocument !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          if (!uploadDocumentMutation.isPending) {
-            setPendingDocument(null);
-          }
-        }}
-      >
-        <View style={styles.documentModalOverlay}>
-          <View style={styles.documentModalCard}>
-            <Text style={styles.documentsTitle}>Новый документ</Text>
-            {pendingDocument?.mimeType && isImageDocument(pendingDocument.mimeType) ? (
-              <Image
-                source={{ uri: pendingDocument.uri }}
-                style={styles.documentModalPreview}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={styles.documentModalFilePreview}>
-                <Text style={styles.documentPreviewFileText}>PDF</Text>
-              </View>
-            )}
-            <Input
-              label="Название документа"
-              value={documentTitle}
-              onChangeText={setDocumentTitle}
-              placeholder="Введите название"
-            />
-            <View style={styles.documentActions}>
-              <Pressable
-                style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
-                onPress={() => setPendingDocument(null)}
-                disabled={uploadDocumentMutation.isPending}
-              >
-                <Text style={styles.documentSecondaryText}>Отмена</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.documentActionButton, pressed && styles.documentActionPressed]}
-                onPress={handleUploadDocument}
-                disabled={uploadDocumentMutation.isPending}
-              >
-                <Text style={styles.documentActionText}>
-                  {uploadDocumentMutation.isPending ? "Загрузка..." : "Сохранить"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        visible={isRenameModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelRenameDocument}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.documentModalOverlay}
-        >
-          <Pressable style={styles.documentRenameModalDismiss} onPress={handleCancelRenameDocument} />
-          <View style={styles.documentModalCard}>
-            <Text style={styles.documentsTitle}>Изменить название</Text>
-            <TextInput
-              value={editingDocumentName}
-              onChangeText={setEditingDocumentName}
-              style={styles.documentNameInput}
-              editable={!renameDocumentMutation.isPending}
-              placeholder="Название документа"
-              placeholderTextColor={COLORS.textSecondary}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleSaveRenameDocument}
-            />
-            <View style={styles.documentActions}>
-              <Pressable
-                style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
-                onPress={handleCancelRenameDocument}
-                disabled={renameDocumentMutation.isPending}
-              >
-                <Text style={styles.documentSecondaryText}>Отмена</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.documentActionButton, pressed && styles.documentActionPressed]}
-                onPress={handleSaveRenameDocument}
-                disabled={renameDocumentMutation.isPending}
-              >
-                <Text style={styles.documentActionText}>
-                  {renameDocumentMutation.isPending ? "Сохранение..." : "Сохранить"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-      <Modal
-        visible={openedDocument !== null}
-        animationType="fade"
-        onRequestClose={handleCloseDocumentPreview}
-      >
-        <View style={styles.documentViewerContainer}>
-          {openedDocument ? (
-            <>
-              <View style={styles.documentViewerHeader}>
-                <Text style={styles.documentViewerTitle} numberOfLines={1}>
-                  {getPetDocumentDisplayName(openedDocument.name)}
-                </Text>
-                <View style={styles.documentViewerActions}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.documentViewerButton,
-                      pressed && styles.documentActionPressed,
-                    ]}
-                    onPress={() => void handleShareDocument(openedDocument)}
-                  >
-                    <Text style={styles.documentViewerButtonText}>Поделиться ссылкой</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.documentViewerButton,
-                      pressed && styles.documentActionPressed,
-                    ]}
-                    onPress={() => void handleDownloadDocument(openedDocument)}
-                  >
-                    <Text style={styles.documentViewerButtonText}>Скачать</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.documentViewerCloseButton,
-                      pressed && styles.documentActionPressed,
-                    ]}
-                    onPress={handleCloseDocumentPreview}
-                  >
-                    <Text style={styles.documentViewerCloseText}>Закрыть</Text>
-                  </Pressable>
+        {isLoading ? <Text style={styles.documentHint}>Загрузка документов...</Text> : null}
+        {isError ? <Text style={styles.documentError}>Не удалось загрузить документы</Text> : null}
+        {!isLoading && !isError && documents.length === 0 ? (
+          <Text style={styles.documentHint}>Документов пока нет</Text>
+        ) : null}
+
+        {documents.map((document) => (
+          <View key={document.id} style={styles.documentItem}>
+            <Pressable onPress={() => void handleOpenDocument(document)}>
+              {isImageDocument(document.mimeType) ? (
+                <Image
+                  source={{ uri: document.url }}
+                  style={styles.documentPreviewImage}
+                  contentFit="contain"
+                />
+              ) : (
+                <View style={styles.documentPreviewFile}>
+                  <Text style={styles.documentPreviewFileText}>PDF</Text>
                 </View>
+              )}
+            </Pressable>
+            <Text style={styles.documentName} numberOfLines={1}>
+              Название файла: {getPetDocumentDisplayName(document.name)}
+            </Text>
+            <View style={styles.documentActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.documentManageButton,
+                  pressed && styles.petActionButtonPressed,
+                ]}
+                onPress={() => handleStartRenameDocument(document)}
+              >
+                <Text style={styles.documentManageIcon}>✏️</Text>
+                <Text style={styles.documentManageText}>Изменить название</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.documentManageButton,
+                  pressed && styles.petActionButtonPressed,
+                ]}
+                onPress={() => void handleShareDocument(document)}
+              >
+                <Text style={styles.documentManageIcon}>🔗</Text>
+                <Text style={styles.documentManageText}>Поделиться файлом</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.documentManageButton,
+                  styles.documentManageButtonDelete,
+                  pressed && styles.petActionButtonPressed,
+                ]}
+                onPress={() => handleDeleteDocument(document)}
+                disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
+              >
+                <Text style={styles.documentManageIcon}>🗑️</Text>
+                <Text style={[styles.documentManageText, styles.documentManageTextDelete]}>
+                  Удалить файл
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        <Modal
+          visible={pendingDocument !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            if (!uploadDocumentMutation.isPending) {
+              setPendingDocument(null);
+            }
+          }}
+        >
+          <View style={styles.documentModalOverlay}>
+            <View style={styles.documentModalCard}>
+              <Text style={styles.documentsTitle}>Новый документ</Text>
+              {pendingDocument?.mimeType && isImageDocument(pendingDocument.mimeType) ? (
+                <Image
+                  source={{ uri: pendingDocument.uri }}
+                  style={styles.documentModalPreview}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.documentModalFilePreview}>
+                  <Text style={styles.documentPreviewFileText}>PDF</Text>
+                </View>
+              )}
+              <Input
+                label="Название документа"
+                value={documentTitle}
+                onChangeText={setDocumentTitle}
+                placeholder="Введите название"
+              />
+              <View style={styles.documentActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentSecondaryButton,
+                    pressed && styles.documentActionPressed,
+                  ]}
+                  onPress={() => setPendingDocument(null)}
+                  disabled={uploadDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentSecondaryText}>Отмена</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentActionButton,
+                    pressed && styles.documentActionPressed,
+                  ]}
+                  onPress={handleUploadDocument}
+                  disabled={uploadDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentActionText}>
+                    {uploadDocumentMutation.isPending ? "Загрузка..." : "Сохранить"}
+                  </Text>
+                </Pressable>
               </View>
-              <View style={styles.documentViewerBody}>
-                {openedDocument.mimeType === "application/pdf" ? (
-                  <WebView source={{ uri: openedDocument.url }} style={styles.documentViewerContent} />
-                ) : (
-                  <Image
-                    source={{ uri: openedDocument.url }}
-                    style={styles.documentViewerContent}
-                    contentFit="contain"
-                  />
-                )}
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          visible={isRenameModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={handleCancelRenameDocument}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.documentModalOverlay}
+          >
+            <Pressable
+              style={styles.documentRenameModalDismiss}
+              onPress={handleCancelRenameDocument}
+            />
+            <View style={styles.documentModalCard}>
+              <Text style={styles.documentsTitle}>Изменить название</Text>
+              <TextInput
+                value={editingDocumentName}
+                onChangeText={setEditingDocumentName}
+                style={styles.documentNameInput}
+                editable={!renameDocumentMutation.isPending}
+                placeholder="Название документа"
+                placeholderTextColor={COLORS.textSecondary}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleSaveRenameDocument}
+              />
+              <View style={styles.documentActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentSecondaryButton,
+                    pressed && styles.documentActionPressed,
+                  ]}
+                  onPress={handleCancelRenameDocument}
+                  disabled={renameDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentSecondaryText}>Отмена</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.documentActionButton,
+                    pressed && styles.documentActionPressed,
+                  ]}
+                  onPress={handleSaveRenameDocument}
+                  disabled={renameDocumentMutation.isPending}
+                >
+                  <Text style={styles.documentActionText}>
+                    {renameDocumentMutation.isPending ? "Сохранение..." : "Сохранить"}
+                  </Text>
+                </Pressable>
               </View>
-            </>
-          ) : null}
-        </View>
-      </Modal>
-    </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+        <Modal
+          visible={openedDocument !== null}
+          animationType="fade"
+          onRequestClose={handleCloseDocumentPreview}
+        >
+          <View style={styles.documentViewerContainer}>
+            {openedDocument ? (
+              <>
+                <View style={styles.documentViewerHeader}>
+                  <Text style={styles.documentViewerTitle} numberOfLines={1}>
+                    {getPetDocumentDisplayName(openedDocument.name)}
+                  </Text>
+                  <View style={styles.documentViewerActions}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.documentViewerButton,
+                        pressed && styles.documentActionPressed,
+                      ]}
+                      onPress={() => void handleShareDocument(openedDocument)}
+                    >
+                      <Text style={styles.documentViewerButtonText}>Поделиться ссылкой</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.documentViewerButton,
+                        pressed && styles.documentActionPressed,
+                      ]}
+                      onPress={() => void handleDownloadDocument(openedDocument)}
+                    >
+                      <Text style={styles.documentViewerButtonText}>Скачать</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.documentViewerCloseButton,
+                        pressed && styles.documentActionPressed,
+                      ]}
+                      onPress={handleCloseDocumentPreview}
+                    >
+                      <Text style={styles.documentViewerCloseText}>Закрыть</Text>
+                    </Pressable>
+                  </View>
+                </View>
+                <View style={styles.documentViewerBody}>
+                  {openedDocument.mimeType === "application/pdf" ? (
+                    <WebView
+                      source={{ uri: openedDocument.url }}
+                      style={styles.documentViewerContent}
+                    />
+                  ) : (
+                    <Image
+                      source={{ uri: openedDocument.url }}
+                      style={styles.documentViewerContent}
+                      contentFit="contain"
+                    />
+                  )}
+                </View>
+              </>
+            ) : null}
+          </View>
+        </Modal>
+      </View>
+    </TourTarget>
   );
 }
 
@@ -840,7 +867,9 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
     setReminderKind(entry.reminderKind ?? "AFTER_DAYS");
     setReminderDaysAfter(entry.reminderDaysAfter ?? DEFAULT_REMINDER_DAYS[entry.type]);
     setReminderOnDate(
-      entry.reminderOnDate ? entry.reminderOnDate.split("T")[0] : new Date().toISOString().split("T")[0],
+      entry.reminderOnDate
+        ? entry.reminderOnDate.split("T")[0]
+        : new Date().toISOString().split("T")[0],
     );
     setShowModal(true);
   };
@@ -890,237 +919,254 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
   const saving = addMutation.isPending || updateMutation.isPending;
 
   return (
-    <View style={styles.preventionSection}>
-      <View style={styles.preventionHeader}>
-        <View style={styles.preventionTitleWrap}>
-          <Text style={styles.preventionTitle}>Записи о процедурах</Text>
-          <Text style={styles.preventionHint}>Справочно: не заменяет консультацию ветеринара.</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [styles.documentActionButton, pressed && styles.documentActionPressed]}
-          onPress={handleOpenAdd}
-        >
-          <Text style={styles.documentActionText}>Добавить</Text>
-        </Pressable>
-      </View>
-
-      {isLoading ? <Text style={styles.documentHint}>Загрузка записей...</Text> : null}
-      {isError ? <Text style={styles.documentError}>Не удалось загрузить записи о процедурах</Text> : null}
-      {!isLoading && !isError && entries.length === 0 ? (
-        <Text style={styles.documentHint}>Записей пока нет</Text>
-      ) : null}
-
-      {entries.map((entry) => (
-        <View key={entry.id} style={styles.preventionItem}>
-          <Text style={styles.preventionItemTitle}>
-            {PREVENTION_TYPES.find((item) => item.value === entry.type)?.label ?? entry.type}
-          </Text>
-          <Text style={styles.documentHint}>
-            Дата: {new Date(entry.performedAt).toLocaleDateString("ru-RU")}
-          </Text>
-          {entry.productName ? <Text style={styles.documentHint}>Препарат: {entry.productName}</Text> : null}
-          {entry.notes ? (
-            <Text style={styles.documentHint} numberOfLines={2}>
-              {entry.notes}
+    <TourTarget id="pet-prevention-section">
+      <View style={styles.preventionSection}>
+        <View style={styles.preventionHeader}>
+          <View style={styles.preventionTitleWrap}>
+            <Text style={styles.preventionTitle}>Записи о процедурах</Text>
+            <Text style={styles.preventionHint}>
+              Справочно: не заменяет консультацию ветеринара.
             </Text>
-          ) : null}
-          <View style={styles.documentActions}>
-            <Pressable
-              style={({ pressed }) => [styles.documentSecondaryButton, pressed && styles.documentActionPressed]}
-              onPress={() => handleOpenEdit(entry)}
-            >
-              <Text style={styles.documentSecondaryText}>Изменить</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.documentSecondaryButton,
-                styles.documentDeleteButton,
-                pressed && styles.documentActionPressed,
-              ]}
-              onPress={() => handleDelete(entry)}
-            >
-              <Text style={styles.documentDeleteText}>Удалить</Text>
-            </Pressable>
           </View>
-        </View>
-      ))}
-
-      <Modal
-        visible={showModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setShowModal(false);
-          resetForm();
-        }}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.preventionModalOverlay}
-        >
           <Pressable
-            style={styles.preventionModalDismiss}
-            onPress={() => {
-              setShowModal(false);
-              resetForm();
-            }}
-          />
-          <View style={styles.preventionModalSheet}>
-            <ScrollView
-              contentContainerStyle={styles.preventionModalScroll}
-              keyboardShouldPersistTaps="handled"
-            >
-              <Text style={styles.preventionModalTitle}>
-                {editingEntry ? "Изменить запись" : "Добавить запись"}
-              </Text>
+            style={({ pressed }) => [
+              styles.documentActionButton,
+              pressed && styles.documentActionPressed,
+            ]}
+            onPress={handleOpenAdd}
+          >
+            <Text style={styles.documentActionText}>Добавить</Text>
+          </Pressable>
+        </View>
 
-              <Text style={styles.preventionFieldLabel}>Тип процедуры</Text>
-              <View style={styles.preventionTypeRow}>
-                {PREVENTION_TYPES.map((item) => (
-                  <Pressable
-                    key={item.value}
-                    style={[
-                      styles.preventionTypeChip,
-                      type === item.value && styles.preventionTypeChipActive,
-                    ]}
-                    onPress={() => setType(item.value)}
-                  >
-                    <Text
+        {isLoading ? <Text style={styles.documentHint}>Загрузка записей...</Text> : null}
+        {isError ? (
+          <Text style={styles.documentError}>Не удалось загрузить записи о процедурах</Text>
+        ) : null}
+        {!isLoading && !isError && entries.length === 0 ? (
+          <Text style={styles.documentHint}>Записей пока нет</Text>
+        ) : null}
+
+        {entries.map((entry) => (
+          <View key={entry.id} style={styles.preventionItem}>
+            <Text style={styles.preventionItemTitle}>
+              {PREVENTION_TYPES.find((item) => item.value === entry.type)?.label ?? entry.type}
+            </Text>
+            <Text style={styles.documentHint}>
+              Дата: {new Date(entry.performedAt).toLocaleDateString("ru-RU")}
+            </Text>
+            {entry.productName ? (
+              <Text style={styles.documentHint}>Препарат: {entry.productName}</Text>
+            ) : null}
+            {entry.notes ? (
+              <Text style={styles.documentHint} numberOfLines={2}>
+                {entry.notes}
+              </Text>
+            ) : null}
+            <View style={styles.documentActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.documentSecondaryButton,
+                  pressed && styles.documentActionPressed,
+                ]}
+                onPress={() => handleOpenEdit(entry)}
+              >
+                <Text style={styles.documentSecondaryText}>Изменить</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.documentSecondaryButton,
+                  styles.documentDeleteButton,
+                  pressed && styles.documentActionPressed,
+                ]}
+                onPress={() => handleDelete(entry)}
+              >
+                <Text style={styles.documentDeleteText}>Удалить</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        <Modal
+          visible={showModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
+            setShowModal(false);
+            resetForm();
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.preventionModalOverlay}
+          >
+            <Pressable
+              style={styles.preventionModalDismiss}
+              onPress={() => {
+                setShowModal(false);
+                resetForm();
+              }}
+            />
+            <View style={styles.preventionModalSheet}>
+              <ScrollView
+                contentContainerStyle={styles.preventionModalScroll}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.preventionModalTitle}>
+                  {editingEntry ? "Изменить запись" : "Добавить запись"}
+                </Text>
+
+                <Text style={styles.preventionFieldLabel}>Тип процедуры</Text>
+                <View style={styles.preventionTypeRow}>
+                  {PREVENTION_TYPES.map((item) => (
+                    <Pressable
+                      key={item.value}
                       style={[
-                        styles.preventionTypeChipText,
-                        type === item.value && styles.preventionTypeChipTextActive,
+                        styles.preventionTypeChip,
+                        type === item.value && styles.preventionTypeChipActive,
                       ]}
-                      numberOfLines={2}
+                      onPress={() => setType(item.value)}
                     >
-                      {item.label}
+                      <Text
+                        style={[
+                          styles.preventionTypeChipText,
+                          type === item.value && styles.preventionTypeChipTextActive,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Input
+                  label="Дата процедуры *"
+                  value={performedAt}
+                  onChangeText={setPerformedAt}
+                  placeholder="YYYY-MM-DD"
+                  style={styles.preventionInput}
+                />
+                <Input
+                  label="Препарат"
+                  value={productName}
+                  onChangeText={setProductName}
+                  placeholder="Название (необязательно)"
+                  style={styles.preventionInput}
+                />
+                <Input
+                  label="Заметки"
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Дополнительно"
+                  multiline
+                  numberOfLines={2}
+                  keyboardDoneAccessory
+                />
+
+                <View style={styles.preventionToggleRow}>
+                  <Text style={styles.preventionFieldLabelNoMargin}>Включить напоминание</Text>
+                  <Pressable
+                    style={[
+                      styles.preventionToggle,
+                      reminderEnabled && styles.preventionToggleActive,
+                    ]}
+                    onPress={() => setReminderEnabled((value) => !value)}
+                  >
+                    <View
+                      style={[
+                        styles.preventionToggleThumb,
+                        reminderEnabled && styles.preventionToggleThumbActive,
+                      ]}
+                    />
+                  </Pressable>
+                </View>
+
+                {reminderEnabled ? (
+                  <>
+                    <View style={[styles.preventionTypeRow, styles.preventionReminderTypeRow]}>
+                      <Pressable
+                        style={[
+                          styles.preventionTypeChip,
+                          reminderKind === "AFTER_DAYS" && styles.preventionTypeChipActive,
+                        ]}
+                        onPress={() => setReminderKind("AFTER_DAYS")}
+                      >
+                        <Text
+                          style={[
+                            styles.preventionTypeChipText,
+                            reminderKind === "AFTER_DAYS" && styles.preventionTypeChipTextActive,
+                          ]}
+                        >
+                          Через N дней
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.preventionTypeChip,
+                          reminderKind === "ON_DATE" && styles.preventionTypeChipActive,
+                        ]}
+                        onPress={() => setReminderKind("ON_DATE")}
+                      >
+                        <Text
+                          style={[
+                            styles.preventionTypeChipText,
+                            reminderKind === "ON_DATE" && styles.preventionTypeChipTextActive,
+                          ]}
+                        >
+                          По дате
+                        </Text>
+                      </Pressable>
+                    </View>
+                    {reminderKind === "AFTER_DAYS" ? (
+                      <Input
+                        label="Через сколько дней"
+                        value={String(reminderDaysAfter)}
+                        onChangeText={(value) => setReminderDaysAfter(parseInt(value, 10) || 1)}
+                        keyboardType="number-pad"
+                        style={styles.preventionInput}
+                      />
+                    ) : (
+                      <Input
+                        label="Дата напоминания *"
+                        value={reminderOnDate}
+                        onChangeText={setReminderOnDate}
+                        placeholder="YYYY-MM-DD"
+                        style={styles.preventionInput}
+                      />
+                    )}
+                  </>
+                ) : null}
+
+                <View style={styles.preventionModalActions}>
+                  <Pressable
+                    style={styles.preventionCancelButton}
+                    onPress={() => {
+                      setShowModal(false);
+                      resetForm();
+                    }}
+                  >
+                    <Text style={styles.preventionCancelText}>Отмена</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.preventionSaveButton,
+                      saving && styles.preventionSaveButtonDisabled,
+                    ]}
+                    onPress={handleSave}
+                    disabled={saving}
+                  >
+                    <Text style={styles.preventionSaveText}>
+                      {saving ? "Сохранение..." : "Сохранить"}
                     </Text>
                   </Pressable>
-                ))}
-              </View>
-
-              <Input
-                label="Дата процедуры *"
-                value={performedAt}
-                onChangeText={setPerformedAt}
-                placeholder="YYYY-MM-DD"
-                style={styles.preventionInput}
-              />
-              <Input
-                label="Препарат"
-                value={productName}
-                onChangeText={setProductName}
-                placeholder="Название (необязательно)"
-                style={styles.preventionInput}
-              />
-              <Input
-                label="Заметки"
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Дополнительно"
-                multiline
-                numberOfLines={2}
-                keyboardDoneAccessory
-              />
-
-              <View style={styles.preventionToggleRow}>
-                <Text style={styles.preventionFieldLabelNoMargin}>Включить напоминание</Text>
-                <Pressable
-                  style={[
-                    styles.preventionToggle,
-                    reminderEnabled && styles.preventionToggleActive,
-                  ]}
-                  onPress={() => setReminderEnabled((value) => !value)}
-                >
-                  <View
-                    style={[
-                      styles.preventionToggleThumb,
-                      reminderEnabled && styles.preventionToggleThumbActive,
-                    ]}
-                  />
-                </Pressable>
-              </View>
-
-              {reminderEnabled ? (
-                <>
-                  <View style={[styles.preventionTypeRow, styles.preventionReminderTypeRow]}>
-                    <Pressable
-                      style={[
-                        styles.preventionTypeChip,
-                        reminderKind === "AFTER_DAYS" && styles.preventionTypeChipActive,
-                      ]}
-                      onPress={() => setReminderKind("AFTER_DAYS")}
-                    >
-                      <Text
-                        style={[
-                          styles.preventionTypeChipText,
-                          reminderKind === "AFTER_DAYS" && styles.preventionTypeChipTextActive,
-                        ]}
-                      >
-                        Через N дней
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.preventionTypeChip,
-                        reminderKind === "ON_DATE" && styles.preventionTypeChipActive,
-                      ]}
-                      onPress={() => setReminderKind("ON_DATE")}
-                    >
-                      <Text
-                        style={[
-                          styles.preventionTypeChipText,
-                          reminderKind === "ON_DATE" && styles.preventionTypeChipTextActive,
-                        ]}
-                      >
-                        По дате
-                      </Text>
-                    </Pressable>
-                  </View>
-                  {reminderKind === "AFTER_DAYS" ? (
-                    <Input
-                      label="Через сколько дней"
-                      value={String(reminderDaysAfter)}
-                      onChangeText={(value) => setReminderDaysAfter(parseInt(value, 10) || 1)}
-                      keyboardType="number-pad"
-                      style={styles.preventionInput}
-                    />
-                  ) : (
-                    <Input
-                      label="Дата напоминания *"
-                      value={reminderOnDate}
-                      onChangeText={setReminderOnDate}
-                      placeholder="YYYY-MM-DD"
-                      style={styles.preventionInput}
-                    />
-                  )}
-                </>
-              ) : null}
-
-              <View style={styles.preventionModalActions}>
-                <Pressable
-                  style={styles.preventionCancelButton}
-                  onPress={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                >
-                  <Text style={styles.preventionCancelText}>Отмена</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.preventionSaveButton, saving && styles.preventionSaveButtonDisabled]}
-                  onPress={handleSave}
-                  disabled={saving}
-                >
-                  <Text style={styles.preventionSaveText}>
-                    {saving ? "Сохранение..." : "Сохранить"}
-                  </Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </View>
+                </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </View>
+    </TourTarget>
   );
 }
 
@@ -1245,19 +1291,21 @@ export default function PetsTabScreen() {
             <View style={styles.emptyCard}>
               <Text style={styles.noPets}>Питомцы не добавлены</Text>
               <Text style={styles.emptyStateHint}>
-                Добавьте питомца, чтобы записывать прививки, ставить напоминания и хранить
-                документы по вашему питомцу.
+                Добавьте питомца, чтобы записывать прививки, ставить напоминания и хранить документы
+                по вашему питомцу.
               </Text>
             </View>
-            <Pressable
-              style={styles.addPetButton}
-              onPress={() => {
-                trackPetsClick("pet-add-open");
-                router.push({ pathname: "/pets/add" });
-              }}
-            >
-              <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-            </Pressable>
+            <TourTarget id="pets-add-button">
+              <Pressable
+                style={styles.addPetButton}
+                onPress={() => {
+                  trackPetsClick("pet-add-open");
+                  router.push({ pathname: "/pets/add" });
+                }}
+              >
+                <Text style={styles.addPetButtonText}>Добавить питомца</Text>
+              </Pressable>
+            </TourTarget>
           </View>
         ) : (
           <View style={styles.petsList}>
@@ -1270,7 +1318,11 @@ export default function PetsTabScreen() {
                     style={styles.petAvatarPressable}
                   >
                     {pet.photoUrl ? (
-                      <Image source={{ uri: pet.photoUrl }} style={styles.petAvatar} contentFit="cover" />
+                      <Image
+                        source={{ uri: pet.photoUrl }}
+                        style={styles.petAvatar}
+                        contentFit="cover"
+                      />
                     ) : (
                       <Image
                         source={require("../../../assets/images/pet-avatar.png")}
@@ -1309,8 +1361,12 @@ export default function PetsTabScreen() {
                           );
                         })()
                       : null}
-                    {pet.heightCm ? <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text> : null}
-                    {pet.weightKg ? <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text> : null}
+                    {pet.heightCm ? (
+                      <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>
+                    ) : null}
+                    {pet.weightKg ? (
+                      <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>
+                    ) : null}
                     {pet.notes ? (
                       <Text style={styles.petNotes} numberOfLines={2}>
                         Заметки: {pet.notes}
@@ -1344,7 +1400,10 @@ export default function PetsTabScreen() {
                       onPress={() => handleDeletePet(pet)}
                     >
                       <Text style={styles.petActionIcon}>🗑️</Text>
-                      <Text style={[styles.petActionText, styles.petActionTextDelete]} numberOfLines={2}>
+                      <Text
+                        style={[styles.petActionText, styles.petActionTextDelete]}
+                        numberOfLines={2}
+                      >
                         Удалить питомца
                       </Text>
                     </Pressable>
@@ -1357,15 +1416,17 @@ export default function PetsTabScreen() {
           </View>
         )}
         {pets.length > 0 ? (
-          <Pressable
-            style={styles.addPetButton}
-            onPress={() => {
-              trackPetsClick("pet-add-open");
-              router.push({ pathname: "/pets/add" });
-            }}
-          >
-            <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-          </Pressable>
+          <TourTarget id="pets-add-button">
+            <Pressable
+              style={styles.addPetButton}
+              onPress={() => {
+                trackPetsClick("pet-add-open");
+                router.push({ pathname: "/pets/add" });
+              }}
+            >
+              <Text style={styles.addPetButtonText}>Добавить питомца</Text>
+            </Pressable>
+          </TourTarget>
         ) : null}
       </ScrollView>
     </SafeAreaView>

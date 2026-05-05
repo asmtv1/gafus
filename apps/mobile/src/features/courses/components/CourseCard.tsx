@@ -16,6 +16,7 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import type { Course } from "@/shared/lib/api";
+import { TourTarget, type MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 
 const LEVEL_LABELS: Record<string, string> = {
   BEGINNER: "Начальный",
@@ -34,8 +35,7 @@ const SHOW_AUTHOR_AND_FAVORITE_BLOCK = false;
 
 function getStatusText(status: string): string {
   return (
-    STEP_STATUS_LABELS[status as TrainingStatus] ??
-    STEP_STATUS_LABELS[TrainingStatus.NOT_STARTED]
+    STEP_STATUS_LABELS[status as TrainingStatus] ?? STEP_STATUS_LABELS[TrainingStatus.NOT_STARTED]
   );
 }
 
@@ -122,6 +122,7 @@ function areCourseCardPropsEqual(prev: CourseCardProps, next: CourseCardProps): 
     prev.showIosRuCardPaymentHint === next.showIosRuCardPaymentHint &&
     prev.listIndex === next.listIndex &&
     prev.viewportGateCount === next.viewportGateCount &&
+    prev.tourTargetId === next.tourTargetId &&
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onViewportCoverReady === next.onViewportCoverReady &&
     areCourseVisualFieldsEqual(prev.course, next.course)
@@ -175,6 +176,7 @@ export interface CourseCardProps {
   listIndex?: number;
   viewportGateCount?: number;
   onViewportCoverReady?: (courseId: string) => void;
+  tourTargetId?: MobileOnboardingTourTargetId;
 }
 
 /**
@@ -189,6 +191,7 @@ function CourseCardComponent({
   listIndex,
   viewportGateCount = 0,
   onViewportCoverReady,
+  tourTargetId,
 }: CourseCardProps) {
   const router = useRouter();
   const courseType = course.type;
@@ -222,10 +225,9 @@ function CourseCardComponent({
     downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
-  const logoImgUri =
-    course.logoImg?.startsWith("/")
-      ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
-      : course.logoImg || undefined;
+  const logoImgUri = course.logoImg?.startsWith("/")
+    ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
+    : course.logoImg || undefined;
   const logoVersion =
     course.updatedAt != null ? new Date(course.updatedAt).getTime().toString() : "no-version";
   const logoImgVersionedUri = logoImgUri
@@ -249,9 +251,7 @@ function CourseCardComponent({
   );
   const logoImageSource = useMemo(
     () =>
-      preferredLogoImgUri
-        ? { uri: preferredLogoImgUri, cacheKey: coverImageCacheKey }
-        : undefined,
+      preferredLogoImgUri ? { uri: preferredLogoImgUri, cacheKey: coverImageCacheKey } : undefined,
     [preferredLogoImgUri, coverImageCacheKey],
   );
   const viewportCoverReportedRef = useRef(false);
@@ -293,12 +293,7 @@ function CourseCardComponent({
     if (!isInViewportGate || !logoImgVersionedUri) return;
     if (preferredLogoImgUri) return;
     maybeReportViewportCoverReady();
-  }, [
-    isInViewportGate,
-    logoImgVersionedUri,
-    preferredLogoImgUri,
-    maybeReportViewportCoverReady,
-  ]);
+  }, [isInViewportGate, logoImgVersionedUri, preferredLogoImgUri, maybeReportViewportCoverReady]);
 
   useEffect(() => {
     setLogoCandidateIndex(0);
@@ -315,19 +310,18 @@ function CourseCardComponent({
     try {
       const res = await offlineApi.checkUpdates(courseType, version);
       if (res.success && res.data?.hasUpdates) {
-        Alert.alert(
-          "Доступно обновление",
-          "Есть новая версия курса. Скачать сейчас?",
-          [
-            { text: "Позже", style: "cancel" },
-            { text: "Скачать", onPress: () => startDownload(courseType) },
-          ],
-        );
+        Alert.alert("Доступно обновление", "Есть новая версия курса. Скачать сейчас?", [
+          { text: "Позже", style: "cancel" },
+          { text: "Скачать", onPress: () => startDownload(courseType) },
+        ]);
       } else if (res.success && !res.data?.hasUpdates) {
         Alert.alert("Курс актуален", "У вас установлена последняя версия.");
       }
     } catch (err) {
-      reportClientError(err, { issueKey: "CourseCard", keys: { operation: "check_offline_updates" } });
+      reportClientError(err, {
+        issueKey: "CourseCard",
+        keys: { operation: "check_offline_updates" },
+      });
       Alert.alert("Ошибка", "Не удалось проверить обновления.");
     } finally {
       setCheckingUpdates(false);
@@ -336,11 +330,9 @@ function CourseCardComponent({
 
   const handleRatingPress = () => {
     if (course.userStatus !== "COMPLETED") {
-      Alert.alert(
-        "Курс не завершен",
-        "Оценивать курс можно только после его завершения",
-        [{ text: "OK" }],
-      );
+      Alert.alert("Курс не завершен", "Оценивать курс можно только после его завершения", [
+        { text: "OK" },
+      ]);
     }
   };
 
@@ -360,6 +352,9 @@ function CourseCardComponent({
           <Pressable style={styles.link}>
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
+                {tourTargetId ? (
+                  <TourTarget id={tourTargetId} style={styles.tourTargetFill} />
+                ) : null}
                 {!hasDisplayedLogo ? (
                   <View style={styles.courseImagePlaceholder} pointerEvents="none" />
                 ) : null}
@@ -414,7 +409,8 @@ function CourseCardComponent({
               <View style={styles.description}>
                 {course.isPaid ? (
                   <Text style={styles.descriptionText}>
-                    <Text style={styles.metaBold}>Стоимость:</Text> {formatPriceRub(course.priceRub)}
+                    <Text style={styles.metaBold}>Стоимость:</Text>{" "}
+                    {formatPriceRub(course.priceRub)}
                   </Text>
                 ) : null}
                 <Text style={styles.descriptionText}>
@@ -440,9 +436,7 @@ function CourseCardComponent({
                 </View>
               )}
               {isPaidWithoutAccess && showIosRuCardPaymentHint ? (
-                <Text style={styles.iosPaymentHintText}>
-                  Оплата картами РФ доступна на сайте
-                </Text>
+                <Text style={styles.iosPaymentHintText}>Оплата картами РФ доступна на сайте</Text>
               ) : null}
             </View>
           </Pressable>
@@ -461,8 +455,7 @@ function CourseCardComponent({
             <Text
               style={[
                 styles.reviewsText,
-                (reviewsCount > 0 || course.userStatus === "COMPLETED") &&
-                  styles.reviewsClickable,
+                (reviewsCount > 0 || course.userStatus === "COMPLETED") && styles.reviewsClickable,
               ]}
             >
               {getReviewText(reviewsCount, course.userStatus)}
@@ -502,10 +495,7 @@ function CourseCardComponent({
             <Pressable
               onPress={handleCheckUpdates}
               disabled={checkingUpdates}
-              style={({ pressed }) => [
-                styles.updateButton,
-                pressed && styles.offlineBtnPressed,
-              ]}
+              style={({ pressed }) => [styles.updateButton, pressed && styles.offlineBtnPressed]}
             >
               {checkingUpdates ? (
                 <MascotSpinner size="small" />
@@ -523,12 +513,14 @@ function CourseCardComponent({
             </Pressable>
             <Pressable
               onPress={() => removeDownload(courseType)}
-              style={({ pressed }) => [
-                styles.deleteButton,
-                pressed && styles.offlineBtnPressed,
-              ]}
+              style={({ pressed }) => [styles.deleteButton, pressed && styles.offlineBtnPressed]}
             >
-              <MaterialCommunityIcons name="delete-outline" size={16} color="#dc3545" style={styles.buttonIcon} />
+              <MaterialCommunityIcons
+                name="delete-outline"
+                size={16}
+                color="#dc3545"
+                style={styles.buttonIcon}
+              />
               <Text style={styles.deleteButtonText}>Удалить</Text>
             </Pressable>
           </>
@@ -565,42 +557,40 @@ function CourseCardComponent({
                   <Text style={styles.downloadButtonText}>Убрать</Text>
                 </Pressable>
               </>
+            ) : isPaidWithoutAccess ? (
+              <Pressable
+                disabled={true}
+                style={[
+                  styles.downloadButton,
+                  styles.downloadButtonFull,
+                  styles.downloadButtonDisabled,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="download"
+                  size={16}
+                  color={COLORS.textSecondary}
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.downloadButtonDisabledText}>Оплатите для скачивания</Text>
+              </Pressable>
             ) : (
-              isPaidWithoutAccess ? (
-                <Pressable
-                  disabled={true}
-                  style={[
-                    styles.downloadButton,
-                    styles.downloadButtonFull,
-                    styles.downloadButtonDisabled,
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="download"
-                    size={16}
-                    color={COLORS.textSecondary}
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.downloadButtonDisabledText}>Оплатите для скачивания</Text>
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => startDownload(courseType)}
-                  style={({ pressed }) => [
-                    styles.downloadButton,
-                    styles.downloadButtonFull,
-                    pressed && styles.offlineBtnPressed,
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name="download"
-                    size={16}
-                    color={COLORS.text}
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.downloadButtonText}>Скачать</Text>
-                </Pressable>
-              )
+              <Pressable
+                onPress={() => startDownload(courseType)}
+                style={({ pressed }) => [
+                  styles.downloadButton,
+                  styles.downloadButtonFull,
+                  pressed && styles.offlineBtnPressed,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="download"
+                  size={16}
+                  color={COLORS.text}
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.downloadButtonText}>Скачать</Text>
+              </Pressable>
             )}
           </View>
         )}
@@ -654,6 +644,9 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     alignSelf: "center",
+  },
+  tourTargetFill: {
+    ...StyleSheet.absoluteFillObject,
   },
   courseImage: {
     width: "100%",

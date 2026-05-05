@@ -3,16 +3,14 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import {
-  cynologistDisplayInitials,
-  plainConsultationAboutHtml,
-} from "@gafus/consultation-shared";
+import { cynologistDisplayInitials, plainConsultationAboutHtml } from "@gafus/consultation-shared";
 import type { ListedCynologistCardDto } from "@gafus/consultation-shared";
 import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
+import { TourTarget } from "@/features/onboarding-tour";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -67,9 +65,11 @@ export default function ConsultationsCynologistsListScreen() {
   return (
     <SafeAreaView style={styles.root} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>Консультации с кинологом</Text>
-        </View>
+        <TourTarget id="consultations-list">
+          <View style={styles.header}>
+            <Text style={styles.pageTitle}>Консультации с кинологом</Text>
+          </View>
+        </TourTarget>
 
         <View style={styles.subNav}>
           <View style={[styles.subNavItem, styles.subNavItemActive]}>
@@ -87,14 +87,12 @@ export default function ConsultationsCynologistsListScreen() {
         </View>
 
         <Text style={styles.intro}>
-          Выберите кинолога и свободный слот. После записи тренер подтвердит встречу — на
-          почту придут уведомления.
+          Выберите кинолога и свободный слот. После записи тренер подтвердит встречу — на почту
+          придут уведомления.
         </Text>
 
         {query.isError ? (
-          <Text style={styles.error}>
-            Не удалось загрузить список. Попробуйте позже.
-          </Text>
+          <Text style={styles.error}>Не удалось загрузить список. Попробуйте позже.</Text>
         ) : null}
         {query.isLoading ? <Text style={styles.muted}>Загрузка…</Text> : null}
         {!query.isLoading && items.length === 0 ? (

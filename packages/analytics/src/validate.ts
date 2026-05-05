@@ -71,6 +71,42 @@ const schemas = {
       courseType: z.string().optional(),
     })
     .strict(),
+
+  mobile_onboarding_started: base
+    .extend({
+      eventName: z.literal("mobile_onboarding_started"),
+      elementId: z.string(),
+      version: z.string(),
+      stepId: z.string().optional(),
+    })
+    .strict(),
+
+  mobile_onboarding_step_viewed: base
+    .extend({
+      eventName: z.literal("mobile_onboarding_step_viewed"),
+      elementId: z.string(),
+      version: z.string(),
+      stepId: z.string().optional(),
+    })
+    .strict(),
+
+  mobile_onboarding_skipped: base
+    .extend({
+      eventName: z.literal("mobile_onboarding_skipped"),
+      elementId: z.string(),
+      version: z.string(),
+      stepId: z.string().optional(),
+    })
+    .strict(),
+
+  mobile_onboarding_completed: base
+    .extend({
+      eventName: z.literal("mobile_onboarding_completed"),
+      elementId: z.string(),
+      version: z.string(),
+      stepId: z.string().optional(),
+    })
+    .strict(),
 } as const;
 
 /**
@@ -104,9 +140,7 @@ function utf8ByteLength(s: string): number {
 /**
  * Сериализация объекта `gafus` для PostHog; при превышении лимита — только `{ truncated: true }` (F6).
  */
-export function buildGafusProperties(
-  payload: AnalyticsTrackPayload,
-): Record<string, unknown> {
+export function buildGafusProperties(payload: AnalyticsTrackPayload): Record<string, unknown> {
   const flat: Record<string, unknown> = { ...payload };
   const s = JSON.stringify(flat);
   if (utf8ByteLength(s) <= MAX_ANALYTICS_PROPS_BYTES) {

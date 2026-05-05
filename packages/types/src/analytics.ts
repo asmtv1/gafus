@@ -12,6 +12,10 @@ export const ANALYTICS_EVENT_NAMES = {
   booking_start: "booking_start",
   booking_confirm: "booking_confirm",
   course_open: "course_open",
+  mobile_onboarding_started: "mobile_onboarding_started",
+  mobile_onboarding_step_viewed: "mobile_onboarding_step_viewed",
+  mobile_onboarding_skipped: "mobile_onboarding_skipped",
+  mobile_onboarding_completed: "mobile_onboarding_completed",
 } as const;
 
 /** Зарезервировано для Phase 2; в MVP не используется в инструментации. */
@@ -22,8 +26,7 @@ export const ANALYTICS_EVENT_NAMES_EXTENSION = {
   course_start_day: "course_start_day",
 } as const;
 
-export type AnalyticsEventName =
-  (typeof ANALYTICS_EVENT_NAMES)[keyof typeof ANALYTICS_EVENT_NAMES];
+export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[keyof typeof ANALYTICS_EVENT_NAMES];
 
 export type AnalyticsPlatform = "web" | "mobile";
 
@@ -66,6 +69,16 @@ export type AnalyticsTrackPayload =
       eventName: "course_open";
       courseType?: string;
       courseId?: string;
+    })
+  | (AnalyticsBaseFields & {
+      eventName:
+        | "mobile_onboarding_started"
+        | "mobile_onboarding_step_viewed"
+        | "mobile_onboarding_skipped"
+        | "mobile_onboarding_completed";
+      elementId: string;
+      version: string;
+      stepId?: string;
     });
 
 type SessionTsOptional = { sessionId?: string; ts?: string };
@@ -74,7 +87,12 @@ type SessionTsOptional = { sessionId?: string; ts?: string };
  * Вход для trackEvent: sessionId/ts подставляются в клиенте; явный union — корректный narrow в вызовах.
  */
 export type AnalyticsTrackEventInput =
-  | ({ eventName: "page_view"; platform: AnalyticsPlatform; pathOrScreen: string; userId?: string } & SessionTsOptional)
+  | ({
+      eventName: "page_view";
+      platform: AnalyticsPlatform;
+      pathOrScreen: string;
+      userId?: string;
+    } & SessionTsOptional)
   | ({
       eventName: "button_click";
       platform: AnalyticsPlatform;
@@ -120,5 +138,18 @@ export type AnalyticsTrackEventInput =
       pathOrScreen: string;
       courseType?: string;
       courseId?: string;
+      userId?: string;
+    } & SessionTsOptional)
+  | ({
+      eventName:
+        | "mobile_onboarding_started"
+        | "mobile_onboarding_step_viewed"
+        | "mobile_onboarding_skipped"
+        | "mobile_onboarding_completed";
+      platform: AnalyticsPlatform;
+      pathOrScreen: string;
+      elementId: string;
+      version: string;
+      stepId?: string;
       userId?: string;
     } & SessionTsOptional);
