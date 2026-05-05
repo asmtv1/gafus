@@ -583,8 +583,7 @@ const styles = StyleSheet.create({
   },
   dailyCourseCard: {
     width: "100%",
-    maxWidth: 330,
-    alignSelf: "center",
+    alignSelf: "stretch",
     backgroundColor: "#FFF8E5",
     borderRadius: 12,
     marginBottom: 36,
@@ -611,8 +610,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dailyCourseImage: {
-    width: 245,
-    height: 140,
+    width: "100%",
+    maxWidth: 350,
+    aspectRatio: 245 / 140,
     borderRadius: 8,
     backgroundColor: "#EFE7DF",
   },
