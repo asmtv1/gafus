@@ -192,6 +192,7 @@ export async function updateStep(
     }
 
     revalidatePath("/main-panel/steps");
+    revalidatePath("/main-panel/daily-course/steps");
     await invalidateTrainingDaysCache();
     return { success: true };
   } catch (error) {

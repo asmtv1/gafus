@@ -203,6 +203,7 @@ export async function createStep(
     }
 
     revalidatePath("/main-panel/steps");
+    revalidatePath("/main-panel/daily-course/steps");
     return { success: true };
   } catch (error) {
     logger.error("Ошибка при создании шага", error as Error, {

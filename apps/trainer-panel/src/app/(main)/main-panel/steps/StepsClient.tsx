@@ -13,6 +13,10 @@ import { deleteSteps } from "@/features/steps/lib/deleteSteps";
 interface StepsClientProps {
   steps: TrainerStepTableRow[];
   isAdmin?: boolean;
+  title?: string;
+  subtitle?: string;
+  pagePath?: string;
+  enableCreateDayFromSteps?: boolean;
   searchParams?: {
     search?: string;
     orderBy?: string;
@@ -26,6 +30,10 @@ interface StepsClientProps {
 export default function StepsClient({
   steps,
   isAdmin = false,
+  title = "Созданные шаги",
+  subtitle = "Управление вашими шагами тренировок",
+  pagePath = "/main-panel/steps",
+  enableCreateDayFromSteps = true,
   searchParams: initialSearchParams,
 }: StepsClientProps) {
   const router = useRouter();
@@ -42,7 +50,7 @@ export default function StepsClient({
 
   const handleEditStep = (id: string) => {
     const currentParams = new URLSearchParams(searchParams.toString());
-    const returnUrl = `/main-panel/steps?${currentParams.toString()}`;
+    const returnUrl = currentParams.toString() ? `${pagePath}?${currentParams.toString()}` : pagePath;
     router.push(`/main-panel/steps/${id}/edit?returnTo=${encodeURIComponent(returnUrl)}`);
   };
 
@@ -85,12 +93,12 @@ export default function StepsClient({
   );
 
   return (
-    <PageLayout title="Созданные шаги" subtitle="Управление вашими шагами тренировок">
+    <PageLayout title={title} subtitle={subtitle}>
       <EnhancedStepsTable
         steps={uiSteps}
         onEditStep={handleEditStep}
         onDeleteSteps={handleDelete}
-        onCreateDayFromSteps={handleCreateDayFromSteps}
+        onCreateDayFromSteps={enableCreateDayFromSteps ? handleCreateDayFromSteps : undefined}
         isAdmin={isAdmin}
         initialSearchParams={initialSearchParams}
       />

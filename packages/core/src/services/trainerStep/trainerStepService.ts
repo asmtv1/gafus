@@ -226,10 +226,12 @@ export async function deleteSteps(
 export async function getVisibleSteps(
   authorId: string | null,
   isAdminOrModerator: boolean,
+  options: { isDailyCourse?: boolean } = {},
 ) {
+  const isDailyCourse = options.isDailyCourse ?? false;
   const where = isAdminOrModerator
-    ? { isDailyCourse: false }
-    : { authorId: authorId!, isDailyCourse: false };
+    ? { isDailyCourse }
+    : { authorId: authorId!, isDailyCourse };
   return prisma.step.findMany({
     where,
     select: visibleStepsSelect,

@@ -305,7 +305,11 @@ export default function NewStepForm({
         setTimeout(() => {
           const returnTo = searchParams.get("returnTo");
           const redirectUrl =
-            returnTo && returnTo.startsWith("/main-panel/steps") ? returnTo : "/main-panel/steps";
+            returnTo &&
+            (returnTo.startsWith("/main-panel/steps") ||
+              returnTo.startsWith("/main-panel/daily-course/steps"))
+              ? returnTo
+              : "/main-panel/steps";
           router.push(redirectUrl);
         }, 2000);
       } else {

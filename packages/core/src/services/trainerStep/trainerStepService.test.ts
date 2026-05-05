@@ -45,4 +45,19 @@ describe("trainerStepService", () => {
       }),
     );
   });
+
+  it("lists only daily-course steps when requested", async () => {
+    mocks.stepFindMany.mockResolvedValue([]);
+
+    await getVisibleSteps("trainer-1", false, { isDailyCourse: true });
+
+    expect(mocks.stepFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          authorId: "trainer-1",
+          isDailyCourse: true,
+        },
+      }),
+    );
+  });
 });

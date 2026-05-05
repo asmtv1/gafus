@@ -10,7 +10,7 @@ import type { AuthUser } from "@gafus/types";
 
 const logger = createTrainerPanelLogger("trainer-get-visible-steps");
 
-export async function getVisibleSteps() {
+export async function getVisibleSteps(options: { isDailyCourse?: boolean } = {}) {
   try {
     const session = await getCachedSession();
     const user = session?.user as AuthUser;
@@ -22,7 +22,7 @@ export async function getVisibleSteps() {
     const { id: userId, role } = user;
     const isAdminOrModerator = ["ADMIN", "MODERATOR"].includes(role);
 
-    return await getVisibleStepsCore(userId, isAdminOrModerator);
+    return await getVisibleStepsCore(userId, isAdminOrModerator, options);
   } catch (error) {
     unstable_rethrow(error);
     logger.error(

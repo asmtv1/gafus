@@ -39,6 +39,7 @@ export async function deleteSteps(
     }
 
     revalidatePath("/main-panel/steps");
+    revalidatePath("/main-panel/daily-course/steps");
     return {
       success: true,
       message: `Удалено: ${ids.length}`,
