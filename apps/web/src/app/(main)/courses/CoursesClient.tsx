@@ -279,8 +279,7 @@ export default function CoursesClient({
                 <span className={styles.dailyCoursePill}>Обновляется ежедневно</span>
               </div>
               <p className={styles.dailyCourseDescription}>
-                Это курс, в котором каждый день появляются новые мини-задания для спокойного и
-                понятного прогресса.
+                Каждый день — новая короткая связка упражнений для спокойного прогресса с собакой.
               </p>
               <div className={styles.dailyCourseProgressRow}>
                 <span>{initialDailyCourse.day.stepsCount} упражнения</span>
