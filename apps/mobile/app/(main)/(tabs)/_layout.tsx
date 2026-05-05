@@ -6,8 +6,8 @@ import { COLORS, FONTS } from "@/constants";
 import { trackEvent } from "@/shared/lib/analytics";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-const TAB_ICON_SIZE = 20;
-const TAB_LABEL_FONT_SIZE = 10;
+const TAB_ICON_SIZE = 24;
+const TAB_LABEL_FONT_SIZE = 12;
 const SHOW_FAVORITES_TAB = false;
 
 /** Цвет неактивного таба (иконка и подпись) */
@@ -54,12 +54,12 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontFamily: FONTS.montserrat,
           fontSize: TAB_LABEL_FONT_SIZE,
-          lineHeight: 12,
+          lineHeight: 14,
           textAlign: "center",
           includeFontPadding: false,
         },
         tabBarItemStyle: {
-          minHeight: 50,
+          minHeight: 58,
           paddingHorizontal: 2,
           paddingVertical: 2,
         },
@@ -67,9 +67,9 @@ export default function TabsLayout() {
           backgroundColor: TAB_BAR_BG,
           borderTopWidth: 1,
           borderTopColor: COLORS.borderLight,
-          minHeight: 62,
-          paddingTop: 2,
-          paddingBottom: 6,
+          minHeight: 72,
+          paddingTop: 4,
+          paddingBottom: 8,
         },
         headerStyle: {
           backgroundColor: COLORS.surface,
@@ -126,7 +126,7 @@ export default function TabsLayout() {
         name="consultations"
         options={{
           title: "Консультации",
-          tabBarLabel: ({ color, focused }) => renderTabLabel("Консультации", color, focused),
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Кинолог", color, focused),
           tabBarIcon: ({ color, focused }) => renderIcon("dog-side", color, focused),
         }}
         listeners={{
@@ -158,9 +158,9 @@ export default function TabsLayout() {
 
 const styles = {
   tabIconWrap: {
-    minWidth: 34,
-    height: 24,
-    borderRadius: 12,
+    minWidth: 41,
+    height: 29,
+    borderRadius: 15,
     alignItems: "center" as const,
     justifyContent: "center" as const,
   },
@@ -170,7 +170,7 @@ const styles = {
   tabLabel: {
     fontFamily: FONTS.montserrat,
     fontSize: TAB_LABEL_FONT_SIZE,
-    lineHeight: 11,
+    lineHeight: 13,
     textAlign: "center" as const,
   },
   tabLabelActive: {
