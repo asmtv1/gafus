@@ -29,9 +29,9 @@ export const DEFAULT_OG_IMAGE = {
 } as const;
 
 export const DAILY_COURSE_LOGO = {
-  url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png",
-  width: 1658,
-  height: 949,
+  url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png?v=20260505-1620",
+  width: 1672,
+  height: 941,
   alt: "Курс дня",
 } as const;
 

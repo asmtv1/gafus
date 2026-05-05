@@ -57,7 +57,7 @@ const VIEWPORT_OVERLAY_SETTLE_MS = 96;
 const VIEWPORT_GATE_FORCE_MS = 12_000;
 const SHOW_COURSES_SEARCH = false;
 const DAILY_COURSE_LOGO = {
-  url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png",
+  url: "https://storage.yandexcloud.net/gafus-media/uploads/courses/course-day-logo.png?v=20260505-1620",
   alt: "Курс дня",
 };
 const DAILY_COURSE_DESCRIPTION =
