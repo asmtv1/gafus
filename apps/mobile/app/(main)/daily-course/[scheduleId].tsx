@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Text, Surface } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Loading } from "@/shared/components/ui";
 import { AccordionStep } from "@/features/training/components";
@@ -42,6 +43,7 @@ export default function DailyCourseDayScreen() {
   const resumeMutation = useDailyCourseResumeStep();
   const resetMutation = useDailyCourseResetStep();
   const completeMutation = useDailyCourseCompleteStep();
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
 
   useEffect(() => {
     if (!dayData?.steps) return;
@@ -143,12 +145,41 @@ export default function DailyCourseDayScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Surface style={styles.header} elevation={0}>
-        <Text style={styles.eyebrow}>{dayData.mskDate}</Text>
+      <View style={styles.header}>
         <Text style={styles.title}>Курс дня</Text>
-        <Text style={styles.bundleTitle}>{dayData.title}</Text>
-        {dayData.description ? <Text style={styles.description}>{dayData.description}</Text> : null}
         <Text style={styles.progress}>Прогресс: {progressText}</Text>
+      </View>
+
+      <Surface style={styles.descriptionContainer} elevation={0}>
+        <Pressable
+          style={[
+            styles.descriptionHeader,
+            isDescriptionOpen && styles.descriptionHeaderExpanded,
+          ]}
+          onPress={() => setIsDescriptionOpen((value) => !value)}
+          accessibilityRole="button"
+          accessibilityLabel={isDescriptionOpen ? "Скрыть описание дня" : "Показать описание дня"}
+        >
+          <Text style={styles.descriptionTitle}>Описание дня</Text>
+          <View style={styles.descriptionExpand}>
+            <Text style={styles.descriptionExpandText}>
+              {isDescriptionOpen ? "Скрыть" : "Подробнее"}
+            </Text>
+            <MaterialCommunityIcons
+              name={isDescriptionOpen ? "chevron-up" : "chevron-down"}
+              size={22}
+              color="#636128"
+            />
+          </View>
+        </Pressable>
+        {isDescriptionOpen && (
+          <View style={styles.descriptionContent}>
+            <Text style={styles.bundleTitle}>{dayData.title}</Text>
+            {dayData.description ? (
+              <Text style={styles.description}>{dayData.description}</Text>
+            ) : null}
+          </View>
+        )}
       </Surface>
 
       <View style={styles.steps}>
@@ -185,33 +216,79 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   header: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  eyebrow: {
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
+    alignItems: "center",
+    marginBottom: 16,
   },
   title: {
-    color: COLORS.text,
+    color: "#636128",
     fontFamily: FONTS.impact,
-    fontSize: 28,
-    marginBottom: SPACING.xs,
+    fontSize: 64,
+    lineHeight: 68,
+    textAlign: "center",
+    fontWeight: "400",
+    marginBottom: SPACING.sm,
+  },
+  descriptionContainer: {
+    width: "100%",
+    maxWidth: 500,
+    alignSelf: "center",
+    backgroundColor: "transparent",
+    marginBottom: 24,
+  },
+  descriptionHeader: {
+    minHeight: 58,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#ECE5D2",
+    borderWidth: 1,
+    borderColor: "#636128",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.sm,
+  },
+  descriptionHeaderExpanded: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  descriptionTitle: {
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  descriptionExpand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  descriptionExpandText: {
+    color: "#636128",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  descriptionContent: {
+    backgroundColor: "#ECE5D2",
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: "#636128",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 20,
   },
   bundleTitle: {
-    color: COLORS.text,
+    color: "#352E2E",
     fontSize: 18,
     fontWeight: "700",
     marginBottom: SPACING.sm,
   },
   description: {
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
+    color: "#352E2E",
+    lineHeight: 22,
   },
   progress: {
-    color: COLORS.secondary,
+    color: "#636128",
     fontWeight: "700",
   },
   steps: {

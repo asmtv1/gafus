@@ -104,33 +104,41 @@ function DailyCourseCard({
   }
 
   const progress = `${data.stepsSummary.completed}/${data.stepsSummary.total}`;
-  const actionText = data.userStatus === "NOT_STARTED" ? "Начать" : "Продолжить";
+  const progressPercent =
+    data.stepsSummary.total > 0
+      ? Math.round((data.stepsSummary.completed / data.stepsSummary.total) * 100)
+      : 0;
 
   return (
     <Pressable style={styles.dailyCourseCard} onPress={() => onPress(data.scheduleId!)}>
-      <View style={styles.dailyCourseHeader}>
+      <View style={styles.dailyCourseMedia}>
         <Image
           source={{ uri: DAILY_COURSE_LOGO.url }}
           style={styles.dailyCourseImage}
           contentFit="cover"
           accessibilityLabel={DAILY_COURSE_LOGO.alt}
         />
-        <View style={styles.dailyCourseText}>
+      </View>
+      <View style={styles.dailyCourseContent}>
+        <View style={styles.dailyCourseHeader}>
           <View style={styles.dailyCoursePill}>
             <Text style={styles.dailyCoursePillText}>Обновляется ежедневно</Text>
           </View>
-          <Text style={styles.dailyCourseTitle}>Курс дня</Text>
+        </View>
+        <View style={styles.dailyCourseText}>
           <Text style={styles.dailyCourseDescription}>{DAILY_COURSE_DESCRIPTION}</Text>
           <View style={styles.dailyCourseProgressRow}>
             <Text style={styles.dailyCourseMeta}>{data.day.stepsCount} упражнения</Text>
             <Text style={styles.dailyCourseMeta}>{progress} выполнено</Text>
           </View>
-        </View>
-      </View>
-      <View style={styles.dailyCourseFooter}>
-        <Text style={styles.dailyCourseDate}>{data.mskDate}</Text>
-        <View style={styles.dailyCourseAction}>
-          <Text style={styles.dailyCourseActionText}>{actionText}</Text>
+          <View style={styles.dailyCourseProgressTrack}>
+            <View
+              style={[
+                styles.dailyCourseProgressFill,
+                { width: `${Math.min(Math.max(progressPercent, 0), 100)}%` },
+              ]}
+            />
+          </View>
         </View>
       </View>
     </Pressable>
@@ -574,27 +582,48 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
   },
   dailyCourseCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    padding: SPACING.md,
-    marginHorizontal: SPACING.sm,
-    marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: "#E2D8D0",
+    width: "100%",
+    maxWidth: 330,
+    alignSelf: "center",
+    backgroundColor: "#FFF8E5",
+    borderRadius: 12,
+    marginBottom: 36,
+    borderWidth: 2,
+    borderColor: "#636128",
+    shadowColor: "#000000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   dailyCourseHeader: {
     flexDirection: "row",
-    alignItems: "stretch",
-    gap: SPACING.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  dailyCourseMedia: {
+    width: "100%",
+    paddingTop: 10,
+    paddingHorizontal: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
   dailyCourseImage: {
-    width: 112,
-    minHeight: 132,
+    width: 245,
+    height: 140,
     borderRadius: 8,
     backgroundColor: "#EFE7DF",
   },
+  dailyCourseContent: {
+    paddingTop: 10,
+    paddingHorizontal: 30,
+    alignItems: "center",
+  },
   dailyCourseText: {
-    flex: 1,
+    width: "100%",
+    alignItems: "center",
   },
   dailyCourseEyebrow: {
     color: COLORS.textSecondary,
@@ -602,61 +631,60 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   dailyCourseTitle: {
-    color: COLORS.text,
-    fontSize: 20,
+    color: "#352E2E",
+    fontSize: 18,
     fontWeight: "700",
     marginBottom: SPACING.xs,
   },
   dailyCoursePill: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    backgroundColor: "#EAF3FF",
-    marginBottom: SPACING.xs,
+    minHeight: 28,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.2)",
+    backgroundColor: "rgba(255, 248, 229, 0.92)",
   },
   dailyCoursePillText: {
-    color: COLORS.secondary,
-    fontSize: 12,
+    color: "#636128",
+    fontSize: 11,
     fontWeight: "700",
+    textTransform: "uppercase",
   },
   dailyCourseDescription: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: SPACING.sm,
+    color: "#352E2E",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+    marginBottom: 10,
+    textAlign: "center",
   },
   dailyCourseProgressRow: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: SPACING.sm,
+    alignItems: "center",
+    gap: 12,
   },
   dailyCourseMeta: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
+    color: "rgba(53, 46, 46, 0.78)",
+    fontSize: 15,
+    fontWeight: "600",
   },
-  dailyCourseFooter: {
-    marginTop: SPACING.md,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: SPACING.sm,
+  dailyCourseProgressTrack: {
+    width: "100%",
+    height: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "rgba(99, 97, 40, 0.18)",
+    marginTop: 12,
+    marginBottom: 12,
   },
-  dailyCourseDate: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-  },
-  dailyCourseAction: {
-    minHeight: 40,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.secondary,
-  },
-  dailyCourseActionText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+  dailyCourseProgressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#636128",
   },
   listContent: {
     paddingHorizontal: SPACING.sm,
