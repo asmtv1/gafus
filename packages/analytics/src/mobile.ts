@@ -1,4 +1,5 @@
 import {
+  clearAnalyticsEventQueue,
   setAnalyticsAdapter,
   setAnalyticsCaptureEnabled,
   setAnalyticsDebugEnabled,
@@ -28,6 +29,26 @@ function isDevBundle(): boolean {
   );
 }
 
+function disableMobileAnalytics(
+  options: {
+    anonymousId: string;
+    debugEnabled?: boolean;
+  },
+  error: unknown,
+): void {
+  mobileInstance = null;
+  lastKey = "";
+  setAnalyticsDebugEnabled(options.debugEnabled === true);
+  setSessionIdProvider(() => options.anonymousId);
+  setAnalyticsAdapter(null);
+  setAnalyticsCaptureEnabled(false);
+  clearAnalyticsEventQueue();
+  if (isDevBundle() || process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console -- mobile dev diagnostics when native module is unavailable
+    console.warn("[analytics] AppMetrica недоступна, mobile analytics отключена", error);
+  }
+}
+
 /**
  * Mobile (RN): Яндекс AppMetrica.
  * В dev capture только при devAllowCapture; в prod — при непустом apiKey.
@@ -55,7 +76,12 @@ export async function initAnalyticsMobile(options: {
     console.warn("[analytics] смена mobile AppMetrica key (dev) — пересоздаём");
   }
   if (!mobileInstance) {
-    mobileInstance = await createAppMetricaMobileAdapter(apiKey);
+    try {
+      mobileInstance = await createAppMetricaMobileAdapter(apiKey);
+    } catch (error) {
+      disableMobileAnalytics(options, error);
+      return;
+    }
   }
   lastKey = apiKey;
   setAnalyticsDebugEnabled(options.debugEnabled === true);
