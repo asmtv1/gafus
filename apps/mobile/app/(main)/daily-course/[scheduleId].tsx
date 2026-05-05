@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, Pressable } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Text, Surface } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Loading } from "@/shared/components/ui";
+import { MarkdownText } from "@/shared/components";
 import { AccordionStep } from "@/features/training/components";
 import {
   useDailyCourseCompleteStep,
@@ -24,7 +26,7 @@ export default function DailyCourseDayScreen() {
   const normalizedScheduleId = typeof scheduleId === "string" ? scheduleId : "";
   const courseId = getDailyCourseStoreCourseId(normalizedScheduleId);
 
-  const { data, isLoading, error, refetch } = useDailyCourseDay(normalizedScheduleId);
+  const { data, isLoading, error, refetch, isRefetching } = useDailyCourseDay(normalizedScheduleId);
   const dayData = data?.data;
 
   const initializeStep = useStepStore((s) => s.initializeStep);
@@ -62,13 +64,15 @@ export default function DailyCourseDayScreen() {
     });
   }, [courseId, dayData?.steps, initializeStep, normalizedScheduleId]);
 
-  const progressText = useMemo(() => {
+  const progress = useMemo(() => {
     const steps = dayData?.steps ?? [];
     const completed = steps.filter((step, index) => {
       const local = getStepState(courseId, normalizedScheduleId, index);
       return (local?.status ?? step.status) === "COMPLETED";
     }).length;
-    return `${completed}/${steps.length}`;
+    const total = steps.length;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { completed, total, percent };
   }, [courseId, dayData?.steps, getStepState, normalizedScheduleId]);
 
   const handleToggle = useCallback(
@@ -131,78 +135,118 @@ export default function DailyCourseDayScreen() {
 
   if (error || !data?.success || !dayData) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>Курс дня не найден</Text>
-        <Pressable onPress={() => refetch()}>
-          <Text style={styles.linkText}>Попробовать снова</Text>
-        </Pressable>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.linkText}>Назад</Text>
-        </Pressable>
-      </View>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+          <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+            <Text style={styles.backText}>Назад</Text>
+          </Pressable>
+          <View style={styles.errorContainer}>
+            <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
+            <Text style={styles.errorText}>Курс дня не найден</Text>
+            <Pressable onPress={() => refetch()} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>Попробовать снова</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Курс дня</Text>
-        <Text style={styles.progress}>Прогресс: {progressText}</Text>
-      </View>
-
-      <Surface style={styles.descriptionContainer} elevation={0}>
-        <Pressable
-          style={[
-            styles.descriptionHeader,
-            isDescriptionOpen && styles.descriptionHeaderExpanded,
-          ]}
-          onPress={() => setIsDescriptionOpen((value) => !value)}
-          accessibilityRole="button"
-          accessibilityLabel={isDescriptionOpen ? "Скрыть описание дня" : "Показать описание дня"}
-        >
-          <Text style={styles.descriptionTitle}>Описание дня</Text>
-          <View style={styles.descriptionExpand}>
-            <Text style={styles.descriptionExpandText}>
-              {isDescriptionOpen ? "Скрыть" : "Подробнее"}
-            </Text>
-            <MaterialCommunityIcons
-              name={isDescriptionOpen ? "chevron-up" : "chevron-down"}
-              size={22}
-              color="#636128"
-            />
-          </View>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+          <Text style={styles.backText}>Назад</Text>
         </Pressable>
-        {isDescriptionOpen && (
-          <View style={styles.descriptionContent}>
-            <Text style={styles.bundleTitle}>{dayData.title}</Text>
-            {dayData.description ? (
-              <Text style={styles.description}>{dayData.description}</Text>
-            ) : null}
-          </View>
-        )}
-      </Surface>
 
-      <View style={styles.steps}>
-        {dayData.steps.map((step, index) => (
-          <AccordionStep
-            key={`${normalizedScheduleId}-${step.stepId}-${index}`}
-            step={step}
-            index={index}
-            stepNumber={index + 1}
-            isOpen={openIndex === index}
-            localState={getStepState(courseId, normalizedScheduleId, index)}
-            courseId={courseId}
-            dayOnCourseId={normalizedScheduleId}
-            onToggle={() => handleToggle(index)}
-            onStart={() => handleStart(index, step.step.durationSec ?? 0)}
-            onPause={(remainingSec) => handlePause(index, remainingSec)}
-            onResume={() => handleResume(index)}
-            onComplete={() => handleComplete(index)}
-            onReset={(durationSec) => handleReset(index, durationSec)}
-          />
-        ))}
-      </View>
-    </ScrollView>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
+        >
+          <View style={styles.dayHeader}>
+            <Text style={styles.dayTitle}>Курс дня</Text>
+            <View style={styles.dayHeaderDivider} />
+          </View>
+
+          <Surface style={styles.progressCard} elevation={1}>
+            <View style={styles.progressHeader}>
+              <Text variant="titleMedium">Прогресс</Text>
+              <Text variant="titleMedium" style={styles.progressPercent}>
+                {progress.percent}%
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
+            </View>
+            <Text style={styles.progressText}>
+              Выполнено {progress.completed} из {progress.total} шагов
+            </Text>
+          </Surface>
+
+          <View style={styles.descriptionDayContainer}>
+            <Pressable
+              style={[
+                styles.descriptionDayHeader,
+                isDescriptionOpen && styles.descriptionDayHeaderExpanded,
+              ]}
+              onPress={() => setIsDescriptionOpen((value) => !value)}
+              accessibilityRole="button"
+              accessibilityLabel={isDescriptionOpen ? "Скрыть описание дня" : "Показать описание дня"}
+            >
+              <Text style={styles.descriptionDayTitle}>Описание дня</Text>
+              <View style={styles.descriptionDayExpand}>
+                <Text style={styles.descriptionDayExpandText}>
+                  {isDescriptionOpen ? "Скрыть" : "Подробнее"}
+                </Text>
+                <MaterialCommunityIcons
+                  name="chevron-down"
+                  size={24}
+                  color={COLORS.primary}
+                  style={[
+                    styles.descriptionDayIcon,
+                    isDescriptionOpen && styles.descriptionDayIconExpanded,
+                  ]}
+                />
+              </View>
+            </Pressable>
+            {isDescriptionOpen && (
+              <View style={styles.descriptionDayContent}>
+                <Text style={styles.bundleTitle}>{dayData.title}</Text>
+                {dayData.description ? <MarkdownText text={dayData.description} /> : null}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.stepsContainer}>
+            {dayData.steps.map((step, index) => (
+              <AccordionStep
+                key={`${normalizedScheduleId}-${step.stepId}-${index}`}
+                step={step}
+                index={index}
+                stepNumber={index + 1}
+                isOpen={openIndex === index}
+                localState={getStepState(courseId, normalizedScheduleId, index)}
+                courseId={courseId}
+                dayOnCourseId={normalizedScheduleId}
+                onToggle={() => handleToggle(index)}
+                onStart={() => handleStart(index, step.step.durationSec ?? 0)}
+                onPause={(remainingSec) => handlePause(index, remainingSec)}
+                onResume={() => handleResume(index)}
+                onComplete={() => handleComplete(index)}
+                onReset={(durationSec) => handleReset(index, durationSec)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -211,68 +255,123 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     padding: SPACING.md,
     paddingBottom: SPACING.xl,
   },
-  header: {
+  backRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: 4,
   },
-  title: {
-    color: "#636128",
+  backText: {
+    fontSize: 17,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  dayHeader: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    marginBottom: SPACING.md,
+  },
+  dayTitle: {
+    color: COLORS.border,
     fontFamily: FONTS.impact,
-    fontSize: 64,
-    lineHeight: 68,
-    textAlign: "center",
     fontWeight: "400",
+    fontSize: 52,
+    lineHeight: 60,
+    textAlign: "center",
+  },
+  dayHeaderDivider: {
+    alignSelf: "stretch",
+    height: 2,
+    backgroundColor: COLORS.border,
+    borderRadius: 1,
+    marginTop: SPACING.sm,
+  },
+  progressCard: {
+    padding: SPACING.md,
+    borderRadius: 12,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.cardBackground,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SPACING.sm,
   },
-  descriptionContainer: {
+  progressPercent: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: SPACING.sm,
+    backgroundColor: COLORS.borderLight,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+  },
+  progressText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+  },
+  descriptionDayContainer: {
+    marginBottom: SPACING.lg,
     width: "100%",
     maxWidth: 500,
-    alignSelf: "center",
-    backgroundColor: "transparent",
-    marginBottom: 24,
   },
-  descriptionHeader: {
-    minHeight: 58,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#ECE5D2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderRadius: 12,
+  descriptionDayHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: SPACING.sm,
+    padding: SPACING.md,
+    paddingHorizontal: 20,
+    backgroundColor: "#ece5d2",
+    borderWidth: 1,
+    borderColor: "#636128",
+    borderRadius: 12,
   },
-  descriptionHeaderExpanded: {
+  descriptionDayHeaderExpanded: {
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
-  descriptionTitle: {
-    color: "#352E2E",
-    fontFamily: FONTS.impact,
+  descriptionDayTitle: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#352e2e",
   },
-  descriptionExpand: {
+  descriptionDayExpand: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: SPACING.xs,
   },
-  descriptionExpandText: {
-    color: "#636128",
+  descriptionDayExpandText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
+    color: COLORS.primary,
   },
-  descriptionContent: {
-    backgroundColor: "#ECE5D2",
+  descriptionDayIcon: {
+    transform: [{ rotate: "0deg" }],
+  },
+  descriptionDayIconExpanded: {
+    transform: [{ rotate: "180deg" }],
+  },
+  descriptionDayContent: {
+    backgroundColor: "#ece5d2",
     borderWidth: 1,
-    borderTopWidth: 0,
     borderColor: "#636128",
+    borderTopWidth: 0,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     padding: 20,
@@ -283,31 +382,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: SPACING.sm,
   },
-  description: {
-    color: "#352E2E",
-    lineHeight: 22,
-  },
-  progress: {
-    color: "#636128",
-    fontWeight: "700",
-  },
-  steps: {
+  stepsContainer: {
     gap: SPACING.sm,
   },
-  center: {
+  errorContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: COLORS.background,
-    padding: SPACING.lg,
-    gap: SPACING.md,
+    padding: SPACING.xl,
   },
   errorText: {
     color: COLORS.error,
+    marginTop: SPACING.md,
     textAlign: "center",
   },
-  linkText: {
-    color: COLORS.secondary,
-    fontWeight: "700",
+  retryButton: {
+    marginTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });
