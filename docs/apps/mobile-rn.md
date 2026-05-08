@@ -166,14 +166,14 @@ Mobile App ──HTTP/HTTPS──► API Routes (/api/v1/*) ──► Prisma ─
 
 ### Native Features
 
-| Технология         | Назначение                |
-| ------------------ | ------------------------- |
+| Технология         | Назначение                           |
+| ------------------ | ------------------------------------ |
 | expo-crypto        | UUID для tempSessionId (регистрация) |
-| expo-notifications | Push уведомления          |
-| expo-av            | Видео плеер               |
-| expo-haptics       | Тактильная обратная связь |
-| expo-file-system   | Работа с файлами          |
-| expo-secure-store  | Безопасное хранение       |
+| expo-notifications | Push уведомления                     |
+| expo-av            | Видео плеер                          |
+| expo-haptics       | Тактильная обратная связь            |
+| expo-file-system   | Работа с файлами                     |
+| expo-secure-store  | Безопасное хранение                  |
 
 ### Выбор: Expo vs React Native CLI
 
@@ -1253,6 +1253,7 @@ export function useNetworkStatus() {
 ### RuStore vs Expo на Android
 
 Android поддерживает оба канала одновременно:
+
 - **RuStore** — устройства без GMS (Huawei, устройства с RuStore/Почта/Дзен)
 - **Expo/FCM** — устройства с Google Mobile Services
 
@@ -2118,7 +2119,7 @@ jobs:
   "expo": {
     "name": "GAFUS",
     "slug": "gafus",
-    "version": "1.0.0",
+    "version": "1.4.6",
     "runtimeVersion": {
       "policy": "sdkVersion"
     },

@@ -120,6 +120,7 @@ if (response.status === 404 && isServerAction) {
 ### При деплое
 
 1. Очистите кеш перед сборкой:
+
    ```bash
    cd apps/web
    ./scripts/clear-build-cache.sh
@@ -146,6 +147,7 @@ pnpm dev
 ### Диагностика
 
 1. **Проверка логов** — ошибки Server Actions логируются:
+
    ```
    Server Action not found (404) - возможно устаревший билд
    ```
@@ -161,6 +163,7 @@ pnpm dev
 ## Предотвращение
 
 1. **Очистка кеша при CI/CD** — добавьте в pipeline:
+
    ```yaml
    - name: Clear Next.js cache
      run: |
@@ -169,9 +172,10 @@ pnpm dev
    ```
 
 2. **Версионирование билдов** — добавьте версию в `package.json`:
+
    ```json
    {
-     "version": "1.0.0",
+     "version": "1.4.6",
      "scripts": {
        "build": "next build"
      }

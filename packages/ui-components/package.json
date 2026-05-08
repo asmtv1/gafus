@@ -1,6 +1,6 @@
 {
   "name": "@gafus/ui-components",
-  "version": "0.1.0",
+  "version": "1.4.6",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -12,10 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/error-handling": "workspace:*",
     "@apptracer/sdk": "^2.6.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@gafus/error-handling": "workspace:*",
     "@mui/icons-material": "7.1.0",
     "@mui/material": "7.1.0",
     "next": "15.5.7",

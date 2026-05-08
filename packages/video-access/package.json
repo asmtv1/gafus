@@ -1,6 +1,6 @@
 {
   "name": "@gafus/video-access",
-  "version": "1.0.0",
+  "version": "1.4.6",
   "type": "module",
   "exports": {
     ".": {
@@ -14,8 +14,8 @@
     "build": "tsc",
     "clean": "rimraf dist",
     "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts",
-    "test:coverage": "vitest run --coverage --config vitest.config.ts"
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.2"

@@ -8,21 +8,21 @@
 
 ### Web / trainer-panel
 
-| Переменная | Описание |
-|-----------|----------|
+| Переменная                     | Описание                               |
+| ------------------------------ | -------------------------------------- |
 | `NEXT_PUBLIC_TRACER_APP_TOKEN` | App Token из настроек проекта в Tracer |
-| `NEXT_PUBLIC_APP_VERSION` | Версия приложения (напр. `1.0.0`) |
-| `NEXT_PUBLIC_ENABLE_TRACER` | `"true"` для включения в dev/staging |
+| `NEXT_PUBLIC_APP_VERSION`      | Версия приложения (напр. `1.4.6`)      |
+| `NEXT_PUBLIC_ENABLE_TRACER`    | `"true"` для включения в dev/staging   |
 
 ### Mobile (apps/mobile)
 
-| Переменная | Описание |
-|-----------|----------|
-| `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS` | App Token для проекта Гафус-ios |
-| `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` | App Token для проекта Гафус-android |
-| `EXPO_PUBLIC_TRACER_APP_TOKEN` | Fallback (если платформенные не заданы) |
-| `EXPO_PUBLIC_APP_VERSION` | Версия приложения (напр. `1.0.0`) |
-| `EXPO_PUBLIC_ENABLE_TRACER` | `"true"` для включения в dev (иначе только production) |
+| Переменная                             | Описание                                               |
+| -------------------------------------- | ------------------------------------------------------ |
+| `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS`     | App Token для проекта Гафус-ios                        |
+| `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` | App Token для проекта Гафус-android                    |
+| `EXPO_PUBLIC_TRACER_APP_TOKEN`         | Fallback (если платформенные не заданы)                |
+| `EXPO_PUBLIC_APP_VERSION`              | Версия приложения (напр. `1.4.6`)                      |
+| `EXPO_PUBLIC_ENABLE_TRACER`            | `"true"` для включения в dev (иначе только production) |
 
 Прокидываются через `app.config.js` в `Constants.expoConfig.extra`. Токен выбирается по `Platform.OS`. Для production EAS Build — задать `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS` и `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` через EAS Secrets.
 
@@ -32,10 +32,10 @@
 
 ### Переменные
 
-| Переменная | Описание |
-|-----------|----------|
-| `TRACER_APP_TOKEN` | Токен для серверных приложений. Для Next.js можно использовать `NEXT_PUBLIC_TRACER_APP_TOKEN` |
-| `TRACER_SERVER_ENABLED` | `"true"` — включить отправку в dev (иначе только production) |
+| Переменная              | Описание                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `TRACER_APP_TOKEN`      | Токен для серверных приложений. Для Next.js можно использовать `NEXT_PUBLIC_TRACER_APP_TOKEN` |
+| `TRACER_SERVER_ENABLED` | `"true"` — включить отправку в dev (иначе только production)                                  |
 
 ## Как работает
 

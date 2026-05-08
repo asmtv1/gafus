@@ -1,6 +1,6 @@
 {
   "name": "@gafus/worker",
-  "version": "0.1.0",
+  "version": "1.4.6",
   "private": true,
   "main": "dist/worker/src/index.js",
   "types": "dist/worker/src/index.d.ts",
@@ -13,14 +13,14 @@
     "start": "node dist/worker/src/index.js",
     "start:dev": "tsx src/index.ts",
     "start:watch": "nodemon dist/worker/src/index.js --watch dist --ext js --ignore dist/**/*.map --exec 'node'",
-    "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "test:coverage": "vitest run --coverage --config vitest.config.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/core": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
+    "@gafus/core": "workspace:*",
     "@gafus/logger": "workspace:*",
     "@gafus/mailer": "workspace:*",
     "@gafus/prisma": "workspace:*",

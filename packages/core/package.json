@@ -1,6 +1,6 @@
 {
   "name": "@gafus/core",
-  "version": "1.0.0",
+  "version": "1.4.6",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -238,10 +238,10 @@
     "dev": "tsc --watch",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "test:coverage": "vitest run --coverage --config vitest.config.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.0.0",

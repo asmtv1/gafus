@@ -1,10 +1,12 @@
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, FONTS } from "@/constants";
 import { TourTarget, type MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { trackEvent } from "@/shared/lib/analytics";
+import { getMainTabBarSafeAreaStyle } from "@/shared/lib/tabBarSafeArea";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const TAB_ICON_SIZE = 24;
@@ -20,6 +22,9 @@ const TAB_BAR_BG = "#F5F0E8";
  * Layout нижней навигации — цвета из дизайна приложения, не зависят от темы.
  */
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const androidSafeAreaStyle = getMainTabBarSafeAreaStyle(Platform.OS, insets.bottom);
+
   const trackTabClick = (tabName: string) => {
     trackEvent({
       eventName: "button_click",
@@ -74,9 +79,8 @@ export default function TabsLayout() {
           backgroundColor: TAB_BAR_BG,
           borderTopWidth: 1,
           borderTopColor: COLORS.borderLight,
-          minHeight: 72,
           paddingTop: 4,
-          paddingBottom: 8,
+          ...androidSafeAreaStyle,
         },
         headerStyle: {
           backgroundColor: COLORS.surface,

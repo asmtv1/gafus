@@ -1,18 +1,18 @@
 {
   "name": "@gafus/web",
-  "version": "0.1.0",
+  "version": "1.4.6",
   "private": true,
   "scripts": {
     "analyze": "node scripts/analyze-bundle.js",
     "analyze:build": "ANALYZE=true npm run build",
     "build": "next build",
     "build:clean": "bash scripts/clear-build-cache.sh && next build",
+    "clean": "bash scripts/clear-build-cache.sh",
     "dev": "PORT=3002 next dev",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "start": "PORT=3002 next start",
-    "typecheck": "tsc --noEmit",
-    "clean": "bash scripts/clear-build-cache.sh"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

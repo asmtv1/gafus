@@ -98,6 +98,14 @@ class ExamCleanupProcessor {
 
       // 3. Удаляем видео для зачтенных экзаменов
       for (const exam of completedExams) {
+        if (!exam.userStepId || !exam.userStep) {
+          this.logger.warn("⚠️ Пропускаем зачтенный экзамен без связанного userStep", {
+            examId: exam.id,
+          });
+          errors++;
+          continue;
+        }
+
         try {
           await this.deleteExamVideo(
             exam.videoReportUrl!,
@@ -117,6 +125,14 @@ class ExamCleanupProcessor {
 
       // 4. Удаляем видео для незачтенных экзаменов
       for (const exam of pendingExams) {
+        if (!exam.userStepId || !exam.userStep) {
+          this.logger.warn("⚠️ Пропускаем незачтенный экзамен без связанного userStep", {
+            examId: exam.id,
+          });
+          errors++;
+          continue;
+        }
+
         try {
           await this.deleteExamVideo(
             exam.videoReportUrl!,

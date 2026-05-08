@@ -1,21 +1,21 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
     "android:release": "expo run:android --device --variant release",
+    "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger --filter=@gafus/core",
     "ios": "expo run:ios",
     "ios:release": "expo run:ios --device --configuration Release",
     "lint": "eslint src app",
     "lint:fix": "eslint src app --fix",
-    "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger --filter=@gafus/core",
     "start": "expo start",
     "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
     "update:ota:preview": "eas update --channel preview",
     "update:ota:production": "eas update --channel production",
-    "typecheck": "tsc --noEmit",
     "web": "expo start --web"
   },
   "dependencies": {

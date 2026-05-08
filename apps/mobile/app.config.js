@@ -24,33 +24,29 @@ function resolveSchemes(baseConfig) {
   return out.length === 1 ? out[0] : out;
 }
 
-const vkIntentFilters =
-  vkClientIdAndroid
-    ? [
-        {
-          action: "VIEW",
-          data: [
-            { scheme: `vk${vkClientIdAndroid}`, host: "vk.ru" },
-            {
-              scheme: `vk${vkClientIdAndroid}`,
-              host: "vk.ru",
-              pathPrefix: "/blank.html",
-            },
-          ],
-          category: ["BROWSABLE", "DEFAULT"],
-        },
-      ]
-    : [];
+const vkIntentFilters = vkClientIdAndroid
+  ? [
+      {
+        action: "VIEW",
+        data: [
+          { scheme: `vk${vkClientIdAndroid}`, host: "vk.ru" },
+          {
+            scheme: `vk${vkClientIdAndroid}`,
+            host: "vk.ru",
+            pathPrefix: "/blank.html",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ]
+  : [];
 
 module.exports = ({ config }) => ({
   ...config,
   scheme: resolveSchemes(config),
   android: {
     ...config.android,
-    intentFilters: [
-      ...(config.android?.intentFilters ?? []),
-      ...vkIntentFilters,
-    ],
+    intentFilters: [...(config.android?.intentFilters ?? []), ...vkIntentFilters],
   },
   plugins: [
     ...(config.plugins ?? []),
@@ -58,8 +54,7 @@ module.exports = ({ config }) => ({
   ],
   extra: {
     ...config.extra,
-    appVersion:
-      process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.4.5",
+    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.4.6",
     enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
     tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
     tracerAppTokenIos: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_IOS,

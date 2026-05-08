@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.4.5",
+    "version": "1.4.6",
     "orientation": "portrait",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -54,10 +54,7 @@
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
@@ -72,9 +69,7 @@
         {
           "android": {
             "minSdkVersion": 24,
-            "extraMavenRepos": [
-              "https://artifactory-external.vkpartner.ru/artifactory/maven"
-            ]
+            "extraMavenRepos": ["https://artifactory-external.vkpartner.ru/artifactory/maven"]
           }
         }
       ],

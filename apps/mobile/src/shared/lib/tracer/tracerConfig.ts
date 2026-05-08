@@ -27,10 +27,16 @@ function getAppToken(): string | undefined {
   const isIos = Platform.OS === "ios";
   const isAndroid = Platform.OS === "android";
   if (isIos) {
-    return getStr("EXPO_PUBLIC_TRACER_APP_TOKEN_IOS", "tracerAppTokenIos") ?? getExtra("tracerAppTokenIos");
+    return (
+      getStr("EXPO_PUBLIC_TRACER_APP_TOKEN_IOS", "tracerAppTokenIos") ??
+      getExtra("tracerAppTokenIos")
+    );
   }
   if (isAndroid) {
-    return getStr("EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID", "tracerAppTokenAndroid") ?? getExtra("tracerAppTokenAndroid");
+    return (
+      getStr("EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID", "tracerAppTokenAndroid") ??
+      getExtra("tracerAppTokenAndroid")
+    );
   }
   return getStr("EXPO_PUBLIC_TRACER_APP_TOKEN", "tracerAppToken") ?? getExtra("tracerAppToken");
 }
@@ -48,8 +54,6 @@ export function getTracerConfig(): { appToken: string; versionName: string } | n
   const appToken = getAppToken() ?? "";
   if (!appToken) return null;
   const versionName =
-    getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ??
-    getExtra("appVersion") ??
-    "1.4.5";
+    getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ?? getExtra("appVersion") ?? "1.4.6";
   return { appToken, versionName };
 }
