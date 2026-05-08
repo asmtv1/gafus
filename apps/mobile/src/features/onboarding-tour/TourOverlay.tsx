@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
 import type { MobileOnboardingTourStep } from "./tour-steps";
@@ -26,6 +27,8 @@ interface TourOverlayProps {
   targetRect: TourTargetRect | null;
   secondaryTargetRect?: TourTargetRect | null;
   isTargetPending?: boolean;
+  primaryActionLabel?: string;
+  allowSkip?: boolean;
   onNext: () => void;
   onSkip: () => void;
 }
@@ -37,10 +40,14 @@ export function TourOverlay({
   targetRect,
   secondaryTargetRect = null,
   isTargetPending = false,
+  primaryActionLabel,
+  allowSkip = true,
   onNext,
   onSkip,
 }: TourOverlayProps) {
   const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [cardHeight, setCardHeight] = useState(0);
   const isLastStep = stepIndex === totalSteps - 1;
   const highlightRects = useMemo(() => {
     return [targetRect, secondaryTargetRect]
@@ -60,24 +67,48 @@ export function TourOverlay({
 
   const cardStyle = useMemo(() => {
     const cardWidth = Math.min(width - SPACING.md * 2, 360);
+    const verticalMargin = SPACING.md;
+    const measuredCardHeight = cardHeight || 240;
+    const minTop = insets.top + verticalMargin;
+    const maxTop = Math.max(minTop, height - insets.bottom - measuredCardHeight - verticalMargin);
     if (!targetRect) {
       return {
         width: cardWidth,
         left: (width - cardWidth) / 2,
-        top: Math.max(120, height * 0.32),
+        top: Math.min(maxTop, Math.max(minTop, height * 0.32)),
       };
     }
 
-    const preferredTop = targetRect.y + targetRect.height + SPACING.md;
-    const fallbackTop = targetRect.y - 220;
-    const top = preferredTop + 210 < height ? preferredTop : Math.max(SPACING.md, fallbackTop);
+    if (step.id === "courses") {
+      const bottomBoundary = secondaryTargetRect?.y ?? height - 86;
+      return {
+        width: cardWidth,
+        left: (width - cardWidth) / 2,
+        top: Math.min(
+          maxTop,
+          Math.max(minTop, bottomBoundary - measuredCardHeight - SPACING.sm),
+        ),
+      };
+    }
+
+    const spaceBelow = height - insets.bottom - (targetRect.y + targetRect.height) - verticalMargin;
+    const spaceAbove = targetRect.y - insets.top - verticalMargin;
+    const preferredBelowTop = targetRect.y + targetRect.height + SPACING.md;
+    const preferredAboveTop = targetRect.y - measuredCardHeight - SPACING.md;
+
+    let top = preferredBelowTop;
+    if (spaceBelow < measuredCardHeight && spaceAbove >= measuredCardHeight) {
+      top = preferredAboveTop;
+    } else if (spaceBelow < measuredCardHeight && spaceAbove < measuredCardHeight) {
+      top = maxTop;
+    }
 
     return {
       width: cardWidth,
       left: (width - cardWidth) / 2,
-      top,
+      top: Math.min(maxTop, Math.max(minTop, top)),
     };
-  }, [height, targetRect, width]);
+  }, [cardHeight, height, insets.bottom, insets.top, secondaryTargetRect?.y, step.id, targetRect, width]);
 
   if (isTargetPending) {
     return null;
@@ -114,20 +145,30 @@ export function TourOverlay({
           ]}
         />
       ))}
-      <View style={[styles.card, cardStyle]}>
+      <View
+        style={[styles.card, cardStyle, { maxHeight: height - insets.top - insets.bottom - SPACING.md * 2 }]}
+        onLayout={(event) => {
+          const nextHeight = event.nativeEvent.layout.height;
+          if (nextHeight > 0 && Math.abs(nextHeight - cardHeight) > 1) {
+            setCardHeight(nextHeight);
+          }
+        }}
+      >
         <Text style={styles.counter}>
           {stepIndex + 1}/{totalSteps}
         </Text>
         <Text style={styles.title}>{step.title}</Text>
         <Text style={styles.text}>{step.text}</Text>
         <View style={styles.actions}>
-          {!isLastStep ? (
+          {!isLastStep && allowSkip ? (
             <Pressable style={styles.secondaryButton} onPress={onSkip}>
               <Text style={styles.secondaryButtonText}>Пропустить</Text>
             </Pressable>
           ) : null}
           <Pressable style={styles.primaryButton} onPress={onNext}>
-            <Text style={styles.primaryButtonText}>{isLastStep ? "Готово" : "Далее"}</Text>
+            <Text style={styles.primaryButtonText}>
+              {primaryActionLabel ?? (isLastStep ? "Готово" : "Далее")}
+            </Text>
           </Pressable>
         </View>
       </View>

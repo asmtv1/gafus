@@ -213,6 +213,9 @@ export default function PetList({
       ),
       heightCm: pet.heightCm || undefined,
       weightKg: pet.weightKg || undefined,
+      neckGirthCm: pet.neckGirthCm || undefined,
+      muzzleGirthCm: pet.muzzleGirthCm || undefined,
+      bellyGirthCm: pet.bellyGirthCm || undefined,
     };
 
     try {

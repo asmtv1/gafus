@@ -224,6 +224,10 @@
     "./validation/email-domain-suggestion": {
       "types": "./dist/core/src/validation/emailDomainSuggestion.d.ts",
       "default": "./dist/core/src/validation/emailDomainSuggestion.js"
+    },
+    "./validation/pet": {
+      "types": "./dist/core/src/validation/petSchema.d.ts",
+      "default": "./dist/core/src/validation/petSchema.js"
     }
   },
   "main": "./dist/core/src/index.js",

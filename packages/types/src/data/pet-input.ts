@@ -7,6 +7,9 @@ export interface CreatePetInput {
   birthDate: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
 }
@@ -19,6 +22,9 @@ export interface UpdatePetInput {
   birthDate?: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
 }
@@ -30,6 +36,9 @@ export interface PetFormFieldsData {
   birthDate: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
 }

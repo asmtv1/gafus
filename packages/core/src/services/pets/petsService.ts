@@ -38,6 +38,9 @@ export interface CreatePetInput {
   birthDate: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
 }
@@ -49,6 +52,9 @@ export interface UpdatePetInput {
   birthDate?: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
 }
@@ -220,6 +226,9 @@ export async function createPet(userId: string, data: CreatePetInput) {
         birthDate: new Date(data.birthDate),
         heightCm: data.heightCm ?? null,
         weightKg: data.weightKg ?? null,
+        neckGirthCm: data.neckGirthCm ?? null,
+        muzzleGirthCm: data.muzzleGirthCm ?? null,
+        bellyGirthCm: data.bellyGirthCm ?? null,
         photoUrl: data.photoUrl || null,
         notes: data.notes ?? null,
       },
@@ -259,6 +268,9 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   if (data.birthDate !== undefined) updateData.birthDate = new Date(data.birthDate);
   if (data.heightCm !== undefined) updateData.heightCm = data.heightCm ?? null;
   if (data.weightKg !== undefined) updateData.weightKg = data.weightKg ?? null;
+  if (data.neckGirthCm !== undefined) updateData.neckGirthCm = data.neckGirthCm ?? null;
+  if (data.muzzleGirthCm !== undefined) updateData.muzzleGirthCm = data.muzzleGirthCm ?? null;
+  if (data.bellyGirthCm !== undefined) updateData.bellyGirthCm = data.bellyGirthCm ?? null;
   if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl || null;
   if (data.notes !== undefined) updateData.notes = data.notes ?? null;
 

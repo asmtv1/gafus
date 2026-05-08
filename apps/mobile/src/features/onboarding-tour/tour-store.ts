@@ -9,9 +9,13 @@ interface MobileOnboardingTourState {
   hasSeenV1: boolean;
   currentStepId: MobileOnboardingTourStepId;
   isActive: boolean;
+  isAwaitingRequiredPetCreation: boolean;
   setHasHydrated: (value: boolean) => void;
   startTour: () => void;
   setCurrentStepId: (stepId: MobileOnboardingTourStepId) => void;
+  waitForRequiredPetCreation: () => void;
+  completeRequiredPetCreation: () => void;
+  cancelRequiredPetCreationWait: () => void;
   completeTour: () => void;
   skipTour: () => void;
   closeTour: () => void;
@@ -24,22 +28,49 @@ export const useMobileOnboardingTourStore = create<MobileOnboardingTourState>()(
       hasSeenV1: false,
       currentStepId: "start",
       isActive: false,
+      isAwaitingRequiredPetCreation: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
-      startTour: () => set({ currentStepId: "start", isActive: true }),
-      setCurrentStepId: (stepId) => set({ currentStepId: stepId }),
-      completeTour: () => set({ hasSeenV1: true, currentStepId: "finish", isActive: false }),
-      skipTour: () => set({ hasSeenV1: true, isActive: false }),
-      closeTour: () => set({ isActive: false }),
+      startTour: () =>
+        set({
+          currentStepId: "start",
+          isActive: true,
+          isAwaitingRequiredPetCreation: false,
+        }),
+      setCurrentStepId: (stepId) =>
+        set({ currentStepId: stepId, isAwaitingRequiredPetCreation: false }),
+      waitForRequiredPetCreation: () => set({ isAwaitingRequiredPetCreation: true }),
+      completeRequiredPetCreation: () =>
+        set({
+          currentStepId: "prevention",
+          isActive: true,
+          isAwaitingRequiredPetCreation: false,
+        }),
+      cancelRequiredPetCreationWait: () => set({ isAwaitingRequiredPetCreation: false }),
+      completeTour: () =>
+        set({
+          hasSeenV1: true,
+          currentStepId: "finish",
+          isActive: false,
+          isAwaitingRequiredPetCreation: false,
+        }),
+      skipTour: () =>
+        set({
+          hasSeenV1: true,
+          isActive: false,
+          isAwaitingRequiredPetCreation: false,
+        }),
+      closeTour: () => set({ isActive: false, isAwaitingRequiredPetCreation: false }),
     }),
     {
       name: "mobile-onboarding-tour",
       storage: createJSONStorage(() => zustandStorage),
       partialize: (state) => ({
         hasSeenV1: state.hasSeenV1,
-        currentStepId: state.currentStepId,
-        isActive: state.isActive,
       }),
       onRehydrateStorage: () => (state) => {
+        if (state?.isActive) {
+          state.startTour();
+        }
         state?.setHasHydrated(true);
       },
     },

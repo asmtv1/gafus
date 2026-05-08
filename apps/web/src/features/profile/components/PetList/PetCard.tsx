@@ -510,6 +510,9 @@ const PetCard = memo(function PetCard({
           })()}
         {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
         {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
+        {pet.neckGirthCm && <p>Обхват шеи: {pet.neckGirthCm} см</p>}
+        {pet.muzzleGirthCm && <p>Обхват морды: {pet.muzzleGirthCm} см</p>}
+        {pet.bellyGirthCm && <p>Обхват живота: {pet.bellyGirthCm} см</p>}
         {pet.notes && <p>Заметки: {pet.notes}</p>}
       </div>
       {isOwner ? (

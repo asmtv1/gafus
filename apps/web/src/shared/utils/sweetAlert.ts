@@ -4,7 +4,12 @@ import Swal from "sweetalert2";
 
 import {
   formatIsoBirthDateToDdMmYyyy,
+  petBellyGirthSchema,
   petBirthDateSchema,
+  petMuzzleGirthSchema,
+  petNeckGirthSchema,
+  petHeightSchema,
+  petWeightSchema,
 } from "@shared/lib/validation/petSchemas";
 
 /** Экранирование для подстановки в HTML (value="...") — защита от XSS */
@@ -316,6 +321,21 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Вес (кг)</label>
           <input id="pet-weightKg" type="number" value="${escapeHtml(String(pet.weightKg ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите вес">
         </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Обхват шеи (см)</label>
+          <input id="pet-neckGirthCm" type="number" value="${escapeHtml(String(pet.neckGirthCm ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите обхват шеи">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Обхват морды (см)</label>
+          <input id="pet-muzzleGirthCm" type="number" value="${escapeHtml(String(pet.muzzleGirthCm ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите обхват морды">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Обхват живота (см)</label>
+          <input id="pet-bellyGirthCm" type="number" value="${escapeHtml(String(pet.bellyGirthCm ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите обхват живота">
+        </div>
         
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Заметки</label>
@@ -348,6 +368,11 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         (document.getElementById("pet-birthDate") as HTMLInputElement)?.value?.trim() ?? "";
       const heightCm = (document.getElementById("pet-heightCm") as HTMLInputElement)?.value;
       const weightKg = (document.getElementById("pet-weightKg") as HTMLInputElement)?.value;
+      const neckGirthCm = (document.getElementById("pet-neckGirthCm") as HTMLInputElement)?.value;
+      const muzzleGirthCm =
+        (document.getElementById("pet-muzzleGirthCm") as HTMLInputElement)?.value;
+      const bellyGirthCm =
+        (document.getElementById("pet-bellyGirthCm") as HTMLInputElement)?.value;
       const notes = (document.getElementById("pet-notes") as HTMLTextAreaElement)?.value?.trim();
 
       // Валидация
@@ -374,15 +399,35 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
       const birthDate = birthParsed.data;
 
       // Проверка числовых полей
-      if (heightCm && (isNaN(Number(heightCm)) || Number(heightCm) < 1 || Number(heightCm) > 200)) {
-        Swal.showValidationMessage("Рост должен быть числом от 1 до 200 см");
+      const heightParsed = petHeightSchema.safeParse(heightCm);
+      if (!heightParsed.success) {
+        Swal.showValidationMessage(heightParsed.error.issues[0]?.message ?? "Рост заполнен некорректно");
         return false;
       }
-      if (
-        weightKg &&
-        (isNaN(Number(weightKg)) || Number(weightKg) < 0.1 || Number(weightKg) > 200)
-      ) {
-        Swal.showValidationMessage("Вес должен быть числом от 0.1 до 200 кг");
+      const weightParsed = petWeightSchema.safeParse(weightKg);
+      if (!weightParsed.success) {
+        Swal.showValidationMessage(weightParsed.error.issues[0]?.message ?? "Вес заполнен некорректно");
+        return false;
+      }
+      const neckGirthParsed = petNeckGirthSchema.safeParse(neckGirthCm);
+      if (!neckGirthParsed.success) {
+        Swal.showValidationMessage(
+          neckGirthParsed.error.issues[0]?.message ?? "Обхват шеи заполнен некорректно",
+        );
+        return false;
+      }
+      const muzzleGirthParsed = petMuzzleGirthSchema.safeParse(muzzleGirthCm);
+      if (!muzzleGirthParsed.success) {
+        Swal.showValidationMessage(
+          muzzleGirthParsed.error.issues[0]?.message ?? "Обхват морды заполнен некорректно",
+        );
+        return false;
+      }
+      const bellyGirthParsed = petBellyGirthSchema.safeParse(bellyGirthCm);
+      if (!bellyGirthParsed.success) {
+        Swal.showValidationMessage(
+          bellyGirthParsed.error.issues[0]?.message ?? "Обхват живота заполнен некорректно",
+        );
         return false;
       }
 
@@ -392,8 +437,11 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         type,
         breed: breed || undefined,
         birthDate,
-        heightCm: heightCm ? Number(heightCm) : undefined,
-        weightKg: weightKg ? Number(weightKg) : undefined,
+        heightCm: heightParsed.data,
+        weightKg: weightParsed.data,
+        neckGirthCm: neckGirthParsed.data,
+        muzzleGirthCm: muzzleGirthParsed.data,
+        bellyGirthCm: bellyGirthParsed.data,
         notes: notes || undefined,
       };
     },

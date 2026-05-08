@@ -77,6 +77,9 @@ const createPetSchema = z.object({
   birthDate: z.string().min(1, "Дата рождения обязательна"),
   heightCm: z.number().optional(),
   weightKg: z.number().optional(),
+  neckGirthCm: z.number().optional(),
+  muzzleGirthCm: z.number().optional(),
+  bellyGirthCm: z.number().optional(),
   photoUrl: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -88,6 +91,9 @@ const updatePetSchema = z.object({
   birthDate: z.string().optional(),
   heightCm: z.number().optional(),
   weightKg: z.number().optional(),
+  neckGirthCm: z.number().optional(),
+  muzzleGirthCm: z.number().optional(),
+  bellyGirthCm: z.number().optional(),
   photoUrl: z.string().optional(),
   notes: z.string().optional(),
 });

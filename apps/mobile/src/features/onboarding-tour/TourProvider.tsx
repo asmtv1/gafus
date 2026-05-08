@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { InteractionManager, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { trackEvent } from "@/shared/lib/analytics";
@@ -55,6 +55,7 @@ function areTargetRectsStable(a: TourTargetRect, b: TourTargetRect): boolean {
 
 function MobileOnboardingTourController() {
   const router = useRouter();
+  const pathname = usePathname();
   const { measureTarget } = useTourTargets();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const {
@@ -62,8 +63,11 @@ function MobileOnboardingTourController() {
     hasSeenV1,
     currentStepId,
     isActive,
+    isAwaitingRequiredPetCreation,
     startTour,
     setCurrentStepId,
+    waitForRequiredPetCreation,
+    cancelRequiredPetCreationWait,
     completeTour,
     skipTour,
     closeTour,
@@ -107,6 +111,37 @@ function MobileOnboardingTourController() {
     if (!isActive || !step?.route) return;
     router.push(step.route);
   }, [isActive, router, step]);
+
+  useEffect(() => {
+    if (
+      isActive &&
+      !isAwaitingRequiredPetCreation &&
+      currentStepId === "add-pet" &&
+      pathname === "/pets/add" &&
+      !hasPets
+    ) {
+      waitForRequiredPetCreation();
+      return;
+    }
+
+    if (
+      isActive &&
+      isAwaitingRequiredPetCreation &&
+      currentStepId === "add-pet" &&
+      pathname !== "/pets/add" &&
+      !hasPets
+    ) {
+      cancelRequiredPetCreationWait();
+    }
+  }, [
+    cancelRequiredPetCreationWait,
+    currentStepId,
+    hasPets,
+    isActive,
+    isAwaitingRequiredPetCreation,
+    pathname,
+    waitForRequiredPetCreation,
+  ]);
 
   useEffect(() => {
     if (!isActive || !step?.targetId) {
@@ -197,15 +232,20 @@ function MobileOnboardingTourController() {
   }, [skipTour, step?.id]);
 
   const handleNext = useCallback(() => {
+    if (step?.requiresPetCreation) {
+      waitForRequiredPetCreation();
+      router.push("/pets/add");
+      return;
+    }
     if (stepIndex >= steps.length - 1) {
       trackTourEvent("mobile_onboarding_completed", step?.id);
       completeTour();
       return;
     }
     setCurrentStepId(steps[stepIndex + 1].id);
-  }, [completeTour, setCurrentStepId, step?.id, stepIndex, steps]);
+  }, [completeTour, router, setCurrentStepId, step, stepIndex, steps, waitForRequiredPetCreation]);
 
-  if (!isActive || !step) return null;
+  if (!isActive || !step || isAwaitingRequiredPetCreation) return null;
 
   return (
     <TourOverlay
@@ -215,6 +255,8 @@ function MobileOnboardingTourController() {
       targetRect={targetRect}
       secondaryTargetRect={secondaryTargetRect}
       isTargetPending={isTargetPending}
+      primaryActionLabel={step.primaryActionLabel}
+      allowSkip={step.allowSkip ?? true}
       onNext={handleNext}
       onSkip={handleSkip}
     />

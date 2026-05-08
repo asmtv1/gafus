@@ -98,7 +98,11 @@ export default function DailyCourseDayScreen() {
   const handlePause = useCallback(
     (stepIndex: number, remainingSec: number) => {
       pauseStepLocal(courseId, normalizedScheduleId, stepIndex, remainingSec);
-      pauseMutation.mutate({ scheduleId: normalizedScheduleId, stepIndex, timeLeftSec: remainingSec });
+      pauseMutation.mutate({
+        scheduleId: normalizedScheduleId,
+        stepIndex,
+        timeLeftSec: remainingSec,
+      });
     },
     [courseId, normalizedScheduleId, pauseMutation, pauseStepLocal],
   );
@@ -130,7 +134,7 @@ export default function DailyCourseDayScreen() {
   );
 
   if (isLoading) {
-    return <Loading fullScreen message="Загрузка курса дня..." />;
+    return <Loading fullScreen message="Загрузка задания дня..." />;
   }
 
   if (error || !data?.success || !dayData) {
@@ -144,7 +148,7 @@ export default function DailyCourseDayScreen() {
           </Pressable>
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
-            <Text style={styles.errorText}>Курс дня не найден</Text>
+            <Text style={styles.errorText}>Задание дня не найдено</Text>
             <Pressable onPress={() => refetch()} style={styles.retryButton}>
               <Text style={styles.retryButtonText}>Попробовать снова</Text>
             </Pressable>
@@ -171,7 +175,7 @@ export default function DailyCourseDayScreen() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
           <View style={styles.dayHeader}>
-            <Text style={styles.dayTitle}>Курс дня</Text>
+            <Text style={styles.dayTitle}>Задание дня</Text>
             <View style={styles.dayHeaderDivider} />
           </View>
 
@@ -198,7 +202,9 @@ export default function DailyCourseDayScreen() {
               ]}
               onPress={() => setIsDescriptionOpen((value) => !value)}
               accessibilityRole="button"
-              accessibilityLabel={isDescriptionOpen ? "Скрыть описание дня" : "Показать описание дня"}
+              accessibilityLabel={
+                isDescriptionOpen ? "Скрыть описание дня" : "Показать описание дня"
+              }
             >
               <Text style={styles.descriptionDayTitle}>Описание дня</Text>
               <View style={styles.descriptionDayExpand}>

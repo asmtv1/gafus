@@ -28,6 +28,9 @@ export interface Pet {
   birthDate: string | null;
   heightCm: number | null;
   weightKg: number | null;
+  neckGirthCm: number | null;
+  muzzleGirthCm: number | null;
+  bellyGirthCm: number | null;
   photoUrl: string | null;
   notes: string | null;
   createdAt: string;
@@ -40,6 +43,9 @@ export interface CreatePetData {
   birthDate: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
 }
@@ -155,6 +161,9 @@ export const petsApi = {
         birthDate: data.birthDate,
         hasHeight: !!data.heightCm,
         hasWeight: !!data.weightKg,
+        hasNeckGirth: !!data.neckGirthCm,
+        hasMuzzleGirth: !!data.muzzleGirthCm,
+        hasBellyGirth: !!data.bellyGirthCm,
         hasNotes: !!data.notes,
       });
     }

@@ -350,11 +350,9 @@ function CourseCardComponent({
       <View style={styles.courseCardContent}>
         <Link href={`/training/${course.type}`} asChild>
           <Pressable style={styles.link}>
+            {tourTargetId ? <TourTarget id={tourTargetId} style={styles.tourTargetFill} /> : null}
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
-                {tourTargetId ? (
-                  <TourTarget id={tourTargetId} style={styles.tourTargetFill} />
-                ) : null}
                 {!hasDisplayedLogo ? (
                   <View style={styles.courseImagePlaceholder} pointerEvents="none" />
                 ) : null}

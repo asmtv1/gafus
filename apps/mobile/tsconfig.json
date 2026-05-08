@@ -24,6 +24,13 @@
       "@gafus/consultation-shared/*": ["../../packages/consultation-shared/src/*"],
       "@gafus/core/utils": ["../../packages/core/src/utils/index.ts"],
       "@gafus/core/utils/*": ["../../packages/core/src/utils/*"],
+      "@gafus/core/validation/auth-register": [
+        "../../packages/core/src/validation/authRegisterSchema.ts"
+      ],
+      "@gafus/core/validation/email-domain-suggestion": [
+        "../../packages/core/src/validation/emailDomainSuggestion.ts"
+      ],
+      "@gafus/core/validation/pet": ["../../packages/core/src/validation/petSchema.ts"],
       "@gafus/core/validation/*": ["../../packages/core/src/validation/*"],
       "@gafus/core/services/auth/*": ["../../packages/core/src/services/auth/*"]
     }

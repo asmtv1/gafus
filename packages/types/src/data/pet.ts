@@ -8,6 +8,9 @@ export interface Pet {
   birthDate: Date;
   heightCm: number | null;
   weightKg: number | null;
+  neckGirthCm: number | null;
+  muzzleGirthCm: number | null;
+  bellyGirthCm: number | null;
   notes: string | null;
   photoUrl: string | null;
   ownerId: string;
@@ -23,6 +26,9 @@ export interface PetFormData {
   birthDate: string;
   heightCm?: number;
   weightKg?: number;
+  neckGirthCm?: number;
+  muzzleGirthCm?: number;
+  bellyGirthCm?: number;
   photoUrl?: string;
   notes?: string;
   ownerId?: string;

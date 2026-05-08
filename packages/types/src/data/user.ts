@@ -58,6 +58,9 @@ export interface PublicProfile {
     birthDate: Date | null;
     heightCm: number | null;
     weightKg: number | null;
+    neckGirthCm: number | null;
+    muzzleGirthCm: number | null;
+    bellyGirthCm: number | null;
     photoUrl: string | null;
     notes: string | null;
     ownerId: string;

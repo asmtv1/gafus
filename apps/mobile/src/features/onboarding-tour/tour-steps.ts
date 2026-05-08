@@ -31,6 +31,9 @@ export interface MobileOnboardingTourStep {
   route?: Href;
   targetId?: MobileOnboardingTourTargetId;
   secondaryTargetId?: MobileOnboardingTourTargetId;
+  primaryActionLabel?: string;
+  allowSkip?: boolean;
+  requiresPetCreation?: boolean;
 }
 
 export function getMobileOnboardingTourSteps({
@@ -69,6 +72,9 @@ export function getMobileOnboardingTourSteps({
       route: "/(main)/(tabs)/pets",
       targetId: "pets-add-button",
       secondaryTargetId: "tab-pets",
+      primaryActionLabel: hasPets ? undefined : "Добавить питомца",
+      allowSkip: hasPets,
+      requiresPetCreation: !hasPets,
     },
     {
       id: "prevention",

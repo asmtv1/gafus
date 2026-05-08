@@ -30,4 +30,13 @@ describe("mobile onboarding tour steps", () => {
     expect(steps.find((step) => step.id === "prevention")?.targetId).toBe("pets-add-button");
     expect(steps.find((step) => step.id === "documents")?.targetId).toBe("pets-add-button");
   });
+
+  it("makes add pet a required creation step", () => {
+    const steps = getMobileOnboardingTourSteps({ hasPets: false });
+    const addPetStep = steps.find((step) => step.id === "add-pet");
+
+    expect(addPetStep?.requiresPetCreation).toBe(true);
+    expect(addPetStep?.primaryActionLabel).toBe("Добавить питомца");
+    expect(addPetStep?.allowSkip).toBe(false);
+  });
 });

@@ -97,6 +97,9 @@ export default function AddPetForm() {
   const rBirth = form.register("birthDate");
   const rHeight = form.register("heightCm");
   const rWeight = form.register("weightKg");
+  const rNeckGirth = form.register("neckGirthCm");
+  const rMuzzleGirth = form.register("muzzleGirthCm");
+  const rBellyGirth = form.register("bellyGirthCm");
   const rNotes = form.register("notes");
 
   if (!isMounted) {
@@ -224,6 +227,54 @@ export default function AddPetForm() {
               name={rWeight.name}
               onBlur={rWeight.onBlur}
               onChange={rWeight.onChange}
+              sx={textFieldSx}
+            />
+            <TextField
+              id="neckGirthCm"
+              label="Обхват шеи (см)"
+              type="text"
+              inputMode="decimal"
+              placeholder="Необязательно"
+              fullWidth
+              disabled={isSubmitting}
+              error={!!errors.neckGirthCm}
+              helperText={errors.neckGirthCm?.message}
+              inputRef={rNeckGirth.ref}
+              name={rNeckGirth.name}
+              onBlur={rNeckGirth.onBlur}
+              onChange={rNeckGirth.onChange}
+              sx={textFieldSx}
+            />
+            <TextField
+              id="muzzleGirthCm"
+              label="Обхват морды (см)"
+              type="text"
+              inputMode="decimal"
+              placeholder="Необязательно"
+              fullWidth
+              disabled={isSubmitting}
+              error={!!errors.muzzleGirthCm}
+              helperText={errors.muzzleGirthCm?.message}
+              inputRef={rMuzzleGirth.ref}
+              name={rMuzzleGirth.name}
+              onBlur={rMuzzleGirth.onBlur}
+              onChange={rMuzzleGirth.onChange}
+              sx={textFieldSx}
+            />
+            <TextField
+              id="bellyGirthCm"
+              label="Обхват живота (см)"
+              type="text"
+              inputMode="decimal"
+              placeholder="Необязательно"
+              fullWidth
+              disabled={isSubmitting}
+              error={!!errors.bellyGirthCm}
+              helperText={errors.bellyGirthCm?.message}
+              inputRef={rBellyGirth.ref}
+              name={rBellyGirth.name}
+              onBlur={rBellyGirth.onBlur}
+              onChange={rBellyGirth.onChange}
               sx={textFieldSx}
             />
           </div>

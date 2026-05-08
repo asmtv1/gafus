@@ -82,6 +82,9 @@
       "@gafus/core/validation/auth-register": [
         "../../packages/core/src/validation/authRegisterSchema.ts"
       ],
+      "@gafus/core/validation/pet": [
+        "../../packages/core/src/validation/petSchema.ts"
+      ],
       "@gafus/core/validation/email-domain-suggestion": [
         "../../packages/core/src/validation/emailDomainSuggestion.ts"
       ],

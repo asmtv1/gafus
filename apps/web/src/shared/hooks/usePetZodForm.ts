@@ -20,6 +20,9 @@ export function useCreatePetZodForm() {
     birthDate: "",
     heightCm: undefined,
     weightKg: undefined,
+    neckGirthCm: undefined,
+    muzzleGirthCm: undefined,
+    bellyGirthCm: undefined,
     photoUrl: "",
     notes: "",
   });

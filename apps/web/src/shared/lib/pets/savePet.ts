@@ -18,6 +18,9 @@ export async function savePet({
   birthDate,
   heightCm,
   weightKg,
+  neckGirthCm,
+  muzzleGirthCm,
+  bellyGirthCm,
   notes,
 }: UpdatePetInput) {
   try {
@@ -32,6 +35,9 @@ export async function savePet({
         birthDate,
         heightCm,
         weightKg,
+        neckGirthCm,
+        muzzleGirthCm,
+        bellyGirthCm,
         notes,
         photoUrl: undefined,
       });
@@ -45,6 +51,9 @@ export async function savePet({
       birthDate,
       heightCm,
       weightKg,
+      neckGirthCm,
+      muzzleGirthCm,
+      bellyGirthCm,
       notes,
     });
     const { id: petId, ...updateData } = validatedData;

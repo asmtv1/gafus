@@ -16,8 +16,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
+import { validatePetForm, type PetFormErrors } from "@/features/pets/pet-form-validation";
 import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
-import { validatePetBirthDateInput } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
 
@@ -34,13 +35,34 @@ const PET_TYPES = [
 export default function AddPetScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const tourIsActive = useMobileOnboardingTourStore((s) => s.isActive);
+  const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
+  const tourIsAwaitingRequiredPetCreation = useMobileOnboardingTourStore(
+    (s) => s.isAwaitingRequiredPetCreation,
+  );
+  const completeRequiredPetCreation = useMobileOnboardingTourStore(
+    (s) => s.completeRequiredPetCreation,
+  );
+  const isTourRequiredPetCreation =
+    tourIsActive && tourStepId === "add-pet" && tourIsAwaitingRequiredPetCreation;
   const [name, setName] = useState("");
   const [type, setType] = useState<PetKind>("DOG");
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
+  const [neckGirthCm, setNeckGirthCm] = useState("");
+  const [muzzleGirthCm, setMuzzleGirthCm] = useState("");
+  const [bellyGirthCm, setBellyGirthCm] = useState("");
   const [notes, setNotes] = useState("");
+  const [errors, setErrors] = useState<PetFormErrors>({});
+
+  const updateField = (field: keyof PetFormErrors, value: string, setter: (value: string) => void) => {
+    setter(value);
+    if (errors[field]) {
+      setErrors((current) => ({ ...current, [field]: undefined }));
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: petsApi.create,
@@ -60,6 +82,9 @@ export default function AddPetScreen() {
       }
       queryClient.invalidateQueries({ queryKey: ["pets"] });
       void hapticFeedback.success();
+      if (tourIsActive && tourStepId === "add-pet" && tourIsAwaitingRequiredPetCreation) {
+        completeRequiredPetCreation();
+      }
       router.back();
     },
     onError: (error) => {
@@ -70,10 +95,7 @@ export default function AddPetScreen() {
           petData: { name, type, breed, birthDate },
         });
       }
-      Alert.alert(
-        "Ошибка",
-        error instanceof Error ? error.message : "Не удалось добавить питомца",
-      );
+      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось добавить питомца");
     },
   });
 
@@ -91,70 +113,42 @@ export default function AddPetScreen() {
         birthDate,
         hasHeight: !!heightCm,
         hasWeight: !!weightKg,
+        hasNeckGirth: !!neckGirthCm,
+        hasMuzzleGirth: !!muzzleGirthCm,
+        hasBellyGirth: !!bellyGirthCm,
         hasNotes: !!notes,
       });
     }
 
-    if (!name.trim()) {
+    const validation = validatePetForm({
+      name,
+      breed,
+      birthDate,
+      heightCm,
+      weightKg,
+      neckGirthCm,
+      muzzleGirthCm,
+      bellyGirthCm,
+    });
+    if (!validation.ok) {
       if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: имя питомца пустое`);
+        console.warn(`${LOG_PREFIX} Валидация не пройдена`, validation.errors);
       }
-      Alert.alert("Ошибка", "Имя питомца обязательно");
+      setErrors(validation.errors);
       return;
     }
 
-    if (!breed.trim()) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: порода пустая`);
-      }
-      Alert.alert("Ошибка", "Порода обязательна");
-      return;
-    }
-
-    const birthCheck = validatePetBirthDateInput(birthDate);
-    if (!birthCheck.ok) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация даты не пройдена`, {
-          birthDate,
-          message: birthCheck.message,
-        });
-      }
-      Alert.alert("Ошибка", birthCheck.message);
-      return;
-    }
-
-    const height = heightCm.trim() ? parseFloat(heightCm) : undefined;
-    const weight = weightKg.trim() ? parseFloat(weightKg) : undefined;
-
-    if (height !== undefined && (isNaN(height) || height < 1 || height > 200)) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный рост`, {
-          height,
-          heightCm,
-        });
-      }
-      Alert.alert("Ошибка", "Рост должен быть от 1 до 200 см");
-      return;
-    }
-
-    if (weight !== undefined && (isNaN(weight) || weight < 0.1 || weight > 200)) {
-      if (__DEV__) {
-        console.warn(`${LOG_PREFIX} Валидация не пройдена: неверный вес`, {
-          weight,
-          weightKg,
-        });
-      }
-      Alert.alert("Ошибка", "Вес должен быть от 0.1 до 200 кг");
-      return;
-    }
-
+    setErrors({});
     const petData: CreatePetData = {
-      name: name.trim(),
+      name: validation.values.name,
       type,
-      breed: breed.trim(),
-      birthDate: birthCheck.apiValue,
-      heightCm: height,
-      weightKg: weight,
+      breed: validation.values.breed,
+      birthDate: validation.values.birthDate,
+      heightCm: validation.values.heightCm,
+      weightKg: validation.values.weightKg,
+      neckGirthCm: validation.values.neckGirthCm,
+      muzzleGirthCm: validation.values.muzzleGirthCm,
+      bellyGirthCm: validation.values.bellyGirthCm,
       notes: notes.trim() || undefined,
     };
 
@@ -192,17 +186,23 @@ export default function AddPetScreen() {
           >
             <View style={styles.formCard}>
               <Text style={styles.screenTitle}>Добавить питомца</Text>
+              {isTourRequiredPetCreation ? (
+                <Text style={styles.hintText}>
+                  Для продолжения экскурсии заполните только обязательные поля.
+                </Text>
+              ) : null}
 
               <Text style={styles.sectionHeading}>Основная информация</Text>
 
               <Text style={styles.fieldLabel}>Имя питомца *</Text>
               <TextInput
                 value={name}
-                onChangeText={setName}
-                style={styles.input}
+                onChangeText={(value) => updateField("name", value, setName)}
+                style={[styles.input, errors.name && styles.inputError]}
                 placeholder="Кличка"
                 placeholderTextColor={COLORS.disabled}
               />
+              {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
 
               <Text style={styles.fieldLabel}>Тип *</Text>
               <View style={styles.typeRow}>
@@ -221,10 +221,7 @@ export default function AddPetScreen() {
                       color={type === t.value ? COLORS.onPrimary : COLORS.textSecondary}
                     />
                     <Text
-                      style={[
-                        styles.typeChipText,
-                        type === t.value && styles.typeChipTextSelected,
-                      ]}
+                      style={[styles.typeChipText, type === t.value && styles.typeChipTextSelected]}
                     >
                       {t.label}
                     </Text>
@@ -235,69 +232,127 @@ export default function AddPetScreen() {
               <Text style={styles.fieldLabel}>Порода *</Text>
               <TextInput
                 value={breed}
-                onChangeText={setBreed}
-                style={styles.input}
+                onChangeText={(value) => updateField("breed", value, setBreed)}
+                style={[styles.input, errors.breed && styles.inputError]}
                 placeholder="Порода"
                 placeholderTextColor={COLORS.disabled}
               />
+              {errors.breed ? <Text style={styles.errorText}>{errors.breed}</Text> : null}
 
               <Text style={styles.fieldLabel}>Дата рождения *</Text>
               <TextInput
                 value={birthDate}
-                onChangeText={setBirthDate}
-                style={styles.input}
+                onChangeText={(value) => updateField("birthDate", value, setBirthDate)}
+                style={[styles.input, errors.birthDate && styles.inputError]}
                 placeholder="ДД.ММ.ГГГГ"
                 placeholderTextColor={COLORS.disabled}
                 keyboardType="numbers-and-punctuation"
               />
-              <Text style={styles.hintText}>Формат: ДД.ММ.ГГГГ</Text>
-
-              <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
-                Физические характеристики
+              <Text style={errors.birthDate ? styles.errorText : styles.hintText}>
+                {errors.birthDate ?? "Формат: ДД.ММ.ГГГГ"}
               </Text>
 
-              <Text style={styles.fieldLabel}>Рост (см)</Text>
-              <TextInput
-                value={heightCm}
-                onChangeText={setHeightCm}
-                style={styles.input}
-                placeholder="Необязательно"
-                placeholderTextColor={COLORS.disabled}
-                keyboardType="decimal-pad"
-              />
+              {!isTourRequiredPetCreation ? (
+                <>
+                  <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
+                    Физические характеристики
+                  </Text>
 
-              <Text style={styles.fieldLabel}>Вес (кг)</Text>
-              <TextInput
-                value={weightKg}
-                onChangeText={setWeightKg}
-                style={styles.input}
-                placeholder="Необязательно"
-                placeholderTextColor={COLORS.disabled}
-                keyboardType="decimal-pad"
-              />
+                  <Text style={styles.fieldLabel}>Рост (см)</Text>
+                  <TextInput
+                    value={heightCm}
+                    onChangeText={(value) => updateField("heightCm", value, setHeightCm)}
+                    style={[styles.input, errors.heightCm && styles.inputError]}
+                    placeholder="Необязательно"
+                    placeholderTextColor={COLORS.disabled}
+                    keyboardType="decimal-pad"
+                  />
+                  {errors.heightCm ? (
+                    <Text style={styles.errorText}>{errors.heightCm}</Text>
+                  ) : null}
 
-              <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
-                Дополнительно
-              </Text>
+                  <Text style={styles.fieldLabel}>Вес (кг)</Text>
+                  <TextInput
+                    value={weightKg}
+                    onChangeText={(value) => updateField("weightKg", value, setWeightKg)}
+                    style={[styles.input, errors.weightKg && styles.inputError]}
+                    placeholder="Необязательно"
+                    placeholderTextColor={COLORS.disabled}
+                    keyboardType="decimal-pad"
+                  />
+                  {errors.weightKg ? (
+                    <Text style={styles.errorText}>{errors.weightKg}</Text>
+                  ) : null}
 
-              <Text style={styles.fieldLabel}>Заметки</Text>
-              <TextInput
-                value={notes}
-                onChangeText={setNotes}
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="Заметки о питомце"
-                placeholderTextColor={COLORS.disabled}
-                multiline
-                textAlignVertical="top"
-              />
+                  <Text style={styles.fieldLabel}>Обхват шеи (см)</Text>
+                  <TextInput
+                    value={neckGirthCm}
+                    onChangeText={(value) => updateField("neckGirthCm", value, setNeckGirthCm)}
+                    style={[styles.input, errors.neckGirthCm && styles.inputError]}
+                    placeholder="Необязательно"
+                    placeholderTextColor={COLORS.disabled}
+                    keyboardType="decimal-pad"
+                  />
+                  {errors.neckGirthCm ? (
+                    <Text style={styles.errorText}>{errors.neckGirthCm}</Text>
+                  ) : null}
 
-              <View style={styles.actionsRow}>
+                  <Text style={styles.fieldLabel}>Обхват морды (см)</Text>
+                  <TextInput
+                    value={muzzleGirthCm}
+                    onChangeText={(value) =>
+                      updateField("muzzleGirthCm", value, setMuzzleGirthCm)
+                    }
+                    style={[styles.input, errors.muzzleGirthCm && styles.inputError]}
+                    placeholder="Необязательно"
+                    placeholderTextColor={COLORS.disabled}
+                    keyboardType="decimal-pad"
+                  />
+                  {errors.muzzleGirthCm ? (
+                    <Text style={styles.errorText}>{errors.muzzleGirthCm}</Text>
+                  ) : null}
+
+                  <Text style={styles.fieldLabel}>Обхват живота (см)</Text>
+                  <TextInput
+                    value={bellyGirthCm}
+                    onChangeText={(value) =>
+                      updateField("bellyGirthCm", value, setBellyGirthCm)
+                    }
+                    style={[styles.input, errors.bellyGirthCm && styles.inputError]}
+                    placeholder="Необязательно"
+                    placeholderTextColor={COLORS.disabled}
+                    keyboardType="decimal-pad"
+                  />
+                  {errors.bellyGirthCm ? (
+                    <Text style={styles.errorText}>{errors.bellyGirthCm}</Text>
+                  ) : null}
+
+                  <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
+                    Дополнительно
+                  </Text>
+
+                  <Text style={styles.fieldLabel}>Заметки</Text>
+                  <TextInput
+                    value={notes}
+                    onChangeText={setNotes}
+                    style={[styles.input, styles.inputMultiline]}
+                    placeholder="Заметки о питомце"
+                    placeholderTextColor={COLORS.disabled}
+                    multiline
+                    textAlignVertical="top"
+                  />
+                </>
+              ) : null}
+
+              <View style={[styles.actionsRow, isTourRequiredPetCreation && styles.actionsRowTour]}>
                 <Pressable
                   style={styles.secondaryButton}
                   onPress={handleBack}
                   disabled={createMutation.isPending}
                 >
-                  <Text style={styles.secondaryButtonText}>Отмена</Text>
+                  <Text style={styles.secondaryButtonText}>
+                    {isTourRequiredPetCreation ? "Назад" : "Отмена"}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={[
@@ -305,15 +360,14 @@ export default function AddPetScreen() {
                     createMutation.isPending && styles.primaryButtonDisabled,
                   ]}
                   onPress={handleSave}
-                  disabled={
-                    !name.trim() ||
-                    !breed.trim() ||
-                    !birthDate.trim() ||
-                    createMutation.isPending
-                  }
+                  disabled={createMutation.isPending}
                 >
                   <Text style={styles.primaryButtonText}>
-                    {createMutation.isPending ? "Добавление…" : "Добавить"}
+                    {createMutation.isPending
+                      ? "Добавление…"
+                      : isTourRequiredPetCreation
+                        ? "Создать питомца"
+                        : "Добавить"}
                   </Text>
                 </Pressable>
               </View>
@@ -399,6 +453,17 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
     fontSize: 14,
   },
+  inputError: {
+    borderColor: COLORS.error,
+    backgroundColor: "#FFF7F7",
+  },
+  errorText: {
+    fontSize: 11,
+    color: COLORS.error,
+    fontFamily: FONTS.montserrat,
+    marginTop: -2,
+    marginBottom: 2,
+  },
   inputMultiline: {
     minHeight: 88,
     paddingTop: Platform.OS === "ios" ? 12 : 10,
@@ -437,6 +502,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: SPACING.sm,
     marginTop: SPACING.md,
+  },
+  actionsRowTour: {
+    flexDirection: "column-reverse",
   },
   secondaryButton: {
     flex: 1,

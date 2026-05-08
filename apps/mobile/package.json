@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.4.1",
+  "version": "1.4.5",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -10,7 +10,7 @@
     "ios:release": "expo run:ios --device --configuration Release",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger",
+    "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger --filter=@gafus/core",
     "start": "expo start",
     "test": "vitest run --config vitest.config.ts",
     "update:ota:preview": "eas update --channel preview",

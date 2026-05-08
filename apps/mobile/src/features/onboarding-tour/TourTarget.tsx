@@ -1,5 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from "react";
-import { View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Platform,
+  StatusBar,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import type { MobileOnboardingTourTargetId } from "./tour-steps";
 
@@ -52,7 +59,8 @@ export function TourTargetsProvider({ children }: { children: ReactNode }) {
           resolve(null);
           return;
         }
-        resolve({ x, y, width, height });
+        const androidStatusBarOffset = Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0;
+        resolve({ x, y: y + androidStatusBarOffset, width, height });
       });
     });
   }, []);

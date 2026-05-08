@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,6 +18,13 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -27,7 +35,12 @@ import {
 } from "@gafus/types";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
-import { TourTarget } from "@/features/onboarding-tour";
+import {
+  TourTarget,
+  useMobileOnboardingTourStore,
+  type MobileOnboardingTourTargetId,
+} from "@/features/onboarding-tour";
+import { useTourTargets } from "@/features/onboarding-tour/TourTarget";
 import { Input } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
@@ -55,6 +68,9 @@ const PREVENTION_TYPES: { value: PetPreventionType; label: string }[] = [
   { value: "DEWORMING", label: "Глистогонка" },
   { value: "TICKS_FLEAS", label: "Клещи и блохи" },
 ];
+const TOUR_TARGET_TOP_INSET = 116;
+const TOUR_TARGET_BOTTOM_RESERVED = 320;
+const TOUR_TARGET_SCROLL_RETRY_MS = 120;
 
 const declOfNum = (n: number, forms: [string, string, string]) => {
   const cases = [2, 0, 1, 1, 1, 2];
@@ -109,6 +125,92 @@ interface PendingDocumentUpload {
   mimeType: string;
   size: number;
   originalName: string;
+}
+
+function ZoomableDocumentImage({
+  uri,
+  onSwipeLeft,
+  onSwipeRight,
+}: {
+  uri: string;
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+  }, [savedScale, savedTranslateX, savedTranslateY, scale, translateX, translateY, uri]);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((event) => {
+      scale.value = Math.min(Math.max(savedScale.value * event.scale, 1), 4);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1.01) {
+        scale.value = withTiming(1);
+        savedScale.value = 1;
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      if (scale.value <= 1) return;
+      translateX.value = savedTranslateX.value + event.translationX;
+      translateY.value = savedTranslateY.value + event.translationY;
+    })
+    .onEnd((event) => {
+      if (scale.value <= 1.01) {
+        const isHorizontalSwipe =
+          Math.abs(event.translationX) > 70 &&
+          Math.abs(event.translationX) > Math.abs(event.translationY) * 1.2;
+        if (isHorizontalSwipe) {
+          if (event.translationX < 0) {
+            runOnJS(onSwipeLeft)();
+          } else {
+            runOnJS(onSwipeRight)();
+          }
+        }
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+        return;
+      }
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={Gesture.Simultaneous(pinchGesture, panGesture)}>
+      <Animated.View style={[styles.documentViewerContent, animatedStyle]}>
+        <Image source={{ uri }} style={StyleSheet.absoluteFillObject} contentFit="contain" />
+      </Animated.View>
+    </GestureDetector>
+  );
 }
 
 function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
@@ -471,6 +573,29 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   };
 
   const openedDocument = openedDocumentIndex !== null ? documents[openedDocumentIndex] : null;
+  const imageDocuments = documents.filter((document) => isImageDocument(document.mimeType));
+
+  const handleShowSiblingImage = useCallback(
+    (direction: 1 | -1) => {
+      if (!openedDocument || !isImageDocument(openedDocument.mimeType)) {
+        return;
+      }
+      const currentImageIndex = imageDocuments.findIndex(
+        (document) => document.id === openedDocument.id,
+      );
+      const nextImage = imageDocuments[currentImageIndex + direction];
+      if (!nextImage) {
+        return;
+      }
+      const nextDocumentIndex = documents.findIndex((document) => document.id === nextImage.id);
+      if (nextDocumentIndex === -1) {
+        return;
+      }
+      void hapticFeedback.light();
+      setOpenedDocumentIndex(nextDocumentIndex);
+    },
+    [documents, imageDocuments, openedDocument],
+  );
 
   const handleCloseDocumentPreview = () => {
     setOpenedDocumentIndex(null);
@@ -579,7 +704,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
                 <Image
                   source={{ uri: pendingDocument.uri }}
                   style={styles.documentModalPreview}
-                  contentFit="cover"
+                  contentFit="contain"
                 />
               ) : (
                 <View style={styles.documentModalFilePreview}>
@@ -722,10 +847,10 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
                       style={styles.documentViewerContent}
                     />
                   ) : (
-                    <Image
-                      source={{ uri: openedDocument.url }}
-                      style={styles.documentViewerContent}
-                      contentFit="contain"
+                    <ZoomableDocumentImage
+                      uri={openedDocument.url}
+                      onSwipeLeft={() => handleShowSiblingImage(1)}
+                      onSwipeRight={() => handleShowSiblingImage(-1)}
                     />
                   )}
                 </View>
@@ -1173,6 +1298,12 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
 export default function PetsTabScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { measureTarget } = useTourTargets();
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
+  const scrollLayoutHeightRef = useRef(0);
+  const tourIsActive = useMobileOnboardingTourStore((s) => s.isActive);
+  const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
   const { data: petsData } = useQuery(petsQueryOptions);
   const pets = petsData?.data || [];
 
@@ -1282,9 +1413,87 @@ export default function PetsTabScreen() {
     }
   };
 
+  const getPetsTourTargetId = useCallback((): MobileOnboardingTourTargetId | null => {
+    if (tourStepId === "add-pet") return "pets-add-button";
+    if (tourStepId === "prevention") return "pet-prevention-section";
+    if (tourStepId === "documents") return "pet-documents-section";
+    return null;
+  }, [tourStepId]);
+
+  const scrollToTourTarget = useCallback(
+    async (animated: boolean) => {
+      if (!tourIsActive || pets.length === 0) return;
+      const targetId = getPetsTourTargetId();
+      if (!targetId) return;
+
+      const rect = await measureTarget(targetId);
+      if (!rect) return;
+
+      const viewportHeight = scrollLayoutHeightRef.current;
+      if (viewportHeight <= 0) return;
+
+      const visibleTop = TOUR_TARGET_TOP_INSET;
+      const visibleBottom = Math.max(visibleTop + 40, viewportHeight - TOUR_TARGET_BOTTOM_RESERVED);
+
+      let nextOffset = scrollOffsetRef.current;
+      const targetTop = rect.y;
+      const targetBottom = rect.y + rect.height;
+
+      if (targetTop < visibleTop) {
+        nextOffset = Math.max(0, scrollOffsetRef.current - (visibleTop - targetTop) - 12);
+      } else if (targetBottom > visibleBottom) {
+        nextOffset = Math.max(0, scrollOffsetRef.current + (targetBottom - visibleBottom) + 12);
+      } else {
+        return;
+      }
+
+      scrollRef.current?.scrollTo({ y: nextOffset, animated });
+    },
+    [getPetsTourTargetId, measureTarget, pets.length, tourIsActive],
+  );
+
+  useEffect(() => {
+    if (!tourIsActive || pets.length === 0) return;
+
+    const timeoutHandles: ReturnType<typeof setTimeout>[] = [];
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      const timeout = setTimeout(() => {
+        void scrollToTourTarget(true);
+        const retry = setTimeout(() => {
+          void scrollToTourTarget(false);
+        }, TOUR_TARGET_SCROLL_RETRY_MS);
+        timeoutHandles.push(retry);
+      }, 120);
+      timeoutHandles.push(timeout);
+    });
+
+    return () => {
+      interaction.cancel();
+      timeoutHandles.forEach(clearTimeout);
+    };
+  }, [pets.length, scrollToTourTarget, tourIsActive]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollRef}
+        onLayout={(event) => {
+          scrollLayoutHeightRef.current = event.nativeEvent.layout.height;
+        }}
+        onScroll={(event) => {
+          scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        onContentSizeChange={() => {
+          if (tourIsActive) {
+            setTimeout(() => {
+              void scrollToTourTarget(false);
+            }, 0);
+          }
+        }}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.pageTitle}>Питомцы</Text>
         {pets.length === 0 ? (
           <View style={styles.emptyStateWrap}>
@@ -1310,7 +1519,10 @@ export default function PetsTabScreen() {
         ) : (
           <View style={styles.petsList}>
             {pets.map((pet) => (
-              <View key={pet.id} style={styles.petItem}>
+              <View
+                key={pet.id}
+                style={styles.petItem}
+              >
                 <View style={styles.petMainInfo}>
                   <Pressable
                     onPress={() => pickImageAndUploadPetPhoto(pet.id)}
@@ -1366,6 +1578,15 @@ export default function PetsTabScreen() {
                     ) : null}
                     {pet.weightKg ? (
                       <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>
+                    ) : null}
+                    {pet.neckGirthCm ? (
+                      <Text style={styles.petDetail}>Обхват шеи: {pet.neckGirthCm} см</Text>
+                    ) : null}
+                    {pet.muzzleGirthCm ? (
+                      <Text style={styles.petDetail}>Обхват морды: {pet.muzzleGirthCm} см</Text>
+                    ) : null}
+                    {pet.bellyGirthCm ? (
+                      <Text style={styles.petDetail}>Обхват живота: {pet.bellyGirthCm} см</Text>
                     ) : null}
                     {pet.notes ? (
                       <Text style={styles.petNotes} numberOfLines={2}>

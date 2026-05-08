@@ -113,6 +113,30 @@ export function PetFormFields({ form }: Props) {
       />
 
       <FormField
+        id="neckGirthCm"
+        name="neckGirthCm"
+        label="Обхват шеи (см)"
+        type="number"
+        form={form}
+      />
+
+      <FormField
+        id="muzzleGirthCm"
+        name="muzzleGirthCm"
+        label="Обхват морды (см)"
+        type="number"
+        form={form}
+      />
+
+      <FormField
+        id="bellyGirthCm"
+        name="bellyGirthCm"
+        label="Обхват живота (см)"
+        type="number"
+        form={form}
+      />
+
+      <FormField
         id="notes"
         name="notes"
         label="Заметки"

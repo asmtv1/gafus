@@ -492,6 +492,9 @@ model Pet {
   birthDate         DateTime
   heightCm          Float?
   weightKg          Float?
+  neckGirthCm       Float?
+  muzzleGirthCm     Float?
+  bellyGirthCm      Float?
   photoUrl          String?
   notes             String?
   createdAt         DateTime             @default(now())
