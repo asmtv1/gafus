@@ -82,8 +82,8 @@ export default function DailyCourseBundlesClient({
         {deleteError && <Alert severity="error">{deleteError}</Alert>}
         {steps.length === 0 && (
           <Alert severity="warning">
-            Нет доступных безопасных шагов. Создайте шаги типа тренировка, практика,
-            теория или перерыв без отчётов и тестов.
+            Нет доступных шагов. Создайте шаги типа тренировка, практика, теория, экзамен или
+            перерыв с отметкой «Для курса дня».
           </Alert>
         )}
 
@@ -106,11 +106,7 @@ export default function DailyCourseBundlesClient({
             defaultValue={editing?.title ?? ""}
             required
           />
-          <TextField
-            name="equipment"
-            label="Инвентарь"
-            defaultValue={editing?.equipment ?? ""}
-          />
+          <TextField name="equipment" label="Инвентарь" defaultValue={editing?.equipment ?? ""} />
           <TextField
             name="description"
             label="Описание"

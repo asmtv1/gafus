@@ -60,25 +60,25 @@ model TrainingDay {
 }
 
 model Step {
-  id                      String       @id @default(cuid())
+  id                      String                  @id @default(cuid())
   title                   String
-  description             String       @default("")
+  description             String                  @default("")
   durationSec             Int?
-  type                    StepType     @default(TRAINING)
-  imageUrls               String[]     @default([])
-  pdfUrls                 String[]     @default([])
+  type                    StepType                @default(TRAINING)
+  imageUrls               String[]                @default([])
+  pdfUrls                 String[]                @default([])
   videoUrl                String?
   checklist               Json?
-  requiresVideoReport     Boolean      @default(false)
-  requiresWrittenFeedback Boolean      @default(false)
-  hasTestQuestions        Boolean      @default(false)
-  isDailyCourse           Boolean      @default(false)
+  requiresVideoReport     Boolean                 @default(false)
+  requiresWrittenFeedback Boolean                 @default(false)
+  hasTestQuestions        Boolean                 @default(false)
+  isDailyCourse           Boolean                 @default(false)
   authorId                String
-  createdAt               DateTime     @default(now())
-  updatedAt               DateTime     @default(now())
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @default(now())
   estimatedDurationSec    Int?
   examResults             ExamResult[]
-  author                  User         @relation(fields: [authorId], references: [id])
+  author                  User                    @relation(fields: [authorId], references: [id])
   dailyCourseBundleLinks  DailyCourseBundleStep[]
   stepLinks               StepOnDay[]
 }
@@ -168,30 +168,30 @@ model StepOnDay {
 }
 
 model DailyCourseBundle {
-  id            String                    @id @default(cuid())
-  title         String
-  equipment     String                    @default("")
-  description   String                    @default("")
-  type          String                    @default("regular")
-  authorId      String
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
-  author        User                      @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  schedules     DailyCourseSchedule[]
-  stepLinks     DailyCourseBundleStep[]
+  id          String                  @id @default(cuid())
+  title       String
+  equipment   String                  @default("")
+  description String                  @default("")
+  type        String                  @default("regular")
+  authorId    String
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  author      User                    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  schedules   DailyCourseSchedule[]
+  stepLinks   DailyCourseBundleStep[]
 
   @@index([authorId])
   @@index([updatedAt])
 }
 
 model DailyCourseBundleStep {
-  id                    String                  @id @default(cuid())
-  bundleId              String
-  stepId                String
-  order                 Int
-  bundle                DailyCourseBundle       @relation(fields: [bundleId], references: [id], onDelete: Cascade)
-  step                  Step                    @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  dailyCourseUserSteps  DailyCourseUserStep[]
+  id                   String                @id @default(cuid())
+  bundleId             String
+  stepId               String
+  order                Int
+  bundle               DailyCourseBundle     @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  step                 Step                  @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  dailyCourseUserSteps DailyCourseUserStep[]
 
   @@unique([bundleId, order])
   @@index([bundleId, order])
@@ -264,16 +264,17 @@ model DailyCourseUserTraining {
 }
 
 model DailyCourseUserStep {
-  id                         String                  @id @default(cuid())
-  dailyCourseUserTrainingId  String
-  bundleStepId               String
-  status                     TrainingStatus          @default(NOT_STARTED)
-  paused                     Boolean                 @default(false)
-  remainingSec               Int?
-  createdAt                  DateTime                @default(now())
-  updatedAt                  DateTime                @updatedAt
-  dailyCourseUserTraining    DailyCourseUserTraining @relation(fields: [dailyCourseUserTrainingId], references: [id], onDelete: Cascade)
-  bundleStep                 DailyCourseBundleStep   @relation(fields: [bundleStepId], references: [id], onDelete: Cascade)
+  id                        String                  @id @default(cuid())
+  dailyCourseUserTrainingId String
+  bundleStepId              String
+  status                    TrainingStatus          @default(NOT_STARTED)
+  paused                    Boolean                 @default(false)
+  remainingSec              Int?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  dailyCourseUserTraining   DailyCourseUserTraining @relation(fields: [dailyCourseUserTrainingId], references: [id], onDelete: Cascade)
+  bundleStep                DailyCourseBundleStep   @relation(fields: [bundleStepId], references: [id], onDelete: Cascade)
+  examResult                ExamResult?
 
   @@unique([dailyCourseUserTrainingId, bundleStepId])
   @@index([dailyCourseUserTrainingId])
@@ -344,7 +345,7 @@ model User {
   consultationBookingsAsClient   ConsultationBooking[]
   /// Идемпотентность POST /book (ключ + клиент)
   consultationBookingIdempotency ConsultationBookingIdempotency[]
-  createdDailyCourseSchedules    DailyCourseSchedule[]           @relation("DailyCourseSchedulesCreatedBy")
+  createdDailyCourseSchedules    DailyCourseSchedule[]            @relation("DailyCourseSchedulesCreatedBy")
   dailyCourseUserTrainings       DailyCourseUserTraining[]
 }
 
@@ -500,7 +501,7 @@ model Pet {
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @default(now())
   awards            Award[]
-  documents         PetDocument[]          @relation("PetDocumentsByOwner")
+  documents         PetDocument[]        @relation("PetDocumentsByOwner")
   owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   preventionEntries PetPreventionEntry[]
 
@@ -812,28 +813,31 @@ model StepNotification {
 }
 
 model ExamResult {
-  id                String    @id @default(cuid())
-  userStepId        String    @unique
-  stepId            String
-  testAnswers       Json?
-  testScore         Int?
-  testMaxScore      Int?
-  videoReportUrl    String?
-  videoDeletedAt    DateTime?
-  videoDeleteReason String?
-  writtenFeedback   String?
-  overallScore      Int?
-  isPassed          Boolean?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  trainerComment    String?
-  reviewedAt        DateTime?
-  reviewedById      String?
-  reviewedBy        User?     @relation("ExamResultReviewedBy", fields: [reviewedById], references: [id])
-  step              Step      @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  userStep          UserStep  @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  id                    String               @id @default(cuid())
+  userStepId            String?              @unique
+  dailyCourseUserStepId String?              @unique
+  stepId                String
+  testAnswers           Json?
+  testScore             Int?
+  testMaxScore          Int?
+  videoReportUrl        String?
+  videoDeletedAt        DateTime?
+  videoDeleteReason     String?
+  writtenFeedback       String?
+  overallScore          Int?
+  isPassed              Boolean?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  trainerComment        String?
+  reviewedAt            DateTime?
+  reviewedById          String?
+  reviewedBy            User?                @relation("ExamResultReviewedBy", fields: [reviewedById], references: [id])
+  step                  Step                 @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  userStep              UserStep?            @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  dailyCourseUserStep   DailyCourseUserStep? @relation(fields: [dailyCourseUserStepId], references: [id], onDelete: Cascade)
 
   @@index([userStepId])
+  @@index([dailyCourseUserStepId])
   @@index([stepId])
   @@index([videoDeletedAt])
   @@index([reviewedById])

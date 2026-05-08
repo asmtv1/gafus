@@ -14,19 +14,9 @@ import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 
-// Функция для получения инициалов
-const getInitials = (name: string): string => {
-  const parts = name.trim().split(" ");
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-};
-
 // Функция для получения возраста
 const getAge = (birthDate: string | null): number | null => {
   if (!birthDate) return null;
-  /* eslint-disable @gafus/require-client-catch-tracer -- невалидная дата → null */
   try {
     const birth = new Date(birthDate);
     const today = new Date();
@@ -44,7 +34,6 @@ const getAge = (birthDate: string | null): number | null => {
     });
     return null;
   }
-  /* eslint-enable @gafus/require-client-catch-tracer */
 };
 
 // Функция для склонения
@@ -91,7 +80,9 @@ function TrainerCourseLogoImage({
 
   return (
     <Image
-      source={preferredLogoImgUri ? { uri: preferredLogoImgUri, cacheKey: logoCacheKey } : undefined}
+      source={
+        preferredLogoImgUri ? { uri: preferredLogoImgUri, cacheKey: logoCacheKey } : undefined
+      }
       style={styles.courseImage}
       contentFit="cover"
       recyclingKey={logoCacheKey}

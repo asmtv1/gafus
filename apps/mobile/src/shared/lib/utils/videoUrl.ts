@@ -9,7 +9,7 @@
 function extractVideoIdFromUrl(videoUrl: string): string | null {
   // Для CDN URL вида: https://storage.yandexcloud.net/gafus-media/uploads/videocourses/xxx/original.mp4
   // или: https://storage.yandexcloud.net/gafus-media/uploads/videocourses/xxx/hls/playlist.m3u8
-  const cdnMatch = videoUrl.match(/videocourses\/([^\/]+)/);
+  const cdnMatch = videoUrl.match(/videocourses\/([^/]+)/);
   if (cdnMatch) {
     return cdnMatch[1];
   }

@@ -44,6 +44,10 @@ export type StepContent = {
   pdfUrl: string | null;
   order: number;
   estimatedDurationSec?: number | null;
+  checklist?: unknown;
+  requiresVideoReport?: boolean;
+  requiresWrittenFeedback?: boolean;
+  hasTestQuestions?: boolean;
 };
 
 export interface UserStep {
@@ -56,6 +60,7 @@ export interface UserStep {
   remainingSecOnServer?: number | null;
   completedAt: string | null;
   step: StepContent;
+  userStepId?: string;
 }
 
 /** Возвращает контент шага (вложенный step или сам шаг, если он плоский). */

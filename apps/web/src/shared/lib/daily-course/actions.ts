@@ -48,9 +48,10 @@ function mapDailyCourseDayToTraining(day: DailyCourseDayResponse): TrainingDetai
       isPausedOnServer: dailyStep.isPausedOnServer,
       remainingSecOnServer: dailyStep.remainingSecOnServer,
       type: dailyStep.step.type as TrainingDetail["steps"][number]["type"],
-      requiresVideoReport: false,
-      requiresWrittenFeedback: false,
-      hasTestQuestions: false,
+      checklist: dailyStep.step.checklist,
+      requiresVideoReport: dailyStep.step.requiresVideoReport,
+      requiresWrittenFeedback: dailyStep.step.requiresWrittenFeedback,
+      hasTestQuestions: dailyStep.step.hasTestQuestions,
       userStepId: dailyStep.id,
     })),
   };

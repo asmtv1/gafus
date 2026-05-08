@@ -332,7 +332,15 @@ export default function CoursesScreen() {
               animated: true,
               viewPosition: 0.08,
             });
-          } catch {
+          } catch (scrollError) {
+            reportClientError(
+              scrollError instanceof Error ? scrollError : new Error(String(scrollError)),
+              {
+                issueKey: "CoursesScreen",
+                severity: "warning",
+                keys: { operation: "tour_scroll_to_courses" },
+              },
+            );
             courseListRef.current?.scrollToOffset({
               offset: TOUR_COURSES_SCROLL_FALLBACK_OFFSET,
               animated: true,

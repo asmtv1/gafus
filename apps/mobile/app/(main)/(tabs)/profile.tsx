@@ -42,15 +42,6 @@ const DOCUMENT_URLS = {
 const SUPPORT_TELEGRAM_URL = "https://t.me/gafus_support";
 const GAFUS_TELEGRAM_URL = "https://t.me/gafusRu";
 
-// Функция для получения инициалов
-const getInitials = (name: string): string => {
-  const parts = name.trim().split(" ");
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-};
-
 // Функция для получения возраста (только годы, для пользователя)
 const getAge = (birthDate: string | null): number | null => {
   if (!birthDate) return null;

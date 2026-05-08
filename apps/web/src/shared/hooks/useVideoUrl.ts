@@ -23,13 +23,13 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
   );
 
   useEffect(() => {
-    console.error("[useVideoUrl] === useEffect вызван === videoUrl:", videoUrl);
-    console.log("[useVideoUrl] useEffect вызван, videoUrl:", videoUrl);
+    let isCurrent = true;
 
     if (!videoUrl) {
-      console.error("[useVideoUrl] videoUrl пустой, устанавливаем null");
       setPlaybackUrl(null);
-      return;
+      return () => {
+        isCurrent = false;
+      };
     }
 
     // Проверяем, является ли это CDN видео
@@ -37,27 +37,22 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
       videoUrl.includes("gafus-media.storage.yandexcloud.net") ||
       videoUrl.includes("storage.yandexcloud.net/gafus-media");
 
-    console.error("[useVideoUrl] Проверка CDN:", { isCDN: isCDNVideo, videoUrl });
-
     if (isCDNVideo) {
-      console.error("[useVideoUrl] === CDN видео, вызываем getVideoUrlForPlayback ===");
       // Асинхронно получаем signed URL для HLS манифеста
       getVideoUrlForPlayback(videoUrl)
         .then((url) => {
-          console.error("[useVideoUrl] === getVideoUrlForPlayback ВЕРНУЛ ===", url);
+          if (!isCurrent) return;
           // Если url === null, это означает, что видео ещё не транскодировано или HLS не готов
           // В этом случае не используем fallback на оригинальный URL, так как он удалён после транскодирования
           if (url !== null) {
             setPlaybackUrl(url);
           } else {
             // Если null, возвращаем null, чтобы показать статус обработки пользователю
-            console.error(
-              "[useVideoUrl] getVideoUrlForPlayback вернул null - видео ещё обрабатывается или HLS не готов",
-            );
             setPlaybackUrl(null);
           }
         })
         .catch((error) => {
+          if (!isCurrent) return;
           reportClientError(error instanceof Error ? error : new Error(String(error)), {
             issueKey: "VideoUrl",
             keys: { operation: "signed_url" },
@@ -66,11 +61,13 @@ export function useVideoUrl(videoUrl: string | null | undefined): string | null 
         });
     } else {
       // Для не-CDN видео (YouTube, VK и т.д.) возвращаем URL как есть
-      console.error("[useVideoUrl] Не CDN видео, устанавливаем как есть");
       setPlaybackUrl(videoUrl);
     }
+
+    return () => {
+      isCurrent = false;
+    };
   }, [videoUrl]);
 
-  console.log("[useVideoUrl] Возвращаем playbackUrl:", playbackUrl);
   return playbackUrl;
 }

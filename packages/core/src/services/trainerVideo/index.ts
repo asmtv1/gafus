@@ -10,7 +10,7 @@ export {
   getVideoIdAndPathsFromUrl,
   getVideoForPlaybackCheck,
 } from "./trainerVideoService";
-export { getVideoInfoForStreaming } from "./helpers";
+export { getAuthorizedVideoInfoForStreaming, getVideoInfoForStreaming } from "./helpers";
 export type {
   GetDeletePayloadResult,
   VideoStatusResult,

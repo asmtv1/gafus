@@ -64,7 +64,7 @@ export default function ArticleDetailScreen() {
         });
       });
     }
-  }, [slug, article?.id]);
+  }, [slug, article]);
 
   useEffect(() => {
     setHtmlHeight(null);
@@ -88,7 +88,7 @@ export default function ArticleDetailScreen() {
       setWebViewReady(true);
     }, 3500);
     return () => clearTimeout(t);
-  }, [article?.id, article?.contentType, article?.content, htmlHeight]);
+  }, [article, htmlHeight]);
 
   // Fallback: показать WebView, если postMessage так и не пришёл (4 с)
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function ArticleDetailScreen() {
       setWebViewReady(true);
     }, 4000);
     return () => clearTimeout(t);
-  }, [article?.id, article?.contentType, article?.content]);
+  }, [article]);
 
   const handlePay = useCallback(async () => {
     if (!article) return;
@@ -119,7 +119,7 @@ export default function ArticleDetailScreen() {
     } finally {
       setPayLoading(false);
     }
-  }, [article?.id]);
+  }, [article]);
 
   const hasMeasuredArticleHtml =
     htmlHeight != null && htmlHeight > 0;

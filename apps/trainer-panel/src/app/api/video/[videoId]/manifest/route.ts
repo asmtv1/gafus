@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { getVideoInfoForStreaming } from "@gafus/core/services/trainerVideo";
+import { getAuthorizedVideoInfoForStreaming } from "@gafus/core/services/trainerVideo";
 import { getVideoAccessService } from "@gafus/video-access";
 import { downloadFileFromCDN } from "@gafus/cdn-upload";
 
@@ -45,11 +45,15 @@ export async function GET(
       return NextResponse.json({ error: "Недостаточно прав доступа" }, { status: 403 });
     }
 
-    // Получаем информацию о видео из БД
-    const video = await getVideoInfoForStreaming(videoId);
+    // Получаем информацию о видео из БД с проверкой доступа
+    const video = await getAuthorizedVideoInfoForStreaming(
+      videoId,
+      session.user.id,
+      session.user.role ?? "",
+    );
 
     if (!video) {
-      return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });
+      return NextResponse.json({ error: "Видео не найдено или нет доступа" }, { status: 404 });
     }
 
     // Проверяем статус транскодирования

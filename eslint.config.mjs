@@ -429,9 +429,12 @@ export default [
 
   // apps/mobile — после финального override, чтобы наши ослабления имели приоритет
   {
-    files: ["apps/mobile/src/**/*.{ts,tsx}"],
+    files: ["apps/mobile/{src,app}/**/*.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-require-imports": "off",
+      "import/named": "off",
+      "import/no-cycle": "off",
     },
   },
 

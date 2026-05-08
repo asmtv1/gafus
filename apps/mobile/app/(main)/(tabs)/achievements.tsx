@@ -9,7 +9,7 @@ import { Loading } from "@/shared/components/ui";
 import { achievementsQueryOptions } from "@/shared/lib/api/achievementsQuery";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { type Course } from "@/shared/lib/api";
-import type { AchievementData } from "@gafus/types";
+import type { Achievement } from "@gafus/types";
 import { COLORS, SPACING, FONTS } from "@/constants";
 
 const CARD_BG = "#ECE5D2";
@@ -44,25 +44,27 @@ export default function AchievementsScreen() {
   const { data: coursesRes } = useQuery(coursesCatalogQueryOptions);
 
   const data = achievementsRes?.success ? achievementsRes.data : undefined;
-  const courses =
-    coursesRes?.success && Array.isArray(coursesRes.data) ? (coursesRes.data as Course[]) : [];
+  const achievements = data?.achievements;
   const activeCourses = useMemo(
-    () => courses.filter((c) => c.userStatus !== "NOT_STARTED"),
-    [courses],
+    () =>
+      coursesRes?.success && Array.isArray(coursesRes.data)
+        ? (coursesRes.data as Course[]).filter((c) => c.userStatus !== "NOT_STARTED")
+        : [],
+    [coursesRes],
   );
 
   const byCategory = useMemo(() => {
-    if (!data?.achievements) return {};
-    return data.achievements.reduce<Record<string, typeof data.achievements>>((acc, a) => {
+    if (!achievements) return {};
+    return achievements.reduce<Record<string, Achievement[]>>((acc, a) => {
       if (!a?.category) return acc;
       if (!acc[a.category]) acc[a.category] = [];
       acc[a.category].push(a);
       return acc;
     }, {});
-  }, [data?.achievements]);
+  }, [achievements]);
 
-  const unlockedCount = data?.achievements?.filter((a) => a.unlocked).length ?? 0;
-  const totalCount = data?.achievements?.length ?? 0;
+  const unlockedCount = achievements?.filter((a) => a.unlocked).length ?? 0;
+  const totalCount = achievements?.length ?? 0;
   const completionPct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
   const onRefresh = () => {
@@ -225,7 +227,7 @@ function StatCard({ value, label, icon }: { value: string; label: string; icon: 
 function AchievementCard({
   achievement,
 }: {
-  achievement: AchievementData["achievements"][number];
+  achievement: Achievement;
 }) {
   const unlocked = achievement.unlocked;
   return (

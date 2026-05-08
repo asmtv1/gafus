@@ -7,7 +7,7 @@ import { getCourseMeta } from "@/shared/lib/offline/offlineStorage";
 import { mapMetaToTrainingDayResponse } from "@/shared/lib/offline/mapOfflineMetaToTraining";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import type { ApiResponse } from "@/shared/lib/api/client";
-import type { TrainingDayResponse } from "@/shared/lib/api/training";
+import type { TrainingDayResponse, UserStep } from "@/shared/lib/api/training";
 
 /**
  * Хук для загрузки дня тренировки с шагами.
@@ -28,11 +28,11 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
 
         if (response.success && response.data) {
           // Синхронизируем состояния шагов с сервера
-          const steps = response.data.steps.map((s: any, index: number) => ({
+          const steps = response.data.steps.map((s: UserStep, index: number) => ({
             stepIndex: index,
             status: s.status || "NOT_STARTED",
             remainingSec: s.remainingSec ?? s.remainingSecOnServer ?? null,
-            durationSec: s.step?.durationSec ?? s.durationSec ?? undefined,
+            durationSec: s.step?.durationSec ?? undefined,
           }));
           syncFromServer(response.data.courseId ?? courseType, dayOnCourseId, steps);
           return response;

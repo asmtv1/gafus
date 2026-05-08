@@ -3,8 +3,10 @@ import {
   prisma,
   TrainingStatus as PrismaTrainingStatus,
 } from "@gafus/prisma";
+import type { StepType as PrismaStepType } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
+import type { ChecklistQuestion } from "@gafus/types";
 import { estimateDayDurations } from "../../utils/training";
 import {
   dailyCourseRangeSchema,
@@ -21,7 +23,8 @@ const logger = createWebLogger("daily-course");
 
 const ALLOWED_ROLES = new Set(["TRAINER", "ADMIN", "MODERATOR"]);
 const ADMIN_ROLES = new Set(["ADMIN", "MODERATOR"]);
-const ALLOWED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "BREAK"]);
+const ALLOWED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "BREAK", "EXAMINATION"]);
+const NON_EXAMINATION_STEP_TYPES: PrismaStepType[] = ["TRAINING", "PRACTICE", "THEORY", "BREAK"];
 const MIN_STEPS = 2;
 const MAX_STEPS = 5;
 const MAX_DAILY_COURSE_TIMER_SEC = 24 * 60 * 60;
@@ -57,6 +60,10 @@ export interface DailyCourseStepDto {
     videoUrl: string | null;
     imageUrls: string[];
     pdfUrls: string[];
+    checklist: ChecklistQuestion[] | null;
+    requiresVideoReport: boolean;
+    requiresWrittenFeedback: boolean;
+    hasTestQuestions: boolean;
     order: number;
   };
 }
@@ -191,6 +198,7 @@ type StepLinkForDailyCourse = {
     videoUrl: string | null;
     imageUrls: string[];
     pdfUrls: string[];
+    checklist: unknown;
     requiresVideoReport: boolean;
     requiresWrittenFeedback: boolean;
     hasTestQuestions: boolean;
@@ -253,7 +261,10 @@ function validateDailyCourseStepLinks(stepLinks: StepLinkForDailyCourse[]): void
     if (!ALLOWED_STEP_TYPES.has(step.type)) {
       throw new Error("DAILY_COURSE_INVALID_STEP_TYPE");
     }
-    if (step.requiresVideoReport || step.requiresWrittenFeedback || step.hasTestQuestions) {
+    if (
+      step.type !== "EXAMINATION" &&
+      (step.requiresVideoReport || step.requiresWrittenFeedback || step.hasTestQuestions)
+    ) {
       throw new Error("DAILY_COURSE_INVALID_REPORT_STEP");
     }
     if (!step.isDailyCourse) {
@@ -313,6 +324,7 @@ const dailyCourseBundleStepSelect = {
       videoUrl: true,
       imageUrls: true,
       pdfUrls: true,
+      checklist: true,
       requiresVideoReport: true,
       requiresWrittenFeedback: true,
       hasTestQuestions: true,
@@ -383,6 +395,12 @@ function mapDailyCourseSteps(
         videoUrl: link.step.videoUrl,
         imageUrls: link.step.imageUrls,
         pdfUrls: link.step.pdfUrls,
+        checklist: Array.isArray(link.step.checklist)
+          ? (link.step.checklist as ChecklistQuestion[])
+          : null,
+        requiresVideoReport: link.step.requiresVideoReport,
+        requiresWrittenFeedback: link.step.requiresWrittenFeedback,
+        hasTestQuestions: link.step.hasTestQuestions,
         order: link.order,
       },
     };
@@ -610,9 +628,7 @@ export async function updateDailyCourseStepAndDay(
       });
 
       if (
-        (operation.type === "pause" ||
-          operation.type === "resume" ||
-          operation.type === "reset") &&
+        (operation.type === "pause" || operation.type === "resume" || operation.type === "reset") &&
         !existingStep
       ) {
         throw new Error("STEP_NOT_FOUND");
@@ -999,11 +1015,16 @@ export async function getDailyCourseBundleStepCandidates(
   const steps = await prisma.step.findMany({
     where: {
       ...(isElevated(actor) ? {} : { authorId: actor.id }),
-      type: { in: Array.from(ALLOWED_STEP_TYPES) as never },
-      requiresVideoReport: false,
-      requiresWrittenFeedback: false,
-      hasTestQuestions: false,
       isDailyCourse: true,
+      OR: [
+        {
+          type: { in: NON_EXAMINATION_STEP_TYPES },
+          requiresVideoReport: false,
+          requiresWrittenFeedback: false,
+          hasTestQuestions: false,
+        },
+        { type: "EXAMINATION" },
+      ],
     },
     orderBy: { updatedAt: "desc" },
     select: {
@@ -1050,6 +1071,7 @@ export async function upsertDailyCourseBundle(
       videoUrl: true,
       imageUrls: true,
       pdfUrls: true,
+      checklist: true,
       requiresVideoReport: true,
       requiresWrittenFeedback: true,
       hasTestQuestions: true,

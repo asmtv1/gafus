@@ -16,7 +16,7 @@ import {
 } from "react-native-paper";
 import { BORDER_RADIUS, SPACING, COLORS } from "@/constants";
 
-const IOS_NUMERIC_KEYBOARD_TYPES: Array<TextInputProps["keyboardType"]> = [
+const IOS_NUMERIC_KEYBOARD_TYPES: TextInputProps["keyboardType"][] = [
   "number-pad",
   "decimal-pad",
   "phone-pad",

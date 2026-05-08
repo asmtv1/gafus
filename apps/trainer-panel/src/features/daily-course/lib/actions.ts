@@ -43,10 +43,7 @@ async function getDailyCourseActor(): Promise<SessionUser> {
   return session.user;
 }
 
-export async function getDailyCoursePageData(input: {
-  from: string;
-  to: string;
-}): Promise<{
+export async function getDailyCoursePageData(input: { from: string; to: string }): Promise<{
   schedule: DailyCourseScheduleDto[];
   candidates: DailyCourseCandidateDto[];
 }> {
@@ -196,9 +193,9 @@ function mapDailyCourseError(code: string): string {
     case "DAILY_COURSE_DUPLICATE_STEPS":
       return "В связке не должно быть повторяющихся шагов";
     case "DAILY_COURSE_INVALID_STEP_TYPE":
-      return "В курсе дня можно использовать только тренировку, упражнение, теорию и перерыв";
+      return "В курсе дня можно использовать только тренировку, упражнение, теорию, экзамен и перерыв";
     case "DAILY_COURSE_INVALID_REPORT_STEP":
-      return "Курс дня не поддерживает экзамены, тесты, видеоотчёты и письменную проверку";
+      return "Отчёты и тесты поддерживаются только в экзаменационных шагах";
     case "DAILY_COURSE_INVALID_STEP_SCOPE":
       return "В связке курса дня можно использовать только шаги с отметкой «для курса дня»";
     case "DAILY_COURSE_PAST_DATE":

@@ -81,7 +81,7 @@ export interface FiltersModalProps {
   onProgressChange: (progress: ProgressFilterType) => void;
   activeRating: RatingFilterType;
   onRatingChange: (rating: RatingFilterType) => void;
-  onApply: () => void;
+  onApply?: () => void;
   onReset: () => void;
   getResultsCount?: (filters: {
     tab: CourseTabType;
@@ -140,7 +140,7 @@ export function FiltersModal({
     onLevelChange(localLevel);
     onProgressChange(localProgress);
     onRatingChange(localRating);
-    onApply();
+    onApply?.();
     onClose();
   };
 

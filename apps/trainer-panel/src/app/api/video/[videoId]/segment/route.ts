@@ -2,9 +2,28 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { getVideoInfoForStreaming } from "@gafus/core/services/trainerVideo";
+import { getAuthorizedVideoInfoForStreaming } from "@gafus/core/services/trainerVideo";
 import { getVideoAccessService } from "@gafus/video-access";
 import { streamFileFromCDN } from "@gafus/cdn-upload";
+
+const HLS_SEGMENT_FILE_PATTERN = /^[a-zA-Z0-9._-]+\.(ts|m4s|mp4|m3u8|vtt|aac)$/;
+
+function validateHlsSegmentPath(segmentPath: string): string | null {
+  const normalized = segmentPath.trim();
+  if (!normalized) return null;
+  if (
+    normalized.includes("..") ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    normalized.includes("://")
+  ) {
+    return null;
+  }
+  if (!HLS_SEGMENT_FILE_PATTERN.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
 
 /**
  * API для получения HLS сегмента
@@ -37,6 +56,11 @@ export async function GET(
       return NextResponse.json({ error: "Путь к сегменту не предоставлен" }, { status: 400 });
     }
 
+    const safeSegmentPath = validateHlsSegmentPath(segmentPath);
+    if (!safeSegmentPath) {
+      return NextResponse.json({ error: "Недопустимый путь к сегменту" }, { status: 400 });
+    }
+
     // Проверяем токен
     const tokenData = videoAccessService.verifyToken(token);
 
@@ -49,11 +73,15 @@ export async function GET(
       return NextResponse.json({ error: "Недостаточно прав доступа" }, { status: 403 });
     }
 
-    // Получаем информацию о видео из БД
-    const video = await getVideoInfoForStreaming(videoId);
+    // Получаем информацию о видео из БД с проверкой доступа
+    const video = await getAuthorizedVideoInfoForStreaming(
+      videoId,
+      session.user.id,
+      session.user.role ?? "",
+    );
 
     if (!video) {
-      return NextResponse.json({ error: "Видео не найдено" }, { status: 404 });
+      return NextResponse.json({ error: "Видео не найдено или нет доступа" }, { status: 404 });
     }
 
     if (video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
@@ -62,7 +90,7 @@ export async function GET(
 
     // Формируем полный путь к сегменту
     const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
-    const fullSegmentPath = `${baseDir}/${segmentPath}`;
+    const fullSegmentPath = `${baseDir}/${safeSegmentPath}`;
 
     // Получаем stream для сегмента из Object Storage
     const { stream, contentLength, contentType } = await streamFileFromCDN(fullSegmentPath);

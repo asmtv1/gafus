@@ -4,7 +4,10 @@ import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@gafus/auth";
-import { getSignedVideoToken } from "@gafus/core/services/trainerVideo";
+import {
+  getAuthorizedVideoInfoForStreaming,
+  getSignedVideoToken,
+} from "@gafus/core/services/trainerVideo";
 
 /**
  * Генерирует подписанный URL для HLS манифеста.
@@ -15,6 +18,15 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
+      return null;
+    }
+
+    const video = await getAuthorizedVideoInfoForStreaming(
+      videoId,
+      session.user.id,
+      session.user.role ?? "",
+    );
+    if (!video) {
       return null;
     }
 

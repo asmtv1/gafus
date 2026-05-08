@@ -130,13 +130,19 @@ describe("dailyCourseService", () => {
   it("filters candidates to safe 2-5 daily course bundles scoped by trainer", async () => {
     mocks.dailyCourseBundleFindMany.mockResolvedValue([
       dailyBundle("valid", "Valid", ["TRAINING", "PRACTICE"]),
+      dailyBundle("exam", "Exam", ["TRAINING", "EXAMINATION"], "trainer-1", {
+        EXAMINATION: { requiresVideoReport: true },
+      }),
       dailyBundle("too-small", "Too small", ["TRAINING"]),
       dailyBundle("diary", "Diary", ["TRAINING", "DIARY"]),
       {
         ...dailyBundle("report", "Report", ["TRAINING", "PRACTICE"]),
         stepLinks: [
           stepLink("TRAINING"),
-          { ...stepLink("PRACTICE"), step: { ...stepLink("PRACTICE").step, hasTestQuestions: true } },
+          {
+            ...stepLink("PRACTICE"),
+            step: { ...stepLink("PRACTICE").step, hasTestQuestions: true },
+          },
         ],
       },
     ]);
@@ -148,12 +154,15 @@ describe("dailyCourseService", () => {
     );
     expect(result).toEqual([
       expect.objectContaining({ id: "valid", title: "Valid", stepsCount: 2 }),
+      expect.objectContaining({ id: "exam", title: "Exam", stepsCount: 2 }),
     ]);
   });
 
   it("does not allow scheduling another trainer bundle for non-admin actor", async () => {
     mocks.dailyCourseScheduleFindUnique.mockResolvedValue(null);
-    mocks.dailyCourseBundleFindUnique.mockResolvedValue(dailyBundle("valid", "Valid", ["TRAINING", "PRACTICE"], "other"));
+    mocks.dailyCourseBundleFindUnique.mockResolvedValue(
+      dailyBundle("valid", "Valid", ["TRAINING", "PRACTICE"], "other"),
+    );
 
     await expect(
       upsertDailyCourseSchedule(
@@ -176,6 +185,81 @@ describe("dailyCourseService", () => {
         }),
       }),
     );
+  });
+
+  it("lists examination daily-course steps as bundle step candidates", async () => {
+    mocks.stepFindMany.mockResolvedValue([
+      {
+        id: "exam-step",
+        title: "Exam step",
+        type: "EXAMINATION",
+        durationSec: null,
+        authorId: "trainer-1",
+        author: { username: "trainer" },
+      },
+    ]);
+
+    const result = await getDailyCourseBundleStepCandidates({ id: "trainer-1", role: "TRAINER" });
+
+    expect(mocks.stepFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([expect.objectContaining({ type: "EXAMINATION" })]),
+        }),
+      }),
+    );
+    expect(result).toEqual([expect.objectContaining({ id: "exam-step", type: "EXAMINATION" })]);
+  });
+
+  it("keeps examination metadata when building a daily course day for a user", async () => {
+    mocks.dailyCourseScheduleFindFirst.mockResolvedValue({
+      id: "schedule-1",
+      date: new Date("2026-05-04T00:00:00.000Z"),
+      bundle: {
+        id: "bundle-1",
+        title: "Daily exam",
+        description: "Exam day",
+        type: "daily_course",
+        stepLinks: [
+          {
+            id: "bundle-step-1",
+            order: 1,
+            step: {
+              ...stepLink("EXAMINATION").step,
+              checklist: [
+                { id: "q1", question: "Question?", options: ["A", "B"], correctAnswer: 0 },
+              ],
+              hasTestQuestions: true,
+              requiresWrittenFeedback: true,
+              requiresVideoReport: true,
+            },
+          },
+        ],
+      },
+      userTrainings: [{ id: "user-training-1" }],
+    });
+    mocks.dailyCourseUserStepFindMany.mockResolvedValue([
+      {
+        id: "daily-user-step-1",
+        bundleStepId: "bundle-step-1",
+        status: "NOT_STARTED",
+        paused: false,
+        remainingSec: null,
+        updatedAt: new Date("2026-05-04T08:00:00.000Z"),
+      },
+    ]);
+
+    const result = await getDailyCourseDayWithUserSteps("user-1", "schedule-1", {
+      createIfMissing: true,
+    });
+
+    expect(result?.steps[0]?.step).toMatchObject({
+      type: "EXAMINATION",
+      checklist: [{ id: "q1", question: "Question?", options: ["A", "B"], correctAnswer: 0 }],
+      hasTestQuestions: true,
+      requiresWrittenFeedback: true,
+      requiresVideoReport: true,
+    });
   });
 
   it("does not edit a bundle that is already used by a schedule", async () => {
@@ -236,7 +320,10 @@ describe("dailyCourseService", () => {
       },
     });
     mocks.dailyCourseUserTrainingUpsert.mockResolvedValue({ id: "user-training-1" });
-    mocks.dailyCourseUserStepFindFirst.mockResolvedValue({ id: "user-step-1", status: "IN_PROGRESS" });
+    mocks.dailyCourseUserStepFindFirst.mockResolvedValue({
+      id: "user-step-1",
+      status: "IN_PROGRESS",
+    });
     mocks.dailyCourseUserStepUpdate.mockResolvedValue({ id: "user-step-1" });
     mocks.dailyCourseUserStepFindMany.mockResolvedValue([
       { bundleStepId: "bundle-step-1", status: "IN_PROGRESS" },
@@ -396,6 +483,7 @@ function dailyBundle(
   title: string,
   types: string[],
   authorId = "trainer-1",
+  overrides: Record<string, Partial<ReturnType<typeof stepLink>["step"]>> = {},
 ) {
   return {
     id,
@@ -403,7 +491,10 @@ function dailyBundle(
     type: "daily_course",
     authorId,
     author: { username: authorId },
-    stepLinks: types.map((type) => stepLink(type)),
+    stepLinks: types.map((type) => {
+      const link = stepLink(type);
+      return { ...link, step: { ...link.step, ...overrides[type] } };
+    }),
   };
 }
 
@@ -421,6 +512,7 @@ function stepLink(type: string) {
       videoUrl: null,
       imageUrls: [],
       pdfUrls: [],
+      checklist: null,
       requiresVideoReport: false,
       requiresWrittenFeedback: false,
       hasTestQuestions: false,

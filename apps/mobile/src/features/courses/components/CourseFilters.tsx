@@ -237,7 +237,6 @@ export function CourseFilters({
         onProgressChange={onProgressChange}
         activeRating={activeRating}
         onRatingChange={onRatingChange}
-        onApply={() => {}}
         onReset={handleResetAll}
         getResultsCount={getResultsCount}
       />

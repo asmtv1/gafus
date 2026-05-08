@@ -91,7 +91,9 @@ export function WrittenFeedbackBlock({
 
       {isSubmitted && !isReviewed && (
         <View style={[styles.alert, styles.alertInfo]}>
-          <Text style={styles.alertText}>Ваша обратная связь сохранена. Ожидайте проверки тренером.</Text>
+          <Text style={styles.alertText}>
+            Ваша обратная связь сохранена. Ожидайте проверки тренером.
+          </Text>
         </View>
       )}
 

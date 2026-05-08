@@ -15,7 +15,7 @@ import {
 } from "@gafus/core/services/training";
 import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
 import { checkCourseAccess } from "@gafus/core/services/course";
-import { getVideoManifestInfo } from "@gafus/core/services/video";
+import { checkVideoAccess, getVideoManifestInfo } from "@gafus/core/services/video";
 import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
@@ -28,6 +28,25 @@ import { downloadFileFromCDN, extractVideoIdFromCdnUrl } from "@gafus/cdn-upload
 import { getVideoAccessService } from "@gafus/video-access";
 
 const logger = createWebLogger("api-training");
+
+const HLS_SEGMENT_FILE_PATTERN = /^[a-zA-Z0-9._-]+\.(ts|m4s|mp4|m3u8|vtt|aac)$/;
+
+function validateHlsSegmentPath(segmentPath: string): string | null {
+  const normalized = segmentPath.trim();
+  if (!normalized) return null;
+  if (
+    normalized.includes("..") ||
+    normalized.includes("/") ||
+    normalized.includes("\\") ||
+    normalized.includes("://")
+  ) {
+    return null;
+  }
+  if (!HLS_SEGMENT_FILE_PATTERN.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
 
 // Проверяем, что VIDEO_ACCESS_SECRET установлен (только для логирования)
 // В production это критично, иначе getVideoAccessService() выбросит ошибку
@@ -566,6 +585,18 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
         );
       }
 
+      const hasAccess = await checkVideoAccess({ userId: user.id, videoId });
+      if (!hasAccess) {
+        logger.warn("[training/video/url] Нет доступа к видео", {
+          userId: user.id,
+          videoId,
+        });
+        return c.json(
+          { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
+          403,
+        );
+      }
+
       try {
         if (!process.env.VIDEO_ACCESS_SECRET) {
           const isProduction = process.env.NODE_ENV === "production";
@@ -696,6 +727,14 @@ async function handleVideoManifest(c: Context) {
       return c.json({ success: false, error: "HLS манифест не найден" }, 404);
     }
 
+    const hasAccess = await checkVideoAccess({ userId: tokenData.userId, videoId });
+    if (!hasAccess) {
+      return c.json(
+        { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
+        403,
+      );
+    }
+
     // Скачиваем манифест из Object Storage
     logger.info("[training/video/:videoId/manifest] Загрузка манифеста", {
       videoId,
@@ -786,6 +825,18 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       return c.json({ success: false, error: "Путь к сегменту не предоставлен" }, 400);
     }
 
+    const safeSegmentPath = validateHlsSegmentPath(segmentPath);
+    if (!safeSegmentPath) {
+      return c.json(
+        {
+          success: false,
+          error: "Недопустимый путь к сегменту",
+          code: "INVALID_SEGMENT_PATH",
+        },
+        400,
+      );
+    }
+
     // Проверяем токен доступа к видео
     const videoAccessService = getVideoAccessService();
     const tokenData = videoAccessService.verifyToken(token);
@@ -805,22 +856,27 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       return c.json({ success: false, error: "Видео не найдено или не готово" }, 404);
     }
 
+    const hasAccess = await checkVideoAccess({ userId: tokenData.userId, videoId });
+    if (!hasAccess) {
+      return c.json(
+        { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
+        403,
+      );
+    }
+
     // Формируем полный путь к сегменту относительно манифеста
-    // segmentPath может быть относительным (например, "segment_001.ts")
+    // segmentPath может быть только именем файла из HLS-манифеста (например, "segment-001.ts")
     const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
-    const fullSegmentPath =
-      segmentPath.startsWith("/") || segmentPath.includes("://")
-        ? segmentPath // Уже абсолютный путь
-        : `${baseDir}/${segmentPath}`; // Относительный путь
+    const fullSegmentPath = `${baseDir}/${safeSegmentPath}`;
 
     // Скачиваем сегмент из Object Storage
     const segmentBuffer = await downloadFileFromCDN(fullSegmentPath);
 
     // Определяем Content-Type на основе расширения файла
     let contentType = "application/octet-stream";
-    if (segmentPath.endsWith(".ts")) {
+    if (safeSegmentPath.endsWith(".ts")) {
       contentType = "video/mp2t";
-    } else if (segmentPath.endsWith(".m3u8")) {
+    } else if (safeSegmentPath.endsWith(".m3u8")) {
       contentType = "application/vnd.apple.mpegurl";
     }
 

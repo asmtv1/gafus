@@ -487,7 +487,12 @@ const styles = StyleSheet.create({
   },
   slotTextCol: { flex: 1 },
   slotTime: { fontFamily: FONTS.montserratMedium, fontSize: 15, color: COLORS.text },
-  slotStatus: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  slotStatus: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
   slotBtn: {
     backgroundColor: COLORS.primary,
     minWidth: 140,

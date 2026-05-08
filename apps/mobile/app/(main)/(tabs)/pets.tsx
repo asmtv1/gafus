@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   InteractionManager,
@@ -34,6 +34,7 @@ import {
   type PetDocumentDto,
 } from "@gafus/types";
 
+import petAvatarImage from "../../../assets/images/pet-avatar.png";
 import { COLORS, FONTS, SPACING } from "@/constants";
 import {
   TourTarget,
@@ -230,8 +231,12 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
     queryFn: () => petsApi.getDocuments(pet.id),
   });
 
-  const documents = [...(documentsResponse?.data ?? [])].sort(
-    (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+  const documents = useMemo(
+    () =>
+      [...(documentsResponse?.data ?? [])].sort(
+        (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+      ),
+    [documentsResponse?.data],
   );
 
   const isImageDocument = (mimeType: string) => mimeType.startsWith("image/");
@@ -403,32 +408,13 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
 
   const renameDocumentMutation = useMutation({
     mutationFn: async ({ documentId, name }: { documentId: string; name: string }) => {
-      console.log("[PetDocumentsRename] request", {
-        petId: pet.id,
-        documentId,
-        name,
-      });
-      const response = await petsApi.renameDocument(pet.id, documentId, name);
-      console.log("[PetDocumentsRename] response", {
-        petId: pet.id,
-        documentId,
-        success: response.success,
-        code: response.code,
-        error: response.error,
-      });
-      return response;
+      return petsApi.renameDocument(pet.id, documentId, name);
     },
     onSuccess: (response) => {
       if (!response.success) {
-        console.log("[PetDocumentsRename] unsuccessful", {
-          petId: pet.id,
-          code: response.code,
-          error: response.error,
-        });
         Alert.alert("Ошибка", response.error ?? "Не удалось обновить название документа");
         return;
       }
-      console.log("[PetDocumentsRename] success", { petId: pet.id });
       queryClient.invalidateQueries({ queryKey: ["pets", "documents", pet.id] });
       setEditingDocumentId(null);
       setEditingDocumentName("");
@@ -523,11 +509,6 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
       Alert.alert("Ошибка", "Название документа не может быть пустым");
       return;
     }
-    console.log("[PetDocumentsRename] save_click", {
-      petId: pet.id,
-      documentId: editingDocumentId,
-      name: nextName,
-    });
     renameDocumentMutation.mutate({ documentId: editingDocumentId, name: nextName });
   };
 
@@ -1537,7 +1518,7 @@ export default function PetsTabScreen() {
                       />
                     ) : (
                       <Image
-                        source={require("../../../assets/images/pet-avatar.png")}
+                        source={petAvatarImage}
                         style={styles.petAvatar}
                         contentFit="cover"
                       />

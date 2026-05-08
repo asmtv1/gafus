@@ -97,7 +97,7 @@ export const coursesApi = {
    * Получение списка всех курсов с прогрессом пользователя
    * API возвращает массив курсов напрямую
    */
-  getAll: async (filters?: CourseFilters): Promise<ApiResponse<CoursesResponse>> => {
+  getAll: async (_filters?: CourseFilters): Promise<ApiResponse<CoursesResponse>> => {
     // API не поддерживает фильтры через query params, фильтрация делается на клиенте
     const endpoint = "/api/v1/courses";
 

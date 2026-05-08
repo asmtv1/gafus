@@ -108,7 +108,16 @@ export function TourOverlay({
       left: (width - cardWidth) / 2,
       top: Math.min(maxTop, Math.max(minTop, top)),
     };
-  }, [cardHeight, height, insets.bottom, insets.top, secondaryTargetRect?.y, step.id, targetRect, width]);
+  }, [
+    cardHeight,
+    height,
+    insets.bottom,
+    insets.top,
+    secondaryTargetRect?.y,
+    step.id,
+    targetRect,
+    width,
+  ]);
 
   if (isTargetPending) {
     return null;
@@ -146,7 +155,11 @@ export function TourOverlay({
         />
       ))}
       <View
-        style={[styles.card, cardStyle, { maxHeight: height - insets.top - insets.bottom - SPACING.md * 2 }]}
+        style={[
+          styles.card,
+          cardStyle,
+          { maxHeight: height - insets.top - insets.bottom - SPACING.md * 2 },
+        ]}
         onLayout={(event) => {
           const nextHeight = event.nativeEvent.layout.height;
           if (nextHeight > 0 && Math.abs(nextHeight - cardHeight) > 1) {

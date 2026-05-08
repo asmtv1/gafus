@@ -50,7 +50,7 @@ export interface CreatePetData {
   notes?: string;
 }
 
-export interface UpdatePetData extends Partial<CreatePetData> {}
+export type UpdatePetData = Partial<CreatePetData>;
 export type PetDocument = PetDocumentDto;
 
 export type PetPreventionType = "VACCINATION" | "DEWORMING" | "TICKS_FLEAS";

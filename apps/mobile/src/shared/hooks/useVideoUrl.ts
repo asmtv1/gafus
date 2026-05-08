@@ -32,6 +32,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   );
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -41,6 +42,9 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   }, []);
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    const isActiveRequest = () => mountedRef.current && requestIdRef.current === requestId;
+
     if (!videoUrl) {
       if (__DEV__) {
         console.log("[useVideoUrl] videoUrl пустой, сбрасываем состояние");
@@ -80,8 +84,8 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
     trainingApi
       .getVideoUrl(urlForRequest)
       .then((response) => {
-        if (!mountedRef.current) return;
-        
+        if (!isActiveRequest()) return;
+
         if (__DEV__) {
           console.log("[useVideoUrl] Ответ от API:", {
             success: response.success,
@@ -108,7 +112,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
         }
       })
       .catch((err) => {
-        if (!mountedRef.current) return;
+        if (!isActiveRequest()) return;
         reportClientError(err instanceof Error ? err : new Error(String(err)), {
           issueKey: "VideoUrl",
           keys: { operation: "signed_url" },
@@ -118,7 +122,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
         setError(errorMsg);
       })
       .finally(() => {
-        if (mountedRef.current) {
+        if (isActiveRequest()) {
           setIsLoading(false);
         }
       });

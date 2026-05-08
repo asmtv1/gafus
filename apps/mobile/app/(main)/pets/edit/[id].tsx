@@ -49,7 +49,11 @@ export default function EditPetScreen() {
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<PetFormErrors>({});
 
-  const updateField = (field: keyof PetFormErrors, value: string, setter: (value: string) => void) => {
+  const updateField = (
+    field: keyof PetFormErrors,
+    value: string,
+    setter: (value: string) => void,
+  ) => {
     setter(value);
     if (errors[field]) {
       setErrors((current) => ({ ...current, [field]: undefined }));

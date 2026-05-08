@@ -2,7 +2,6 @@
  * Офлайн-хранилище: метаданные и пути к медиа в expo-file-system.
  * schemaVersion в meta.json для будущей миграции структуры.
  */
-/* eslint-disable @gafus/require-client-catch-tracer -- штатные сбои FS + дублируем warning в Tracer */
 import * as FileSystem from "expo-file-system/legacy";
 import type { FullCourseData } from "@/shared/lib/api/offline";
 import { reportClientError } from "@/shared/lib/tracer";

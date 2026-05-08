@@ -63,10 +63,7 @@ function formatDiaryEntryDate(iso: string): string {
 }
 
 /** Цвета и эмодзи для статусов — как в web Day.tsx */
-const STEP_STATUS_CONFIG: Record<
-  string,
-  { emoji: string; backgroundColor: string }
-> = {
+const STEP_STATUS_CONFIG: Record<string, { emoji: string; backgroundColor: string }> = {
   NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
   IN_PROGRESS: { emoji: "🔄", backgroundColor: "#E6F3FF" },
   COMPLETED: { emoji: "✅", backgroundColor: "#B6C582" },
@@ -132,16 +129,17 @@ function AccordionStepComponent({
    * Только стабильные методы — без activeTimer: иначе при каждом tick() меняется весь объект
    * activeTimer и перерисовываются ВСЕ шаги на экране → ScrollView сдвигает offset (~60px).
    */
-  const { startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor, restoreTimerFromStorage } = useTimerStore(
-    useShallow((s) => ({
-      startTimer: s.startTimer,
-      pauseTimer: s.pauseTimer,
-      tick: s.tick,
-      stopTimer: s.stopTimer,
-      isTimerActiveFor: s.isTimerActiveFor,
-      restoreTimerFromStorage: s.restoreTimerFromStorage,
-    })),
-  );
+  const { startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor, restoreTimerFromStorage } =
+    useTimerStore(
+      useShallow((s) => ({
+        startTimer: s.startTimer,
+        pauseTimer: s.pauseTimer,
+        tick: s.tick,
+        stopTimer: s.stopTimer,
+        isTimerActiveFor: s.isTimerActiveFor,
+        restoreTimerFromStorage: s.restoreTimerFromStorage,
+      })),
+    );
 
   /** Остаток/флаг run только для ЭТОГО шага — сравнение по значениям, без лишних ререндеров соседей */
   const stepTimerTuple = useTimerStore(
@@ -163,13 +161,10 @@ function AccordionStepComponent({
   // Иначе серверный RESET может перетирать локальный IN_PROGRESS после нажатия "Старт".
   const status = getStepDisplayStatus(
     localState,
-    localState ? undefined : ("status" in step ? step : undefined),
+    localState ? undefined : "status" in step ? step : undefined,
   );
-  const statusConfig =
-    STEP_STATUS_CONFIG[status] ?? STEP_STATUS_CONFIG.NOT_STARTED;
-  const statusText =
-    STEP_STATUS_LABELS[status as TrainingStatus] ??
-    STEP_STATUS_LABELS.NOT_STARTED;
+  const statusConfig = STEP_STATUS_CONFIG[status] ?? STEP_STATUS_CONFIG.NOT_STARTED;
+  const statusText = STEP_STATUS_LABELS[status as TrainingStatus] ?? STEP_STATUS_LABELS.NOT_STARTED;
   const isCompleted = status === "COMPLETED";
   const isInProgress = status === "IN_PROGRESS";
   const isReset = status === "RESET";
@@ -179,6 +174,15 @@ function AccordionStepComponent({
   const isBreak = stepType === "BREAK";
   const isExamination = stepType === "EXAMINATION";
   const isDiary = stepType === "DIARY";
+  const examUserStepId =
+    "userStepId" in step && typeof step.userStepId === "string"
+      ? step.userStepId
+      : "id" in step && typeof step.id === "string"
+        ? step.id
+        : null;
+  const examChecklist = Array.isArray(stepData.checklist)
+    ? (stepData.checklist as ChecklistQuestion[])
+    : null;
   /** Паритет с web AccordionStep: только TRAINING и BREAK (см. isStepWithTimer в core) */
   const showTimer = isStepWithTimer(stepType as StepType);
   const stepTypeForUi = (stepType || undefined) as StepType | undefined;
@@ -191,8 +195,7 @@ function AccordionStepComponent({
   );
   /** CDN / наш HLS — expo-video; остальное (Rutube, YouTube, VK…) — WebView с embed URL, как на web. */
   const useExpoVideo = Boolean(videoInfo?.isCDN || videoInfo?.isHLS);
-  const embedPageUrl =
-    videoInfo && !useExpoVideo && videoInfo.embedUrl ? videoInfo.embedUrl : null;
+  const embedPageUrl = videoInfo && !useExpoVideo && videoInfo.embedUrl ? videoInfo.embedUrl : null;
 
   const { isOffline } = useNetworkStatus();
 
@@ -204,9 +207,7 @@ function AccordionStepComponent({
 
   const resolvedTrainerImageUris = useMemo(
     () =>
-      trainerImageUrls
-        .map((raw) => resolveImageUrl(raw))
-        .filter((u): u is string => u !== null),
+      trainerImageUrls.map((raw) => resolveImageUrl(raw)).filter((u): u is string => u !== null),
     [trainerImageUrls],
   );
 
@@ -273,13 +274,9 @@ function AccordionStepComponent({
     getOfflineVideoUri(courseId, videoUrl).then((uri) => setOfflineVideoUri(uri));
   }, [requestOnlineUrl, videoUrl, courseId]);
 
-  const effectivePlaybackUrl =
-    offlineVideoUri ?? playbackUrl ?? lastPlaybackUrlRef.current;
+  const effectivePlaybackUrl = offlineVideoUri ?? playbackUrl ?? lastPlaybackUrlRef.current;
   const showOfflineStub =
-    requestOnlineUrl &&
-    videoUrl &&
-    isExternalVideoUrl(videoUrl) &&
-    !effectivePlaybackUrl;
+    requestOnlineUrl && videoUrl && isExternalVideoUrl(videoUrl) && !effectivePlaybackUrl;
 
   useEffect(() => {
     if (!isOpen) setUserRequestedPlay(false);
@@ -294,8 +291,7 @@ function AccordionStepComponent({
 
   // Проверяем, активен ли таймер для этого шага
   const hasActiveTimer = isTimerActiveFor(courseId, dayOnCourseId, index);
-  const isActuallyRunning =
-    isInProgress && hasActiveTimer && Boolean(stepTimerTuple?.[1]);
+  const isActuallyRunning = isInProgress && hasActiveTimer && Boolean(stepTimerTuple?.[1]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -407,8 +403,8 @@ function AccordionStepComponent({
       });
     }
     return;
-  // Не включаем activeTimer в deps: при каждом tick() store отдаёт новый объект,
-  // эффект бы перезапускался каждую секунду и создавал новый setInterval.
+    // Не включаем activeTimer в deps: при каждом tick() store отдаёт новый объект,
+    // эффект бы перезапускался каждую секунду и создавал новый setInterval.
   }, [
     hasActiveTimer,
     isActuallyRunning,
@@ -440,7 +436,7 @@ function AccordionStepComponent({
         ? `Упражнение #${stepNumber}`
         : `#${index + 1}`;
   const stepSubtitle =
-    stepType === "BREAK" ? stepData?.title ?? "" : `«${stepData?.title ?? "Шаг"}»`;
+    stepType === "BREAK" ? (stepData?.title ?? "") : `«${stepData?.title ?? "Шаг"}»`;
   const showDiaryBlock = isDiary && !!onSaveDiary;
   /** Смена key при обновлении списка: пересборка поддерева + обход глюков layout внутри Animated.View */
   const diaryEntriesListKey = useMemo(
@@ -449,12 +445,7 @@ function AccordionStepComponent({
   );
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: statusConfig.backgroundColor },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: statusConfig.backgroundColor }]}>
       <View style={styles.surfaceContent}>
         {/* Две строки: 1 — название по центру, 2 — Подробнее/Скрыть + статус */}
         <Pressable
@@ -467,12 +458,8 @@ function AccordionStepComponent({
           accessibilityRole="button"
           accessibilityLabel={isOpen ? "Скрыть шаг" : "Подробнее о шаге"}
         >
-          {(stepSubtitle || stepTypeLabel) ? (
-            <Text
-              style={styles.stepTitleLine}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+          {stepSubtitle || stepTypeLabel ? (
+            <Text style={styles.stepTitleLine} numberOfLines={1} ellipsizeMode="tail">
               {stepSubtitle || stepTypeLabel}
             </Text>
           ) : null}
@@ -483,9 +470,7 @@ function AccordionStepComponent({
                 size={22}
                 color={WEB.stepBorder}
               />
-              <Text style={styles.expandText}>
-                {isOpen ? "Скрыть" : "Подробнее"}
-              </Text>
+              <Text style={styles.expandText}>{isOpen ? "Скрыть" : "Подробнее"}</Text>
             </View>
             <View style={styles.stepStatusConfig}>
               <Text style={styles.stepStatusText}>
@@ -557,52 +542,44 @@ function AccordionStepComponent({
               )}
 
               {/* Блок экзамена: тест, письменная связь, видео (как на web) */}
-              {isExamination &&
-                "userStepId" in step &&
-                typeof (step as { userStepId?: string }).userStepId === "string" && (
-                  <View style={styles.descriptionSection}>
-                    <Text style={styles.descriptionSectionTitle}>Экзамен:</Text>
-                    <View style={styles.descriptionSectionContent}>
-                      {"hasTestQuestions" in step &&
-                        (step as { hasTestQuestions?: boolean }).hasTestQuestions &&
-                        "checklist" in step &&
-                        Array.isArray((step as { checklist?: unknown }).checklist) &&
-                        ((step as { checklist: ChecklistQuestion[] }).checklist.length > 0) && (
-                          <TestQuestionsBlock
-                            checklist={(step as { checklist: ChecklistQuestion[] }).checklist}
-                            userStepId={(step as { userStepId: string }).userStepId}
-                            stepId={
-                              (stepData && "id" in stepData && stepData.id) ||
-                              ("id" in step && (step as { id: string }).id) ||
-                              ""
-                            }
-                          />
-                        )}
-                      {"requiresWrittenFeedback" in step &&
-                        (step as { requiresWrittenFeedback?: boolean }).requiresWrittenFeedback && (
-                          <WrittenFeedbackBlock
-                            userStepId={(step as { userStepId: string }).userStepId}
-                            stepId={
-                              (stepData && "id" in stepData && stepData.id) ||
-                              ("id" in step && (step as { id: string }).id) ||
-                              ""
-                            }
-                          />
-                        )}
-                      {"requiresVideoReport" in step &&
-                        (step as { requiresVideoReport?: boolean }).requiresVideoReport && (
-                          <VideoReportBlock
-                            userStepId={(step as { userStepId: string }).userStepId}
-                            stepId={
-                              (stepData && "id" in stepData && stepData.id) ||
-                              ("id" in step && (step as { id: string }).id) ||
-                              ""
-                            }
-                          />
-                        )}
-                    </View>
+              {isExamination && examUserStepId && (
+                <View style={styles.descriptionSection}>
+                  <Text style={styles.descriptionSectionTitle}>Экзамен:</Text>
+                  <View style={styles.descriptionSectionContent}>
+                    {stepData.hasTestQuestions && examChecklist && examChecklist.length > 0 && (
+                      <TestQuestionsBlock
+                        checklist={examChecklist}
+                        userStepId={examUserStepId}
+                        stepId={
+                          (stepData && "id" in stepData && stepData.id) ||
+                          ("id" in step && (step as { id: string }).id) ||
+                          ""
+                        }
+                      />
+                    )}
+                    {stepData.requiresWrittenFeedback && (
+                      <WrittenFeedbackBlock
+                        userStepId={examUserStepId}
+                        stepId={
+                          (stepData && "id" in stepData && stepData.id) ||
+                          ("id" in step && (step as { id: string }).id) ||
+                          ""
+                        }
+                      />
+                    )}
+                    {stepData.requiresVideoReport && (
+                      <VideoReportBlock
+                        userStepId={examUserStepId}
+                        stepId={
+                          (stepData && "id" in stepData && stepData.id) ||
+                          ("id" in step && (step as { id: string }).id) ||
+                          ""
+                        }
+                      />
+                    )}
                   </View>
-                )}
+                </View>
+              )}
 
               {showDiaryBlock && (
                 <View key={diaryEntriesListKey} style={styles.diaryStepInfo}>
@@ -733,75 +710,68 @@ function AccordionStepComponent({
               )}
 
               {/* Видео: сначала обложка с кнопкой Play (как на web), по нажатию — загрузка и плеер */}
-              {!isBreak &&
-                videoUrl &&
-                typeof videoUrl === "string" &&
-                videoUrl.trim() !== "" && (
-                  <View style={styles.videoContainer}>
-                    {!userRequestedPlay ? (
-                      <Pressable
-                        style={styles.videoCover}
-                        onPress={() => {
-                      void hapticFeedback.light();
-                      setUserRequestedPlay(true);
-                    }}
-                      >
-                        <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
-                        <Text style={styles.videoCoverText}>Смотреть видео</Text>
-                      </Pressable>
-                    ) : embedPageUrl ? (
-                      isOffline ? (
-                        <View style={styles.videoLoadingContainer}>
-                          <Text style={styles.videoLoadingText}>
-                            Для просмотра нужен интернет
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.embedWebViewWrap, { height: embedWebViewHeight }]}>
-                          <WebView
-                            key={embedPageUrl}
-                            source={{ uri: embedPageUrl }}
-                            style={[styles.embedWebView, { height: embedWebViewHeight }]}
-                            /* Иначе about:srcdoc/iframe уходят в Linking → WARN и пустой экран */
-                            originWhitelist={["http://*", "https://*", "about:*"]}
-                            onShouldStartLoadWithRequest={handleEmbedShouldStartLoad}
-                            allowsInlineMediaPlayback
-                            mediaPlaybackRequiresUserAction={false}
-                            javaScriptEnabled
-                            domStorageEnabled
-                            mixedContentMode="always"
-                            allowsFullscreenVideo
-                            setSupportMultipleWindows={false}
-                            thirdPartyCookiesEnabled={Platform.OS === "android"}
-                            cacheEnabled
-                          />
-                        </View>
-                      )
-                    ) : showOfflineStub ? (
+              {!isBreak && videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== "" && (
+                <View style={styles.videoContainer}>
+                  {!userRequestedPlay ? (
+                    <Pressable
+                      style={styles.videoCover}
+                      onPress={() => {
+                        void hapticFeedback.light();
+                        setUserRequestedPlay(true);
+                      }}
+                    >
+                      <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
+                      <Text style={styles.videoCoverText}>Смотреть видео</Text>
+                    </Pressable>
+                  ) : embedPageUrl ? (
+                    isOffline ? (
                       <View style={styles.videoLoadingContainer}>
-                        <Text style={styles.videoLoadingText}>
-                          Для просмотра нужен интернет
-                        </Text>
+                        <Text style={styles.videoLoadingText}>Для просмотра нужен интернет</Text>
                       </View>
-                    ) : isLoadingVideo && !offlineVideoUri ? (
-                      <View style={styles.videoLoadingContainer}>
-                        <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
+                    ) : (
+                      <View style={[styles.embedWebViewWrap, { height: embedWebViewHeight }]}>
+                        <WebView
+                          key={embedPageUrl}
+                          source={{ uri: embedPageUrl }}
+                          style={[styles.embedWebView, { height: embedWebViewHeight }]}
+                          /* Иначе about:srcdoc/iframe уходят в Linking → WARN и пустой экран */
+                          originWhitelist={["http://*", "https://*", "about:*"]}
+                          onShouldStartLoadWithRequest={handleEmbedShouldStartLoad}
+                          allowsInlineMediaPlayback
+                          mediaPlaybackRequiresUserAction={false}
+                          javaScriptEnabled
+                          domStorageEnabled
+                          mixedContentMode="always"
+                          allowsFullscreenVideo
+                          setSupportMultipleWindows={false}
+                          thirdPartyCookiesEnabled={Platform.OS === "android"}
+                          cacheEnabled
+                        />
                       </View>
-                    ) : videoError && !offlineVideoUri ? null : effectivePlaybackUrl ? (
-                      <VideoPlayer
-                        key={`${effectivePlaybackUrl}-${videoRetryKey}`}
-                        uri={effectivePlaybackUrl}
-                        onRetry={() => setVideoRetryKey((k) => k + 1)}
-                      />
-                    ) : userRequestedPlay ? (
-                      <View style={styles.videoLoadingContainer}>
-                        <Text style={styles.videoLoadingText}>
-                          Не удалось открыть видео. Попробуйте ещё раз или откройте ссылку в браузере.
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                )}
+                    )
+                  ) : showOfflineStub ? (
+                    <View style={styles.videoLoadingContainer}>
+                      <Text style={styles.videoLoadingText}>Для просмотра нужен интернет</Text>
+                    </View>
+                  ) : isLoadingVideo && !offlineVideoUri ? (
+                    <View style={styles.videoLoadingContainer}>
+                      <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
+                    </View>
+                  ) : videoError && !offlineVideoUri ? null : effectivePlaybackUrl ? (
+                    <VideoPlayer
+                      key={`${effectivePlaybackUrl}-${videoRetryKey}`}
+                      uri={effectivePlaybackUrl}
+                      onRetry={() => setVideoRetryKey((k) => k + 1)}
+                    />
+                  ) : userRequestedPlay ? (
+                    <View style={styles.videoLoadingContainer}>
+                      <Text style={styles.videoLoadingText}>
+                        Не удалось открыть видео. Попробуйте ещё раз или откройте ссылку в браузере.
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              )}
 
               {/* Таймер для тренировочных шагов и перерывов (как в web) */}
               {showTimer &&
@@ -846,7 +816,12 @@ function AccordionStepComponent({
                                 style={styles.circleBtn}
                                 onPress={() => {
                                   void hapticFeedback.medium();
-                                  const started = startTimer(courseId, dayOnCourseId, index, duration);
+                                  const started = startTimer(
+                                    courseId,
+                                    dayOnCourseId,
+                                    index,
+                                    duration,
+                                  );
                                   if (!started) return;
                                   onStart();
                                 }}
@@ -878,7 +853,12 @@ function AccordionStepComponent({
                                   void hapticFeedback.medium();
                                   const remaining =
                                     localState?.timeLeft ?? localState?.remainingSec ?? duration;
-                                  const resumed = startTimer(courseId, dayOnCourseId, index, remaining);
+                                  const resumed = startTimer(
+                                    courseId,
+                                    dayOnCourseId,
+                                    index,
+                                    remaining,
+                                  );
                                   if (!resumed) return;
                                   onResume();
                                 }}
@@ -941,12 +921,12 @@ function AccordionStepComponent({
                         styles.completeBtn,
                         pressed && styles.completeBtnPressed,
                       ]}
-                        onPress={() => {
-                          void hapticFeedback.light();
-                          onComplete?.();
-                        }}
-                      >
-                        <Text style={styles.completeBtnText}>Прочитано</Text>
+                      onPress={() => {
+                        void hapticFeedback.light();
+                        onComplete?.();
+                      }}
+                    >
+                      <Text style={styles.completeBtnText}>Прочитано</Text>
                     </Pressable>
                   </View>
                 ) : isCompleted ? (

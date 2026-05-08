@@ -97,13 +97,13 @@ export default function TrainingDaysScreen() {
     error?.message?.includes("COURSE_ACCESS_DENIED") ||
     (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
     (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
+  const userCoursePersonalization = courseData?.userCoursePersonalization;
   const needPersonalization = Boolean(
-    (courseData?.courseIsPersonalized && !courseData?.userCoursePersonalization) ||
-      personalize === "1",
+    (courseData?.courseIsPersonalized && !userCoursePersonalization) || personalize === "1",
   );
 
   useEffect(() => {
-    const existing = courseData?.userCoursePersonalization;
+    const existing = userCoursePersonalization;
     if (!existing) return;
     setUserDisplayName(existing.userDisplayName ?? "");
     setUserGender(existing.userGender === "female" ? "female" : "male");
@@ -114,17 +114,7 @@ export default function TrainingDaysScreen() {
     setPetNameAcc(existing.petNameAcc ?? "");
     setPetNameIns(existing.petNameIns ?? "");
     setPetNamePre(existing.petNamePre ?? "");
-  }, [
-    courseData?.userCoursePersonalization?.userDisplayName,
-    courseData?.userCoursePersonalization?.userGender,
-    courseData?.userCoursePersonalization?.petName,
-    courseData?.userCoursePersonalization?.petGender,
-    courseData?.userCoursePersonalization?.petNameGen,
-    courseData?.userCoursePersonalization?.petNameDat,
-    courseData?.userCoursePersonalization?.petNameAcc,
-    courseData?.userCoursePersonalization?.petNameIns,
-    courseData?.userCoursePersonalization?.petNamePre,
-  ]);
+  }, [userCoursePersonalization]);
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -432,7 +422,6 @@ export default function TrainingDaysScreen() {
   const handleShareCourse = useCallback(async () => {
     const url = `https://gafus.ru/trainings/${courseType}`;
     const message = [courseType, courseData?.courseDescription, url].filter(Boolean).join("\n\n");
-    /* eslint-disable @gafus/require-client-catch-tracer -- Share + fallback + warning в Tracer */
     try {
       await Share.share({
         title: `Курс: ${courseType}`,
@@ -448,7 +437,6 @@ export default function TrainingDaysScreen() {
       await Clipboard.setStringAsync(url);
       setSnackbar({ visible: true, message: "Ссылка скопирована" });
     }
-    /* eslint-enable @gafus/require-client-catch-tracer */
   }, [courseType, courseData?.courseDescription]);
 
   const renderDayItem = useCallback(

@@ -73,14 +73,19 @@ async function safeParseResponseJson(response: Response): Promise<SafeJsonOk | S
   }
   try {
     return { ok: true, value: JSON.parse(trimmed) as unknown };
-  } catch {
+  } catch (parseError) {
+    reportClientError(parseError instanceof Error ? parseError : new Error(String(parseError)), {
+      issueKey: "ApiClient",
+      severity: "warning",
+      keys: { operation: "parse_response_json", status: response.status },
+    });
     const preview = trimmed.slice(0, 120).replace(/\s+/g, " ");
     const base =
       "Сервер вернул ответ в неожиданном формате. Попробуйте позже или проверьте подключение.";
-    const error = __DEV__
+    const message = __DEV__
       ? `${base} (HTTP ${response.status}, начало: ${preview}${trimmed.length > 120 ? "…" : ""})`
       : base;
-    return { ok: false, error, preview };
+    return { ok: false, error: message, preview };
   }
 }
 

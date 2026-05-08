@@ -228,7 +228,12 @@ const styles = StyleSheet.create({
   badgeSuccess: { backgroundColor: "rgba(72, 130, 86, 0.14)", color: "#2f5d3a" },
   badgeDanger: { backgroundColor: "rgba(180, 60, 60, 0.12)", color: "#7d2f2f" },
   badgeNeutral: { backgroundColor: "rgba(0, 0, 0, 0.06)", color: COLORS.textSecondary },
-  description: { fontFamily: FONTS.montserrat, fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
+  description: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
   cancelReason: {
     fontFamily: FONTS.montserrat,
     fontSize: 13,
@@ -254,7 +259,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
-  link: { marginTop: SPACING.sm, color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 14 },
+  link: {
+    marginTop: SPACING.sm,
+    color: COLORS.primary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 14,
+  },
   cancelBtn: {
     alignSelf: "flex-start",
     marginTop: SPACING.sm,

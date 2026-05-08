@@ -13,8 +13,6 @@ import type {
 } from "@/shared/utils/courseFilters";
 import { DEFAULT_COURSE_FILTERS } from "@/shared/utils/courseFilters";
 
-const COURSES_FILTERS_STORAGE_KEY = "courses-filters";
-
 interface CachedData<T> {
   data: T;
   timestamp: number;
@@ -173,7 +171,9 @@ export const useCourseStore = create<CourseStore>()(
         merged.filters = {
           tab: validTab ? (f.tab as CourseTabType) : DEFAULT_COURSE_FILTERS.tab,
           level: validLevel ? (f.level as TrainingLevelType) : DEFAULT_COURSE_FILTERS.level,
-          progress: validProgress ? (f.progress as ProgressFilterType) : DEFAULT_COURSE_FILTERS.progress,
+          progress: validProgress
+            ? (f.progress as ProgressFilterType)
+            : DEFAULT_COURSE_FILTERS.progress,
           rating: validRating ? (f.rating as RatingFilterType) : DEFAULT_COURSE_FILTERS.rating,
           search: typeof f.search === "string" ? f.search : DEFAULT_COURSE_FILTERS.search,
           sorting: validSorting ? (f.sorting as SortingType) : DEFAULT_COURSE_FILTERS.sorting,

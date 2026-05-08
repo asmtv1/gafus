@@ -442,7 +442,7 @@ export default function TrainingDayScreen() {
     setIsPaymentChecking(false);
   }, [refetch]);
 
-  const handleCreatePayment = useCallback(async () => {
+  const _handleCreatePayment = useCallback(async () => {
     if (isCreatingPayment) return;
     if (!courseType) {
       setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
@@ -606,7 +606,11 @@ export default function TrainingDayScreen() {
       if (data.error) {
         // Обрабатываем ZodError
         if (typeof data.error === "object" && data.error !== null) {
-          const err = data.error as { name?: string; message?: string; issues?: { path: string[]; message: string }[] };
+          const err = data.error as {
+            name?: string;
+            message?: string;
+            issues?: { path: string[]; message: string }[];
+          };
           if (err.name === "ZodError") {
             errorMessage = "Ошибка валидации данных";
             if (err.issues && err.issues.length > 0) {
@@ -623,10 +627,13 @@ export default function TrainingDayScreen() {
         } else if (typeof data.error === "string") {
           errorMessage = data.error;
         }
-      } else if ((data as any).code) {
-        errorMessage = `Ошибка: ${(data as any).code}`;
+      } else if (data && "code" in data && typeof data.code === "string") {
+        errorMessage = `Ошибка: ${data.code}`;
       }
     }
+
+    const debugDataError = data?.error;
+    const debugDataCode = data && "code" in data ? data.code : undefined;
 
     if (__DEV__) {
       console.error("[TrainingDayScreen] Ошибка отображения:", {
@@ -637,14 +644,14 @@ export default function TrainingDayScreen() {
         dataSuccess: data?.success,
         dataErrorType: data?.error ? typeof data.error : null,
         dataErrorName:
-          data?.error && typeof data.error === "object" && "name" in data.error
-            ? (data.error as any).name
+          debugDataError && typeof debugDataError === "object" && "name" in debugDataError
+            ? (debugDataError as { name?: unknown }).name
             : null,
         dataErrorIssues:
-          data?.error && typeof data.error === "object" && "issues" in data.error
-            ? (data.error as any).issues
+          debugDataError && typeof debugDataError === "object" && "issues" in debugDataError
+            ? (debugDataError as { issues?: unknown }).issues
             : null,
-        dataCode: (data as any)?.code,
+        dataCode: debugDataCode,
         dayData: dayData ? { title: dayData.title, stepsCount: dayData.steps?.length } : null,
         finalErrorMessage: errorMessage,
       });
@@ -759,7 +766,10 @@ export default function TrainingDayScreen() {
                     name="chevron-down"
                     size={24}
                     color={COLORS.primary}
-                    style={[styles.descriptionDayIcon, isDescriptionOpen && styles.descriptionDayIconExpanded]}
+                    style={[
+                      styles.descriptionDayIcon,
+                      isDescriptionOpen && styles.descriptionDayIconExpanded,
+                    ]}
                   />
                 </View>
               </Pressable>

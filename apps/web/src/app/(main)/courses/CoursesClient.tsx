@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -98,6 +98,14 @@ function getDefaultFilters() {
   };
 }
 
+function getCourseIdsKey(courses?: CourseWithProgressData[] | null): string {
+  if (!courses?.length) return "";
+  return courses
+    .map((course) => course.id)
+    .toSorted()
+    .join(",");
+}
+
 interface CoursesClientProps {
   initialCourses?: CourseWithProgressData[] | null;
   initialError?: string | null;
@@ -158,13 +166,17 @@ export default function CoursesClient({
 
   // Добавляем синхронизацию прогресса
   const { syncedCourses } = useCourseProgressSync();
+  const allCoursesData = useMemo(
+    () => syncedCourses ?? allCourses?.data ?? [],
+    [syncedCourses, allCourses?.data],
+  );
+  const currentCourseIdsKey = useMemo(() => getCourseIdsKey(allCourses?.data), [allCourses?.data]);
+  const initialCourseIdsKey = useMemo(() => getCourseIdsKey(initialCourses), [initialCourses]);
 
   // Инициализируем данные при монтировании: приоритет серверных initialCourses над persist при отличии набора id
   useEffect(() => {
     const hasServerData = initialCourses != null;
-    const currentIds = (allCourses?.data ?? []).map((c) => c.id).sort().join(",");
-    const serverIds = (initialCourses ?? []).map((c) => c.id).sort().join(",");
-    const idsDiffer = currentIds !== serverIds;
+    const idsDiffer = currentCourseIdsKey !== initialCourseIdsKey;
 
     if (hasServerData && (!allCourses || idsDiffer)) {
       setAllCourses(initialCourses, "server");
@@ -183,6 +195,8 @@ export default function CoursesClient({
     initialCourses,
     initialError,
     allCourses,
+    currentCourseIdsKey,
+    initialCourseIdsKey,
     loading.all,
     userId,
     setAllCourses,
@@ -203,6 +217,58 @@ export default function CoursesClient({
     };
   }, [forceRefreshFavorites]);
 
+  // Применяем все фильтры и сортировку
+  const filteredCourses = useMemo(
+    () =>
+      filterAndSortCourses(allCoursesData, {
+        tab: activeTab,
+        level: activeLevel,
+        progress: activeProgress,
+        rating: activeRating,
+        search: searchQuery,
+        sorting: activeSorting,
+      }),
+    [
+      allCoursesData,
+      activeTab,
+      activeLevel,
+      activeProgress,
+      activeRating,
+      searchQuery,
+      activeSorting,
+    ],
+  );
+
+  // Функция для получения количества результатов по фильтрам (для preview в drawer)
+  const getResultsCount = useCallback(
+    (filters: {
+      tab: CourseTabType;
+      level: TrainingLevelType;
+      progress: ProgressFilterType;
+      rating: RatingFilterType;
+    }) =>
+      filterAndSortCourses(allCoursesData, {
+        tab: filters.tab,
+        level: filters.level,
+        progress: filters.progress,
+        rating: filters.rating,
+        search: searchQuery,
+        sorting: activeSorting,
+      }).length,
+    [allCoursesData, searchQuery, activeSorting],
+  );
+
+  const dailyCourseProgressPercent = useMemo(
+    () =>
+      initialDailyCourse?.stepsSummary.total
+        ? Math.round(
+            (initialDailyCourse.stepsSummary.completed / initialDailyCourse.stepsSummary.total) *
+              100,
+          )
+        : 0,
+    [initialDailyCourse],
+  );
+
   // Показываем скелетон во время загрузки
   if (loading.all) {
     return <CoursesSkeleton />;
@@ -216,42 +282,6 @@ export default function CoursesClient({
       </div>
     );
   }
-
-  const allCoursesData = syncedCourses || allCourses?.data || [];
-
-  // Применяем все фильтры и сортировку
-  const filteredCourses = filterAndSortCourses(allCoursesData, {
-    tab: activeTab,
-    level: activeLevel,
-    progress: activeProgress,
-    rating: activeRating,
-    search: searchQuery,
-    sorting: activeSorting,
-  });
-
-  // Функция для получения количества результатов по фильтрам (для preview в drawer)
-  const getResultsCount = (filters: {
-    tab: CourseTabType;
-    level: TrainingLevelType;
-    progress: ProgressFilterType;
-    rating: RatingFilterType;
-  }) => {
-    return filterAndSortCourses(allCoursesData, {
-      tab: filters.tab,
-      level: filters.level,
-      progress: filters.progress,
-      rating: filters.rating,
-      search: searchQuery,
-      sorting: activeSorting,
-    }).length;
-  };
-  const dailyCourseProgressPercent =
-    initialDailyCourse?.stepsSummary.total
-      ? Math.round(
-          (initialDailyCourse.stepsSummary.completed / initialDailyCourse.stepsSummary.total) *
-            100,
-        )
-      : 0;
 
   return (
     <div className={styles.container}>

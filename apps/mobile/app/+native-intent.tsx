@@ -6,7 +6,6 @@
  */
 import { reportClientError } from "@/shared/lib/tracer";
 
-/* eslint-disable @gafus/require-client-catch-tracer -- защитный обёрточный catch + явный warning в Tracer */
 export function redirectSystemPath({
   path,
 }: {
@@ -29,4 +28,3 @@ export function redirectSystemPath({
     return "/(auth)/welcome";
   }
 }
-/* eslint-enable @gafus/require-client-catch-tracer */

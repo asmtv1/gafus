@@ -46,11 +46,12 @@ export default function FavoritesScreen() {
     });
   }, [favoriteIds]);
 
+  const favoritesSet = useMemo(() => new Set(favorites), [favorites]);
   const displayedCourses = useMemo(() => {
     return favoriteCourses
-      .filter((c) => favorites.includes(c.id))
+      .filter((c) => favoritesSet.has(c.id))
       .sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
-  }, [favoriteCourses, favorites]);
+  }, [favoriteCourses, favoritesSet]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -96,10 +97,13 @@ export default function FavoritesScreen() {
     [handleUnfavorite, pendingIdsSet],
   );
 
-  const renderHeader = () => (
-    <View style={styles.headerFilters}>
-      <Text style={styles.pageTitle}>Избранные курсы</Text>
-    </View>
+  const renderHeader = useCallback(
+    () => (
+      <View style={styles.headerFilters}>
+        <Text style={styles.pageTitle}>Избранные курсы</Text>
+      </View>
+    ),
+    [],
   );
 
   if (isOffline) {

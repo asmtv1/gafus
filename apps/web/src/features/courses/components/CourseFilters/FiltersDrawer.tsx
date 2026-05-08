@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TrainingStatus } from "@gafus/types";
 import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
 import type { CourseTabType } from "../CourseTabs/CourseTabs";
@@ -113,14 +113,18 @@ export default function FiltersDrawer({
   const [localRating, setLocalRating] = useState(activeRating);
 
   // Динамически пересчитываем количество результатов
-  const previewCount = getResultsCount
-    ? getResultsCount({
-        tab: localTab,
-        level: localLevel,
-        progress: localProgress,
-        rating: localRating,
-      })
-    : undefined;
+  const previewCount = useMemo(
+    () =>
+      getResultsCount
+        ? getResultsCount({
+            tab: localTab,
+            level: localLevel,
+            progress: localProgress,
+            rating: localRating,
+          })
+        : undefined,
+    [getResultsCount, localTab, localLevel, localProgress, localRating],
+  );
 
   // Синхронизируем локальные состояния с пропсами
   useEffect(() => {

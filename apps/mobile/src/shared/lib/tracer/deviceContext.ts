@@ -18,6 +18,7 @@ export async function getDeviceId(): Promise<string> {
     try {
       cachedDeviceId = Application.getAndroidId();
       return cachedDeviceId;
+      // eslint-disable-next-line @gafus/require-client-catch-tracer -- reports via tracer without getDeviceId recursion
     } catch (err) {
       reportAndroidDeviceIdFailure(err);
     }

@@ -60,7 +60,10 @@ export function CourseDescription({
       <Surface style={[styles.headerSurface, isExpanded && styles.headerExpanded]} elevation={1}>
         <Pressable
           onPress={handleToggle}
-          style={({ pressed }) => [styles.headerPressable, pressed && styles.headerPressablePressed]}
+          style={({ pressed }) => [
+            styles.headerPressable,
+            pressed && styles.headerPressablePressed,
+          ]}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={isExpanded ? "Скрыть описание курса" : "Подробнее описание курса"}
@@ -101,18 +104,32 @@ export function CourseDescription({
                     ) : null
                   ) : videoInfo.embedUrl ? (
                     <Pressable
-                      style={({ pressed }) => [styles.videoLinkButton, pressed && styles.videoLinkPressed]}
+                      style={({ pressed }) => [
+                        styles.videoLinkButton,
+                        pressed && styles.videoLinkPressed,
+                      ]}
                       onPress={() => videoUrl && Linking.openURL(videoUrl)}
                     >
-                      <MaterialCommunityIcons name="play-circle-outline" size={24} color={COLORS.primary} />
+                      <MaterialCommunityIcons
+                        name="play-circle-outline"
+                        size={24}
+                        color={COLORS.primary}
+                      />
                       <Text style={styles.videoLinkText}>Смотреть видео</Text>
                     </Pressable>
                   ) : (
                     <Pressable
-                      style={({ pressed }) => [styles.videoLinkButton, pressed && styles.videoLinkPressed]}
+                      style={({ pressed }) => [
+                        styles.videoLinkButton,
+                        pressed && styles.videoLinkPressed,
+                      ]}
                       onPress={() => videoUrl && Linking.openURL(videoUrl)}
                     >
-                      <MaterialCommunityIcons name="open-in-new" size={24} color={COLORS.primary} />
+                      <MaterialCommunityIcons
+                        name="open-in-new"
+                        size={24}
+                        color={COLORS.primary}
+                      />
                       <Text style={styles.videoLinkText}>Открыть видео</Text>
                     </Pressable>
                   )}
@@ -139,7 +156,10 @@ export function CourseDescription({
               {onShare && courseType && (
                 <View style={styles.shareButtonContainer}>
                   <Pressable
-                    style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
+                    style={({ pressed }) => [
+                      styles.shareButton,
+                      pressed && styles.shareButtonPressed,
+                    ]}
                     onPress={onShare}
                     accessibilityLabel="Поделиться ссылкой на курс"
                   >
