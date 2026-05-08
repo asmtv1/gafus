@@ -35,7 +35,7 @@ import {
 } from "@mui/material";
 import { visuallyHidden } from "@mui/utils";
 import * as React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import type { TrainerStepTableRow as Step } from "@gafus/types";
 
@@ -96,6 +96,7 @@ export default function EnhancedStepsTable({
 }: EnhancedStepsTableProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const currentSearchParams = useSearchParams();
 
   const headCells = React.useMemo(() => {
     if (isAdmin) {
@@ -170,6 +171,20 @@ export default function EnhancedStepsTable({
   const [searchQuery, setSearchQuery] = React.useState(getInitialSearch());
   const [onlyOrphanSteps, setOnlyOrphanSteps] = React.useState(getInitialOnlyOrphanSteps());
 
+  const navigateIfChanged = React.useCallback(
+    (newUrl: string, method: "replace" | "push" = "replace") => {
+      const currentQuery = currentSearchParams.toString();
+      const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+      if (newUrl === currentUrl) return;
+      if (method === "push") {
+        router.push(newUrl, { scroll: false });
+      } else {
+        router.replace(newUrl, { scroll: false });
+      }
+    },
+    [currentSearchParams, pathname, router],
+  );
+
   // Функция для обновления URL с текущими параметрами
   const updateURL = React.useCallback(
     (updates: {
@@ -199,9 +214,9 @@ export default function EnhancedStepsTable({
       if (currentOnlyOrphan) params.set("onlyOrphanSteps", "1");
 
       const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-      router.replace(newUrl, { scroll: false });
+      navigateIfChanged(newUrl, "replace");
     },
-    [router, pathname, searchQuery, orderBy, order, page, rowsPerPage, onlyOrphanSteps],
+    [navigateIfChanged, pathname, searchQuery, orderBy, order, page, rowsPerPage, onlyOrphanSteps],
   );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -247,13 +262,14 @@ export default function EnhancedStepsTable({
         if (order) params.set("order", order);
         // page = 0, не добавляем в URL
         if (rowsPerPage) params.set("rowsPerPage", rowsPerPage.toString());
+        if (onlyOrphanSteps) params.set("onlyOrphanSteps", "1");
         const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-        router.push(newUrl, { scroll: false });
+        navigateIfChanged(newUrl, "replace");
       }
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, router, pathname, orderBy, order, rowsPerPage]);
+  }, [searchQuery, pathname, orderBy, order, rowsPerPage, onlyOrphanSteps, navigateIfChanged]);
 
   // Синхронизация сортировки с URL и localStorage
   React.useEffect(() => {
@@ -297,8 +313,9 @@ export default function EnhancedStepsTable({
     if (order) params.set("order", order);
     if (newPage > 0) params.set("page", newPage.toString());
     if (rowsPerPage) params.set("rowsPerPage", rowsPerPage.toString());
+    if (onlyOrphanSteps) params.set("onlyOrphanSteps", "1");
     const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.push(newUrl, { scroll: false });
+    navigateIfChanged(newUrl, "push");
   };
 
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,8 +329,9 @@ export default function EnhancedStepsTable({
     if (order) params.set("order", order);
     // page = 0, не добавляем в URL
     params.set("rowsPerPage", newRowsPerPage.toString());
+    if (onlyOrphanSteps) params.set("onlyOrphanSteps", "1");
     const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.push(newUrl, { scroll: false });
+    navigateIfChanged(newUrl, "push");
   };
 
   const comparator = React.useCallback(
