@@ -33,12 +33,69 @@
 - Gated scope: документы питомца, профилактика питомца, reminders, courses/training/daily course/exam/offline, articles detail/actions, consultations, notes, achievements/favorites.
 - Admin может поставить manual paid until, lifetime или clear. Moderator только видит статус.
 - В v1 ничего не удаляем из существующих разовых оплат курсов/статей.
+- `UserRole.PREMIUM` не считается app subscription в v1. Доступ дает только `AppSubscription` (`YOOKASSA`, `APPLE`, `MANUAL`), чтобы не выдать бесплатный доступ существующим пользователям случайно.
+
+## 2.1. Правило качества по шагам (обновлено)
+
+Для каждого шага реализации (`## 4`-`## 12`) обязательна одинаковая последовательность:
+
+1. Реализация шага.
+2. Локальная верификация (`superpowers:verification-before-completion`): тесты, линт, typecheck и профильные проверки шага.
+3. Code review (`superpowers:requesting-code-review`) сразу после завершения шага.
+4. Только после review шаг помечается как “готово”.
+
+`superpowers:requesting-code-review` выполняется после каждого шага, а не только перед merge.
+
+## 2.2. Definition of Done для каждого шага
+
+Шаг (`## 4`-`## 12`) считается завершенным только если есть все пункты:
+
+1. Код и миграции для шага внесены.
+2. Targeted tests шага зеленые.
+3. Typecheck/линт для затронутых пакетов зеленые.
+4. Выполнен `superpowers:requesting-code-review`, замечания закрыты или явно зафиксированы как follow-up.
+5. В `PLAN2.md` у шага добавлен короткий execution note: что сделано, какие команды запускались, какие ограничения остались.
+
+## 2.3. Feature flags для безопасного rollout
+
+Добавить явные semantic aliases в `packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts`:
+
+```ts
+export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
+export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
+export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment_hint";
+```
+
+Defaults:
+
+- `APP_FEATURE_APP_SUBSCRIPTION_GATING`: `false` до production rollout.
+- `APP_FEATURE_APP_SUBSCRIPTION_PAYWALL`: `false` до smoke-тестов, затем можно включить раньше server gating.
+- `APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT`: `false` по умолчанию.
+
+Правила:
+
+- Server-side gates в API/Web сначала проверяют `APP_FEATURE_APP_SUBSCRIPTION_GATING`; если flag выключен, gated action не блокируется.
+- Paywall UI сначала проверяет `APP_FEATURE_APP_SUBSCRIPTION_PAYWALL`; если flag выключен, paywall не показывается автоматически после onboarding.
+- Ручная страница `/subscription` и payment endpoints могут работать при выключенном server gating, чтобы тестировать платежи до полного включения.
+- `getMobileAppPublicConfig()` вернуть поля:
+  - `appSubscriptionPaywallEnabled`
+  - `appSubscriptionGatingEnabled`
+  - `iosRuCardPaymentEnabled`
+  - `iosRuCardPaymentHintEnabled` (legacy alias на один релиз)
 
 ## 3. Новые публичные контракты
 
 ### Core exports
 
-Создать `packages/core/src/services/appSubscription/index.ts` и экспортировать из `packages/core/package.json`:
+Создать `packages/core/src/services/appSubscription/index.ts`.
+
+Экспортировать из `packages/core/src/services/index.ts`:
+
+```ts
+export * from "./appSubscription";
+```
+
+Экспортировать из `packages/core/package.json`:
 
 ```json
 "./services/appSubscription": {
@@ -119,6 +176,12 @@ HTTP status для gated action без подписки: `402`.
 
 Web POST routes защищать `withCSRFProtection`. Apple/YooKassa webhook routes CSRF не требуют, но требуют provider verification.
 
+Таймауты и retry policy для внешних провайдеров:
+
+- YooKassa/Apple HTTP timeout: 10s.
+- Retry только для сетевых/5xx ошибок (экспоненциальный backoff + jitter).
+- 4xx от провайдера не ретраить автоматически, переводить в явный бизнес-статус/ошибку.
+
 ## 4. Prisma-схема и миграция
 
 Навыки для шага: `prisma-cli`, `prisma-client-api`, `codex-security:threat-model`, `superpowers:test-driven-development`.
@@ -126,6 +189,12 @@ Web POST routes защищать `withCSRFProtection`. Apple/YooKassa webhook ro
 Практики: отдельные таблицы для новой платежной области, no PAN/card data, unique constraints для идемпотентности, audit trail, миграция без выдачи бесплатного доступа существующим пользователям.
 
 Изменить `packages/prisma/schema.prisma`.
+
+Также изменить `packages/prisma/src/index.ts`:
+
+- экспортировать новые model types: `AppSubscription`, `AppSubscriptionPayment`, `AppSubscriptionEvent`, `AppSubscriptionSettings`;
+- экспортировать enums: `AppSubscriptionProvider`, `AppSubscriptionStatus`, `AppSubscriptionPaymentKind`, `AppSubscriptionPaymentStatus`, `AppSubscriptionEventSource`, `AppSubscriptionEventProcessingStatus`;
+- добавить в `DatabaseClient` свойства `appSubscription`, `appSubscriptionPayment`, `appSubscriptionEvent`, `appSubscriptionSettings`.
 
 Добавить к `User`:
 
@@ -177,6 +246,13 @@ enum AppSubscriptionEventSource {
   APPLE
   ADMIN
   SYSTEM
+}
+
+enum AppSubscriptionEventProcessingStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
 }
 ```
 
@@ -244,8 +320,8 @@ model AppSubscriptionPayment {
   kind AppSubscriptionPaymentKind
   status AppSubscriptionPaymentStatus @default(PENDING)
 
-  amountRub Decimal @db.Decimal(10, 2)
-  currency String @default("RUB") @db.VarChar(3)
+  amount Decimal? @db.Decimal(12, 3)
+  currency String? @db.VarChar(3)
 
   periodStart DateTime?
   periodEnd DateTime?
@@ -254,6 +330,10 @@ model AppSubscriptionPayment {
   yookassaPaymentId String? @unique
   appleTransactionId String? @unique
   appleOriginalTransactionId String?
+  applePriceMilliunits Int?
+  appleStorefront String?
+  appleEnvironment String?
+  appleWebOrderLineItemId String?
 
   confirmationUrl String?
   failureCode String?
@@ -282,9 +362,12 @@ model AppSubscriptionEvent {
 
   source AppSubscriptionEventSource
   eventType String
-  providerEventKey String? @unique
-  idempotencyKey String? @unique
+  providerEventKey String?
+  idempotencyKey String?
   payloadHash String?
+  processingStatus AppSubscriptionEventProcessingStatus @default(RECEIVED)
+  processingAttempts Int @default(0)
+  lastProcessingError String?
   actorId String?
   actor User? @relation("AppSubscriptionEventActor", fields: [actorId], references: [id], onDelete: SetNull)
   metadata Json?
@@ -293,6 +376,7 @@ model AppSubscriptionEvent {
   createdAt DateTime @default(now())
 
   @@index([source, eventType, createdAt])
+  @@index([processingStatus, createdAt])
   @@index([userId, createdAt])
 }
 ```
@@ -307,9 +391,20 @@ VALUES
 ON CONFLICT ("key") DO NOTHING;
 ```
 
+Дополнительно в SQL-миграции:
+
+- Добавить CHECK: `currency = 'RUB'` для `AppSubscriptionSettings`.
+- Добавить CHECK для `AppSubscriptionPayment`: если `provider = 'YOOKASSA'`, то `amount IS NOT NULL AND currency = 'RUB'`.
+- Для Apple `amount/currency` могут быть `NULL`: цена управляется App Store Connect, а `JWSTransactionDecodedPayload.price/currency` опциональны. Если Apple прислала `price`/`currency`, сохранить `applePriceMilliunits`, `currency`, `amount = price / 1000`.
+- Добавить CHECK на корректность периода: `"periodEnd" IS NULL OR "periodStart" IS NULL OR "periodEnd" > "periodStart"`.
+- Добавить индекс для renewals scan: `(provider, status, cancelAtPeriodEnd, currentPeriodEnd)`.
+- Для `AppSubscriptionEvent.providerEventKey` и `idempotencyKey` использовать partial unique index (`WHERE ... IS NOT NULL`), чтобы избежать коллизий по NULL в разных БД/версиях.
+- Добавить partial unique index для одного активного subscription на provider/user: `("userId", "provider") WHERE "status" IN ('PENDING','ACTIVE','PAST_DUE')`.
+
 Команды после шага:
 
 ```bash
+pnpm --filter @gafus/prisma db:migrate -- --name app_subscription
 pnpm --filter @gafus/prisma db:generate
 pnpm --filter @gafus/prisma build
 pnpm --filter @gafus/core typecheck
@@ -331,6 +426,11 @@ pnpm --filter @gafus/core typecheck
 - `packages/core/src/services/appSubscription/appleAccountTokenService.ts`
 - `packages/core/src/services/appSubscription/__tests__/accessService.test.ts`
 - `packages/core/src/services/appSubscription/__tests__/adminService.test.ts`
+
+Изменить:
+
+- `packages/core/src/services/video/videoAccessService.ts`
+- `packages/core/src/services/video/index.ts`
 
 Ключевая логика доступа:
 
@@ -390,6 +490,14 @@ const manualGrantSchema = z.discriminatedUnion("mode", [
 - Каждое изменение пишет `AppSubscriptionEvent` с `source=ADMIN`, `actorId`, `targetUserId`, `mode`, `reason`.
 - `MODERATOR` может читать summary, но не может вызвать мутацию.
 
+Video access:
+
+- `checkVideoAccess` должен учитывать app subscription для видео, которые принадлежат gated course/training content.
+- Если `APP_FEATURE_APP_SUBSCRIPTION_GATING=false`, оставить старое поведение `CourseAccess/public free course`.
+- Если `APP_FEATURE_APP_SUBSCRIPTION_GATING=true`, для user-потребления gated course video нужен `getAppSubscriptionAccess(userId).hasActiveSubscription === true`.
+- Trainer/author access (`video.trainerId === userId`) не должен зависеть от app subscription.
+- HLS manifest/segment endpoints не читают JWT, но проверяют signed video token; поэтому итоговая проверка доступа остается в core `checkVideoAccess`.
+
 Тесты:
 
 ```bash
@@ -402,6 +510,11 @@ pnpm --filter @gafus/core typecheck
 Навыки: `superpowers:test-driven-development`, `native-data-fetching`, `codex-security:finding-discovery`.
 
 Практики: provider idempotence, no secret logging, amount/currency validation, DB transaction around state changes, no provider call inside long DB transaction.
+
+Времена и зоны:
+
+- Все даты периода/событий сохранять и сравнивать в UTC.
+- Сравнения делать по серверному `now` (не клиентскому времени).
 
 Создать:
 
@@ -416,8 +529,9 @@ pnpm --filter @gafus/core typecheck
 Initial checkout:
 
 ```ts
+const yookassaAmountRub = settings.yookassaWeeklyPriceRub;
 const body = {
-  amount: { value: amountRub.toFixed(2), currency: "RUB" },
+  amount: { value: yookassaAmountRub.toFixed(2), currency: "RUB" },
   capture: true,
   save_payment_method: true,
   confirmation: { type: "redirect", return_url: finalReturnUrl },
@@ -444,7 +558,7 @@ const idempotenceKey = `app-subscription:yookassa:initial:${userId}:${periodStar
 - Получить settings из `AppSubscriptionSettings.default`.
 - Если есть свежий `PENDING` payment с `confirmationUrl` младше 20 минут, вернуть тот же URL.
 - Если есть активная YooKassa-подписка, вернуть ошибку `ALREADY_ACTIVE`.
-- Создать `AppSubscriptionPayment(PENDING, INITIAL)` с unique `idempotenceKey`.
+- Создать `AppSubscriptionPayment(PENDING, INITIAL)` с unique `idempotenceKey`, `amount=yookassaAmountRub`, `currency=RUB`.
 - Вызвать YooKassa с тем же `Idempotence-Key`.
 - Сохранить `yookassaPaymentId`, `confirmationUrl`.
 - Не активировать доступ до `payment.succeeded` webhook.
@@ -465,16 +579,24 @@ await prisma.appSubscriptionEvent.create({
 });
 ```
 
-Если unique violation по `providerEventKey`, вернуть idempotent success.
+Если unique violation по `providerEventKey`, загрузить существующий event и применить duplicate event policy ниже.
+
+Уточнение по duplicate event:
+
+- Если duplicate event уже `PROCESSED`, вернуть idempotent success.
+- Если duplicate event `RECEIVED/FAILED`, взять row-level lock и повторить обработку.
+- Перед обработкой ставить `PROCESSING`, после успешной транзакции `PROCESSED + processedAt`.
+- При ошибке ставить `FAILED`, увеличить `processingAttempts`, сохранить безопасный `lastProcessingError` без raw payload/секретов.
 
 На `payment.succeeded`:
 
 - Найти payment по `yookassaPaymentId` или `metadata.localPaymentId`.
-- Проверить `amount.value === payment.amountRub`, `currency === RUB`.
+- Проверить `amount.value === payment.amount`, `currency === RUB`.
 - Для initial проверить `object.payment_method.id` и `object.payment_method.saved === true`.
 - Если method не saved, дать первый период, но поставить `cancelAtPeriodEnd=true` и не планировать renewal.
 - Upsert `AppSubscription(provider=YOOKASSA)` для user.
 - Обновить payment `SUCCEEDED`, period dates.
+- Для renewal ставить `currentPeriodEnd = max(existing.currentPeriodEnd, payment.periodEnd)`, чтобы out-of-order webhook не укоротил доступ.
 - Нельзя выдавать доступ, если сумма, валюта или localPaymentId не совпали.
 
 Renewal:
@@ -498,6 +620,20 @@ const idempotenceKey =
 - При network/provider error: увеличить `attemptCount`, `nextAttemptAt = now + backoff`.
 - Если `currentPeriodEnd < now` и успешного renewal нет, статус `PAST_DUE`; доступ false.
 
+Cancel YooKassa:
+
+- `POST /yookassa/cancel` не делает refund.
+- Для активной YooKassa subscription ставит `cancelAtPeriodEnd=true`, `canceledAt=now`.
+- Доступ сохраняется до `currentPeriodEnd`.
+- Worker больше не создает renewal для этой subscription.
+
+Refund/canceled webhook:
+
+- `payment.canceled` для `PENDING INITIAL` -> payment `CANCELED`, access не выдавать.
+- `payment.canceled` для `PENDING RENEWAL` -> payment `CANCELED`, subscription остается `ACTIVE` до текущего `currentPeriodEnd`, затем `PAST_DUE`.
+- `refund.succeeded` снимает доступ только если refunded payment покрывает текущий активный период и нет другого активного source (`APPLE`, `MANUAL` или более свежий `YOOKASSA` payment).
+- Refund старого периода не должен менять текущий `currentPeriodEnd`.
+
 Тесты:
 
 - duplicate initial start возвращает тот же checkout.
@@ -506,6 +642,8 @@ const idempotenceKey =
 - saved method missing: первый период active, renewal disabled.
 - duplicate worker run создает один renewal payment.
 - refund current payment снимает доступ, если нет другого active source.
+- refund old period не снимает актуальный доступ.
+- cancel at period end сохраняет доступ до `currentPeriodEnd` и не создает renewal.
 
 Команды:
 
@@ -525,8 +663,10 @@ pnpm --filter @gafus/core typecheck
 - `packages/core/src/services/appSubscription/appleVerifier.ts`
 - `packages/core/src/services/appSubscription/appleSubscriptionService.ts`
 - `packages/core/src/services/appSubscription/appleNotificationService.ts`
+- `packages/core/src/services/appSubscription/appleReconciliationService.ts`
 - `packages/core/src/services/appSubscription/__tests__/appleSubscriptionService.test.ts`
 - `packages/core/src/services/appSubscription/__tests__/appleNotificationService.test.ts`
+- `packages/core/src/services/appSubscription/__tests__/appleReconciliationService.test.ts`
 
 Env vars:
 
@@ -555,7 +695,9 @@ APPLE_IAP_ISSUER_ID=
 - Если `transactionId` уже есть у этого же user: idempotent success.
 - Если `transactionId` или `originalTransactionId` привязан к другому user: `409 APPLE_TRANSACTION_CONFLICT`.
 - Upsert `AppSubscription(provider=APPLE, appleOriginalTransactionId)`.
-- Создать `AppSubscriptionPayment(SUCCEEDED, provider=APPLE, appleTransactionId unique)`.
+- `currentPeriodStart` брать из `purchaseDate` (fallback `now`), `currentPeriodEnd` строго из `expiresDate`.
+- Создать `AppSubscriptionPayment(SUCCEEDED, provider=APPLE, appleTransactionId unique, idempotenceKey=app-subscription:apple:${transactionId})`.
+- Если `price/currency` есть в decoded transaction, сохранить `applePriceMilliunits`, `currency`, `amount = price / 1000`; если нет, платеж остается без суммы, но доступ не зависит от цены.
 
 Тип продукта:
 
@@ -585,9 +727,19 @@ Apple notifications:
 - Decode `signedTransactionInfo` и `signedRenewalInfo`.
 - Если `originalTransactionId` неизвестен, сохранить событие как pending metadata, доступ не выдавать.
 - Если известен:
-  - renewal success продлевает `currentPeriodEnd`.
+  - renewal success ставит `currentPeriodEnd = max(existing.currentPeriodEnd, expiresDate)`, чтобы out-of-order notification не укоротила доступ.
   - expired/revoked/refunded переводит Apple subscription в `EXPIRED/REVOKED/REFUNDED`.
   - cancellation ставит `cancelAtPeriodEnd=true`, но доступ сохраняется до `expiresDate`.
+- После успешного `verify/restore`, когда появился `appleOriginalTransactionId`, найти unlinked Apple events для этого `originalTransactionId` и обработать их в порядке `signedDate`.
+
+Apple reconciliation (обязательный fallback):
+
+- Добавить core-задачу сверки статуса через App Store Server API (`Get All Subscription Statuses`) по `appleOriginalTransactionId`.
+- Триггеры сверки:
+  - по `restore`;
+  - по verify, если есть подозрение на устаревший локальный статус;
+  - по cron (например, раз в 6 часов) для активных Apple-подписок.
+- Если webhook пропущен, reconciliation должна привести локальный статус/periodEnd к фактическому состоянию Apple.
 
 Restore:
 
@@ -602,6 +754,7 @@ Restore:
 - duplicate transaction same user idempotent.
 - duplicate transaction other user conflict.
 - notification duplicate no double extension.
+- out-of-order renewal notification не укорачивает `currentPeriodEnd`.
 - expired notification removes access after period end.
 
 Команды:
@@ -643,6 +796,21 @@ Middleware:
 
 ```ts
 export const requireAppSubscription = createMiddleware(async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  const isSignedVideoAsset =
+    c.req.method === "GET" &&
+    /^\/api\/v1\/training\/video\/[^/]+\/(manifest|manifest\.m3u8|segment)$/.test(path);
+  if (isSignedVideoAsset) {
+    await next();
+    return;
+  }
+
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  if (!gatingEnabled) {
+    await next();
+    return;
+  }
+
   const user = c.get("user") as { id: string } | undefined;
   if (!user?.id) {
     return c.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, 401);
@@ -663,11 +831,14 @@ export const requireAppSubscription = createMiddleware(async (c, next) => {
 `app.ts`:
 
 ```ts
+app.use("/api/v1/app-subscription/*", apiRateLimiter);
 app.use("/api/v1/app-subscription/*", authMiddleware);
 app.use("/api/v1/app-subscription/yookassa/start", paymentsRateLimiter);
 app.use("/api/v1/app-subscription/apple/verify", paymentsRateLimiter);
 app.route("/api/v1/app-subscription", appSubscriptionRoutes);
 ```
+
+`app-subscription` routes регистрировать до gated route groups, чтобы payment/status endpoints не попадали под `requireAppSubscription`.
 
 Gated route groups:
 
@@ -683,6 +854,12 @@ app.use("/api/v1/notes/*", requireAppSubscription);
 app.use("/api/v1/reminders/*", requireAppSubscription);
 app.use("/api/v1/consultations/*", requireAppSubscription);
 ```
+
+Training video исключения:
+
+- `POST /api/v1/training/video/url` остается gated через `requireAppSubscription`: именно этот endpoint выдает signed playback URL.
+- `GET /api/v1/training/video/:videoId/manifest(.m3u8)` и `GET /api/v1/training/video/:videoId/segment` не должны падать на JWT/subscription middleware, потому что работают по signed token.
+- Для этих GET endpoints защита должна идти через `getVideoAccessService().verifyToken()` и обновленный core `checkVideoAccess`.
 
 Pets:
 
@@ -747,11 +924,31 @@ pnpm --filter @gafus/api typecheck
 - `apps/web/src/app/api/v1/offline/course/*/route.ts`
 - `apps/web/src/app/api/v1/notifications/step/*/route.ts`
 - `apps/web/src/app/api/v1/payments/webhook/route.ts`
+- `apps/web/src/app/api/v1/video/playback-url/route.ts`
+- user-facing API routes:
+  - `apps/web/src/app/api/v1/articles/[slug]/route.ts`
+  - `apps/web/src/app/api/v1/articles/[slug]/like/route.ts`
+  - `apps/web/src/app/api/v1/courses/favorites/route.ts`
+  - `apps/web/src/app/api/v1/training/step/*/route.ts`
+  - `apps/web/src/app/api/v1/exam/*/route.ts`
+  - `apps/web/src/app/api/v1/pets/[petId]/documents/*/route.ts`
+  - `apps/web/src/app/api/v1/pets/[petId]/prevention/route.ts`
+  - `apps/web/src/app/api/v1/pets/prevention/route.ts`
+  - `apps/web/src/app/api/v1/offline/course/*/route.ts`
+  - `apps/web/src/app/api/v1/notifications/step/*/route.ts`
+  - `apps/web/src/app/api/v1/consultations/book/route.ts`
+  - `apps/web/src/app/api/v1/consultations/bookings/[bookingId]/cancel/route.ts`
+  - `apps/web/src/app/api/v1/consultations/my/route.ts`
 
 Server guard:
 
 ```ts
 export async function requireWebAppSubscription(userId: string) {
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  if (!gatingEnabled) {
+    return null;
+  }
+
   const access = await getAppSubscriptionAccess(userId);
   if (!access.hasActiveSubscription) {
     redirect("/subscription?required=1");
@@ -759,6 +956,13 @@ export async function requireWebAppSubscription(userId: string) {
   return access;
 }
 ```
+
+Web API gates:
+
+- User-facing paid actions return `{ success:false, code:"SUBSCRIPTION_REQUIRED" }` with HTTP `402`.
+- Do not gate admin/trainer consultation routes (`/consultations/admin/*`, `/consultations/trainer/*`) with user app subscription.
+- Do not gate free profile/account/pet CRUD routes.
+- `apps/web/src/app/api/v1/video/playback-url/route.ts` must call `requireWebAppSubscription(session.user.id)` before returning a signed playback URL.
 
 Создать страницу:
 
@@ -772,6 +976,7 @@ Web webhook YooKassa:
 - По старым платежам оставить текущие `confirmPaymentFromWebhook/cancel/refund`.
 - Provider event persist делать до cache invalidation.
 - Не логировать raw body целиком.
+- Если webhook пришел по unknown `localPaymentId`/`paymentId`, сохранять event как unlinked и отдавать `200` (чтобы провайдер не бесконечно ретраил), с отдельным warning-логом и метрикой.
 
 Web paywall:
 
@@ -819,7 +1024,14 @@ iOS RF card flag:
   - `iosRuCardPaymentEnabled`
   - `iosRuCardPaymentHintEnabled`
 - В админке поменять label на “Показывать кнопку «Оплатить картой РФ» на iOS paywall”.
-- Доступ к изменению flag оставить как у текущих mobile flags, если бизнес хочет MODERATOR. Но manual grants и цена только ADMIN.
+- `APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT` сделать ADMIN-only, потому что flag влияет на платежный UX и App Review. Старый VK-login flag можно оставить с текущими правами.
+
+Subscription rollout flags:
+
+- В `MobileAppFeaturesCard` добавить два ADMIN-only переключателя:
+  - `APP_FEATURE_APP_SUBSCRIPTION_PAYWALL`: “Показывать paywall подписки”.
+  - `APP_FEATURE_APP_SUBSCRIPTION_GATING`: “Блокировать платные действия без подписки”.
+- `MODERATOR` может видеть значения этих флагов, но не менять.
 
 Settings validation:
 
@@ -870,16 +1082,32 @@ pnpm --filter @gafus/admin-panel build
 Изменить:
 
 - `apps/mobile/app/(main)/_layout.tsx`
+- `apps/mobile/app/(main)/(tabs)/courses.tsx`
+- `apps/mobile/app/(main)/(tabs)/achievements.tsx`
+- `apps/mobile/app/(main)/(tabs)/consultations.tsx`
+- `apps/mobile/app/(main)/(tabs)/pets.tsx` (только documents/prevention sections/actions)
+- `apps/mobile/app/(main)/articles/[slug].tsx`
+- `apps/mobile/app/(main)/daily-course/[scheduleId].tsx`
+- `apps/mobile/app/(main)/training/[courseType]/index.tsx`
+- `apps/mobile/app/(main)/training/[courseType]/[dayId].tsx`
+- `apps/mobile/app/(main)/trainings/[courseType]/index.tsx`
+- `apps/mobile/app/(main)/trainings/[courseType]/[day].tsx`
+- `apps/mobile/app/(main)/consultations/[userId].tsx`
+- `apps/mobile/app/(main)/consultations/booking-confirm.tsx`
+- `apps/mobile/app/(main)/consultations/mine.tsx`
+- `apps/mobile/app/(main)/reminders.tsx`
 - `apps/mobile/src/features/onboarding-tour/TourProvider.tsx`
 - `apps/mobile/src/features/onboarding-tour/TourOverlay.tsx`
+- `apps/mobile/src/features/courses/components/CourseCard.tsx`
 - `apps/mobile/src/shared/lib/api/client.ts`
 - `apps/mobile/src/shared/lib/api/public-config.ts`
-- actions/screens for courses, articles, daily-course, consultations, pet documents, pet prevention, reminders, notes, offline, achievements.
+- API modules for courses, articles, daily-course, consultations, pet documents, pet prevention, reminders, notes, offline, achievements, favorites.
 - Не gate базовый pet CRUD.
 
 API client behavior:
 
 - Если API вернул `402/SUBSCRIPTION_REQUIRED`, открыть paywall и вернуть typed error.
+- Открывать paywall по `402` только если public config `appSubscriptionPaywallEnabled === true`; иначе вернуть typed error без UI.
 - Не повторять автоматически платные mutations после оплаты без явного user action.
 
 Hook:
@@ -887,12 +1115,15 @@ Hook:
 ```ts
 export function useRequireAppSubscription() {
   const { data, refetch } = useAppSubscriptionStatus();
+  const { data: publicConfig } = useMobileAppPublicConfig();
   const openPaywall = usePaywallStore((s) => s.open);
 
   return async function requireSubscription() {
     const status = data ?? (await refetch()).data;
     if (!status?.hasActiveSubscription) {
-      openPaywall({ reason: "required" });
+      if (publicConfig?.appSubscriptionPaywallEnabled) {
+        openPaywall({ reason: "required" });
+      }
       return false;
     }
     return true;
@@ -939,7 +1170,7 @@ YooKassa на iOS:
 
 Onboarding:
 
-- После `completeTour()` открыть paywall один раз.
+- После `completeTour()` открыть paywall один раз только если `appSubscriptionPaywallEnabled === true`.
 - Если пользователь нажал skip/close, не блокировать free screens, но protected action откроет paywall.
 - Добавление питомца в экскурсии остается бесплатным.
 
@@ -956,6 +1187,11 @@ pnpm --filter @gafus/mobile lint
 Навыки: `superpowers:test-driven-development`, `systematic-debugging`, `codex-security:validation`.
 
 Практики: duplicate worker safe, provider idempotency, retry with backoff, no concurrent double charge.
+
+Мульти-инстанс защита:
+
+- Добавить distributed lock на запуск renewal job (Postgres advisory lock или Redis lock с TTL).
+- Если lock не получен, текущий запуск пропускается без ошибки.
 
 Изменить:
 
@@ -982,6 +1218,7 @@ cron.schedule("*/15 * * * *", async () => {
 - При duplicate key worker пропускает.
 - При provider/network error retry по `nextAttemptAt`.
 - После `attemptCount >= 5` и истекшего `currentPeriodEnd` статус `PAST_DUE`.
+- Batch processing делать с pagination/cursor (не через большой offset), чтобы на росте данных не деградировать.
 
 Команды:
 
@@ -1012,6 +1249,12 @@ pnpm --filter @gafus/worker build
 - Duplicate webhook/worker/client retry не продлевает и не списывает дважды.
 - Refund/revoke/cancel не ломают другие активные источники доступа.
 - Existing course/article payments still work.
+- Все cron/jobs и webhook handlers логируют только безопасные поля (без секретов и raw payloads).
+
+Observability минимум:
+
+- Метрики: `app_subscription_active_total`, `app_subscription_past_due_total`, `renewal_attempt_total`, `renewal_failed_total`, `webhook_duplicate_total`.
+- Алерт: резкий рост `renewal_failed_total` и `webhook_duplicate_total` за 15 минут.
 
 Security scan command sequence:
 
@@ -1064,6 +1307,24 @@ Manual acceptance scenarios:
 - Apple notification renewal продлевает период.
 - Apple expired/revoked убирает доступ после конца периода.
 - Existing one-time course/article payment webhook still works.
+
+Rollback и rollout:
+
+- Rollout через feature toggle:
+  - `APP_FEATURE_APP_SUBSCRIPTION_PAYWALL` (UI paywall);
+  - `APP_FEATURE_APP_SUBSCRIPTION_GATING` (включает 402 для gated scope);
+  - `APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT` (UI-only кнопка YooKassa на iOS).
+- Порядок включения:
+  1. Деплой схемы и кода с toggle=off.
+  2. Проверка webhook/verify flows на staging.
+  3. Включить `APP_FEATURE_APP_SUBSCRIPTION_PAYWALL`.
+  4. Включить `APP_FEATURE_APP_SUBSCRIPTION_GATING` в production только после staging smoke; текущая модель `AppFeatureFlag` boolean, cohort rollout не планируется в v1.
+  5. `APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT` включать только отдельным решением.
+- Rollback:
+  - Сначала выключить `APP_FEATURE_APP_SUBSCRIPTION_GATING`.
+  - Затем выключить `APP_FEATURE_APP_SUBSCRIPTION_PAYWALL`.
+  - `APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT` выключать независимо, если есть риск App Review/payment UX.
+  - Миграции не откатывать автоматически; использовать forward-fix.
 
 ## 15. Что не удалять
 
