@@ -353,6 +353,8 @@
 
 .loading_error {
   color: #d32f2f;
+  border-color: #d32f2f;
+  background: #fff4f4;
 }
 
 /* Улучшенная адаптивность для loading состояний */
