@@ -107,6 +107,14 @@ async function scheduleSlaJob(bookingId: string, runAt: Date): Promise<void> {
   );
 }
 
+function getConfirmationDeadlineEndOfDayMsk(now = DateTime.utc()): Date {
+  return now
+    .setZone(CONSULTATION_TIMEZONE)
+    .endOf("day")
+    .toUTC()
+    .toJSDate();
+}
+
 export async function toBookingDto(bookingId: string): Promise<ConsultationBookingDto | null> {
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
@@ -233,8 +241,7 @@ export async function bookSlot(
         throw new ConsultationForbiddenError("Запись день в день недоступна");
       }
 
-      const slaMin = slot.cynologist.confirmationSlaMin;
-      const deadline = new Date(Date.now() + slaMin * 60 * 1000);
+      const deadline = getConfirmationDeadlineEndOfDayMsk();
 
       let booking;
       try {
@@ -735,4 +742,3 @@ export async function listTrainerBookings(
     createdAt: b.createdAt.toISOString(),
   }));
 }
-

@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/constants";
 import { reportClientError } from "@/shared/lib/tracer";
+import { requestAppSubscriptionPaywall } from "@/features/app-subscription/store/paywallStore";
 
 interface ApiClientOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -227,10 +228,14 @@ export async function apiClient<T>(
     const data = parsed.value;
 
     if (!response.ok) {
+      const code = extractHttpErrorCode(data);
+      if (response.status === 402 && code === "SUBSCRIPTION_REQUIRED") {
+        requestAppSubscriptionPaywall("required");
+      }
       return {
         success: false,
         error: extractHttpErrorMessage(data, response),
-        code: extractHttpErrorCode(data),
+        code,
       };
     }
 

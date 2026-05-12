@@ -141,6 +141,10 @@
       "types": "./dist/core/src/services/appFeatureFlags/index.d.ts",
       "default": "./dist/core/src/services/appFeatureFlags/index.js"
     },
+    "./services/appSubscription": {
+      "types": "./dist/core/src/services/appSubscription/index.d.ts",
+      "default": "./dist/core/src/services/appSubscription/index.js"
+    },
     "./services/consent": {
       "types": "./dist/core/src/services/consent/index.d.ts",
       "default": "./dist/core/src/services/consent/index.js"

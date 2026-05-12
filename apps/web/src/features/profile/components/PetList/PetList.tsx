@@ -281,10 +281,11 @@ export default function PetList({
         <p className={styles.no_pets}>Питомцы не добавлены</p>
       ) : (
         <ul className={styles.dog_list}>
-          {pets.map((pet) => (
+          {pets.map((pet, index) => (
             <PetCard
               key={pet.id}
               pet={pet}
+              index={index}
               isOwner={isOwner}
               onEdit={handleEditClick}
               onDelete={handlePetDelete}

@@ -30,7 +30,7 @@ RUN cd packages/prisma \
 # mailer до core (см. Dockerfile-admin-panel-optimized)
 # Порядок важен: сначала зависимости, потом worker. Worker импортирует только @gafus/core/services/consent (без auth)
 RUN pnpm --filter @gafus/mailer build && \
-    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/core --filter @gafus/worker
+    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/consultation-shared --filter @gafus/core --filter @gafus/worker
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -52,6 +52,7 @@ COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
 COPY --from=base /app/packages/types/dist ./packages/types/dist
 COPY --from=base /app/packages/logger/dist ./packages/logger/dist
 COPY --from=base /app/packages/reengagement/dist ./packages/reengagement/dist
+COPY --from=base /app/packages/consultation-shared/dist ./packages/consultation-shared/dist
 COPY --from=base /app/packages/cdn-upload/dist ./packages/cdn-upload/dist
 COPY --from=base /app/packages/core/dist ./packages/core/dist
 COPY --from=base /app/packages/mailer/dist ./packages/mailer/dist
@@ -64,6 +65,7 @@ COPY --from=base /app/packages/queues/package.json ./packages/queues/package.jso
 COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
 COPY --from=base /app/packages/types/package.json ./packages/types/package.json
 COPY --from=base /app/packages/logger/package.json ./packages/logger/package.json
+COPY --from=base /app/packages/consultation-shared/package.json ./packages/consultation-shared/package.json
 COPY --from=base /app/packages/cdn-upload/package.json ./packages/cdn-upload/package.json
 COPY --from=base /app/packages/core/package.json ./packages/core/package.json
 COPY --from=base /app/packages/mailer/package.json ./packages/mailer/package.json
@@ -102,6 +104,7 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/webpush /app/node_modules/@gafus/webpush \
   && ln -s /app/packages/types /app/node_modules/@gafus/types \
   && ln -s /app/packages/logger /app/node_modules/@gafus/logger \
+  && ln -s /app/packages/consultation-shared /app/node_modules/@gafus/consultation-shared \
   && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload \
   && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement \
   && ln -s /app/packages/core /app/node_modules/@gafus/core \

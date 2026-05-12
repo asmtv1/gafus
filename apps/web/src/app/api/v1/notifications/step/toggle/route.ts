@@ -14,6 +14,8 @@ import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("api-notifications-toggle");
 
@@ -32,6 +34,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     }
 
     const userId = session.user.id;
+    await requireWebAppSubscriptionOrThrow(userId);
     const body = await request.json();
     const { day, stepIndex, pause } = schema.parse(body);
 
@@ -46,6 +49,12 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: "Неверные данные запроса", details: error.errors },

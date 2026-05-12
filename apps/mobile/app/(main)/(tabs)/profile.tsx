@@ -11,6 +11,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
 import { Card } from "@/shared/components/ui";
+import { appSubscriptionApi } from "@/features/app-subscription/api/appSubscriptionApi";
+import { useAppSubscriptionStatus } from "@/features/app-subscription/hooks/useAppSubscriptionStatus";
+import { requestAppSubscriptionPaywall } from "@/features/app-subscription/store/paywallStore";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
@@ -41,6 +44,170 @@ const DOCUMENT_URLS = {
 } as const;
 const SUPPORT_TELEGRAM_URL = "https://t.me/gafus_support";
 const GAFUS_TELEGRAM_URL = "https://t.me/gafusRu";
+
+function formatMskDateTime(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${date.toLocaleString("ru-RU", {
+    timeZone: "Europe/Moscow",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })} МСК`;
+}
+
+function MobileAppSubscriptionCard() {
+  const queryClient = useQueryClient();
+  const [unlinkConfirmed, setUnlinkConfirmed] = useState(false);
+  const { data: statusResponse, isLoading, refetch } = useAppSubscriptionStatus();
+  const status = statusResponse?.data;
+  const isActive = Boolean(status?.hasActiveSubscription);
+  const canUnlink =
+    isActive &&
+    status?.provider === "YOOKASSA" &&
+    Boolean(status.hasSavedPaymentMethod) &&
+    !status.cancelAtPeriodEnd;
+
+  const cancelMutation = useMutation({
+    mutationFn: () => appSubscriptionApi.cancelYookassa(),
+    onSuccess: async (result) => {
+      if (!result.success) {
+        Alert.alert("Не удалось удалить карту", result.error ?? "Попробуйте позже.");
+        return;
+      }
+      setUnlinkConfirmed(false);
+      await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
+      Alert.alert("Карта удалена", "Автопродление подписки отключено.");
+    },
+  });
+
+  const handleUnlink = () => {
+    if (!unlinkConfirmed) {
+      Alert.alert("Подтвердите действие", "Поставьте чек-бокс, чтобы удалить карту.");
+      return;
+    }
+    cancelMutation.mutate();
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.subscriptionCard}>
+        <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
+        <Text style={styles.subscriptionMuted}>Загружаем данные подписки...</Text>
+      </View>
+    );
+  }
+
+  if (!isActive) {
+    return (
+      <View style={styles.subscriptionCard}>
+        <View style={styles.subscriptionHeader}>
+          <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
+          <View style={[styles.subscriptionStatusBadge, styles.subscriptionStatusInactive]}>
+            <Text style={styles.subscriptionStatusText}>Не активна</Text>
+          </View>
+        </View>
+        <Text style={styles.subscriptionMuted}>
+          Откройте курсы, тренировки, документы питомца и консультации с кинологом.
+        </Text>
+        <Pressable
+          style={styles.subscriptionPrimaryButton}
+          onPress={() => requestAppSubscriptionPaywall("required")}
+        >
+          <Text style={styles.subscriptionPrimaryButtonText}>Оформить подписку</Text>
+        </Pressable>
+        {statusResponse && !statusResponse.success ? (
+          <Pressable style={styles.subscriptionGhostButton} onPress={() => void refetch()}>
+            <Text style={styles.subscriptionGhostButtonText}>Обновить статус</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
+
+  const nextChargeLabel =
+    status?.provider === "YOOKASSA" && status.hasSavedPaymentMethod && status.nextChargeAt
+      ? formatMskDateTime(status.nextChargeAt)
+      : status?.provider === "APPLE"
+        ? "Управляется в App Store"
+        : "Отключено";
+
+  return (
+    <View style={styles.subscriptionCard}>
+      <View style={styles.subscriptionHeader}>
+        <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
+        <View style={styles.subscriptionStatusBadge}>
+          <Text style={styles.subscriptionStatusText}>Активна</Text>
+        </View>
+      </View>
+
+      <View style={styles.subscriptionGrid}>
+        <View style={styles.subscriptionInfoCell}>
+          <Text style={styles.subscriptionLabel}>Оплачено</Text>
+          <Text style={styles.subscriptionValue}>{formatMskDateTime(status?.paidAt)}</Text>
+        </View>
+        <View style={styles.subscriptionInfoCell}>
+          <Text style={styles.subscriptionLabel}>Доступ до</Text>
+          <Text style={styles.subscriptionValue}>{formatMskDateTime(status?.activeUntil)}</Text>
+        </View>
+        <View style={styles.subscriptionInfoCell}>
+          <Text style={styles.subscriptionLabel}>Следующее списание</Text>
+          <Text style={styles.subscriptionValue}>{nextChargeLabel}</Text>
+        </View>
+      </View>
+
+      <View style={styles.subscriptionInfoCell}>
+        <Text style={styles.subscriptionLabel}>Карта оплаты</Text>
+        <Text style={styles.subscriptionValue}>
+          {status?.paymentMethodLast4 ? `•••• ${status.paymentMethodLast4}` : "—"}
+        </Text>
+      </View>
+
+      {canUnlink ? (
+        <>
+          <View style={styles.subscriptionDivider} />
+          <Pressable
+            style={styles.subscriptionCheckRow}
+            onPress={() => setUnlinkConfirmed((value) => !value)}
+          >
+            <View
+              style={[
+                styles.subscriptionCheckbox,
+                unlinkConfirmed && styles.subscriptionCheckboxOn,
+              ]}
+            >
+              {unlinkConfirmed ? (
+                <MaterialCommunityIcons name="check" size={16} color="#ECE5D2" />
+              ) : null}
+            </View>
+            <Text style={styles.subscriptionCheckText}>
+              Подтверждаю отвязку карты и отключение автоплатежей по подписке.
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.subscriptionDangerButton,
+              (!unlinkConfirmed || cancelMutation.isPending) && styles.subscriptionButtonDisabled,
+            ]}
+            onPress={handleUnlink}
+            disabled={!unlinkConfirmed || cancelMutation.isPending}
+          >
+            <Text style={styles.subscriptionDangerButtonText}>
+              {cancelMutation.isPending ? "Удаляем..." : "Удалить карту"}
+            </Text>
+          </Pressable>
+        </>
+      ) : (
+        <Text style={styles.subscriptionMuted}>
+          Автопродление включится после оплаты с сохранением карты.
+        </Text>
+      )}
+    </View>
+  );
+}
 
 // Функция для получения возраста (только годы, для пользователя)
 const getAge = (birthDate: string | null): number | null => {
@@ -622,6 +789,8 @@ export default function ProfileScreen() {
             <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
           </Pressable>
 
+          <MobileAppSubscriptionCard />
+
           <Pressable style={styles.remindersCard} onPress={handleRepeatOnboardingTour}>
             <MaterialCommunityIcons name="map-search-outline" size={22} color={COLORS.primary} />
             <View style={styles.remindersCardContent}>
@@ -1121,6 +1290,143 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  subscriptionCard: {
+    marginTop: SPACING.md,
+    padding: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: "#A9A77A",
+    borderRadius: 18,
+    backgroundColor: "#F6F0DF",
+    gap: SPACING.sm,
+  },
+  subscriptionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: SPACING.sm,
+  },
+  subscriptionTitle: {
+    flex: 1,
+    fontFamily: FONTS.impact,
+    fontSize: 20,
+    lineHeight: 24,
+    color: "#352E2E",
+  },
+  subscriptionStatusBadge: {
+    borderRadius: 999,
+    backgroundColor: "#DDE8CE",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  subscriptionStatusInactive: {
+    backgroundColor: "#E7D7CB",
+  },
+  subscriptionStatusText: {
+    fontFamily: FONTS.impact,
+    fontSize: 13,
+    color: COLORS.primary,
+  },
+  subscriptionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.sm,
+  },
+  subscriptionInfoCell: {
+    flex: 1,
+    minWidth: "45%",
+    gap: 4,
+  },
+  subscriptionLabel: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  subscriptionValue: {
+    fontFamily: FONTS.impact,
+    fontSize: 16,
+    lineHeight: 21,
+    color: "#352E2E",
+  },
+  subscriptionMuted: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
+  },
+  subscriptionDivider: {
+    height: 1,
+    backgroundColor: "#D4C4A8",
+    marginTop: 2,
+  },
+  subscriptionCheckRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  subscriptionCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#8D8A63",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF9EA",
+  },
+  subscriptionCheckboxOn: {
+    borderColor: "#636128",
+    backgroundColor: "#636128",
+  },
+  subscriptionCheckText: {
+    flex: 1,
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#352E2E",
+  },
+  subscriptionPrimaryButton: {
+    minHeight: 48,
+    borderRadius: 14,
+    backgroundColor: "#636128",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: SPACING.md,
+  },
+  subscriptionPrimaryButtonText: {
+    fontFamily: FONTS.impact,
+    fontSize: 16,
+    color: "#ECE5D2",
+  },
+  subscriptionGhostButton: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#636128",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  subscriptionGhostButtonText: {
+    fontFamily: FONTS.impact,
+    fontSize: 14,
+    color: "#636128",
+  },
+  subscriptionDangerButton: {
+    alignSelf: "flex-start",
+    minHeight: 48,
+    borderRadius: 14,
+    backgroundColor: "#A83C24",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+  subscriptionDangerButtonText: {
+    fontFamily: FONTS.impact,
+    fontSize: 16,
+    color: "#F6F0DF",
+  },
+  subscriptionButtonDisabled: {
+    opacity: 0.52,
   },
   notesCard: {
     marginTop: SPACING.md,

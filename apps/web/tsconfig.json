@@ -39,6 +39,12 @@
       "@gafus/core/services/subscriptions": [
         "../../packages/core/src/services/subscriptions/index.ts"
       ],
+      "@gafus/core/services/appSubscription": [
+        "../../packages/core/src/services/appSubscription/index.ts"
+      ],
+      "@gafus/core/services/appFeatureFlags": [
+        "../../packages/core/src/services/appFeatureFlags/index.ts"
+      ],
       "@gafus/core/services/tracking": ["../../packages/core/src/services/tracking/index.ts"],
       "@gafus/core/services/article": [
         "../../packages/core/src/services/article/index.ts"

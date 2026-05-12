@@ -3,6 +3,7 @@ import { Redirect, Stack } from "expo-router";
 import { COLORS } from "@/constants";
 import { useAuthStore } from "@/shared/stores";
 import { MobileOnboardingTourProvider } from "@/features/onboarding-tour";
+import { AppSubscriptionProvider } from "@/features/app-subscription/components/AppSubscriptionProvider";
 
 /**
  * Layout для основного приложения (после авторизации).
@@ -15,6 +16,7 @@ export default function MainLayout() {
 
   return (
     <MobileOnboardingTourProvider>
+      <AppSubscriptionProvider>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -124,6 +126,7 @@ export default function MainLayout() {
         />
         <Stack.Screen name="articles/[slug]" options={{ headerShown: false }} />
       </Stack>
+      </AppSubscriptionProvider>
     </MobileOnboardingTourProvider>
   );
 }

@@ -1,0 +1,88 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: auto;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.backdropTransparent {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.highlight {
+  position: fixed;
+  border-radius: 12px;
+  border: 3px solid #fff8e5;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.56);
+  pointer-events: none;
+}
+
+.card {
+  position: fixed;
+  width: min(360px, calc(100vw - 24px));
+  background: #fff8e5;
+  border: 1px solid #d4c4a8;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.counter {
+  color: #636128;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.title {
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.text {
+  color: #505050;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.skip {
+  border: none;
+  background: transparent;
+  color: #505050;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.next {
+  border: 1px solid #636128;
+  background: #636128;
+  color: #fff8e5;
+  border-radius: 10px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 40px;
+  padding: 0 14px;
+}

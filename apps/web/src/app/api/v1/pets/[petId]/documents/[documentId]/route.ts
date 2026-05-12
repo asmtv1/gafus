@@ -4,6 +4,8 @@ import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { deletePetDocumentForUser, renamePetDocumentForUser } from "@shared/lib/pets/server";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("web-api-pet-document-item");
 
@@ -21,6 +23,7 @@ async function deleteHandler(_request: Request, context: RouteContext) {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(userId);
 
     const { petId, documentId } = await context.params;
     const deleted = await deletePetDocumentForUser(documentId, userId, petId);
@@ -33,6 +36,12 @@ async function deleteHandler(_request: Request, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     logger.error("Ошибка при удалении документа питомца", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
@@ -53,6 +62,7 @@ async function renameHandler(request: Request, context: RouteContext) {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(userId);
 
     const { petId, documentId } = await context.params;
     const body = (await request.json()) as { name?: string };
@@ -74,6 +84,12 @@ async function renameHandler(request: Request, context: RouteContext) {
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     logger.error("Ошибка при обновлении названия документа питомца", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },

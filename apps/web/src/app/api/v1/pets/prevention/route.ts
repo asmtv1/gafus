@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { getPreventionEntriesByPetsForUser } from "@shared/lib/pet-prevention";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("web-api-pets-prevention-list");
 
@@ -30,6 +32,7 @@ export async function GET(request: Request) {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(userId);
 
     const { searchParams } = new URL(request.url);
     const rawPetIds = searchParams.get("petIds") ?? "";
@@ -41,6 +44,12 @@ export async function GET(request: Request) {
     const entriesByPets = await getPreventionEntriesByPetsForUser(userId, petIds);
     return NextResponse.json({ success: true, data: entriesByPets });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     const errorCode = getPetPreventionDomainErrorCode(error);
     if (errorCode === "PREVENTION_LOAD_FAILED") {
       return NextResponse.json(

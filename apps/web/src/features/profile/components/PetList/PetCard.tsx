@@ -41,6 +41,7 @@ type PetFromPublicProfile = PublicProfile["pets"][0];
 
 interface PetCardProps {
   pet: PetFromPublicProfile;
+  index: number;
   isOwner: boolean;
   onEdit: (pet: PetFromPublicProfile) => void;
   onDelete: (petId: string, petName: string) => void;
@@ -54,6 +55,7 @@ interface PetCardProps {
 
 const PetCard = memo(function PetCard({
   pet,
+  index,
   isOwner,
   onEdit,
   onDelete,
@@ -537,7 +539,10 @@ const PetCard = memo(function PetCard({
         </div>
       ) : null}
       {isOwner ? (
-        <div className={styles.preventionSection}>
+        <div
+          className={styles.preventionSection}
+          data-tour-target={index === 0 ? "pet-prevention-section" : undefined}
+        >
           <div className={styles.documentsHeader}>
             <span className={styles.documentsTitle}>Записи о процедурах</span>
           </div>
@@ -558,7 +563,10 @@ const PetCard = memo(function PetCard({
         </div>
       ) : null}
       {isOwner ? (
-        <div className={styles.documentsSection}>
+        <div
+          className={styles.documentsSection}
+          data-tour-target={index === 0 ? "pet-documents-section" : undefined}
+        >
           <div className={styles.documentsHeader}>
             <span className={styles.documentsTitle}>Документы</span>
           </div>

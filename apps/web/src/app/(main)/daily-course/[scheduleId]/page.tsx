@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { DAILY_COURSE_LOGO, generatePageMetadata } from "@gafus/metadata";
 import { getDailyCourseTrainingForWeb } from "@shared/lib/daily-course/actions";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 import { DailyCourseDayClient } from "./DailyCourseDayClient";
 
@@ -13,6 +15,10 @@ export default async function DailyCoursePage(props: {
   params: Promise<{ scheduleId: string }>;
 }) {
   const { scheduleId } = await props.params;
+  const userId = await getCurrentUserId().catch(() => null);
+  if (userId) {
+    await requireWebAppSubscription(userId);
+  }
 
   let training = null;
   try {

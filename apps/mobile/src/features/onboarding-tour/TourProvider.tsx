@@ -3,9 +3,12 @@ import { InteractionManager, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "expo-router";
 
+import { onboardingTourApi } from "@/shared/lib/api/onboarding-tour";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { trackEvent } from "@/shared/lib/analytics";
+import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore } from "@/shared/stores";
+import { flushDeferredAppSubscriptionPaywall } from "@/features/app-subscription/store/paywallStore";
 import {
   getMobileOnboardingTourSteps,
   MOBILE_ONBOARDING_TOUR_VERSION,
@@ -61,6 +64,7 @@ function MobileOnboardingTourController() {
   const {
     hasHydrated,
     hasSeenV1,
+    setHasSeenV1,
     currentStepId,
     isActive,
     isAwaitingRequiredPetCreation,
@@ -88,10 +92,39 @@ function MobileOnboardingTourController() {
   const [isTargetPending, setIsTargetPending] = useState(false);
 
   useEffect(() => {
+    if (!hasHydrated) {
+      useMobileOnboardingTourStore.getState().setHasHydrated(true);
+    }
+  }, [hasHydrated]);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       closeTour();
     }
   }, [closeTour, isAuthenticated]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) return;
+    let cancelled = false;
+    const loadStatus = async () => {
+      const response = await onboardingTourApi.getStatus();
+      if (cancelled) return;
+      if (response.success) {
+        setHasSeenV1(Boolean(response.data?.hasSeenV1));
+        return;
+      }
+      reportClientError(new Error(response.error ?? "Не удалось загрузить статус экскурсии"), {
+        issueKey: "MobileOnboardingTourProvider",
+        severity: "warning",
+        keys: { operation: "load_status" },
+      });
+      setHasSeenV1(false);
+    };
+    void loadStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, isAuthenticated, setHasSeenV1]);
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || hasSeenV1 || isActive) return;
@@ -101,6 +134,19 @@ function MobileOnboardingTourController() {
     }, TOUR_AUTOSTART_DELAY_MS);
     return () => clearTimeout(timer);
   }, [hasHydrated, hasSeenV1, isActive, isAuthenticated, startTour]);
+
+  useEffect(() => {
+    if (
+      !hasHydrated ||
+      !isAuthenticated ||
+      !hasSeenV1 ||
+      isActive ||
+      isAwaitingRequiredPetCreation
+    ) {
+      return;
+    }
+    flushDeferredAppSubscriptionPaywall();
+  }, [hasHydrated, hasSeenV1, isActive, isAuthenticated, isAwaitingRequiredPetCreation]);
 
   useEffect(() => {
     if (!isActive || !step) return;
@@ -229,6 +275,7 @@ function MobileOnboardingTourController() {
   const handleSkip = useCallback(() => {
     trackTourEvent("mobile_onboarding_skipped", step?.id);
     skipTour();
+    void onboardingTourApi.complete();
   }, [skipTour, step?.id]);
 
   const handleNext = useCallback(() => {
@@ -240,6 +287,7 @@ function MobileOnboardingTourController() {
     if (stepIndex >= steps.length - 1) {
       trackTourEvent("mobile_onboarding_completed", step?.id);
       completeTour();
+      void onboardingTourApi.complete();
       return;
     }
     setCurrentStepId(steps[stepIndex + 1].id);

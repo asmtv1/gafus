@@ -32,3 +32,4 @@ export * from "./adminBroadcast";
 export * from "./appFeatureFlags";
 export * from "./consent";
 export * from "./consultation";
+export * from "./appSubscription";

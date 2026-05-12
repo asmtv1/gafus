@@ -1,0 +1,81 @@
+import { prisma } from "@gafus/prisma";
+
+import type { AppSubscriptionStatusDto } from "./types";
+
+const ACTIVE_CANDIDATE_STATUSES = ["ACTIVE", "PENDING", "PAST_DUE"] as const;
+
+export async function getAppSubscriptionAccess(
+  userId: string,
+  now = new Date(),
+): Promise<AppSubscriptionStatusDto> {
+  const rows = await (prisma as any).appSubscription.findMany({
+    where: {
+      userId,
+      status: { in: [...ACTIVE_CANDIDATE_STATUSES] },
+    },
+    orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
+  });
+
+  const active = rows.find((row: any) => {
+    if (row.status !== "ACTIVE") {
+      return false;
+    }
+    if (row.isLifetime) {
+      return true;
+    }
+    return row.currentPeriodEnd ? row.currentPeriodEnd > now : false;
+  });
+
+  if (!active) {
+    return {
+      hasActiveSubscription: false,
+      paidAt: null,
+      activeUntil: null,
+      isLifetime: false,
+      provider: null,
+      status: null,
+      cancelAtPeriodEnd: false,
+      hasSavedPaymentMethod: false,
+      paymentMethodLast4: null,
+      paymentMethodTitle: null,
+      nextChargeAt: null,
+    };
+  }
+
+  const hasSavedPaymentMethod = Boolean(active.yookassaPaymentMethodId);
+  const lastSucceededPayment = await (prisma as any).appSubscriptionPayment.findFirst({
+    where: {
+      subscriptionId: active.id,
+      status: "SUCCEEDED",
+    },
+    orderBy: [{ succeededAt: "desc" }, { updatedAt: "desc" }],
+    select: { succeededAt: true, updatedAt: true, createdAt: true },
+  });
+  const nextChargeAt =
+    active.provider === "YOOKASSA" &&
+    hasSavedPaymentMethod &&
+    !active.cancelAtPeriodEnd &&
+    active.currentPeriodEnd
+      ? active.currentPeriodEnd.toISOString()
+      : null;
+
+  return {
+    hasActiveSubscription: true,
+    paidAt: lastSucceededPayment?.succeededAt
+      ? lastSucceededPayment.succeededAt.toISOString()
+      : lastSucceededPayment?.updatedAt
+        ? lastSucceededPayment.updatedAt.toISOString()
+      : active.createdAt
+        ? active.createdAt.toISOString()
+        : null,
+    activeUntil: active.currentPeriodEnd ? active.currentPeriodEnd.toISOString() : null,
+    isLifetime: active.isLifetime,
+    provider: active.provider,
+    status: active.status,
+    cancelAtPeriodEnd: active.cancelAtPeriodEnd,
+    hasSavedPaymentMethod,
+    paymentMethodLast4: active.yookassaPaymentMethodLast4 ?? null,
+    paymentMethodTitle: active.yookassaPaymentMethodTitle ?? null,
+    nextChargeAt,
+  };
+}

@@ -34,7 +34,11 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
   }
 
   return (
-    <section className={styles.catalog} aria-labelledby="consultations-catalog-title">
+    <section
+      className={styles.catalog}
+      aria-labelledby="consultations-catalog-title"
+      data-tour-target="consultations-list"
+    >
       <h2 className={styles.catalogTitle} id="consultations-catalog-title">
         Кинологи
       </h2>

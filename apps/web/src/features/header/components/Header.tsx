@@ -115,6 +115,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             )}
             <Link
               href="/pets"
+              data-tour-target="tab-pets"
               onClick={() => {
                 trackMenuClick("tab-pets");
                 setMenuOpen(false);
@@ -145,6 +146,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
             </Link>
             <Link
               href="/consultations"
+              data-tour-target="tab-consultations"
               onClick={() => {
                 trackMenuClick("tab-consultations");
                 setMenuOpen(false);

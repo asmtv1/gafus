@@ -4,6 +4,7 @@ import { listClientBookings } from "@gafus/core";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 import { Box } from "@mui/material";
 import { redirect } from "next/navigation";
+import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 import { ConsultationsSubNav } from "@/features/consultations/components/consultations-sub-nav";
 import { MyConsultationsClient } from "@/features/consultations/components/my-consultations-client";
@@ -24,6 +25,7 @@ export default async function MyConsultationsPage() {
   if (!session?.user?.id) {
     redirect("/login");
   }
+  await requireWebAppSubscription(session.user.id);
 
   const { items } = await listClientBookings(session.user.id);
 

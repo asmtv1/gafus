@@ -1,4 +1,7 @@
 import {
+  APP_FEATURE_APP_SUBSCRIPTION_GATING,
+  APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
   APP_FEATURE_MOBILE_VK_LOGIN_IOS,
   getAppFeatureFlagEnabled,
@@ -16,4 +19,16 @@ export async function getMobileVkLoginIosFlag(): Promise<boolean> {
  */
 export async function getMobileIosRuCardPaymentHintFlag(): Promise<boolean> {
   return getAppFeatureFlagEnabled(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT, false);
+}
+
+export async function getMobileIosRuCardPaymentFlag(): Promise<boolean> {
+  return getAppFeatureFlagEnabled(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT, false);
+}
+
+export async function getAppSubscriptionPaywallFlag(): Promise<boolean> {
+  return getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, false);
+}
+
+export async function getAppSubscriptionGatingFlag(): Promise<boolean> {
+  return getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
 }

@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { getPreventionEntriesByPetForUser } from "@shared/lib/pet-prevention";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("web-api-pet-prevention-list");
 
@@ -34,11 +36,18 @@ export async function GET(_request: Request, context: RouteContext) {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(userId);
 
     const { petId } = await context.params;
     const entries = await getPreventionEntriesByPetForUser(userId, petId);
     return NextResponse.json({ success: true, data: entries });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     const errorCode = getPetPreventionDomainErrorCode(error);
     if (errorCode === "PET_NOT_FOUND") {
       return NextResponse.json(

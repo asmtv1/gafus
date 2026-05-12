@@ -4,6 +4,12 @@ import { prisma } from "@gafus/prisma";
 export const APP_FEATURE_MOBILE_VK_LOGIN_IOS = "mobile_vk_login_ios";
 /** Подсказка про оплату картами РФ на iOS в карточках платных курсов. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
+/** Семантический алиас для iOS-кнопки оплаты картой РФ на paywall. */
+export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT;
+/** Включает автоматический показ paywall подписки в клиентах. */
+export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
+/** Включает server-side блокировку платных действий без подписки. */
+export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
 
 /**
  * Читает булев флаг. Если записи нет — defaultEnabled.
@@ -35,15 +41,32 @@ export async function setAppFeatureFlagEnabled(key: string, enabled: boolean): P
  */
 export async function getMobileAppPublicConfig(): Promise<{
   vkLoginEnabledOnIos: boolean;
+  appSubscriptionPaywallEnabled: boolean;
+  appSubscriptionGatingEnabled: boolean;
+  iosRuCardPaymentEnabled: boolean;
   iosRuCardPaymentHintEnabled: boolean;
 }> {
   const vkLoginEnabledOnIos = await getAppFeatureFlagEnabled(
     APP_FEATURE_MOBILE_VK_LOGIN_IOS,
     false,
   );
+  const appSubscriptionPaywallEnabled = await getAppFeatureFlagEnabled(
+    APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
+    false,
+  );
+  const appSubscriptionGatingEnabled = await getAppFeatureFlagEnabled(
+    APP_FEATURE_APP_SUBSCRIPTION_GATING,
+    false,
+  );
   const iosRuCardPaymentHintEnabled = await getAppFeatureFlagEnabled(
     APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
     false,
   );
-  return { vkLoginEnabledOnIos, iosRuCardPaymentHintEnabled };
+  return {
+    vkLoginEnabledOnIos,
+    appSubscriptionPaywallEnabled,
+    appSubscriptionGatingEnabled,
+    iosRuCardPaymentEnabled: iosRuCardPaymentHintEnabled,
+    iosRuCardPaymentHintEnabled,
+  };
 }

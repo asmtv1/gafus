@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@/utils/muiImports";
+import { AppSubscriptionGrantCard } from "./AppSubscriptionGrantCard";
 
 // Создаем логгер для edit-user-form
 const logger = createAdminPanelLogger("edit-user-form");
@@ -23,6 +24,7 @@ interface User {
 
 interface EditUserFormProps {
   user: User;
+  actorRole: string;
   open: boolean;
   onClose: () => void;
 }
@@ -35,7 +37,7 @@ const roleOptions = [
   { value: "PREMIUM", label: "Премиум" },
 ];
 
-export default function EditUserForm({ user, open, onClose }: EditUserFormProps) {
+export default function EditUserForm({ user, actorRole, open, onClose }: EditUserFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [formState, setFormState] = useState<{ success?: boolean; error?: string }>({});
@@ -187,6 +189,8 @@ export default function EditUserForm({ user, open, onClose }: EditUserFormProps)
           >
             Оставьте поле пустым, если не нужно менять пароль
           </Typography>
+
+          <AppSubscriptionGrantCard userId={user.id} actorRole={actorRole} />
 
           {formState.error && <ValidationErrors errors={{ error: formState.error }} />}
 

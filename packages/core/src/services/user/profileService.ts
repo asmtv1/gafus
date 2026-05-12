@@ -401,6 +401,7 @@ export interface UserProfileForApi {
   /** true, если у пользователя установлен прикладной пароль (passwordSetAt !== null) */
   hasAppPassword: boolean;
   hasVkLinked: boolean;
+  onboardingTourCompletedAt: string | null;
   profile: {
     fullName: string | null;
     about: string | null;
@@ -427,6 +428,7 @@ export async function getUserProfileForApi(
       email: true,
       role: true,
       passwordSetAt: true,
+      onboardingTourCompletedAt: true,
       accounts: {
         where: { provider: "vk" },
         select: { id: true },
@@ -446,12 +448,13 @@ export async function getUserProfileForApi(
   });
   if (!user) return null;
   const hasVkLinked = (user.accounts?.length ?? 0) > 0;
-  const { passwordSetAt, accounts: _accounts, ...userRest } = user;
+  const { passwordSetAt, onboardingTourCompletedAt, accounts: _accounts, ...userRest } = user;
   const p = user.profile;
   return {
     ...userRest,
     hasAppPassword: passwordSetAt !== null,
     hasVkLinked,
+    onboardingTourCompletedAt: onboardingTourCompletedAt?.toISOString() ?? null,
     profile: {
       fullName: p?.fullName ?? null,
       about: p?.about ?? null,
@@ -463,5 +466,37 @@ export async function getUserProfileForApi(
         : null,
       avatarUrl: p?.avatarUrl ?? null,
     },
+  };
+}
+
+export interface OnboardingTourStatusDto {
+  hasSeenV1: boolean;
+  completedAt: string | null;
+}
+
+export async function getOnboardingTourStatus(userId: string): Promise<OnboardingTourStatusDto> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { onboardingTourCompletedAt: true },
+  });
+  const completedAt = user?.onboardingTourCompletedAt ?? null;
+  return {
+    hasSeenV1: completedAt !== null,
+    completedAt: completedAt?.toISOString() ?? null,
+  };
+}
+
+export async function markOnboardingTourSeen(userId: string): Promise<OnboardingTourStatusDto> {
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      onboardingTourCompletedAt: new Date(),
+    },
+    select: { onboardingTourCompletedAt: true },
+  });
+
+  return {
+    hasSeenV1: true,
+    completedAt: updated.onboardingTourCompletedAt?.toISOString() ?? null,
   };
 }

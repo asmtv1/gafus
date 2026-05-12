@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { memo, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { useWebOnboardingTourStore } from "@/features/onboarding-tour/tour-store";
 
 import { initiateVkIdLink } from "@shared/server-actions";
 
@@ -25,6 +26,7 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
   const searchParams = useSearchParams();
   const [isLinking, setIsLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const startTour = useWebOnboardingTourStore((state) => state.startTour);
 
   useEffect(() => {
     if (linkFeedback !== "vk" && linkFeedback !== "emailChangeSent") return;
@@ -52,6 +54,10 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
       setLinkError(result.error);
       setIsLinking(false);
     }
+  };
+
+  const handleRestartTour = () => {
+    startTour();
   };
 
   return (
@@ -96,6 +102,9 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
           type="button"
         >
           🍪 Управление cookies
+        </button>
+        <button onClick={handleRestartTour} className={styles.button} type="button">
+          🧭 Повторить экскурсию
         </button>
         {session?.user?.passwordSetAt == null ? (
           <Link href="/profile/set-password" className={styles.button}>

@@ -1,5 +1,7 @@
 import { AchievementsContent } from "@features/achievements/components/AchievementsContent";
 import { generateStaticPageMetadata } from "@gafus/metadata";
+import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 export const metadata = generateStaticPageMetadata(
   "Достижения",
@@ -8,6 +10,10 @@ export const metadata = generateStaticPageMetadata(
 );
 
 /* Страница достижений с использованием  */
-export default function AchievementsPage() {
+export default async function AchievementsPage() {
+  const userId = await getCurrentUserId().catch(() => null);
+  if (userId) {
+    await requireWebAppSubscription(userId);
+  }
   return <AchievementsContent />;
 }

@@ -29,12 +29,13 @@ interface User {
 
 interface UsersClientProps {
   users: User[];
+  actorRole: string;
 }
 
 type SortField = "role" | "createdAt" | "notifications" | null;
 type SortDirection = "asc" | "desc";
 
-export default function UsersClient({ users }: UsersClientProps) {
+export default function UsersClient({ users, actorRole }: UsersClientProps) {
   const router = useRouter();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
@@ -174,6 +175,7 @@ export default function UsersClient({ users }: UsersClientProps) {
       {editingUser && (
         <EditUserForm
           user={editingUser}
+          actorRole={actorRole}
           open={isEditFormOpen}
           onClose={() => {
             setIsEditFormOpen(false);

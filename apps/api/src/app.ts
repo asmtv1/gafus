@@ -34,6 +34,7 @@ import { remindersRoutes } from "./routes/v1/reminders.js";
 import { paymentsRoutes } from "./routes/v1/payments.js";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
+import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 
 export const app = new Hono();
 
@@ -120,6 +121,10 @@ app.route("/api/v1/payments", paymentsRoutes);
 app.use("/api/v1/consultations/*", apiRateLimiter);
 app.use("/api/v1/consultations/*", authMiddleware);
 app.route("/api/v1/consultations", consultationsRoutes);
+
+app.use("/api/v1/app-subscription/*", paymentsRateLimiter);
+app.use("/api/v1/app-subscription/*", authMiddleware);
+app.route("/api/v1/app-subscription", appSubscriptionRoutes);
 
 // Global error handler
 app.onError(errorHandler);

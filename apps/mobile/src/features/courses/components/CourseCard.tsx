@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Pressable, Alert, Platform } from "react-native";
 import { Text } from "react-native-paper";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useShallow } from "zustand/react/shallow";
@@ -17,6 +17,7 @@ import { offlineApi } from "@/shared/lib/api/offline";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import type { Course } from "@/shared/lib/api";
 import { TourTarget, type MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
+import { useRequireAppSubscription } from "@/features/app-subscription/hooks/useRequireAppSubscription";
 
 const LEVEL_LABELS: Record<string, string> = {
   BEGINNER: "Начальный",
@@ -194,6 +195,7 @@ function CourseCardComponent({
   tourTargetId,
 }: CourseCardProps) {
   const router = useRouter();
+  const requireSubscription = useRequireAppSubscription();
   const courseType = course.type;
   const reviewsCount = course.reviews?.length ?? 0;
   const formattedStartedAt = formatDate(course.startedAt);
@@ -345,11 +347,18 @@ function CourseCardComponent({
     }
   };
 
+  const handleOpenCourse = useCallback(async () => {
+    const canOpen = await requireSubscription();
+    if (!canOpen) {
+      return;
+    }
+    router.push(`/training/${course.type}`);
+  }, [course.type, requireSubscription, router]);
+
   return (
     <View style={styles.courseCard}>
       <View style={styles.courseCardContent}>
-        <Link href={`/training/${course.type}`} asChild>
-          <Pressable style={styles.link}>
+        <Pressable style={styles.link} onPress={() => void handleOpenCourse()}>
             {tourTargetId ? <TourTarget id={tourTargetId} style={styles.tourTargetFill} /> : null}
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>
@@ -438,7 +447,6 @@ function CourseCardComponent({
               ) : null}
             </View>
           </Pressable>
-        </Link>
         <View style={styles.rating}>
           <SimpleRating
             rating={course.avgRating}

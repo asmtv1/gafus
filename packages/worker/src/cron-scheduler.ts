@@ -9,6 +9,8 @@ import { recordDailyMetrics } from "@gafus/reengagement";
 import { createWorkerLogger } from "@gafus/logger";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
+import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-renewals";
+import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-renewal-reminders";
 
 const logger = createWorkerLogger("cron-scheduler");
 
@@ -77,11 +79,33 @@ export function startCronJobs(): void {
     { timezone: "UTC" },
   );
 
+  // Задача 4: продления недельной подписки YooKassa (каждые 15 минут)
+  cron.schedule(
+    "*/15 * * * *",
+    async () => {
+      logger.info("Запуск renewal reminders app subscription");
+      try {
+        await sendYookassaAppSubscriptionRenewalReminders({ batchSize: 100 });
+      } catch (error) {
+        logger.error("Ошибка renewal reminders app subscription", error as Error);
+      }
+
+      logger.info("Запуск renewals app subscription");
+      try {
+        await processDueYookassaAppSubscriptionRenewals({ batchSize: 100 });
+      } catch (error) {
+        logger.error("Ошибка renewals app subscription", error as Error);
+      }
+    },
+    { timezone: "UTC" },
+  );
+
   logger.success("Cron-планировщик запущен", {
     tasks: [
       "Re-engagement планировщик: ежедневно в 8:00 МСК",
       "Сбор метрик: ежедневно в 23:55 МСК",
       "Напоминания о тренировках: каждую минуту (UTC)",
+      "Напоминания и продления app subscription: каждые 15 минут (UTC)",
     ],
   });
 }

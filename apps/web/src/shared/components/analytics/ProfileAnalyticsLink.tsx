@@ -3,8 +3,9 @@
 import { trackEvent } from "@gafus/analytics";
 import Link from "next/link";
 import { useCallback } from "react";
+import type { AnchorHTMLAttributes } from "react";
 
-interface ProfileAnalyticsLinkProps {
+interface ProfileAnalyticsLinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
   href: string;
   elementId: string;
   className: string;
@@ -22,6 +23,7 @@ export function ProfileAnalyticsLink({
   className,
   pathOrScreen,
   children,
+  ...rest
 }: ProfileAnalyticsLinkProps) {
   const handleClick = useCallback(() => {
     trackEvent({
@@ -33,7 +35,7 @@ export function ProfileAnalyticsLink({
   }, [elementId, pathOrScreen]);
 
   return (
-    <Link href={href} className={className} onClick={handleClick}>
+    <Link href={href} className={className} onClick={handleClick} {...rest}>
       {children}
     </Link>
   );

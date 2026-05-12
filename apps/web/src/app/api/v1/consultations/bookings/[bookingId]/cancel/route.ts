@@ -9,6 +9,8 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { cancelBookingByUser, cancelBookingBodySchema } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 import { consultationUserBookingsTag } from "@/shared/lib/consultation-cache-tags";
 import {
@@ -32,6 +34,7 @@ export const POST = withCSRFProtection(
           { status: 401 },
         );
       }
+      await requireWebAppSubscriptionOrThrow(session.user.id);
       const { bookingId } = await context.params;
       const json = await request.json().catch(() => ({}));
       const body = cancelBookingBodySchema.parse(json);
@@ -39,6 +42,12 @@ export const POST = withCSRFProtection(
       revalidateTag(consultationUserBookingsTag(session.user.id));
       return NextResponse.json({ success: true, data: { bookingId, reason: body.reason } });
     } catch (error) {
+      if (error instanceof SubscriptionRequiredError) {
+        return NextResponse.json(
+          { success: false, error: error.message, code: error.code },
+          { status: error.status },
+        );
+      }
       const mapped = mapConsultationError(error);
       if (mapped) {
         return NextResponse.json(mapped.body, { status: mapped.status });

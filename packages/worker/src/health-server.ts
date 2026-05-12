@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { createWorkerLogger } from "@gafus/logger";
+import { renderAppSubscriptionMetricsPrometheus } from "./app-subscription-metrics";
 
 const HEALTH_BODY = '{"ok":true}';
 
@@ -25,6 +26,26 @@ export function startHealthServer(): Server {
       } else {
         res.end();
       }
+      return;
+    }
+
+    if ((method === "GET" || method === "HEAD") && path === "/metrics") {
+      renderAppSubscriptionMetricsPrometheus()
+        .then((metrics) => {
+          res.writeHead(200, {
+            "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+          });
+          if (method === "GET") {
+            res.end(metrics);
+          } else {
+            res.end();
+          }
+        })
+        .catch((error) => {
+          log.error("Metrics render failed", error as Error);
+          res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("# metrics_error 1\n");
+        });
       return;
     }
 

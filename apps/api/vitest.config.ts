@@ -45,6 +45,14 @@ export default defineConfig({
         __dirname,
         "../../packages/core/src/services/notifications/index.ts",
       ),
+      "@gafus/core/services/appSubscription": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/appSubscription/index.ts",
+      ),
+      "@gafus/core/services/appFeatureFlags": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/appFeatureFlags/index.ts",
+      ),
       "@gafus/core/errors": path.resolve(__dirname, "../../packages/core/src/errors/index.ts"),
       "@gafus/core/validation/auth-register": path.resolve(
         __dirname,

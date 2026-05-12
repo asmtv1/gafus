@@ -9,6 +9,8 @@ import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { bookSlot, bookSlotInputSchema } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 import {
   consultationTrainerBookingsTag,
@@ -31,6 +33,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(session.user.id);
     const json = await request.json();
     const body = bookSlotInputSchema.parse(json);
     const requestId = request.headers.get("x-request-id") ?? undefined;
@@ -40,6 +43,9 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const status = result.kind === "created" ? 201 : 200;
     return NextResponse.json({ success: true, data: result }, { status });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: error.status });
+    }
     const mapped = mapConsultationError(error);
     if (mapped) {
       return NextResponse.json(mapped.body, { status: mapped.status });

@@ -1,0 +1,241 @@
+.page {
+  min-height: calc(100vh - 88px);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(137, 124, 66, 0.18), transparent 42%),
+    radial-gradient(circle at 100% 100%, rgba(99, 97, 40, 0.2), transparent 45%),
+    linear-gradient(160deg, #ece7d6 0%, #e6e0ce 100%);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inner {
+  width: min(860px, 100%);
+}
+
+.card {
+  width: 100%;
+  max-width: 860px;
+  border: 1px solid rgba(99, 97, 40, 0.35);
+  border-radius: 24px;
+  background:
+    linear-gradient(146deg, rgba(255, 249, 234, 0.97), rgba(245, 239, 220, 0.94));
+  box-shadow:
+    0 20px 44px rgba(53, 46, 46, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  padding: 34px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--bg-2, #636128);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 12px 0 14px;
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(30px, 4.4vw, 52px);
+  line-height: 0.98;
+  font-weight: 400;
+}
+
+.subtitle {
+  margin: 0;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(20px, 2.1vw, 30px);
+  line-height: 1.2;
+  max-width: 24ch;
+}
+
+.priceCard {
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(99, 97, 40, 0.94), rgba(77, 76, 31, 0.96));
+  padding: 18px 18px 16px;
+  color: #fff8e5;
+  box-shadow:
+    0 14px 30px rgba(70, 67, 24, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.priceLabel {
+  margin: 0;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.price {
+  margin: 6px 0 0;
+  color: #fff8e5;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(30px, 4.4vw, 46px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.priceNote {
+  margin: 8px 0 0;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  opacity: 0.94;
+}
+
+.valueGrid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.valueItem {
+  border-radius: 14px;
+  padding: 14px 14px 13px;
+  background: rgba(255, 252, 242, 0.86);
+  border: 1px solid rgba(99, 97, 40, 0.2);
+}
+
+.valueItem h2 {
+  margin: 0;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.valueItem p {
+  margin: 6px 0 0;
+  color: rgba(53, 46, 46, 0.88);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.primaryButton {
+  margin-top: 24px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(140deg, #767429 0%, #626124 100%);
+  color: #fff8e5;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 18px 30px;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+  box-shadow: 0 8px 20px rgba(99, 97, 40, 0.28);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(99, 97, 40, 0.38);
+}
+
+.primaryButton:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.assurance {
+  margin: 10px 0 0;
+  color: rgba(53, 46, 46, 0.75);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.errorText {
+  margin: 14px 0 0;
+  color: #8c2e16;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.returnCard {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.returnTitle {
+  margin: 12px 0 10px;
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.returnText {
+  margin: 0;
+  color: rgba(53, 46, 46, 0.86);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+  .page {
+    min-height: 100dvh;
+    padding: 12px;
+  }
+
+  .card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .valueGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .valueItem h2 {
+    font-size: 16px;
+  }
+
+  .valueItem p {
+    font-size: 14px;
+  }
+
+  .primaryButton {
+    width: 100%;
+    font-size: 18px;
+    padding: 16px 20px;
+  }
+
+  .returnTitle {
+    font-size: 34px;
+  }
+
+  .returnText {
+    font-size: 16px;
+  }
+}

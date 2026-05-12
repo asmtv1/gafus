@@ -4,8 +4,12 @@ import { redirect } from "next/navigation";
 
 import CacheManagement from "@/features/admin/components/CacheManagement";
 import { MobileAppFeaturesCard } from "@/features/admin/components/MobileAppFeaturesCard";
+import { AppSubscriptionSettingsCard } from "@/features/admin/components/AppSubscriptionSettingsCard";
 import StorageManagement from "@/features/admin/components/StorageManagement";
 import {
+  getAppSubscriptionGatingFlag,
+  getAppSubscriptionPaywallFlag,
+  getMobileIosRuCardPaymentFlag,
   getMobileIosRuCardPaymentHintFlag,
   getMobileVkLoginIosFlag,
 } from "@/features/admin/lib/getMobileVkLoginIosFlag";
@@ -13,6 +17,7 @@ import {
   getStorageStats,
   type StorageStats,
 } from "@/features/admin/lib/getStorageStats";
+import { getAppSubscriptionSettingsAction } from "@/shared/lib/actions/appSubscriptionAdminActions";
 import PageLayout from "@/shared/components/PageLayout";
 
 export default async function AdminPage() {
@@ -32,8 +37,20 @@ export default async function AdminPage() {
     }
   }
 
-  const vkLoginOnIos = await getMobileVkLoginIosFlag();
-  const iosRuCardPaymentHintEnabled = await getMobileIosRuCardPaymentHintFlag();
+  const [
+    vkLoginOnIos,
+    iosRuCardPaymentHintEnabled,
+    iosRuCardPaymentEnabled,
+    appSubscriptionPaywallEnabled,
+    appSubscriptionGatingEnabled,
+  ] = await Promise.all([
+    getMobileVkLoginIosFlag(),
+    getMobileIosRuCardPaymentHintFlag(),
+    getMobileIosRuCardPaymentFlag(),
+    getAppSubscriptionPaywallFlag(),
+    getAppSubscriptionGatingFlag(),
+  ]);
+  const appSubscriptionSettings = await getAppSubscriptionSettingsAction();
 
   return (
     <PageLayout title="Администрирование" subtitle="Управление системой и кэшированием данных">
@@ -48,8 +65,17 @@ export default async function AdminPage() {
         {storageStats && <StorageManagement stats={storageStats} />}
 
         <MobileAppFeaturesCard
+          actorRole={session.user.role}
           initialVkLoginOnIos={vkLoginOnIos}
           initialIosRuCardPaymentHintEnabled={iosRuCardPaymentHintEnabled}
+          initialIosRuCardPaymentEnabled={iosRuCardPaymentEnabled}
+          initialAppSubscriptionPaywallEnabled={appSubscriptionPaywallEnabled}
+          initialAppSubscriptionGatingEnabled={appSubscriptionGatingEnabled}
+        />
+        <AppSubscriptionSettingsCard
+          actorRole={session.user.role}
+          initialYookassaWeeklyPriceRub={appSubscriptionSettings.yookassaWeeklyPriceRub}
+          initialAppleProductId={appSubscriptionSettings.appleProductId}
         />
 
         {/* Управление кэшем */}

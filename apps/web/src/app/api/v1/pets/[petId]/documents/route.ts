@@ -5,6 +5,8 @@ import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { listPetDocumentsForUser, uploadPetDocumentForUser } from "@shared/lib/pets/server";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("web-api-pet-documents");
 
@@ -44,11 +46,18 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(userId);
 
     const { petId } = await context.params;
     const documents = await listPetDocumentsForUser(petId, userId);
     return NextResponse.json({ success: true, data: documents });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     const errorCode = getPetDocumentsDomainErrorCode(error);
     if (errorCode === "PET_NOT_FOUND") {
       return NextResponse.json(
@@ -74,6 +83,7 @@ async function postHandler(request: NextRequest, context: RouteContext) {
         { status: 401 },
       );
     }
+    await requireWebAppSubscriptionOrThrow(userId);
 
     const { petId } = await context.params;
     const formData = await request.formData();
@@ -88,6 +98,12 @@ async function postHandler(request: NextRequest, context: RouteContext) {
     const document = await uploadPetDocumentForUser(petId, userId, file);
     return NextResponse.json({ success: true, data: document }, { status: 201 });
   } catch (error) {
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     const errorCode = getPetDocumentsDomainErrorCode(error);
     if (errorCode === "PET_NOT_FOUND") {
       return NextResponse.json(

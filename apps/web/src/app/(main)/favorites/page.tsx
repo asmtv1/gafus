@@ -5,6 +5,7 @@ import { authOptions } from "@gafus/auth";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 import styles from "./favorites.module.css";
 import FavoritesCourseList from "@/app/(main)/favorites/FavoritesCourseList";
+import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 export const revalidate = 300; // 5 минут (300 секунд) - снижаем нагрузку на сервер
 
@@ -18,6 +19,9 @@ export default async function FavoritesPage() {
   // Загружаем данные избранных курсов серверно для кэширования
   const session = await getServerSession(authOptions as NextAuthOptions);
   const userId = session?.user?.id;
+  if (userId) {
+    await requireWebAppSubscription(userId);
+  }
 
   let favoritesData = null;
   let error = null;

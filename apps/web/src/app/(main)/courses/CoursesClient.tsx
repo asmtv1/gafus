@@ -289,7 +289,11 @@ export default function CoursesClient({
       <SyncStatusIndicator className={styles.syncIndicator} />
 
       {initialDailyCourse?.scheduleId && initialDailyCourse.day && (
-        <section className={styles.dailyCourseSection} aria-label="Курс дня">
+        <section
+          className={styles.dailyCourseSection}
+          aria-label="Курс дня"
+          data-tour-target="daily-course-card"
+        >
           <Link
             href={`/daily-course/${initialDailyCourse.scheduleId}`}
             className={styles.dailyCourseCard}
@@ -349,7 +353,11 @@ export default function CoursesClient({
       />
 
       {/* Список курсов */}
-      <section className={styles.coursesSection} aria-label="Список курсов">
+      <section
+        className={styles.coursesSection}
+        aria-label="Список курсов"
+        data-tour-target="courses-list"
+      >
         <ul className={styles.courseList}>
           {filteredCourses.map((course, index) => (
             <CourseCard

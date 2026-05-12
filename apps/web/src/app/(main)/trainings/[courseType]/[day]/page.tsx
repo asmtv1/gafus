@@ -8,6 +8,7 @@ import { AccessDeniedAlert } from "@features/training/components/AccessDeniedAle
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { checkCourseAccessById } from "@gafus/core/services/course";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
+import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 import type { Metadata } from "next";
 
@@ -15,6 +16,12 @@ export default async function DayPage(props: {
   params: Promise<{ courseType: string; day: string }>;
 }) {
   const { courseType, day } = await props.params;
+  const currentUserId = await getCurrentUserId()
+    .then((id) => id as string)
+    .catch(() => null);
+  if (currentUserId) {
+    await requireWebAppSubscription(currentUserId);
+  }
 
   // Валидируем, что day является корректным ID
   const dayId = dayOnCourseIdSchema.parse(day);
@@ -40,9 +47,7 @@ export default async function DayPage(props: {
     // Платный курс без оплаты — редирект на страницу курса с предложением оплаты (ЮKassa)
     const [courseMetadata, userId] = await Promise.all([
       getCourseMetadata(courseType),
-      getCurrentUserId()
-        .then((id) => id as string)
-        .catch(() => null),
+      Promise.resolve(currentUserId),
     ]);
     if (courseMetadata?.isPaid && courseMetadata.id) {
       if (!userId) {

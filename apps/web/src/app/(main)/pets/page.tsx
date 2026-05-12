@@ -48,6 +48,7 @@ export default async function PetsPage() {
             className={styles.addPetButton}
             elementId="pets-add-pet-open"
             pathOrScreen="/pets"
+            data-tour-target="pets-add-button"
           >
             Добавить питомца
           </ProfileAnalyticsLink>

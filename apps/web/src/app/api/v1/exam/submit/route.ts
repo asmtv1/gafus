@@ -10,6 +10,8 @@ import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
 import { stepIdEntitySchema, userStepIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("api-exam-submit");
 
@@ -31,6 +33,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     if (!session?.user?.id) {
       throw new AuthorizationError("Не авторизован");
     }
+    await requireWebAppSubscriptionOrThrow(session.user.id);
 
     const body = await request.json();
     const parsed = submitExamSchema.parse(body);
@@ -49,6 +52,12 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
       return NextResponse.json(
         { success: false, error: error.message, code: "UNAUTHORIZED" },
         { status: 401 },
+      );
+    }
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
       );
     }
     if (error instanceof z.ZodError) {

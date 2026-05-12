@@ -7,7 +7,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 import { z } from "zod";
+import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
 
 const logger = createWebLogger("api-video-playback-url");
 
@@ -21,6 +23,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       throw new AuthorizationError("Не авторизован");
     }
+    await requireWebAppSubscriptionOrThrow(session.user.id);
 
     const { searchParams } = request.nextUrl;
     const parsed = querySchema.parse({
@@ -41,6 +44,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: error.message, code: "UNAUTHORIZED" },
         { status: 401 },
+      );
+    }
+    if (error instanceof SubscriptionRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.status },
       );
     }
     if (error instanceof z.ZodError) {

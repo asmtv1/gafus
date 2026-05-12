@@ -10,7 +10,9 @@ import {
   deleteUserAccount,
   deleteUserAccountBodySchema,
   getPublicProfile,
+  getOnboardingTourStatus,
   getUserProfileForApi,
+  markOnboardingTourSeen,
   requestAccountDeletionCode,
   updateAvatar,
   updateUserProfile,
@@ -133,6 +135,30 @@ userRoutes.get("/profile", async (c) => {
   } catch (error) {
     logger.error("Error getting profile", error as Error);
     return c.json({ success: false, error: "Ошибка получения профиля" }, 500);
+  }
+});
+
+// GET /api/v1/user/onboarding-tour
+userRoutes.get("/onboarding-tour", async (c) => {
+  try {
+    const user = c.get("user");
+    const status = await getOnboardingTourStatus(user.id);
+    return c.json({ success: true, data: status });
+  } catch (error) {
+    logger.error("Error getting onboarding tour status", error as Error);
+    return c.json({ success: false, error: "Ошибка получения статуса экскурсии" }, 500);
+  }
+});
+
+// POST /api/v1/user/onboarding-tour/complete
+userRoutes.post("/onboarding-tour/complete", async (c) => {
+  try {
+    const user = c.get("user");
+    const status = await markOnboardingTourSeen(user.id);
+    return c.json({ success: true, data: status });
+  } catch (error) {
+    logger.error("Error updating onboarding tour status", error as Error);
+    return c.json({ success: false, error: "Ошибка сохранения статуса экскурсии" }, 500);
   }
 });
 

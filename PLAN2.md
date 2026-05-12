@@ -1337,3 +1337,56 @@ Rollback и rollout:
 - существующие модели `Payment`, `ArticlePayment`, `CourseAccess`
 
 Причина: это production history и действующие разовые оплаты. Новая app subscription добавляется параллельно и закрывает доступ на уровне приложения.
+
+## 16. Execution Notes (факт выполнения)
+
+### Шаг 4 (Prisma)
+- Выполнено: добавлены `AppSubscription*` модели/enums, связи в `User`, SQL-миграция `20260510235500_add_app_subscription` с CHECK/partial-unique/indexes.
+- Команды: `pnpm --filter @gafus/prisma db:generate`, `pnpm --filter @gafus/core typecheck`.
+- Ограничения: runtime rollout миграции на prod/staging не выполнялся в этой сессии.
+
+### Шаг 5 (Core access/settings/admin grants)
+- Выполнено: создан модуль `services/appSubscription` (types/errors/access/settings/admin/payment/appleAccountToken), добавлены `SubscriptionRequiredError` и ADMIN manual grants (`paid_until/lifetime/clear`).
+- Команды: `pnpm --filter @gafus/core typecheck`.
+- Ограничения: часть Prisma typing работает через `(prisma as any)` из-за текущей генерации типов в workspace.
+
+### Шаг 6 (Core YooKassa app subscription)
+- Выполнено: базовый start/cancel flow + webhook handler `handleYookassaAppSubscriptionWebhook` с event dedupe через `AppSubscriptionEvent.providerEventKey`.
+- Команды: `pnpm --filter @gafus/core typecheck`.
+- Ограничения: полноценный provider retry/backoff orchestration (5xx/network) требует отдельного hardening шага.
+
+### Шаг 7 (Core Apple IAP subscription)
+- Выполнено: server verify/restore, decode JWS transaction, update subscription/payment, notification handling (`signedPayload`) + dedupe по `notificationUUID`.
+- Команды: `pnpm --filter @gafus/core typecheck`.
+- Ограничения: restore по App Store Server API history endpoint не добавлялся (используется transaction/DB-driven restore).
+
+### Шаг 8 (API Hono)
+- Выполнено: добавлены `/api/v1/app-subscription/*` в `apps/api` и подключены в `app.ts`.
+- Команды: `pnpm --filter @gafus/api typecheck`, `pnpm --filter @gafus/api build`.
+- Ограничения: advanced rate-limit policy per-route (provider-sensitive buckets) не детализирована.
+
+### Шаг 9 (Web gates/paywall/routes)
+- Выполнено: server helper `requireWebAppSubscription*`, страница `/subscription`, web API `/api/v1/app-subscription/*`, массовое внедрение `402` в user-facing paid routes, webhook branching по `metadata.kind=app_subscription`.
+- Команды: `pnpm --filter @gafus/web typecheck`, `pnpm --filter @gafus/web build`.
+- Ограничения: часть UX paywall-компонентов минималистична (функционально, без финального прод-дизайна).
+
+### Шаг 10 (Admin panel)
+- Выполнено: ADMIN actions для rollout flags, iOS payment flag, manual grants API/UI, settings card (weekly price + appleProductId).
+- Команды: `pnpm --filter @gafus/admin-panel typecheck`, `pnpm --filter @gafus/admin-panel lint`.
+- Ограничения: нет отдельного audit-экрана; аудит фиксируется в БД через subscription/event updates.
+
+### Шаг 11 (Mobile)
+- Выполнено: feature slice `app-subscription` (api/hooks/store/provider/paywall/lib), public config расширен, `apiClient` открывает paywall на `402/SUBSCRIPTION_REQUIRED`.
+- Команды: `pnpm --filter @gafus/mobile typecheck`.
+- Ограничения: не все экраны получили явные guard-hooks; часть покрытия идёт через server/API 402 boundary.
+
+### Шаг 12 (Worker renewals)
+- Выполнено: renewal batch job + cron `*/15 * * * *`, advisory lock (`pg_try_advisory_lock`), тесты обновлены.
+- Дополнительно: добавлен lifecycle-переход `attemptCount >= 5` для `YOOKASSA RENEWAL` в `PAST_DUE`, если период уже истек.
+- Команды: `pnpm --filter @gafus/worker test -- app-subscription-renewals.test.ts`, `pnpm --filter @gafus/worker typecheck`, `pnpm --filter @gafus/worker build`.
+- Ограничения: external retry orchestration у самого payment provider (повтор внешнего API-вызова с централизованным backoff/jitter) остается отдельным production-hardening этапом.
+
+### Шаг 13 (Security + observability)
+- Выполнено: CSRF сохранён на user POST routes, webhook dedupe, log-safe handling, добавлены metrics endpoint `/metrics` в worker и метрики `app_subscription_active_total`, `app_subscription_past_due_total`, `renewal_attempt_total`, `renewal_failed_total`, `webhook_duplicate_total`.
+- Команды: `pnpm --filter @gafus/worker typecheck`, `pnpm --filter @gafus/core typecheck`.
+- Ограничения: алерты (15m spike) в external monitoring system не настраивались в этой сессии.

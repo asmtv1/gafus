@@ -10,6 +10,7 @@ import UserProvider from "@shared/components/common/UserProvider";
 import ClientLayout from "@shared/components/ui/ClientLayout";
 import SessionWrapper from "@shared/components/ui/SessionWrapper";
 import { WebQueryProvider } from "@shared/providers/QueryProvider";
+import { WebOnboardingTourProvider } from "@/features/onboarding-tour";
 
 import { Montserrat } from "next/font/google";
 import type { Metadata, Viewport } from "next";
@@ -109,7 +110,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <UserProvider>
                   <PetsProvider>
                     <WebQueryProvider>
-                      <main>{children}</main>
+                      <WebOnboardingTourProvider>
+                        <main>{children}</main>
+                      </WebOnboardingTourProvider>
                     </WebQueryProvider>
                   </PetsProvider>
                 </UserProvider>

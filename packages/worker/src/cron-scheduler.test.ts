@@ -26,18 +26,34 @@ vi.mock("./training-reminders-sender", () => ({
   sendTrainingReminders: vi.fn().mockResolvedValue({ sent: 0, skipped: 0, errors: 0 }),
 }));
 
+vi.mock("./app-subscription-renewals", () => ({
+  processDueYookassaAppSubscriptionRenewals: vi.fn().mockResolvedValue({
+    processed: 0,
+    skipped: 0,
+    lockAcquired: true,
+  }),
+}));
+
+vi.mock("./app-subscription-renewal-reminders", () => ({
+  sendYookassaAppSubscriptionRenewalReminders: vi.fn().mockResolvedValue({
+    sent: 0,
+    skipped: 0,
+    errors: 0,
+  }),
+}));
+
 describe("cron-scheduler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("startCronJobs", () => {
-    it("регистрирует 3 cron задачи", async () => {
+    it("регистрирует 4 cron задачи", async () => {
       const { startCronJobs } = await import("./cron-scheduler");
 
       startCronJobs();
 
-      expect(mockSchedule).toHaveBeenCalledTimes(3);
+      expect(mockSchedule).toHaveBeenCalledTimes(4);
     });
   });
 });

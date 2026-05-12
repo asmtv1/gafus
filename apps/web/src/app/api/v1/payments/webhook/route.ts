@@ -3,13 +3,14 @@
  */
 import type { NextRequest} from "next/server";
 import { NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import {
   confirmPaymentFromWebhook,
   cancelPaymentFromWebhook,
   refundPaymentFromWebhook,
   getUserIdByYookassaPaymentId,
 } from "@gafus/core/services/payments";
+import { handleYookassaAppSubscriptionWebhook } from "@gafus/core/services/appSubscription";
 import { invalidateUserProgressCache } from "@shared/lib/actions/invalidateCoursesCache";
 import { invalidateCoursesCache } from "@shared/server-actions/cache";
 
@@ -28,6 +29,12 @@ function isYooKassaIP(ip: string | null): boolean {
   return YOOKASSA_IP_PREFIXES.some((prefix) => ip.startsWith(prefix));
 }
 
+function shouldSkipIpCheck(request: NextRequest): boolean {
+  void request;
+  const skipByEnv = process.env.YOOKASSA_SKIP_IP_CHECK === "1" || process.env.YOOKASSA_SKIP_IP_CHECK === "true";
+  return skipByEnv && process.env.NODE_ENV !== "production";
+}
+
 /**
  * Проверка HMAC-SHA256 подписи от ЮKassa для защиты от подделки webhook
  */
@@ -38,14 +45,16 @@ function verifyWebhookSignature(
 ): boolean {
   if (!signature) return false;
   const hash = createHmac("sha256", secretKey).update(body).digest("hex");
-  return hash === signature;
+  const left = Buffer.from(hash, "hex");
+  const right = Buffer.from(signature, "hex");
+  return left.length === right.length && timingSafeEqual(new Uint8Array(left), new Uint8Array(right));
 }
 
 export async function POST(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null;
   
-  if (!isYooKassaIP(ip)) {
+  if (!shouldSkipIpCheck(request) && !isYooKassaIP(ip)) {
     console.warn("[payments/webhook] IP not in whitelist:", ip);
     return NextResponse.json({}, { status: 403 });
   }
@@ -80,45 +89,71 @@ export async function POST(request: NextRequest) {
 
   const type = (body as { type?: string }).type;
   const event = (body as { event?: string }).event;
-  const obj = (body as { object?: { id?: string; amount?: { value?: string } } }).object;
+  const obj = (body as {
+    object?: {
+      id?: string;
+      amount?: { value?: string };
+      payment_method?: {
+        id?: string;
+        title?: string;
+        card?: { last4?: string };
+      };
+      metadata?: Record<string, string | undefined>;
+    };
+  }).object;
   const yookassaPaymentId = obj?.id;
   const amount = obj?.amount?.value;
+  const paymentMethodId = obj?.payment_method?.id ?? null;
+  const paymentMethodLast4 = obj?.payment_method?.card?.last4 ?? null;
+  const paymentMethodTitle = obj?.payment_method?.title ?? null;
+  const metadata = obj?.metadata;
+  const isAppSubscriptionWebhook = metadata?.kind === "app_subscription";
 
   if (type !== "notification" || !yookassaPaymentId) {
     return NextResponse.json({}, { status: 200 });
   }
 
-  // Ответ 200 сразу; тяжёлую обработку — после (fire-and-forget)
-  setImmediate(() => {
-    let promise: Promise<void> | undefined;
-
-    // Обработка разных событий платежа
-    if (event === "payment.succeeded") {
-      promise = confirmPaymentFromWebhook(yookassaPaymentId, amount);
-    } else if (event === "payment.canceled") {
-      promise = cancelPaymentFromWebhook(yookassaPaymentId);
-    } else if (event === "refund.succeeded") {
-      promise = refundPaymentFromWebhook(yookassaPaymentId);
+  try {
+    let userIdToInvalidate: string | null = null;
+    if (isAppSubscriptionWebhook) {
+      const result = await handleYookassaAppSubscriptionWebhook({
+        event: event ?? "unknown",
+        yookassaPaymentId,
+        amount,
+        paymentMethodId,
+        paymentMethodLast4,
+        paymentMethodTitle,
+        metadata,
+        payloadHash: createHash("sha256").update(bodyText).digest("hex"),
+        shopId: process.env.YOOKASSA_SHOP_ID,
+        secretKey: process.env.YOOKASSA_SECRET_KEY,
+      });
+      userIdToInvalidate = result.userId;
     } else {
-      // Неизвестное событие — игнорируем
-      return;
+      // Обработка разных событий платежа
+      if (event === "payment.succeeded") {
+        await confirmPaymentFromWebhook(yookassaPaymentId, amount);
+      } else if (event === "payment.canceled") {
+        await cancelPaymentFromWebhook(yookassaPaymentId);
+      } else if (event === "refund.succeeded") {
+        await refundPaymentFromWebhook(yookassaPaymentId);
+      } else {
+        // Неизвестное событие — игнорируем
+        return NextResponse.json({}, { status: 200 });
+      }
+      userIdToInvalidate = await getUserIdByYookassaPaymentId(yookassaPaymentId);
     }
 
-    promise
-      .then(() =>
-        getUserIdByYookassaPaymentId(yookassaPaymentId).then((userId) => {
-          if (userId) {
-            return Promise.all([
-              invalidateUserProgressCache(userId, false),
-              invalidateCoursesCache(),
-            ]);
-          }
-        }),
-      )
-      .catch((err) => {
-        console.error("[payments/webhook] Error:", err);
-      });
-  });
+    if (userIdToInvalidate) {
+      await Promise.all([
+        invalidateUserProgressCache(userIdToInvalidate, false),
+        invalidateCoursesCache(),
+      ]);
+    }
+  } catch (err) {
+    console.error("[payments/webhook] Error:", err);
+    return NextResponse.json({}, { status: 500 });
+  }
 
   return NextResponse.json({}, { status: 200 });
 }
