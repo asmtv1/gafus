@@ -12,13 +12,16 @@ export type WebOnboardingTourStepId =
   | "finish";
 
 export type WebOnboardingTourTargetId =
-  | "consultations-list"
+  | "consultations-first-card"
   | "tab-pets"
   | "pets-add-button"
   | "pet-prevention-section"
   | "pet-documents-section"
   | "daily-course-card"
-  | "courses-list";
+  | "courses-first-card";
+
+export type WebOnboardingTourCardPlacement = "above" | "below";
+export type WebOnboardingTourCardAnchor = "target" | "viewport" | "center";
 
 export interface WebOnboardingTourStep {
   id: WebOnboardingTourStepId;
@@ -26,6 +29,8 @@ export interface WebOnboardingTourStep {
   text: string;
   route?: string;
   targetId?: WebOnboardingTourTargetId;
+  cardPlacement?: WebOnboardingTourCardPlacement;
+  cardAnchor?: WebOnboardingTourCardAnchor;
   primaryActionLabel?: string;
   allowSkip?: boolean;
   requiresPetCreation?: boolean;
@@ -50,7 +55,8 @@ export function getWebOnboardingTourSteps({
       title: "Кинолог",
       text: "Здесь можно выбрать кинолога, посмотреть свободные слоты и записаться на консультацию.",
       route: "/consultations",
-      targetId: "consultations-list",
+      targetId: "consultations-first-card",
+      cardPlacement: "above",
     },
     {
       id: "pets",
@@ -95,7 +101,9 @@ export function getWebOnboardingTourSteps({
       title: "Остальные курсы",
       text: "Ниже находится каталог остальных курсов. Можно выбрать подходящий формат и продолжить обучение.",
       route: "/courses",
-      targetId: "courses-list",
+      targetId: "courses-first-card",
+      cardPlacement: "below",
+      cardAnchor: "center",
     },
     {
       id: "finish",

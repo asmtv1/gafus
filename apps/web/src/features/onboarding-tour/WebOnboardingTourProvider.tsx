@@ -17,6 +17,9 @@ import { useWebOnboardingTourStore } from "./tour-store";
 
 const AUTOSTART_DELAY_MS = 500;
 const TARGET_WAIT_TIMEOUT_MS = 1600;
+const TOP_CARD_DEFAULT_TARGET_TOP = 230;
+const CONSULTATIONS_TARGET_TOP = 245;
+const COURSES_TARGET_TOP = 180;
 
 type WebOnboardingTourEventName =
   | "mobile_onboarding_started"
@@ -57,8 +60,43 @@ function getTargetElement(id?: WebOnboardingTourTargetId): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-tour-target="${id}"]`);
 }
 
-function isRectFullyVisible(rect: DOMRect): boolean {
-  return rect.top >= 0 && rect.bottom <= window.innerHeight;
+function isRectComfortablyVisible(rect: DOMRect): boolean {
+  const viewportHeight = window.innerHeight;
+  const verticalMargin = 12;
+
+  // Высокие блоки (например, длинная карточка кинолога) физически не помещаются целиком в экран.
+  // Для них считаем нормой, когда видна верхняя часть без прилипания к краю.
+  if (rect.height >= viewportHeight - verticalMargin * 2) {
+    return rect.top >= verticalMargin && rect.top <= Math.round(viewportHeight * 0.35);
+  }
+
+  return rect.top >= verticalMargin && rect.bottom <= viewportHeight - verticalMargin;
+}
+
+function alignTargetForTopCard(targetEl: HTMLElement, desiredTop = 230) {
+  const rect = targetEl.getBoundingClientRect();
+  const delta = rect.top - desiredTop;
+  if (Math.abs(delta) < 10) return;
+  window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: "auto" });
+}
+
+function setRootScrollTop(top: number) {
+  const nextTop = Math.max(0, Math.round(top));
+  window.scrollTo({ top: nextTop, behavior: "auto" });
+  document.documentElement.scrollTop = nextTop;
+  document.body.scrollTop = nextTop;
+  document.scrollingElement?.scrollTo({ top: nextTop, behavior: "auto" });
+}
+
+function alignCoursesTarget(targetEl: HTMLElement): boolean {
+  const rect = targetEl.getBoundingClientRect();
+  if (Math.abs(rect.top - COURSES_TARGET_TOP) < 8) return true;
+
+  const absoluteTop = window.scrollY + rect.top;
+  setRootScrollTop(absoluteTop - COURSES_TARGET_TOP);
+
+  const nextRect = targetEl.getBoundingClientRect();
+  return Math.abs(nextRect.top - COURSES_TARGET_TOP) < 8;
 }
 
 export function WebOnboardingTourProvider({ children }: { children: ReactNode }) {
@@ -90,6 +128,19 @@ export function WebOnboardingTourProvider({ children }: { children: ReactNode })
   );
   const step = steps[stepIndex] ?? steps[0];
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [hasAlignedCoursesStep, setHasAlignedCoursesStep] = useState(false);
+
+  useEffect(() => {
+    setHasAlignedCoursesStep(false);
+  }, [step?.id, pathname]);
+
+  useEffect(() => {
+    if (!isActive || step?.id !== "courses" || hasAlignedCoursesStep) return;
+    const targetEl = getTargetElement("courses-first-card");
+    if (!targetEl) return;
+    alignCoursesTarget(targetEl);
+    setHasAlignedCoursesStep(true);
+  }, [hasAlignedCoursesStep, isActive, step?.id]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -184,8 +235,11 @@ export function WebOnboardingTourProvider({ children }: { children: ReactNode })
     if (!isActive || !step?.route || pathname === step.route) {
       return;
     }
+    if (currentStepId === "add-pet" && pathname === "/profile/addPet") {
+      return;
+    }
     router.push(step.route);
-  }, [isActive, pathname, router, step]);
+  }, [currentStepId, isActive, pathname, router, step]);
 
   useEffect(() => {
     if (
@@ -237,23 +291,41 @@ export function WebOnboardingTourProvider({ children }: { children: ReactNode })
 
     let cancelled = false;
     const startedAt = Date.now();
+    let lastRect: DOMRect | null = null;
 
     const tick = () => {
       if (cancelled) return;
       const targetEl = getTargetElement(step.targetId);
       if (targetEl) {
         const elRect = targetEl.getBoundingClientRect();
-        if (!isRectFullyVisible(elRect)) {
-          targetEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+        const isTallTarget = elRect.height >= window.innerHeight - 24;
+        if (step.id === "courses") {
+          // Step 8 is aligned once on entry to avoid layout jumping while the overlay measures.
+        } else if (step.cardPlacement === "above") {
+          const desiredTop =
+            step.id === "consultations" ? CONSULTATIONS_TARGET_TOP : TOP_CARD_DEFAULT_TARGET_TOP;
+          alignTargetForTopCard(targetEl, desiredTop);
+        } else if (!isRectComfortablyVisible(elRect)) {
+          targetEl.scrollIntoView({
+            behavior: "auto",
+            block: isTallTarget ? "start" : "center",
+            inline: "nearest",
+          });
         }
       }
       const rect = measureTarget(step.targetId);
       if (rect) {
+        lastRect = rect;
         setTargetRect(rect);
-        return;
+        if (step.id === "courses") {
+          return;
+        }
+        if (isRectComfortablyVisible(rect)) {
+          return;
+        }
       }
       if (Date.now() - startedAt >= TARGET_WAIT_TIMEOUT_MS) {
-        setTargetRect(null);
+        setTargetRect(lastRect);
         return;
       }
       window.requestAnimationFrame(tick);
@@ -305,6 +377,8 @@ export function WebOnboardingTourProvider({ children }: { children: ReactNode })
           stepIndex={stepIndex}
           totalSteps={steps.length}
           targetRect={targetRect}
+          cardPlacement={step.cardPlacement}
+          cardAnchor={step.cardAnchor}
           allowSkip={step.allowSkip ?? true}
           onNext={handleNext}
           onSkip={handleSkip}

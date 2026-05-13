@@ -20,6 +20,7 @@ import {
   bookSlotInputSchema,
   cancelBookingBodySchema,
   cancelBookingByUser,
+  completeBookingByTrainer,
   confirmBookingByTrainer,
   cursorPaginationSchema,
   dayOffInputSchema,
@@ -33,6 +34,7 @@ import {
   listClientBookings,
   listListedCynologists,
   listTrainerBookings,
+  markBookingNoShowByTrainer,
   rejectBookingByTrainer,
   removeDayOff,
   removeSlotException,
@@ -184,6 +186,36 @@ consultationsRoutes.post(
       const user = c.get("user");
       const bookingId = c.req.param("bookingId");
       await confirmBookingByTrainer(user.id, user.role, bookingId);
+      return c.json({ success: true, data: { bookingId } });
+    } catch (error) {
+      return handleConsultationError(c, error);
+    }
+  },
+);
+
+consultationsRoutes.post(
+  "/trainer/bookings/:bookingId/complete",
+  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const bookingId = c.req.param("bookingId");
+      await completeBookingByTrainer(user.id, user.role, bookingId);
+      return c.json({ success: true, data: { bookingId } });
+    } catch (error) {
+      return handleConsultationError(c, error);
+    }
+  },
+);
+
+consultationsRoutes.post(
+  "/trainer/bookings/:bookingId/no-show",
+  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const bookingId = c.req.param("bookingId");
+      await markBookingNoShowByTrainer(user.id, user.role, bookingId);
       return c.json({ success: true, data: { bookingId } });
     } catch (error) {
       return handleConsultationError(c, error);

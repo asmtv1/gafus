@@ -6,6 +6,12 @@
   gap: 14px;
 }
 
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .card {
   padding: 16px 18px;
   background: #fafafa;

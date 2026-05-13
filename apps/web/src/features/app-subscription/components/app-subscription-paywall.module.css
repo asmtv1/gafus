@@ -166,6 +166,21 @@
   line-height: 1.35;
 }
 
+.legalText {
+  margin: 12px 0 0;
+  max-width: 620px;
+  color: rgba(53, 46, 46, 0.82);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.legalText a {
+  color: #626124;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .errorText {
   margin: 14px 0 0;
   color: #8c2e16;

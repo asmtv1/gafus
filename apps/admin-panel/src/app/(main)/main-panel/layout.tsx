@@ -11,6 +11,7 @@ import {
   Pets,
   EventNote,
   CalendarMonth,
+  Flag,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -45,6 +46,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
         <Link href="/main-panel/admin" className={styles.button}>
           <AdminPanelSettings sx={{ mr: 1.5, fontSize: 20 }} />
           Администрирование
+        </Link>
+        <Link href="/main-panel/feature-flags" className={styles.button}>
+          <Flag sx={{ mr: 1.5, fontSize: 20 }} />
+          Фича флаги
         </Link>
 
         {/* Push-рассылка и Re-engagement только для админов */}

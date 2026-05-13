@@ -13,6 +13,7 @@ import {
   Pets,
   EventNote,
   CalendarMonth,
+  Flag,
   Menu,
   Close,
 } from "@mui/icons-material";
@@ -43,6 +44,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       href: "/main-panel/admin",
       icon: AdminPanelSettings,
       label: "Администрирование",
+      show: true,
+    },
+    {
+      href: "/main-panel/feature-flags",
+      icon: Flag,
+      label: "Фича флаги",
       show: true,
     },
     {

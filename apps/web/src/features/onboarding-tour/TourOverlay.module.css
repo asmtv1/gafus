@@ -27,7 +27,7 @@
 
 .card {
   position: fixed;
-  width: min(360px, calc(100vw - 24px));
+  width: min(560px, calc(100vw - 24px));
   background: #fff8e5;
   border: 1px solid #d4c4a8;
   border-radius: 14px;

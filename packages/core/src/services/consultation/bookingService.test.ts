@@ -13,6 +13,7 @@ const enqueueConsultationEmail = vi.fn();
 const createTelemostConference = vi.fn();
 const queueAdd = vi.fn();
 const removeConsultationSlaJob = vi.fn();
+const removeConsultationReminderJob = vi.fn();
 
 vi.mock("./notificationService", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
@@ -33,8 +34,11 @@ vi.mock("@gafus/logger", () => ({
 
 vi.mock("@gafus/queues", () => ({
   consultationSlaQueue: { add: (...a: unknown[]) => queueAdd(...a) },
+  consultationReminderQueue: { add: (...a: unknown[]) => queueAdd(...a) },
   CONSULTATION_SLA_JOB_ID: (id: string) => `sla:${id}`,
+  CONSULTATION_REMINDER_JOB_ID: (id: string) => `reminder:${id}`,
   removeConsultationSlaJob: (...a: unknown[]) => removeConsultationSlaJob(...a),
+  removeConsultationReminderJob: (...a: unknown[]) => removeConsultationReminderJob(...a),
 }));
 
 const {
@@ -123,6 +127,33 @@ describe("processBookingSlaTimeout", () => {
     expect(txBookingUpdate).toHaveBeenCalled();
     expect(txSlotUpdate).toHaveBeenCalled();
     expect(enqueueConsultationEmail).toHaveBeenCalled();
+  });
+});
+
+describe("markBookingNoShowByTrainer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("переводит подтверждённую бронь в NO_SHOW и ставит клиентское письмо в очередь", async () => {
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-no-show",
+      status: ConsultationBookingStatus.CONFIRMED,
+      cynologist: { userId: "trainer-1" },
+    });
+
+    const { markBookingNoShowByTrainer } = await import("./bookingService");
+    await markBookingNoShowByTrainer("trainer-1", "TRAINER", "b-no-show");
+
+    expect(removeConsultationReminderJob).toHaveBeenCalledWith("b-no-show");
+    expect(prismaUpdateBooking).toHaveBeenCalledWith({
+      where: { id: "b-no-show" },
+      data: { status: ConsultationBookingStatus.NO_SHOW },
+    });
+    expect(enqueueConsultationEmail).toHaveBeenCalledWith(
+      "b-no-show",
+      "CLIENT_CONSULTATION_NO_SHOW",
+    );
   });
 });
 

@@ -353,11 +353,7 @@ export default function CoursesClient({
       />
 
       {/* Список курсов */}
-      <section
-        className={styles.coursesSection}
-        aria-label="Список курсов"
-        data-tour-target="courses-list"
-      >
+      <section className={styles.coursesSection} aria-label="Список курсов">
         <ul className={styles.courseList}>
           {filteredCourses.map((course, index) => (
             <CourseCard

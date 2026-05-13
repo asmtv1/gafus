@@ -21,6 +21,17 @@
 
 Снимок с сервера (если нужно сверить байты с репозиторием): каталог на хосте `~/gafus-legal-archive/snapshot-2026-02-20/` (не подставляет публичные URL; источник правды для публикации — репозиторий).
 
+## Актуальные версии в репозитории
+
+| Документ | Текущая редакция |
+|----------|------------------|
+| `apps/web/public/oferta.html` | 2026-05-13 |
+| `apps/web/public/policy.html` | 2026-05-13 |
+| `apps/web/public/personal.html` | 2026-05-13 |
+| `apps/web/public/personal-distribution.html` | 2026-05-13 |
+
+Перед правками от 13.05.2026 текущие версии сохранены в `apps/web/public/legal/archive/` как `oferta-2026-03-27.html`, `policy-2026-04-23.html`, `personal-2026-04-23.html`, `personal-distribution-2026-04-23.html`.
+
 ## См. также
 
 - [Соответствие оферте при оплате](../payments/oferta-compliance.md)

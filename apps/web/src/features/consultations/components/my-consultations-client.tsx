@@ -113,7 +113,7 @@ export function MyConsultationsClient({ initialItems }: MyConsultationsClientPro
                     {[b.clientOwnerName?.trim(), b.petName?.trim()].filter(Boolean).join(" · ")}
                   </p>
                 ) : null}
-                {b.status === "CONFIRMED" && b.joinUrl ? (
+                {(b.status === "CONFIRMED" || b.status === "COMPLETED") && b.joinUrl ? (
                   <p className={styles.joinLink}>
                     <a href={b.joinUrl} target="_blank" rel="noopener noreferrer">
                       Перейти к видеовстрече

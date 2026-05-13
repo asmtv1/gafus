@@ -1,6 +1,19 @@
 import type { ConsultationBookingStatus } from "./types";
 
 export type ConsultationStatusTone = "pending" | "success" | "danger" | "neutral";
+export type ConsultationBookingStatusGroup =
+  | "PENDING"
+  | "CONFIRMED"
+  | "COMPLETED"
+  | "NO_SHOW"
+  | "CANCELLED";
+
+export const CONSULTATION_CANCELLED_STATUSES: ConsultationBookingStatus[] = [
+  "CANCELLED_BY_TRAINER",
+  "CANCELLED_BY_USER",
+  "CANCELLED_BY_SLA",
+  "CANCELLED_BY_SYSTEM",
+];
 
 export interface ConsultationBookingStatusPresentation {
   badge: string;
@@ -12,6 +25,36 @@ export interface ConsultationBookingStatusPresentation {
 export type ConsultationBookingStatusPresentationOptions = {
   cancelReason?: string | null;
 };
+
+export function isConsultationCancelledStatus(status: ConsultationBookingStatus): boolean {
+  return CONSULTATION_CANCELLED_STATUSES.includes(status);
+}
+
+export function getConsultationBookingStatusGroup(
+  status: ConsultationBookingStatus,
+): ConsultationBookingStatusGroup {
+  switch (status) {
+    case "PENDING_TRAINER_CONFIRMATION":
+      return "PENDING";
+    case "CONFIRMED":
+      return "CONFIRMED";
+    case "COMPLETED":
+      return "COMPLETED";
+    case "NO_SHOW":
+      return "NO_SHOW";
+    case "CANCELLED_BY_TRAINER":
+    case "CANCELLED_BY_USER":
+    case "CANCELLED_BY_SLA":
+    case "CANCELLED_BY_SYSTEM":
+      return "CANCELLED";
+    default:
+      return assertNever(status);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled consultation booking status: ${String(value)}`);
+}
 
 export function getConsultationBookingStatusPresentation(
   status: ConsultationBookingStatus,

@@ -52,6 +52,8 @@ function subjectForType(t: ConsultationEmailType): string {
       return `Напоминание: консультация скоро${SUBJECT_BRAND}`;
     case "TRAINER_CONSULTATION_REMINDER_30M":
       return `Напоминание: консультация скоро${SUBJECT_BRAND}`;
+    case "CLIENT_CONSULTATION_NO_SHOW":
+      return `Консультация не состоялась${SUBJECT_BRAND}`;
     default:
       return `Уведомление о консультации${SUBJECT_BRAND}`;
   }
@@ -603,6 +605,34 @@ function buildPayload(
         plainLinkFallbackHtml(panelUrl),
       );
       return { text, blocksHtml: blocks };
+    }
+    case "CLIENT_CONSULTATION_NO_SHOW": {
+      const catalogUrl = getWebConsultationsCatalogUrl();
+      const text = [
+        "Здравствуйте!",
+        "",
+        "Ваша встреча почему-то не состоялась.",
+        `Плановое время: ${slotLine}.`,
+        "",
+        "Вы всегда можете выбрать и забронировать новое удобное время в приложении/на сайте.",
+        catalogUrl,
+        "",
+        "С уважением,",
+        "команда Гафус",
+      ].join("\n");
+      return {
+        text,
+        blocksHtml: [
+          paragraphHtml("Здравствуйте!"),
+          paragraphHtml("Ваша встреча почему-то не состоялась."),
+          paragraphHtml(`Плановое время: ${slotEsc}.`),
+          paragraphHtml(
+            "Вы всегда можете выбрать и забронировать новое удобное время в приложении/на сайте.",
+          ),
+          ctaButtonHtml(catalogUrl, "Выбрать время"),
+          plainLinkFallbackHtml(catalogUrl),
+        ],
+      };
     }
   }
 }

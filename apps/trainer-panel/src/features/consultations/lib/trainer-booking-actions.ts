@@ -3,9 +3,11 @@
 import type { AuthRole } from "@gafus/auth";
 import { authOptions } from "@gafus/auth";
 import {
+  completeBookingByTrainer,
   confirmBookingByTrainer,
   ConsultationForbiddenError,
   ConsultationNotFoundError,
+  markBookingNoShowByTrainer,
   rejectBookingByTrainer,
 } from "@gafus/core";
 import { createTrainerPanelLogger } from "@gafus/logger";
@@ -79,5 +81,49 @@ export async function rejectBookingTrainerAction(
       { bookingId },
     );
     return { success: false, error: "Не удалось отклонить" };
+  }
+}
+
+export async function completeBookingTrainerAction(bookingId: string): Promise<BookingActionResult> {
+  try {
+    const s = await requireTrainerSession();
+    if (!s.ok) {
+      return { success: false, error: s.error };
+    }
+    await completeBookingByTrainer(s.userId, s.role, bookingId);
+    revalidatePath("/main-panel/consultations");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof ConsultationForbiddenError || error instanceof ConsultationNotFoundError) {
+      return { success: false, error: error.message };
+    }
+    logger.error(
+      "completeBooking",
+      error instanceof Error ? error : new Error(String(error)),
+      { bookingId },
+    );
+    return { success: false, error: "Не удалось завершить консультацию" };
+  }
+}
+
+export async function markNoShowBookingTrainerAction(bookingId: string): Promise<BookingActionResult> {
+  try {
+    const s = await requireTrainerSession();
+    if (!s.ok) {
+      return { success: false, error: s.error };
+    }
+    await markBookingNoShowByTrainer(s.userId, s.role, bookingId);
+    revalidatePath("/main-panel/consultations");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof ConsultationForbiddenError || error instanceof ConsultationNotFoundError) {
+      return { success: false, error: error.message };
+    }
+    logger.error(
+      "markNoShowBooking",
+      error instanceof Error ? error : new Error(String(error)),
+      { bookingId },
+    );
+    return { success: false, error: "Не удалось выставить неявку" };
   }
 }

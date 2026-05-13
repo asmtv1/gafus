@@ -479,6 +479,66 @@ export async function rejectBookingByTrainer(
   );
 }
 
+export async function completeBookingByTrainer(
+  actorUserId: string,
+  actorRole: AuthRole,
+  bookingId: string,
+): Promise<void> {
+  const b = await prisma.consultationBooking.findUnique({
+    where: { id: bookingId },
+    include: { cynologist: true },
+  });
+  if (!b) {
+    throw new ConsultationNotFoundError("Бронирование");
+  }
+  if (!trainerMayActOnBooking(actorRole, actorUserId, b.cynologist.userId)) {
+    throw new ConsultationForbiddenError();
+  }
+  if (b.status !== ConsultationBookingStatus.CONFIRMED) {
+    throw new ConsultationForbiddenError("Завершение доступно только для подтверждённой консультации");
+  }
+
+  await removeConsultationRemindJobSafe(bookingId);
+
+  await prisma.consultationBooking.update({
+    where: { id: bookingId },
+    data: {
+      status: ConsultationBookingStatus.COMPLETED,
+    },
+  });
+}
+
+export async function markBookingNoShowByTrainer(
+  actorUserId: string,
+  actorRole: AuthRole,
+  bookingId: string,
+): Promise<void> {
+  const b = await prisma.consultationBooking.findUnique({
+    where: { id: bookingId },
+    include: { cynologist: true },
+  });
+  if (!b) {
+    throw new ConsultationNotFoundError("Бронирование");
+  }
+  if (!trainerMayActOnBooking(actorRole, actorUserId, b.cynologist.userId)) {
+    throw new ConsultationForbiddenError();
+  }
+  if (b.status !== ConsultationBookingStatus.CONFIRMED) {
+    throw new ConsultationForbiddenError("Неявку можно выставить только для подтверждённой консультации");
+  }
+
+  await removeConsultationRemindJobSafe(bookingId);
+
+  await prisma.consultationBooking.update({
+    where: { id: bookingId },
+    data: {
+      status: ConsultationBookingStatus.NO_SHOW,
+    },
+  });
+
+  await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_CONSULTATION_NO_SHOW);
+}
+
 export async function cancelBookingByUser(clientId: string, bookingId: string): Promise<void> {
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
@@ -713,6 +773,15 @@ export async function listTrainerBookings(
         },
       },
     },
+  });
+
+  rows.sort((a, b) => {
+    const aCompleted = a.status === ConsultationBookingStatus.COMPLETED;
+    const bCompleted = b.status === ConsultationBookingStatus.COMPLETED;
+    if (aCompleted !== bCompleted) {
+      return aCompleted ? 1 : -1;
+    }
+    return b.createdAt.getTime() - a.createdAt.getTime();
   });
 
   return rows.map((b) => ({

@@ -188,6 +188,14 @@ export function AppSubscriptionPaywall() {
           >
             {loading || csrfLoading ? "Переход к оплате..." : "Оформить подписку"}
           </button>
+          <p className={styles.legalText}>
+            Нажимая кнопку, вы принимаете{" "}
+            <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
+              Оферту
+            </a>
+            : подписка продлевается автоматически, способ оплаты сохраняется в ЮKassa, а
+            автопродление можно отключить в профиле в любой момент.
+          </p>
           <p className={styles.assurance}>Безопасная оплата через ЮKassa • Электронный чек после оплаты</p>
 
           {error ? (

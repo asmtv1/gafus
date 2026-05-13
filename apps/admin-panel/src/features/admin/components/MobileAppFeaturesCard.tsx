@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Box,
   FormControlLabel,
   Switch,
   Typography,
@@ -55,6 +56,16 @@ export function MobileAppFeaturesCard({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isAdmin = actorRole === "ADMIN";
+  const flagLabel = (title: string, description: string) => (
+    <Box>
+      <Typography component="span" variant="body1">
+        {title}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {description}
+      </Typography>
+    </Box>
+  );
 
   const handleVkChange = (_event: unknown, next: boolean) => {
     setError(null);
@@ -169,70 +180,87 @@ export function MobileAppFeaturesCard({
   return (
     <Card>
       <CardHeader
-        title="Мобильное приложение"
-        subheader="Переключатели для клиента Gafus (данные отдаёт публичный API)"
+        title="Фича флаги"
+        subheader="Переключатели для мобильного клиента Gafus и серверных проверок подписки"
       />
       <CardContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          На iOS кнопка «Продолжить через VK» на экране приветствия по умолчанию скрыта. Включите
-          переключатель, чтобы показывать её пользователям iOS (например, после согласования с
-          модерацией или обновления VK SDK).
-        </Typography>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={vkChecked}
-              onChange={handleVkChange}
-              disabled={isPending}
-              color="primary"
-            />
-          }
-          label="Показывать вход через VK на iOS"
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={iosRuCardHintChecked}
-              onChange={handleIosRuCardHintChange}
-              disabled={isPending}
-              color="primary"
-            />
-          }
-          label="Показывать подсказку «Оплата картами РФ доступна на сайте» в платных курсах iOS"
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={iosRuCardChecked}
-              onChange={handleIosRuCardChange}
-              disabled={isPending || !isAdmin}
-              color="primary"
-            />
-          }
-          label="Показывать кнопку «Оплатить картой РФ» на iOS paywall (ADMIN)"
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={appSubPaywallChecked}
-              onChange={handleAppSubPaywallChange}
-              disabled={isPending || !isAdmin}
-              color="primary"
-            />
-          }
-          label="Показывать paywall подписки (ADMIN)"
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={appSubGatingChecked}
-              onChange={handleAppSubGatingChange}
-              disabled={isPending || !isAdmin}
-              color="primary"
-            />
-          }
-          label="Блокировать платные действия без подписки (ADMIN)"
-        />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={vkChecked}
+                onChange={handleVkChange}
+                disabled={isPending}
+                color="primary"
+              />
+            }
+            label={flagLabel(
+              "Показывать вход через VK на iOS",
+              "Управляет кнопкой «Продолжить через VK» на welcome-экране iOS-приложения.",
+            )}
+            sx={{ alignItems: "flex-start" }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={iosRuCardHintChecked}
+                onChange={handleIosRuCardHintChange}
+                disabled={isPending}
+                color="primary"
+              />
+            }
+            label={flagLabel(
+              "Показывать подсказку про оплату картами РФ на iOS",
+              "Добавляет в платных курсах iOS текст, что оплата картами РФ доступна на сайте.",
+            )}
+            sx={{ alignItems: "flex-start" }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={iosRuCardChecked}
+                onChange={handleIosRuCardChange}
+                disabled={isPending || !isAdmin}
+                color="primary"
+              />
+            }
+            label={flagLabel(
+              "Показывать кнопку «Оплатить картой РФ» на iOS paywall",
+              "Включает отдельную кнопку перехода к оплате российской картой. Доступно только ADMIN.",
+            )}
+            sx={{ alignItems: "flex-start" }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={appSubPaywallChecked}
+                onChange={handleAppSubPaywallChange}
+                disabled={isPending || !isAdmin}
+                color="primary"
+              />
+            }
+            label={flagLabel(
+              "Показывать paywall подписки",
+              "Разрешает клиентам автоматически показывать экран покупки подписки. Доступно только ADMIN.",
+            )}
+            sx={{ alignItems: "flex-start" }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={appSubGatingChecked}
+                onChange={handleAppSubGatingChange}
+                disabled={isPending || !isAdmin}
+                color="primary"
+              />
+            }
+            label={flagLabel(
+              "Блокировать платные действия без подписки",
+              "Включает серверную проверку подписки для платных действий. Доступно только ADMIN.",
+            )}
+            sx={{ alignItems: "flex-start" }}
+          />
+        </Box>
         {error ? (
           <Alert severity="error" sx={{ mt: 2 }}>
             {error}

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -179,6 +180,18 @@ export function AppSubscriptionPaywall() {
               </Pressable>
             ) : null}
 
+            <Text style={styles.legalText}>
+              Нажимая кнопку оплаты, вы принимаете{" "}
+              <Text
+                style={styles.legalLink}
+                onPress={() => void Linking.openURL("https://gafus.ru/oferta.html")}
+              >
+                Оферту
+              </Text>
+              . Подписка продлевается автоматически; при оплате картой способ оплаты сохраняется
+              в ЮKassa, автопродление можно отключить в профиле.
+            </Text>
+
             {offerQuery.isLoading ? (
               <Text style={styles.muted}>Загружаем условия подписки...</Text>
             ) : null}
@@ -339,5 +352,15 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
     color: "#9B2F1C",
     fontSize: 13,
+  },
+  legalText: {
+    fontFamily: FONTS.montserrat,
+    color: "#5F5750",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: COLORS.primary,
+    textDecorationLine: "underline",
   },
 });

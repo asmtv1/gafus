@@ -114,7 +114,7 @@ export default function ConsultationsMineScreen() {
                   {[b.clientOwnerName?.trim(), b.petName?.trim()].filter(Boolean).join(" · ")}
                 </Text>
               ) : null}
-              {b.status === "CONFIRMED" && b.joinUrl ? (
+              {(b.status === "CONFIRMED" || b.status === "COMPLETED") && b.joinUrl ? (
                 <Pressable onPress={() => void Linking.openURL(b.joinUrl!)}>
                   <Text style={styles.link}>Перейти к видеовстрече</Text>
                 </Pressable>

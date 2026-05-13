@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -14,6 +14,8 @@ import {
   TextField,
 } from "@mui/material";
 import {
+  getConsultationBookingStatusGroup,
+  getConsultationBookingStatusPresentation,
   type ConsultationBookingDto,
   formatConsultationPetGenderRu,
   formatRuPhoneForDisplay,
@@ -23,7 +25,9 @@ import { reportClientError } from "@gafus/error-handling";
 import type { ConsultationBookingStatus } from "@gafus/prisma";
 
 import {
+  completeBookingTrainerAction,
   confirmBookingTrainerAction,
+  markNoShowBookingTrainerAction,
   rejectBookingTrainerAction,
 } from "../lib/trainer-booking-actions";
 
@@ -31,20 +35,17 @@ import styles from "./trainer-consultations-list.module.css";
 
 const REJECT_REASON_MAX = 500;
 
-const BOOKING_STATUS_LABEL: Record<ConsultationBookingStatus, string> = {
-  PENDING_TRAINER_CONFIRMATION: "Ожидает подтверждения",
-  CONFIRMED: "Подтверждена",
-  CANCELLED_BY_TRAINER: "Отклонена вами",
-  CANCELLED_BY_USER: "Отменена клиентом",
-  CANCELLED_BY_SLA: "Отменена (истекло время)",
-  CANCELLED_BY_SYSTEM: "Отменена системой",
-  COMPLETED: "Завершена",
-  NO_SHOW: "Неявка",
-};
-
 interface TrainerConsultationsListProps {
   bookings: ConsultationBookingDto[];
 }
+
+type TrainerBookingFilter = "CONFIRMED" | "COMPLETED" | "CANCELLED";
+
+const FILTER_LABEL: Record<TrainerBookingFilter, string> = {
+  CONFIRMED: "Подтверждена",
+  COMPLETED: "Завершена",
+  CANCELLED: "Отменена",
+};
 
 function statusChipColor(
   status: ConsultationBookingStatus,
@@ -75,6 +76,7 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [filter, setFilter] = useState<TrainerBookingFilter>("CONFIRMED");
   const [rejectDialog, setRejectDialog] = useState<{
     bookingId: string;
     variant: "pending" | "confirmed";
@@ -98,6 +100,52 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
             keys: { operation: "confirm" },
           });
           setError("Ошибка подтверждения");
+        });
+      });
+    },
+    [router],
+  );
+
+  const handleComplete = useCallback(
+    (bookingId: string) => {
+      setError(null);
+      startTransition(() => {
+        void (async () => {
+          const res = await completeBookingTrainerAction(bookingId);
+          if (!res.success) {
+            setError(res.error);
+            return;
+          }
+          router.refresh();
+        })().catch((e) => {
+          reportClientError(e instanceof Error ? e : new Error(String(e)), {
+            issueKey: "TrainerConsultations",
+            keys: { operation: "complete" },
+          });
+          setError("Ошибка завершения консультации");
+        });
+      });
+    },
+    [router],
+  );
+
+  const handleNoShow = useCallback(
+    (bookingId: string) => {
+      setError(null);
+      startTransition(() => {
+        void (async () => {
+          const res = await markNoShowBookingTrainerAction(bookingId);
+          if (!res.success) {
+            setError(res.error);
+            return;
+          }
+          router.refresh();
+        })().catch((e) => {
+          reportClientError(e instanceof Error ? e : new Error(String(e)), {
+            issueKey: "TrainerConsultations",
+            keys: { operation: "no_show" },
+          });
+          setError("Ошибка выставления неявки");
         });
       });
     },
@@ -149,6 +197,26 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
       });
     });
   }, [rejectDialog, rejectReason, router]);
+
+  const visibleBookings = useMemo(() => {
+    const pendingBookings = bookings.filter((b) => b.status === "PENDING_TRAINER_CONFIRMATION");
+
+    const filtered = bookings.filter((b) => {
+      if (b.status === "PENDING_TRAINER_CONFIRMATION") {
+        return false;
+      }
+      if (filter === "CONFIRMED") {
+        return b.status === "CONFIRMED";
+      }
+      if (filter === "COMPLETED") {
+        return b.status === "COMPLETED";
+      }
+      const group = getConsultationBookingStatusGroup(b.status);
+      return group === "CANCELLED" || group === "NO_SHOW";
+    });
+
+    return [...pendingBookings, ...filtered];
+  }, [bookings, filter]);
 
   if (bookings.length === 0) {
     return <p className={styles.empty}>Пока нет заявок на консультации.</p>;
@@ -207,7 +275,22 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
           {error}
         </Alert>
       ) : null}
-      {bookings.map((b) => {
+      <div className={styles.filters}>
+        {(Object.keys(FILTER_LABEL) as TrainerBookingFilter[]).map((filterKey) => (
+          <Button
+            key={filterKey}
+            size="small"
+            variant={filter === filterKey ? "contained" : "outlined"}
+            onClick={() => setFilter(filterKey)}
+          >
+            {FILTER_LABEL[filterKey]}
+          </Button>
+        ))}
+      </div>
+      {visibleBookings.length === 0 ? (
+        <p className={styles.empty}>По выбранному фильтру заявок нет.</p>
+      ) : null}
+      {visibleBookings.map((b) => {
         const status = b.status as ConsultationBookingStatus;
         const pendingTrainer = status === "PENDING_TRAINER_CONFIRMATION";
         const confirmed = status === "CONFIRMED";
@@ -222,7 +305,9 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
           >
             <div className={styles.row}>
               <Chip
-                label={BOOKING_STATUS_LABEL[status] ?? status}
+                label={getConsultationBookingStatusPresentation(status, {
+                  cancelReason: b.cancelReason,
+                }).badge}
                 size="small"
                 color={statusChipColor(status)}
                 variant={pendingTrainer ? "filled" : "outlined"}
@@ -312,6 +397,24 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
             ) : null}
             {confirmed ? (
               <div className={styles.actions}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  disabled={pending}
+                  onClick={() => handleComplete(b.id)}
+                >
+                  Завершить
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  disabled={pending}
+                  onClick={() => handleNoShow(b.id)}
+                >
+                  Не состоялась
+                </Button>
                 <Button
                   size="small"
                   variant="outlined"

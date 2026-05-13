@@ -1,59 +1,88 @@
 #!/usr/bin/env node
-// Несколько BullMQ-воркеров подписываются на process (exit/SIGTERM) — увеличиваем лимит, чтобы убрать MaxListenersExceededWarning
-if (typeof process.setMaxListeners === "function") {
-  process.setMaxListeners(20);
-}
-
 import { createWorkerLogger } from "@gafus/logger";
 import { startHealthServer } from "./health-server";
+
+export const WORKER_PROCESS_MAX_LISTENERS = 64;
+
+export function configureProcessListenerLimit(): void {
+  if (typeof process.setMaxListeners !== "function") {
+    return;
+  }
+
+  process.setMaxListeners(Math.max(process.getMaxListeners(), WORKER_PROCESS_MAX_LISTENERS));
+}
+
+configureProcessListenerLimit();
 
 const logger = createWorkerLogger("bootstrap");
 logger.info("Bootstrapping...");
 
 startHealthServer();
 
-// Импортируем основную логику воркеров
-import "./push-worker";
-import "./reengagement-worker";
-import "./video-transcoding-worker";
-import { startConsentLogCleanupWorker } from "./consent-log-cleanup-worker";
-import { startExamCleanupWorker } from "./exam-cleanup-worker";
-import { startPetPreventionReminderWorker } from "./pet-prevention-reminder-worker";
-import { startConsultationMailWorker } from "./consultation-mail-worker";
-import { startConsultationReminderWorker } from "./consultation-reminder-worker";
-import { startConsultationSlaWorker } from "./consultation-sla-worker";
-import { setupConsentLogCleanupSchedule } from "./schedules/consent-log-cleanup-schedule";
-import { setupExamCleanupSchedule } from "./schedules/exam-cleanup-schedule";
-import { setupPetPreventionReminderSchedule } from "./schedules/pet-prevention-reminder-schedule";
-import { startCronJobs } from "./cron-scheduler";
+export async function startWorkers(): Promise<void> {
+  const [
+    ,
+    ,
+    ,
+    { startConsentLogCleanupWorker },
+    { startExamCleanupWorker },
+    { startPetPreventionReminderWorker },
+    { startConsultationMailWorker },
+    { startConsultationReminderWorker },
+    { startConsultationSlaWorker },
+    { setupConsentLogCleanupSchedule },
+    { setupExamCleanupSchedule },
+    { setupPetPreventionReminderSchedule },
+    { startCronJobs },
+  ] = await Promise.all([
+    import("./push-worker"),
+    import("./reengagement-worker"),
+    import("./video-transcoding-worker"),
+    import("./consent-log-cleanup-worker"),
+    import("./exam-cleanup-worker"),
+    import("./pet-prevention-reminder-worker"),
+    import("./consultation-mail-worker"),
+    import("./consultation-reminder-worker"),
+    import("./consultation-sla-worker"),
+    import("./schedules/consent-log-cleanup-schedule"),
+    import("./schedules/exam-cleanup-schedule"),
+    import("./schedules/pet-prevention-reminder-schedule"),
+    import("./cron-scheduler"),
+  ]);
 
-// Запускаем exam cleanup worker
-startExamCleanupWorker();
+  // Запускаем exam cleanup worker
+  startExamCleanupWorker();
 
-// Настраиваем расписание очистки
-setupExamCleanupSchedule().catch((error) => {
-  logger.error("Failed to setup exam cleanup schedule", error as Error);
+  // Настраиваем расписание очистки
+  setupExamCleanupSchedule().catch((error) => {
+    logger.error("Failed to setup exam cleanup schedule", error as Error);
+  });
+
+  // Запускаем consent log cleanup worker
+  startConsentLogCleanupWorker();
+
+  setupConsentLogCleanupSchedule().catch((error) => {
+    logger.error("Failed to setup consent log cleanup schedule", error as Error);
+  });
+
+  // Запускаем pet prevention reminder worker
+  startPetPreventionReminderWorker();
+
+  setupPetPreventionReminderSchedule().catch((error) => {
+    logger.error("Failed to setup pet prevention reminder schedule", error as Error);
+  });
+
+  startConsultationSlaWorker();
+  startConsultationMailWorker();
+  startConsultationReminderWorker();
+
+  // Запускаем cron-планировщик для re-engagement
+  startCronJobs();
+
+  logger.success("All workers are up and running 🚀");
+}
+
+export const workerBootstrapReady = startWorkers().catch((error) => {
+  logger.error("Failed to bootstrap workers", error as Error);
+  process.exit(1);
 });
-
-// Запускаем consent log cleanup worker
-startConsentLogCleanupWorker();
-
-setupConsentLogCleanupSchedule().catch((error) => {
-  logger.error("Failed to setup consent log cleanup schedule", error as Error);
-});
-
-// Запускаем pet prevention reminder worker
-startPetPreventionReminderWorker();
-
-setupPetPreventionReminderSchedule().catch((error) => {
-  logger.error("Failed to setup pet prevention reminder schedule", error as Error);
-});
-
-startConsultationSlaWorker();
-startConsultationMailWorker();
-startConsultationReminderWorker();
-
-// Запускаем cron-планировщик для re-engagement
-startCronJobs();
-
-logger.success("All workers are up and running 🚀");

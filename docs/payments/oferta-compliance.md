@@ -4,6 +4,8 @@
 
 При нажатии «Оплатить/Начать курс» создаётся запись в таблице `OfertaAcceptance` — фиксация согласия пользователя с условиями Оферты (п. 8.8, 8.9 oferta.html).
 
+Для подписки Gafus Premium оферта от 13.05.2026 отдельно фиксирует условия автопродления, сохранения способа оплаты в ЮKassa, отказа от использования сохранённых реквизитов и запрета списаний после такого отказа. Техническое подтверждение подписки хранится в сущностях `AppSubscription` и `AppSubscriptionPayment`; при отдельной доработке схемы можно расширить `OfertaAcceptance` для подписок без `courseId`.
+
 ## Схема OfertaAcceptance (Prisma)
 
 - `userId`, `courseId`, `paymentId` (nullable), `acceptedAt` (UTC), `ipAddress`, `userAgent`, `documentVersions` (JSON), `source` ("web" | "mobile")

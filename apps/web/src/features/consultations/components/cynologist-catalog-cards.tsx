@@ -43,13 +43,17 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
         Кинологи
       </h2>
       <ul className={styles.list}>
-        {cynologists.map((c) => {
+        {cynologists.map((c, index) => {
           const src = resolveAvatarUrl(c.avatarUrl);
           const about = plainConsultationAboutHtml(c.about);
           const title = c.displayName ?? "Кинолог";
 
           return (
-            <li key={c.id} className={styles.card}>
+            <li
+              key={c.id}
+              className={styles.card}
+              data-tour-target={index === 0 ? "consultations-first-card" : undefined}
+            >
               <Link
                 href={`/consultations/${c.userId}`}
                 className={styles.link}

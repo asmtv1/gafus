@@ -3,16 +3,8 @@ import { authOptions } from "@gafus/auth";
 import { redirect } from "next/navigation";
 
 import CacheManagement from "@/features/admin/components/CacheManagement";
-import { MobileAppFeaturesCard } from "@/features/admin/components/MobileAppFeaturesCard";
 import { AppSubscriptionSettingsCard } from "@/features/admin/components/AppSubscriptionSettingsCard";
 import StorageManagement from "@/features/admin/components/StorageManagement";
-import {
-  getAppSubscriptionGatingFlag,
-  getAppSubscriptionPaywallFlag,
-  getMobileIosRuCardPaymentFlag,
-  getMobileIosRuCardPaymentHintFlag,
-  getMobileVkLoginIosFlag,
-} from "@/features/admin/lib/getMobileVkLoginIosFlag";
 import {
   getStorageStats,
   type StorageStats,
@@ -37,19 +29,6 @@ export default async function AdminPage() {
     }
   }
 
-  const [
-    vkLoginOnIos,
-    iosRuCardPaymentHintEnabled,
-    iosRuCardPaymentEnabled,
-    appSubscriptionPaywallEnabled,
-    appSubscriptionGatingEnabled,
-  ] = await Promise.all([
-    getMobileVkLoginIosFlag(),
-    getMobileIosRuCardPaymentHintFlag(),
-    getMobileIosRuCardPaymentFlag(),
-    getAppSubscriptionPaywallFlag(),
-    getAppSubscriptionGatingFlag(),
-  ]);
   const appSubscriptionSettings = await getAppSubscriptionSettingsAction();
 
   return (
@@ -64,14 +43,6 @@ export default async function AdminPage() {
         {/* Управление хранилищем (только для ADMIN) */}
         {storageStats && <StorageManagement stats={storageStats} />}
 
-        <MobileAppFeaturesCard
-          actorRole={session.user.role}
-          initialVkLoginOnIos={vkLoginOnIos}
-          initialIosRuCardPaymentHintEnabled={iosRuCardPaymentHintEnabled}
-          initialIosRuCardPaymentEnabled={iosRuCardPaymentEnabled}
-          initialAppSubscriptionPaywallEnabled={appSubscriptionPaywallEnabled}
-          initialAppSubscriptionGatingEnabled={appSubscriptionGatingEnabled}
-        />
         <AppSubscriptionSettingsCard
           actorRole={session.user.role}
           initialYookassaWeeklyPriceRub={appSubscriptionSettings.yookassaWeeklyPriceRub}

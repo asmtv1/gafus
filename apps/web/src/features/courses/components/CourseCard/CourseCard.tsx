@@ -89,7 +89,7 @@ export const CourseCard = ({
   isFavorite: propIsFavorite,
   onUnfavorite,
   onPaidCourseClick,
-  index: _index = 0,
+  index = 0,
 }: CourseCardPropsWithIndex) => {
   const {
     markImageLoaded,
@@ -334,7 +334,10 @@ export const CourseCard = ({
   };
 
   return (
-    <li className={styles.courseCard}>
+    <li
+      className={styles.courseCard}
+      data-tour-target={index === 0 ? "courses-first-card" : undefined}
+    >
       <div className={styles.courseCardContent}>
         <Link
           href={`/trainings/${type}`}

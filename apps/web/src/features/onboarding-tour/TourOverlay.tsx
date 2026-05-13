@@ -3,13 +3,19 @@
 import { useMemo } from "react";
 
 import styles from "./TourOverlay.module.css";
-import type { WebOnboardingTourStep } from "./tour-steps";
+import type {
+  WebOnboardingTourCardAnchor,
+  WebOnboardingTourCardPlacement,
+  WebOnboardingTourStep,
+} from "./tour-steps";
 
 interface TourOverlayProps {
   step: WebOnboardingTourStep;
   stepIndex: number;
   totalSteps: number;
   targetRect: DOMRect | null;
+  cardPlacement?: WebOnboardingTourCardPlacement;
+  cardAnchor?: WebOnboardingTourCardAnchor;
   allowSkip?: boolean;
   onNext: () => void;
   onSkip: () => void;
@@ -20,11 +26,14 @@ export function TourOverlay({
   stepIndex,
   totalSteps,
   targetRect,
+  cardPlacement,
+  cardAnchor,
   allowSkip = true,
   onNext,
   onSkip,
 }: TourOverlayProps) {
   const isLastStep = stepIndex === totalSteps - 1;
+  const cardWidthExpr = "min(560px, calc(100vw - 24px))";
 
   const cardStyle = useMemo(() => {
     if (typeof window === "undefined") {
@@ -32,30 +41,48 @@ export function TourOverlay({
     }
     const margin = 12;
     const estimatedCardHeight = 260;
+    if (cardAnchor === "center") {
+      const centerTop = (window.innerHeight - estimatedCardHeight) / 2;
+      return {
+        left: `max(${margin}px, calc((100vw - ${cardWidthExpr}) / 2))`,
+        top: `${Math.max(margin, centerTop)}px`,
+      };
+    }
+    if (cardAnchor === "viewport") {
+      const bottomTop = window.innerHeight - estimatedCardHeight - margin;
+      return {
+        left: `max(${margin}px, calc((100vw - ${cardWidthExpr}) / 2))`,
+        top: `${Math.max(margin, bottomTop)}px`,
+      };
+    }
     const defaultTop = Math.max(margin, Math.round(window.innerHeight * 0.3));
     if (!targetRect) {
       return {
-        left: `max(${margin}px, calc((100vw - min(360px, calc(100vw - 24px))) / 2))`,
-        top: `${defaultTop}px`,
+        left: `max(${margin}px, calc((100vw - ${cardWidthExpr}) / 2))`,
+        top: cardPlacement === "above" ? `${margin}px` : `${defaultTop}px`,
       };
     }
 
-    const preferredBelowTop = targetRect.bottom + 12;
     const preferredAboveTop = targetRect.top - estimatedCardHeight - 12;
+    const preferredBelowTop = targetRect.bottom + 12;
     const maxTop = window.innerHeight - estimatedCardHeight - margin;
 
-    let top = preferredBelowTop;
-    if (preferredBelowTop > maxTop && preferredAboveTop >= margin) {
+    const shouldPreferAbove = cardPlacement === "above";
+    let top = shouldPreferAbove ? preferredAboveTop : preferredBelowTop;
+
+    if (shouldPreferAbove) {
+      top = margin;
+    } else if (preferredBelowTop > maxTop && preferredAboveTop >= margin) {
       top = preferredAboveTop;
     } else if (preferredBelowTop > maxTop) {
       top = maxTop;
     }
 
     return {
-      left: `max(${margin}px, calc((100vw - min(360px, calc(100vw - 24px))) / 2))`,
+      left: `max(${margin}px, calc((100vw - ${cardWidthExpr}) / 2))`,
       top: `${Math.max(margin, top)}px`,
     };
-  }, [targetRect]);
+  }, [cardAnchor, cardPlacement, targetRect]);
 
   return (
     <div className={styles.root}>

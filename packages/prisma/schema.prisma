@@ -1527,6 +1527,8 @@ enum ConsultationEmailType {
   CLIENT_CONSULTATION_REMINDER_30M
   /// Напоминание за 30 минут (кинолог)
   TRAINER_CONSULTATION_REMINDER_30M
+  /// Клиенту: тренер отметил, что подтверждённая консультация не состоялась
+  CLIENT_CONSULTATION_NO_SHOW
 }
 
 enum ConsultationEmailStatus {
