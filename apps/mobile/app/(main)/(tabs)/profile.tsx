@@ -246,8 +246,6 @@ const getRoleLabel = (role?: string) => {
       return "Модератор";
     case "TRAINER":
       return "Кинолог";
-    case "PREMIUM":
-      return "Премиум-пользователь";
     case "USER":
     default:
       return null;
@@ -263,8 +261,6 @@ const getRoleColor = (role?: string) => {
       return "#636128";
     case "TRAINER":
       return "#352E2E";
-    case "PREMIUM":
-      return "#B6C582";
     default:
       return "#636128";
   }

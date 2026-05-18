@@ -648,17 +648,22 @@ jobs:
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 
-            # 2. Start application services
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate prisma worker api
+            # 2. Apply database migrations before starting application containers.
+            # The Prisma service is a utility container; migrations must block deploy.
+            echo "🗄️ Applying Prisma migrations..."
+            docker-compose -f "$COMPOSE_PROD" run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
+
+            # 3. Start application services
+            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate worker api
             echo "⏳ Waiting for application services to be ready..."
             sleep 10
 
-            # 3. Start web services
+            # 4. Start web services
             docker-compose -f "$COMPOSE_PROD" up -d --force-recreate web trainer-panel admin-panel
             echo "⏳ Waiting for web services to be ready..."
             sleep 10
 
-            # 4. Start bull-board (critical for nginx)
+            # 5. Start bull-board (critical for nginx)
             docker-compose -f "$COMPOSE_PROD" up -d --force-recreate bull-board
             echo "⏳ Waiting for bull-board to be ready..."
             sleep 15
@@ -721,13 +726,6 @@ jobs:
             docker-compose -f "$COMPOSE_PROD" restart nginx
             echo "⏳ Waiting for nginx to be ready with SSL..."
             sleep 15
-
-            # Run Prisma migrations
-            echo "🗄️ Running Prisma migrations..."
-            docker-compose -f "$COMPOSE_PROD" exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
-
-            # Run migrations using the dedicated Prisma container
-            docker-compose -f "$COMPOSE_PROD" exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
 
             # Database seeds are run manually when needed
             # docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."

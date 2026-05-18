@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.4.6",
+    "version": "1.5.0",
     "orientation": "portrait",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -18,6 +18,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#dad3c1"
     },
+    "androidStatusBar": {
+      "backgroundColor": "#DAD3C1",
+      "translucent": false
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
@@ -30,10 +34,6 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "androidStatusBar": {
-        "backgroundColor": "#DAD3C1",
-        "translucent": false
-      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon-foreground.png",
         "backgroundColor": "#dad3c1"

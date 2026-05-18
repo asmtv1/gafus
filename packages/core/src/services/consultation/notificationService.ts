@@ -1,4 +1,5 @@
 import { ConsultationEmailStatus, ConsultationEmailType, prisma } from "@gafus/prisma";
+import { Prisma } from "@gafus/prisma";
 import {
   CONSULTATION_MAIL_JOB_ID,
   consultationMailQueue,
@@ -6,6 +7,14 @@ import {
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("core-consultation-notify");
+
+function isUniqueEmailLogViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return false;
+  }
+  const target = error.meta?.target;
+  return Array.isArray(target) && target.includes("bookingId") && target.includes("type");
+}
 
 function isTrainerRecipientType(type: ConsultationEmailType): boolean {
   return (
@@ -43,20 +52,30 @@ export async function resolveConsultationEmailRecipient(
 export async function enqueueConsultationEmail(
   bookingId: string,
   type: ConsultationEmailType,
-): Promise<void> {
+): Promise<"created" | "duplicate" | "no_recipient"> {
   const to = await resolveConsultationEmailRecipient(bookingId, type);
   if (!to) {
     logger.warn("Нет email у получателя, письмо не создано", { bookingId, type });
-    return;
+    return "no_recipient";
   }
-  const log = await prisma.consultationEmailLog.create({
-    data: {
-      bookingId,
-      type,
-      status: ConsultationEmailStatus.PENDING,
-      attempts: 0,
-    },
-  });
+  let log: { id: string };
+  try {
+    log = await prisma.consultationEmailLog.create({
+      data: {
+        bookingId,
+        type,
+        status: ConsultationEmailStatus.PENDING,
+        attempts: 0,
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (isUniqueEmailLogViolation(error)) {
+      logger.info("Письмо по консультации уже создано, дубль пропущен", { bookingId, type });
+      return "duplicate";
+    }
+    throw error;
+  }
 
   await consultationMailQueue.add(
     "send",
@@ -71,4 +90,5 @@ export async function enqueueConsultationEmail(
   );
 
   logger.info("enqueueConsultationEmail", { bookingId, type, emailLogId: log.id });
+  return "created";
 }

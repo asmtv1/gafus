@@ -5,7 +5,7 @@ export interface AuthUser {
   avatarUrl?: string | null;
   id: string;
   username: string;
-  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER";
   needsPhone?: boolean;
   passwordSetAt?: Date | null;
   // Сохраняем совместимость с базовыми полями next-auth

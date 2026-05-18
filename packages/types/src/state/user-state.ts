@@ -6,7 +6,7 @@ export interface UserData {
   id: string;
   username: string;
   phone: string;
-  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER";
   avatarUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;

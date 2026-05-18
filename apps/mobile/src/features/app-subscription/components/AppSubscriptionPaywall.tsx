@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,15 +8,19 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { fetchProducts, initConnection } from "expo-iap";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, FONTS, SPACING } from "@/constants";
 import { Text } from "react-native-paper";
-import { appSubscriptionApi } from "../api/appSubscriptionApi";
+import { appSubscriptionApi, type AppSubscriptionOfferDto } from "../api/appSubscriptionApi";
+import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
 import { yookassaAppSubscriptionPurchase } from "../lib/yookassaAppSubscriptionPurchase";
 import { usePaywallStore } from "../store/paywallStore";
@@ -25,14 +29,26 @@ const STATUS_QUERY_KEY = ["app-subscription", "status"] as const;
 const OFFER_QUERY_KEY = ["app-subscription", "offer"] as const;
 const STATUS_POLL_ATTEMPTS = 8;
 const STATUS_POLL_DELAY_MS = 1500;
+const BENEFITS = [
+  "Все курсы, тренировки и экзамены",
+  "Консультации с кинологом",
+  "Статьи и офлайн-материалы",
+  "Документы питомца и напоминания",
+] as const;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function formatPrice(price?: number | null) {
-  if (!price) return "200 ₽/неделю";
+  if (!price) return "—";
   return `${price.toLocaleString("ru-RU")} ₽/неделю`;
+}
+
+function extractDisplayPrice(product: unknown): string | null {
+  if (!product || typeof product !== "object") return null;
+  const value = (product as { displayPrice?: unknown }).displayPrice;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 async function pollActiveSubscription() {
@@ -47,21 +63,48 @@ async function pollActiveSubscription() {
 }
 
 export function AppSubscriptionPaywall() {
+  const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const close = usePaywallStore((s) => s.close);
   const reason = usePaywallStore((s) => s.reason);
   const [isPaying, setIsPaying] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
+    null,
+  );
 
   const offerQuery = useQuery({
     queryKey: OFFER_QUERY_KEY,
     queryFn: () => appSubscriptionApi.getOffer(),
     staleTime: 5 * 60_000,
   });
-  const offer = offerQuery.data?.data;
-  const price = formatPrice(offer?.yookassaPriceRub);
-  const canUseApple = Platform.OS === "ios" && Boolean(offer?.appleProductId);
-  const canUseYookassa = Platform.OS !== "ios" || Boolean(offer?.iosRuCardPaymentEnabled);
+  const offer = offerQuery.data?.success ? offerQuery.data.data : null;
+  useEffect(() => {
+    if (offer) setLastSuccessfulOffer(offer);
+  }, [offer]);
+
+  const effectiveOffer = offer ?? lastSuccessfulOffer;
+  const yookassaPriceText = formatPrice(effectiveOffer?.yookassaPriceRub);
+  const isIos = Platform.OS === "ios";
+  const canUseApple = isIos ? Boolean(effectiveOffer?.appleProductId) : false;
+  const canUseYookassa = isIos ? Boolean(effectiveOffer?.iosRuCardPaymentEnabled) : true;
+  const appleProductId = effectiveOffer?.appleProductId ?? null;
+  const applePriceQuery = useQuery({
+    queryKey: ["app-subscription", "apple-price", appleProductId],
+    enabled: isIos && Boolean(appleProductId),
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
+      if (!appleProductId) return null;
+      await initConnection();
+      const products = await fetchProducts({ skus: [appleProductId], type: "subs" });
+      return extractDisplayPrice(products?.[0]);
+    },
+  });
+  const price = isIos ? (applePriceQuery.data ?? yookassaPriceText) : yookassaPriceText;
+  const iosRuCardHint =
+    isIos && canUseYookassa ? `При оплате картой РФ: ${yookassaPriceText}.` : null;
+  const useCompactLayout = height < 760 || width < 380;
   const headline = useMemo(
     () =>
       reason === "onboarding"
@@ -78,10 +121,10 @@ export function AppSubscriptionPaywall() {
   };
 
   const handleApplePay = async () => {
-    if (!offer?.appleProductId || isPaying) return;
+    if (!effectiveOffer?.appleProductId || isPaying) return;
     setIsPaying(true);
     setPendingMessage(null);
-    const result = await runAppleAppSubscriptionPurchase(offer.appleProductId);
+    const result = await runAppleAppSubscriptionPurchase(effectiveOffer.appleProductId);
     setIsPaying(false);
     if (result.ok) {
       await finishSuccessfulPayment();
@@ -115,92 +158,133 @@ export function AppSubscriptionPaywall() {
     setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
+  const openLegalLink = (url: string) => {
+    void Linking.openURL(url);
+  };
+
   return (
     <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={close}>
-      <SafeAreaView style={styles.screen}>
-        <ScrollView contentContainerStyle={styles.content} bounces={false}>
-          <View style={styles.card}>
-            <Pressable style={styles.closeButton} onPress={close} accessibilityRole="button">
-              <MaterialCommunityIcons name="close" size={22} color="#352E2E" />
-            </Pressable>
+      <StatusBar hidden />
+      <SafeAreaView style={styles.screen} edges={["bottom"]}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: Math.max(insets.top + 14, 58) },
+            useCompactLayout && styles.contentCompact,
+          ]}
+          bounces={false}
+        >
+          <Pressable style={styles.backRow} onPress={close} hitSlop={12} accessibilityRole="button">
+            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+            <Text style={styles.backText}>Назад</Text>
+          </Pressable>
 
+          <View style={styles.header}>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>GAFUS PREMIUM</Text>
             </View>
-            <Text style={styles.title}>{headline}</Text>
-            <Text style={styles.subtitle}>
-              Получите полный доступ к тренировкам, экзаменам, документам питомца и помощи кинолога.
-            </Text>
-
-            <View style={styles.priceBox}>
-              <Text style={styles.price}>{price}</Text>
-              <Text style={styles.priceCaption}>
-                Автопродление можно отключить в профиле в любой момент.
-              </Text>
-            </View>
-
-            <View style={styles.benefits}>
-              {[
-                "Все курсы, тренировки и экзамены без ограничений",
-                "Консультации с кинологом и разбор сложных ситуаций",
-                "Статьи, офлайн-материалы и профилактика",
-                "Документы питомца и напоминания в одном месте",
-              ].map((benefit) => (
-                <View key={benefit} style={styles.benefitRow}>
-                  <MaterialCommunityIcons name="check-circle" size={20} color="#636128" />
-                  <Text style={styles.benefitText}>{benefit}</Text>
-                </View>
-              ))}
-            </View>
-
-            {pendingMessage ? <Text style={styles.pendingText}>{pendingMessage}</Text> : null}
-
-            {canUseApple ? (
-              <Pressable
-                style={[styles.primaryButton, isPaying && styles.disabledButton]}
-                onPress={handleApplePay}
-                disabled={isPaying || offerQuery.isLoading}
-              >
-                {isPaying ? <ActivityIndicator color="#ECE5D2" /> : null}
-                <Text style={styles.primaryButtonText}>
-                  {isPaying ? "Оформляем..." : "Оформить через App Store"}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {canUseYookassa ? (
-              <Pressable
-                style={[styles.secondaryPayButton, isPaying && styles.disabledButton]}
-                onPress={handleYookassaPay}
-                disabled={isPaying || offerQuery.isLoading}
-              >
-                <Text style={styles.secondaryPayButtonText}>
-                  {canUseApple ? "Оплатить картой" : "Оформить подписку"}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <Text style={styles.legalText}>
-              Нажимая кнопку оплаты, вы принимаете{" "}
-              <Text
-                style={styles.legalLink}
-                onPress={() => void Linking.openURL("https://gafus.ru/oferta.html")}
-              >
-                Оферту
-              </Text>
-              . Подписка продлевается автоматически; при оплате картой способ оплаты сохраняется
-              в ЮKassa, автопродление можно отключить в профиле.
-            </Text>
-
-            {offerQuery.isLoading ? (
-              <Text style={styles.muted}>Загружаем условия подписки...</Text>
-            ) : null}
-            {offerQuery.data && !offerQuery.data.success ? (
-              <Text style={styles.errorText}>
-                {offerQuery.data.error ?? "Не удалось загрузить условия."}
-              </Text>
-            ) : null}
           </View>
+
+          <Text style={[styles.title, useCompactLayout && styles.titleCompact]}>{headline}</Text>
+          <Text style={[styles.subtitle, useCompactLayout && styles.subtitleCompact]}>
+            Получите полный доступ к тренировкам, экзаменам, документам питомца и помощи кинолога.
+          </Text>
+
+          <View style={[styles.priceBox, useCompactLayout && styles.priceBoxCompact]}>
+            <View style={styles.priceHeader}>
+              <Text style={[styles.price, useCompactLayout && styles.priceCompact]}>{price}</Text>
+              <View style={styles.pricePill}>
+                <Text style={styles.pricePillText}>7 дней</Text>
+              </View>
+            </View>
+            <Text style={styles.priceCaption}>
+              Автопродление можно отключить в профиле в любой момент.
+            </Text>
+            {iosRuCardHint ? <Text style={styles.priceCaption}>{iosRuCardHint}</Text> : null}
+          </View>
+
+          {pendingMessage ? <Text style={styles.pendingText}>{pendingMessage}</Text> : null}
+
+          {canUseApple ? (
+            <Pressable
+              style={[styles.primaryButton, isPaying && styles.disabledButton]}
+              onPress={handleApplePay}
+              disabled={isPaying || offerQuery.isLoading}
+            >
+              {isPaying ? <ActivityIndicator color="#ECE5D2" /> : null}
+              <Text style={styles.primaryButtonText}>
+                {isPaying ? "Оформляем..." : "Оформить через App Store"}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {canUseYookassa ? (
+            <Pressable
+              style={[
+                canUseApple ? styles.secondaryPayButton : styles.primaryButton,
+                isPaying && styles.disabledButton,
+              ]}
+              onPress={handleYookassaPay}
+              disabled={isPaying || offerQuery.isLoading}
+            >
+              {isPaying && !canUseApple ? <ActivityIndicator color="#ECE5D2" /> : null}
+              <Text
+                style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}
+              >
+                {isPaying ? "Оформляем..." : canUseApple ? "Оплатить картой" : "Оформить подписку"}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <View style={[styles.benefits, useCompactLayout && styles.benefitsCompact]}>
+            {BENEFITS.map((benefit) => (
+              <View key={benefit} style={styles.benefitRow}>
+                <View style={styles.benefitIcon}>
+                  <MaterialCommunityIcons name="check" size={15} color="#F6F0DF" />
+                </View>
+                <Text style={styles.benefitText}>{benefit}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.legalText}>
+            Нажимая кнопку оплаты, вы принимаете{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.appleEula)}
+            >
+              Terms of Use (Apple EULA)
+            </Text>
+            ,{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}
+            >
+              Оферту
+            </Text>
+            {" "}и{" "}
+            <Text
+              style={styles.legalLink}
+              onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}
+            >
+              Политику конфиденциальности
+            </Text>
+            . Подписка продлевается автоматически. При оплате через App Store списание идет через
+            Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID
+            {canUseYookassa ? "; при оплате картой способ оплаты сохраняется в ЮKassa." : "."}
+          </Text>
+
+          {offerQuery.isLoading ? (
+            <Text style={styles.muted}>Загружаем условия подписки...</Text>
+          ) : null}
+          {applePriceQuery.isLoading && isIos && canUseApple ? (
+            <Text style={styles.muted}>Загружаем цену App Store...</Text>
+          ) : null}
+          {offerQuery.data && !offerQuery.data.success ? (
+            <Text style={styles.errorText}>
+              Не удалось загрузить условия подписки. Можно попробовать оплату ещё раз.
+            </Text>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -210,98 +294,142 @@ export function AppSubscriptionPaywall() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#D8D2BF",
+    backgroundColor: "#F6F0DF",
   },
   content: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: SPACING.lg,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 14,
   },
-  card: {
-    position: "relative",
-    overflow: "hidden",
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: "#A9A77A",
-    backgroundColor: "#F6F0DF",
-    padding: SPACING.lg,
-    gap: SPACING.md,
-    shadowColor: "#352E2E",
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 8,
+  contentCompact: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    gap: 10,
   },
-  closeButton: {
-    position: "absolute",
-    top: 14,
-    right: 14,
-    zIndex: 2,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  header: {
+    minHeight: 36,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.64)",
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+  },
+  backText: {
+    marginLeft: 2,
+    color: COLORS.primary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 18,
   },
   badge: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    backgroundColor: "#E1E8C9",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    alignSelf: "stretch",
+    alignItems: "center",
   },
   badgeText: {
     fontFamily: FONTS.impact,
-    color: COLORS.primary,
-    fontSize: 13,
-    letterSpacing: 1,
+    color: "#C9A646",
+    fontSize: 28,
+    lineHeight: 32,
+    textAlign: "center",
+    textShadowColor: "rgba(255, 232, 152, 0.75)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   title: {
     fontFamily: FONTS.impact,
     color: "#352E2E",
-    fontSize: 34,
-    lineHeight: 38,
-    maxWidth: 520,
+    fontSize: 26,
+    lineHeight: 30,
+    textAlign: "center",
+  },
+  titleCompact: {
+    fontSize: 24,
+    lineHeight: 28,
   },
   subtitle: {
     fontFamily: FONTS.montserrat,
     color: "#4E4743",
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  subtitleCompact: {
+    fontSize: 13,
+    lineHeight: 19,
   },
   priceBox: {
-    borderRadius: 20,
+    borderRadius: 18,
     backgroundColor: "#636128",
-    padding: SPACING.md,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  priceBoxCompact: {
+    paddingVertical: 13,
+  },
+  priceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
   price: {
     fontFamily: FONTS.impact,
     color: "#F6F0DF",
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 32,
+  },
+  priceCompact: {
+    fontSize: 26,
+    lineHeight: 30,
+  },
+  pricePill: {
+    borderRadius: 999,
+    backgroundColor: "rgba(246, 240, 223, 0.16)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  pricePillText: {
+    fontFamily: FONTS.montserratMedium,
+    color: "#F6F0DF",
+    fontSize: 12,
   },
   priceCaption: {
-    marginTop: 6,
+    marginTop: 8,
     fontFamily: FONTS.montserrat,
     color: "#ECE5D2",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   benefits: {
-    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(99, 97, 40, 0.18)",
+    paddingTop: 4,
+    gap: 8,
+  },
+  benefitsCompact: {
+    gap: 7,
   },
   benefitRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
+    alignItems: "center",
+    gap: 9,
+  },
+  benefitIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#636128",
   },
   benefitText: {
     flex: 1,
     fontFamily: FONTS.montserrat,
     color: "#352E2E",
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 20,
   },
   pendingText: {
     borderRadius: 14,
@@ -312,8 +440,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   primaryButton: {
-    minHeight: 54,
-    borderRadius: 18,
+    minHeight: 56,
+    borderRadius: 20,
     backgroundColor: "#636128",
     alignItems: "center",
     justifyContent: "center",
@@ -324,7 +452,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: FONTS.impact,
     color: "#ECE5D2",
-    fontSize: 17,
+    fontSize: 18,
   },
   secondaryPayButton: {
     minHeight: 52,
@@ -351,13 +479,14 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: FONTS.montserrat,
     color: "#9B2F1C",
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 17,
   },
   legalText: {
     fontFamily: FONTS.montserrat,
     color: "#5F5750",
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
   },
   legalLink: {
     color: COLORS.primary,

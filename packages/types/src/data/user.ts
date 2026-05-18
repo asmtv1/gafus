@@ -33,7 +33,7 @@ export interface UserWithTrainings {
 
 export interface PublicProfile {
   username: string;
-  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER";
   profile: {
     fullName: string | null;
     birthDate: Date | null;

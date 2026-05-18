@@ -1269,7 +1269,6 @@ enum UserRole {
   TRAINER
   ADMIN
   MODERATOR
-  PREMIUM
 }
 
 enum PetType {
@@ -1525,6 +1524,8 @@ enum ConsultationEmailType {
   CLIENT_BOOKING_TELEMOST_FAILED
   /// Напоминание за 30 минут (клиент)
   CLIENT_CONSULTATION_REMINDER_30M
+  /// Клиенту: консультация начинается прямо сейчас
+  CLIENT_CONSULTATION_START
   /// Напоминание за 30 минут (кинолог)
   TRAINER_CONSULTATION_REMINDER_30M
   /// Клиенту: тренер отметил, что подтверждённая консультация не состоялась
@@ -1670,6 +1671,7 @@ model ConsultationEmailLog {
 
   booking ConsultationBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
+  @@unique([bookingId, type])
   @@index([bookingId, type])
 }
 

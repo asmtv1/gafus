@@ -7,6 +7,7 @@ import cron from "node-cron";
 import { scheduleReengagementCampaigns } from "@gafus/reengagement";
 import { recordDailyMetrics } from "@gafus/reengagement";
 import { createWorkerLogger } from "@gafus/logger";
+import { reconcileMissedConsultationReminders } from "@gafus/core/services/consultation";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
 import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-renewals";
@@ -100,12 +101,30 @@ export function startCronJobs(): void {
     { timezone: "UTC" },
   );
 
+  // Задача 5: страховочная догонялка консультационных уведомлений (каждую минуту)
+  cron.schedule(
+    "* * * * *",
+    async () => {
+      logger.info("Запуск reconciliation консультационных напоминаний");
+      try {
+        const result = await reconcileMissedConsultationReminders();
+        if (result.triggered30m > 0 || result.triggeredStart > 0) {
+          logger.warn("Reconciliation догнал консультационные уведомления", result);
+        }
+      } catch (error) {
+        logger.error("Ошибка reconciliation консультационных напоминаний", error as Error);
+      }
+    },
+    { timezone: "UTC" },
+  );
+
   logger.success("Cron-планировщик запущен", {
     tasks: [
       "Re-engagement планировщик: ежедневно в 8:00 МСК",
       "Сбор метрик: ежедневно в 23:55 МСК",
       "Напоминания о тренировках: каждую минуту (UTC)",
       "Напоминания и продления app subscription: каждые 15 минут (UTC)",
+      "Reconciliation консультационных напоминаний: каждую минуту (UTC)",
     ],
   });
 }

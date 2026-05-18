@@ -14,6 +14,7 @@ import {
   EventNote,
   CalendarMonth,
   Flag,
+  CardMembership,
   Menu,
   Close,
 } from "@mui/icons-material";
@@ -68,6 +69,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       href: "/main-panel/purchases",
       icon: ShoppingCart,
       label: "Покупки курсов",
+      show: ["ADMIN", "MODERATOR"].includes(userRole),
+    },
+    {
+      href: "/main-panel/app-subscriptions",
+      icon: CardMembership,
+      label: "Подписки",
       show: ["ADMIN", "MODERATOR"].includes(userRole),
     },
     {

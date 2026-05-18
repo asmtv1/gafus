@@ -1,7 +1,7 @@
 "use client";
 
 import { reportClientError } from "@gafus/error-handling";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import UsersTable from "@/app/(main)/main-panel/users/UsersTable";
@@ -37,9 +37,10 @@ type SortDirection = "asc" | "desc";
 
 export default function UsersClient({ users, actorRole }: UsersClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "");
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [message, setMessage] = useState<{

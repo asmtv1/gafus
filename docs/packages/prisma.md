@@ -263,7 +263,6 @@ enum UserRole {
   TRAINER
   ADMIN
   MODERATOR
-  PREMIUM
 }
 ```
 

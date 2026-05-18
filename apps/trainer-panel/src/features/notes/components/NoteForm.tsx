@@ -130,6 +130,7 @@ export default function NoteForm({
     
     if (validEntries.length === 0) {
       setFormState({ success: false, error: "Добавьте хотя бы одну текстовую запись" });
+      setIsSubmitting(false);
       return;
     }
     

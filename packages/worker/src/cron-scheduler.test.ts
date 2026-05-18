@@ -42,18 +42,26 @@ vi.mock("./app-subscription-renewal-reminders", () => ({
   }),
 }));
 
+vi.mock("@gafus/core/services/consultation", () => ({
+  reconcileMissedConsultationReminders: vi.fn().mockResolvedValue({
+    checked: 0,
+    triggered30m: 0,
+    triggeredStart: 0,
+  }),
+}));
+
 describe("cron-scheduler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("startCronJobs", () => {
-    it("регистрирует 4 cron задачи", async () => {
+    it("регистрирует 5 cron задач", async () => {
       const { startCronJobs } = await import("./cron-scheduler");
 
       startCronJobs();
 
-      expect(mockSchedule).toHaveBeenCalledTimes(4);
+      expect(mockSchedule).toHaveBeenCalledTimes(5);
     });
   });
 });

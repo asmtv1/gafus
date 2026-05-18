@@ -50,6 +50,8 @@ function subjectForType(t: ConsultationEmailType): string {
       return `Техническая ошибка бронирования${SUBJECT_BRAND}`;
     case "CLIENT_CONSULTATION_REMINDER_30M":
       return `Напоминание: консультация скоро${SUBJECT_BRAND}`;
+    case "CLIENT_CONSULTATION_START":
+      return `Консультация начинается${SUBJECT_BRAND}`;
     case "TRAINER_CONSULTATION_REMINDER_30M":
       return `Напоминание: консультация скоро${SUBJECT_BRAND}`;
     case "CLIENT_CONSULTATION_NO_SHOW":
@@ -604,6 +606,36 @@ function buildPayload(
         ctaButtonHtml(panelUrl, "Панель заявок"),
         plainLinkFallbackHtml(panelUrl),
       );
+      return { text, blocksHtml: blocks };
+    }
+    case "CLIENT_CONSULTATION_START": {
+      const myUrl = getWebMyConsultationsUrl();
+      const joinUrl = b.telemostJoinUrl?.trim() ?? "";
+      const text = [
+        "Здравствуйте!",
+        "",
+        `Ваша консультация с кинологом ${cynNamePlain} начинается прямо сейчас.`,
+        "",
+        "Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт.",
+        joinUrl ? `Ссылка: ${joinUrl}` : "Ссылка в разделе «Мои консультации».",
+        myUrl,
+        "",
+        "С уважением,",
+        "команда Гафус",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const blocks: string[] = [
+        paragraphHtml("Здравствуйте!"),
+        paragraphHtml(`Ваша консультация с кинологом ${cynNameHtml} начинается прямо сейчас.`),
+        paragraphHtml("Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт."),
+      ];
+      if (joinUrl) {
+        blocks.push(ctaButtonHtml(joinUrl, "Открыть Телемост"), plainLinkFallbackHtml(joinUrl));
+      } else {
+        blocks.push(paragraphHtml("Ссылка на встречу в разделе «Мои консультации» на сайте."));
+      }
+      blocks.push(ctaButtonHtml(myUrl, "Мои консультации"), plainLinkFallbackHtml(myUrl));
       return { text, blocksHtml: blocks };
     }
     case "CLIENT_CONSULTATION_NO_SHOW": {

@@ -56,4 +56,4 @@ Alloy — headless сервис (без UI). Не экспонирует пор�
 - **401 Unauthorized:** Невалидный API-ключ. Проверить сервис-аккаунт и ключ в Yandex Cloud.
 - **403 Forbidden:** У сервис-аккаунта нет роли `monitoring.editor` на папку.
 - **Ошибки remote_write:** queue_config, metadata_config — см. [prometheus.remote_write](https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.remote_write/)
-- **Alloy ready check:** `docker exec gafus-alloy wget -qO- http://localhost:12345/-/ready`
+- **Alloy ready check:** `docker exec gafus-alloy sh -lc "grep -q ':3039 .* 0A ' /proc/net/tcp /proc/net/tcp6"`

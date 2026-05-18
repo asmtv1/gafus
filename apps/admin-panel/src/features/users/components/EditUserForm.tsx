@@ -34,7 +34,6 @@ const roleOptions = [
   { value: "TRAINER", label: "Тренер" },
   { value: "MODERATOR", label: "Модератор" },
   { value: "ADMIN", label: "Администратор" },
-  { value: "PREMIUM", label: "Премиум" },
 ];
 
 export default function EditUserForm({ user, actorRole, open, onClose }: EditUserFormProps) {

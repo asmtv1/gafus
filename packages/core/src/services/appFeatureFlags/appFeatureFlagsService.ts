@@ -4,8 +4,8 @@ import { prisma } from "@gafus/prisma";
 export const APP_FEATURE_MOBILE_VK_LOGIN_IOS = "mobile_vk_login_ios";
 /** Подсказка про оплату картами РФ на iOS в карточках платных курсов. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
-/** Семантический алиас для iOS-кнопки оплаты картой РФ на paywall. */
-export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT;
+/** Кнопка оплаты картой РФ на iOS paywall. */
+export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment";
 /** Включает автоматический показ paywall подписки в клиентах. */
 export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
 /** Включает server-side блокировку платных действий без подписки. */
@@ -62,11 +62,15 @@ export async function getMobileAppPublicConfig(): Promise<{
     APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
     false,
   );
+  const iosRuCardPaymentEnabled = await getAppFeatureFlagEnabled(
+    APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+    false,
+  );
   return {
     vkLoginEnabledOnIos,
     appSubscriptionPaywallEnabled,
     appSubscriptionGatingEnabled,
-    iosRuCardPaymentEnabled: iosRuCardPaymentHintEnabled,
+    iosRuCardPaymentEnabled,
     iosRuCardPaymentHintEnabled,
   };
 }

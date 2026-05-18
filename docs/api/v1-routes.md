@@ -681,7 +681,7 @@
     "id": "uuid",
     "username": "string",
     "phone": "string",
-    "role": "USER | TRAINER | ADMIN | MODERATOR | PREMIUM",
+    "role": "USER | TRAINER | ADMIN | MODERATOR",
     "isConfirmed": true,
     "hasAppPassword": true,
     "profile": {
@@ -754,7 +754,7 @@
 
 **Response (success):** `{ "success": true }`
 
-**Ошибки:** 401 (неверный пароль), 403 (роль не USER/PREMIUM и т.п.), 400 (валидация), 409 (конфликт данных), 500.
+**Ошибки:** 401 (неверный пароль), 403 (роль не USER и т.п.), 400 (валидация), 409 (конфликт данных), 500.
 
 ---
 

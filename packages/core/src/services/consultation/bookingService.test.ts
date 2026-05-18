@@ -14,6 +14,7 @@ const createTelemostConference = vi.fn();
 const queueAdd = vi.fn();
 const removeConsultationSlaJob = vi.fn();
 const removeConsultationReminderJob = vi.fn();
+const sendImmediatePushNotification = vi.fn();
 
 vi.mock("./notificationService", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
@@ -21,6 +22,10 @@ vi.mock("./notificationService", () => ({
 
 vi.mock("./telemostService", () => ({
   createTelemostConference: (...a: unknown[]) => createTelemostConference(...a),
+}));
+
+vi.mock("@gafus/webpush", () => ({
+  sendImmediatePushNotification: (...a: unknown[]) => sendImmediatePushNotification(...a),
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -36,7 +41,7 @@ vi.mock("@gafus/queues", () => ({
   consultationSlaQueue: { add: (...a: unknown[]) => queueAdd(...a) },
   consultationReminderQueue: { add: (...a: unknown[]) => queueAdd(...a) },
   CONSULTATION_SLA_JOB_ID: (id: string) => `sla:${id}`,
-  CONSULTATION_REMINDER_JOB_ID: (id: string) => `reminder:${id}`,
+  CONSULTATION_REMINDER_JOB_ID: (id: string, kind: string) => `reminder:${id}:${kind}`,
   removeConsultationSlaJob: (...a: unknown[]) => removeConsultationSlaJob(...a),
   removeConsultationReminderJob: (...a: unknown[]) => removeConsultationReminderJob(...a),
 }));
@@ -49,6 +54,7 @@ const {
   prismaUpdateBooking,
   prismaUpsertIdem,
   prismaFindUniqueBooking,
+  prismaFindManyBooking,
   prismaTransaction,
 } = vi.hoisted(() => ({
   idemFindUnique: vi.fn(),
@@ -58,6 +64,7 @@ const {
   prismaUpdateBooking: vi.fn(),
   prismaUpsertIdem: vi.fn(),
   prismaFindUniqueBooking: vi.fn(),
+  prismaFindManyBooking: vi.fn(),
   prismaTransaction: vi.fn(),
 }));
 
@@ -76,10 +83,15 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
         ...mod.prisma.consultationBooking,
         update: prismaUpdateBooking,
         findUnique: prismaFindUniqueBooking,
+        findMany: prismaFindManyBooking,
       },
       $transaction: prismaTransaction,
     },
   };
+});
+
+beforeEach(() => {
+  sendImmediatePushNotification.mockResolvedValue({ success: true });
 });
 
 describe("processBookingSlaTimeout", () => {
@@ -130,6 +142,98 @@ describe("processBookingSlaTimeout", () => {
   });
 });
 
+describe("processConsultationReminder", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("в момент старта отправляет клиенту email и push о начале консультации", async () => {
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-start",
+      clientId: "client-1",
+      status: ConsultationBookingStatus.CONFIRMED,
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+      cynologist: { user: { id: "trainer-1" } },
+      client: { id: "client-1" },
+    });
+
+    const { processConsultationReminder } = await import("./bookingService");
+    await processConsultationReminder("b-start", "start");
+
+    expect(enqueueConsultationEmail).toHaveBeenCalledWith(
+      "b-start",
+      "CLIENT_CONSULTATION_START",
+    );
+    expect(enqueueConsultationEmail).toHaveBeenCalledTimes(1);
+    expect(sendImmediatePushNotification).toHaveBeenCalledWith({
+      userId: "client-1",
+      title: "Консультация начинается",
+      body: "Ваша консультация начинается прямо сейчас. Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт.",
+      url: "/consultations/my",
+    });
+  });
+
+  it("не дублирует push, если стартовое письмо уже было создано другим процессом", async () => {
+    enqueueConsultationEmail.mockResolvedValueOnce("duplicate");
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-start-duplicate",
+      clientId: "client-1",
+      status: ConsultationBookingStatus.CONFIRMED,
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+      cynologist: { user: { id: "trainer-1" } },
+      client: { id: "client-1" },
+    });
+
+    const { processConsultationReminder } = await import("./bookingService");
+    await processConsultationReminder("b-start-duplicate", "start");
+
+    expect(sendImmediatePushNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe("reconcileMissedConsultationReminders", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-18T10:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("догоняет пропущенное стартовое уведомление, если нет клиентского email-log", async () => {
+    prismaFindManyBooking.mockResolvedValue([
+      {
+        id: "b-missed-start",
+        clientId: "client-1",
+        status: ConsultationBookingStatus.CONFIRMED,
+        slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+        cynologist: { user: { id: "trainer-1" } },
+        client: { id: "client-1" },
+        emailLogs: [],
+      },
+    ]);
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-missed-start",
+      clientId: "client-1",
+      status: ConsultationBookingStatus.CONFIRMED,
+      slot: { startAt: new Date("2026-05-18T10:00:00.000Z") },
+      cynologist: { user: { id: "trainer-1" } },
+      client: { id: "client-1" },
+    });
+
+    const { reconcileMissedConsultationReminders } = await import("./bookingService");
+    const result = await reconcileMissedConsultationReminders();
+
+    expect(result).toEqual({ checked: 1, triggered30m: 0, triggeredStart: 1 });
+    expect(enqueueConsultationEmail).toHaveBeenCalledWith(
+      "b-missed-start",
+      "CLIENT_CONSULTATION_START",
+    );
+  });
+});
+
 describe("markBookingNoShowByTrainer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -153,6 +257,45 @@ describe("markBookingNoShowByTrainer", () => {
     expect(enqueueConsultationEmail).toHaveBeenCalledWith(
       "b-no-show",
       "CLIENT_CONSULTATION_NO_SHOW",
+    );
+  });
+});
+
+describe("confirmBookingByTrainer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("после подтверждения планирует клиентские напоминания за 30 минут и на момент старта", async () => {
+    const startAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-confirm",
+      clientId: "client-1",
+      status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+      cynologist: { userId: "trainer-1" },
+      slot: { startAt },
+    });
+
+    const { confirmBookingByTrainer } = await import("./bookingService");
+    await confirmBookingByTrainer("trainer-1", "TRAINER", "b-confirm");
+
+    expect(queueAdd).toHaveBeenCalledWith(
+      "remind-30m",
+      { bookingId: "b-confirm", kind: "30m" },
+      expect.objectContaining({
+        jobId: "reminder:b-confirm:30m",
+        delay: expect.any(Number),
+        attempts: 5,
+      }),
+    );
+    expect(queueAdd).toHaveBeenCalledWith(
+      "remind-start",
+      { bookingId: "b-confirm", kind: "start" },
+      expect.objectContaining({
+        jobId: "reminder:b-confirm:start",
+        delay: expect.any(Number),
+        attempts: 5,
+      }),
     );
   });
 });

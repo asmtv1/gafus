@@ -67,7 +67,6 @@ const roleColors = {
   TRAINER: "primary",
   MODERATOR: "warning",
   ADMIN: "error",
-  PREMIUM: "success",
 } as const;
 
 const roleLabels = {
@@ -75,7 +74,6 @@ const roleLabels = {
   TRAINER: "Тренер",
   MODERATOR: "Модератор",
   ADMIN: "Администратор",
-  PREMIUM: "Премиум",
 } as const;
 
 const registrationChannelLabels: Record<string, string> = {

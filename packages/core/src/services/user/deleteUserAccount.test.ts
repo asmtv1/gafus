@@ -140,7 +140,7 @@ describe("deleteUserAccount", () => {
     expect(mockDeleteFileFromCDN).toHaveBeenCalledTimes(2);
   });
 
-  it("allows PREMIUM with valid code", async () => {
+  it("rejects legacy PREMIUM role", async () => {
     mockUserFindUnique.mockResolvedValue({
       id: "u1",
       username: "prem",
@@ -150,7 +150,12 @@ describe("deleteUserAccount", () => {
 
     const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
 
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({
+      success: false,
+      code: "FORBIDDEN",
+      error: expect.stringContaining("Удаление аккаунта доступно только для пользователей") as string,
+    });
+    expect(mockTransaction).not.toHaveBeenCalled();
   });
 
   it("rejects missing or wrong code", async () => {

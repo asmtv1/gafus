@@ -1,0 +1,224 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { getAppSubscriptionAdminDashboard } from "../adminService";
+
+const mockSubscriptionFindMany = vi.fn();
+const mockPaymentFindMany = vi.fn();
+
+vi.mock("@gafus/prisma", () => ({
+  prisma: {
+    appSubscription: {
+      findMany: (...args: unknown[]) => mockSubscriptionFindMany(...args),
+    },
+    appSubscriptionPayment: {
+      findMany: (...args: unknown[]) => mockPaymentFindMany(...args),
+    },
+  },
+}));
+
+describe("getAppSubscriptionAdminDashboard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns human dashboard metrics and rows for active, churned, canceled renewal, and past due subscriptions", async () => {
+    mockSubscriptionFindMany.mockResolvedValue([
+      {
+        id: "active-yoo",
+        provider: "YOOKASSA",
+        status: "ACTIVE",
+        isLifetime: false,
+        currentPeriodStart: new Date("2026-05-10T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-24T10:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        yookassaPaymentMethodLast4: "4444",
+        yookassaPaymentMethodTitle: "МИР *4444",
+        appleProductId: null,
+        manualReason: null,
+        createdAt: new Date("2026-05-10T09:50:00.000Z"),
+        updatedAt: new Date("2026-05-10T10:05:00.000Z"),
+        user: {
+          id: "u1",
+          username: "active",
+          email: "active@example.com",
+          phone: "+79990000001",
+          profile: { fullName: "Active User" },
+        },
+      },
+      {
+        id: "cancel-at-end",
+        provider: "APPLE",
+        status: "ACTIVE",
+        isLifetime: false,
+        currentPeriodStart: new Date("2026-05-12T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-19T10:00:00.000Z"),
+        cancelAtPeriodEnd: true,
+        canceledAt: new Date("2026-05-13T10:00:00.000Z"),
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+        appleProductId: "premium-week",
+        manualReason: null,
+        createdAt: new Date("2026-05-12T09:50:00.000Z"),
+        updatedAt: new Date("2026-05-13T10:05:00.000Z"),
+        user: {
+          id: "u2",
+          username: "cancel",
+          email: null,
+          phone: "+79990000002",
+          profile: { fullName: null },
+        },
+      },
+      {
+        id: "expired-yoo",
+        provider: "YOOKASSA",
+        status: "EXPIRED",
+        isLifetime: false,
+        currentPeriodStart: new Date("2026-05-01T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-08T10:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        yookassaPaymentMethodLast4: "5555",
+        yookassaPaymentMethodTitle: "Visa *5555",
+        appleProductId: null,
+        manualReason: null,
+        createdAt: new Date("2026-05-01T09:50:00.000Z"),
+        updatedAt: new Date("2026-05-08T10:05:00.000Z"),
+        user: {
+          id: "u3",
+          username: "expired",
+          email: "expired@example.com",
+          phone: null,
+          profile: { fullName: "Expired User" },
+        },
+      },
+      {
+        id: "past-due",
+        provider: "YOOKASSA",
+        status: "PAST_DUE",
+        isLifetime: false,
+        currentPeriodStart: new Date("2026-05-10T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-15T10:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        yookassaPaymentMethodLast4: "6666",
+        yookassaPaymentMethodTitle: "Mastercard *6666",
+        appleProductId: null,
+        manualReason: null,
+        createdAt: new Date("2026-05-10T09:50:00.000Z"),
+        updatedAt: new Date("2026-05-15T10:05:00.000Z"),
+        user: {
+          id: "u4",
+          username: "pastdue",
+          email: null,
+          phone: null,
+          profile: { fullName: null },
+        },
+      },
+      {
+        id: "manual-life",
+        provider: "MANUAL",
+        status: "ACTIVE",
+        isLifetime: true,
+        currentPeriodStart: new Date("2026-05-11T10:00:00.000Z"),
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+        appleProductId: null,
+        manualReason: "Компенсация",
+        createdAt: new Date("2026-05-11T09:50:00.000Z"),
+        updatedAt: new Date("2026-05-11T10:05:00.000Z"),
+        user: {
+          id: "u5",
+          username: "manual",
+          email: "manual@example.com",
+          phone: null,
+          profile: { fullName: "Manual User" },
+        },
+      },
+    ]);
+    mockPaymentFindMany.mockResolvedValue([
+      {
+        subscriptionId: "active-yoo",
+        userId: "u1",
+        amount: { toString: () => "200.00" },
+        currency: "RUB",
+        kind: "INITIAL",
+        succeededAt: new Date("2026-05-10T10:00:30.000Z"),
+        createdAt: new Date("2026-05-10T09:59:00.000Z"),
+        updatedAt: new Date("2026-05-10T10:00:30.000Z"),
+      },
+      {
+        subscriptionId: "active-yoo",
+        userId: "u1",
+        amount: { toString: () => "200.00" },
+        currency: "RUB",
+        kind: "RENEWAL",
+        succeededAt: new Date("2026-05-17T10:00:30.000Z"),
+        createdAt: new Date("2026-05-17T09:59:00.000Z"),
+        updatedAt: new Date("2026-05-17T10:00:30.000Z"),
+      },
+      {
+        subscriptionId: "cancel-at-end",
+        userId: "u2",
+        amount: { toString: () => "199.00" },
+        currency: "RUB",
+        kind: "INITIAL",
+        succeededAt: new Date("2026-05-12T10:00:30.000Z"),
+        createdAt: new Date("2026-05-12T09:59:00.000Z"),
+        updatedAt: new Date("2026-05-12T10:00:30.000Z"),
+      },
+      {
+        subscriptionId: "expired-yoo",
+        userId: "u3",
+        amount: { toString: () => "200.00" },
+        currency: "RUB",
+        kind: "INITIAL",
+        succeededAt: new Date("2026-05-01T10:00:30.000Z"),
+        createdAt: new Date("2026-05-01T09:59:00.000Z"),
+        updatedAt: new Date("2026-05-01T10:00:30.000Z"),
+      },
+    ]);
+
+    const result = await getAppSubscriptionAdminDashboard(new Date("2026-05-17T12:00:00.000Z"));
+
+    expect(result.metrics).toEqual({
+      totalSubscriptions: 5,
+      activeNow: 3,
+      notRenewed: 1,
+      cancelAtPeriodEnd: 1,
+      pastDue: 1,
+      lifetime: 1,
+      totalSucceededPayments: 4,
+      totalRevenueRub: 799,
+    });
+    expect(result.rows).toHaveLength(5);
+    expect(result.rows[0]).toMatchObject({
+      id: "active-yoo",
+      isActiveNow: true,
+      boughtAt: "2026-05-10T10:00:30.000Z",
+      lastPaymentAt: "2026-05-17T10:00:30.000Z",
+      totalPaidRub: 400,
+      paymentsCount: 2,
+      attention: null,
+    });
+    expect(result.rows.find((row) => row.id === "expired-yoo")).toMatchObject({
+      isActiveNow: false,
+      attention: "not_renewed",
+      totalPaidRub: 200,
+    });
+    expect(result.rows.find((row) => row.id === "past-due")).toMatchObject({
+      isActiveNow: false,
+      attention: "past_due",
+    });
+    expect(result.rows.find((row) => row.id === "manual-life")).toMatchObject({
+      isActiveNow: true,
+      boughtAt: "2026-05-11T10:00:00.000Z",
+      activeUntil: null,
+      isLifetime: true,
+      attention: null,
+    });
+  });
+});

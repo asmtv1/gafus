@@ -66,7 +66,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user.id,
           username: user.username,
-          role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+          role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
         };
       },
     }),

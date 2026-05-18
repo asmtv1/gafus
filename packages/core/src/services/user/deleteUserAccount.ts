@@ -1,5 +1,5 @@
 /**
- * Необратимое удаление аккаунта (самообслуживание USER / PREMIUM).
+ * Необратимое удаление аккаунта (самообслуживание USER).
  * Подтверждение — одноразовый 6-значный код из письма на email профиля.
  */
 
@@ -52,7 +52,7 @@ export type RequestAccountDeletionCodeResult =
       code?: DeleteUserAccountErrorCode;
     };
 
-const ROLE_SELF_DELETE = new Set(["USER", "PREMIUM"]);
+const ROLE_SELF_DELETE = new Set(["USER"]);
 
 function randomSixDigitCode(): string {
   const n = crypto.randomInt(0, 1_000_000);

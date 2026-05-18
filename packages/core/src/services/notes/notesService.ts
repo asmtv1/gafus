@@ -8,6 +8,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { getErrorMessage, handlePrismaError } from "@gafus/core/errors";
+import { createImmediatePushNotification } from "@gafus/core/services/notifications";
 import type {
   CreateTrainerNoteInput,
   UpdateTrainerNoteInput,
@@ -16,6 +17,11 @@ import type {
 } from "./schemas";
 
 const logger = createWebLogger("trainer-notes");
+const STUDENT_NOTE_PUSH = {
+  title: "Новая заметка",
+  body: "Тренер добавил вам заметку",
+  url: "/profile",
+} as const;
 
 /** Результат пагинированного списка */
 export interface PagerResult<T> {
@@ -73,6 +79,38 @@ export interface StudentNote {
     } | null;
   };
   createdAt: Date | string;
+}
+
+async function notifyStudentsAboutVisibleNote(studentIds: string[]): Promise<void> {
+  const uniqueStudentIds = [...new Set(studentIds)];
+
+  await Promise.all(
+    uniqueStudentIds.map(async (studentId) => {
+      try {
+        await createImmediatePushNotification({
+          userId: studentId,
+          title: STUDENT_NOTE_PUSH.title,
+          body: STUDENT_NOTE_PUSH.body,
+          url: STUDENT_NOTE_PUSH.url,
+        });
+      } catch (error) {
+        logger.error("Ошибка при создании push-уведомления о заметке", error as Error, {
+          studentId,
+        });
+      }
+    }),
+  );
+}
+
+function getVisibleEntryContents(
+  entries: { content: string; isVisibleToStudent?: boolean | null }[],
+): Set<string> {
+  return new Set(
+    entries
+      .filter((entry) => entry.isVisibleToStudent === true)
+      .map((entry) => entry.content.trim())
+      .filter((content) => content.length > 0),
+  );
 }
 
 /**
@@ -183,6 +221,10 @@ export async function createTrainerNote(
       });
     });
 
+    if (input.entries.some((entry) => entry.isVisibleToStudent === true)) {
+      await notifyStudentsAboutVisibleNote(input.studentIds);
+    }
+
     logger.info("Заметка создана", { trainerId, studentIds: input.studentIds });
     return { success: true };
   } catch (error) {
@@ -215,7 +257,12 @@ export async function updateTrainerNote(
   try {
     const note = await prisma.trainerNote.findUnique({
       where: { id: input.id },
-      select: { id: true, trainerId: true },
+      select: {
+        id: true,
+        trainerId: true,
+        students: { select: { studentId: true } },
+        entries: { select: { content: true, isVisibleToStudent: true } },
+      },
     });
     if (!note) {
       return { success: false, error: "Заметка не найдена" };
@@ -274,6 +321,34 @@ export async function updateTrainerNote(
         data: updateData,
       });
     });
+
+    const previousStudentIds = note.students.map((student) => student.studentId);
+    const nextStudentIds = input.studentIds ?? previousStudentIds;
+    const previousVisibleContents = getVisibleEntryContents(note.entries);
+    const nextEntries = input.entries ?? note.entries;
+    const nextVisibleContents = getVisibleEntryContents(nextEntries);
+    const hasNewVisibleEntry =
+      input.entries?.some(
+        (entry) =>
+          entry.isVisibleToStudent === true &&
+          !previousVisibleContents.has(entry.content.trim()),
+      ) ?? false;
+    const previousStudentIdSet = new Set(previousStudentIds);
+    const newlyAttachedStudentIds = nextStudentIds.filter(
+      (studentId) => !previousStudentIdSet.has(studentId),
+    );
+    const studentIdsToNotify = new Set<string>();
+
+    if (hasNewVisibleEntry) {
+      nextStudentIds.forEach((studentId) => studentIdsToNotify.add(studentId));
+    }
+    if (nextVisibleContents.size > 0) {
+      newlyAttachedStudentIds.forEach((studentId) => studentIdsToNotify.add(studentId));
+    }
+
+    if (studentIdsToNotify.size > 0) {
+      await notifyStudentsAboutVisibleNote([...studentIdsToNotify]);
+    }
 
     logger.info("Заметка обновлена", { noteId: input.id, trainerId });
     return { success: true };

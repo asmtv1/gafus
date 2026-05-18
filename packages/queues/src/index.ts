@@ -19,3 +19,4 @@ export {
   CONSULTATION_REMINDER_JOB_ID,
   removeConsultationReminderJob,
 } from "./consultation-reminder-queue.js";
+export type { ConsultationReminderKind } from "./consultation-reminder-queue.js";

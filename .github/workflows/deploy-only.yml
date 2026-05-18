@@ -229,19 +229,25 @@ jobs:
             docker tag ghcr.io/asmtv1/gafus-bull-board:latest gafus-bull-board:latest
             docker tag ghcr.io/asmtv1/gafus-prisma:latest gafus-prisma:latest
 
-            # Start services
-            echo "🚀 Starting services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate
+            # Start core services first, then apply migrations before app containers.
+            echo "🚀 Starting core services..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis postfix
 
-            # Wait for services to be ready
+            # Wait for core services to be ready
             sleep 15
 
-            # Run Prisma migrations
-            echo "🗄️ Running Prisma migrations..."
+            # Run Prisma migrations. Migration failures must stop deployment.
+            echo "🗄️ Applying Prisma migrations..."
             docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
 
-            # Run migrations using the dedicated Prisma container
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:migrate:deploy || echo "Migrations failed, continuing..."
+            # Start app services only after the database schema is current.
+            echo "🚀 Starting application services..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate worker api web trainer-panel admin-panel bull-board nginx
+
+            echo "📊 Starting monitoring services..."
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate \
+              node-exporter postgres-exporter redis-exporter blackbox-exporter grafana-alloy yandex-metrics-sync
 
             # Check service health
             if docker-compose -f ci-cd/docker/docker-compose.prod.yml ps | grep -q "Up"; then

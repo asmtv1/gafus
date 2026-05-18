@@ -2119,7 +2119,7 @@ jobs:
   "expo": {
     "name": "GAFUS",
     "slug": "gafus",
-    "version": "1.4.6",
+    "version": "1.5.0",
     "runtimeVersion": {
       "policy": "sdkVersion"
     },

@@ -1,4 +1,5 @@
 import { processConsultationReminder } from "@gafus/core/services/consultation";
+import type { ConsultationReminderKind } from "@gafus/queues";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
@@ -8,15 +9,16 @@ const logger = createWorkerLogger("consultation-reminder-worker");
 
 interface ReminderJobData {
   bookingId: string;
+  kind?: ConsultationReminderKind;
 }
 
 export function startConsultationReminderWorker(): void {
   const worker = new Worker<ReminderJobData>(
     "consultation-reminder",
     async (job: Job<ReminderJobData>) => {
-      const { bookingId } = job.data;
-      logger.info("reminder-30m job", { bookingId });
-      await processConsultationReminder(bookingId);
+      const { bookingId, kind = "30m" } = job.data;
+      logger.info("consultation reminder job", { bookingId, kind });
+      await processConsultationReminder(bookingId, kind);
     },
     {
       connection,

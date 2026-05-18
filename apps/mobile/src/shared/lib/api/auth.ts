@@ -9,7 +9,7 @@ export interface User {
   username: string;
   phone: string | null;
   email: string | null;
-  role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
+  role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR";
   /** Совпадает с passwordSetAt на сервере (GET /user/profile) */
   hasAppPassword?: boolean;
   hasVkLinked?: boolean;

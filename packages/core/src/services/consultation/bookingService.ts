@@ -9,6 +9,7 @@ import {
 import {
   CONSULTATION_REMINDER_JOB_ID,
   CONSULTATION_SLA_JOB_ID,
+  type ConsultationReminderKind,
   consultationReminderQueue,
   consultationSlaQueue,
   removeConsultationReminderJob,
@@ -50,25 +51,54 @@ async function removeConsultationRemindJobSafe(bookingId: string): Promise<void>
   }
 }
 
-/** Напоминание за 30 минут до startAt; если до окна «минус 30» меньше минуты — не планируем. */
-async function scheduleConsultationReminderIfNeeded(bookingId: string, slotStartAt: Date): Promise<void> {
-  const runAt = new Date(slotStartAt.getTime() - 30 * 60 * 1000);
+const CONSULTATION_REMINDER_OFFSETS_MS: Record<ConsultationReminderKind, number> = {
+  "30m": 30 * 60 * 1000,
+  start: 0,
+};
+
+const CONSULTATION_REMINDER_JOB_NAMES: Record<ConsultationReminderKind, string> = {
+  "30m": "remind-30m",
+  start: "remind-start",
+};
+
+const CONSULTATION_RECONCILE_LOOKBACK_MINUTES = 10;
+
+/** Напоминания перед стартом; если до окна меньше минуты — не планируем. */
+async function scheduleConsultationReminderIfNeeded(
+  bookingId: string,
+  slotStartAt: Date,
+  kind: ConsultationReminderKind,
+): Promise<void> {
+  const runAt = new Date(slotStartAt.getTime() - CONSULTATION_REMINDER_OFFSETS_MS[kind]);
   const delay = runAt.getTime() - Date.now();
   if (delay < 60 * 1000) {
-    logger.info("reminder-30m: слишком близко к началу или в прошлом, пропуск", { bookingId });
+    logger.info("consultation reminder: слишком близко к окну отправки или в прошлом, пропуск", {
+      bookingId,
+      kind,
+    });
     return;
   }
   await consultationReminderQueue.add(
-    "remind-30m",
-    { bookingId },
+    CONSULTATION_REMINDER_JOB_NAMES[kind],
+    { bookingId, kind },
     {
-      jobId: CONSULTATION_REMINDER_JOB_ID(bookingId),
+      jobId: CONSULTATION_REMINDER_JOB_ID(bookingId, kind),
       delay,
+      attempts: 5,
+      backoff: { type: "exponential", delay: 2000 },
       removeOnComplete: { count: 1000 },
       removeOnFail: { count: 500 },
     },
   );
-  logger.info("reminder-30m запланирован", { bookingId, runAt: runAt.toISOString() });
+  logger.info("consultation reminder запланирован", { bookingId, kind, runAt: runAt.toISOString() });
+}
+
+async function scheduleConsultationRemindersIfNeeded(
+  bookingId: string,
+  slotStartAt: Date,
+): Promise<void> {
+  await scheduleConsultationReminderIfNeeded(bookingId, slotStartAt, "30m");
+  await scheduleConsultationReminderIfNeeded(bookingId, slotStartAt, "start");
 }
 
 async function tryConsultationPush(
@@ -414,7 +444,7 @@ export async function confirmBookingByTrainer(
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CONFIRMED);
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CONFIRMED);
-  await scheduleConsultationReminderIfNeeded(bookingId, b.slot.startAt);
+  await scheduleConsultationRemindersIfNeeded(bookingId, b.slot.startAt);
 
   await tryConsultationPush(
     b.clientId,
@@ -626,7 +656,10 @@ export async function processBookingSlaTimeout(bookingId: string): Promise<void>
 /**
  * Воркер: за 30 минут до встречи — письма и пуши клиенту и кинологу (если бронь ещё CONFIRMED).
  */
-export async function processConsultationReminder(bookingId: string): Promise<void> {
+export async function processConsultationReminder(
+  bookingId: string,
+  kind: ConsultationReminderKind = "30m",
+): Promise<void> {
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
     include: {
@@ -648,7 +681,31 @@ export async function processConsultationReminder(bookingId: string): Promise<vo
     timeZone: CONSULTATION_TIMEZONE,
   }).format(b.slot.startAt);
 
-  await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M);
+  if (kind === "start") {
+    const emailResult = await enqueueConsultationEmail(
+      bookingId,
+      ConsultationEmailType.CLIENT_CONSULTATION_START,
+    );
+    if (emailResult === "duplicate") {
+      return;
+    }
+    await tryConsultationPush(
+      b.clientId,
+      "Консультация начинается",
+      "Ваша консультация начинается прямо сейчас. Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт.",
+      "/consultations/my",
+      { bookingId, kind: "start-client" },
+    );
+    return;
+  }
+
+  const clientEmailResult = await enqueueConsultationEmail(
+    bookingId,
+    ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M,
+  );
+  if (clientEmailResult === "duplicate") {
+    return;
+  }
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M);
 
   await tryConsultationPush(
@@ -665,6 +722,74 @@ export async function processConsultationReminder(bookingId: string): Promise<vo
     "/main-panel/consultations",
     { bookingId, kind: "remind-trainer" },
   );
+}
+
+export async function reconcileMissedConsultationReminders(options?: {
+  now?: Date;
+  lookbackMinutes?: number;
+  batchSize?: number;
+}): Promise<{ checked: number; triggered30m: number; triggeredStart: number }> {
+  const now = options?.now ?? new Date();
+  const lookbackMs =
+    Math.max(1, options?.lookbackMinutes ?? CONSULTATION_RECONCILE_LOOKBACK_MINUTES) * 60 * 1000;
+  const batchSize = Math.min(500, Math.max(1, options?.batchSize ?? 100));
+
+  const startLower = new Date(now.getTime() - lookbackMs);
+  const startUpper = now;
+  const reminder30mLower = new Date(now.getTime() + 30 * 60 * 1000 - lookbackMs);
+  const reminder30mUpper = new Date(now.getTime() + 30 * 60 * 1000);
+
+  const bookings = await prisma.consultationBooking.findMany({
+    where: {
+      status: ConsultationBookingStatus.CONFIRMED,
+      OR: [
+        { slot: { startAt: { gte: startLower, lte: startUpper } } },
+        { slot: { startAt: { gte: reminder30mLower, lte: reminder30mUpper } } },
+      ],
+    },
+    include: {
+      slot: true,
+      emailLogs: {
+        where: {
+          type: {
+            in: [
+              ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M,
+              ConsultationEmailType.CLIENT_CONSULTATION_START,
+            ],
+          },
+        },
+        select: { type: true },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    take: batchSize,
+  });
+
+  let triggered30m = 0;
+  let triggeredStart = 0;
+
+  for (const booking of bookings) {
+    const startAtMs = booking.slot.startAt.getTime();
+    const loggedTypes = new Set(booking.emailLogs.map((log) => log.type));
+
+    const is30mWindow =
+      startAtMs >= reminder30mLower.getTime() && startAtMs <= reminder30mUpper.getTime();
+    if (
+      is30mWindow &&
+      !loggedTypes.has(ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M)
+    ) {
+      await processConsultationReminder(booking.id, "30m");
+      triggered30m += 1;
+    }
+
+    const isStartWindow = startAtMs >= startLower.getTime() && startAtMs <= startUpper.getTime();
+    if (isStartWindow && !loggedTypes.has(ConsultationEmailType.CLIENT_CONSULTATION_START)) {
+      await processConsultationReminder(booking.id, "start");
+      triggeredStart += 1;
+    }
+  }
+
+  return { checked: bookings.length, triggered30m, triggeredStart };
 }
 
 export async function listClientBookings(

@@ -42,7 +42,7 @@ function getRefreshSecret(): KeyObject {
 export interface AuthUser {
   id: string;
   username: string;
-  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM";
+  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER";
 }
 
 /**

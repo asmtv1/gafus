@@ -73,7 +73,7 @@ import {
   getUserProfile,
   updateUserProfile,
 } from "@gafus/core/services/user";
-// deleteUserAccount — самообслуживание: USER/PREMIUM, пароль, транзакция отзыв refresh + user.delete
+// deleteUserAccount — самообслуживание: USER, пароль, транзакция отзыв refresh + user.delete
 
 // Аутентификация
 import {

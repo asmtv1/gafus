@@ -30,6 +30,7 @@ const mockTrainerNoteCreate = vi.fn();
 const mockTrainerNoteUpdate = vi.fn();
 const mockTrainerNoteDelete = vi.fn();
 const mockTransaction = vi.fn();
+const mockCreateImmediatePushNotification = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -55,11 +56,17 @@ vi.mock("@gafus/logger", () => ({
   }),
 }));
 
+vi.mock("@gafus/core/services/notifications", () => ({
+  createImmediatePushNotification: (...args: unknown[]) =>
+    mockCreateImmediatePushNotification(...args),
+}));
+
 describe("createTrainerNote", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const tx = { trainerNote: { create: mockTrainerNoteCreate } };
     mockTransaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
+    mockCreateImmediatePushNotification.mockResolvedValue({ queued: true, notificationId: "push-1" });
   });
 
   it("returns error when students not found", async () => {
@@ -110,6 +117,53 @@ describe("createTrainerNote", () => {
     expect(result.success).toBe(true);
   });
 
+  it("queues a push for each student when creating a visible note entry", async () => {
+    mockUserFindMany.mockResolvedValue([
+      { id: "s1", role: "USER" },
+      { id: "s2", role: "USER" },
+    ]);
+    mockTrainerNoteCreate.mockResolvedValue({});
+
+    const result = await createTrainerNote(
+      {
+        studentIds: ["s1", "s2"],
+        entries: [{ content: "Видимая заметка", order: 0, isVisibleToStudent: true }],
+      },
+      "trainer-1",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledTimes(2);
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledWith({
+      userId: "s1",
+      title: "Новая заметка",
+      body: "Тренер добавил вам заметку",
+      url: "/profile",
+    });
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledWith({
+      userId: "s2",
+      title: "Новая заметка",
+      body: "Тренер добавил вам заметку",
+      url: "/profile",
+    });
+  });
+
+  it("does not queue a push when creating only hidden note entries", async () => {
+    mockUserFindMany.mockResolvedValue([{ id: "s1", role: "USER" }]);
+    mockTrainerNoteCreate.mockResolvedValue({});
+
+    const result = await createTrainerNote(
+      {
+        studentIds: ["s1"],
+        entries: [{ content: "Скрытая заметка", order: 0, isVisibleToStudent: false }],
+      },
+      "trainer-1",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockCreateImmediatePushNotification).not.toHaveBeenCalled();
+  });
+
   it("returns handlePrismaError message when create throws Prisma error", async () => {
     mockUserFindMany.mockResolvedValue([{ id: "s1", role: "USER" }]);
     mockTrainerNoteCreate.mockRejectedValue(
@@ -154,6 +208,7 @@ describe("updateTrainerNote", () => {
     vi.clearAllMocks();
     const tx = { trainerNote: { update: mockTrainerNoteUpdate } };
     mockTransaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
+    mockCreateImmediatePushNotification.mockResolvedValue({ queued: true, notificationId: "push-1" });
   });
 
   it("returns error when note not found", async () => {
@@ -189,6 +244,8 @@ describe("updateTrainerNote", () => {
     mockTrainerNoteFindUnique.mockResolvedValue({
       id: "note-1",
       trainerId: "trainer-1",
+      students: [],
+      entries: [],
     });
     mockTrainerNoteUpdate.mockResolvedValue({});
 
@@ -279,6 +336,8 @@ describe("updateTrainerNote", () => {
     mockTrainerNoteFindUnique.mockResolvedValue({
       id: "note-1",
       trainerId: "trainer-1",
+      students: [],
+      entries: [],
     });
     mockUserFindMany.mockResolvedValue([{ id: "s1", role: "USER" }]);
     mockTrainerNoteUpdate.mockResolvedValue({});
@@ -296,6 +355,96 @@ describe("updateTrainerNote", () => {
     );
 
     expect(result.success).toBe(true);
+  });
+
+  it("does not queue a push when saving an already visible entry unchanged", async () => {
+    mockTrainerNoteFindUnique.mockResolvedValue({
+      id: "note-1",
+      trainerId: "trainer-1",
+      students: [{ studentId: "s1" }],
+      entries: [{ content: "Уже видимая", isVisibleToStudent: true }],
+    });
+    mockUserFindMany.mockResolvedValue([{ id: "s1", role: "USER" }]);
+    mockTrainerNoteUpdate.mockResolvedValue({});
+
+    const result = await updateTrainerNote(
+      {
+        id: "note-1",
+        studentIds: ["s1"],
+        entries: [{ content: "Уже видимая", order: 0, isVisibleToStudent: true }],
+      },
+      "trainer-1",
+      false,
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockCreateImmediatePushNotification).not.toHaveBeenCalled();
+  });
+
+  it("queues a push when update adds a new visible entry", async () => {
+    mockTrainerNoteFindUnique.mockResolvedValue({
+      id: "note-1",
+      trainerId: "trainer-1",
+      students: [{ studentId: "s1" }],
+      entries: [{ content: "Старая видимая", isVisibleToStudent: true }],
+    });
+    mockUserFindMany.mockResolvedValue([{ id: "s1", role: "USER" }]);
+    mockTrainerNoteUpdate.mockResolvedValue({});
+
+    const result = await updateTrainerNote(
+      {
+        id: "note-1",
+        studentIds: ["s1"],
+        entries: [
+          { content: "Старая видимая", order: 0, isVisibleToStudent: true },
+          { content: "Новая видимая", order: 1, isVisibleToStudent: true },
+        ],
+      },
+      "trainer-1",
+      false,
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledTimes(1);
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledWith({
+      userId: "s1",
+      title: "Новая заметка",
+      body: "Тренер добавил вам заметку",
+      url: "/profile",
+    });
+  });
+
+  it("queues a push for a newly attached student when the note has visible entries", async () => {
+    mockTrainerNoteFindUnique.mockResolvedValue({
+      id: "note-1",
+      trainerId: "trainer-1",
+      students: [{ studentId: "s1" }],
+      entries: [{ content: "Видимая", isVisibleToStudent: true }],
+    });
+    mockUserFindMany.mockResolvedValue([
+      { id: "s1", role: "USER" },
+      { id: "s2", role: "USER" },
+    ]);
+    mockTrainerNoteUpdate.mockResolvedValue({});
+
+    const result = await updateTrainerNote(
+      {
+        id: "note-1",
+        studentIds: ["s1", "s2"],
+        entries: [{ content: "Видимая", order: 0, isVisibleToStudent: true }],
+      },
+      "trainer-1",
+      false,
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledTimes(1);
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledWith({
+      userId: "s2",
+      title: "Новая заметка",
+      body: "Тренер добавил вам заметку",
+      url: "/profile",
+    });
   });
 });
 

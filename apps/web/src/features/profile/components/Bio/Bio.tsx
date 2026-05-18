@@ -25,7 +25,6 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           ADMIN: "Администратор",
           MODERATOR: "Модератор",
           TRAINER: "Кинолог",
-          PREMIUM: "Премиум-пользователь",
         }[publicData.role]
       : null;
 
@@ -37,8 +36,6 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
         return styles.moderator;
       case "TRAINER":
         return styles.trainer;
-      case "PREMIUM":
-        return styles.premium;
       default:
         return "";
     }

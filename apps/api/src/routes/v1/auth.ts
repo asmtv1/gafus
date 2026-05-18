@@ -153,7 +153,7 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
 
       const accessToken = await generateAccessToken(authUser);
@@ -239,7 +239,7 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
       const accessToken = await generateAccessToken(authUser);
 
@@ -314,7 +314,7 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
 
       const newAccessToken = await generateAccessToken(authUser);
@@ -530,7 +530,7 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
       const accessToken = await generateAccessToken(authUser);
       const tokenId = crypto.randomUUID();
@@ -611,7 +611,7 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER" | "PREMIUM",
+        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
       const accessToken = await generateAccessToken(authUser);
       const tokenId = crypto.randomUUID();

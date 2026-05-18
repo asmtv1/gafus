@@ -497,6 +497,15 @@ jobs:
             echo "📥 Pulling latest ${{ needs.set-container-config.outputs.tag }} image..."
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
 
+            if [ "${{ github.event.inputs.container }}" = "prisma" ]; then
+              echo "🗄️ Applying Prisma migrations..."
+              docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d postgres
+              sleep 10
+              docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
+              echo "✅ Prisma migrations applied successfully!"
+              exit 0
+            fi
+
             # Restart specific container
             echo "🔄 Restarting ${{ needs.set-container-config.outputs.tag }} container..."
             docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate --no-deps ${{ github.event.inputs.container }} || {

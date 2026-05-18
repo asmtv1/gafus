@@ -71,7 +71,7 @@ interface User {
 Роли пользователей в системе.
 
 ```typescript
-type UserRole = "USER" | "TRAINER" | "ADMIN" | "MODERATOR" | "PREMIUM";
+type UserRole = "USER" | "TRAINER" | "ADMIN" | "MODERATOR";
 ```
 
 #### `UserProfile`

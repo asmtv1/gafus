@@ -11,7 +11,7 @@
 - **JWT токены** через NextAuth.js (web) и выдача access/refresh в `apps/api` (mobile)
 - **Регистрация по email и паролю** — бизнес-логика в `@gafus/core` (`registerUserWithCredentials`), не в этом пакете
 - **Сброс пароля / смена телефона через Telegram** — вызовы в этом пакете **заглушены** (отдельное приложение бота удалено)
-- **Роли пользователей** (USER, TRAINER, ADMIN, MODERATOR, PREMIUM)
+- **Роли пользователей** (USER, TRAINER, ADMIN, MODERATOR)
 
 ### Авторизация
 
@@ -131,7 +131,6 @@ enum UserRole {
   TRAINER = "TRAINER", // Тренер
   ADMIN = "ADMIN", // Администратор
   MODERATOR = "MODERATOR", // Модератор
-  PREMIUM = "PREMIUM", // Премиум пользователь
 }
 ```
 
