@@ -2,12 +2,16 @@
 
 import { authOptions } from "@gafus/auth";
 import {
+  cleanupDailyCourseContent,
   deleteDailyCourseSchedule,
   getDailyCourseCandidates,
   getDailyCourseBundles,
   getDailyCourseBundleStepCandidates,
   getDailyCourseScheduleRange,
   getDailyCourseScheduleStatistics,
+  importDailyCourseFile,
+  previewDailyCourseCleanup,
+  previewDailyCourseImportFile,
   upsertDailyCourseBundle,
   upsertDailyCourseSchedule,
   deleteDailyCourseBundle,
@@ -18,6 +22,11 @@ import {
 import type {
   DailyCourseBundleDto,
   DailyCourseCandidateDto,
+  DailyCourseCleanupMode,
+  DailyCourseCleanupPreviewDto,
+  DailyCourseCleanupResultDto,
+  DailyCourseImportPreviewDto,
+  DailyCourseImportResultDto,
   DailyCourseScheduleDto,
   DailyCourseScheduleStatisticsDto,
   DailyCourseStepCandidateDto,
@@ -29,6 +38,32 @@ import { revalidatePath } from "next/cache";
 const logger = createTrainerPanelLogger("trainer-panel-daily-course");
 
 type SessionUser = { id: string; role: string };
+const MAX_IMPORT_FILE_SIZE_BYTES = 1024 * 1024;
+
+export interface DailyCourseImportPreviewState {
+  success?: boolean;
+  error?: string;
+  content?: string;
+  preview?: DailyCourseImportPreviewDto;
+}
+
+export interface DailyCourseImportConfirmState {
+  success?: boolean;
+  error?: string;
+  result?: DailyCourseImportResultDto;
+}
+
+export interface DailyCourseCleanupPreviewState {
+  success?: boolean;
+  error?: string;
+  preview?: DailyCourseCleanupPreviewDto;
+}
+
+export interface DailyCourseCleanupConfirmState {
+  success?: boolean;
+  error?: string;
+  result?: DailyCourseCleanupResultDto;
+}
 
 async function getDailyCourseActor(): Promise<SessionUser> {
   const session = (await getServerSession(authOptions)) as {
@@ -184,6 +219,108 @@ export async function deleteDailyCourseScheduleAction(
   }
 }
 
+export async function previewDailyCourseImportAction(
+  _prevState: DailyCourseImportPreviewState,
+  formData: FormData,
+): Promise<DailyCourseImportPreviewState> {
+  try {
+    const actor = await getDailyCourseActor();
+    const content = await readDailyCourseImportContent(formData);
+    const preview = await previewDailyCourseImportFile(actor, { content });
+    return { success: true, content, preview };
+  } catch (error) {
+    logger.error("Ошибка предпросмотра импорта курса дня", error as Error);
+    return {
+      success: false,
+      error: error instanceof Error ? mapDailyCourseError(error.message) : "Неизвестная ошибка",
+    };
+  }
+}
+
+export async function confirmDailyCourseImportAction(
+  _prevState: DailyCourseImportConfirmState,
+  formData: FormData,
+): Promise<DailyCourseImportConfirmState> {
+  try {
+    const actor = await getDailyCourseActor();
+    const content = await readDailyCourseImportContent(formData);
+    const replaceConflicts = formData.get("replaceConflicts")?.toString() === "true";
+    const result = await importDailyCourseFile(actor, { content, replaceConflicts });
+    revalidatePath("/main-panel/daily-course");
+    revalidatePath("/main-panel/daily-course/bundles");
+    return { success: true, result };
+  } catch (error) {
+    logger.error("Ошибка импорта курса дня", error as Error);
+    return {
+      success: false,
+      error: error instanceof Error ? mapDailyCourseError(error.message) : "Неизвестная ошибка",
+    };
+  }
+}
+
+export async function previewDailyCourseCleanupAction(
+  _prevState: DailyCourseCleanupPreviewState,
+  formData: FormData,
+): Promise<DailyCourseCleanupPreviewState> {
+  try {
+    const actor = await getDailyCourseActor();
+    const mode = parseDailyCourseCleanupMode(formData);
+    const preview = await previewDailyCourseCleanup(actor, { mode });
+    return { success: true, preview };
+  } catch (error) {
+    logger.error("Ошибка предпросмотра очистки курса дня", error as Error);
+    return {
+      success: false,
+      error: error instanceof Error ? mapDailyCourseError(error.message) : "Неизвестная ошибка",
+    };
+  }
+}
+
+export async function confirmDailyCourseCleanupAction(
+  _prevState: DailyCourseCleanupConfirmState,
+  formData: FormData,
+): Promise<DailyCourseCleanupConfirmState> {
+  try {
+    const actor = await getDailyCourseActor();
+    const mode = parseDailyCourseCleanupMode(formData);
+    const confirmation = formData.get("confirmation")?.toString() ?? "";
+    const result = await cleanupDailyCourseContent(actor, { mode, confirmation });
+    revalidatePath("/main-panel/daily-course");
+    revalidatePath("/main-panel/daily-course/bundles");
+    revalidatePath("/main-panel/daily-course/steps");
+    return { success: true, result };
+  } catch (error) {
+    logger.error("Ошибка очистки курса дня", error as Error);
+    return {
+      success: false,
+      error: error instanceof Error ? mapDailyCourseError(error.message) : "Неизвестная ошибка",
+    };
+  }
+}
+
+async function readDailyCourseImportContent(formData: FormData): Promise<string> {
+  const inlineContent = formData.get("content")?.toString() ?? "";
+  if (inlineContent.trim().length > 0) return inlineContent;
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("DAILY_COURSE_IMPORT_EMPTY_FILE");
+  }
+  if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+    throw new Error("DAILY_COURSE_IMPORT_FILE_TOO_LARGE");
+  }
+  if (!/\.(md|txt)$/i.test(file.name)) {
+    throw new Error("DAILY_COURSE_IMPORT_UNSUPPORTED_FILE");
+  }
+  return file.text();
+}
+
+function parseDailyCourseCleanupMode(formData: FormData): DailyCourseCleanupMode {
+  const mode = formData.get("mode")?.toString();
+  if (mode === "future" || mode === "all") return mode;
+  throw new Error("DAILY_COURSE_CLEANUP_INVALID_MODE");
+}
+
 function mapDailyCourseError(code: string): string {
   switch (code) {
     case "FORBIDDEN":
@@ -210,6 +347,16 @@ function mapDailyCourseError(code: string): string {
       return "Связка уже используется в расписании, удалить её нельзя";
     case "STEP_NOT_FOUND":
       return "Один из шагов не найден";
+    case "DAILY_COURSE_IMPORT_EMPTY_FILE":
+      return "Выберите .md или .txt файл либо вставьте текст импорта";
+    case "DAILY_COURSE_IMPORT_FILE_TOO_LARGE":
+      return "Файл импорта должен быть не больше 1 МБ";
+    case "DAILY_COURSE_IMPORT_UNSUPPORTED_FILE":
+      return "Поддерживаются только файлы .md и .txt";
+    case "DAILY_COURSE_CLEANUP_INVALID_MODE":
+      return "Выберите режим очистки курса дня";
+    case "DAILY_COURSE_CLEANUP_CONFIRMATION_REQUIRED":
+      return "Для очистки курса дня введите точное подтверждение";
     default:
       return code;
   }

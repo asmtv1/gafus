@@ -1,4 +1,5 @@
 export {
+  cleanupDailyCourseContent,
   deleteDailyCourseBundle,
   deleteDailyCourseSchedule,
   getDailyCourseBundles,
@@ -7,7 +8,11 @@ export {
   getDailyCourseDayWithUserSteps,
   getDailyCourseScheduleRange,
   getDailyCourseScheduleStatistics,
+  importDailyCourseFile,
   getMoscowDateKey,
+  parseDailyCourseImportFile,
+  previewDailyCourseCleanup,
+  previewDailyCourseImportFile,
   getTodayDailyCourse,
   updateDailyCourseStepAndDay,
   upsertDailyCourseBundle,
@@ -17,7 +22,15 @@ export type {
   DailyCourseActor,
   DailyCourseBundleDto,
   DailyCourseCandidateDto,
+  DailyCourseCleanupMode,
+  DailyCourseCleanupPreviewDto,
+  DailyCourseCleanupResultDto,
+  DailyCourseCleanupSkippedStepDto,
   DailyCourseDayResponse,
+  DailyCourseImportConflictDto,
+  DailyCourseImportPreviewDayDto,
+  DailyCourseImportPreviewDto,
+  DailyCourseImportResultDto,
   DailyCourseScheduleDto,
   DailyCourseScheduleStatisticsDto,
   DailyCourseStatisticsStepDto,
@@ -27,6 +40,13 @@ export type {
   DailyCourseStepOperation,
   TodayDailyCourseResponse,
 } from "./dailyCourseService";
+export type {
+  DailyCourseImportQuestion,
+  DailyCourseImportStepType,
+  ParsedDailyCourseImportDay,
+  ParsedDailyCourseImportFile,
+  ParsedDailyCourseImportStep,
+} from "./importParser";
 export {
   dailyCourseDateSchema,
   dailyCourseRangeSchema,

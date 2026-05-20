@@ -1,13 +1,19 @@
-import {
-  isPrismaUniqueConstraintError,
-  prisma,
+import { isPrismaUniqueConstraintError, prisma } from "@gafus/prisma";
+import type {
+  Prisma,
+  StepType as PrismaStepType,
   TrainingStatus as PrismaTrainingStatus,
 } from "@gafus/prisma";
-import type { StepType as PrismaStepType } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import type { ChecklistQuestion } from "@gafus/types";
+import { randomUUID } from "crypto";
 import { estimateDayDurations } from "../../utils/training";
+import {
+  parseDailyCourseImportFile,
+  type ParsedDailyCourseImportDay,
+  type ParsedDailyCourseImportFile,
+} from "./importParser";
 import {
   dailyCourseRangeSchema,
   upsertDailyCourseScheduleSchema,
@@ -183,6 +189,64 @@ export interface DailyCourseScheduleStatisticsDto {
   users: DailyCourseStatisticsUserDto[];
 }
 
+export interface DailyCourseImportConflictDto {
+  scheduleId: string;
+  bundleTitle: string;
+  isPublished: boolean;
+}
+
+export interface DailyCourseImportPreviewDayDto extends ParsedDailyCourseImportDay {
+  isPast: boolean;
+  conflict: DailyCourseImportConflictDto | null;
+  canReplaceConflict: boolean;
+  canImport: boolean;
+}
+
+export interface DailyCourseImportPreviewDto {
+  days: DailyCourseImportPreviewDayDto[];
+  hasErrors: boolean;
+  summary: {
+    totalDays: number;
+    emptyDays: number;
+    importableDays: number;
+    conflictDays: number;
+    errorDays: number;
+  };
+}
+
+export interface DailyCourseImportResultDto {
+  preview: DailyCourseImportPreviewDto;
+  importedDates: string[];
+  skippedDates: { date: string; reason: string }[];
+}
+
+export type DailyCourseCleanupMode = "future" | "all";
+
+export interface DailyCourseCleanupSkippedStepDto {
+  id: string;
+  title: string;
+  reason: "REGULAR_COURSE_LINK" | "SHARED_DAILY_BUNDLE_LINK";
+}
+
+export interface DailyCourseCleanupPreviewDto {
+  mode: DailyCourseCleanupMode;
+  schedulesToDelete: number;
+  bundlesToDelete: number;
+  stepsToDelete: number;
+  skippedSteps: DailyCourseCleanupSkippedStepDto[];
+  userTrainingsToDelete: number;
+  userStepsToDelete: number;
+}
+
+export interface DailyCourseCleanupResultDto {
+  preview: DailyCourseCleanupPreviewDto;
+  deleted: {
+    schedules: number;
+    bundles: number;
+    steps: number;
+  };
+}
+
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 type StepLinkForDailyCourse = {
@@ -205,6 +269,8 @@ type StepLinkForDailyCourse = {
     isDailyCourse: boolean;
   };
 };
+
+const DAILY_COURSE_CLEANUP_CONFIRMATION = "ОЧИСТИТЬ КУРС ДНЯ";
 
 function assertCanManageDailyCourse(actor: DailyCourseActor): void {
   if (!ALLOWED_ROLES.has(actor.role)) {
@@ -231,6 +297,8 @@ export function getMoscowDateKey(now = new Date()): string {
   }
   return `${year}-${month}-${day}`;
 }
+
+export { parseDailyCourseImportFile };
 
 function dateKeyToDate(dateKey: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
@@ -1231,4 +1299,409 @@ export async function deleteDailyCourseSchedule(
   }
   await prisma.dailyCourseSchedule.delete({ where: { id: schedule.id } });
   return { success: true };
+}
+
+export async function previewDailyCourseCleanup(
+  actor: DailyCourseActor,
+  input: { mode: DailyCourseCleanupMode; today?: string },
+): Promise<DailyCourseCleanupPreviewDto> {
+  assertCanManageDailyCourse(actor);
+  const plan = await buildDailyCourseCleanupPlan(actor, input);
+  return plan.preview;
+}
+
+export async function cleanupDailyCourseContent(
+  actor: DailyCourseActor,
+  input: { mode: DailyCourseCleanupMode; confirmation: string; today?: string },
+): Promise<DailyCourseCleanupResultDto> {
+  assertCanManageDailyCourse(actor);
+  if (input.confirmation !== DAILY_COURSE_CLEANUP_CONFIRMATION) {
+    throw new Error("DAILY_COURSE_CLEANUP_CONFIRMATION_REQUIRED");
+  }
+
+  const plan = await buildDailyCourseCleanupPlan(actor, input);
+  const deleted = await prisma.$transaction(async (tx: Tx) => {
+    const schedules =
+      plan.scheduleIds.length > 0
+        ? await tx.dailyCourseSchedule.deleteMany({
+            where: scopedScheduleIdWhere(actor, plan.scheduleIds),
+          })
+        : { count: 0 };
+    const bundles =
+      plan.bundleIds.length > 0
+        ? await tx.dailyCourseBundle.deleteMany({
+            where: scopedBundleIdWhere(actor, plan.bundleIds),
+          })
+        : { count: 0 };
+    const steps =
+      plan.stepIds.length > 0
+        ? await tx.step.deleteMany({
+            where: scopedSafeDailyCourseStepIdWhere(actor, plan.stepIds),
+          })
+        : { count: 0 };
+
+    return {
+      schedules: schedules.count,
+      bundles: bundles.count,
+      steps: steps.count,
+    };
+  });
+
+  return { preview: plan.preview, deleted };
+}
+
+interface DailyCourseCleanupPlan {
+  preview: DailyCourseCleanupPreviewDto;
+  scheduleIds: string[];
+  bundleIds: string[];
+  stepIds: string[];
+}
+
+async function buildDailyCourseCleanupPlan(
+  actor: DailyCourseActor,
+  input: { mode: DailyCourseCleanupMode; today?: string },
+): Promise<DailyCourseCleanupPlan> {
+  const today = input.today ?? getMoscowDateKey();
+  const schedules = await prisma.dailyCourseSchedule.findMany({
+    where: cleanupScheduleWhere(actor, input.mode, today),
+    select: {
+      id: true,
+      date: true,
+      userTrainings: {
+        select: {
+          id: true,
+          steps: { select: { id: true } },
+        },
+      },
+    },
+  });
+  const scheduleIds = schedules.map((schedule) => schedule.id);
+  const scheduleIdSet = new Set(scheduleIds);
+
+  const bundles = await prisma.dailyCourseBundle.findMany({
+    where: cleanupBundleWhere(actor, input.mode, scheduleIds),
+    select: {
+      id: true,
+      schedules: { select: { id: true } },
+      stepLinks: { select: { stepId: true } },
+    },
+  });
+  const deletableBundles =
+    input.mode === "all"
+      ? bundles
+      : bundles.filter((bundle) =>
+          bundle.schedules.every((schedule) => scheduleIdSet.has(schedule.id)),
+        );
+  const bundleIds = deletableBundles.map((bundle) => bundle.id);
+  const bundleIdSet = new Set(bundleIds);
+  const linkedStepIds = Array.from(
+    new Set(deletableBundles.flatMap((bundle) => bundle.stepLinks.map((link) => link.stepId))),
+  );
+
+  const steps = await prisma.step.findMany({
+    where:
+      input.mode === "all"
+        ? cleanupAllDailyCourseStepWhere(actor)
+        : cleanupLinkedDailyCourseStepWhere(actor, linkedStepIds),
+    select: {
+      id: true,
+      title: true,
+      stepLinks: { select: { id: true } },
+      dailyCourseBundleLinks: { select: { bundleId: true } },
+    },
+  });
+
+  const skippedSteps: DailyCourseCleanupSkippedStepDto[] = [];
+  const stepIds: string[] = [];
+  for (const step of steps) {
+    if (step.stepLinks.length > 0) {
+      skippedSteps.push({
+        id: step.id,
+        title: step.title,
+        reason: "REGULAR_COURSE_LINK",
+      });
+      continue;
+    }
+    if (
+      input.mode === "future" &&
+      step.dailyCourseBundleLinks.some((link) => !bundleIdSet.has(link.bundleId))
+    ) {
+      skippedSteps.push({
+        id: step.id,
+        title: step.title,
+        reason: "SHARED_DAILY_BUNDLE_LINK",
+      });
+      continue;
+    }
+    stepIds.push(step.id);
+  }
+
+  const userTrainingsToDelete = schedules.reduce(
+    (sum, schedule) => sum + schedule.userTrainings.length,
+    0,
+  );
+  const userStepsToDelete = schedules.reduce(
+    (sum, schedule) =>
+      sum +
+      schedule.userTrainings.reduce((stepsSum, training) => stepsSum + training.steps.length, 0),
+    0,
+  );
+
+  return {
+    preview: {
+      mode: input.mode,
+      schedulesToDelete: scheduleIds.length,
+      bundlesToDelete: bundleIds.length,
+      stepsToDelete: stepIds.length,
+      skippedSteps,
+      userTrainingsToDelete,
+      userStepsToDelete,
+    },
+    scheduleIds,
+    bundleIds,
+    stepIds,
+  };
+}
+
+function cleanupScheduleWhere(
+  actor: DailyCourseActor,
+  mode: DailyCourseCleanupMode,
+  today: string,
+): Prisma.DailyCourseScheduleWhereInput {
+  return {
+    ...(mode === "future" ? { date: { gt: dateKeyToDate(today) } } : {}),
+    ...(isElevated(actor) ? {} : { bundle: { authorId: actor.id } }),
+  };
+}
+
+function cleanupBundleWhere(
+  actor: DailyCourseActor,
+  mode: DailyCourseCleanupMode,
+  scheduleIds: string[],
+): Prisma.DailyCourseBundleWhereInput {
+  return {
+    ...(isElevated(actor) ? {} : { authorId: actor.id }),
+    ...(mode === "future" ? { schedules: { some: { id: { in: scheduleIds } } } } : {}),
+  };
+}
+
+function cleanupAllDailyCourseStepWhere(actor: DailyCourseActor): Prisma.StepWhereInput {
+  return {
+    isDailyCourse: true,
+    ...(isElevated(actor) ? {} : { authorId: actor.id }),
+  };
+}
+
+function cleanupLinkedDailyCourseStepWhere(
+  actor: DailyCourseActor,
+  linkedStepIds: string[],
+): Prisma.StepWhereInput {
+  return {
+    id: { in: linkedStepIds },
+    isDailyCourse: true,
+    ...(isElevated(actor) ? {} : { authorId: actor.id }),
+  };
+}
+
+function scopedScheduleIdWhere(
+  actor: DailyCourseActor,
+  scheduleIds: string[],
+): Prisma.DailyCourseScheduleWhereInput {
+  return {
+    id: { in: scheduleIds },
+    ...(isElevated(actor) ? {} : { bundle: { authorId: actor.id } }),
+  };
+}
+
+function scopedBundleIdWhere(
+  actor: DailyCourseActor,
+  bundleIds: string[],
+): Prisma.DailyCourseBundleWhereInput {
+  return {
+    id: { in: bundleIds },
+    ...(isElevated(actor) ? {} : { authorId: actor.id }),
+  };
+}
+
+function scopedSafeDailyCourseStepIdWhere(
+  actor: DailyCourseActor,
+  stepIds: string[],
+): Prisma.StepWhereInput {
+  return {
+    id: { in: stepIds },
+    isDailyCourse: true,
+    ...(isElevated(actor) ? {} : { authorId: actor.id }),
+    stepLinks: { none: {} },
+  };
+}
+
+export async function previewDailyCourseImportFile(
+  actor: DailyCourseActor,
+  input: { content: string; today?: string },
+): Promise<DailyCourseImportPreviewDto> {
+  assertCanManageDailyCourse(actor);
+  const parsed = parseDailyCourseImportFile(input.content);
+  const today = input.today ?? getMoscowDateKey();
+  const nonEmptyDates = parsed.days.filter((day) => !day.isEmpty).map((day) => day.date);
+  const schedules =
+    nonEmptyDates.length > 0
+      ? await prisma.dailyCourseSchedule.findMany({
+          where: { date: { in: nonEmptyDates.map(dateKeyToDate) } },
+          select: {
+            id: true,
+            date: true,
+            isPublished: true,
+            bundle: { select: { title: true } },
+          },
+        })
+      : [];
+  const conflictByDate = new Map(
+    schedules.map((schedule) => [
+      toDateKey(schedule.date),
+      {
+        scheduleId: schedule.id,
+        bundleTitle: schedule.bundle.title,
+        isPublished: schedule.isPublished,
+      },
+    ]),
+  );
+
+  const days = parsed.days.map((day): DailyCourseImportPreviewDayDto => {
+    const conflict = conflictByDate.get(day.date) ?? null;
+    const hasErrors = day.errors.length > 0 || day.steps.some((step) => step.errors.length > 0);
+    const isPast = day.date < today;
+    const canReplaceConflict = Boolean(conflict && day.date > today && !hasErrors);
+    return {
+      ...day,
+      isPast,
+      conflict,
+      canReplaceConflict,
+      canImport: !day.isEmpty && !hasErrors && !isPast && !conflict,
+    };
+  });
+
+  return buildImportPreview(days, parsed);
+}
+
+export async function importDailyCourseFile(
+  actor: DailyCourseActor,
+  input: { content: string; replaceConflicts: boolean; today?: string },
+): Promise<DailyCourseImportResultDto> {
+  assertCanManageDailyCourse(actor);
+  const today = input.today ?? getMoscowDateKey();
+  const preview = await previewDailyCourseImportFile(actor, { content: input.content, today });
+  const importedDates: string[] = [];
+  const skippedDates: { date: string; reason: string }[] = [];
+
+  for (const day of preview.days) {
+    if (day.isEmpty) continue;
+    const hasErrors = day.errors.length > 0 || day.steps.some((step) => step.errors.length > 0);
+    if (hasErrors) {
+      skippedDates.push({ date: day.date, reason: "ERRORS" });
+      continue;
+    }
+    if (day.isPast) {
+      skippedDates.push({ date: day.date, reason: "PAST_DATE" });
+      continue;
+    }
+    if (day.conflict && (!input.replaceConflicts || day.date <= today)) {
+      skippedDates.push({ date: day.date, reason: "CONFLICT" });
+      continue;
+    }
+
+    await createDailyCourseImportDay(actor, day);
+    importedDates.push(day.date);
+  }
+
+  return { preview, importedDates, skippedDates };
+}
+
+function buildImportPreview(
+  days: DailyCourseImportPreviewDayDto[],
+  parsed: ParsedDailyCourseImportFile,
+): DailyCourseImportPreviewDto {
+  const errorDays = days.filter(
+    (day) => day.errors.length > 0 || day.steps.some((step) => step.errors.length > 0),
+  ).length;
+  return {
+    days,
+    hasErrors: parsed.hasErrors || errorDays > 0,
+    summary: {
+      totalDays: days.length,
+      emptyDays: days.filter((day) => day.isEmpty).length,
+      importableDays: days.filter((day) => day.canImport).length,
+      conflictDays: days.filter((day) => day.conflict).length,
+      errorDays,
+    },
+  };
+}
+
+async function createDailyCourseImportDay(
+  actor: DailyCourseActor,
+  day: DailyCourseImportPreviewDayDto,
+): Promise<void> {
+  await prisma.$transaction(async (tx: Tx) => {
+    const createdSteps = [];
+    for (const step of day.steps) {
+      const created = await tx.step.create({
+        data: {
+          id: randomUUID(),
+          title: step.title,
+          description: step.description,
+          durationSec: step.type === "TRAINING" ? step.durationSec : null,
+          estimatedDurationSec: step.type === "TRAINING" ? null : step.estimatedDurationSec,
+          type: step.type as PrismaStepType,
+          videoUrl: null,
+          imageUrls: [],
+          pdfUrls: [],
+          checklist: step.hasTestQuestions
+            ? (step.questions as unknown as Prisma.InputJsonValue)
+            : undefined,
+          requiresVideoReport:
+            step.type === "EXAMINATION" ? Boolean(step.requiresVideoReport) : false,
+          requiresWrittenFeedback:
+            step.type === "EXAMINATION" ? Boolean(step.requiresWrittenFeedback) : false,
+          hasTestQuestions: step.type === "EXAMINATION" ? Boolean(step.hasTestQuestions) : false,
+          isDailyCourse: true,
+          authorId: actor.id,
+        },
+        select: { id: true },
+      });
+      createdSteps.push(created);
+    }
+
+    const bundle = await tx.dailyCourseBundle.create({
+      data: {
+        title: day.bundleTitle,
+        equipment: day.equipment,
+        description: day.description,
+        type: day.type,
+        authorId: actor.id,
+      },
+      select: { id: true },
+    });
+
+    await tx.dailyCourseBundleStep.createMany({
+      data: createdSteps.map((step, index) => ({
+        bundleId: bundle.id,
+        stepId: step.id,
+        order: index + 1,
+      })),
+    });
+
+    await tx.dailyCourseSchedule.upsert({
+      where: { date: dateKeyToDate(day.date) },
+      create: {
+        date: dateKeyToDate(day.date),
+        bundleId: bundle.id,
+        createdById: actor.id,
+        isPublished: true,
+      },
+      update: {
+        bundleId: bundle.id,
+        isPublished: true,
+      },
+      select: { id: true },
+    });
+  });
 }
