@@ -37,8 +37,6 @@
       "@gafus/ui-components/*": ["../../packages/ui-components/src/*"],
       "@gafus/consultation-shared": ["../../packages/consultation-shared/src/index.ts"],
       "@gafus/consultation-shared/*": ["../../packages/consultation-shared/src/*"],
-      "@gafus/queues": ["../../packages/queues/src/index.ts"],
-      "@gafus/queues/*": ["../../packages/queues/src/*"],
       "@gafus/core": ["../../packages/core/src/index.ts"],
       "@gafus/core/*": ["../../packages/core/src/*"]
     },
