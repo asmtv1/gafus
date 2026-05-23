@@ -118,6 +118,23 @@ describe("daily course file import", () => {
     ]);
   });
 
+  it("strips markdown fences and surrounding quotes from step descriptions", () => {
+    const parsed = parseDailyCourseImportFile(validFile());
+
+    expect(parsed.days[0]?.steps[0]?.description).toBe(
+      "# Факт дня\n\nСобака читает тело человека.",
+    );
+    expect(parsed.days[0]?.steps[0]?.description).not.toContain("```");
+    expect(parsed.days[0]?.steps[0]?.description).not.toMatch(/^md\s/i);
+
+    const quoted = parseDailyCourseImportFile(quotedFenceFile());
+
+    expect(quoted.days[0]?.steps[0]?.description).toBe("# В кавычках\n\nТекст без мусора.");
+    expect(quoted.days[0]?.steps[0]?.description).not.toContain("'");
+    expect(quoted.days[0]?.steps[0]?.description).not.toContain("```");
+    expect(quoted.days[0]?.steps[0]?.description).not.toMatch(/^md\s/i);
+  });
+
   it("rejects unsupported step types", () => {
     const parsed = parseDailyCourseImportFile(
       validFile().replace("type: тренировочный без таймера", "type: DIARY"),
@@ -393,6 +410,39 @@ description:
 
 \`\`\`md
 # Разбор
+\`\`\`
+`;
+}
+
+function quotedFenceFile(): string {
+  return `
+## 2099-05-20, среда
+
+**Bundle title:** Проверка кавычек
+**type:** daily_course
+**equipment:** ничего
+**description:** Проверяем очистку описаний.
+
+**Шаг 1**
+title: Кавычки вокруг fence
+type: THEORY
+estimatedDurationSec: 180
+description:
+
+'\`\`\`md
+# В кавычках
+
+Текст без мусора.
+\`\`\`'
+
+**Шаг 2**
+title: Обычный шаг
+type: PRACTICE
+estimatedDurationSec: 180
+description:
+
+\`\`\`md
+# Обычный шаг
 \`\`\`
 `;
 }

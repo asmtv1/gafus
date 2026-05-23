@@ -262,6 +262,46 @@ describe("dailyCourseService", () => {
     });
   });
 
+  it("hides previously imported markdown fence artifacts in user-facing step descriptions", async () => {
+    mocks.dailyCourseScheduleFindFirst.mockResolvedValue({
+      id: "schedule-1",
+      date: new Date("2026-05-04T00:00:00.000Z"),
+      bundle: {
+        id: "bundle-1",
+        title: "Daily day",
+        description: "Day description",
+        type: "daily_course",
+        stepLinks: [
+          {
+            id: "bundle-step-1",
+            order: 1,
+            step: {
+              ...stepLink("THEORY").step,
+              description: "``md\n# Старый импорт\n\nТекст без мусора.\n``",
+            },
+          },
+        ],
+      },
+      userTrainings: [{ id: "user-training-1" }],
+    });
+    mocks.dailyCourseUserStepFindMany.mockResolvedValue([
+      {
+        id: "daily-user-step-1",
+        bundleStepId: "bundle-step-1",
+        status: "NOT_STARTED",
+        paused: false,
+        remainingSec: null,
+        updatedAt: new Date("2026-05-04T08:00:00.000Z"),
+      },
+    ]);
+
+    const result = await getDailyCourseDayWithUserSteps("user-1", "schedule-1", {
+      createIfMissing: true,
+    });
+
+    expect(result?.steps[0]?.step.description).toBe("# Старый импорт\n\nТекст без мусора.");
+  });
+
   it("does not edit a bundle that is already used by a schedule", async () => {
     mocks.stepFindMany.mockResolvedValue([
       stepForBundle("step-1", "TRAINING"),

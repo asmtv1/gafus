@@ -211,7 +211,7 @@ function getStepDescription(block: string): string {
   const raw = lines
     .slice(descriptionIndex + 1, questionsIndex < 0 ? undefined : questionsIndex)
     .join("\n");
-  return stripMarkdownFence(cleanInlineValue(raw.trim()));
+  return stripMarkdownFence(raw.trim());
 }
 
 function parseQuestions(block: string): DailyCourseImportQuestion[] {
@@ -315,21 +315,30 @@ function parseOptionalBoolean(value: string): boolean | null {
 }
 
 function stripMarkdownFence(value: string): string {
-  const trimmed = value.trim();
-  const fenced = trimmed.match(/^```(?:md|markdown)?\s*\n([\s\S]*?)\n```$/i);
+  const trimmed = stripMatchingOuterQuote(value.trim(), { includeBacktick: false });
+  const fenced = trimmed.match(/^```[a-z0-9_-]*\s*\n([\s\S]*?)\n```$/i);
   return fenced ? fenced[1].trim() : trimmed;
 }
 
 function cleanInlineValue(value: string): string {
   const trimmed = value.trim();
+  if (trimmed.includes("\n")) return trimmed;
+  return stripMatchingOuterQuote(trimmed);
+}
+
+function stripMatchingOuterQuote(
+  value: string,
+  options: { includeBacktick?: boolean } = { includeBacktick: true },
+): string {
   if (
-    trimmed.length >= 2 &&
-    ((trimmed.startsWith("`") && trimmed.endsWith("`")) ||
-      (trimmed.startsWith('"') && trimmed.endsWith('"')))
+    value.length >= 2 &&
+    (((options.includeBacktick ?? true) && value.startsWith("`") && value.endsWith("`")) ||
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'")))
   ) {
-    return trimmed.slice(1, -1).trim();
+    return value.slice(1, -1).trim();
   }
-  return trimmed;
+  return value;
 }
 
 function escapeRegExp(value: string): string {

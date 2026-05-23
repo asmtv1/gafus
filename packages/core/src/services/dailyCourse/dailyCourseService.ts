@@ -456,7 +456,7 @@ function mapDailyCourseSteps(
       step: {
         id: link.step.id,
         title: link.step.title,
-        description: link.step.description,
+        description: cleanDailyCourseMarkdownDescription(link.step.description),
         type: link.step.type,
         durationSec: link.step.durationSec,
         estimatedDurationSec: link.step.estimatedDurationSec,
@@ -473,6 +473,18 @@ function mapDailyCourseSteps(
       },
     };
   });
+}
+
+function cleanDailyCourseMarkdownDescription(description: string): string {
+  const trimmed = description.trim();
+  const unquoted =
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+      (trimmed.startsWith('"') && trimmed.endsWith('"')))
+      ? trimmed.slice(1, -1).trim()
+      : trimmed;
+  const fenced = unquoted.match(/^`{2,3}[a-z0-9_-]*\s*\n([\s\S]*?)\n`{2,3}$/i);
+  return fenced ? fenced[1].trim() : description;
 }
 
 function calculateDailyCourseUserStatus(

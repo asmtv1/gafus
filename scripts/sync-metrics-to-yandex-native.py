@@ -168,8 +168,8 @@ def main() -> int:
             print(f"  {name} = (нет данных)", file=sys.stderr)
 
     if not payload:
-        print("[ERROR] Нет метрик для записи", file=sys.stderr)
-        return 1
+        print("[WARN] Нет метрик для записи — пропускаем цикл", file=sys.stderr)
+        return 0
 
     success = _write_to_native(payload)
     return 0 if success else 1

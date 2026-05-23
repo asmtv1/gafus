@@ -1,0 +1,4 @@
+# No multi-target auth modules are needed for the single DATA_SOURCE_NAME setup.
+# Keeping a valid empty config prevents the exporter from logging a missing
+# optional config file warning on startup.
+auth_modules: {}
