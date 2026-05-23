@@ -2,29 +2,39 @@
 
 ## Обзор
 
-Standalone REST API сервис на базе Hono для обслуживания mobile (api.gafus.ru) и частично web (password-reset-request). JWT авторизация.
+Standalone REST API сервис на базе Hono для обслуживания mobile (`api.gafus.ru`) и внешних JSON-клиентов. JWT авторизация.
 
 ## Ответственность и связь с core
 
 **Роль:** REST API для mobile и внешних клиентов. Единственный публичный REST API (api.gafus.ru).
 
 **Правила:**
+
 - Каждый route: валидация (Zod) → вызов `@gafus/core` → формирование JSON.
 - Прямой prisma в routes только для health check (проверка подключения к БД).
 - JWT auth, CORS, rate limiting — в middleware.
 
 **Маршруты и core-сервисы:**
 
-| Route group | Core service |
-|-------------|--------------|
-| auth (login, register, refresh, logout) | auth, consent |
-| user (profile, avatar, account/delete) | user |
-| training (days, day, step/*, video/url) | training, video |
-| courses | course |
-| pets | pets |
-| payments | payments |
-| subscriptions (push) | subscriptions |
-| exam | exam |
+| Route group          | Core/shared service                  |
+| -------------------- | ------------------------------------ |
+| public               | app/mobile config                    |
+| auth                 | auth, consent, user                  |
+| user                 | user, account deletion, onboarding   |
+| articles             | article                              |
+| courses              | course, reviews, favorites           |
+| pets, pet-prevention | pets, petPrevention, cdn-upload      |
+| training             | training, diary, video, video-access |
+| daily-course         | dailyCourse                          |
+| exam                 | exam                                 |
+| offline              | offline                              |
+| achievements         | achievements/statistics              |
+| subscriptions        | subscriptions/webpush                |
+| notes                | notes                                |
+| reminders            | reminders                            |
+| payments             | payments, YooKassa, Apple IAP        |
+| consultations        | consultation, consultation-shared    |
+| app-subscription     | appSubscription                      |
 
 ## Технологии
 
@@ -48,9 +58,25 @@ apps/api/
 │   │   └── error-handler.ts
 │   └── routes/
 │       └── v1/
-│           ├── health.ts  # /health, /ready
-│           ├── auth.ts    # login, register, refresh, logout
-│           └── user.ts    # profile, avatar, account/delete
+│           ├── health.ts
+│           ├── public-mobile.ts
+│           ├── auth.ts
+│           ├── user.ts
+│           ├── articles.ts
+│           ├── courses.ts
+│           ├── pets.ts
+│           ├── pet-prevention.ts
+│           ├── training.ts
+│           ├── daily-course.ts
+│           ├── exam.ts
+│           ├── offline.ts
+│           ├── achievements.ts
+│           ├── subscriptions.ts
+│           ├── notes.ts
+│           ├── reminders.ts
+│           ├── payments.ts
+│           ├── consultations.ts
+│           └── app-subscription.ts
 ├── package.json
 └── tsconfig.json
 ```
@@ -66,10 +92,11 @@ apps/api/
 
 - `POST /api/v1/auth/login` - Авторизация
 - `POST /api/v1/auth/register` - Регистрация (body: name, phone, password, tempSessionId, consentPayload; см. [Consent at Registration](../features/consent-registration.md))
-- `POST /api/v1/auth/password-reset-request` - Запрос сброса пароля (body: username, phone; код отправляется в Telegram; web и mobile используют api.gafus.ru)
+- `POST /api/v1/auth/password-reset-request` - Запрос сброса пароля (body: username, phone; legacy Telegram helper сейчас может вернуть временную недоступность)
 - `POST /api/v1/auth/refresh` - Обновление токенов
 - `POST /api/v1/auth/logout` - Выход
 - `POST /api/v1/auth/vk` - Вход через VK ID (PKCE: body `{ code, code_verifier, device_id, state }`), см. [VK Auth](../features/vk-auth.md)
+- `GET /api/v1/auth/username-available` - Проверка username с отдельным мягким rate limit
 
 ### Auth (с JWT — mobile)
 
@@ -86,6 +113,10 @@ apps/api/
 - `POST /api/v1/user/account/delete` - Необратимое удаление аккаунта (body: `{ "password" }`; см. [Удаление аккаунта](../features/account-deletion.md))
 
 Настройки уведомлений/темы для mobile в этом сервисе не экспонируются — при необходимости см. web Server Actions / локальное состояние клиента.
+
+### Остальные группы
+
+Полный актуальный список групп и endpoint-ов поддерживается в [docs/api/v1-routes.md](../api/v1-routes.md). При добавлении route в `apps/api/src/app.ts` обновляйте оба документа.
 
 ## Авторизация
 
@@ -224,7 +255,7 @@ docker run -p 3001:3001 \
 Разрешённые origins:
 
 - Production: gafus.ru, trainer.gafus.ru, admin.gafus.ru
-- Development: localhost:3000, localhost:3002, localhost:3003
+- Development origins задаются в `apps/api/src/middleware/cors.ts`; при изменении локальных портов обновляйте CORS рядом с кодом.
 - Mobile: exp://, \*.exp.direct
 
 ### Rate Limiting

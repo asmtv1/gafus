@@ -1,264 +1,121 @@
-# Архитектура системы GAFUS
+# Архитектура GAFUS
 
-## 🏗️ Общая архитектура
+## Структура монорепозитория
 
-### Monorepo структура
-
-Проект использует подход monorepo с разделением на приложения и пакеты:
-
-```
-gafus/
-├── apps/                    # Микрофронтенды
-│   ├── web/                # Основное веб-приложение
-│   ├── trainer-panel/      # Панель тренера
-│   ├── mobile/             # React Native
-│   └── bull-board/         # Мониторинг очередей
-├── packages/               # Общие пакеты
-│   ├── prisma/            # База данных
-│   ├── auth/              # Аутентификация
-│   ├── logger/            # Логирование
-│   ├── types/             # Типы TypeScript
-│   └── ...                # Другие пакеты
-└── ci-cd/                 # Конфигурация развертывания
+```text
+apps/
+  web/            Next.js пользовательское приложение
+  mobile/         Expo Router приложение
+  trainer-panel/  Next.js панель тренера
+  admin-panel/    Next.js админ-панель
+  api/            Hono REST API v1
+  bull-board/     Express/Bull Board
+packages/
+  core/           бизнес-сервисы
+  prisma/         Prisma client/schema/migrations
+  auth/           auth helpers
+  queues/         BullMQ queues
+  worker/         BullMQ workers и cron
+  webpush/        push providers
+  ...             остальные shared пакеты
 ```
 
-## 🔄 Архитектурные паттерны
+Рабочие области задаются в `pnpm-workspace.yaml`: `apps/*`, `packages/*`. Turbo-задачи описаны в `turbo.json`; `build` и `dev` зависят от `prisma:generate`.
 
-### 1. Микросервисная архитектура
+## Слои
 
-Каждое приложение является независимым микросервисом:
-
-- Собственная база данных (через общий Prisma пакет)
-- Независимое развертывание
-- Слабая связанность между сервисами
-
-### 2. Shared Libraries Pattern
-
-Общие пакеты обеспечивают:
-
-- Переиспользование кода
-- Единообразие интерфейсов
-- Централизованное управление зависимостями
-
-### 3. Event-Driven Architecture
-
-- Очереди BullMQ (@gafus/queues): push, reengagement, video-transcoding, exam-cleanup, consent-log-cleanup
-- Worker (@gafus/worker) обрабатывает задачи; Bull Board — мониторинг
-
-## 🌐 Сетевая архитектура
-
-### Frontend Layer
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web App       │    │  Trainer Panel  │    │  Admin Panel   │
-│   (Port 3002)   │    │   (Port 3001)   │    │   (Port 3000)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   Nginx Proxy   │
-                    │  (Load Balancer)│
-                    └─────────────────┘
+```text
+UI / clients
+  web, mobile, trainer-panel, admin-panel
+        |
+Transport
+  Next.js Server Actions / Route Handlers, Hono REST API
+        |
+Domain
+  @gafus/core services + профильные shared packages
+        |
+Infrastructure
+  @gafus/prisma, @gafus/queues, @gafus/cdn-upload, @gafus/webpush, @gafus/mailer
+        |
+External systems
+  PostgreSQL, Redis, S3-compatible storage, YooKassa, Apple, VK ID, Push providers
 ```
 
-### Backend Layer
+Правило для новых изменений: бизнес-правила помещать в `@gafus/core` или профильный пакет, а приложения оставлять адаптерами ввода/вывода.
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Telegram Bot   │    │   Bull Board    │    │   Worker        │
-│   (Background)  │    │  (Port 3003)    │    │  (Background)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   Redis Queue   │
-                    │   (Port 6379)   │
-                    └─────────────────┘
-```
+## Приложения и порты
 
-### Data Layer
+| App                  | Локальный порт из скрипта | Публичная роль                         |
+| -------------------- | ------------------------- | -------------------------------------- |
+| `apps/web`           | `3002`                    | `gafus.ru`, PWA                        |
+| `apps/trainer-panel` | `3001`                    | trainer subdomain/panel                |
+| `apps/admin-panel`   | `3006`                    | admin subdomain/panel                  |
+| `apps/api`           | `API_PORT` или `3001`     | `api.gafus.ru`                         |
+| `apps/bull-board`    | `3004`                    | `/admin/queues`, `/metrics`, `/health` |
+| `apps/mobile`        | Expo dev server           | native app                             |
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostgreSQL    │    │      Redis      │    │     AWS S3      │
-│   (Port 5432)   │    │   (Port 6379)   │    │   (File Store)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+`apps/api` и `apps/trainer-panel` конфликтуют на `3001`, если запускать оба с дефолтными командами.
 
-## 📦 Управление зависимостями
+## API и transport
 
-### Workspace Configuration
+- `apps/api` - единственный standalone REST API. Базовый путь: `/api/v1`.
+- `apps/web`, `apps/trainer-panel`, `apps/admin-panel` используют Next.js App Router, Server Components, Server Actions и отдельные Route Handlers для JSON/health/csrf/special endpoints.
+- Mobile ходит в `apps/api` через `NEXT_PUBLIC_API_URL`/runtime config.
+- Web/panels для server-side операций обычно вызывают core напрямую.
 
-```yaml
-# pnpm-workspace.yaml
-packages:
-  - apps/*
-  - packages/*
-```
+## Очереди и воркеры
 
-### Build Pipeline
+`@gafus/queues` экспортирует BullMQ очереди:
 
-```json
-// turbo.json
-{
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build", "prisma:generate"],
-      "outputs": [".next/**", "dist/**"]
-    },
-    "dev": {
-      "dependsOn": ["prisma:generate"],
-      "persistent": true
-    }
-  }
-}
-```
+- push
+- reengagement
+- video-transcoding
+- consultation mail/reminder/SLA
+- consent-log-cleanup
+- pet-prevention-reminder
 
-## 🔐 Безопасность
+`@gafus/worker` запускает обработчики и cron schedules. `apps/bull-board` сейчас подключает к UI и Prometheus metrics три очереди: `push`, `exam-cleanup`, `reengagement`. Остальные очереди существуют в пакете и используются воркерами/приложениями, но не все выведены в Bull Board UI.
 
-### Аутентификация Flow
+## Auth и безопасность
 
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Client    │───▶│  NextAuth   │───▶│   Database  │
-│  (Browser)  │    │  (JWT)      │    │  (Users)    │
-└─────────────┘    └─────────────┘    └─────────────┘
-```
+- Web/panels: NextAuth.js v4 с JWT/session helpers из `@gafus/auth`.
+- API v1: Bearer JWT через `jose`, access/refresh tokens, middleware `apps/api/src/middleware/auth.ts`.
+- CSRF для Next.js mutating endpoints/actions через `@gafus/csrf`.
+- Rate limiting в Hono API через `hono-rate-limiter` и Redis.
+- Cookie consent хранится в `localStorage` ключе `gafus:cookieConsent:v1`.
+- Секреты и env описаны в [deployment/configuration.md](../deployment/configuration.md).
 
-### Авторизация
+## Данные
 
-- Ролевая модель (RBAC)
-- Middleware для проверки прав доступа
-- CSRF токены для защиты форм
+Основные домены хранятся в PostgreSQL через Prisma:
 
-### Cookie consent (GDPR)
+- users/auth/roles
+- pets/documents/prevention
+- courses/training days/steps
+- progress/exams/achievements
+- articles/reviews/favorites
+- consultations
+- payments/subscriptions
+- push subscriptions/devices
+- consent logs
 
-- Согласие хранится в localStorage (`gafus:cookieConsent:v1`), не в HTTP cookies
-- Компонент `CookieConsentBanner` из `@gafus/ui-components`
-- Подробнее: [Cookie consent](../features/cookie-consent.md)
+Схема и миграции: `packages/prisma/prisma/schema.prisma`, `packages/prisma/migrations/`.
 
-## 📊 Обработка данных
+## Наблюдаемость
 
-### Database Schema
-
-```mermaid
-erDiagram
-    User ||--o{ Course : creates
-    User ||--o{ Pet : owns
-    Course ||--o{ TrainingDay : contains
-    TrainingDay ||--o{ Step : contains
-    User ||--o{ UserTraining : participates
-    UserTraining ||--o{ UserStep : has
-    UserStep ||--o{ ExamResult : generates
-```
-
-### Data Flow
-
-1. **User Registration** → Database
-2. **Course Creation** → Database + CDN (images)
-3. **Training Progress** → Database + Cache (Redis)
-4. **Notifications** → Queue (BullMQ) → Telegram/Push
-
-## 🔄 Обработка очередей
-
-### Queue Architecture
-
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Producer  │───▶│    Queue    │───▶│  Consumer   │
-│  (App)      │    │   (Redis)   │    │ (Worker)    │
-└─────────────┘    └─────────────┘    └─────────────┘
-```
-
-### Типы задач
-
-- **Push Notifications** - Уведомления пользователям
-- **Email Sending** - Отправка писем
-- **File Processing** - Обработка загруженных файлов
-- **Data Export** - Экспорт данных
-
-## 🌍 Развертывание
-
-### Docker Architecture
-
-```yaml
-# docker-compose.prod.yml
-services:
-  web:
-    build: ./ci-cd/docker/Dockerfile-web-optimized
-    ports: ["3002:3000"]
-
-  trainer-panel:
-    build: ./ci-cd/docker/Dockerfile-trainer-panel-optimized
-    ports: ["3001:3000"]
-
-  nginx:
-    build: ./ci-cd/nginx
-    ports: ["80:80", "443:443"]
-```
-
-### Environment Configuration
-
-- **Development** - Локальная разработка
-- **Staging** - Тестовое окружение
-- **Production** - Продакшн сервер
-
-## 📈 Масштабирование
-
-### Горизонтальное масштабирование
-
-- Каждый сервис может масштабироваться независимо
-- Load balancer для распределения нагрузки
-- Database replication для высокой доступности
-
-### Вертикальное масштабирование
-
-- Увеличение ресурсов для каждого контейнера
-- Оптимизация запросов к базе данных
-- Кэширование на разных уровнях
-
-## 🔍 Мониторинг
-
-### Логирование
-
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   App 1     │    │   App 2     │    │   App N     │
-│             │    │             │    │             │
-└──────┬──────┘    └──────┬──────┘    └──────┬──────┘
-       │                  │                  │
-       └──────────────────┼──────────────────┘
-                          │
-                ┌─────────────┐
-                │   Logger    │
-                │  (Central)  │
-                └─────────────┘
-```
-
-### Метрики
-
-- **Application Metrics** - Производительность приложений
-- **Database Metrics** - Запросы и соединения
-- **Queue Metrics** - Размер очередей и время обработки
-- **Error Tracking** - Отслеживание ошибок
+- `@gafus/logger` - Pino-based structured logs.
+- Tracer - client/server error reporting where enabled by env.
+- `apps/bull-board` - `/metrics` для BullMQ.
+- `packages/worker/src/health-server.ts` - worker health endpoint.
+- Docker monitoring configs - `ci-cd/docker/prometheus`, `grafana`, `blackbox`.
 
 ## Дополнительная документация
 
-- [Обзор слоёв: core как ядро](./overview.md)
-- [Поток данных (web, api, mobile)](./data-flow.md)
-- [Матрица миграции core](./core-migration-matrix.md)
-- [Admin Panel — слои и core-сервисы](./admin-panel-layers.md)
-- [Формат идентификаторов (CUID)](./identifiers.md)
+- [Обзор слоёв core](./overview.md)
+- [Поток данных](./data-flow.md)
+- [Admin Panel layers](./admin-panel-layers.md)
+- [Формат идентификаторов](./identifiers.md)
 - [Система кэширования](./caching-system.md)
-- [Управление переменными окружения](./ENV_MANAGEMENT.md)
-- [Структура пакетов](./PACKAGE_STRUCTURE_ANALYSIS.md)
+- [Управление env](./ENV_MANAGEMENT.md)
 - [Архитектура логирования](./logging-architecture.md)
-- [Pino vs Loki](./LOGGER_VS_LOKI.md), [сравнение логирования](./LOGGING_COMPARISON.md)
 - [HLS-защита видео](./hls-video-protection.md)
-
----
-
-_Архитектура системы спроектирована для обеспечения высокой производительности, масштабируемости и надежности._

@@ -6,10 +6,10 @@
 
 ## Экспорты
 
-| Путь | Назначение |
-|------|------------|
-| `@gafus/analytics` | `trackEvent`, `identifyUser`, `resetAnalyticsUser`, `sanitizePath`, валидация имён событий — общий контракт (без привязки к RN/браузеру) |
-| `@gafus/analytics/web` | `syncWebAnalyticsWithConsent`, псевдоним `initAnalyticsWeb` (= то же), `getOrCreateWebAnonymousId` — только из web-клиента; init после согласия на cookies (`NEXT_PUBLIC_YM_COUNTER_ID`) |
+| Путь                      | Назначение                                                                                                                                                                                                                                                                                                  |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@gafus/analytics`        | `trackEvent`, `identifyUser`, `resetAnalyticsUser`, `sanitizePath`, валидация имён событий — общий контракт (без привязки к RN/браузеру)                                                                                                                                                                    |
+| `@gafus/analytics/web`    | `syncWebAnalyticsWithConsent`, псевдоним `initAnalyticsWeb` (= то же), `getOrCreateWebAnonymousId` — только из web-клиента; init после согласия на cookies (`NEXT_PUBLIC_YM_COUNTER_ID`)                                                                                                                    |
 | `@gafus/analytics/mobile` | **F5:** тот же публичный API, что и в `client` (`trackEvent`, `trackScreenView`, `identifyUser`, `resetAnalyticsUser`, `flushQueuedEvents`, `isAnalyticsReady`) + `sanitizePath` + `initAnalyticsMobile` (Яндекс AppMetrica) — mobile-приложения импортируют трекинг отсюда, не из корня `@gafus/analytics` |
 
 Вендорские SDK подключаются опционально в приложениях, не в корне пакета.
@@ -27,7 +27,7 @@
 
 На **web** событие `course_open` для экрана списка дней курса отправляется с клиента при смене курса (`courseType` / `courseId` в зависимостях), `pathOrScreen` вида `/trainings/{courseType}` — без лишних срабатываний при смене только pathname.
 
-Политика данных: без сырого PII в `props`, лимит размера, строгие Zod-схемы в `validate.ts` — см. план `.cursor/agentplan/analytics-events-mvp.md` (F6).
+Политика данных: без сырого PII в `props`, лимит размера, строгие Zod-схемы в `validate.ts`.
 
 ## Связанные документы
 

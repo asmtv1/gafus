@@ -1,198 +1,102 @@
 # Технологический стек GAFUS
 
-## 🎯 Обзор технологий
-
-Проект GAFUS построен на современном технологическом стеке, обеспечивающем высокую производительность, масштабируемость и удобство разработки.
-
-## 🖥️ Frontend
-
-### Core Framework
-
-- **Next.js 15.4.7** - React фреймворк с SSR/SSG
-  - App Router для современной маршрутизации
-  - Server Components для оптимизации производительности
-  - Built-in оптимизация изображений
-
-### UI и стилизация
-
-- **React 19.1.0** - Основная библиотека для UI
-- **TypeScript 5.8.3** - Статическая типизация
-- **Tailwind CSS** - Utility-first CSS фреймворк
-- **Material-UI 7.1.0** - Компоненты интерфейса
-  - @mui/material - Основные компоненты
-  - @mui/icons-material - Иконки
-  - @mui/x-data-grid - Таблицы данных
-  - @mui/x-date-pickers - Выбор дат
-
-### Управление состоянием
-
-- **Zustand 5.0.7** - Легковесная библиотека состояния
-- **TanStack Query 5.85.9** - Управление серверным состоянием
-- **React Hook Form 7.58.1** - Управление формами
-
-### Дополнительные библиотеки
-
-- **React Markdown 10.1.0** - Отображение Markdown
-- **Date-fns 3.6.0** - Работа с датами
-- **React Detect Offline 2.4.5** - Определение офлайн состояния
-- **Browser Image Compression 2.0.2** - Сжатие изображений
-
-## 🔧 Backend
-
-### Runtime и Framework
-
-- **Node.js** - JavaScript runtime
-- **Next.js API Routes** - Serverless API endpoints
-- **NextAuth.js 4.24.11** - Аутентификация
-
-### База данных
-
-- **PostgreSQL** - Основная реляционная БД
-- **Prisma** - ORM и миграции
-- **Redis** - Кэширование и очереди
-
-### Очереди и фоновые задачи
-
-- **BullMQ** — очереди на Redis (@gafus/queues)
-- **Worker** (@gafus/worker) — воркеры push, reengagement, напоминания, экзамены
-
-## 🔐 Безопасность
-
-### Аутентификация и авторизация
-
-- **NextAuth.js** - JWT токены и сессии
-- **Bcrypt** - Хеширование паролей
-- **CSRF токены** - Защита от CSRF атак
-
-### Валидация
-
-- **Zod 3.24.1** - Схемы валидации
-- **React Hook Form Resolvers** - Интеграция с формами
-
-## 📱 Мобильные и PWA
-
-### Progressive Web App
-
-- **@ducanh2912/next-pwa** - PWA функциональность
-- **Service Worker** - Офлайн поддержка
-- **Web App Manifest** - Установка как приложение
-
-### Push уведомления
-
-- **Web Push API** - Нативные уведомления
-- **Custom WebPush пакет** - Абстракция для уведомлений
-
-## 🤖 Интеграции
-
-### Telegram
-
-- **Telegram Bot API** - Интеграция с Telegram
-- **Custom Bot пакет** - Обработка команд и уведомлений
-
-### Файловое хранилище
-
-- **AWS S3 SDK** - Загрузка файлов в облако
-- **Sharp 0.34.3** - Обработка изображений
-
-### Телефония
-
-- **libphonenumber-js** - Валидация номеров телефонов
-
-## 🛠️ Инструменты разработки
-
-### Сборка и управление пакетами
-
-- **pnpm 10.12.4** - Менеджер пакетов
-- **Turbo 2.5.4** - Monorepo build system
-- **TypeScript** - Компиляция и типизация
-
-### Линтинг и форматирование
-
-- **ESLint 9.32.0** - Линтер кода
-- **Prettier 3.6.2** - Форматирование кода
-- **TypeScript ESLint** - Правила для TypeScript
-
-### Документация API
-
-- **@asteasolutions/zod-to-openapi** - Генерация OpenAPI схем
-- **Swagger UI React** - Документация API
-
-## 🚀 DevOps и развертывание
-
-### Контейнеризация
-
-- **Docker** - Контейнеризация приложений
-- **Docker Compose** - Оркестрация контейнеров
-- **Multi-stage builds** - Оптимизированные образы
-
-### Веб-сервер
-
-- **Nginx** - Reverse proxy и статические файлы
-- **SSL/TLS** - HTTPS поддержка
-
-### CI/CD
-
-- **Custom scripts** - Автоматизация развертывания
-- **Environment management** - Управление окружениями
-
-## 📊 Мониторинг и логирование
-
-### Логирование
-
-- **Pino** (через @gafus/logger) — структурированные JSON-логи
-- **docker logs** — просмотр логов
-### Мониторинг ошибок
-
-- **Tracer** — клиентские и серверные ошибки
-
-### Производительность
-
-- **Bundle Analyzer** - Анализ размера бандлов
-- **Performance monitoring** - Отслеживание метрик
-
-## 🔄 Архитектурные паттерны
-
-### Monorepo
-
-- **pnpm workspaces** - Управление зависимостями
-- **Turbo** - Кэширование и параллельная сборка
-- **Shared packages** - Переиспользование кода
-
-### Микросервисы
-
-- **Independent deployments** - Независимое развертывание
-- **API communication** - Взаимодействие между сервисами
-- **Event-driven architecture** - Асинхронная обработка
-
-## 📈 Производительность
-
-### Оптимизации
-
-- **Image optimization** - Автоматическая оптимизация изображений
-- **Code splitting** - Разделение кода
-- **Lazy loading** - Ленивая загрузка компонентов
-- **Caching strategies** - Многоуровневое кэширование
-
-### Масштабирование
-
-- **Horizontal scaling** - Горизонтальное масштабирование
-- **Database optimization** - Оптимизация запросов
-- **CDN integration** - Распределение контента
-
-## 🔧 Утилиты разработки
-
-### Скрипты и автоматизация
-
-- **Custom build scripts** - Автоматизация сборки
-- **Environment setup** - Настройка окружений
-- **Database management** - Управление БД
-
-### Тестирование
-
-- **TypeScript** - Статическая проверка типов
-- **ESLint** - Проверка качества кода
-- **Custom test utilities** - Утилиты для тестирования
-
----
-
-_Технологический стек выбран для обеспечения современного, масштабируемого и поддерживаемого решения._
+Документ фиксирует текущий стек по `package.json` в корне, `apps/*` и `packages/*`.
+
+## Runtime и monorepo
+
+- Node.js 20.x как целевая runtime версия.
+- pnpm `10.12.4`.
+- Turbo `2.5.4`.
+- TypeScript `5.8.3` в web/panels/packages и `~5.9.3` в mobile.
+- ESLint 9, Prettier 3.
+- Vitest 4 для unit/integration тестов.
+
+## Web и панели
+
+- Next.js `15.5.x` App Router.
+- React `19.2.1` в web/trainer/admin пакетах.
+- NextAuth.js `4.24.11`.
+- Material UI `7.1.0`, MUI X Data Grid/Date Pickers `7.8.0`.
+- TanStack Query `5.85.9`.
+- Zustand `5.0.7`.
+- React Hook Form `7.58.1` в web/trainer, `7.54.2` в admin.
+- CSS Modules/global CSS. Tailwind config в репозитории сейчас отсутствует, поэтому Tailwind не считается текущей базовой технологией проекта.
+
+## Mobile
+
+- Expo `54.0.34`.
+- Expo Router `~6.0.21`.
+- React `19.1.0`.
+- React Native `0.81.5`.
+- React Native Paper `^5.12.5`.
+- FlashList `^2.0.2`.
+- Expo IAP, Notifications, Updates, Secure Store, File System, Image Picker, Video.
+- RuStore Push через `react-native-rustore-push`.
+- AppMetrica через `@appmetrica/react-native-analytics`.
+
+## API/backend
+
+- `apps/api`: Hono `^4.11.4`, `@hono/node-server`, `@hono/zod-validator`.
+- JWT: `jose` для API, NextAuth для web/panels.
+- Validation: Zod 3.
+- Build API: `tsup`.
+- `apps/bull-board`: Express 5 + `@bull-board/*`.
+
+## Data и async
+
+- PostgreSQL.
+- Prisma `6.10.1`.
+- Redis через `ioredis`.
+- BullMQ `5.2.0`.
+- Background jobs в `@gafus/worker`.
+
+## Shared packages
+
+- `@gafus/core` - доменная бизнес-логика.
+- `@gafus/prisma` - Prisma client/schema/migrations.
+- `@gafus/queues` - BullMQ queue instances.
+- `@gafus/webpush` - Web Push, Expo Push, RuStore Push.
+- `@gafus/cdn-upload` - S3-compatible object storage upload.
+- `@gafus/mailer` - transactional SMTP mail через Nodemailer 7.
+- `@gafus/analytics` - web/mobile analytics adapters.
+- `@gafus/video-access` - signed JWT access for protected video.
+- `@gafus/consultation-shared` - shared consultation presentation/formatting helpers.
+
+## Интеграции
+
+- VK ID auth.
+- YooKassa payments.
+- Apple IAP / app subscription verification.
+- S3-compatible Object Storage / CDN.
+- Web Push VAPID.
+- Expo Push.
+- RuStore Push.
+- SMTP/Postfix transactional email.
+- Yandex Telemost for consultations where configured.
+- Yandex Metrica/AppMetrica analytics.
+- PostHog web analytics adapter exists in `@gafus/analytics`.
+
+Telegram Bot API не является активным приложением монорепы. Упоминания Telegram в auth относятся к legacy password/phone reset helpers и не должны трактоваться как существующий сервис.
+
+## DevOps и monitoring
+
+- Docker multi-stage images в `ci-cd/docker`.
+- Production compose: `ci-cd/docker/docker-compose.prod.yml`.
+- Local compose: `ci-cd/docker/docker-compose.local.yml`.
+- Nginx config в `ci-cd/nginx`.
+- Prometheus/Grafana/Blackbox configs в `ci-cd/docker`.
+- Pino logs через `@gafus/logger`.
+- Tracer включается env-переменными.
+
+## Проверки
+
+Основные repo-level команды:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Для точечной проверки используйте `pnpm --filter <package> <script>`.

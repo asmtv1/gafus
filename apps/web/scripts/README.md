@@ -75,8 +75,8 @@ pnpm analyze
     "build:clean": "bash scripts/clear-build-cache.sh && next build",
     "start": "PORT=3002 next start",
     "clean": "bash scripts/clear-build-cache.sh",
-    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
-    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "typecheck": "tsc --noEmit",
     "analyze": "node scripts/analyze-bundle.js",
     "analyze:build": "ANALYZE=true npm run build"
@@ -106,11 +106,13 @@ pnpm analyze
 ### Проблемы с сборкой
 
 1. Очистите кеш:
+
    ```bash
    pnpm clean
    ```
 
 2. Переустановите зависимости:
+
    ```bash
    rm -rf node_modules
    pnpm install
@@ -124,11 +126,13 @@ pnpm analyze
 ### Проблемы с dev сервером
 
 1. Убедитесь, что порт 3002 свободен:
+
    ```bash
    lsof -ti:3002 | xargs kill -9
    ```
 
 2. Очистите кеш:
+
    ```bash
    pnpm clean
    ```

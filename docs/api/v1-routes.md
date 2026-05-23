@@ -1,1225 +1,241 @@
-# API Routes v1 для React Native
+# API Routes v1
 
-**Дата создания:** 19 января 2026  
-**Версия:** 1.0.0  
-**Базовый URL:** `/api/v1`
+**Актуализировано:** май 2026
+**Base:** `/api/v1` для доменных групп, `/health` и `/ready` в корне API service.
 
----
+API v1 реализован в `apps/api` на Hono. Mount points и middleware находятся в `apps/api/src/app.ts`, endpoint files - в `apps/api/src/routes/v1/`.
 
-## Обзор
+## Общие правила
 
-Все API Routes используют:
+- Формат ответа: `{ success: boolean, data?: T, error?: string, code?: string }`.
+- Защищённые группы используют `Authorization: Bearer <access_token>`.
+- Auth/public/health routes доступны без JWT, кроме явно защищённых auth endpoints.
+- Validation выполняется через Zod и `@hono/zod-validator`, где schema задана в route file.
+- Rate limits задаются в `apps/api/src/middleware/rate-limit.ts`.
+- CSRF относится к Next.js web/panel endpoints, а не к Hono mobile API.
 
-- `getServerSession(authOptions)` для авторизации
-- `withCSRFProtection` для мутирующих операций (POST/PUT/DELETE)
-- JSON формат ответов: `{ success: boolean, data?: T, error?: string, code?: string }`
+## Middleware по группам
 
-### Коды ошибок
+| Base path                    | Auth                                                         | Rate limiter                                                                      |
+| ---------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `/health`, `/ready`          | no                                                           | no                                                                                |
+| `/api/v1/public/*`           | no                                                           | `apiRateLimiter`                                                                  |
+| `/api/v1/auth/*`             | mixed                                                        | `authRateLimiter`, для `GET /username-available` - `usernameAvailableRateLimiter` |
+| `/api/v1/user/*`             | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/articles/*`         | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/courses/*`          | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/pets/*`             | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/training/*`         | JWT, кроме HLS manifest/segment exceptions в auth middleware | `apiRateLimiter`                                                                  |
+| `/api/v1/daily-course/*`     | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/exam/*`             | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/offline/*`          | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/achievements/*`     | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/subscriptions/*`    | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/notes/*`            | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/reminders/*`        | JWT                                                          | `apiRateLimiter`                                                                  |
+| `/api/v1/payments/*`         | JWT                                                          | `paymentsRateLimiter` для create/apple verify                                     |
+| `/api/v1/consultations/*`    | JWT, часть routes role-gated                                 | `apiRateLimiter` + booking limiter                                                |
+| `/api/v1/app-subscription/*` | JWT                                                          | `paymentsRateLimiter`                                                             |
 
-| Код                     | HTTP Status | Описание                    |
-| ----------------------- | ----------- | --------------------------- |
-| `UNAUTHORIZED`          | 401         | Пользователь не авторизован |
-| `FORBIDDEN`             | 403         | Недостаточно прав доступа   |
-| `NOT_FOUND`             | 404         | Ресурс не найден            |
-| `VALIDATION_ERROR`      | 400         | Ошибка валидации данных     |
-| `INTERNAL_SERVER_ERROR` | 500         | Внутренняя ошибка сервера   |
+## Endpoint inventory
 
----
+### Health
 
-## Auth — Аутентификация
+- `GET /health`
+- `GET /ready`
 
-### POST `/api/v1/auth/password-reset-request`
+### Public
 
-Запрос на сброс пароля. Ранее код уходил в Telegram; отдельное приложение `telegram-bot` удалено, а вызовы `sendTelegram*` в `@gafus/auth` — заглушки. Пока канал не заменён, API может вернуть ошибку с текстом вроде «Функция временно недоступна. Обратитесь в поддержку.» Ссылка для ввода кода (когда flow снова доступен) формируется из `WEB_APP_URL` (напр. `https://gafus.ru/reset-password`). **Web и mobile клиенты используют api.gafus.ru** для этого эндпоинта.
+- `GET /api/v1/public/mobile-app`
 
-**Body:**
+### Auth
 
-```json
-{ "username": "string", "phone": "string" }
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/check-phone-match`
+- `POST /api/v1/auth/password-reset-request`
+- `POST /api/v1/auth/reset-password`
+- `POST /api/v1/auth/email-change-request`
+- `POST /api/v1/auth/email-change-confirm`
+- `POST /api/v1/auth/vk`
+- `POST /api/v1/auth/vk-consent`
+- `POST /api/v1/auth/vk-phone-set`
+- `POST /api/v1/auth/vk-link`
+- `POST /api/v1/auth/set-password`
+- `POST /api/v1/auth/change-password`
+- `GET /api/v1/auth/username-available`
+- `POST /api/v1/auth/username-change`
+
+Password/phone reset flows that still depend on Telegram helpers are legacy: отдельного `apps/telegram-bot` в монорепе нет, helpers могут вернуть временную недоступность.
+
+### User
+
+- `GET /api/v1/user/profile/public`
+- `GET /api/v1/user/profile`
+- `GET /api/v1/user/onboarding-tour`
+- `POST /api/v1/user/onboarding-tour/complete`
+- `PUT /api/v1/user/profile`
+- `POST /api/v1/user/avatar`
+- `POST /api/v1/user/account/deletion-code`
+- `POST /api/v1/user/account/delete`
+
+### Articles
+
+- `GET /api/v1/articles`
+- `POST /api/v1/articles/:id/like`
+- `POST /api/v1/articles/:slug/view`
+- `GET /api/v1/articles/:slug`
+
+### Courses
+
+- `GET /api/v1/courses`
+- `GET /api/v1/courses/access`
+- `GET /api/v1/courses/favorites`
+- `POST /api/v1/courses/favorites`
+- `POST /api/v1/courses/personalization`
+- `GET /api/v1/courses/metadata`
+- `GET /api/v1/courses/reviews`
+- `POST /api/v1/courses/reviews`
+- `PATCH /api/v1/courses/reviews`
+- `DELETE /api/v1/courses/reviews`
+
+### Pets
+
+- `GET /api/v1/pets`
+- `POST /api/v1/pets`
+- `GET /api/v1/pets/:petId`
+- `PUT /api/v1/pets/:petId`
+- `DELETE /api/v1/pets/:petId`
+- `POST /api/v1/pets/:petId/photo`
+- `GET /api/v1/pets/:petId/documents`
+- `POST /api/v1/pets/:petId/documents`
+- `PUT /api/v1/pets/:petId/documents/:documentId`
+- `DELETE /api/v1/pets/:petId/documents/:documentId`
+- `GET /api/v1/pets/:petId/documents/:documentId/download`
+- `GET /api/v1/pets/:petId/prevention`
+- `POST /api/v1/pets/:petId/prevention`
+- `POST /api/v1/pets/:petId/prevention/batch`
+- `PUT /api/v1/pets/:petId/prevention/:entryId`
+- `DELETE /api/v1/pets/:petId/prevention/:entryId`
+
+### Training
+
+- `GET /api/v1/training/days`
+- `GET /api/v1/training/day`
+- `POST /api/v1/training/step/start`
+- `POST /api/v1/training/step/pause`
+- `POST /api/v1/training/step/resume`
+- `POST /api/v1/training/step/reset`
+- `POST /api/v1/training/step/complete/practice`
+- `POST /api/v1/training/step/complete/theory`
+- `POST /api/v1/training/diary`
+- `GET /api/v1/training/diary`
+- `POST /api/v1/training/video/url`
+- `GET /api/v1/training/video/:videoId/manifest`
+- `GET /api/v1/training/video/:videoId/manifest.m3u8`
+- `GET /api/v1/training/video/:videoId/segment`
+
+### Daily Course
+
+- `GET /api/v1/daily-course/today`
+- `GET /api/v1/daily-course/day`
+- `POST /api/v1/daily-course/step/start`
+- `POST /api/v1/daily-course/step/pause`
+- `POST /api/v1/daily-course/step/resume`
+- `POST /api/v1/daily-course/step/reset`
+- `POST /api/v1/daily-course/step/complete`
+
+### Exam
+
+- `GET /api/v1/exam/result`
+- `POST /api/v1/exam/submit`
+- `POST /api/v1/exam/upload-video`
+
+### Offline
+
+- `GET /api/v1/offline/course/version`
+- `GET /api/v1/offline/course/updates`
+- `GET /api/v1/offline/course/download`
+
+### Achievements
+
+- `GET /api/v1/achievements/training-dates`
+- `GET /api/v1/achievements`
+
+### Subscriptions
+
+- `GET /api/v1/subscriptions/push`
+- `POST /api/v1/subscriptions/push`
+- `POST /api/v1/subscriptions/push/device-status`
+- `DELETE /api/v1/subscriptions/push`
+
+### Notes
+
+- `GET /api/v1/notes/student`
+
+### Reminders
+
+- `GET /api/v1/reminders`
+- `POST /api/v1/reminders`
+- `PUT /api/v1/reminders/:id`
+- `DELETE /api/v1/reminders/:id`
+
+### Payments
+
+- `POST /api/v1/payments/create`
+- `POST /api/v1/payments/apple/verify`
+- `GET /api/v1/payments/apple/course-metadata`
+
+### Consultations
+
+- `GET /api/v1/consultations/cynologists`
+- `GET /api/v1/consultations/cynologists/:cynologistUserId/slots`
+- `GET /api/v1/consultations/cynologists/:cynologistUserId/slots/:slotId/verify`
+- `POST /api/v1/consultations/book`
+- `GET /api/v1/consultations/my`
+- `POST /api/v1/consultations/bookings/:bookingId/cancel`
+- `GET /api/v1/consultations/trainer/bookings`
+- `POST /api/v1/consultations/trainer/bookings/:bookingId/confirm`
+- `POST /api/v1/consultations/trainer/bookings/:bookingId/complete`
+- `POST /api/v1/consultations/trainer/bookings/:bookingId/no-show`
+- `POST /api/v1/consultations/trainer/bookings/:bookingId/reject`
+- `GET /api/v1/consultations/trainer/availability`
+- `PUT /api/v1/consultations/trainer/availability`
+- `POST /api/v1/consultations/trainer/day-offs`
+- `DELETE /api/v1/consultations/trainer/day-offs/:dayOffId`
+- `POST /api/v1/consultations/trainer/exceptions`
+- `DELETE /api/v1/consultations/trainer/exceptions/:exceptionId`
+- `GET /api/v1/consultations/admin/cynologists`
+- `PUT /api/v1/consultations/admin/cynologists/listed`
+- `GET /api/v1/consultations/admin/bookings`
+
+Trainer routes require one of `TRAINER`, `ADMIN`, `MODERATOR`. Admin routes require `ADMIN` or `MODERATOR`.
+
+### App Subscription
+
+- `GET /api/v1/app-subscription/status`
+- `GET /api/v1/app-subscription/offer`
+- `POST /api/v1/app-subscription/yookassa/start`
+- `POST /api/v1/app-subscription/yookassa/cancel`
+- `POST /api/v1/app-subscription/apple/verify`
+- `POST /api/v1/app-subscription/apple/restore`
+
+## Как обновлять этот документ
+
+После изменения `apps/api/src/routes/v1/*.ts` сверяйте список командой:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+import re
+for f in sorted(Path("apps/api/src/routes/v1").glob("*.ts")):
+    if f.name.endswith(".test.ts"):
+        continue
+    text = f.read_text()
+    print(f"## {f.name}")
+    for m in re.finditer(r"(\\w+Routes)\\.(get|post|put|patch|delete)\\(\\s*[\\n ]*([\\\"`'])(.*?)\\3", text, re.S):
+        print(f"{m.group(2).upper()} {m.group(4)}")
+PY
 ```
-
-**Response (success):** `{ "success": true }`
-
-**Ошибки:** 400 (валидация, пользователь не найден, Telegram не привязан), 429 (rate limit).
-
----
-
-### POST `/api/v1/auth/register`
-
-Регистрация нового пользователя. Поддерживает логирование согласий (GDPR). Подробнее: [Consent at Registration](../features/consent-registration.md).
-
-**Body:**
-
-```json
-{
-  "name": "string (3-50, a-zA-Z0-9_)",
-  "email": "string (email, max 255, нормализация toLowerCase/trim на сервере)",
-  "password": "string (min 8, upper/lower/digit)",
-  "tempSessionId": "UUID",
-  "consentPayload": {
-    "acceptPersonalData": true,
-    "acceptPrivacyPolicy": true,
-    "acceptDataDistribution": true
-  }
-}
-```
-
-**Ответ при конфликте username/email:** HTTP 409, единое сообщение «Пользователь с такими данными уже существует» (без указания, какое поле занято).
-
-**Успех:** как раньше — `data.user`, `accessToken`, `refreshToken` (мобильный клиент).
-
-Регистрация выполняется в `@gafus/core` (`registerUserWithCredentials`); согласия: `createConsentLogs` → регистрация → `linkConsentLogsToUser`.
-
----
-
-### POST `/api/v1/auth/reset-password`
-
-Сброс пароля по токену.
-
-**Body:**
-
-```json
-{
-  "token": "string",
-  "newPassword": "string"
-}
-```
-
----
-
-### POST `/api/v1/auth/check-phone-match`
-
-Проверка соответствия телефона и username.
-
-**Body:**
-
-```json
-{
-  "username": "string",
-  "phone": "string"
-}
-```
-
----
-
-### POST `/api/v1/auth/phone-change-request`
-
-Запрос кода смены телефона (ранее — Telegram; сейчас может быть заглушка). Требует авторизацию: Bearer JWT.
-
-**Body:** пустой или `{}`
-
-**Response:** `{ "success": true }`
-
-**Ошибки:** 401 (нет токена), 400/429 (Telegram не привязан, слишком рано повторный запрос, rate limit Telegram).
-
----
-
-### POST `/api/v1/auth/phone-change-confirm`
-
-Подтверждение смены телефона по коду из Telegram. Требует авторизацию: Bearer JWT.
-
-**Body:**
-
-```json
-{
-  "code": "string (6 цифр)",
-  "newPhone": "string"
-}
-```
-
-**Response:** `{ "success": true }`
-
-**Ошибки:** 400 (код недействителен, телефон занят, неверный формат номера).
-
----
-
-### POST `/api/v1/auth/username-change`
-
-Смена логина (username). Требует авторизацию: Bearer JWT.
-
-**Body:**
-
-```json
-{
-  "newUsername": "string"
-}
-```
-
-**Response:** `{ "success": true, "data": { "user": { "id": "string", "username": "string", "role": "string" } } }`
-
-**Ошибки:** 400 (логин занят, неверный формат).
-
----
-
-### GET `/api/v1/auth/username-available`
-
-Проверка доступности логина (для live-check при вводе).
-
-**Query:**
-
-| Параметр | Тип    | Описание                                    |
-| -------- | ------ | ------------------------------------------- |
-| username | string | Логин для проверки (3–50 символов, латиница, цифры, _) |
-
-**Headers:** `Authorization: Bearer <token>` (JWT обязателен)
-
-**Rate limit:** 15 запросов/минуту на IP.
-
-**Response:**
-
-```json
-{ "success": true, "data": { "available": true } }
-```
-
-**Ошибки:** 400 (invalid format), 401 (unauthorized), 429 (rate limit).
-
----
-
-### POST `/api/v1/auth/vk`
-
-Вход через VK ID (mobile). **PKCE обязателен** — `code_verifier` участвует в обмене кода, `client_secret` не используется. Профиль (fullName, birthDate) автозаполняется из VK `user_info`. См. [VK Auth](../features/vk-auth.md).
-
-**Body:**
-
-```json
-{
-  "code": "string",
-  "code_verifier": "string (43-128 символов)",
-  "device_id": "string",
-  "state": "string (min 32)"
-}
-```
-
-**Response (success):** `{ "success": true, "data": { "user": { "id", "username", "role" }, "accessToken", "refreshToken", "needsPhone" } }`
-
-**Ошибки:** 400 (не удалось обменять code, профиль не получен, неверная валидация).
-
----
-
-### POST `/api/v1/auth/vk-phone-set`
-
-Установка телефона для VK-пользователя. Требует авторизацию: Bearer JWT. Доступно только если `phone.startsWith("vk_")`. Валидация: E.164 (`/^\+\d{10,15}$/`), сообщения об ошибках — whitelist из core, иначе generic fallback.
-
-**Body:**
-
-```json
-{ "phone": "string (E.164, пример: +79001234567)" }
-```
-
-**Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
-
-**Ошибки:** 400 (валидация, пользователь не найден, смена номера недоступна, неверный формат номера). Внутренние ошибки не раскрываются — только whitelist сообщений.
-
----
-
-### POST `/api/v1/auth/set-password`
-
-Установка пароля для VK-only пользователя. Требует авторизацию: Bearer JWT. Недоступно если пароль уже установлен. Сообщения об ошибках — whitelist из core, иначе generic fallback (предотвращение утечки внутренних ошибок).
-
-**Body:**
-
-```json
-{ "newPassword": "string (min 8, upper/lower/digit)" }
-```
-
-**Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
-
-**Ошибки:** 400 (валидация, пользователь не найден, пароль уже установлен). Внутренние ошибки не раскрываются.
-
----
-
-### POST `/api/v1/auth/change-password`
-
-Смена пароля. Требует авторизацию: Bearer JWT. Доступно только если пароль уже установлен.
-
-**Body:**
-
-```json
-{
-  "currentPassword": "string",
-  "newPassword": "string (min 8, upper/lower/digit)"
-}
-```
-
-**Response:** `{ "success": true }` или `{ "success": false, "error": "string" }`
-
----
-
-### POST `/api/v1/auth/vk-link`
-
-Привязка VK аккаунта к текущему пользователю. Требует авторизацию: Bearer JWT. Пользователь должен быть уже залогинен. Body — тот же schema, что и `POST /api/v1/auth/vk`.
-
-**Body:**
-
-```json
-{
-  "code": "string",
-  "code_verifier": "string (43-128 символов)",
-  "device_id": "string",
-  "state": "string (min 32)"
-}
-```
-
-**Response (success):** `{ "success": true }`
-
-**Ошибки:** 400 (VK уже привязан к другому пользователю, VK уже подключён, не удалось обменять code).
-
-См. [VK Auth — Account Linking](../features/vk-auth.md).
-
----
-
-## Training — Тренировки (ОСНОВНОЙ ФУНКЦИОНАЛ)
-
-### GET `/api/v1/training/days`
-
-Получить список дней тренировок курса.
-
-**Query params:**
-
-- `type` (optional) — тип курса (personal, group, etc.)
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "trainingDays": [...],
-    "courseDescription": "string",
-    "courseId": "uuid",
-    "courseVideoUrl": "string",
-    "courseEquipment": "string",
-    "courseTrainingLevel": "string"
-  }
-}
-```
-
----
-
-### GET `/api/v1/training/day`
-
-Получить день с шагами пользователя.
-
-**Query params:**
-
-- `courseType` (required) — тип курса
-- `dayOnCourseId` (required) — CUID дня (строка в формате CUID)
-- `createIfMissing` (optional) — "true"/"false"
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "trainingDayId": "cuid",
-    "dayOnCourseId": "cuid",
-    "title": "string",
-    "type": "string",
-    "steps": [...]
-  }
-}
-```
-
----
-
-### POST `/api/v1/training/step/start`
-
-Начать выполнение шага тренировки.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0,
-  "status": "IN_PROGRESS",
-  "durationSec": 300
-}
-```
-
----
-
-### POST `/api/v1/training/step/status`
-
-Обновить статус шага.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0,
-  "status": "COMPLETED",
-  "stepTitle": "string (optional)",
-  "stepOrder": 0
-}
-```
-
----
-
-### POST `/api/v1/training/step/pause`
-
-Поставить шаг на паузу.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0,
-  "timeLeftSec": 120
-}
-```
-
----
-
-### POST `/api/v1/training/step/resume`
-
-Возобновить шаг после паузы.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0
-}
-```
-
----
-
-## Payments — Платежи
-
-### POST `/api/v1/payments/create`
-
-Создание платежа ЮKassa. Используется в web и mobile.
-
-**Web:** сессия NextAuth, заголовок `x-csrf-token`. **Mobile:** JWT (`Authorization: Bearer <access_token>`).
-
-Сервер формирует `acceptanceContext` из заголовков (`x-forwarded-for` / `x-real-ip`, `user-agent`) для записи OfertaAcceptance — см. [oferta-compliance.md](../payments/oferta-compliance.md).
-
-**Заголовок `X-Client-Platform`:** рекомендуется передавать на всех запросах значения `ios` или `android`. Для создания платежа **курса** с `ios` сервер отвечает **403** с кодом `APPLE_IAP_REQUIRED` (на iOS курс оплачивается через App Store — см. [apple-iap.md](../payments/apple-iap.md)). Запросы с `articleId` этим ограничением не затрагиваются.
-
-**Body (ровно одно поле):**
-
-```json
-{ "courseId": "uuid" }
-```
-
-или
-
-```json
-{ "courseType": "personal" }
-```
-
-**Response (success):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "paymentId": "uuid",
-    "confirmationUrl": "https://yoomoney.ru/..."
-  }
-}
-```
-
-**Коды ошибок:**
-
-- `UNAUTHORIZED` (401) — не авторизован
-- `RATE_LIMIT` (429) — слишком много запросов
-- `VALIDATION_ERROR` (400) — некорректный body
-- `NOT_FOUND` (404) — курс не найден
-- `PAYMENT_ERROR` (400/404) — ошибка создания платежа
-- `APPLE_IAP_REQUIRED` (403) — оплата курса с iOS-клиента; нужен IAP, не ЮKassa
-- `CONFIG` (500) — не настроены `YOOKASSA_*` или невалиден `WEB_APP_URL`
-
-### POST `/api/v1/payments/apple/verify`
-
-Проверка JWS транзакции StoreKit 2 и выдача доступа к платному курсу. Только JWT. Rate limit как у `create`.
-
-**Body:**
-
-```json
-{ "signedTransactionInfo": "string (JWS, StoreKit 2)" }
-```
-
-**Response (success):**
-
-```json
-{ "success": true, "data": { "courseId": "cuid" } }
-```
-
-**Коды ошибок:**
-
-| Код | HTTP | Описание |
-| --- | ---- | -------- |
-| `APPLE_VERIFY_FAILED` | 400 | Не удалось проверить подпись / данные транзакции |
-| `APPLE_INVALID_PRODUCT_TYPE` | 400 | Не non-consumable |
-| `APPLE_PRODUCT_UNKNOWN` | 404 | Продукт не сопоставлен с платным курсом |
-| `APPLE_TRANSACTION_CONFLICT` | 409 | Транзакция уже привязана к другому пользователю или курсу |
-| `CONFIG_APPLE_IAP` | 500 | Не заданы `APPLE_BUNDLE_ID` / `APPLE_APP_ID` (prod) и т.п. |
-| `PAYMENT_ERROR` | 400 | Ошибка записи в БД после проверки Apple |
-
-### GET `/api/v1/payments/apple/course-metadata`
-
-Метаданные для экрана оплаты IAP. Только JWT.
-
-**Query (ровно один параметр):** `courseId=<cuid>` или `courseType=<string>`
-
-**Response (success):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "courseId": "cuid",
-    "appleIapProductId": "string | null",
-    "isPaid": true
-  }
-}
-```
-
-Заголовок ответа: `Cache-Control: private, no-store` (чтобы после настройки `appleIapProductId` не отдавался устаревший ответ).
-
----
-
-### POST `/api/v1/training/step/reset`
-
-Сбросить шаг (таймер). Статус шага становится `RESET`, сохраняется полное время `durationSec`. Обнуляет paused и remainingSec, пересчитывает статус дня. Запрещено для `NOT_STARTED` и `COMPLETED`.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0,
-  "durationSec": 300
-}
-```
-
-`durationSec` — опционально.
-
----
-
-### POST `/api/v1/training/step/complete/theory`
-
-Завершить шаг типа `THEORY` или `DIARY`.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0,
-  "stepTitle": "string (optional)",
-  "stepOrder": 0
-}
-```
-
----
-
-### POST `/api/v1/training/diary`
-
-Сохранить запись дневника для дня курса.
-
-**Body:**
-
-```json
-{
-  "dayOnCourseId": "cuid",
-  "content": "string (1..10000)"
-}
-```
-
-Ожидается: `dayOnCourseId` — строка в формате CUID.
-
----
-
-### GET `/api/v1/training/diary`
-
-Получить записи дневника пользователя по `courseId`.
-
-**Query:**
-
-`courseId` (обязательно, CUID или courseType), `upToDayOnCourseId` (опционально, CUID)
-
----
-
-### POST `/api/v1/training/step/complete/practice`
-
-Завершить практический шаг.
-
-**Body:**
-
-```json
-{
-  "courseId": "cuid",
-  "dayOnCourseId": "cuid",
-  "stepIndex": 0,
-  "stepTitle": "string (optional)",
-  "stepOrder": 0
-}
-```
-
----
-
-## Courses — Курсы
-
-### GET `/api/v1/courses`
-
-Получить список курсов с прогрессом пользователя.
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid",
-      "name": "string",
-      "type": "string",
-      "progress": 0.75,
-      ...
-    }
-  ]
-}
-```
-
----
-
-### GET `/api/v1/courses/access`
-
-Проверить доступ к курсу.
-
-**Query params:**
-
-- `courseType` (required) — тип курса
-
-**Response:**
-
-```json
-{ "success": true, "data": { "hasAccess": true } }
-```
-
----
-
-### GET `/api/v1/courses/metadata`
-
-Получить метаданные курса.
-
-**Query params:**
-
-- `courseId` (required) — UUID курса
-
----
-
-### GET `/api/v1/courses/favorites`
-
-Получить избранные курсы.
-
----
-
-### POST `/api/v1/courses/favorites`
-
-Переключить избранное.
-
-**Body:**
-
-```json
-{ "courseId": "uuid" }
-```
-
----
-
-### GET `/api/v1/courses/reviews`
-
-Получить отзывы о курсе.
-
-**Query params:**
-
-- `courseId` (required) — UUID курса
-
----
-
-### POST `/api/v1/courses/reviews`
-
-Создать/обновить отзыв.
-
-**Body:**
-
-```json
-{
-  "courseId": "uuid",
-  "rating": 5,
-  "comment": "string"
-}
-```
-
----
-
-## User — Профиль пользователя
-
-### GET `/api/v1/user/profile`
-
-Получить профиль текущего пользователя.
-
-**Response (success):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "username": "string",
-    "phone": "string",
-    "role": "USER | TRAINER | ADMIN | MODERATOR",
-    "isConfirmed": true,
-    "hasAppPassword": true,
-    "profile": {
-      "fullName": "string | null",
-      "about": "string | null",
-      "telegram": "string | null",
-      "instagram": "string | null",
-      "website": "string | null",
-      "birthDate": "YYYY-MM-DD | null",
-      "avatarUrl": "string | null"
-    }
-  }
-}
-```
-
-`hasAppPassword` — `true` если пользователь установил пароль в приложении; `false` для VK ID пользователей без пароля.
-
-`hasVkLinked` — `true` если к аккаунту привязан VK (Account с provider `vk`).
-
----
-
-### PUT `/api/v1/user/profile`
-
-Обновить профиль.
-
-**Body:**
-
-```json
-{
-  "fullName": "string",
-  "about": "string",
-  "telegram": "string",
-  "instagram": "string",
-  "website": "string",
-  "birthDate": "ISO date string"
-}
-```
-
----
-
-### GET `/api/v1/user/profile/public`
-
-Получить публичный профиль пользователя.
-
-**Query params:**
-
-- `username` (required) — логин пользователя (публичный профиль)
-
----
-
-### POST `/api/v1/user/avatar`
-
-Обновить аватар пользователя.
-
-**Body:** `multipart/form-data`, поле `file`. Типы: JPEG, PNG, WebP, GIF. Макс. 5 МБ.
-
-**Response:** `{ "success": true, "data": { "avatarUrl": "string" } }`
-
----
-
-### POST `/api/v1/user/account/delete`
-
-Необратимое удаление аккаунта текущего пользователя (JWT). Реализация в `apps/api` → `@gafus/core` `deleteUserAccount`. Подробнее: [Удаление аккаунта](../features/account-deletion.md).
-
-**Body:**
-
-```json
-{ "password": "string" }
-```
-
-**Response (success):** `{ "success": true }`
-
-**Ошибки:** 401 (неверный пароль), 403 (роль не USER и т.п.), 400 (валидация), 409 (конфликт данных), 500.
-
----
-
-## Pets — Питомцы
-
-### GET `/api/v1/pets`
-
-Получить список питомцев пользователя.
-
----
-
-### POST `/api/v1/pets`
-
-Создать питомца.
-
-**Body:**
-
-```json
-{
-  "name": "string",
-  "type": "DOG|CAT|OTHER",
-  "breed": "string",
-  "birthDate": "ISO date string",
-  "heightCm": 50,
-  "weightKg": 15,
-  "photoUrl": "string",
-  "notes": "string"
-}
-```
-
----
-
-### POST `/api/v1/pets/[petId]/photo`
-
-Загрузить фото питомца.
-
-**Body:** `multipart/form-data`, поле `file`. Типы: JPEG, PNG, WebP, GIF. Макс. 2 МБ.
-
-**Response:** `{ "success": true, "data": { "photoUrl": "string" } }`
-
----
-
-### PUT `/api/v1/pets/[petId]`
-
-Обновить питомца.
-
-**Body:** Частичные поля из создания
-
----
-
-### DELETE `/api/v1/pets/[petId]`
-
-Удалить питомца.
-
----
-
-## Pet Prevention — Журнал профилактики питомца
-
-Журнал для учёта прививок, глистогонки, обработок от клещей/блох. Требует авторизацию (Bearer JWT). Владелец питомца определяется через `pet.ownerId === userId`.
-
-### GET `/api/v1/pets/:petId/prevention`
-
-Получить список записей профилактики питомца.
-
-**Response (success):**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "cuid",
-      "type": "VACCINATION | DEWORMING | TICKS_FLEAS",
-      "performedAt": "ISO date",
-      "productName": "string | null",
-      "notes": "string | null",
-      "clientId": "uuid | null",
-      "createdAt": "ISO date",
-      "updatedAt": "ISO date"
-    }
-  ]
-}
-```
-
-### POST `/api/v1/pets/:petId/prevention`
-
-Создать запись профилактики.
-
-**Body:**
-
-```json
-{
-  "type": "VACCINATION | DEWORMING | TICKS_FLEAS",
-  "performedAt": "ISO date",
-  "productName": "string (опц., max 200)",
-  "notes": "string (опц., max 2000)"
-}
-```
-
-### PUT `/api/v1/pets/:petId/prevention/:entryId`
-
-Обновить запись профилактики.
-
-**Body:** Частичные поля из создания (type, performedAt, productName, notes).
-
-### DELETE `/api/v1/pets/:petId/prevention/:entryId`
-
-Удалить запись профилактики.
-
-### POST `/api/v1/pets/:petId/prevention/batch`
-
-Пакетный upsert записей (для mobile offline sync). Идемпотентность по `clientId`.
-
-**Body:**
-
-```json
-{
-  "entries": [
-    {
-      "clientId": "uuid (обязательно)",
-      "type": "VACCINATION | DEWORMING | TICKS_FLEAS",
-      "performedAt": "ISO date",
-      "productName": "string (опц.)",
-      "notes": "string (опц.)"
-    }
-  ]
-}
-```
-
-**Response:** `{ "success": true, "data": { "created": number, "updated": number } }`
-
-**Ограничения:** до 50 записей в одном batch.
-
-**Ошибки (Pet Prevention):** при `success: false` поле `error` содержит только безопасные русские строки (не Zod issues, не детали Prisma). 400 — валидация (`"Неверные данные"`); 404/500 — фиксированные сообщения.
-
----
-
-## Notifications — Уведомления
-
-### POST `/api/v1/notifications/step`
-
-Создать уведомление для шага.
-
-**Body:**
-
-```json
-{
-  "day": 1,
-  "stepIndex": 0,
-  "durationSec": 300,
-  "maybeUrl": "/trainings/personal/uuid",
-  "stepTitle": "string"
-}
-```
-
----
-
-### POST `/api/v1/notifications/step/pause`
-
-Поставить уведомление на паузу.
-
-**Body:**
-
-```json
-{ "notificationId": "uuid" }
-```
-
----
-
-### POST `/api/v1/notifications/step/resume`
-
-Возобновить уведомление.
-
----
-
-### POST `/api/v1/notifications/step/reset`
-
-Сбросить уведомление.
-
----
-
-### POST `/api/v1/notifications/step/toggle`
-
-Переключить паузу уведомления.
-
----
-
-## Subscriptions — Push подписки
-
-### GET `/api/v1/subscriptions/push`
-
-Получить push подписки пользователя.
-
----
-
-### POST `/api/v1/subscriptions/push`
-
-Сохранить push подписку.
-
-**Body:**
-
-```json
-{
-  "endpoint": "https://...",
-  "keys": {
-    "p256dh": "string",
-    "auth": "string"
-  }
-}
-```
-
----
-
-### DELETE `/api/v1/subscriptions/push`
-
-Удалить push подписку.
-
-**Body:**
-
-```json
-{ "endpoint": "https://..." }
-```
-
----
-
-## Notes — Заметки тренера
-
-### GET `/api/v1/notes/student`
-
-Получить заметки, доступные текущему ученику.
-
----
-
-## Reminders — Напоминания
-
-### GET `/api/v1/reminders`
-
-Получить список напоминаний пользователя (type=`training`).
-
-### POST `/api/v1/reminders`
-
-Создать напоминание.
-
-**Body:**
-
-```json
-{
-  "name": "string",
-  "reminderTime": "09:00",
-  "reminderDays": "1,2,3,4,5,6,7",
-  "timezone": "Europe/Moscow"
-}
-```
-
-### PUT `/api/v1/reminders/:id`
-
-Обновить напоминание.
-
-### DELETE `/api/v1/reminders/:id`
-
-Удалить напоминание.
-
----
-
-## Achievements — Достижения
-
-### GET `/api/v1/achievements/training-dates`
-
-Уникальные даты тренировок пользователя (для серий и календаря).
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": { "dates": ["2026-01-15T00:00:00.000Z", ...] }
-}
-```
-
-### GET `/api/v1/achievements`
-
-Полная статистика и достижения (то же, что на web): `totalCourses`, `completedCourses`, `inProgressCourses`, `totalCompletedDays`, `overallProgress`, `currentStreak`, `longestStreak`, массив `achievements` по категориям (courses, progress, streak, special).
-
-**Response:** `{ "success": true, "data": AchievementData }`
-
----
-
-## Exam — Экзамены
-
-### GET `/api/v1/exam/result`
-
-Получить результат экзамена.
-
-**Query params:**
-
-- `userStepId` (required) — CUID шага пользователя (UserStep.id)
-
----
-
-### POST `/api/v1/exam/submit`
-
-Отправить результат экзамена.
-
-**Body:**
-
-```json
-{
-  "userStepId": "cuid",
-  "stepId": "cuid",
-  "testAnswers": { "q1": 0, "q2": 1 },
-  "testScore": 8,
-  "testMaxScore": 10,
-  "videoReportUrl": "string",
-  "writtenFeedback": "string",
-  "overallScore": 85,
-  "isPassed": true
-}
-```
-
----
-
-## Video — Видео
-
-### GET `/api/v1/video/playback-url`
-
-Получить URL для воспроизведения видео.
-
-**Query params:**
-
-- `videoUrl` (required) — исходный URL видео
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": { "playbackUrl": "https://..." }
-}
-```
-
----
-
-## Offline — Офлайн режим
-
-### GET `/api/v1/offline/course/version`
-
-Получить версию курса для сравнения.
-
-**Query params:**
-
-- `courseType` (required) — тип курса
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": { "version": "2026-01-19T12:00:00.000Z" }
-}
-```
-
----
-
-### GET `/api/v1/offline/course/updates`
-
-Проверить наличие обновлений курса.
-
-**Query params:**
-
-- `courseType` (required) — тип курса
-- `clientVersion` (required) — версия на клиенте (ISO date)
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "hasUpdates": true,
-    "serverVersion": "2026-01-19T15:00:00.000Z"
-  }
-}
-```
-
----
-
-### GET `/api/v1/offline/course/download`
-
-Скачать полные данные курса для офлайн режима. Доступ только к курсам, на которые у пользователя есть доступ (проверка через training days). При отсутствии доступа возвращается **403**.
-
-**Query params:**
-
-- `courseType` (required) — тип курса
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "course": { ... },
-    "trainingDays": [ ... ],
-    "mediaFiles": {
-      "videos": ["url1", "url2"],
-      "images": ["url1", "url2"],
-      "pdfs": ["url1"]
-    }
-  }
-}
-```
-
----
-
-## Legacy API Routes (не для RN)
-
-Эти routes используются только веб-приложением и НЕ входят в v1:
-
-| Путь                            | Описание                |
-| ------------------------------- | ----------------------- |
-| `/api/video/[videoId]/manifest` | HLS манифест с токенами |
-| `/api/video/[videoId]/segment`  | HLS сегменты            |
-| `/api/track-presentation`       | Трекинг презентаций     |
-| `/api/track-presentation-event` | События презентаций     |
-| `/api/track-reengagement-click` | Клики реактивации       |
-| `/api/course-path-export`       | GET, экспорт PDF «Ваш путь» по курсу (query: `courseId`); для mobile и прямых скачиваний |
-
----
-
-## Changelog
-
-### v1.5.0 (23.03.2026)
-
-- **Pet Prevention (журнал профилактики питомца):** `GET/POST/PUT/DELETE /api/v1/pets/:petId/prevention` — CRUD записей прививок, глистогонки, обработок от клещей/блох; `POST /api/v1/pets/:petId/prevention/batch` — batch upsert для mobile offline sync (идемпотентность по clientId). См. [Pet Prevention](../features/pet-prevention.md).
-
-### v1.4.0 (06.03.2026)
-
-- **VK Account Linking:** `POST /api/v1/auth/vk-link` — привязка VK к существующему аккаунту (JWT обязателен). Web: `initiateVkIdLink`, callback `mode=link`; Mobile: `useVkLink`, `authApi.linkVk`. Профиль: `hasVkLinked` в `GET /api/v1/user/profile` и web `getUserWithTrainings`. См. [VK Auth](../features/vk-auth.md).
-
-### v1.3.0 (06.03.2026)
-
-- **username-available:** `GET /api/v1/auth/username-available` — live-check доступности логина при вводе (JWT обязателен, 15 req/min на IP). Web и mobile: debounced live-check, индикатор доступности.
-
-### v1.2.0 (04.03.2026)
-
-- **VK ID Auth:** `POST /api/v1/auth/vk` — обмен code на токены; `POST /api/v1/auth/vk-phone-set`, `POST /api/v1/auth/set-password`, `POST /api/v1/auth/change-password` — JWT-protected endpoints для VK-пользователей. См. [VK Auth](../features/vk-auth.md).
-
-### v1.1.2 (01.03.2026)
-
-- **Унификация сброса пароля:** web и mobile используют `api.gafus.ru/api/v1/auth/password-reset-request`. Нужен `WEB_APP_URL`; отправка кода через Telegram — при наличии рабочей интеграции (см. актуальное состояние `@gafus/auth`).
-
-### v1.1.1 (21.02.2026)
-
-- `POST /api/v1/payments/create`: acceptanceContext формируется из заголовков (IP, User-Agent) для OfertaAcceptance; поддержка web (сессия) и mobile (JWT).
-
-### v1.2.0 (26.03.2026)
-
-- **Регистрация по email:** `POST /api/v1/auth/register` — поле `email` вместо обязательного `phone`; пользователь создаётся с `isConfirmed: true`, `phone` может быть `null` (миграция `20260326120000_add_email_optional_phone`).
-- Удалён `POST /api/v1/auth/check-confirmed` (Hono API).
-- Конфликты username/email маскируются единым текстом (см. тело ответа register).
-
-### v1.1.0 (20.02.2026)
-
-- `POST /api/v1/auth/register`: body с `name`, `tempSessionId`, `consentPayload`; flow согласий createConsentLogs → регистрация → linkConsentLogsToUser
-
-### v1.0.0 (19.01.2026)
-
-- Создание полного набора API Routes для React Native
-- 38 эндпоинтов во всех доменах

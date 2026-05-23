@@ -41,20 +41,19 @@ flowchart TB
 
 ## Пакеты
 
-| Пакет | Роль |
-|-------|------|
-| `@gafus/core` | Бизнес-логика: course, training, user, pets, tracking, subscriptions, payments, auth, consent и др. |
-| `@gafus/auth` | Инфраструктура аутентификации: JWT, refresh tokens, NextAuth providers |
-| `@gafus/video-access` | Проверка доступа к видео, подпись URL |
-| `@gafus/cdn-upload` | Загрузка файлов в CDN |
-| `@gafus/prisma` | База данных, миграции, ORM |
-| `@gafus/logger` | Логирование (Pino → stdout, errors → Tracer) |
-| `@gafus/csrf` | CSRF-защита |
-| `@gafus/queues` | BullMQ очереди |
-| `@gafus/analytics` | Продуктовая аналитика (события UI, PostHog); не путать с Tracer |
+| Пакет                 | Роль                                                                                                |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `@gafus/core`         | Бизнес-логика: course, training, user, pets, tracking, subscriptions, payments, auth, consent и др. |
+| `@gafus/auth`         | Инфраструктура аутентификации: JWT, refresh tokens, NextAuth providers                              |
+| `@gafus/video-access` | Проверка доступа к видео, подпись URL                                                               |
+| `@gafus/cdn-upload`   | Загрузка файлов в CDN                                                                               |
+| `@gafus/prisma`       | База данных, миграции, ORM                                                                          |
+| `@gafus/logger`       | Логирование (Pino → stdout, errors → Tracer)                                                        |
+| `@gafus/csrf`         | CSRF-защита                                                                                         |
+| `@gafus/queues`       | BullMQ очереди                                                                                      |
+| `@gafus/analytics`    | Продуктовая аналитика (события UI, PostHog); не путать с Tracer                                     |
 
 ## Связанные документы
 
 - [Поток данных](./data-flow.md)
-- [Матрица миграции](./core-migration-matrix.md)
 - [apps/web](../apps/web.md), [apps/api](../apps/api.md)

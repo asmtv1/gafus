@@ -237,7 +237,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 
-EXPOSE 3003
+EXPOSE 3002
 
 CMD ["node", "apps/bull-board/dist/bull-board.js"]
 ```
@@ -368,10 +368,13 @@ services:
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - BULL_BOARD_USERNAME=${BULL_BOARD_USERNAME}
-      - BULL_BOARD_PASSWORD=${BULL_BOARD_PASSWORD}
+      - PORT=3002
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
     ports:
-      - "3003:3000"
+      # В production compose порт наружу не публикуется; доступ идёт через Nginx.
+      # Для локальной отладки можно временно открыть "3004:3002".
+      - "3004:3002"
     depends_on:
       redis:
         condition: service_healthy

@@ -4,8 +4,8 @@
 
 ### Системные требования
 
-- **Node.js** 18.0.0 или выше
-- **pnpm** 8.0.0 или выше
+- **Node.js** 20.x
+- **pnpm** 10.12.4
 - **PostgreSQL** 14.0 или выше
 - **Redis** 6.0 или выше
 - **Docker** (опционально, для контейнеризации)
@@ -16,7 +16,6 @@
   - TypeScript
   - ESLint
   - Prettier
-  - Tailwind CSS IntelliSense
   - Prisma
 
 ## 🚀 Быстрая установка
@@ -49,20 +48,20 @@ pnpm setup:env
 
 ```bash
 # Запуск PostgreSQL и Redis через Docker
-docker-compose up -d postgres redis
+docker compose -f ci-cd/docker/docker-compose.local.yml up -d postgres redis
 ```
 
 ### 5. Инициализация базы данных
 
 ```bash
 # Генерация Prisma клиента
-pnpm db:generate
+pnpm --filter @gafus/prisma db:generate
 
 # Применение миграций
-pnpm db:migrate
+pnpm --filter @gafus/prisma db:migrate
 
 # Заполнение тестовыми данными
-pnpm db:seed
+pnpm --filter @gafus/prisma db:seed
 ```
 
 ### 6. Запуск в режиме разработки
@@ -96,7 +95,7 @@ pnpm --filter @gafus/trainer-panel dev
 # .env (хранится локально, не в git)
 # Приложение
 NODE_ENV=development
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3002
 
 # База данных
 DATABASE_URL=postgresql://postgres:password@localhost:5432/gafus
@@ -105,17 +104,12 @@ DATABASE_URL=postgresql://postgres:password@localhost:5432/gafus
 REDIS_URL=redis://localhost:6379
 
 # NextAuth
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3002
 NEXTAUTH_SECRET=your-secret-key-here
 
-# Telegram (опционально, legacy — приложение telegram-bot удалено из монорепо)
-# TELEGRAM_BOT_TOKEN=
-
-# AWS S3 (для загрузки файлов)
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=your-bucket-name
+# S3-compatible object storage / Yandex Object Storage
+YC_ACCESS_KEY_ID=your-access-key
+YC_SECRET_ACCESS_KEY=your-secret-key
 ```
 
 #### Переменные для каждого приложения
@@ -148,9 +142,7 @@ REVALIDATE_SECRET_TOKEN=your-secret-token-here
 
 ```env
 # Bull Board
-BULL_BOARD_PORT=3003
-BULL_BOARD_USERNAME=admin
-BULL_BOARD_PASSWORD=secure-password
+PORT=3004
 ```
 
 ### Настройка базы данных
@@ -232,11 +224,11 @@ redis-cli ping
    ```
 
 5. **Доступ:** после запуска nginx порт 80 будет отдавать приложения по доменам:
-   - http://web.gafus.localhost → порт 3002  
-   - http://trainer.gafus.localhost → 3001  
-   - http://admin.gafus.localhost → 3006  
-   - http://errors.gafus.localhost → 3005  
-   - http://queues.gafus.localhost → 3004  
+   - http://web.gafus.localhost → порт 3002
+   - http://trainer.gafus.localhost → 3001
+   - http://admin.gafus.localhost → 3006
+   - http://errors.gafus.localhost → 3005
+   - http://queues.gafus.localhost → 3004
    - http://api.gafus.localhost → API
 
 Домен `*.localhost` на macOS по умолчанию резолвится в `127.0.0.1`, отдельная запись в `/etc/hosts` не нужна.

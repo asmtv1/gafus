@@ -703,7 +703,7 @@ jobs:
 
             # Use HTTP-only config for SSL certificate generation
             echo "📋 Switching to HTTP-only config for SSL certificate generation..."
-            cp ci-cd/nginx/conf.d/gafus.ru.http-only.conf ci-cd/nginx/conf.d/gafus.ru.conf
+            cp ci-cd/nginx/templates/gafus.ru.http-only.conf ci-cd/nginx/conf.d/gafus.ru.conf
 
             # Restart nginx with HTTP-only config
             docker-compose -f "$COMPOSE_PROD" restart nginx

@@ -1,503 +1,66 @@
 # Bull Board (@gafus/bull-board)
 
-## 📋 Обзор
+`apps/bull-board` - небольшой Express-сервис для просмотра BullMQ очередей и экспорта Prometheus metrics.
 
-Bull Board — веб-интерфейс для мониторинга и управления очередями BullMQ в экосистеме GAFUS. Предоставляет инструменты для просмотра, управления и отладки фоновых задач.
+## Код
 
-## 🎯 Основные функции
-
-### Мониторинг очередей
-
-- **📊 Просмотр очередей** и их статусов
-- **🔍 Детальная информация** о задачах
-- **⏱️ Мониторинг производительности** выполнения
-- **📈 Статистика** очередей и задач
-
-### Управление задачами
-
-- **⏸️ Пауза/возобновление** задач
-- **🔄 Повторное выполнение** неудачных задач
-- **🗑️ Удаление** задач из очередей
-- **📝 Просмотр логов** выполнения
-
-### Отладка
-
-- **🔍 Детальный просмотр** данных задач
-- **📊 Анализ ошибок** выполнения
-- **⏱️ Профилирование** времени выполнения
-- **📈 Мониторинг** использования ресурсов
-
-## 🏗️ Архитектура
-
-### Структура приложения
-
-```
+```text
 apps/bull-board/
-├── bull-board.ts           # Основной файл конфигурации
+├── bull-board.ts
 ├── package.json
 └── tsconfig.json
 ```
 
-### Интеграция с очередями
+Entry point: `bull-board.ts`.
 
-В проекте используются очереди BullMQ из `@gafus/queues`. Пример конфигурации:
+Сервис загружает `.env` из корня монорепы до импорта `@gafus/queues`, потому что очереди создаются при импорте и сразу читают Redis env.
 
-```typescript
-// bull-board.ts
-import { createBullBoard } from "@bull-board/api";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
-import { pushQueue, reengagementQueue, examCleanupQueue } from "@gafus/queues";
+## Routes
 
-createBullBoard({
-  queues: [
-    new BullMQAdapter(pushQueue),
-    new BullMQAdapter(reengagementQueue),
-    new BullMQAdapter(examCleanupQueue),
-  ],
-  serverAdapter: expressAdapter,
-});
-```
+- `GET /admin/queues` - Bull Board UI.
+- `GET /health` - health check.
+- `GET /metrics` - Prometheus metrics по подключённым очередям.
 
-## 🔧 Технические особенности
+## Очереди в UI
 
-### Настройка Express сервера
+Сейчас Bull Board подключает:
 
-```typescript
-// Интеграция с Express
-import express from "express";
-import { serverAdapter } from "./bull-board";
+- `pushQueue`
+- `examCleanupQueue`
+- `reengagementQueue`
 
-const app = express();
+В `@gafus/queues` есть и другие очереди (video transcoding, consultation, consent cleanup, pet prevention reminders), но они не выведены в этот UI. Если добавляете очередь в `@gafus/queues` и хотите видеть её в Bull Board, нужно явно добавить `new BullMQAdapter(queue)` в `apps/bull-board/bull-board.ts` и расширить `/metrics`.
 
-// Middleware для аутентификации
-app.use("/admin/queues", authenticateAdmin);
+## Порты
 
-// Подключение Bull Board
-app.use("/admin/queues", serverAdapter.getRouter());
+- Локальный скрипт `pnpm --filter @gafus/bull-board dev` задаёт `PORT=3004`.
+- В Dockerfile сервис слушает `3002`.
+- В production compose порт наружу не публикуется; доступ идёт через Nginx/internal network.
 
-const PORT = process.env.BULL_BOARD_PORT || 3003;
-app.listen(PORT, () => {
-  logger.info(`Bull Board running on port ${PORT}`);
-});
-```
+## Auth
 
-### Аутентификация
+В текущем `bull-board.ts` нет Basic Auth middleware. Доступ должен ограничиваться на уровне Nginx/VPN/network policy. Не документируйте `BULL_BOARD_USERNAME`/`BULL_BOARD_PASSWORD` как рабочую защиту, пока такой middleware не появится в коде.
 
-```typescript
-// Middleware для защиты Bull Board
-function authenticateAdmin(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Basic ")) {
-    res.status(401).send("Authentication required");
-    return;
-  }
-
-  const credentials = Buffer.from(authHeader.slice(6), "base64").toString();
-  const [username, password] = credentials.split(":");
-
-  if (
-    username === process.env.BULL_BOARD_USERNAME &&
-    password === process.env.BULL_BOARD_PASSWORD
-  ) {
-    next();
-  } else {
-    res.status(401).send("Invalid credentials");
-  }
-}
-```
-
-### Кастомные действия
-
-```typescript
-// Добавление кастомных действий для очередей
-serverAdapter.addAction("retry-failed", async (req, res) => {
-  const { queueName, jobId } = req.params;
-  const queue = getQueueByName(queueName);
-
-  try {
-    const job = await queue.getJob(jobId);
-    if (job) {
-      await job.retry();
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ error: "Job not found" });
-    }
-  } catch (error) {
-    logger.error("Failed to retry job", { queueName, jobId, error });
-    res.status(500).json({ error: "Failed to retry job" });
-  }
-});
-```
-
-## 📊 Мониторинг и аналитика
-
-### Статистика очередей
-
-```typescript
-// Получение статистики очередей
-async function getQueueStats() {
-  const stats = await Promise.all([
-    emailQueue.getJobCounts(),
-    notificationQueue.getJobCounts(),
-    imageProcessingQueue.getJobCounts(),
-  ]);
-
-  return {
-    email: stats[0],
-    notification: stats[1],
-    imageProcessing: stats[2],
-    timestamp: new Date().toISOString(),
-  };
-}
-
-// API endpoint для статистики
-app.get("/api/queue-stats", async (req, res) => {
-  try {
-    const stats = await getQueueStats();
-    res.json(stats);
-  } catch (error) {
-    logger.error("Failed to get queue stats", { error });
-    res.status(500).json({ error: "Failed to get statistics" });
-  }
-});
-```
-
-### Мониторинг производительности
-
-```typescript
-// Отслеживание времени выполнения задач
-emailQueue.on("completed", async (job, result) => {
-  const duration = Date.now() - job.processedOn!;
-
-  logger.info("Job completed", {
-    queueName: "email",
-    jobId: job.id,
-    jobName: job.name,
-    duration,
-    result,
-  });
-
-  // Сохранение метрик
-  await saveJobMetrics({
-    queueName: "email",
-    jobName: job.name,
-    duration,
-    status: "completed",
-    timestamp: new Date(),
-  });
-});
-
-emailQueue.on("failed", async (job, error) => {
-  const duration = Date.now() - job.processedOn!;
-
-  logger.error("Job failed", {
-    queueName: "email",
-    jobId: job.id,
-    jobName: job.name,
-    duration,
-    error: error.message,
-  });
-
-  // Сохранение метрик ошибки
-  await saveJobMetrics({
-    queueName: "email",
-    jobName: job.name,
-    duration,
-    status: "failed",
-    error: error.message,
-    timestamp: new Date(),
-  });
-});
-```
-
-### Алертинг
-
-```typescript
-// Система алертинга для критических ситуаций
-async function checkQueueHealth() {
-  const emailStats = await emailQueue.getJobCounts();
-  const notificationStats = await notificationQueue.getJobCounts();
-
-  // Алерт при большом количестве неудачных задач
-  if (emailStats.failed > 100) {
-    await sendAlert({
-      type: "queue_health",
-      message: `High failure rate in email queue: ${emailStats.failed} failed jobs`,
-      severity: "high",
-      queueName: "email",
-    });
-  }
-
-  // Алерт при застое в очереди
-  if (notificationStats.waiting > 1000) {
-    await sendAlert({
-      type: "queue_stall",
-      message: `Queue stall detected in notification queue: ${notificationStats.waiting} waiting jobs`,
-      severity: "critical",
-      queueName: "notification",
-    });
-  }
-}
-
-// Проверка каждые 5 минут
-setInterval(checkQueueHealth, 5 * 60 * 1000);
-```
-
-## 🔧 Управление задачами
-
-### Повторное выполнение задач
-
-```typescript
-// API для повторного выполнения неудачных задач
-app.post("/api/queues/:queueName/retry-failed", async (req, res) => {
-  const { queueName } = req.params;
-  const queue = getQueueByName(queueName);
-
-  try {
-    const failedJobs = await queue.getFailed();
-    let retriedCount = 0;
-
-    for (const job of failedJobs) {
-      try {
-        await job.retry();
-        retriedCount++;
-      } catch (error) {
-        logger.error("Failed to retry job", { jobId: job.id, error });
-      }
-    }
-
-    res.json({
-      success: true,
-      retriedCount,
-      totalFailed: failedJobs.length,
-    });
-  } catch (error) {
-    logger.error("Failed to retry failed jobs", { queueName, error });
-    res.status(500).json({ error: "Failed to retry jobs" });
-  }
-});
-```
-
-### Очистка очередей
-
-```typescript
-// API для очистки завершенных задач
-app.delete("/api/queues/:queueName/clean", async (req, res) => {
-  const { queueName } = req.params;
-  const { olderThan } = req.body; // в часах
-  const queue = getQueueByName(queueName);
-
-  try {
-    const completedJobs = await queue.getCompleted();
-    const failedJobs = await queue.getFailed();
-
-    const cutoffTime = Date.now() - olderThan * 60 * 60 * 1000;
-
-    let cleanedCount = 0;
-
-    // Очистка завершенных задач
-    for (const job of completedJobs) {
-      if (job.finishedOn && job.finishedOn < cutoffTime) {
-        await job.remove();
-        cleanedCount++;
-      }
-    }
-
-    // Очистка неудачных задач
-    for (const job of failedJobs) {
-      if (job.finishedOn && job.finishedOn < cutoffTime) {
-        await job.remove();
-        cleanedCount++;
-      }
-    }
-
-    res.json({
-      success: true,
-      cleanedCount,
-      olderThan,
-    });
-  } catch (error) {
-    logger.error("Failed to clean queue", { queueName, error });
-    res.status(500).json({ error: "Failed to clean queue" });
-  }
-});
-```
-
-### Пауза/возобновление очередей
-
-```typescript
-// API для управления состоянием очередей
-app.post("/api/queues/:queueName/pause", async (req, res) => {
-  const { queueName } = req.params;
-  const queue = getQueueByName(queueName);
-
-  try {
-    await queue.pause();
-    logger.info("Queue paused", { queueName });
-    res.json({ success: true, status: "paused" });
-  } catch (error) {
-    logger.error("Failed to pause queue", { queueName, error });
-    res.status(500).json({ error: "Failed to pause queue" });
-  }
-});
-
-app.post("/api/queues/:queueName/resume", async (req, res) => {
-  const { queueName } = req.params;
-  const queue = getQueueByName(queueName);
-
-  try {
-    await queue.resume();
-    logger.info("Queue resumed", { queueName });
-    res.json({ success: true, status: "resumed" });
-  } catch (error) {
-    logger.error("Failed to resume queue", { queueName, error });
-    res.status(500).json({ error: "Failed to resume queue" });
-  }
-});
-```
-
-## 🔍 Отладка и диагностика
-
-### Просмотр деталей задач
-
-```typescript
-// API для получения детальной информации о задаче
-app.get("/api/queues/:queueName/jobs/:jobId", async (req, res) => {
-  const { queueName, jobId } = req.params;
-  const queue = getQueueByName(queueName);
-
-  try {
-    const job = await queue.getJob(jobId);
-
-    if (!job) {
-      return res.status(404).json({ error: "Job not found" });
-    }
-
-    const jobData = {
-      id: job.id,
-      name: job.name,
-      data: job.data,
-      opts: job.opts,
-      progress: job.progress(),
-      returnValue: job.returnvalue,
-      failedReason: job.failedReason,
-      stacktrace: job.stacktrace,
-      processedOn: job.processedOn,
-      finishedOn: job.finishedOn,
-      attemptsMade: job.attemptsMade,
-      delay: job.delay,
-      timestamp: job.timestamp,
-    };
-
-    res.json(jobData);
-  } catch (error) {
-    logger.error("Failed to get job details", { queueName, jobId, error });
-    res.status(500).json({ error: "Failed to get job details" });
-  }
-});
-```
-
-### Логирование выполнения
-
-```typescript
-// Расширенное логирование для отладки
-emailQueue.on("active", (job) => {
-  logger.info("Job started", {
-    queueName: "email",
-    jobId: job.id,
-    jobName: job.name,
-    data: job.data,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-emailQueue.on("progress", (job, progress) => {
-  logger.debug("Job progress", {
-    queueName: "email",
-    jobId: job.id,
-    progress,
-    timestamp: new Date().toISOString(),
-  });
-});
-```
-
-## 🚀 Развертывание
-
-### Переменные окружения
+## Env
 
 ```env
-# Bull Board
-BULL_BOARD_PORT=3003
-BULL_BOARD_USERNAME=admin
-BULL_BOARD_PASSWORD=secure-password
-
-# Redis
+PORT=3004
 REDIS_URL=redis://localhost:6379
-
-# Monitoring
-ENABLE_QUEUE_MONITORING=true
-ALERT_EMAIL=admin@gafus.ru
+TRACER_APP_TOKEN=
+TRACER_SERVER_ENABLED=
 ```
 
-### Docker
-
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-RUN npm run build
-
-EXPOSE 3003
-CMD ["node", "dist/bull-board.js"]
-```
-
-### Nginx конфигурация
-
-```nginx
-server {
-    listen 80;
-    server_name queues.gafus.ru;
-
-    location / {
-        proxy_pass http://localhost:3003;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-## 🔧 Разработка
-
-### Команды разработки
+## Команды
 
 ```bash
-# Разработка
-pnpm dev                    # Запуск в режиме разработки
-pnpm build                  # Сборка TypeScript
-pnpm start                  # Запуск продакшен версии
-
-# Тестирование
-pnpm test                   # Запуск тестов
+pnpm --filter @gafus/bull-board dev
+pnpm --filter @gafus/bull-board build
+pnpm --filter @gafus/bull-board start
+pnpm --filter @gafus/bull-board typecheck
 ```
 
-### Структура проекта
+## Docker
 
-```typescript
-// Основные модули
-bull-board.ts              # Главный файл конфигурации
-├── queues/                # Конфигурация очередей
-├── middleware/            # Middleware для аутентификации
-├── api/                   # API endpoints
-└── monitoring/            # Мониторинг и алертинг
-```
+Dockerfile: `ci-cd/docker/Dockerfile-bull-board-optimized`.
 
----
-
-_Bull Board обеспечивает полный контроль над очередями задач и их мониторинг в экосистеме GAFUS._
+Production compose service: `ci-cd/docker/docker-compose.prod.yml` -> `bull-board`.

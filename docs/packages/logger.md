@@ -4,19 +4,7 @@
 
 Пакет `@gafus/logger` предоставляет единую систему логирования для всех приложений GAFUS. Построен на базе **Pino** — одного из самых быстрых Node.js логгеров.
 
-## 🎯 Почему свой логгер, а не Sentry/Datadog?
-
-Проект использует собственную систему логирования по следующим причинам:
-
-| Критерий               | @gafus/logger                | Sentry/Datadog                       |
-| ---------------------- | ---------------------------- | ------------------------------------ |
-| **Стоимость**          | Бесплатно (self-hosted)      | $26+/месяц или ограничения free tier |
-| **Контроль данных**    | Полный (своя БД)             | Данные у провайдера                  |
-| **Интеграция**         | Нативная для монорепо        | Требует настройки                    |
-| **Гибкость**           | Полная кастомизация          | Ограничена API провайдера            |
-| **Производительность** | Pino — один из самых быстрых | Зависит от SDK                       |
-
-### Что уже реализовано
+## Что реализовано
 
 - ✅ Серверные логи → Pino → stdout (docker logs)
 - ✅ Серверные ошибки → Tracer (logger.error/fatal с Error)
@@ -24,16 +12,6 @@
 - ✅ Поддержка всех приложений монорепо
 - ✅ Специализированные логгеры для каждого типа сервиса
 - ✅ React Error Boundaries (`@gafus/error-handling`)
-
-### Чего не хватает (можно добавить при необходимости)
-
-- Source maps для красивых stack traces
-- Session replay (можно интегрировать LogRocket отдельно)
-- Breadcrumbs (история действий до ошибки)
-
-**Вывод:** Переход на Sentry/Datadog не оправдан — текущая система покрывает потребности проекта.
-
-> 📚 **Детальное сравнение:** См. [Сравнение систем логирования](../architecture/LOGGING_COMPARISON.md) для подробного анализа LogRocket, self-hosted Sentry и текущей системы.
 
 ---
 
@@ -66,15 +44,15 @@ workerLogger.error("Не удалось отправить push", error);
 
 ### Доступные фабрики
 
-| Фабрика                    | Приложение    |
-| -------------------------- | ------------- |
-| `createWebLogger`          | web           |
-| `createTrainerPanelLogger` | trainer-panel |
-| `createAdminPanelLogger`   | admin-panel   |
-| `createWorkerLogger`       | worker        |
+| Фабрика                    | Приложение                               |
+| -------------------------- | ---------------------------------------- |
+| `createWebLogger`          | web                                      |
+| `createTrainerPanelLogger` | trainer-panel                            |
+| `createAdminPanelLogger`   | admin-panel                              |
+| `createWorkerLogger`       | worker                                   |
 | `createTelegramBotLogger`  | legacy (приложение telegram-bot удалено) |
-| `createBullBoardLogger`    | bull-board    |
-| `createSilentLogger`       | — (только fatal) |
+| `createBullBoardLogger`    | bull-board                               |
+| `createSilentLogger`       | — (только fatal)                         |
 
 Клиентские ошибки — в Tracer через ErrorBoundary и `reportClientError`.
 

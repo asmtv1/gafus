@@ -11,17 +11,19 @@ Admin Panel - это веб-приложение на Next.js 15 для упра
 - **Framework**: Next.js 15 (App Router)
 - **UI**: Material-UI (MUI)
 - **Authentication**: NextAuth.js
-- **Styling**: Tailwind CSS
+- **Styling**: CSS Modules/global CSS
 - **TypeScript**: 5.8+
 
 ## Функциональность
 
 - **Пользователи** (`/main-panel/users`) — список пользователей, редактирование (имя, телефон, роль, пароль, статус подтверждения телефона `isConfirmed`), удаление
 - **Администрирование** (`/main-panel/admin`) — кэш, хранилище
+- **Feature flags** (`/main-panel/feature-flags`) — mobile/app feature flags
 - **Push-рассылка** (`/main-panel/broadcasts`) — только ADMIN
 - **Re-engagement** (`/main-panel/reengagement`) — только ADMIN
-- **Стата по презентации** (`/main-panel/presentation-stats`) — ADMIN, MODERATOR
 - **Покупки курсов** (`/main-panel/purchases`) — кто купил, когда, сумма, статус, ID платежа/ЮKassa (ADMIN, MODERATOR)
+- **App subscriptions** (`/main-panel/app-subscriptions`) — управление подписками приложения
+- **Консультации** (`/main-panel/consultations`) — администрирование консультаций и кинологов
 
 ## Авторизация
 
@@ -70,10 +72,12 @@ apps/admin-panel/
 │   │   │       └── route.ts        # CSRF token endpoint
 │   │   ├── (main)/main-panel/      # Страницы админ-панели
 │   │   │   ├── admin/              # Хранилище, кэш
+│   │   │   ├── app-subscriptions/  # Подписки приложения
 │   │   │   ├── broadcasts/         # Push-рассылка
+│   │   │   ├── consultations/      # Консультации
+│   │   │   ├── feature-flags/      # Feature flags
 │   │   │   ├── purchases/          # Покупки
 │   │   │   ├── reengagement/       # Re-engagement метрики
-│   │   │   ├── presentation-stats/ # Статистика презентации
 │   │   │   └── users/              # Пользователи
 │   │   ├── login/
 │   │   │   └── page.tsx            # Страница входа
@@ -84,10 +88,11 @@ apps/admin-panel/
 │   ├── features/
 │   │   ├── auth/                   # Компоненты входа
 │   │   ├── admin/                  # getStorageStats (→ adminStorage)
+│   │   ├── app-subscriptions/      # управление app subscriptions
 │   │   ├── broadcasts/             # sendBroadcastPush (→ adminBroadcast)
+│   │   ├── consultations/          # admin консультаций
 │   │   ├── purchases/              # getAllPurchases (→ adminPurchase)
 │   │   ├── reengagement/           # getReengagementMetrics (→ adminReengagement)
-│   │   ├── presentation/           # getPresentationStats (→ adminPresentation)
 │   │   └── users/                  # список/редактирование (username, email, phone опционально; → adminUser)
 │   ├── shared/
 │   │   ├── lib/actions/            # invalidateAllCache, invalidateCoursesCache
@@ -97,8 +102,7 @@ apps/admin-panel/
 ├── package.json
 ├── next.config.ts
 ├── tsconfig.json
-├── tailwind.config.js
-└── postcss.config.js
+└── next.config.ts
 ```
 
 ## Конфигурация
@@ -242,7 +246,7 @@ server {
 ### Workspace пакеты
 
 - `@gafus/auth` — авторизация и сессии
-- `@gafus/core` — бизнес-логика (adminUser, adminPurchase, adminReengagement, adminPresentation, adminStorage, adminBroadcast)
+- `@gafus/core` — бизнес-логика (adminUser, adminPurchase, adminReengagement, adminStorage, adminBroadcast, appFeatureFlags, appSubscription, consultation)
 - `@gafus/logger` — логирование
 - `@gafus/csrf` — CSRF защита
 - `@gafus/error-handling` — обработка ошибок

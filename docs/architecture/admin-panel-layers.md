@@ -23,7 +23,8 @@ Admin Panel построен как тонкий слой поверх `@gafus/c
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │ @gafus/core (services/adminUser, adminPurchase, adminReengagement,   │
-│              adminPresentation, adminStorage, adminBroadcast)        │
+│              adminStorage, adminBroadcast, appSubscription,          │
+│              appFeatureFlags, consultation)                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │ Ответственность:                                                     │
 │ • Prisma-запросы                                                     │
@@ -35,15 +36,17 @@ Admin Panel построен как тонкий слой поверх `@gafus/c
 
 ## Соответствие feature → core service
 
-| Admin Panel feature    | Core service         | Server Action / API              |
-|------------------------|----------------------|----------------------------------|
-| Пользователи           | adminUser            | getAllUsers, updateUser, deleteUser, PUT /api/users/[id] |
-| Покупки                | adminPurchase        | getAllPurchases                  |
-| Re-engagement          | adminReengagement    | getReengagementMetrics           |
-| Презентация (статистика) | adminPresentation  | getPresentationStats             |
-| Хранилище              | adminStorage         | getStorageStats                  |
-| Push-рассылка          | adminBroadcast       | sendBroadcastPush                |
-| Кэш                    | cache (CACHE_TAGS)   | invalidateCoursesCache, invalidateAllCache |
+| Admin Panel feature | Core service       | Server Action / API                                      |
+| ------------------- | ------------------ | -------------------------------------------------------- |
+| Пользователи        | adminUser          | getAllUsers, updateUser, deleteUser, PUT /api/users/[id] |
+| Покупки             | adminPurchase      | getAllPurchases                                          |
+| Re-engagement       | adminReengagement  | getReengagementMetrics                                   |
+| Хранилище           | adminStorage       | getStorageStats                                          |
+| Push-рассылка       | adminBroadcast     | sendBroadcastPush                                        |
+| Кэш                 | cache (CACHE_TAGS) | invalidateCoursesCache, invalidateAllCache               |
+| App subscriptions   | appSubscription    | appSubscription admin actions                            |
+| Consultations       | consultation       | consultation admin actions                               |
+| Feature flags       | appFeatureFlags    | mobile feature flag actions                              |
 
 ## Пример вызова из Server Action
 
@@ -72,6 +75,5 @@ export async function getAllUsers() {
 
 ## См. также
 
-- [docs/development/admin-panel-core-migration.md](../development/admin-panel-core-migration.md) — детали миграции, примеры, breaking changes
 - [docs/apps/admin-panel.md](../apps/admin-panel.md)
 - [docs/packages/core.md](../packages/core.md)

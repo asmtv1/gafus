@@ -35,4 +35,3 @@
 
 - `packages/core/src/services/user/deleteUserAccount.ts`, тесты `deleteUserAccount.test.ts`
 - `apps/api/src/routes/v1/user.ts`
-- План: `.cursor/agentplan/irreversible-account-deletion-web-mobile.md`

@@ -23,12 +23,13 @@
 **One Tap (виджет):** клик по кнопке → `prepareVkIdOneTap()` (rate limit) → PKCE, инициализация SDK → виджет. При ошибке — fallback-кнопка запускает redirect через `initiateVkIdAuth()`.
 
 **Redirect flow:** Server Action `initiateVkIdAuth()` — rate limit, PKCE (code_verifier, code_challenge, state), cookie `vk_id_state` (httpOnly, 10 мин). Далее:
+
 1. Редирект на `https://id.vk.ru/authorize` с `code_challenge`, `code_challenge_method=S256`
 2. Callback `GET /api/auth/callback/vk-id` — rate limit, проверка state, вызов `exchangeVkCodeAndGetUser` из `@gafus/core` (обмен code → token → fetchVkProfile → findOrCreateVkUser)
 3. One-time token (in-memory, TTL 60s) → редирект на `/?vk_id_token=TOKEN`
 4. MainAuthButtons (главная страница): `useSearchParams` (в Suspense) — обнаруживает токен, очищает URL, вызывает `signIn("credentials", { username: "__vk_id__", password: token })`
 5. CredentialsProvider: `consumeVkIdOneTimeUser` → сессия
-6. `needsPhone: true` → форма `/profile/change-phone`; `passwordSetAt: null` → «Установить пароль»; при отсутствии пароля скрыты «Забыли пароль» (web) и «Сменить пароль» (mobile). Подробнее: [profile-vk-buttons-prompt.md](profile-vk-buttons-prompt.md)
+6. `needsPhone: true` → форма `/profile/change-phone`; `passwordSetAt: null` → «Установить пароль»; при отсутствии пароля скрыты «Забыли пароль» (web) и «Сменить пароль» (mobile).
 
 ## Mobile flow
 
@@ -69,6 +70,7 @@ https://xxxx.ngrok-free.app/api/auth/callback/vk-id
 ## Env vars
 
 **Web:**
+
 ```
 VK_CLIENT_ID=
 VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
@@ -77,6 +79,7 @@ VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 При деплое: `VK_WEB_REDIRECT_URI` берётся из `vars.VK_WEB_REDIRECT_URI` с fallback `https://gafus.ru/api/auth/callback/vk-id` (deploy-only, ci-cd, build-single-container).
 
 **Локальная разработка через ngrok:**
+
 - redirect_uri берётся с клиента (`window.location.origin + /api/auth/callback/vk-id`) или из `x-forwarded-host`
 - В [id.vk.com](https://id.vk.com) → Redirect URI добавьте `https://ВАШ-NGROK-URL/api/auth/callback/vk-id`
 - При каждом перезапуске ngrok (бесплатный план) URL меняется — обновляйте Redirect URI в VK
@@ -84,26 +87,29 @@ VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 - Отладка: `VK_ID_DEBUG=1` — в консоли сервера выводится `redirectUri`, отправляемый в VK
 
 **API (mobile):**
+
 ```
 VK_CLIENT_ID=54472652
 VK_CLIENT_ID_IOS=54472654
 VK_CLIENT_ID_ANDROID=54472653
 ```
+
 redirect_uri формируется как `vk{client_id}://vk.ru/blank.html` из clientId.
 
 **Mobile (app.config.js):**
+
 - `extra.vkClientIdIos`, `extra.vkClientIdAndroid`, `extra.vkMobileRedirectUri` — прокидываются в `Constants.expoConfig`
 - Подробнее: [vk-id-mobile-setup.md](../vk-id-mobile-setup.md)
 
 ## API эндпоинты
 
-| Метод | Путь | Описание | Auth |
-|-------|------|----------|------|
-| POST | `/api/v1/auth/vk` | Обмен code на токены (PKCE) | — |
-| POST | `/api/v1/auth/vk-phone-set` | Установка телефона VK-пользователя | JWT |
-| POST | `/api/v1/auth/set-password` | Установка пароля (VK-only) | JWT |
-| POST | `/api/v1/auth/change-password` | Смена пароля | JWT |
-| POST | `/api/v1/auth/vk-link` | Привязка VK к аккаунту (mobile, JWT) | JWT |
+| Метод | Путь                           | Описание                             | Auth |
+| ----- | ------------------------------ | ------------------------------------ | ---- |
+| POST  | `/api/v1/auth/vk`              | Обмен code на токены (PKCE)          | —    |
+| POST  | `/api/v1/auth/vk-phone-set`    | Установка телефона VK-пользователя   | JWT  |
+| POST  | `/api/v1/auth/set-password`    | Установка пароля (VK-only)           | JWT  |
+| POST  | `/api/v1/auth/change-password` | Смена пароля                         | JWT  |
+| POST  | `/api/v1/auth/vk-link`         | Привязка VK к аккаунту (mobile, JWT) | JWT  |
 
 ## Компоненты web
 
@@ -126,18 +132,16 @@ redirect_uri формируется как `vk{client_id}://vk.ru/blank.html` и
 
 **API:** `GET /api/v1/user/profile` возвращает `hasVkLinked: boolean`. Web: `getUserWithTrainings` (profile page) включает `hasVkLinked`. Core: `linkVkToUser` в `vkAuth.ts`; `getUserProfileForApi` и `getUserWithTrainings` в profileService.
 
-Подробнее: [vk-account-linking-prompt.md](vk-account-linking-prompt.md).
-
 ## Rate limit
 
-| Path | Лимит |
-|------|-------|
-| `initiate-vk-id` | 10 / 15 мин |
-| `vk-id-link` | 10 / 15 мин |
-| `vk-id-callback` | 5 / 15 мин |
-| `vk-phone-set` | 10 / 15 мин (authRateLimiter) |
-| `set-password` | 10 / 15 мин (authRateLimiter) |
-| `change-password` | 10 / 15 мин |
+| Path              | Лимит                         |
+| ----------------- | ----------------------------- |
+| `initiate-vk-id`  | 10 / 15 мин                   |
+| `vk-id-link`      | 10 / 15 мин                   |
+| `vk-id-callback`  | 5 / 15 мин                    |
+| `vk-phone-set`    | 10 / 15 мин (authRateLimiter) |
+| `set-password`    | 10 / 15 мин (authRateLimiter) |
+| `change-password` | 10 / 15 мин                   |
 
 **Bypass для разработки:** при `NODE_ENV=development` или IP localhost (`127.0.0.1`, `::1`, `::ffff:127.0.0.1`, `localhost`) rate limit не применяется. Пустая строка IP не считается localhost — в prod лимиты действуют.
 

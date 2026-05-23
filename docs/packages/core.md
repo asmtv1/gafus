@@ -37,7 +37,6 @@ packages/core/
 │   │   ├── adminUser/    # Пользователи (admin-panel)
 │   │   ├── adminPurchase/ # Покупки (admin-panel)
 │   │   ├── adminReengagement/ # Re-engagement метрики (admin-panel)
-│   │   ├── adminPresentation/ # Статистика презентации (admin-panel)
 │   │   ├── adminStorage/  # Статистика хранилища (admin-panel)
 │   │   ├── adminBroadcast/ # Push-рассылка (admin-panel)
 │   │   ├── consent/       # Согласия при регистрации (ConsentLog)
@@ -68,11 +67,7 @@ packages/core/
 import { getCourseMetadata, getCoursesWithProgress } from "@gafus/core/services/course";
 
 // Пользователь
-import {
-  deleteUserAccount,
-  getUserProfile,
-  updateUserProfile,
-} from "@gafus/core/services/user";
+import { deleteUserAccount, getUserProfile, updateUserProfile } from "@gafus/core/services/user";
 // deleteUserAccount — самообслуживание: USER, пароль, транзакция отзыв refresh + user.delete
 
 // Аутентификация
@@ -130,7 +125,6 @@ import { createCourse, updateCourse, deleteCourse } from "@gafus/core/services/t
 import { getAllUsers, updateUserAdmin, deleteUserAdmin } from "@gafus/core/services/adminUser";
 import { getAllPurchases } from "@gafus/core/services/adminPurchase";
 import { getReengagementMetrics } from "@gafus/core/services/adminReengagement";
-import { getPresentationStats } from "@gafus/core/services/adminPresentation";
 import { getStorageStats } from "@gafus/core/services/adminStorage";
 import { sendBroadcastPush } from "@gafus/core/services/adminBroadcast";
 import { createStep, getVisibleSteps } from "@gafus/core/services/trainerStep";
@@ -256,16 +250,19 @@ const nextConfig = {
 Возвращает список курсов, доступных для отображения на странице `/courses`:
 
 **Правила фильтрации:**
+
 1. **Публичные платные курсы** (`isPrivate: false, isPaid: true`) — показываются всем пользователям для возможности покупки
 2. **Публичные бесплатные курсы** (`isPrivate: false, isPaid: false`) — показываются всем
 3. **Приватные курсы** (`isPrivate: true`) — показываются только пользователям с записью в `CourseAccess`
 
 **Поле `hasAccess`:**
+
 - Для платных курсов: `true` только если есть запись в `CourseAccess` (курс оплачен)
 - Для публичных бесплатных: всегда `true`
 - Для приватных: `true` если есть запись в `CourseAccess`
 
 **Пример:**
+
 ```typescript
 const courses = await getCoursesWithProgress(userId);
 // courses[0].isPaid = true, hasAccess = false → показываем курс с предложением оплаты
@@ -276,6 +273,7 @@ const courses = await getCoursesWithProgress(userId);
 ### `checkCourseAccess(courseType: string, userId?: string)`
 
 Проверяет доступ пользователя к курсу по типу:
+
 - Платные и приватные курсы требуют запись в `CourseAccess`
 - Публичные бесплатные курсы доступны всем
 
@@ -338,13 +336,11 @@ pnpm --filter @gafus/core test:coverage  # отчёт о покрытии
 
 Пакет покрыт unit-тестами (Vitest). Подробнее: [docs/testing/TESTING.md](../testing/TESTING.md).
 
-## Миграция admin-panel в core
+## Admin-panel и trainer-panel
 
-Бизнес-логика admin-panel перенесена в core. Добавлены сервисы: **adminUser**, **adminPurchase**, **adminReengagement**, **adminPresentation**, **adminStorage**, **adminBroadcast**. Подробности — в [docs/development/admin-panel-core-migration.md](../development/admin-panel-core-migration.md).
+Бизнес-логика admin-panel живёт в core. Ключевые сервисы: **adminUser**, **adminPurchase**, **adminReengagement**, **adminStorage**, **adminBroadcast**, **appFeatureFlags**, **appSubscription**, **consultation**.
 
-## Миграция trainer-panel в core
-
-Бизнес-логика панели тренера перенесена из `apps/trainer-panel` в core. Добавлены сервисы: **notes**, **trainerCourse**, **trainerStep**, **trainingDay**, **trainerVideo**; расширены **exam**, **user**, **course**. Подробности, границы миграции и критические исправления (DayOnCourse, CDN rollback, транзакция reviewExamResult) — в [docs/development/trainer-panel-core-migration.md](../development/trainer-panel-core-migration.md).
+Бизнес-логика trainer-panel живёт в core. Ключевые сервисы: **notes**, **trainerCourse**, **trainerStep**, **trainingDay**, **trainerVideo**; расширены **exam**, **user**, **course**.
 
 ## Миграция из apps/web
 

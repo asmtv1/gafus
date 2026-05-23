@@ -9,11 +9,13 @@
 **Роль:** Fullstack Next.js (SSR, Server Actions). Все данные — через `@gafus/core`.
 
 **Правила:**
+
 - Server Components и Server Actions вызывают core напрямую (валидация → core → revalidatePath).
 - Route Handlers — только там, где нужен JSON (React Query, fetch). Патерн: validate → core → JSON.
 - Прямой prisma в shared/lib и server-actions не допускается; только core.
 
 **Server Action vs Route Handler:**
+
 - Server Action — для форм, мутаций, редиректов. Сразу после вызова core вызывается `revalidatePath` / `revalidateTag`.
 - Route Handler — для JSON-ответов клиенту (fetch, React Query). Используется, когда нужны специфические заголовки или HTTP-статусы.
 
@@ -110,7 +112,7 @@ app/
 ### Безопасность (auth)
 
 - **Политика auth:** [docs/security/auth-policy.md](../security/auth-policy.md) — перечень auth API, политика паролей, rate limits, что не логировать.
-- **Аудит (история):** [docs/security/auth-security-audit.md](../security/auth-security-audit.md) — уязвимости и план рефактора. Меры: rate limit, единые схемы паролей, отсутствие user enumeration, confirm без phone в URL, нейтральные сообщения при сбросе пароля.
+- **Текущие меры:** rate limit, единые схемы паролей, отсутствие user enumeration, confirm без phone в URL, нейтральные сообщения при сбросе пароля.
 
 ## 🎨 UI и UX
 
@@ -445,7 +447,7 @@ CMD ["npm", "start"]
 
 - **Image optimization** с Next.js Image
 - **Font optimization** с Google Fonts
-- **CSS optimization** с Tailwind CSS
+- **CSS optimization** с Next.js/CSS Modules
 - **JavaScript optimization** с Webpack
 
 ### SEO
