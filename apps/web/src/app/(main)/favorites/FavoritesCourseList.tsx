@@ -5,11 +5,11 @@ import { useFavoritesStore } from "@shared/stores/favoritesStore";
 import { useEffect, useCallback, useMemo, useState } from "react";
 import type { CourseWithProgressData } from "@gafus/types";
 
-import { CourseCard } from "../../../features/courses/components/CourseCard/CourseCard";
 import {
+  CourseCard,
   PaidCourseDrawer,
   type PaidCourseDrawerCourse,
-} from "@/features/courses/components/PaidCourseDrawer";
+} from "@/features/courses";
 import styles from "./favorites.module.css";
 
 interface FavoritesCourseListProps {

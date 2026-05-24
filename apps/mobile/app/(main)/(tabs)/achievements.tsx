@@ -10,7 +10,7 @@ import { achievementsQueryOptions } from "@/shared/lib/api/achievementsQuery";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { type Course } from "@/shared/lib/api";
 import type { Achievement } from "@gafus/types";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 
 const CARD_BG = "#ECE5D2";
 const CARD_BORDER = "#B6C582";

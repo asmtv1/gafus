@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 
 interface Props {

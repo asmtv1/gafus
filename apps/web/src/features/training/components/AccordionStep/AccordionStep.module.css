@@ -236,75 +236,11 @@
   margin-bottom: 6px;
 }
 
-.cardSection,
-.videoPlaceholder {
+.cardSection {
   background: #fffdf3;
   border: 2px solid #d5d0bb;
   border-radius: 12px;
   padding: 12px 14px;
-}
-
-.videoPlaceholder {
-  min-height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.videoContainer {
-  margin-top: 16px;
-}
-
-.videoWrapper {
-  position: relative;
-  width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #d5d0bb;
-  background-color: #000;
-}
-
-.verticalPlayer {
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.horizontalPlayer {
-  width: 100%;
-}
-
-.videoIframe {
-  width: 100%;
-  height: auto;
-  display: block;
-  border: none;
-}
-
-/* Улучшения для видео на мобильных */
-@media (max-width: 768px) {
-  .videoContainer {
-    margin-top: 12px;
-  }
-
-  .videoWrapper {
-    border-radius: 6px;
-  }
-
-  .videoIframe {
-    /* Улучшаем производительность на мобильных */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-  }
-}
-
-@media (max-width: 480px) {
-  .videoContainer {
-    margin-top: 8px;
-  }
-
-  .videoWrapper {
-    border-radius: 4px;
-  }
 }
 
 /* Мобильные стили */
@@ -442,9 +378,6 @@
     width: 100%;
   }
 
-  .videoWrapper {
-    border-radius: 6px;
-  }
 }
 
 /* Landscape режим на мобильных */
@@ -466,9 +399,6 @@
     margin: 8px 110px 8px 0;
   }
 
-  .videoWrapper.verticalPlayer {
-    max-width: 100%; /* Растягиваем на всю ширину в landscape */
-  }
 }
 
 /* Стили для Markdown контента */

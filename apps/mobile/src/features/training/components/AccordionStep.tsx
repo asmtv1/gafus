@@ -42,7 +42,7 @@ import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 
 const EXTERNAL_VIDEO_PATTERNS = [
   /youtube\.com/,

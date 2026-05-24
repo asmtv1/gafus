@@ -14,7 +14,7 @@ import {
   useTheme,
   type TextInputProps,
 } from "react-native-paper";
-import { BORDER_RADIUS, SPACING, COLORS } from "@/constants";
+import { BORDER_RADIUS, SPACING, COLORS } from "@/shared/config";
 
 const IOS_NUMERIC_KEYBOARD_TYPES: TextInputProps["keyboardType"][] = [
   "number-pad",

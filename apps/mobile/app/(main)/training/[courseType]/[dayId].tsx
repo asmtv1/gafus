@@ -16,7 +16,7 @@ import { useState } from "react";
 import { WebView } from "react-native-webview";
 import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
-import { AccordionStep } from "@/features/training/components";
+import { AccordionStep } from "@/features/training";
 import {
   useTrainingDay,
   useStartStep,
@@ -28,7 +28,7 @@ import {
 } from "@/shared/hooks";
 import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
 import type { DiaryEntry } from "@/shared/lib/api/training";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";

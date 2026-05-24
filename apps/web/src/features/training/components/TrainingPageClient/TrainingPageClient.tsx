@@ -10,7 +10,7 @@ import { reportClientError } from "@gafus/error-handling";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
-import type { PaidCourseDrawerCourse } from "@/features/courses/components/PaidCourseDrawer";
+import type { PaidCourseDrawerCourse } from "@/features/courses";
 import { showPersonalizationAlert } from "@shared/utils/sweetAlert";
 import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";

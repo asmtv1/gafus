@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MarkdownText, VideoPlayer } from "@/shared/components";
 import { useVideoUrl } from "@/shared/hooks";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 interface CourseDescriptionProps {
   description: string | null;

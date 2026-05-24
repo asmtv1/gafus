@@ -11,7 +11,7 @@ import type {
   RatingFilterType,
   SortingType,
 } from "@/shared/utils/courseFilters";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 import { FiltersModal } from "./FiltersModal";
 
 /** Цвет надписей на оливковом (как на web: светлый контраст) */

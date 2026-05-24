@@ -21,7 +21,7 @@ import PetCard from "./PetCard";
 import styles from "./PetList.module.css";
 
 import type { PetDocumentDto, PublicProfile, PetFormData } from "@gafus/types";
-import type { PreventionEntryDisplay } from "@features/pet-prevention/types";
+import type { PreventionEntryDisplay } from "@/features/pet-prevention";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
 

@@ -6,8 +6,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
-import { ConsultationsSubNav } from "@/features/consultations/components/consultations-sub-nav";
-import { CynologistSlotsClient } from "@/features/consultations/components/cynologist-slots-client";
+import { ConsultationsSubNav } from "@/features/consultations";
+import { CynologistSlotsClient } from "@/features/consultations";
 
 import styles from "../consultations-page.module.css";
 

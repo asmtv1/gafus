@@ -11,7 +11,7 @@ import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 export default function VkConsentScreen() {
   const router = useRouter();

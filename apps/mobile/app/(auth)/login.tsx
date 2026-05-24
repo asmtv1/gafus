@@ -20,7 +20,7 @@ import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 
 // Схема валидации
 const loginSchema = z.object({

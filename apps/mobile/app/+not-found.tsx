@@ -3,7 +3,7 @@ import { Text } from "react-native-paper";
 import { Link } from "expo-router";
 
 import { Button } from "@/shared/components/ui";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 /**
  * Экран 404 — страница не найдена

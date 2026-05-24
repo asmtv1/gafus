@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 

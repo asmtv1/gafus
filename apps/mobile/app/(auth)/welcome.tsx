@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { Button } from "@/shared/components/ui";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { useLayout, useVkLogin } from "@/shared/hooks";
 import { fetchMobileAppPublicConfig } from "@/shared/lib/api/public-config";
 

@@ -1,5 +1,5 @@
 import { getCourseReviewsAction, checkCourseAccessAction } from "@shared/server-actions/course";
-import { ReviewsList } from "@/features/courses/components/ReviewsList";
+import { ReviewsList } from "@/features/courses";
 import { redirect } from "next/navigation";
 
 interface ReviewsPageProps {

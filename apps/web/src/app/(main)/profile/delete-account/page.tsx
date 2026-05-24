@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 
-import DeleteAccountForm from "@features/profile/components/DeleteAccountForm";
+import { DeleteAccountForm } from "@/features/profile";
 
 export const metadata = generateStaticPageMetadata(
   "Удаление аккаунта",

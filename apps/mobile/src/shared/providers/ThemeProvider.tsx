@@ -11,7 +11,7 @@ import {
   ThemeProvider as NavigationThemeProvider,
 } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
-import { COLORS, FONTS } from "@/constants";
+import { COLORS, FONTS } from "@/shared/config";
 
 // Кастомная светлая тема
 const customLightTheme = {

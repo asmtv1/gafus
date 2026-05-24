@@ -8,22 +8,15 @@ vi.mock("@/shared/stores", () => ({
   },
 }));
 
-import { useMobileOnboardingTourStore } from "@/features/onboarding-tour/tour-store";
 import {
   flushDeferredAppSubscriptionPaywall,
+  openAppSubscriptionPaywall,
   requestAppSubscriptionPaywall,
   usePaywallStore,
 } from "./store/paywallStore";
 
 function resetStores() {
   usePaywallStore.setState({ isOpen: false, reason: null, pendingReason: null });
-  useMobileOnboardingTourStore.setState({
-    hasHydrated: true,
-    hasSeenV1: false,
-    currentStepId: "start",
-    isActive: false,
-    isAwaitingRequiredPetCreation: false,
-  });
 }
 
 describe("app subscription paywall deferral", () => {
@@ -31,7 +24,7 @@ describe("app subscription paywall deferral", () => {
     resetStores();
   });
 
-  it("defers subscription prompt until onboarding tour is completed", () => {
+  it("stores subscription prompt as pending request", () => {
     requestAppSubscriptionPaywall("required");
 
     expect(usePaywallStore.getState()).toMatchObject({
@@ -39,8 +32,11 @@ describe("app subscription paywall deferral", () => {
       reason: null,
       pendingReason: "required",
     });
+  });
 
-    useMobileOnboardingTourStore.getState().completeTour();
+  it("opens the pending subscription prompt when flushed", () => {
+    requestAppSubscriptionPaywall("required");
+
     flushDeferredAppSubscriptionPaywall();
 
     expect(usePaywallStore.getState()).toMatchObject({
@@ -50,10 +46,8 @@ describe("app subscription paywall deferral", () => {
     });
   });
 
-  it("opens immediately after the tour has already been seen", () => {
-    useMobileOnboardingTourStore.setState({ hasSeenV1: true, isActive: false });
-
-    requestAppSubscriptionPaywall("required");
+  it("opens immediately when explicitly requested", () => {
+    openAppSubscriptionPaywall("required");
 
     expect(usePaywallStore.getState()).toMatchObject({
       isOpen: true,

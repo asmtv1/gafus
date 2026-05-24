@@ -9,8 +9,8 @@ import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
 import { useOfflineStatus } from "@shared/hooks/useOfflineStatus";
 import type { OfflineCourse } from "@shared/lib/offline/types";
 
-import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
-import type { CourseCardPropsWithIndex } from "@/features/courses/components/CourseCard/types";
+import { CourseCard } from "@/features/courses";
+import type { CourseCardPropsWithIndex } from "@/features/courses";
 import courseStyles from "../(main)/courses/courses.module.css";
 import styles from "./offline.module.css";
 

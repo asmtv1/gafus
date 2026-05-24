@@ -10,7 +10,7 @@ import {
   type ConsultationBookingDto,
 } from "@gafus/consultation-shared";
 
-import { getConsultationBookingStatusPresentation } from "@/features/consultations/lib/consultation-booking-status-ru";
+import { getConsultationBookingStatusPresentation } from "../lib/consultation-booking-status-ru";
 
 import styles from "./my-consultations-client.module.css";
 

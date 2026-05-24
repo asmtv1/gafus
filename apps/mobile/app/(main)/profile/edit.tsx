@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { userApi, type UpdateProfileData } from "@/shared/lib/api";
 import {

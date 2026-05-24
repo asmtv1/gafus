@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { createWebLogger } from "@gafus/logger";
-import TrainingPageClient from "@features/training/components/TrainingPageClient";
+import { TrainingPageClient } from "@/features/training";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
 import { getCourseMetadata, getCourseOutline, checkCourseAccessById } from "@gafus/core/services/course";

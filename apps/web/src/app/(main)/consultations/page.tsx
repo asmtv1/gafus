@@ -5,8 +5,8 @@ import { listListedCynologists } from "@gafus/core";
 import { Box, Typography } from "@mui/material";
 import { redirect } from "next/navigation";
 
-import { ConsultationsSubNav } from "@/features/consultations/components/consultations-sub-nav";
-import { CynologistCatalogCards } from "@/features/consultations/components/cynologist-catalog-cards";
+import { ConsultationsSubNav } from "@/features/consultations";
+import { CynologistCatalogCards } from "@/features/consultations";
 
 import styles from "./consultations-page.module.css";
 

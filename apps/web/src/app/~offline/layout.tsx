@@ -6,8 +6,8 @@ import OfflineStatus from "@shared/components/ui/OfflineStatus";
 import OfflineStoreInitializer from "@shared/components/ui/OfflineStoreInitializer";
 import OfflineDetector from "@shared/components/ui/OfflineDetector";
 import ServiceWorkerRegistrar from "@shared/components/ui/ServiceWorkerRegistrar";
-import Footer from "@/features/footer/components/Footer";
-import Header from "@/features/header/components/Header";
+import { Footer } from "@/features/footer";
+import { Header } from "@/features/header";
 
 // Клиентский layout для страницы офлайна
 // Используем клиентский Header вместо серверного, чтобы избежать ошибок в офлайне

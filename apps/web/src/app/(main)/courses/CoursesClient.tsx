@@ -15,19 +15,18 @@ import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
 import { useCourseStoreActions } from "@shared/stores";
 
 import styles from "./courses.module.css";
-import { CourseCard } from "@/features/courses/components/CourseCard/CourseCard";
 import {
+  CourseCard,
+  CourseFilters,
+  CourseSearch,
   PaidCourseDrawer,
+  type CourseTabType,
   type PaidCourseDrawerCourse,
-} from "@/features/courses/components/PaidCourseDrawer";
-import type { CourseTabType } from "@/features/courses/components/CourseTabs/CourseTabs";
-import CourseSearch from "@/features/courses/components/CourseSearch/CourseSearch";
-import CourseFilters, {
-  type TrainingLevelType,
   type ProgressFilterType,
-  type SortingType,
   type RatingFilterType,
-} from "@/features/courses/components/CourseFilters";
+  type SortingType,
+  type TrainingLevelType,
+} from "@/features/courses";
 import { filterAndSortCourses } from "@shared/utils/courseFilters";
 
 const COURSES_FILTERS_STORAGE_KEY = "courses-filters";

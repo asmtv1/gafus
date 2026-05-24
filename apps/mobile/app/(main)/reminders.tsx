@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { remindersApi, type Reminder } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";

@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import { getInfoAsync } from "expo-file-system/legacy";
 
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";

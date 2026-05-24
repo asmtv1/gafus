@@ -3,7 +3,7 @@ import { View, StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from "@/constants";
+import { COLORS, FONTS, SPACING, BORDER_RADIUS } from "@/shared/config";
 
 import listLoadingMascot from "../../../../assets/images/hf_20260417_153650_6b4ae03c-6655-475d-9d52-c7da89fe4b2e.gif";
 

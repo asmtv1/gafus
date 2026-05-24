@@ -16,7 +16,7 @@ import IosShareRoundedIcon from "@mui/icons-material/IosShareRounded";
 import { getAgeWithMonths, declOfNum, getPetTypeLabel } from "@gafus/core/utils";
 import { Avatar, IconButton } from "@shared/utils/muiImports";
 import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { PreventionEntryList } from "@features/pet-prevention/components";
+import { PreventionEntryList } from "@/features/pet-prevention";
 
 import EditablePetAvatar from "../EditablePetAvatar";
 import styles from "./PetList.module.css";
@@ -35,7 +35,7 @@ import {
   type PublicProfile,
 } from "@gafus/types";
 import type { ChangeEvent, FocusEvent } from "react";
-import type { PreventionEntryDisplay } from "@features/pet-prevention/types";
+import type { PreventionEntryDisplay } from "@/features/pet-prevention";
 
 type PetFromPublicProfile = PublicProfile["pets"][0];
 

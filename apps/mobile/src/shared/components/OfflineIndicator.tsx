@@ -3,7 +3,7 @@ import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 /**
  * Индикатор отсутствия сети

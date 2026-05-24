@@ -1,7 +1,7 @@
 import { Platform, StyleSheet, View } from "react-native";
 import Markdown from "react-native-markdown-display";
 
-import { COLORS, FONTS } from "@/constants";
+import { COLORS, FONTS } from "@/shared/config";
 
 const androidText = Platform.OS === "android" ? { includeFontPadding: true } : {};
 

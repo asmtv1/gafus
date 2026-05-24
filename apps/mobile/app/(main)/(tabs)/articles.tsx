@@ -30,8 +30,8 @@ import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { trackEvent } from "@/shared/lib/analytics";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { useRequireAppSubscription } from "@/features/app-subscription/hooks/useRequireAppSubscription";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS, UI_TIMEOUTS } from "@/constants";
+import { useRequireAppSubscription } from "@/features/app-subscription";
+import { COLORS, SPACING, FONTS, BORDER_RADIUS, UI_TIMEOUTS } from "@/shared/config";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 /** Сколько обложек префетчим в фоне (ускорение без привязки к снятию оверлея). */

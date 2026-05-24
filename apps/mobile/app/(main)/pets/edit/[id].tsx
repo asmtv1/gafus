@@ -15,8 +15,8 @@ import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
-import { validatePetForm, type PetFormErrors } from "@/features/pets/pet-form-validation";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
+import { validatePetForm, type PetFormErrors } from "@/features/pets";
 import { MascotSpinner } from "@/shared/components/ui";
 import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { formatIsoBirthDateToDdMmYyyy } from "@/shared/lib/utils/birthDateInput";

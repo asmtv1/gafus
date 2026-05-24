@@ -24,7 +24,7 @@ import { useLayout } from "@/shared/hooks";
 import { getOtaRuntimeFingerprintText } from "@/shared/lib/otaRuntimeFingerprint";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
 
 const registerSchema = z

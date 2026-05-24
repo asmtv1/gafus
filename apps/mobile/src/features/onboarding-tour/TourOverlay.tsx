@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
+import type { TourTargetRect } from "@/shared/lib/tour-targets";
 import type { MobileOnboardingTourStep } from "./tour-steps";
-import type { TourTargetRect } from "./TourTarget";
 
 interface HighlightRect {
   left: number;

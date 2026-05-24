@@ -17,7 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Text } from "react-native-paper";
 import { appSubscriptionApi, type AppSubscriptionOfferDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";

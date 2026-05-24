@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AppSubscriptionPaywall } from "@/features/app-subscription/components/AppSubscriptionPaywall";
+import { AppSubscriptionPaywall } from "@/features/app-subscription";
 
 export default function SubscriptionPage() {
   return (

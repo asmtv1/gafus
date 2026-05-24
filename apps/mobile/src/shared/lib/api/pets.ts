@@ -4,7 +4,7 @@ import {
   PET_DOCUMENT_ALLOWED_MIME_TYPES,
 } from "@gafus/types";
 
-import { API_BASE_URL } from "@/constants";
+import { API_BASE_URL } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 
 import { apiClient, type ApiResponse } from "./client";

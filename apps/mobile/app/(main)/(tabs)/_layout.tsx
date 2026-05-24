@@ -3,10 +3,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { COLORS, FONTS } from "@/constants";
-import { TourTarget, type MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
+import { COLORS, FONTS } from "@/shared/config";
+import type { MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { trackEvent } from "@/shared/lib/analytics";
 import { getMainTabBarSafeAreaStyle } from "@/shared/lib/tabBarSafeArea";
+import { TourTarget } from "@/shared/lib/tour-targets";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const TAB_ICON_SIZE = 24;

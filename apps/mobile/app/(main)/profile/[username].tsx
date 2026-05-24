@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
-import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/constants";
+import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";

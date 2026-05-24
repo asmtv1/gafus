@@ -20,7 +20,7 @@ import {
 import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 

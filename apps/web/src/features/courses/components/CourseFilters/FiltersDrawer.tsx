@@ -2,12 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { TrainingStatus } from "@gafus/types";
 import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
-import type { CourseTabType } from "../CourseTabs/CourseTabs";
+import type {
+  CourseTabType,
+  ProgressFilterType,
+  RatingFilterType,
+  TrainingLevelType,
+} from "@shared/utils/courseFilters";
 import styles from "./FiltersDrawer.module.css";
-
-export type TrainingLevelType = "ALL" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
-export type ProgressFilterType = "ALL" | TrainingStatus;
-export type RatingFilterType = "ALL" | "4+" | "3+" | "ANY";
 
 interface FiltersDrawerProps {
   isOpen: boolean;

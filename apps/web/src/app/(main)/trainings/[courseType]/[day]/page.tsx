@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { Day } from "@features/training/components/Day";
+import { Day } from "@/features/training";
 import { getTrainingDayWithUserSteps } from "@shared/lib/training/getTrainingDayWithUserSteps";
 import { checkDayAccess } from "@shared/lib/training/checkDayAccess";
 import { generatePageMetadata } from "@gafus/metadata";
 import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
-import { AccessDeniedAlert } from "@features/training/components/AccessDeniedAlert";
+import { AccessDeniedAlert } from "@/features/training";
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { checkCourseAccessById } from "@gafus/core/services/course";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";

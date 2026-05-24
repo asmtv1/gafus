@@ -5,7 +5,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import type { VideoSource } from "expo-video";
 import { IconButton, Text } from "react-native-paper";
 
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { reportClientError } from "@/shared/lib/tracer";
 

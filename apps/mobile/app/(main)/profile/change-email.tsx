@@ -9,7 +9,7 @@ import { Button, Input, Card } from "@/shared/components/ui";
 import { userApi } from "@/shared/lib/api/user";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { BORDER_RADIUS, COLORS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

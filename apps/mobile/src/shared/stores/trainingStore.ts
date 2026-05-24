@@ -2,7 +2,7 @@ import { getDayKey as getDayKeyFromCore } from "@gafus/core/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
-import { CACHE_DURATIONS } from "@/constants";
+import { CACHE_DURATIONS } from "@/shared/config";
 
 interface CachedTrainingDays {
   data: unknown;

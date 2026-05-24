@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 import { Button as PaperButton, type ButtonProps as PaperButtonProps } from "react-native-paper";
 import * as Haptics from "expo-haptics";
-import { BORDER_RADIUS, COLORS } from "@/constants";
+import { BORDER_RADIUS, COLORS } from "@/shared/config";
 
 interface ButtonProps extends Omit<PaperButtonProps, "children"> {
   label: string;

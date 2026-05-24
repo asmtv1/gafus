@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
-import { BORDER_RADIUS, COLORS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
 import { Button, Card, Input } from "@/shared/components/ui";
 import { useUsernameAvailability } from "@/shared/hooks";
 import type { User } from "@/shared/lib/api/auth";

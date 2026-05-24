@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import type { MobileOnboardingTourTargetId } from "./tour-steps";
+export type TourTargetId = string;
 
 export interface TourTargetRect {
   x: number;
@@ -22,33 +22,27 @@ interface RegisteredTourTarget {
 }
 
 interface TourTargetsContextValue {
-  registerTarget: (id: MobileOnboardingTourTargetId, target: RegisteredTourTarget) => void;
-  unregisterTarget: (id: MobileOnboardingTourTargetId, target: RegisteredTourTarget) => void;
-  measureTarget: (id: MobileOnboardingTourTargetId) => Promise<TourTargetRect | null>;
+  registerTarget: (id: TourTargetId, target: RegisteredTourTarget) => void;
+  unregisterTarget: (id: TourTargetId, target: RegisteredTourTarget) => void;
+  measureTarget: (id: TourTargetId) => Promise<TourTargetRect | null>;
 }
 
 const TourTargetsContext = createContext<TourTargetsContextValue | null>(null);
 
 export function TourTargetsProvider({ children }: { children: ReactNode }) {
-  const targetsRef = useRef(new Map<MobileOnboardingTourTargetId, RegisteredTourTarget>());
+  const targetsRef = useRef(new Map<TourTargetId, RegisteredTourTarget>());
 
-  const registerTarget = useCallback(
-    (id: MobileOnboardingTourTargetId, target: RegisteredTourTarget) => {
-      targetsRef.current.set(id, target);
-    },
-    [],
-  );
+  const registerTarget = useCallback((id: TourTargetId, target: RegisteredTourTarget) => {
+    targetsRef.current.set(id, target);
+  }, []);
 
-  const unregisterTarget = useCallback(
-    (id: MobileOnboardingTourTargetId, target: RegisteredTourTarget) => {
-      if (targetsRef.current.get(id) === target) {
-        targetsRef.current.delete(id);
-      }
-    },
-    [],
-  );
+  const unregisterTarget = useCallback((id: TourTargetId, target: RegisteredTourTarget) => {
+    if (targetsRef.current.get(id) === target) {
+      targetsRef.current.delete(id);
+    }
+  }, []);
 
-  const measureTarget = useCallback(async (id: MobileOnboardingTourTargetId) => {
+  const measureTarget = useCallback(async (id: TourTargetId) => {
     const target = targetsRef.current.get(id);
     const node = target?.ref.current;
     if (!node) return null;
@@ -85,7 +79,7 @@ export function TourTarget({
   children,
   style,
 }: {
-  id: MobileOnboardingTourTargetId;
+  id: TourTargetId;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {

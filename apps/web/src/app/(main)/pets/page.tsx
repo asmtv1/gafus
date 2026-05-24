@@ -1,6 +1,6 @@
 import { generateStaticPageMetadata } from "@gafus/metadata";
 import { createWebLogger } from "@gafus/logger";
-import PetList from "@features/profile/components/PetList";
+import { PetList } from "@/features/profile";
 import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyticsLink";
 import { getCurrentUserPetsPageData } from "@shared/lib/pets/server";
 import { redirect, unstable_rethrow } from "next/navigation";

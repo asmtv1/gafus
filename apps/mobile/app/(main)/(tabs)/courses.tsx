@@ -12,9 +12,9 @@ import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { coursesApi, type Course } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
-import { CourseCard } from "@/features/courses/components";
+import { CourseCard } from "@/features/courses";
 import { OfflineDownloadedScreen } from "@/features/offline";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 
 /**
  * Страница избранных курсов (логика как в web: список по store).

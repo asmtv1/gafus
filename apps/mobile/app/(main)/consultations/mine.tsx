@@ -9,7 +9,7 @@ import * as Linking from "expo-linking";
 import type { Href } from "expo-router";
 import { Stack, useRouter } from "expo-router";
 
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";

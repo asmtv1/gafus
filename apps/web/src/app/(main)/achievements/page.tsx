@@ -1,4 +1,4 @@
-import { AchievementsContent } from "@features/achievements/components/AchievementsContent";
+import { AchievementsContent } from "@/features/achievements";
 import { generateStaticPageMetadata } from "@gafus/metadata";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";

@@ -6,16 +6,15 @@ import { usePathname, useRouter } from "expo-router";
 import { onboardingTourApi } from "@/shared/lib/api/onboarding-tour";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { trackEvent } from "@/shared/lib/analytics";
+import { TourTargetsProvider, useTourTargets, type TourTargetRect } from "@/shared/lib/tour-targets";
 import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore } from "@/shared/stores";
-import { flushDeferredAppSubscriptionPaywall } from "@/features/app-subscription/store/paywallStore";
 import {
   getMobileOnboardingTourSteps,
   MOBILE_ONBOARDING_TOUR_VERSION,
   type MobileOnboardingTourStepId,
 } from "./tour-steps";
 import { TourOverlay } from "./TourOverlay";
-import { TourTargetsProvider, useTourTargets, type TourTargetRect } from "./TourTarget";
 import { useMobileOnboardingTourStore } from "./tour-store";
 
 const TARGET_MEASURE_DELAY_MS = 260;
@@ -134,19 +133,6 @@ function MobileOnboardingTourController() {
     }, TOUR_AUTOSTART_DELAY_MS);
     return () => clearTimeout(timer);
   }, [hasHydrated, hasSeenV1, isActive, isAuthenticated, startTour]);
-
-  useEffect(() => {
-    if (
-      !hasHydrated ||
-      !isAuthenticated ||
-      !hasSeenV1 ||
-      isActive ||
-      isAwaitingRequiredPetCreation
-    ) {
-      return;
-    }
-    flushDeferredAppSubscriptionPaywall();
-  }, [hasHydrated, hasSeenV1, isActive, isAuthenticated, isAwaitingRequiredPetCreation]);
 
   useEffect(() => {
     if (!isActive || !step) return;

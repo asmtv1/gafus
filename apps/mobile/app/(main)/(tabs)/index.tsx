@@ -26,9 +26,10 @@ import type { TodayDailyCourseResponse } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
-import { CourseCard, CourseSearch, CourseFilters } from "@/features/courses/components";
-import { TourTarget, useMobileOnboardingTourStore } from "@/features/onboarding-tour";
+import { CourseCard, CourseSearch, CourseFilters } from "@/features/courses";
+import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { OfflineDownloadedScreen } from "@/features/offline";
+import { TourTarget } from "@/shared/lib/tour-targets";
 import {
   filterAndSortCourses,
   type CourseTabType,
@@ -37,7 +38,7 @@ import {
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
-import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/constants";
+import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/shared/config";
 import { fetchMobileAppPublicConfig } from "@/shared/lib/api/public-config";
 
 const LOGO_PREFETCH_LIMIT = 12;

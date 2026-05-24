@@ -7,7 +7,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Button, Input } from "@/shared/components/ui";
 import { useAuthStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 export default function VkSetPhoneScreen() {
   const setVkPhoneComplete = useAuthStore((s) => s.setVkPhoneComplete);

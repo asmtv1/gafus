@@ -4,7 +4,7 @@ import { View, StyleSheet, TextInput, Pressable } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/constants";
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from "@/shared/config";
 
 const DEBOUNCE_MS = 300;
 

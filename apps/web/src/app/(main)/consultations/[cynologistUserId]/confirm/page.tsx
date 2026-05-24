@@ -5,8 +5,8 @@ import { Box, Typography } from "@mui/material";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { ConsultationsSubNav } from "@/features/consultations/components/consultations-sub-nav";
-import { ConsultationBookingConfirmClient } from "@/features/consultations/components/consultation-booking-confirm-client";
+import { ConsultationsSubNav } from "@/features/consultations";
+import { ConsultationBookingConfirmClient } from "@/features/consultations";
 
 import styles from "../../consultations-page.module.css";
 

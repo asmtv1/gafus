@@ -4,7 +4,7 @@ import { Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { getOfflineCourseTypes, getCourseMeta } from "@/shared/lib/offline";
 import { reportClientError } from "@/shared/lib/tracer";

@@ -21,13 +21,13 @@
 
 ```text
 apps/mobile/
-├── app/                  # Expo Router routes
+├── app/                  # Expo Router routes and feature composition
 │   ├── (auth)/           # welcome/login/register/reset/vk flows
 │   ├── (main)/           # authenticated area
 │   └── _layout.tsx
 ├── src/
-│   ├── features/         # app feature modules
-│   ├── shared/           # providers, hooks, stores, utils
+│   ├── features/         # user-facing feature modules with index.ts public API
+│   ├── shared/           # UI primitives, config, API client, providers, stores, pure utils
 │   ├── components/
 │   └── types/
 ├── app.json
@@ -161,6 +161,10 @@ pnpm --filter @gafus/mobile update:ota:production
 
 - Общие типы берите из `@gafus/types`.
 - Бизнес-правила не дублируйте в mobile: добавляйте их в `@gafus/core`/API и возвращайте готовый контракт.
+- `src/shared` не импортирует `src/features`; shared остаётся нижним слоем.
+- `app/` связывает несколько features между собой, например провайдеры и cross-feature coordination.
+- Внешний импорт feature идёт через `@/features/<name>` и `src/features/<name>/index.ts`.
+- Deep import внутрь feature допустим только внутри этой же feature через относительный путь.
 - Для network/data fetching сверяйтесь с `src/shared` и существующими feature hooks.
 - Для новых экранов используйте Expo Router conventions в `app/`.
 - Для native permissions обновляйте `app.json`/config plugins и проверяйте iOS/Android тексты разрешений.

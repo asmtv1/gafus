@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/constants";
+import { API_BASE_URL } from "@/shared/config";
 
 export function resolveImageUrl(url: string | undefined | null): string | null {
   if (!url) return null;

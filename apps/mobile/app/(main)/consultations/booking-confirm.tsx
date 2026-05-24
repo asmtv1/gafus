@@ -18,7 +18,7 @@ import { randomUUID } from "expo-crypto";
 import type { Href } from "expo-router";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 import {
   CONSULT_NAME_MAX,
   CONSULT_TEXT_MAX,
@@ -27,7 +27,7 @@ import {
   isProblemField,
   isSelfHelpField,
   SLOT_TAKEN_MESSAGE,
-} from "@/features/consultations/lib/bookingIntakeForm";
+} from "@/features/consultations";
 import { Input } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";

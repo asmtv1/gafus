@@ -17,7 +17,7 @@ import {
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/constants";
+import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 
 const TAB_OPTIONS: { id: CourseTabType; label: string }[] = [
   { id: "all", label: "Все" },

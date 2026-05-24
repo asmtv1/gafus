@@ -15,7 +15,7 @@ import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { authApi } from "@/shared/lib/api/auth";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";

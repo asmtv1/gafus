@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@gafus/auth";
 
-import ChangePasswordForm from "@features/profile/components/ChangePasswordForm";
+import { ChangePasswordForm } from "@/features/profile";
 
 export const metadata = generateStaticPageMetadata(
   "Смена пароля",

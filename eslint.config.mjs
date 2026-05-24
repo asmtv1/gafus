@@ -232,6 +232,77 @@ export default [
       ],
     },
   },
+  {
+    files: ["apps/web/src/shared/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/features/*", "@features/*"],
+              message: "FSD-light boundary: shared не должен импортировать features.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/web/src/app/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/features/*/components/*",
+                "@/features/*/lib/*",
+                "@/features/*/hooks/*",
+                "@/features/*/store/*",
+                "@features/*/components/*",
+                "@features/*/lib/*",
+                "@features/*/hooks/*",
+                "@features/*/store/*",
+              ],
+              message: "Импортируйте feature через public API: @/features/<name>.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/web/src/features/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/features/*/components/*",
+                "@/features/*/lib/*",
+                "@/features/*/hooks/*",
+                "@/features/*/store/*",
+                "@features/*/components/*",
+                "@features/*/lib/*",
+                "@features/*/hooks/*",
+                "@features/*/store/*",
+              ],
+              message:
+                "Между features используйте public API @/features/<name>; внутри своей feature используйте относительные импорты.",
+            },
+            {
+              group: ["@gafus/core/services/consultation/*"],
+              message: "Используйте @gafus/consultation-shared в клиентском коде.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 
   // Trainer Panel specific configuration
   {
@@ -435,6 +506,81 @@ export default [
       "@typescript-eslint/no-require-imports": "off",
       "import/named": "off",
       "import/no-cycle": "off",
+    },
+  },
+  {
+    files: ["apps/mobile/src/shared/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/features/*"],
+              message: "FSD-light boundary: shared не должен импортировать features.",
+            },
+            {
+              group: ["@gafus/core/services/consultation/*"],
+              message: "Используйте @gafus/consultation-shared в клиентском коде mobile.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/mobile/app/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/features/*/components/*",
+                "@/features/*/hooks/*",
+                "@/features/*/store/*",
+                "@/features/*/api/*",
+                "@/features/*/lib/*",
+                "@/features/*/screens/*",
+              ],
+              message: "Импортируйте feature через public API: @/features/<name>.",
+            },
+            {
+              group: ["@gafus/core/services/consultation/*"],
+              message: "Используйте @gafus/consultation-shared в клиентском коде mobile.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/mobile/src/features/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/features/*/components/*",
+                "@/features/*/hooks/*",
+                "@/features/*/store/*",
+                "@/features/*/api/*",
+                "@/features/*/lib/*",
+                "@/features/*/screens/*",
+              ],
+              message:
+                "Между features используйте public API @/features/<name>; внутри своей feature используйте относительные импорты.",
+            },
+            {
+              group: ["@gafus/core/services/consultation/*"],
+              message: "Используйте @gafus/consultation-shared в клиентском коде mobile.",
+            },
+          ],
+        },
+      ],
     },
   },
 

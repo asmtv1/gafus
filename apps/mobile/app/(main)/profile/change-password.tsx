@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { BORDER_RADIUS, COLORS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
 import { Button, Card, Input } from "@/shared/components/ui";
 import { authApi } from "@/shared/lib/api/auth";
 import { reportClientError } from "@/shared/lib/tracer";

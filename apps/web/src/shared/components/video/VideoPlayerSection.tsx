@@ -16,7 +16,7 @@ import {
 import { reportClientError } from "@gafus/error-handling";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import type { VideoMetadata } from "@shared/lib/video/getVideoMetadata";
-import styles from "@/features/training/components/AccordionStep/AccordionStep.module.css";
+import styles from "./VideoPlayerSection.module.css";
 
 interface VideoPlayerSectionProps {
   videoUrl: string | null; // URL для воспроизведения (может быть blob URL для офлайн)

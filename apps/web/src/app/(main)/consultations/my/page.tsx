@@ -6,8 +6,8 @@ import { Box } from "@mui/material";
 import { redirect } from "next/navigation";
 import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
-import { ConsultationsSubNav } from "@/features/consultations/components/consultations-sub-nav";
-import { MyConsultationsClient } from "@/features/consultations/components/my-consultations-client";
+import { ConsultationsSubNav } from "@/features/consultations";
+import { MyConsultationsClient } from "@/features/consultations";
 
 import styles from "../consultations-page.module.css";
 

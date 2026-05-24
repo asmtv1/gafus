@@ -4,4 +4,4 @@ export type {
   ProgressFilterType,
   SortingType,
   RatingFilterType,
-} from "./CourseFilters";
+} from "@shared/utils/courseFilters";

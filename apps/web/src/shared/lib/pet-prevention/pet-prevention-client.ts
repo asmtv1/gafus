@@ -2,7 +2,7 @@
 
 import { reportClientError } from "@gafus/error-handling";
 
-import type { PreventionEntryDisplay } from "@features/pet-prevention/types";
+import type { PreventionEntryDisplay } from "./types";
 
 interface PreventionEntriesResponse {
   success: boolean;

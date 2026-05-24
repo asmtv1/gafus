@@ -1,15 +1,15 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import type { TrainingStatus } from "@gafus/types";
 import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
-import type { CourseTabType } from "../CourseTabs/CourseTabs";
+import type {
+  CourseTabType,
+  ProgressFilterType,
+  RatingFilterType,
+  SortingType,
+  TrainingLevelType,
+} from "@shared/utils/courseFilters";
 import FiltersDrawer from "./FiltersDrawer";
 import styles from "./CourseFilters.module.css";
-
-export type TrainingLevelType = "ALL" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
-export type ProgressFilterType = "ALL" | TrainingStatus;
-export type SortingType = "newest" | "rating" | "name" | "progress";
-export type RatingFilterType = "ALL" | "4+" | "3+" | "ANY";
 
 interface CourseFiltersProps {
   // Табы

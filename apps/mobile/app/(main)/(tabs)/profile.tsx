@@ -11,9 +11,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
 import { Card } from "@/shared/components/ui";
-import { appSubscriptionApi } from "@/features/app-subscription/api/appSubscriptionApi";
-import { useAppSubscriptionStatus } from "@/features/app-subscription/hooks/useAppSubscriptionStatus";
-import { requestAppSubscriptionPaywall } from "@/features/app-subscription/store/paywallStore";
+import {
+  appSubscriptionApi,
+  requestAppSubscriptionPaywall,
+  useAppSubscriptionStatus,
+} from "@/features/app-subscription";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
@@ -28,7 +30,7 @@ import { userApi } from "@/shared/lib/api/user";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 import { trackEvent } from "@/shared/lib/analytics";
 

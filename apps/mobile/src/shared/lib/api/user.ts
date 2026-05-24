@@ -2,7 +2,7 @@ import * as SecureStore from "expo-secure-store";
 
 import { apiClient, type ApiResponse } from "./client";
 import type { User } from "./auth";
-import { API_BASE_URL } from "@/constants";
+import { API_BASE_URL } from "@/shared/config";
 
 export interface UpdateProfileData {
   fullName?: string;

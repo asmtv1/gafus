@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
 import type { Course } from "@/shared/lib/api";
-import { CACHE_DURATIONS } from "@/constants";
+import { CACHE_DURATIONS } from "@/shared/config";
 import type {
   CourseTabType,
   TrainingLevelType,

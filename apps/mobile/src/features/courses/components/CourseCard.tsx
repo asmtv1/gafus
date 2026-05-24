@@ -9,15 +9,16 @@ import { useShallow } from "zustand/react/shallow";
 import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus } from "@gafus/types";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/constants";
+import { SPACING, FONTS, COLORS, BORDER_RADIUS, API_BASE_URL } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { useOfflineStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import type { Course } from "@/shared/lib/api";
-import { TourTarget, type MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
-import { useRequireAppSubscription } from "@/features/app-subscription/hooks/useRequireAppSubscription";
+import type { MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
+import { TourTarget } from "@/shared/lib/tour-targets";
+import { useRequireAppSubscription } from "@/features/app-subscription";
 
 const LEVEL_LABELS: Record<string, string> = {
   BEGINNER: "Начальный",

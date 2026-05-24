@@ -15,9 +15,9 @@ import { Stack, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/constants";
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
-import { validatePetForm, type PetFormErrors } from "@/features/pets/pet-form-validation";
+import { validatePetForm, type PetFormErrors } from "@/features/pets";
 import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";

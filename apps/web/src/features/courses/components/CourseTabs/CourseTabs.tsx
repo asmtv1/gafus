@@ -1,7 +1,6 @@
 "use client";
+import type { CourseTabType } from "@shared/utils/courseFilters";
 import styles from "./CourseTabs.module.css";
-
-export type CourseTabType = "all" | "free" | "paid" | "private";
 
 interface CourseTabsProps {
   activeTab: CourseTabType;

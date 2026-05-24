@@ -10,8 +10,8 @@ import OfflineStoreInitializer from "@shared/components/ui/OfflineStoreInitializ
 import OfflineDetector from "@shared/components/ui/OfflineDetector";
 import ServiceWorkerRegistrar from "@shared/components/ui/ServiceWorkerRegistrar";
 
-import Footer from "@/features/footer/components/Footer";
-import HeaderServerWrapper from "@/features/header/components/HeaderServerWrapper";
+import { Footer } from "@/features/footer";
+import { HeaderServerWrapper } from "@/features/header";
 
 export const metadata: Metadata = {
   title: { default: "Гафус", template: "%s — Гафус" },

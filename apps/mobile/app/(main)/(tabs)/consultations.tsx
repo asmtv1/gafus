@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 
 import ConsultationsMineScreen from "../consultations/mine";
-import ConsultationsCynologistsListScreen from "@/features/consultations/screens/ConsultationsCynologistsListScreen";
+import { ConsultationsCynologistsListScreen } from "@/features/consultations";
 
 export default function ConsultationsTabScreen() {
   const params = useLocalSearchParams<{ view?: string | string[] }>();

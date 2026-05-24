@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 
-import { Day } from "@features/training/components/Day";
+import { Day } from "@/features/training";
 import type { TrainingDetail } from "@gafus/types";
 import {
   completeDailyCourseStepServerAction,

@@ -1,12 +1,11 @@
 import type { CourseWithProgressData } from "@gafus/types";
 import { TrainingStatus } from "@gafus/types";
-import type { CourseTabType } from "@features/courses/components/CourseTabs/CourseTabs";
-import type {
-  TrainingLevelType,
-  ProgressFilterType,
-  SortingType,
-  RatingFilterType,
-} from "@features/courses/components/CourseFilters";
+
+export type CourseTabType = "all" | "free" | "paid" | "private";
+export type TrainingLevelType = "ALL" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
+export type ProgressFilterType = "ALL" | TrainingStatus;
+export type SortingType = "newest" | "rating" | "name" | "progress";
+export type RatingFilterType = "ALL" | "4+" | "3+" | "ANY";
 
 // Фильтрация по табам (Все / Бесплатные / Платные / Приватные)
 export function filterCoursesByTab(

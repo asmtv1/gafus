@@ -1,4 +1,6 @@
 export { PetList } from "./PetList";
+export { default as ChangePasswordForm } from "./ChangePasswordForm";
+export { default as DeleteAccountForm } from "./DeleteAccountForm";
 export { EditableAvatar } from "./EditableAvatar";
 export { ProfileAvatar } from "./ProfileAvatar";
 export { EditablePetAvatar } from "./EditablePetAvatar";
@@ -9,5 +11,6 @@ export { TrainerCoursesSection } from "./TrainerCoursesSection";
 export { SettingsActions } from "./SettingsActions";
 export { TrainingReminders } from "./TrainingReminders";
 export { PrivateProfileSection } from "./PrivateProfileSection";
+export { default as SetPasswordForm } from "./SetPasswordForm";
 export { UserProfile } from "./UserProfile";
 export { NotificationStatus } from "./NotificationStatus";

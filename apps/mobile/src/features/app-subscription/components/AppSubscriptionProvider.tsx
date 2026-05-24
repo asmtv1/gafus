@@ -1,19 +1,21 @@
-import type { PropsWithChildren } from "react";
+import { useEffect, type PropsWithChildren } from "react";
 
-import { useMobileOnboardingTourStore } from "@/features/onboarding-tour/tour-store";
+import { setSubscriptionRequiredHandler } from "@/shared/lib/api/subscriptionRequired";
 import { AppSubscriptionPaywall } from "./AppSubscriptionPaywall";
-import { usePaywallStore } from "../store/paywallStore";
+import { requestAppSubscriptionPaywall, usePaywallStore } from "../store/paywallStore";
 
 export function AppSubscriptionProvider({ children }: PropsWithChildren) {
   const isOpen = usePaywallStore((s) => s.isOpen);
-  const canShowAfterTour = useMobileOnboardingTourStore(
-    (s) => s.hasHydrated && s.hasSeenV1 && !s.isActive && !s.isAwaitingRequiredPetCreation,
+
+  useEffect(
+    () => setSubscriptionRequiredHandler(requestAppSubscriptionPaywall),
+    [],
   );
 
   return (
     <>
       {children}
-      {isOpen && canShowAfterTour ? <AppSubscriptionPaywall /> : null}
+      {isOpen ? <AppSubscriptionPaywall /> : null}
     </>
   );
 }

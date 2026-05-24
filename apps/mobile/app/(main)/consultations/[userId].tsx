@@ -4,8 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
-import { COLORS, FONTS, SPACING } from "@/constants";
-import { ConsultationSlotsCalendar } from "@/features/consultations/components/ConsultationSlotsCalendar";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { ConsultationSlotsCalendar } from "@/features/consultations";
 
 function one(param: string | string[] | undefined): string {
   return Array.isArray(param) ? (param[0] ?? "") : (param ?? "");

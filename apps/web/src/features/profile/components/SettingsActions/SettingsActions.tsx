@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { memo, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { useWebOnboardingTourStore } from "@/features/onboarding-tour/tour-store";
+import { useWebOnboardingTourStore } from "@/features/onboarding-tour";
 
 import { initiateVkIdLink } from "@shared/server-actions";
 

@@ -1,5 +1,5 @@
 import type { ConsentPayload } from "@/shared/constants/consent";
-import { API_BASE_URL } from "@/constants";
+import { API_BASE_URL } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 
 import { apiClient, type ApiResponse } from "./client";

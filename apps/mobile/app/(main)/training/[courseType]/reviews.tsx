@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useState } from "react";
 
-import { COLORS, SPACING, FONTS } from "@/constants";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { coursesApi, type CourseReview } from "@/shared/lib/api/courses";
 import { useAuthStore } from "@/shared/stores";

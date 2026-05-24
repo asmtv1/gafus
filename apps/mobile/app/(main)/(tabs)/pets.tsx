@@ -35,13 +35,12 @@ import {
 } from "@gafus/types";
 
 import petAvatarImage from "../../../assets/images/pet-avatar.png";
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 import {
-  TourTarget,
   useMobileOnboardingTourStore,
   type MobileOnboardingTourTargetId,
 } from "@/features/onboarding-tour";
-import { useTourTargets } from "@/features/onboarding-tour/TourTarget";
+import { TourTarget, useTourTargets } from "@/shared/lib/tour-targets";
 import { Input } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";

@@ -1,7 +1,5 @@
 import { create } from "zustand";
 
-import { useMobileOnboardingTourStore } from "@/features/onboarding-tour/tour-store";
-
 type PaywallReason = "required" | "onboarding";
 
 type PaywallState = {
@@ -14,16 +12,6 @@ type PaywallState = {
   clearPending: () => void;
 };
 
-function canShowPaywallNow() {
-  const tour = useMobileOnboardingTourStore.getState();
-  return (
-    tour.hasHydrated &&
-    tour.hasSeenV1 &&
-    !tour.isActive &&
-    !tour.isAwaitingRequiredPetCreation
-  );
-}
-
 export const usePaywallStore = create<PaywallState>((set) => ({
   isOpen: false,
   reason: null,
@@ -31,10 +19,6 @@ export const usePaywallStore = create<PaywallState>((set) => ({
   open: (params) => set({ isOpen: true, reason: params?.reason ?? "required", pendingReason: null }),
   requestOpen: (params) => {
     const reason = params?.reason ?? "required";
-    if (canShowPaywallNow()) {
-      set({ isOpen: true, reason, pendingReason: null });
-      return;
-    }
     set({ pendingReason: reason });
   },
   close: () => set({ isOpen: false, reason: null }),
@@ -51,6 +35,6 @@ export function requestAppSubscriptionPaywall(reason: PaywallReason = "required"
 
 export function flushDeferredAppSubscriptionPaywall() {
   const state = usePaywallStore.getState();
-  if (!state.pendingReason || !canShowPaywallNow()) return;
+  if (!state.pendingReason) return;
   state.open({ reason: state.pendingReason });
 }

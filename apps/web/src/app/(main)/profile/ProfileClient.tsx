@@ -1,9 +1,6 @@
 import Link from "next/link";
 
-import Bio from "@features/profile/components/Bio";
-import PrivateProfileSection from "@features/profile/components/PrivateProfileSection";
-import SettingsActions from "@features/profile/components/SettingsActions";
-import StudentNotes from "@features/profile/components/StudentNotes";
+import { Bio, PrivateProfileSection, SettingsActions, StudentNotes } from "@/features/profile";
 
 import type { PublicProfile, UserWithTrainings } from "@gafus/types";
 

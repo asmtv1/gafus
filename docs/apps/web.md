@@ -52,19 +52,19 @@
 ```
 apps/web/
 ├── src/
-│   ├── app/                    # App Router страницы
+│   ├── app/                    # Next.js routes and feature composition
 │   │   ├── (auth)/            # Аутентификация
 │   │   ├── (main)/            # Основное приложение
 │   │   ├── api/               # API routes
 │   │   └── layout.tsx         # Корневой layout
-│   ├── features/              # Функциональные модули
+│   ├── features/              # User-facing feature modules with index.ts public API
 │   │   ├── achievements/      # Достижения
 │   │   ├── courses/           # Курсы
 │   │   ├── pet-prevention/    # Журнал профилактики питомца
 │   │   ├── profile/           # Профиль пользователя
 │   │   ├── statistics/        # Статистика
 │   │   └── training/          # Тренировки
-│   ├── shared/                # Общие компоненты
+│   ├── shared/                # UI primitives, server actions, config, pure utils, stores
 │   │   ├── components/        # UI компоненты
 │   │   ├── hooks/             # React хуки
 │   │   ├── lib/               # Утилиты и библиотеки
@@ -73,6 +73,13 @@ apps/web/
 ├── public/                    # Статические файлы
 └── scripts/                   # Скрипты сборки
 ```
+
+### FSD-light правила
+
+- `shared` не импортирует `features`; shared остаётся нижним слоем.
+- `app` импортирует features только через public API: `@/features/<name>`.
+- Deep import внутрь feature допустим только внутри этой же feature через относительный путь.
+- Feature-to-feature связь допустима только через public API другой feature.
 
 ### Роутинг
 

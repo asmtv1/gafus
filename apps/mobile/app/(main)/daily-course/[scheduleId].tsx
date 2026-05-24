@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Loading } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
-import { AccordionStep } from "@/features/training/components";
+import { AccordionStep } from "@/features/training";
 import {
   useDailyCourseCompleteStep,
   useDailyCourseDay,
@@ -18,7 +18,7 @@ import {
 } from "@/shared/hooks/useDailyCourse";
 import { getDailyCourseStoreCourseId } from "@/shared/lib/api";
 import { useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
-import { COLORS, FONTS, SPACING } from "@/constants";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 
 export default function DailyCourseDayScreen() {
   const { scheduleId } = useLocalSearchParams<{ scheduleId: string }>();

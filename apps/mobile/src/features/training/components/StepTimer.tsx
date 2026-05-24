@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 import { useShallow } from "zustand/react/shallow";
 
 import { useTimerStore } from "@/shared/stores";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 interface StepTimerProps {
   courseId: string;

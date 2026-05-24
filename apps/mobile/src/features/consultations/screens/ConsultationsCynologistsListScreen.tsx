@@ -9,9 +9,9 @@ import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 
-import { COLORS, FONTS, SPACING } from "@/constants";
-import { TourTarget } from "@/features/onboarding-tour";
-import { useRequireAppSubscription } from "@/features/app-subscription/hooks/useRequireAppSubscription";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { useRequireAppSubscription } from "@/features/app-subscription";
+import { TourTarget } from "@/shared/lib/tour-targets";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";

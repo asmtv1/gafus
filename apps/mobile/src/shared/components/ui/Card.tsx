@@ -1,6 +1,6 @@
 import { StyleSheet, type ViewStyle } from "react-native";
 import { Card as PaperCard, type CardProps as PaperCardProps } from "react-native-paper";
-import { BORDER_RADIUS, SPACING, COLORS } from "@/constants";
+import { BORDER_RADIUS, SPACING, COLORS } from "@/shared/config";
 
 interface CardProps extends Omit<PaperCardProps, "elevation"> {
   children: React.ReactNode;

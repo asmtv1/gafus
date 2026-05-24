@@ -23,7 +23,7 @@ import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
 import { useAuthStore } from "@/shared/stores";
-import { COLORS } from "@/constants";
+import { COLORS } from "@/shared/config";
 
 function SyncProgressOnReconnect() {
   useSyncProgressOnReconnect();

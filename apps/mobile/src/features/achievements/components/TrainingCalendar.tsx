@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text, Surface } from "react-native-paper";
-import { COLORS, SPACING } from "@/constants";
+import { COLORS, SPACING } from "@/shared/config";
 
 interface TrainingCalendarProps {
   trainingDates: string[];
