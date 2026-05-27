@@ -93,6 +93,10 @@ export async function POST(request: NextRequest) {
     object?: {
       id?: string;
       amount?: { value?: string };
+      status?: string;
+      saved?: boolean;
+      card?: { last4?: string };
+      title?: string;
       payment_method?: {
         id?: string;
         title?: string;
@@ -103,11 +107,19 @@ export async function POST(request: NextRequest) {
   }).object;
   const yookassaPaymentId = obj?.id;
   const amount = obj?.amount?.value;
-  const paymentMethodId = obj?.payment_method?.id ?? null;
-  const paymentMethodLast4 = obj?.payment_method?.card?.last4 ?? null;
-  const paymentMethodTitle = obj?.payment_method?.title ?? null;
+  const isPaymentMethodEvent = typeof event === "string" && event.startsWith("payment_method.");
+  const paymentMethodId = isPaymentMethodEvent ? (obj?.id ?? null) : (obj?.payment_method?.id ?? null);
+  const paymentMethodLast4 = isPaymentMethodEvent
+    ? (obj?.card?.last4 ?? null)
+    : (obj?.payment_method?.card?.last4 ?? null);
+  const paymentMethodTitle = isPaymentMethodEvent
+    ? (obj?.title ?? null)
+    : (obj?.payment_method?.title ?? null);
   const metadata = obj?.metadata;
-  const isAppSubscriptionWebhook = metadata?.kind === "app_subscription";
+  const isAppSubscriptionWebhook =
+    metadata?.kind === "app_subscription" ||
+    metadata?.kind === "app_subscription_payment_method" ||
+    isPaymentMethodEvent;
 
   if (type !== "notification" || !yookassaPaymentId) {
     return NextResponse.json({}, { status: 200 });

@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["src/**/*.test.ts", "__tests__/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.route.test.ts", "__tests__/**/*.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
     // Полный импорт app + первый запрос на медленных CI runner'ах иногда > 5s
     testTimeout: 30_000,

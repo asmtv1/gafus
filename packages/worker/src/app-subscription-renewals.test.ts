@@ -79,6 +79,31 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     expect(mockUpdateMany).toHaveBeenCalledTimes(1);
   });
 
+  it("creates an initial payment when trial period ends without previous successful payment", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodStart: new Date("2026-05-26T00:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-29T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+        payments: [],
+      },
+    ]);
+    mockCreate.mockResolvedValue({ id: "pay-1" });
+
+    await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "INITIAL" }),
+      }),
+    );
+  });
+
   it("skips batch when advisory lock is not acquired", async () => {
     mockQueryRawUnsafe.mockResolvedValueOnce([{ locked: false }]);
 

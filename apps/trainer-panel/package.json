@@ -1,6 +1,6 @@
 {
   "name": "@gafus/trainer-panel",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -8,6 +8,8 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "start": "PORT=3001 next start",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "gafus.ru",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "description": "Комплексная система управления фитнес-тренировками с веб-приложением, панелью тренера, телеграм-ботом и системой мониторинга",
   "workspaces": [
@@ -37,8 +37,12 @@
     "start:worker:watch:simple": "nodemon",
     "test": "turbo run test",
     "test:all": "turbo run test",
+    "test:api": "pnpm --filter @gafus/api test",
+    "test:apps": "pnpm --filter @gafus/api test && pnpm --filter @gafus/web test && pnpm --filter @gafus/mobile test",
     "test:coverage": "turbo run test:coverage",
+    "test:mobile": "pnpm --filter @gafus/mobile test",
     "test:watch": "turbo run test:watch",
+    "test:web": "pnpm --filter @gafus/web test",
     "typecheck": "turbo run typecheck",
     "typecheck:all": "pnpm -r run typecheck"
   },

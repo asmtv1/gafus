@@ -14,7 +14,7 @@ export function AppSubscriptionPaywall() {
   const [error, setError] = useState<string | null>(null);
   const [priceText, setPriceText] = useState("200 ₽/неделю");
   const [returnState, setReturnState] = useState<"idle" | "checking" | "success" | "pending">("idle");
-  const isPaidReturn = searchParams.get("paid") === "1";
+  const isPaidReturn = searchParams.get("paid") === "1" || searchParams.get("trial") === "1";
 
   useEffect(() => {
     if (!csrfToken && !csrfLoading) {
@@ -123,15 +123,15 @@ export function AppSubscriptionPaywall() {
         {returnState === "success" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Спасибо за подписку</h1>
+            <h1 className={styles.returnTitle}>Пробный период подключён</h1>
             <p className={styles.returnText}>
-              Оплата подтверждена. Сейчас откроем список курсов.
+              Карта привязана. Сейчас откроем список курсов.
             </p>
           </div>
         ) : returnState === "checking" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Проверяем оплату</h1>
+            <h1 className={styles.returnTitle}>Проверяем привязку карты</h1>
             <p className={styles.returnText}>
               Обычно это занимает несколько секунд после возврата из ЮKassa.
             </p>
@@ -139,7 +139,7 @@ export function AppSubscriptionPaywall() {
         ) : returnState === "pending" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Оплата ещё подтверждается</h1>
+            <h1 className={styles.returnTitle}>Привязка ещё подтверждается</h1>
             <p className={styles.returnText}>
               Мы не получили подтверждение от ЮKassa. Обновите страницу через несколько секунд.
             </p>
@@ -157,7 +157,7 @@ export function AppSubscriptionPaywall() {
             <div className={styles.priceCard}>
               <p className={styles.priceLabel}>Текущий тариф</p>
               <p className={styles.price}>{priceText}</p>
-              <p className={styles.priceNote}>Отмена автопродления в любой момент</p>
+              <p className={styles.priceNote}>3 дня бесплатно, затем автопродление</p>
             </div>
           </div>
 
@@ -186,17 +186,18 @@ export function AppSubscriptionPaywall() {
             onClick={onStart}
             disabled={loading || csrfLoading}
           >
-            {loading || csrfLoading ? "Переход к оплате..." : "Оформить подписку"}
+            {loading || csrfLoading ? "Переход в ЮKassa..." : "Попробовать 3 дня бесплатно"}
           </button>
           <p className={styles.legalText}>
             Нажимая кнопку, вы принимаете{" "}
             <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
               Оферту
             </a>
-            : подписка продлевается автоматически, способ оплаты сохраняется в ЮKassa, а
-            автопродление можно отключить в профиле в любой момент.
+            : карта привязывается сейчас без списания, первые 3 дня бесплатны, затем подписка
+            продлевается автоматически по тарифу {priceText}. Автопродление можно отключить в
+            профиле до первого списания.
           </p>
-          <p className={styles.assurance}>Безопасная оплата через ЮKassa • Электронный чек после оплаты</p>
+          <p className={styles.assurance}>Безопасная привязка карты через ЮKassa • Чек придёт после первого списания</p>
 
           {error ? (
             <p className={styles.errorText} role="alert">

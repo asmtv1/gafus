@@ -119,7 +119,7 @@ function MobileAppSubscriptionCard() {
           style={styles.subscriptionPrimaryButton}
           onPress={() => requestAppSubscriptionPaywall("required")}
         >
-          <Text style={styles.subscriptionPrimaryButtonText}>Оформить подписку</Text>
+          <Text style={styles.subscriptionPrimaryButtonText}>Попробовать 3 дня бесплатно</Text>
         </Pressable>
         {statusResponse && !statusResponse.success ? (
           <Pressable style={styles.subscriptionGhostButton} onPress={() => void refetch()}>
@@ -136,6 +136,10 @@ function MobileAppSubscriptionCard() {
       : status?.provider === "APPLE"
         ? "Управляется в App Store"
         : "Отключено";
+  const paidLabel = status?.isTrial ? "Пробный период до" : "Оплачено";
+  const paidValue = status?.isTrial
+    ? formatMskDateTime(status.trialEndsAt)
+    : formatMskDateTime(status?.paidAt);
 
   return (
     <View style={styles.subscriptionCard}>
@@ -148,8 +152,8 @@ function MobileAppSubscriptionCard() {
 
       <View style={styles.subscriptionGrid}>
         <View style={styles.subscriptionInfoCell}>
-          <Text style={styles.subscriptionLabel}>Оплачено</Text>
-          <Text style={styles.subscriptionValue}>{formatMskDateTime(status?.paidAt)}</Text>
+          <Text style={styles.subscriptionLabel}>{paidLabel}</Text>
+          <Text style={styles.subscriptionValue}>{paidValue}</Text>
         </View>
         <View style={styles.subscriptionInfoCell}>
           <Text style={styles.subscriptionLabel}>Доступ до</Text>
@@ -204,7 +208,7 @@ function MobileAppSubscriptionCard() {
         </>
       ) : (
         <Text style={styles.subscriptionMuted}>
-          Автопродление включится после оплаты с сохранением карты.
+          Автопродление включится после привязки карты.
         </Text>
       )}
     </View>

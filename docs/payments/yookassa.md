@@ -97,3 +97,14 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 - [Webhooks](https://yookassa.ru/developers/using-api/webhooks)
 - [Whitelist IP для webhook](https://yookassa.ru/developers/using-api/webhooks#ip)
 - [Тестирование](https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing)
+
+## Gafus Premium: пробный период через ЮKassa
+
+Подписка Gafus Premium на ЮKassa стартует через привязку карты на нулевую сумму:
+
+1. `POST /api/v1/app-subscription/yookassa/start` создаёт `AppSubscription` в статусе `PENDING`.
+2. Сервер создаёт способ оплаты в ЮKassa через `POST /v3/payment_methods` с `type: bank_card` и `confirmation.redirect`.
+3. После `payment_method.active` webhook проверяет способ оплаты через ЮKassa, сохраняет `payment_methods.id` и открывает Premium на 3 дня.
+4. Первое списание выполняет worker после окончания trial через обычный платёж с `payment_method_id`.
+
+В боевом магазине автоплатежи с нулевой привязкой должны быть подключены у менеджера ЮKassa.

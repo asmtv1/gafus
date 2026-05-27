@@ -14,6 +14,8 @@ export type AppSubscriptionStatusDto = {
   hasActiveSubscription: boolean;
   paidAt: string | null;
   activeUntil: string | null;
+  isTrial: boolean;
+  trialEndsAt: string | null;
   isLifetime: boolean;
   provider: AppSubscriptionProvider | null;
   status: AppSubscriptionStatusCode;

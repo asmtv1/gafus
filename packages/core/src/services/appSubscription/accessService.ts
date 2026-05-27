@@ -31,6 +31,8 @@ export async function getAppSubscriptionAccess(
       hasActiveSubscription: false,
       paidAt: null,
       activeUntil: null,
+      isTrial: false,
+      trialEndsAt: null,
       isLifetime: false,
       provider: null,
       status: null,
@@ -58,10 +60,17 @@ export async function getAppSubscriptionAccess(
     active.currentPeriodEnd
       ? active.currentPeriodEnd.toISOString()
       : null;
+  const isTrial =
+    active.provider === "YOOKASSA" &&
+    hasSavedPaymentMethod &&
+    !lastSucceededPayment &&
+    Boolean(active.currentPeriodEnd);
 
   return {
     hasActiveSubscription: true,
-    paidAt: lastSucceededPayment?.succeededAt
+    paidAt: isTrial
+      ? null
+      : lastSucceededPayment?.succeededAt
       ? lastSucceededPayment.succeededAt.toISOString()
       : lastSucceededPayment?.updatedAt
         ? lastSucceededPayment.updatedAt.toISOString()
@@ -69,6 +78,8 @@ export async function getAppSubscriptionAccess(
         ? active.createdAt.toISOString()
         : null,
     activeUntil: active.currentPeriodEnd ? active.currentPeriodEnd.toISOString() : null,
+    isTrial,
+    trialEndsAt: isTrial && active.currentPeriodEnd ? active.currentPeriodEnd.toISOString() : null,
     isLifetime: active.isLifetime,
     provider: active.provider,
     status: active.status,

@@ -4,6 +4,8 @@ export type AppSubscriptionStatusDto = {
   hasActiveSubscription: boolean;
   paidAt: string | null;
   activeUntil: string | null;
+  isTrial: boolean;
+  trialEndsAt: string | null;
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
   status: "ACTIVE" | "PENDING" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "REFUNDED" | "REVOKED" | null;
@@ -30,7 +32,7 @@ export const appSubscriptionApi = {
   getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
     return apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
   },
-  startYookassa(): Promise<ApiResponse<{ confirmationUrl: string; localPaymentId: string }>> {
+  startYookassa(): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
     return apiClient("/api/v1/app-subscription/yookassa/start", { method: "POST", body: {} });
   },
   cancelYookassa(): Promise<ApiResponse<AppSubscriptionStatusDto>> {

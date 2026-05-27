@@ -5,6 +5,8 @@ const mockEventFindFirst = vi.fn();
 const mockEventUpdate = vi.fn();
 const mockPaymentFindUnique = vi.fn();
 const mockPaymentUpdate = vi.fn();
+const mockPaymentCreate = vi.fn();
+const mockSubscriptionFindFirst = vi.fn();
 const mockSubscriptionCreate = vi.fn();
 const mockSubscriptionUpdate = vi.fn();
 const mockSettingsFindUnique = vi.fn();
@@ -19,13 +21,14 @@ vi.mock("@gafus/prisma", () => ({
       update: (...args: unknown[]) => mockEventUpdate(...args),
     },
     appSubscriptionPayment: {
+      create: (...args: unknown[]) => mockPaymentCreate(...args),
       findUnique: (...args: unknown[]) => mockPaymentFindUnique(...args),
       update: (...args: unknown[]) => mockPaymentUpdate(...args),
     },
     appSubscription: {
       create: (...args: unknown[]) => mockSubscriptionCreate(...args),
       update: (...args: unknown[]) => mockSubscriptionUpdate(...args),
-      findFirst: vi.fn(),
+      findFirst: (...args: unknown[]) => mockSubscriptionFindFirst(...args),
     },
     appSubscriptionSettings: {
       findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
@@ -59,6 +62,7 @@ vi.mock("@apple/app-store-server-library", () => ({
 
 describe("app subscription payment service", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     vi.stubEnv("YOOKASSA_SHOP_ID", "shop-id");
     vi.stubEnv("YOOKASSA_SECRET_KEY", "secret-key");
@@ -67,7 +71,9 @@ describe("app subscription payment service", () => {
     mockEventCreate.mockResolvedValue({ id: "event-1" });
     mockEventFindFirst.mockResolvedValue(null);
     mockEventUpdate.mockResolvedValue({});
+    mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
     mockPaymentUpdate.mockResolvedValue({});
+    mockSubscriptionFindFirst.mockResolvedValue(null);
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
     mockSubscriptionUpdate.mockResolvedValue({});
     mockSettingsFindUnique.mockResolvedValue({
@@ -83,6 +89,147 @@ describe("app subscription payment service", () => {
         },
       }),
     );
+  });
+
+  it("starts YooKassa trial by creating a payment method instead of charging immediately", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockSettingsFindUnique.mockResolvedValue({
+      yookassaWeeklyPriceRub: 200,
+      currency: "RUB",
+      intervalDays: 7,
+    });
+    mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+      }),
+    }));
+
+    const result = await startYookassaAppSubscriptionPayment({
+      userId: "user-1",
+      origin: "https://gafus.ru",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      localSubscriptionId: "sub-1",
+      confirmationUrl: "https://yookassa.test/confirm",
+    });
+    expect(mockPaymentCreate).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.yookassa.ru/v3/payment_methods",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          type: "bank_card",
+          confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?trial=1" },
+          description: "Пробный период Gafus Premium 3 дня, далее 200.00 RUB/7 дн.",
+        }),
+      }),
+    );
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "sub-1" },
+        data: expect.objectContaining({ yookassaPaymentMethodId: "pm-1" }),
+      }),
+    );
+  });
+
+  it("activates a three day YooKassa trial when payment method becomes active", async () => {
+    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      status: "PENDING",
+      yookassaPaymentMethodId: "pm-1",
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        status: "active",
+        saved: true,
+        type: "bank_card",
+        card: { last4: "4444" },
+        title: "Bank card *4444",
+      }),
+    }));
+
+    await handleYookassaAppSubscriptionWebhook({
+      event: "payment_method.active",
+      yookassaPaymentId: "pm-1",
+      paymentMethodId: "pm-1",
+    });
+
+    expect(mockSubscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { yookassaPaymentMethodId: "pm-1" } }),
+    );
+
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: expect.objectContaining({
+        status: "ACTIVE",
+        currentPeriodStart: new Date("2026-05-26T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-29T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+        yookassaPaymentMethodLast4: "4444",
+        yookassaPaymentMethodTitle: "Bank card *4444",
+      }),
+    });
+  });
+
+  it("keeps current paid period when an active user binds a new YooKassa card", async () => {
+    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      status: "ACTIVE",
+      currentPeriodStart: new Date("2026-05-20T10:00:00.000Z"),
+      currentPeriodEnd: new Date("2026-06-02T10:00:00.000Z"),
+      yookassaPaymentMethodId: "pm-1",
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        status: "active",
+        saved: true,
+        type: "bank_card",
+        card: { last4: "4444" },
+        title: "Bank card *4444",
+        metadata: {
+          kind: "app_subscription_payment_method",
+          subscriptionId: "sub-1",
+          userId: "user-1",
+        },
+      }),
+    }));
+
+    await handleYookassaAppSubscriptionWebhook({
+      event: "payment_method.active",
+      yookassaPaymentId: "pm-1",
+      paymentMethodId: "pm-1",
+      metadata: {
+        kind: "app_subscription_payment_method",
+        subscriptionId: "sub-1",
+        userId: "user-1",
+      },
+    });
+
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: expect.objectContaining({
+        currentPeriodEnd: new Date("2026-06-02T10:00:00.000Z"),
+      }),
+    });
   });
 
   it("does not activate YooKassa subscription when provider payment is not succeeded", async () => {

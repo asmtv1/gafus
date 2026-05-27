@@ -74,6 +74,13 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
       },
       orderBy: [{ currentPeriodEnd: "asc" }, { id: "asc" }],
       take: batchSize,
+      include: {
+        payments: {
+          where: { provider: "YOOKASSA", status: "SUCCEEDED" },
+          select: { id: true },
+          take: 1,
+        },
+      },
     });
 
     const settings = await (prisma as any).appSubscriptionSettings.findUnique({
@@ -103,6 +110,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
       try {
         const periodStart = row.currentPeriodEnd;
         const periodEnd = new Date(row.currentPeriodEnd.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+        const paymentKind = Array.isArray(row.payments) && row.payments.length === 0 ? "INITIAL" : "RENEWAL";
         const existingPayment = await (prisma as any).appSubscriptionPayment.findFirst({
           where: { idempotenceKey },
           select: { id: true, status: true, attemptCount: true },
@@ -115,7 +123,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 subscriptionId: row.id,
                 userId: row.userId,
                 provider: "YOOKASSA",
-                kind: "RENEWAL",
+                kind: paymentKind,
                 status: "PENDING",
                 amount: amountRub,
                 currency,
@@ -176,7 +184,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               localPaymentId: payment.id,
               userId: row.userId,
               subscriptionId: row.id,
-              renewal: "true",
+              renewal: paymentKind === "RENEWAL" ? "true" : "false",
             },
           }),
         });

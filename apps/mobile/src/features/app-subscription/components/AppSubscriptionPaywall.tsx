@@ -117,7 +117,7 @@ export function AppSubscriptionPaywall() {
     await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
     await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
     close();
-    Alert.alert("Спасибо за подписку", "Premium уже активен на вашем аккаунте.");
+    Alert.alert("Пробный период подключён", "Premium уже активен на вашем аккаунте.");
   };
 
   const handleApplePay = async () => {
@@ -142,11 +142,11 @@ export function AppSubscriptionPaywall() {
     const result = await yookassaAppSubscriptionPurchase();
     if (!result.ok) {
       setIsPaying(false);
-      Alert.alert("Оплата не началась", result.message);
+      Alert.alert("Привязка карты не началась", result.message);
       return;
     }
 
-    setPendingMessage("Проверяем оплату в ЮKassa...");
+    setPendingMessage("Проверяем привязку карты в ЮKassa...");
     const isActive = await pollActiveSubscription();
     setIsPaying(false);
     await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
@@ -155,7 +155,7 @@ export function AppSubscriptionPaywall() {
       await finishSuccessfulPayment();
       return;
     }
-    setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
+    setPendingMessage("Привязка карты ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
   const openLegalLink = (url: string) => {
@@ -194,11 +194,11 @@ export function AppSubscriptionPaywall() {
             <View style={styles.priceHeader}>
               <Text style={[styles.price, useCompactLayout && styles.priceCompact]}>{price}</Text>
               <View style={styles.pricePill}>
-                <Text style={styles.pricePillText}>7 дней</Text>
+                <Text style={styles.pricePillText}>3 дня бесплатно</Text>
               </View>
             </View>
             <Text style={styles.priceCaption}>
-              Автопродление можно отключить в профиле в любой момент.
+              Карта привязывается сейчас без списания. Первое списание — через 3 дня.
             </Text>
             {iosRuCardHint ? <Text style={styles.priceCaption}>{iosRuCardHint}</Text> : null}
           </View>
@@ -231,8 +231,11 @@ export function AppSubscriptionPaywall() {
               <Text
                 style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}
               >
-                {isPaying ? "Оформляем..." : canUseApple ? "Оплатить картой" : "Оформить подписку"}
+                {isPaying ? "Оформляем..." : "Попробовать 3 дня бесплатно"}
               </Text>
+              {!isPaying && canUseApple ? (
+                <Text style={styles.secondaryPayButtonHint}>(только для карт РФ)</Text>
+              ) : null}
             </Pressable>
           ) : null}
 
@@ -271,7 +274,9 @@ export function AppSubscriptionPaywall() {
             </Text>
             . Подписка продлевается автоматически. При оплате через App Store списание идет через
             Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID
-            {canUseYookassa ? "; при оплате картой способ оплаты сохраняется в ЮKassa." : "."}
+            {canUseYookassa
+              ? "; при оплате картой РФ способ оплаты сохраняется в ЮKassa, первые 3 дня бесплатны."
+              : "."}
           </Text>
 
           {offerQuery.isLoading ? (
@@ -467,6 +472,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
     color: "#636128",
     fontSize: 16,
+  },
+  secondaryPayButtonHint: {
+    marginTop: 2,
+    fontFamily: FONTS.montserratMedium,
+    color: "#636128",
+    fontSize: 12,
   },
   disabledButton: {
     opacity: 0.62,

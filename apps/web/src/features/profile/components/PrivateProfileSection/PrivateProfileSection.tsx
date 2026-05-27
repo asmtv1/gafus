@@ -15,6 +15,8 @@ type AppSubscriptionStatusDto = {
   hasActiveSubscription: boolean;
   paidAt: string | null;
   activeUntil: string | null;
+  isTrial: boolean;
+  trialEndsAt: string | null;
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
   status: "ACTIVE" | "PENDING" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "REFUNDED" | "REVOKED" | null;
@@ -190,8 +192,8 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
           <>
             <dl className={styles.metaGrid}>
               <div>
-                <dt>Оплачено</dt>
-                <dd>{formatMskDateTime(status.paidAt)}</dd>
+                <dt>{status.isTrial ? "Пробный период до" : "Оплачено"}</dt>
+                <dd>{formatMskDateTime(status.isTrial ? status.trialEndsAt : status.paidAt)}</dd>
               </div>
               <div>
                 <dt>Следующее списание</dt>
@@ -211,8 +213,8 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
 
             {status.hasActiveSubscription && status.provider === "YOOKASSA" && !status.hasSavedPaymentMethod ? (
               <p className={styles.subscriptionText}>
-                Чтобы снова включить автопродление, оплатите следующую неделю подписки. Мы спишем стоимость тарифа сейчас,
-                добавим оплаченный период к текущему доступу и сохраним карту для следующих списаний.
+                Чтобы снова включить автопродление, привяжите карту. Если у вас уже был пробный период,
+                следующее списание произойдёт по дате подписки.
               </p>
             ) : null}
 
@@ -223,7 +225,7 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
                 disabled={bindLoading || csrfLoading}
                 onClick={handleBindCard}
               >
-                {bindLoading ? "Переход к оплате..." : "Продлить и привязать карту"}
+                {bindLoading ? "Переход в ЮKassa..." : "Привязать карту"}
               </button>
             ) : null}
 

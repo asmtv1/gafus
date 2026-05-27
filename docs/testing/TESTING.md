@@ -1,5 +1,7 @@
 # Тестирование @gafus/core
 
+> Репозиторный стандарт покрытия: см. `docs/testing/TEST_COVERAGE_POLICY.md`.
+
 Документация по тестированию пакета `@gafus/core` — бизнес-логики для Web и React Native приложений.
 
 ## Тестовый фреймворк
@@ -23,15 +25,15 @@ pnpm --filter @gafus/core test:coverage
 
 ## Целевые показатели покрытия
 
-| Область | Цель | Текущее |
-|---------|------|---------|
-| errors/ | 100% | 100% |
-| services/achievements | 100% | ~97% |
-| services/cache | 100% | 100% |
-| services/common | 100% | 100% |
-| services/user (preferences) | 100% | 100% |
-| utils/ | 90%+ | ~90% |
-| Остальные сервисы | 80%+ | В процессе |
+| Область                     | Цель | Текущее    |
+| --------------------------- | ---- | ---------- |
+| errors/                     | 100% | 100%       |
+| services/achievements       | 100% | ~97%       |
+| services/cache              | 100% | 100%       |
+| services/common             | 100% | 100%       |
+| services/user (preferences) | 100% | 100%       |
+| utils/                      | 90%+ | ~90%       |
+| Остальные сервисы           | 80%+ | В процессе |
 
 ## Инфраструктура тестов
 

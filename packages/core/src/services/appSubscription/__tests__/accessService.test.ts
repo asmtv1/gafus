@@ -31,6 +31,8 @@ describe("getAppSubscriptionAccess", () => {
       hasActiveSubscription: false,
       paidAt: null,
       activeUntil: null,
+      isTrial: false,
+      trialEndsAt: null,
       isLifetime: false,
       provider: null,
       status: null,
@@ -70,6 +72,8 @@ describe("getAppSubscriptionAccess", () => {
       hasActiveSubscription: true,
       paidAt: "2026-05-13T12:30:30.000Z",
       activeUntil: "2026-05-20T10:00:00.000Z",
+      isTrial: false,
+      trialEndsAt: null,
       isLifetime: false,
       provider: "YOOKASSA",
       status: "ACTIVE",
@@ -95,5 +99,34 @@ describe("getAppSubscriptionAccess", () => {
     const result = await getAppSubscriptionAccess("u1", new Date("2026-05-10T10:00:00.000Z"));
 
     expect(result.hasActiveSubscription).toBe(false);
+  });
+
+  it("marks active YooKassa access as trial when there is no successful payment yet", async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        provider: "YOOKASSA",
+        status: "ACTIVE",
+        isLifetime: false,
+        currentPeriodEnd: new Date("2026-05-29T10:00:00.000Z"),
+        createdAt: new Date("2026-05-26T10:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        yookassaPaymentMethodId: "pm-1",
+        yookassaPaymentMethodLast4: "4444",
+        yookassaPaymentMethodTitle: "Bank card *4444",
+      },
+    ]);
+    mockPaymentFindFirst.mockResolvedValue(null);
+
+    const result = await getAppSubscriptionAccess("u1", new Date("2026-05-27T10:00:00.000Z"));
+
+    expect(result).toMatchObject({
+      hasActiveSubscription: true,
+      paidAt: null,
+      activeUntil: "2026-05-29T10:00:00.000Z",
+      isTrial: true,
+      trialEndsAt: "2026-05-29T10:00:00.000Z",
+      nextChargeAt: "2026-05-29T10:00:00.000Z",
+    });
   });
 });
