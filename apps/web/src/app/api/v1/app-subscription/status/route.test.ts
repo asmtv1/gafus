@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { getAppSubscriptionAccessMock, getServerSessionMock } = vi.hoisted(() => ({
+const {
+  getAppSubscriptionAccessMock,
+  getServerSessionMock,
+  reconcilePendingYookassaAppSubscriptionMock,
+} = vi.hoisted(() => ({
   getAppSubscriptionAccessMock: vi.fn(),
   getServerSessionMock: vi.fn(),
+  reconcilePendingYookassaAppSubscriptionMock: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({
@@ -15,6 +20,7 @@ vi.mock("@gafus/auth", () => ({
 
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAccess: getAppSubscriptionAccessMock,
+  reconcilePendingYookassaAppSubscription: reconcilePendingYookassaAppSubscriptionMock,
 }));
 
 import { GET } from "./route";

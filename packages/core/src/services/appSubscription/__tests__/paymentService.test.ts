@@ -184,6 +184,61 @@ describe("app subscription payment service", () => {
     });
   });
 
+  it("reconciles a pending YooKassa subscription when saved payment method is already active", async () => {
+    const { reconcilePendingYookassaAppSubscription } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      status: "PENDING",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      isLifetime: false,
+      yookassaPaymentMethodId: "pm-1",
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-27T10:00:00.000Z"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        status: "active",
+        saved: true,
+        type: "bank_card",
+        card: { last4: "0408" },
+        title: "Bank card *0408",
+      }),
+    }));
+
+    const result = await reconcilePendingYookassaAppSubscription({
+      userId: "user-1",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({ activated: true, subscriptionId: "sub-1" });
+    expect(mockSubscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          provider: "YOOKASSA",
+          status: "PENDING",
+          yookassaPaymentMethodId: { not: null },
+        },
+      }),
+    );
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: expect.objectContaining({
+        status: "ACTIVE",
+        currentPeriodStart: new Date("2026-05-27T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-05-30T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+        yookassaPaymentMethodLast4: "0408",
+        yookassaPaymentMethodTitle: "Bank card *0408",
+      }),
+    });
+  });
+
   it("keeps current paid period when an active user binds a new YooKassa card", async () => {
     const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
     mockSubscriptionFindFirst.mockResolvedValue({

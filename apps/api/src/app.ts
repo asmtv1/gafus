@@ -35,6 +35,7 @@ import { paymentsRoutes } from "./routes/v1/payments.js";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
+import { shouldRateLimitAppSubscriptionPath } from "./middleware/app-subscription-rate-limit.js";
 
 export const app = new Hono();
 
@@ -122,8 +123,14 @@ app.use("/api/v1/consultations/*", apiRateLimiter);
 app.use("/api/v1/consultations/*", authMiddleware);
 app.route("/api/v1/consultations", consultationsRoutes);
 
-app.use("/api/v1/app-subscription/*", paymentsRateLimiter);
 app.use("/api/v1/app-subscription/*", authMiddleware);
+app.use("/api/v1/app-subscription/*", (c, next) => {
+  const { pathname } = new URL(c.req.url);
+  if (shouldRateLimitAppSubscriptionPath(c.req.method, pathname)) {
+    return paymentsRateLimiter(c, next);
+  }
+  return next();
+});
 app.route("/api/v1/app-subscription", appSubscriptionRoutes);
 
 // Global error handler

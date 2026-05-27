@@ -220,6 +220,53 @@ function assertYookassaPaymentMethodActive(params: {
   }
 }
 
+async function activateYookassaPaymentMethodSubscription(params: {
+  subscription: {
+    id: string;
+    userId: string;
+    status: string;
+    isLifetime?: boolean | null;
+    currentPeriodStart?: Date | null;
+    currentPeriodEnd?: Date | null;
+  };
+  paymentMethodId: string;
+  providerPaymentMethod: YooKassaPaymentMethodObject;
+}) {
+  const now = new Date();
+  const hasCurrentAccess =
+    params.subscription.status === "ACTIVE" && (
+      params.subscription.isLifetime === true ||
+      (
+        params.subscription.currentPeriodEnd instanceof Date &&
+        params.subscription.currentPeriodEnd > now
+      )
+    );
+  const periodStart = hasCurrentAccess
+    ? params.subscription.currentPeriodStart
+    : now;
+  const periodEnd = hasCurrentAccess
+    ? params.subscription.currentPeriodEnd
+    : new Date(now.getTime() + YOOKASSA_TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
+  await (prisma as any).appSubscription.update({
+    where: { id: params.subscription.id },
+    data: {
+      status: "ACTIVE",
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+      cancelAtPeriodEnd: false,
+      yookassaPaymentMethodId: params.paymentMethodId,
+      ...(params.providerPaymentMethod.card?.last4
+        ? { yookassaPaymentMethodLast4: params.providerPaymentMethod.card.last4 }
+        : {}),
+      ...(params.providerPaymentMethod.title
+        ? { yookassaPaymentMethodTitle: params.providerPaymentMethod.title }
+        : {}),
+      renewalReminderSentForPeriodEnd: null,
+    },
+  });
+}
+
 export async function startYookassaAppSubscriptionPayment(params: {
   userId: string;
   origin: string;
@@ -326,6 +373,64 @@ export async function startYookassaAppSubscriptionPayment(params: {
   });
 
   return { success: true, localSubscriptionId: subscription.id, confirmationUrl };
+}
+
+export async function reconcilePendingYookassaAppSubscription(params: {
+  userId: string;
+  shopId?: string;
+  secretKey?: string;
+}): Promise<{ activated: true; subscriptionId: string } | { activated: false }> {
+  const subscription = await (prisma as any).appSubscription.findFirst({
+    where: {
+      userId: params.userId,
+      provider: "YOOKASSA",
+      status: "PENDING",
+      yookassaPaymentMethodId: { not: null },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      isLifetime: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+      yookassaPaymentMethodId: true,
+    },
+  });
+
+  const paymentMethodId = subscription?.yookassaPaymentMethodId;
+  if (!subscription || !paymentMethodId) {
+    return { activated: false };
+  }
+
+  try {
+    const providerPaymentMethod = await fetchYookassaPaymentMethodObject({
+      paymentMethodId,
+      shopId: params.shopId,
+      secretKey: params.secretKey,
+    });
+    assertYookassaPaymentMethodActive({
+      providerPaymentMethod,
+      paymentMethodId,
+      subscriptionId: subscription.id,
+      userId: subscription.userId,
+    });
+    await activateYookassaPaymentMethodSubscription({
+      subscription,
+      paymentMethodId,
+      providerPaymentMethod,
+    });
+    return { activated: true, subscriptionId: subscription.id };
+  } catch (error) {
+    logger.warn("Pending YooKassa app subscription reconciliation failed", {
+      userId: params.userId,
+      subscriptionId: subscription.id,
+      paymentMethodId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { activated: false };
+  }
 }
 
 export async function cancelYookassaAppSubscription(userId: string) {
@@ -648,33 +753,10 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         userId: subscription.userId,
       });
 
-      const now = new Date();
-      const hasCurrentAccess =
-        subscription.status === "ACTIVE" && (
-          subscription.isLifetime === true ||
-          (
-            subscription.currentPeriodEnd instanceof Date &&
-            subscription.currentPeriodEnd > now
-          )
-        );
-      const periodStart = hasCurrentAccess
-        ? subscription.currentPeriodStart
-        : now;
-      const periodEnd = hasCurrentAccess
-        ? subscription.currentPeriodEnd
-        : new Date(now.getTime() + YOOKASSA_TRIAL_DAYS * 24 * 60 * 60 * 1000);
-      await (prisma as any).appSubscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: "ACTIVE",
-          currentPeriodStart: periodStart,
-          currentPeriodEnd: periodEnd,
-          cancelAtPeriodEnd: false,
-          yookassaPaymentMethodId: paymentMethodId,
-          ...(providerPaymentMethod.card?.last4 ? { yookassaPaymentMethodLast4: providerPaymentMethod.card.last4 } : {}),
-          ...(providerPaymentMethod.title ? { yookassaPaymentMethodTitle: providerPaymentMethod.title } : {}),
-          renewalReminderSentForPeriodEnd: null,
-        },
+      await activateYookassaPaymentMethodSubscription({
+        subscription,
+        paymentMethodId,
+        providerPaymentMethod,
       });
 
       if (eventId) {

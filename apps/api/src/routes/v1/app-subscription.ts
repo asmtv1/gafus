@@ -5,6 +5,7 @@ import {
   cancelYookassaAppSubscription,
   getAppSubscriptionAccess,
   getAppSubscriptionOffer,
+  reconcilePendingYookassaAppSubscription,
   restoreAppleAppSubscription,
   startYookassaAppSubscriptionPayment,
   SubscriptionRequiredError,
@@ -27,6 +28,11 @@ const restoreAppleSchema = z.object({
 appSubscriptionRoutes.get("/status", async (c) => {
   try {
     const user = c.get("user");
+    const shopId = process.env.YOOKASSA_SHOP_ID;
+    const secretKey = process.env.YOOKASSA_SECRET_KEY;
+    if (shopId && secretKey) {
+      await reconcilePendingYookassaAppSubscription({ userId: user.id, shopId, secretKey });
+    }
     const data = await getAppSubscriptionAccess(user.id);
     return c.json({ success: true, data });
   } catch (error) {
