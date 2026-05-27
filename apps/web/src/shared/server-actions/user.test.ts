@@ -68,8 +68,12 @@ describe("web user server actions", () => {
 
     await expect(
       updateUserProfileAction({
+        fullName: "",
+        about: "",
         telegram: "@dogtrainer",
+        instagram: "",
         website: "example.com",
+        birthDate: "",
       }),
     ).resolves.toEqual({ id: "user-1" });
 
