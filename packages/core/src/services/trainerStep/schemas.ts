@@ -19,12 +19,18 @@ const STEP_TYPES = [
 
 export const stepTypeSchema = z.enum(STEP_TYPES);
 
-const checklistQuestionSchema = z.object({
-  id: z.string(),
-  question: z.string().min(1),
-  options: z.array(z.string().min(1)).min(2),
-  comment: z.string().max(500).optional(),
-});
+const checklistQuestionSchema = z
+  .object({
+    id: z.string(),
+    question: z.string().min(1),
+    options: z.array(z.string().min(1)).min(2),
+    correctAnswer: z.number().int().min(0),
+    comment: z.string().max(500).optional(),
+  })
+  .refine((question) => question.correctAnswer < question.options.length, {
+    message: "Индекс правильного ответа должен соответствовать одному из вариантов",
+    path: ["correctAnswer"],
+  });
 
 export const checklistSchema = z.array(checklistQuestionSchema);
 
@@ -50,11 +56,7 @@ export const createStepSchema = createStepBaseSchema
   .refine(
     (data) => {
       if (data.type !== "EXAMINATION") return true;
-      return (
-        data.hasTestQuestions ||
-        data.requiresVideoReport ||
-        data.requiresWrittenFeedback
-      );
+      return data.hasTestQuestions || data.requiresVideoReport || data.requiresWrittenFeedback;
     },
     { message: "Для экзаменационного шага выберите хотя бы один тип экзамена" },
   )
@@ -89,6 +91,4 @@ export const createStepFromTemplateSchema = z.object({
 export type CreateStepInput = z.infer<typeof createStepSchema>;
 export type UpdateStepInput = z.infer<typeof updateStepSchema>;
 export type DeleteStepsInput = z.infer<typeof deleteStepsSchema>;
-export type CreateStepFromTemplateInput = z.infer<
-  typeof createStepFromTemplateSchema
->;
+export type CreateStepFromTemplateInput = z.infer<typeof createStepFromTemplateSchema>;

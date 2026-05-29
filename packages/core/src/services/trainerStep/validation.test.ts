@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  validateStepFormData,
-  hasValidationErrors,
-  getValidationErrors,
-} from "./validation";
+import { validateStepFormData, hasValidationErrors, getValidationErrors } from "./validation";
 
 describe("validateStepFormData", () => {
   it("returns null errors for valid TRAINING step", () => {
@@ -95,9 +91,7 @@ describe("validateStepFormData", () => {
       checklist: "",
       hasTestQuestions: true,
     });
-    expect(result.checklist).toBe(
-      "Для тестовых вопросов необходимо добавить хотя бы один вопрос",
-    );
+    expect(result.checklist).toBe("Для тестовых вопросов необходимо добавить хотя бы один вопрос");
   });
 
   it("returns checklist error for invalid JSON", () => {
@@ -143,11 +137,49 @@ describe("validateStepFormData", () => {
           id: "q1",
           question: "Вопрос 1?",
           options: ["A", "B"],
+          correctAnswer: 1,
         },
       ]),
       hasTestQuestions: true,
     });
     expect(result.checklist).toBeNull();
+  });
+
+  it("returns checklist error when correct answer index is missing", () => {
+    const result = validateStepFormData({
+      title: "Экзамен",
+      description: "Описание минимум 10 символов",
+      type: "EXAMINATION",
+      checklist: JSON.stringify([
+        {
+          id: "q1",
+          question: "Вопрос 1?",
+          options: ["A", "B"],
+        },
+      ]),
+      hasTestQuestions: true,
+    });
+
+    expect(result.checklist).toBe("У каждого вопроса должен быть выбран правильный вариант ответа");
+  });
+
+  it("returns checklist error when correct answer index is outside options", () => {
+    const result = validateStepFormData({
+      title: "Экзамен",
+      description: "Описание минимум 10 символов",
+      type: "EXAMINATION",
+      checklist: JSON.stringify([
+        {
+          id: "q1",
+          question: "Вопрос 1?",
+          options: ["A", "B"],
+          correctAnswer: 2,
+        },
+      ]),
+      hasTestQuestions: true,
+    });
+
+    expect(result.checklist).toBe("У каждого вопроса должен быть выбран правильный вариант ответа");
   });
 });
 

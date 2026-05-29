@@ -18,8 +18,7 @@ const VALID_STEP_TYPES = [
 const MAX_COMMENT_LENGTH = 500;
 const EXTERNAL_VIDEO_PATTERN =
   /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|rutube\.ru|vimeo\.com|vk\.com|vkvideo\.ru)\/.+/;
-const CDN_URL_PATTERN =
-  /^https:\/\/gafus-media\.storage\.yandexcloud\.net\/uploads\/.+/;
+const CDN_URL_PATTERN = /^https:\/\/gafus-media\.storage\.yandexcloud\.net\/uploads\/.+/;
 
 export interface StepFormData {
   title: string;
@@ -54,25 +53,17 @@ export function validateStepFormData(data: StepFormData): StepFormValidationResu
     type: validateType(data.type),
     duration: validateDuration(data.type, data.duration),
     videoUrl: validateVideoUrl(data.type, data.videoUrl),
-    checklist: validateChecklist(
-      data.type,
-      data.checklist,
-      data.hasTestQuestions ?? false,
-    ),
+    checklist: validateChecklist(data.type, data.checklist, data.hasTestQuestions ?? false),
   };
 }
 
 /** Проверяет, что валидация прошла успешно (нет ошибок) */
-export function hasValidationErrors(
-  result: StepFormValidationResult,
-): boolean {
+export function hasValidationErrors(result: StepFormValidationResult): boolean {
   return Object.values(result).some((v) => v !== null);
 }
 
 /** Возвращает массив сообщений об ошибках */
-export function getValidationErrors(
-  result: StepFormValidationResult,
-): string[] {
+export function getValidationErrors(result: StepFormValidationResult): string[] {
   return Object.values(result).filter((v): v is string => v !== null);
 }
 
@@ -143,8 +134,7 @@ function validateChecklist(
   if (type !== "EXAMINATION") return null;
   const v = String(checklist ?? "");
   if (!hasTestQuestions) return null;
-  if (!v)
-    return "Для тестовых вопросов необходимо добавить хотя бы один вопрос";
+  if (!v) return "Для тестовых вопросов необходимо добавить хотя бы один вопрос";
   try {
     const parsed = JSON.parse(v) as unknown;
     if (!Array.isArray(parsed)) return "Чек-лист должен быть массивом";
@@ -157,15 +147,16 @@ function validateChecklist(
         return "Каждый вопрос должен иметь идентификатор";
       if (!question.question || question.question.trim().length === 0)
         return "Все вопросы должны иметь текст";
-      if (
-        !Array.isArray(question.options) ||
-        question.options.length < 2
-      )
+      if (!Array.isArray(question.options) || question.options.length < 2)
         return "Каждый вопрос должен иметь минимум 2 варианта ответа";
-      if (
-        question.options.some((opt: string) => !opt || opt.trim().length === 0)
-      )
+      if (question.options.some((opt: string) => !opt || opt.trim().length === 0))
         return "Все варианты ответов должны быть заполнены";
+      if (
+        !Number.isInteger(question.correctAnswer) ||
+        question.correctAnswer < 0 ||
+        question.correctAnswer >= question.options.length
+      )
+        return "У каждого вопроса должен быть выбран правильный вариант ответа";
       if (question.comment != null) {
         if (typeof question.comment !== "string")
           return "Комментарий к вопросу должен быть строкой";
