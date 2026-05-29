@@ -50,6 +50,7 @@ export interface FullCourseData {
       requiresVideoReport: boolean;
       requiresWrittenFeedback: boolean;
       hasTestQuestions: boolean;
+      surveySlug: string | null;
     }[];
   }[];
   mediaFiles: {
@@ -202,6 +203,7 @@ export async function downloadFullCourse(
                         requiresVideoReport: true,
                         requiresWrittenFeedback: true,
                         hasTestQuestions: true,
+                        surveySlug: true,
                       },
                     },
                   },
@@ -243,6 +245,7 @@ export async function downloadFullCourse(
         requiresVideoReport: stepLink.step.requiresVideoReport,
         requiresWrittenFeedback: stepLink.step.requiresWrittenFeedback,
         hasTestQuestions: stepLink.step.hasTestQuestions,
+        surveySlug: stepLink.step.surveySlug,
       })),
     }));
 

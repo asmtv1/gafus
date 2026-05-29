@@ -39,6 +39,7 @@ const visibleStepsSelect = {
   imageUrls: true,
   pdfUrls: true,
   checklist: true,
+  surveySlug: true,
   isDailyCourse: true,
   authorId: true,
   createdAt: true,
@@ -86,7 +87,7 @@ export async function createStep(
         description: input.description,
         durationSec: input.durationSec,
         estimatedDurationSec: input.estimatedDurationSec ?? null,
-        type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY",
+        type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY",
         videoUrl:
           input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
             ? input.videoUrl || null
@@ -101,6 +102,7 @@ export async function createStep(
         requiresWrittenFeedback:
           input.type === "EXAMINATION" ? input.requiresWrittenFeedback : false,
         hasTestQuestions: input.type === "EXAMINATION" ? input.hasTestQuestions : false,
+        surveySlug: input.type === "SURVEY" ? input.surveySlug : null,
         isDailyCourse: input.isDailyCourse,
         authorId,
       },
@@ -150,7 +152,7 @@ export async function updateStep(
         description: input.description,
         durationSec: input.durationSec ?? null,
         estimatedDurationSec: input.estimatedDurationSec ?? null,
-        type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY",
+        type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY",
         videoUrl:
           input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
             ? input.videoUrl || null
@@ -165,6 +167,7 @@ export async function updateStep(
         requiresWrittenFeedback:
           input.type === "EXAMINATION" ? input.requiresWrittenFeedback : false,
         hasTestQuestions: input.type === "EXAMINATION" ? input.hasTestQuestions : false,
+        surveySlug: input.type === "SURVEY" ? input.surveySlug : null,
         isDailyCourse: input.isDailyCourse,
       },
     });
@@ -291,6 +294,7 @@ export interface StepTemplateWithCategory {
   requiresVideoReport: boolean;
   requiresWrittenFeedback: boolean;
   hasTestQuestions: boolean;
+  surveySlug: string | null;
   tags: string[];
   isPublic: boolean;
   usageCount: number;
@@ -414,6 +418,7 @@ export async function createStepFromTemplate(
           requiresVideoReport: template.requiresVideoReport,
           requiresWrittenFeedback: template.requiresWrittenFeedback,
           hasTestQuestions: template.hasTestQuestions,
+          surveySlug: template.surveySlug,
           authorId: input.authorId,
         },
       });

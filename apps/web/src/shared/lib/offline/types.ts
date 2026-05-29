@@ -53,6 +53,7 @@ export interface OfflineCourse {
         requiresVideoReport: boolean;
         requiresWrittenFeedback: boolean;
         hasTestQuestions: boolean;
+        surveySlug: string | null;
       }[];
     }[];
     steps: {
@@ -70,6 +71,7 @@ export interface OfflineCourse {
       requiresVideoReport: boolean;
       requiresWrittenFeedback: boolean;
       hasTestQuestions: boolean;
+      surveySlug: string | null;
     }[];
   };
   mediaFiles: {
@@ -133,6 +135,7 @@ export interface FullCourseData {
       requiresVideoReport: boolean;
       requiresWrittenFeedback: boolean;
       hasTestQuestions: boolean;
+      surveySlug: string | null;
     }[];
   }[];
   mediaFiles: {

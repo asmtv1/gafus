@@ -71,6 +71,7 @@
       "@gafus/core/services/reengagement": [
         "../../packages/core/src/services/reengagement/index.ts"
       ],
+      "@gafus/core/services/survey": ["../../packages/core/src/services/survey/index.ts"],
       "@gafus/core/services/reminders": [
         "../../packages/core/src/services/reminders/index.ts"
       ],

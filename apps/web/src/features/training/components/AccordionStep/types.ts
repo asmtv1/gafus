@@ -23,6 +23,7 @@ export interface AccordionStepProps {
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;
+  surveySlug?: string | null;
   userStepId?: string;
   stepId: string;
   serverActions?: {

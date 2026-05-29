@@ -20,6 +20,7 @@ import { StepContent } from "./StepContent";
 import { StepDiaryBlock } from "./StepDiaryBlock";
 import { StepExaminationBlock } from "./StepExaminationBlock";
 import { StepPracticeBlock } from "./StepPracticeBlock";
+import { SurveyStepBlock } from "../SurveyStepBlock";
 import { StepTimerCard } from "./StepTimerCard";
 import { StepTypeHeader } from "./StepTypeHeader";
 import type { AccordionStepProps } from "./types";
@@ -45,6 +46,7 @@ export function AccordionStep({
   requiresVideoReport,
   requiresWrittenFeedback,
   hasTestQuestions,
+  surveySlug,
   userStepId,
   stepId,
   serverActions,
@@ -175,6 +177,11 @@ export function AccordionStep({
     serverActions,
   ]);
 
+  const handleCompleteSurvey = useCallback(() => {
+    updateStepProgress(courseId, dayOnCourseId, stepIndex, "COMPLETED", undefined, totalSteps);
+    onRun(-1);
+  }, [courseId, dayOnCourseId, stepIndex, totalSteps, updateStepProgress, onRun]);
+
   if (!stepState) return null;
 
   return (
@@ -197,6 +204,16 @@ export function AccordionStep({
           hasTestQuestions={hasTestQuestions}
           requiresWrittenFeedback={requiresWrittenFeedback}
           requiresVideoReport={requiresVideoReport}
+        />
+      )}
+
+      {type === "SURVEY" && surveySlug && (
+        <SurveyStepBlock
+          courseId={courseId}
+          stepId={stepId}
+          userStepId={userStepId}
+          surveySlug={surveySlug}
+          onComplete={handleCompleteSurvey}
         />
       )}
 

@@ -14,7 +14,12 @@ import {
   validateTheoryStepForCompletion,
 } from "@gafus/core/services/training";
 import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
-import { checkCourseAccess } from "@gafus/core/services/course";
+import { checkCourseAccess, checkCourseAccessById } from "@gafus/core/services/course";
+import { getAppSubscriptionAccess } from "@gafus/core/services/appSubscription";
+import {
+  APP_FEATURE_APP_SUBSCRIPTION_GATING,
+  getAppFeatureFlagEnabled,
+} from "@gafus/core/services/appFeatureFlags";
 import { checkVideoAccess, getVideoManifestInfo } from "@gafus/core/services/video";
 import {
   createStepNotificationForStepStart,
@@ -57,6 +62,35 @@ if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
 
 export const trainingRoutes = new Hono();
 
+async function requireActiveAppSubscription(c: Context): Promise<Response | null> {
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  if (!gatingEnabled) return null;
+
+  const user = c.get("user");
+  const access = await getAppSubscriptionAccess(user.id);
+  if (access.hasActiveSubscription) return null;
+
+  return c.json(
+    {
+      success: false,
+      error: "Для действия нужна подписка",
+      code: "SUBSCRIPTION_REQUIRED",
+    },
+    402,
+  );
+}
+
+async function requireCourseAccessByCourseId(
+  c: Context,
+  courseId: string,
+): Promise<Response | null> {
+  const user = c.get("user");
+  const access = await checkCourseAccessById(courseId, user.id);
+  if (access.hasAccess) return null;
+
+  return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
+}
+
 const courseIdSchema = z
   .string()
   .min(1, "courseId обязателен")
@@ -74,6 +108,8 @@ trainingRoutes.get("/days", zValidator("query", daysQuerySchema), async (c) => {
   try {
     const user = c.get("user");
     const { type } = c.req.valid("query");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
 
     const result = await getTrainingDays(user.id, type);
     return c.json({ success: true, data: result });
@@ -101,6 +137,8 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
   try {
     const user = c.get("user");
     const { courseType, dayOnCourseId, createIfMissing } = c.req.valid("query");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
 
     const result = await getTrainingDayWithUserSteps(user.id, courseType, dayOnCourseId, {
       createIfMissing,
@@ -143,7 +181,11 @@ const startStepBodySchema = z.object({
 trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { dayOnCourseId, stepIndex, durationSec } = c.req.valid("json");
+    const { courseId, dayOnCourseId, stepIndex, durationSec } = c.req.valid("json");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
+    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+    if (courseAccessResponse) return courseAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
       type: "start",
@@ -190,7 +232,11 @@ const pauseStepBodySchema = z.object({
 trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { dayOnCourseId, stepIndex, timeLeftSec } = c.req.valid("json");
+    const { courseId, dayOnCourseId, stepIndex, timeLeftSec } = c.req.valid("json");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
+    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+    if (courseAccessResponse) return courseAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
       type: "pause",
@@ -237,7 +283,11 @@ const resumeStepBodySchema = z.object({
 trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { dayOnCourseId, stepIndex } = c.req.valid("json");
+    const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
+    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+    if (courseAccessResponse) return courseAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "resume" });
     try {
@@ -282,7 +332,11 @@ const resetStepBodySchema = z.object({
 trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { dayOnCourseId, stepIndex } = c.req.valid("json");
+    const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
+    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+    if (courseAccessResponse) return courseAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "reset" });
     try {
@@ -344,7 +398,11 @@ trainingRoutes.post(
   async (c) => {
     try {
       const user = c.get("user");
-      const { dayOnCourseId, stepIndex } = c.req.valid("json");
+      const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+      const subscriptionResponse = await requireActiveAppSubscription(c);
+      if (subscriptionResponse) return subscriptionResponse;
+      const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+      if (courseAccessResponse) return courseAccessResponse;
 
       const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
         type: "complete",
@@ -380,7 +438,11 @@ const completeTheoryBodySchema = z.object({
 trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBodySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { dayOnCourseId, stepIndex } = c.req.valid("json");
+    const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
+    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+    if (courseAccessResponse) return courseAccessResponse;
 
     const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
     if (!validation.valid) {
@@ -418,6 +480,8 @@ trainingRoutes.post("/diary", zValidator("json", postDiaryBodySchema), async (c)
   try {
     const user = c.get("user");
     const { dayOnCourseId, content } = c.req.valid("json");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
     const result = await saveDiaryEntry(user.id, dayOnCourseId, content);
 
     if (!result.success) {
@@ -441,6 +505,8 @@ trainingRoutes.get("/diary", zValidator("query", getDiaryQuerySchema), async (c)
   try {
     const user = c.get("user");
     const { courseId, upToDayOnCourseId } = c.req.valid("query");
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
     const result = await getDiaryEntries(user.id, courseId, upToDayOnCourseId);
 
     if (result.error) {
@@ -490,6 +556,9 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       logger.error("[training/video/url] Ошибка получения пользователя", error as Error);
       return c.json({ success: false, error: "Ошибка авторизации", code: "AUTH_ERROR" }, 401);
     }
+
+    const subscriptionResponse = await requireActiveAppSubscription(c);
+    if (subscriptionResponse) return subscriptionResponse;
 
     // Получаем и валидируем videoUrl
     let videoUrl: string;

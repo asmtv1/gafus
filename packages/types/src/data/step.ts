@@ -13,6 +13,7 @@ export interface StepData {
   requiresVideoReport: boolean;
   requiresWrittenFeedback: boolean;
   hasTestQuestions: boolean;
+  surveySlug?: string | null;
   isDailyCourse: boolean;
 }
 

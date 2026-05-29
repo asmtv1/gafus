@@ -32,6 +32,7 @@ import type { DiaryEntry } from "@/shared/lib/api/training";
 import { TestQuestionsBlock, type ChecklistQuestion } from "./TestQuestionsBlock";
 import { VideoReportBlock } from "./VideoReportBlock";
 import { WrittenFeedbackBlock } from "./WrittenFeedbackBlock";
+import { SurveyBlock } from "./SurveyBlock";
 import type { LocalStepState } from "@/shared/stores";
 import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
@@ -174,6 +175,7 @@ function AccordionStepComponent({
   const isBreak = stepType === "BREAK";
   const isExamination = stepType === "EXAMINATION";
   const isDiary = stepType === "DIARY";
+  const isSurvey = stepType === "SURVEY";
   const examUserStepId =
     "userStepId" in step && typeof step.userStepId === "string"
       ? step.userStepId
@@ -432,6 +434,8 @@ function AccordionStepComponent({
     ? "Перерыв"
     : isDiary
       ? "Дневник успехов"
+      : isSurvey
+        ? "Анкета"
       : stepNumber != null
         ? `Упражнение #${stepNumber}`
         : `#${index + 1}`;
@@ -541,6 +545,21 @@ function AccordionStepComponent({
                 </View>
               )}
 
+              {isSurvey && (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.SURVEY}</Text>
+                  {shouldShowEstimatedDuration(stepTypeForUi) &&
+                    stepData.estimatedDurationSec &&
+                    stepData.estimatedDurationSec > 0 && (
+                      <View style={styles.estimatedTimeBadge}>
+                        <Text style={styles.estimatedTimeBadgeText}>
+                          Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                        </Text>
+                      </View>
+                    )}
+                </View>
+              )}
+
               {/* Блок экзамена: тест, письменная связь, видео (как на web) */}
               {isExamination && examUserStepId && (
                 <View style={styles.descriptionSection}>
@@ -577,6 +596,21 @@ function AccordionStepComponent({
                         }
                       />
                     )}
+                  </View>
+                </View>
+              )}
+
+              {isSurvey && stepData.surveySlug && (
+                <View style={styles.descriptionSection}>
+                  <Text style={styles.descriptionSectionTitle}>Анкета:</Text>
+                  <View style={styles.descriptionSectionContent}>
+                    <SurveyBlock
+                      courseId={courseId}
+                      stepId={stepData.id}
+                      userStepId={examUserStepId}
+                      surveySlug={stepData.surveySlug}
+                      onComplete={onComplete}
+                    />
                   </View>
                 </View>
               )}

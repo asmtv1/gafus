@@ -145,6 +145,10 @@
       "types": "./dist/core/src/services/appSubscription/index.d.ts",
       "default": "./dist/core/src/services/appSubscription/index.js"
     },
+    "./services/survey": {
+      "types": "./dist/core/src/services/survey/index.d.ts",
+      "default": "./dist/core/src/services/survey/index.js"
+    },
     "./services/consent": {
       "types": "./dist/core/src/services/consent/index.d.ts",
       "default": "./dist/core/src/services/consent/index.js"

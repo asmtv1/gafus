@@ -170,6 +170,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
             requiresVideoReport={step.requiresVideoReport}
             requiresWrittenFeedback={step.requiresWrittenFeedback}
             hasTestQuestions={step.hasTestQuestions}
+            surveySlug={step.surveySlug}
             userStepId={step.userStepId}
             stepId={step.id}
             serverActions={serverActions}

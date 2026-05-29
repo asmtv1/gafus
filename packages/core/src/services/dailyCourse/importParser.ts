@@ -1,13 +1,13 @@
 import type { ChecklistQuestion } from "@gafus/types";
 
-const SUPPORTED_STEP_TYPES = new Set(["TRAINING", "EXAMINATION", "THEORY", "PRACTICE"]);
+const SUPPORTED_STEP_TYPES = new Set(["TRAINING", "EXAMINATION", "THEORY", "PRACTICE", "SURVEY"]);
 const EXAMINATION_FLAG_FIELDS = [
   "requiresWrittenFeedback",
   "hasTestQuestions",
   "requiresVideoReport",
 ] as const;
 
-export type DailyCourseImportStepType = "TRAINING" | "EXAMINATION" | "THEORY" | "PRACTICE";
+export type DailyCourseImportStepType = "TRAINING" | "EXAMINATION" | "THEORY" | "PRACTICE" | "SURVEY";
 
 export interface DailyCourseImportQuestion extends ChecklistQuestion {
   comment?: string;
@@ -23,6 +23,7 @@ export interface ParsedDailyCourseImportStep {
   requiresWrittenFeedback: boolean | null;
   hasTestQuestions: boolean | null;
   requiresVideoReport: boolean | null;
+  surveySlug: string | null;
   questions: DailyCourseImportQuestion[];
   errors: string[];
 }
@@ -116,6 +117,7 @@ function parseStepBlock(order: number, block: string): ParsedDailyCourseImportSt
   );
   const hasTestQuestions = parseOptionalBoolean(getScalarField(block, "hasTestQuestions"));
   const requiresVideoReport = parseOptionalBoolean(getScalarField(block, "requiresVideoReport"));
+  const surveySlug = getScalarField(block, "surveySlug") || null;
   const questions = parseQuestions(block);
   const errors: string[] = [];
 
@@ -134,6 +136,10 @@ function parseStepBlock(order: number, block: string): ParsedDailyCourseImportSt
   } else if (SUPPORTED_STEP_TYPES.has(type)) {
     if (!estimatedDurationSec) errors.push("Для этого типа шага нужен estimatedDurationSec");
     if (durationSec) errors.push("durationSec поддерживается только для TRAINING");
+  }
+
+  if (type === "SURVEY" && !surveySlug) {
+    errors.push("Для анкетного шага нужен surveySlug");
   }
 
   const hasAnyExamFlagField = EXAMINATION_FLAG_FIELDS.some((field) => hasScalarField(block, field));
@@ -180,6 +186,7 @@ function parseStepBlock(order: number, block: string): ParsedDailyCourseImportSt
     requiresWrittenFeedback,
     hasTestQuestions,
     requiresVideoReport,
+    surveySlug,
     questions,
     errors,
   };

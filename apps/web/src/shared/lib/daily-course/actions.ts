@@ -52,6 +52,7 @@ function mapDailyCourseDayToTraining(day: DailyCourseDayResponse): TrainingDetai
       requiresVideoReport: dailyStep.step.requiresVideoReport,
       requiresWrittenFeedback: dailyStep.step.requiresWrittenFeedback,
       hasTestQuestions: dailyStep.step.hasTestQuestions,
+      surveySlug: dailyStep.step.surveySlug,
       userStepId: dailyStep.id,
     })),
   };

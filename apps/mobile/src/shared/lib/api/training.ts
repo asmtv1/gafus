@@ -48,6 +48,7 @@ export type StepContent = {
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;
+  surveySlug?: string | null;
 };
 
 export interface UserStep {

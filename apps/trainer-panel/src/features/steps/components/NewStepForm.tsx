@@ -40,6 +40,7 @@ interface StepFormData {
   requiresWrittenFeedback: boolean;
   hasTestQuestions: boolean;
   isDailyCourse: boolean;
+  surveySlug: string;
 }
 
 interface StepInitialData {
@@ -57,6 +58,7 @@ interface StepInitialData {
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;
   isDailyCourse?: boolean;
+  surveySlug?: string | null;
 }
 
 type ServerAction = (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -117,6 +119,7 @@ export default function NewStepForm({
       requiresWrittenFeedback: initialData?.requiresWrittenFeedback ?? false,
       hasTestQuestions: initialData?.hasTestQuestions ?? false,
       isDailyCourse: initialData?.isDailyCourse ?? false,
+      surveySlug: initialData?.surveySlug ?? "dog-home-alone-initial",
     },
   });
 
@@ -137,6 +140,7 @@ export default function NewStepForm({
         requiresWrittenFeedback: initialData.requiresWrittenFeedback ?? false,
         hasTestQuestions: initialData.hasTestQuestions ?? false,
         isDailyCourse: initialData.isDailyCourse ?? false,
+        surveySlug: initialData.surveySlug ?? "dog-home-alone-initial",
       });
       setImageFiles([]);
       setPdfUrls(initialData.pdfUrls ?? []);
@@ -169,7 +173,7 @@ export default function NewStepForm({
         const type = form.watch("type");
 
         // Для теоретических и экзаменационных шагов время обязательно
-        if ((type === "THEORY" || type === "EXAMINATION") && !strValue) {
+        if ((type === "THEORY" || type === "EXAMINATION" || type === "SURVEY") && !strValue) {
           return "Укажите примерное время";
         }
 
@@ -257,6 +261,10 @@ export default function NewStepForm({
       if (data.type === "DIARY") {
         formData.append("duration", "");
         formData.append("estimatedDurationMinutes", "");
+      }
+
+      if (data.type === "SURVEY") {
+        formData.append("surveySlug", data.surveySlug);
       }
 
       // Для экзаменационных шагов добавляем чек-лист и типы экзамена
@@ -387,6 +395,7 @@ export default function NewStepForm({
               { value: "BREAK", label: "Перерыв" },
               { value: "PRACTICE", label: "Тренировочный (без таймера)" },
               { value: "DIARY", label: "Дневник успехов" },
+              { value: "SURVEY", label: "Анкета" },
             ]}
           />
 
@@ -440,6 +449,10 @@ export default function NewStepForm({
               <br />
               <strong>Дневник успехов</strong> — шаг с текстовой записью пользователя, видна история
               записей по курсу.
+              <br />
+              <br />
+              <strong>Анкета</strong> — диагностический опрос внутри курса, ответы сохраняются
+              отдельно от экзаменов.
             </Typography>
           </Alert>
 
@@ -554,6 +567,33 @@ export default function NewStepForm({
               отображается в блоке «Предыдущие записи».
             </Typography>
           </FormSection>
+        ) : form.watch("type") === "SURVEY" ? (
+          <>
+            <FormSection title="Шаблон анкеты">
+              <FormField
+                id="surveySlug"
+                label="Шаблон анкеты *"
+                name="surveySlug"
+                as="select"
+                form={form}
+                rules={{ required: "Выберите шаблон анкеты" }}
+                options={[
+                  { value: "dog-home-alone-initial", label: "Собаке тяжело дома одной — до курса" },
+                  { value: "dog-home-alone-final", label: "Собаке тяжело дома одной — после курса" },
+                ]}
+              />
+            </FormSection>
+            <FormSection title="Примерное время">
+              <NumberField
+                id="estimatedDurationMinutes"
+                label="Примерное время (минуты)"
+                name="estimatedDurationMinutes"
+                placeholder="Введите примерное время"
+                form={form}
+                rules={validationRules.estimatedDurationMinutes}
+              />
+            </FormSection>
+          </>
         ) : form.watch("type") === "PRACTICE" ? (
           <>
             <FormSection title="Примерное время">

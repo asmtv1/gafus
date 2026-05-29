@@ -10,6 +10,7 @@ export * from "./pet-input";
 export * from "./pet-prevention";
 export * from "./push";
 export * from "./step";
+export * from "./survey";
 export * from "./trainer-panel";
 export * from "./trainer-video";
 export * from "./training";

@@ -29,8 +29,8 @@ const logger = createWebLogger("daily-course");
 
 const ALLOWED_ROLES = new Set(["TRAINER", "ADMIN", "MODERATOR"]);
 const ADMIN_ROLES = new Set(["ADMIN", "MODERATOR"]);
-const ALLOWED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "BREAK", "EXAMINATION"]);
-const NON_EXAMINATION_STEP_TYPES: PrismaStepType[] = ["TRAINING", "PRACTICE", "THEORY", "BREAK"];
+const ALLOWED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "BREAK", "EXAMINATION", "SURVEY"]);
+const NON_EXAMINATION_STEP_TYPES: PrismaStepType[] = ["TRAINING", "PRACTICE", "THEORY", "BREAK", "SURVEY"];
 const MIN_STEPS = 2;
 const MAX_STEPS = 5;
 const MAX_DAILY_COURSE_TIMER_SEC = 24 * 60 * 60;
@@ -70,6 +70,7 @@ export interface DailyCourseStepDto {
     requiresVideoReport: boolean;
     requiresWrittenFeedback: boolean;
     hasTestQuestions: boolean;
+    surveySlug: string | null;
     order: number;
   };
 }
@@ -266,6 +267,7 @@ type StepLinkForDailyCourse = {
     requiresVideoReport: boolean;
     requiresWrittenFeedback: boolean;
     hasTestQuestions: boolean;
+    surveySlug: string | null;
     isDailyCourse: boolean;
   };
 };
@@ -396,6 +398,7 @@ const dailyCourseBundleStepSelect = {
       requiresVideoReport: true,
       requiresWrittenFeedback: true,
       hasTestQuestions: true,
+      surveySlug: true,
       isDailyCourse: true,
     },
   },
@@ -469,6 +472,7 @@ function mapDailyCourseSteps(
         requiresVideoReport: link.step.requiresVideoReport,
         requiresWrittenFeedback: link.step.requiresWrittenFeedback,
         hasTestQuestions: link.step.hasTestQuestions,
+        surveySlug: link.step.surveySlug,
         order: link.order,
       },
     };
@@ -1155,6 +1159,7 @@ export async function upsertDailyCourseBundle(
       requiresVideoReport: true,
       requiresWrittenFeedback: true,
       hasTestQuestions: true,
+      surveySlug: true,
       isDailyCourse: true,
       authorId: true,
     },
@@ -1674,6 +1679,7 @@ async function createDailyCourseImportDay(
           requiresWrittenFeedback:
             step.type === "EXAMINATION" ? Boolean(step.requiresWrittenFeedback) : false,
           hasTestQuestions: step.type === "EXAMINATION" ? Boolean(step.hasTestQuestions) : false,
+          surveySlug: step.type === "SURVEY" ? step.surveySlug : null,
           isDailyCourse: true,
           authorId: actor.id,
         },

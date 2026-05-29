@@ -54,6 +54,7 @@ export default async function EditStepPage({ params }: Props) {
             (step as unknown as { hasTestQuestions?: boolean }).hasTestQuestions ?? false,
           isDailyCourse:
             (step as unknown as { isDailyCourse?: boolean }).isDailyCourse ?? false,
+          surveySlug: (step as unknown as { surveySlug?: string | null }).surveySlug ?? null,
         }}
       />
     </FormPageLayout>

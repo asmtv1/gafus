@@ -54,6 +54,12 @@ export {
 } from "./pets";
 export { achievementsApi, type TrainingDatesResponse } from "./achievements";
 export {
+  surveyApi,
+  type SubmitSurveyPayload,
+  type SubmitSurveyResponse,
+  type SurveyLoadResponse,
+} from "./surveys";
+export {
   userApi,
   type UpdateProfileData,
   type PublicProfile,

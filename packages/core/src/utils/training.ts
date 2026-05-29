@@ -83,6 +83,7 @@ export const STEP_TYPE_LABELS: Record<StepType, string> = {
   BREAK: "Перерыв",
   PRACTICE: "Упражнение без таймера",
   DIARY: "Дневник успехов",
+  SURVEY: "Анкета",
   TRAINING: "Тренировка",
 };
 
@@ -127,12 +128,12 @@ export function isStepWithTimer(type: StepType | undefined | null): boolean {
   return type === "TRAINING" || type === "BREAK";
 }
 
-/** Показывать оценочное время (EXAMINATION, THEORY, PRACTICE). Для undefined type возвращает false. */
+/** Показывать оценочное время (EXAMINATION, THEORY, PRACTICE, SURVEY). Для undefined type возвращает false. */
 export function shouldShowEstimatedDuration(
   type: StepType | undefined | null,
 ): boolean {
   if (type == null) return false;
-  return type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE";
+  return type === "EXAMINATION" || type === "THEORY" || type === "PRACTICE" || type === "SURVEY";
 }
 
 /** Типы дней, которые не нумеруются как «День N». */

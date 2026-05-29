@@ -500,6 +500,7 @@ export async function getTrainingDayWithUserSteps(
                   requiresVideoReport: true,
                   requiresWrittenFeedback: true,
                   hasTestQuestions: true,
+                  surveySlug: true,
                 },
               },
             },
@@ -598,11 +599,12 @@ export async function getTrainingDayWithUserSteps(
       order: order,
       isPausedOnServer: false,
       remainingSecOnServer: undefined,
-      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | undefined,
+      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY" | undefined,
       checklist: step.checklist,
       requiresVideoReport: step.requiresVideoReport,
       requiresWrittenFeedback: step.requiresWrittenFeedback,
       hasTestQuestions: step.hasTestQuestions,
+      surveySlug: step.surveySlug,
       userStepId: undefined,
     }));
 
@@ -720,13 +722,14 @@ export async function getTrainingDayWithUserSteps(
     order: order,
     isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
     remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
-    type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | undefined,
+    type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY" | undefined,
     checklist: Array.isArray(step.checklist)
       ? (step.checklist as unknown as ChecklistQuestion[])
       : null,
     requiresVideoReport: step.requiresVideoReport,
     requiresWrittenFeedback: step.requiresWrittenFeedback,
     hasTestQuestions: step.hasTestQuestions,
+    surveySlug: step.surveySlug,
     userStepId: userStepIds[stepOnDayId],
   }));
 

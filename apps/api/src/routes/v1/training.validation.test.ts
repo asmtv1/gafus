@@ -4,18 +4,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { trainingRoutes } from "./training";
 
 const {
+  checkCourseAccessByIdMock,
   checkVideoAccessMock,
   downloadFileFromCDNMock,
   extractVideoIdFromCdnUrlMock,
   generateTokenMock,
+  getAppFeatureFlagEnabledMock,
+  getAppSubscriptionAccessMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
   verifyTokenMock,
 } = vi.hoisted(() => ({
+  checkCourseAccessByIdMock: vi.fn(),
   checkVideoAccessMock: vi.fn(),
   downloadFileFromCDNMock: vi.fn(),
   extractVideoIdFromCdnUrlMock: vi.fn(),
   generateTokenMock: vi.fn(),
+  getAppFeatureFlagEnabledMock: vi.fn(),
+  getAppSubscriptionAccessMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
   verifyTokenMock: vi.fn(),
@@ -31,6 +37,16 @@ vi.mock("@gafus/core/services/training", () => ({
 
 vi.mock("@gafus/core/services/course", () => ({
   checkCourseAccess: vi.fn(),
+  checkCourseAccessById: checkCourseAccessByIdMock,
+}));
+
+vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+  APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating_enabled",
+  getAppFeatureFlagEnabled: getAppFeatureFlagEnabledMock,
+}));
+
+vi.mock("@gafus/core/services/appSubscription", () => ({
+  getAppSubscriptionAccess: getAppSubscriptionAccessMock,
 }));
 
 vi.mock("@gafus/core/services/diary", () => ({
@@ -83,6 +99,9 @@ describe("training route validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.VIDEO_ACCESS_SECRET = "test-video-access-secret-that-is-long-enough";
+    checkCourseAccessByIdMock.mockResolvedValue({ hasAccess: true });
+    getAppFeatureFlagEnabledMock.mockResolvedValue(false);
+    getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
     updateStepAndDayMock.mockResolvedValue({
       courseId: "7b9e6c3a-321f-40de-ada8-11309951b181",
       allCompleted: false,

@@ -12,6 +12,7 @@ const VALID_STEP_TYPES = [
   "BREAK",
   "PRACTICE",
   "DIARY",
+  "SURVEY",
 ] as const;
 
 const MAX_COMMENT_LENGTH = 500;
@@ -106,7 +107,8 @@ function validateDuration(type: string, duration: string | null | undefined): Va
     type === "EXAMINATION" ||
     type === "THEORY" ||
     type === "PRACTICE" ||
-    type === "DIARY"
+    type === "DIARY" ||
+    type === "SURVEY"
   ) {
     return null;
   }

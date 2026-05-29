@@ -2,11 +2,19 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  checkCourseAccessMock,
+  checkCourseAccessByIdMock,
   createStepNotificationForStepStartMock,
+  getAppFeatureFlagEnabledMock,
+  getAppSubscriptionAccessMock,
   syncUserCourseStatusFromDaysMock,
   updateStepAndDayMock,
 } = vi.hoisted(() => ({
+  checkCourseAccessMock: vi.fn(),
+  checkCourseAccessByIdMock: vi.fn(),
   createStepNotificationForStepStartMock: vi.fn(),
+  getAppFeatureFlagEnabledMock: vi.fn(),
+  getAppSubscriptionAccessMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
 }));
@@ -25,7 +33,17 @@ vi.mock("@gafus/core/services/diary", () => ({
 }));
 
 vi.mock("@gafus/core/services/course", () => ({
-  checkCourseAccess: vi.fn(),
+  checkCourseAccess: checkCourseAccessMock,
+  checkCourseAccessById: checkCourseAccessByIdMock,
+}));
+
+vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+  APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating_enabled",
+  getAppFeatureFlagEnabled: getAppFeatureFlagEnabledMock,
+}));
+
+vi.mock("@gafus/core/services/appSubscription", () => ({
+  getAppSubscriptionAccess: getAppSubscriptionAccessMock,
 }));
 
 vi.mock("@gafus/core/services/video", () => ({
@@ -82,6 +100,10 @@ function createAuthenticatedTestApp() {
 describe("training route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    checkCourseAccessMock.mockResolvedValue({ hasAccess: true });
+    checkCourseAccessByIdMock.mockResolvedValue({ hasAccess: true });
+    getAppFeatureFlagEnabledMock.mockResolvedValue(false);
+    getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
   });
 
   it("requires auth before starting a step", async () => {
@@ -151,5 +173,27 @@ describe("training route contracts", () => {
       code: "NOT_FOUND",
     });
     expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects step completion when app subscription gating is enabled and user has no active subscription", async () => {
+    const app = createAuthenticatedTestApp();
+    getAppFeatureFlagEnabledMock.mockResolvedValueOnce(true);
+    getAppSubscriptionAccessMock.mockResolvedValueOnce({ hasActiveSubscription: false });
+
+    const response = await app.request(
+      jsonRequest("/api/v1/training/step/complete/practice", "POST", {
+        courseId: "clwcourse00000000000000001",
+        dayOnCourseId: "clwdayoc0000000000000001",
+        stepIndex: 0,
+      }),
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Для действия нужна подписка",
+      code: "SUBSCRIPTION_REQUIRED",
+    });
+    expect(updateStepAndDayMock).not.toHaveBeenCalled();
   });
 });

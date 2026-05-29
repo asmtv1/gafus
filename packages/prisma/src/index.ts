@@ -18,6 +18,7 @@ export type {
   Step,
   StepNotification,
   StepOnDay,
+  SurveyResponse,
   TrainingDay,
   TrainingLevel,
   User,
@@ -41,6 +42,7 @@ export {
   PetType,
   RegistrationChannel,
   StepType,
+  SurveyPhase,
   TrainingStatus,
   TranscodingStatus,
   UserRole,
@@ -66,6 +68,7 @@ export interface DatabaseClient {
   favoriteCourse: PrismaClient["favoriteCourse"];
   courseReview: PrismaClient["courseReview"];
   stepNotification: PrismaClient["stepNotification"];
+  surveyResponse: PrismaClient["surveyResponse"];
   errorLog: PrismaClient["errorLog"];
   pushSubscription: PrismaClient["pushSubscription"];
   userProfile: PrismaClient["userProfile"];

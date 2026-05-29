@@ -45,6 +45,7 @@ export interface FullCourseData {
       requiresVideoReport: boolean;
       requiresWrittenFeedback: boolean;
       hasTestQuestions: boolean;
+      surveySlug: string | null;
     }[];
   }[];
   mediaFiles: {

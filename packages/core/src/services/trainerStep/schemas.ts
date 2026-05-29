@@ -5,6 +5,8 @@
 
 import { z } from "zod";
 
+import { isKnownSurveySlug } from "../survey/templates";
+
 const STEP_TYPES = [
   "TRAINING",
   "EXAMINATION",
@@ -12,6 +14,7 @@ const STEP_TYPES = [
   "BREAK",
   "PRACTICE",
   "DIARY",
+  "SURVEY",
 ] as const;
 
 export const stepTypeSchema = z.enum(STEP_TYPES);
@@ -39,6 +42,7 @@ const createStepBaseSchema = z.object({
   requiresVideoReport: z.boolean(),
   requiresWrittenFeedback: z.boolean(),
   hasTestQuestions: z.boolean(),
+  surveySlug: z.string().trim().optional().nullable(),
   isDailyCourse: z.boolean().default(false),
 });
 
@@ -60,6 +64,13 @@ export const createStepSchema = createStepBaseSchema
       return data.durationSec != null && data.durationSec > 0;
     },
     { message: "Длительность обязательна для данного типа" },
+  )
+  .refine(
+    (data) => {
+      if (data.type !== "SURVEY") return true;
+      return Boolean(data.surveySlug && isKnownSurveySlug(data.surveySlug));
+    },
+    { message: "Для анкетного шага выберите доступный шаблон анкеты" },
   );
 
 export const updateStepSchema = createStepBaseSchema.omit({ id: true }).extend({

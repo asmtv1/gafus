@@ -8,7 +8,8 @@ export type StepType =
   | "THEORY"
   | "BREAK"
   | "PRACTICE"
-  | "DIARY";
+  | "DIARY"
+  | "SURVEY";
 
 export interface ChecklistQuestion {
   id: string;
@@ -37,6 +38,7 @@ export interface Step {
   requiresVideoReport?: boolean;
   requiresWrittenFeedback?: boolean;
   hasTestQuestions?: boolean;
+  surveySlug?: string | null;
   isDailyCourse?: boolean;
 }
 

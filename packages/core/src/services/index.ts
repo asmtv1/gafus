@@ -24,6 +24,7 @@ export * from "./payments";
 export * from "./video";
 export * from "./reminders";
 export * from "./reengagement";
+export * from "./survey";
 export * from "./adminUser";
 export * from "./adminPurchase";
 export * from "./adminReengagement";
