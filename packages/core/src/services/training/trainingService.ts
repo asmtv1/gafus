@@ -2,7 +2,8 @@
  * Training Service
  * Сервис для работы с тренировками
  */
-import { prisma, isPrismaUniqueConstraintError, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import type { TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
@@ -1115,8 +1116,8 @@ export async function updateStepAndDay(
       });
 
       const allStepStatuses: string[] = [];
-      for (let i = 0; i < stepOnDayIds.length; i++) {
-        const us = userSteps.find((s) => s.stepOnDayId === stepOnDayIds[i]);
+      for (const stepOnDayId of stepOnDayIds) {
+        const us = userSteps.find((s) => s.stepOnDayId === stepOnDayId);
         allStepStatuses.push(us?.status ?? TrainingStatus.NOT_STARTED);
       }
 

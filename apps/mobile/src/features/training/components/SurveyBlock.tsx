@@ -8,7 +8,6 @@ import type {
   SurveyComparisonDto,
   SurveyQuestion,
   SurveyResponseDto,
-  SurveyTemplate,
 } from "@gafus/types";
 
 import { MascotSpinner } from "@/shared/components/ui";
@@ -213,7 +212,9 @@ export function SurveyBlock({
 
   const missingRequired = useMemo(() => {
     if (!template) return [];
-    return template.questions.filter((question) => question.required && !hasAnswer(answers[question.id]));
+    return template.questions.filter(
+      (question) => question.required && !hasAnswer(answers[question.id]),
+    );
   }, [answers, template]);
 
   const submitMutation = useMutation({
@@ -289,7 +290,9 @@ export function SurveyBlock({
       )}
 
       {template.sections.map((section) => {
-        const questions = template.questions.filter((question) => question.sectionId === section.id);
+        const questions = template.questions.filter(
+          (question) => question.sectionId === section.id,
+        );
         if (questions.length === 0) return null;
         return (
           <View key={section.id} style={styles.section}>

@@ -110,7 +110,10 @@ export async function sendPasswordChangedNoticeEmail(to: string): Promise<void> 
   }
 }
 
-export async function sendUsernameChangedNoticeEmail(to: string, newUsername: string): Promise<void> {
+export async function sendUsernameChangedNoticeEmail(
+  to: string,
+  newUsername: string,
+): Promise<void> {
   if (!isMailerConfigured()) return;
   const subject = "Логин изменён — Гафус";
   const text = [

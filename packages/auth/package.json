@@ -1,6 +1,6 @@
 {
   "name": "@gafus/auth",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "exports": {
     ".": {

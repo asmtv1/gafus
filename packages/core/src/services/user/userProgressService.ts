@@ -3,7 +3,8 @@
  * Перенесено из web getUserProgress для соблюдения архитектуры (core = бизнес-логика).
  */
 
-import { prisma, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import type { TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import { prisma } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 

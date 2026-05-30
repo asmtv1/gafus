@@ -25,6 +25,7 @@ function isPurchaseUserCancelled(error: unknown): boolean {
 
 export async function runAppleAppSubscriptionPurchase(
   appleProductId?: string | null,
+  options?: { appAccountToken?: string | null },
 ): Promise<AppleAppSubscriptionPurchaseResult> {
   if (!appleProductId) {
     return {
@@ -40,7 +41,12 @@ export async function runAppleAppSubscriptionPurchase(
     let purchase: Purchase | null = null;
     try {
       const raw = await requestPurchase({
-        request: { apple: { sku: appleProductId } },
+        request: {
+          apple: {
+            sku: appleProductId,
+            ...(options?.appAccountToken ? { appAccountToken: options.appAccountToken } : {}),
+          },
+        },
         type: "subs",
       });
       purchase = Array.isArray(raw) ? (raw[0] ?? null) : raw;
@@ -61,8 +67,15 @@ export async function runAppleAppSubscriptionPurchase(
     }
 
     const verify = await appSubscriptionApi.verifyAppleSubscription({ signedTransactionInfo: jws });
-    if (!verify.success) {
-      return { ok: false, message: verify.error ?? "Не удалось подтвердить подписку." };
+    if (!verify.success || verify.data?.success !== true) {
+      const serviceError =
+        verify.data && "error" in verify.data && typeof verify.data.error === "string"
+          ? verify.data.error
+          : null;
+      return {
+        ok: false,
+        message: serviceError ?? verify.error ?? "Не удалось подтвердить подписку.",
+      };
     }
 
     try {
@@ -91,5 +104,5 @@ export async function appleAppSubscriptionPurchase(params: { signedTransactionIn
   const verify = await appSubscriptionApi.verifyAppleSubscription({
     signedTransactionInfo: params.signedTransactionInfo,
   });
-  return verify.success;
+  return verify.success && verify.data?.success === true;
 }

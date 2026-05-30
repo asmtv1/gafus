@@ -214,7 +214,6 @@ export async function rebuildSlotsForCynologist(
     }
 
     for (const d of desired) {
-      const key = `${d.startAt.toISOString()}|${d.endAt.toISOString()}`;
       const exists = await tx.consultationSlot.findFirst({
         where: {
           cynologistId,

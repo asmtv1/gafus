@@ -495,7 +495,10 @@ export async function rejectBookingByTrainer(
     });
   });
 
-  await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER);
+  await enqueueConsultationEmail(
+    bookingId,
+    ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER,
+  );
   await tryConsultationPush(
     b.clientId,
     b.trainerConfirmedAt
@@ -605,7 +608,10 @@ export async function cancelBookingByUser(clientId: string, bookingId: string): 
     });
   });
 
-  await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER);
+  await enqueueConsultationEmail(
+    bookingId,
+    ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER,
+  );
   await tryConsultationPush(
     b.cynologist.userId,
     wasConfirmed ? "Клиент отменил встречу" : "Клиент отменил заявку",
@@ -706,7 +712,10 @@ export async function processConsultationReminder(
   if (clientEmailResult === "duplicate") {
     return;
   }
-  await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M);
+  await enqueueConsultationEmail(
+    bookingId,
+    ConsultationEmailType.TRAINER_CONSULTATION_REMINDER_30M,
+  );
 
   await tryConsultationPush(
     b.clientId,

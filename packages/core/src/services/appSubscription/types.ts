@@ -24,6 +24,8 @@ export type AppSubscriptionStatusDto = {
   paymentMethodLast4: string | null;
   paymentMethodTitle: string | null;
   nextChargeAt: string | null;
+  yookassaTrialAvailable: boolean;
+  yookassaTrialDays: 3;
 };
 
 export type AppSubscriptionOfferDto = {
@@ -33,4 +35,6 @@ export type AppSubscriptionOfferDto = {
   appleProductId: string | null;
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
+  yookassaTrialAvailable: boolean;
+  yookassaTrialDays: 3;
 };

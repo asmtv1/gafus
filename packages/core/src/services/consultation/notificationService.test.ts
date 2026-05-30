@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConsultationEmailType, Prisma } from "@gafus/prisma";
+import type * as GafusPrisma from "@gafus/prisma";
 
 const { emailLogCreate, bookingFindUnique, mailQueueAdd } = vi.hoisted(() => ({
   emailLogCreate: vi.fn(),
@@ -22,7 +23,7 @@ vi.mock("@gafus/queues", () => ({
 }));
 
 vi.mock("@gafus/prisma", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@gafus/prisma")>();
+  const mod = await importOriginal<typeof GafusPrisma>();
   return {
     ...mod,
     prisma: {

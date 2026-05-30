@@ -104,10 +104,14 @@ type BookingForMail = {
   /** Если была подтверждена — отмена назначенной встречи (другое письмо, чем отклонение заявки). */
   trainerConfirmedAt: Date | null;
   client: { email: string | null; username: string };
-  cynologist: {
-    user: { email: string | null; username: string; profile: { fullName: string | null } | null } | null;
-  };
+  cynologist: { user: BookingCynologistUser | null };
   slot: { startAt: Date; endAt: Date };
+};
+
+type BookingCynologistUser = {
+  email: string | null;
+  username: string;
+  profile: { fullName: string | null } | null;
 };
 
 function intakeAnketLinesPlain(b: BookingForMail): string[] {
@@ -182,7 +186,13 @@ async function loadBookingForLog(logId: string): Promise<BookingForMail> {
           client: { select: { email: true, username: true } },
           cynologist: {
             include: {
-              user: { select: { email: true, username: true, profile: { select: { fullName: true } } } },
+              user: {
+                select: {
+                  email: true,
+                  username: true,
+                  profile: { select: { fullName: true } },
+                },
+              },
             },
           },
           slot: true,

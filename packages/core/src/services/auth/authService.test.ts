@@ -64,7 +64,8 @@ vi.mock("./transactionalAuthMail", () => ({
   assertMailerReady: vi.fn(),
   sendPasswordResetLinkEmail: vi.fn(),
   sendPasswordChangedNoticeEmail: vi.fn(),
-  sendUsernameChangedNoticeEmail: (...args: unknown[]) => mockSendUsernameChangedNoticeEmail(...args),
+  sendUsernameChangedNoticeEmail: (...args: unknown[]) =>
+    mockSendUsernameChangedNoticeEmail(...args),
   sendWelcomeEmailAfterRegistration: (...args: unknown[]) =>
     mockSendWelcomeEmailAfterRegistration(...args),
   sendEmailChangeConfirmEmail: vi.fn(),

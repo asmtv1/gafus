@@ -21,6 +21,12 @@ import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Text } from "react-native-paper";
 import { appSubscriptionApi, type AppSubscriptionOfferDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
+import {
+  getYookassaLegalSuffix,
+  getYookassaPaymentCaption,
+  getYookassaPricePillText,
+  getYookassaPrimaryCta,
+} from "../lib/appSubscriptionPresentation";
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
 import { yookassaAppSubscriptionPurchase } from "../lib/yookassaAppSubscriptionPurchase";
 import { usePaywallStore } from "../store/paywallStore";
@@ -104,6 +110,11 @@ export function AppSubscriptionPaywall() {
   const price = isIos ? (applePriceQuery.data ?? yookassaPriceText) : yookassaPriceText;
   const iosRuCardHint =
     isIos && canUseYookassa ? `При оплате картой РФ: ${yookassaPriceText}.` : null;
+  const yookassaPricePillText = getYookassaPricePillText({ offer: effectiveOffer });
+  const yookassaPaymentCaption = canUseYookassa
+    ? getYookassaPaymentCaption({ offer: effectiveOffer })
+    : "Списание и управление подпиской выполняются через App Store.";
+  const yookassaPrimaryCta = getYookassaPrimaryCta({ offer: effectiveOffer });
   const useCompactLayout = height < 760 || width < 380;
   const headline = useMemo(
     () =>
@@ -117,14 +128,16 @@ export function AppSubscriptionPaywall() {
     await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
     await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
     close();
-    Alert.alert("Пробный период подключён", "Premium уже активен на вашем аккаунте.");
+    Alert.alert("Premium подключён", "Premium уже активен на вашем аккаунте.");
   };
 
   const handleApplePay = async () => {
     if (!effectiveOffer?.appleProductId || isPaying) return;
     setIsPaying(true);
     setPendingMessage(null);
-    const result = await runAppleAppSubscriptionPurchase(effectiveOffer.appleProductId);
+    const result = await runAppleAppSubscriptionPurchase(effectiveOffer.appleProductId, {
+      appAccountToken: effectiveOffer.appleAppAccountToken,
+    });
     setIsPaying(false);
     if (result.ok) {
       await finishSuccessfulPayment();
@@ -193,13 +206,13 @@ export function AppSubscriptionPaywall() {
           <View style={[styles.priceBox, useCompactLayout && styles.priceBoxCompact]}>
             <View style={styles.priceHeader}>
               <Text style={[styles.price, useCompactLayout && styles.priceCompact]}>{price}</Text>
-              <View style={styles.pricePill}>
-                <Text style={styles.pricePillText}>3 дня бесплатно</Text>
-              </View>
+              {yookassaPricePillText ? (
+                <View style={styles.pricePill}>
+                  <Text style={styles.pricePillText}>{yookassaPricePillText}</Text>
+                </View>
+              ) : null}
             </View>
-            <Text style={styles.priceCaption}>
-              Карта привязывается сейчас без списания. Первое списание — через 3 дня.
-            </Text>
+            <Text style={styles.priceCaption}>{yookassaPaymentCaption}</Text>
             {iosRuCardHint ? <Text style={styles.priceCaption}>{iosRuCardHint}</Text> : null}
           </View>
 
@@ -231,7 +244,7 @@ export function AppSubscriptionPaywall() {
               <Text
                 style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}
               >
-                {isPaying ? "Оформляем..." : "Попробовать 3 дня бесплатно"}
+                {isPaying ? "Оформляем..." : yookassaPrimaryCta}
               </Text>
               {!isPaying && canUseApple ? (
                 <Text style={styles.secondaryPayButtonHint}>(только для карт РФ)</Text>
@@ -275,7 +288,7 @@ export function AppSubscriptionPaywall() {
             . Подписка продлевается автоматически. При оплате через App Store списание идет через
             Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID
             {canUseYookassa
-              ? "; при оплате картой РФ способ оплаты сохраняется в ЮKassa, первые 3 дня бесплатны."
+              ? getYookassaLegalSuffix({ offer: effectiveOffer })
               : "."}
           </Text>
 

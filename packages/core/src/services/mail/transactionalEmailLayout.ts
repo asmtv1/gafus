@@ -94,7 +94,7 @@ async function resolveInlineLogoAttachment(): Promise<Attachment | undefined> {
 }
 
 function brandTextHeaderHtml(): string {
-  return `<p style="margin:0 0 12px;font-size:22px;font-weight:700;color:#636128;letter-spacing:0.04em;font-family:Georgia,'Times New Roman',serif;">Гафус</p>`;
+  return "<p style=\"margin:0 0 12px;font-size:22px;font-weight:700;color:#636128;letter-spacing:0.04em;font-family:Georgia,'Times New Roman',serif;\">Гафус</p>";
 }
 
 export function paragraphHtml(text: string): string {
@@ -135,11 +135,15 @@ interface WrapTransactionalEmailOptions {
   logoMode: "cid" | "none";
 }
 
-function wrapTransactionalEmailHtml({ blocksHtml, logoMode }: WrapTransactionalEmailOptions): string {
+function wrapTransactionalEmailHtml({
+  blocksHtml,
+  logoMode,
+}: WrapTransactionalEmailOptions): string {
   const inner = blocksHtml.join("\n");
+  const logoImg = `<img src="cid:${TRANSACTIONAL_LOGO_CID}" width="100" alt="Гафус" style="display:block;width:100px;max-width:100%;height:auto;margin:0;border:0;" />`;
   const logoBlock =
     logoMode === "cid"
-      ? `${brandTextHeaderHtml()}<img src="cid:${TRANSACTIONAL_LOGO_CID}" width="100" alt="Гафус" style="display:block;width:100px;max-width:100%;height:auto;margin:0;border:0;" />`
+      ? `${brandTextHeaderHtml()}${logoImg}`
       : brandTextHeaderHtml();
 
   return `<!DOCTYPE html>

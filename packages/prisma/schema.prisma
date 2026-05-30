@@ -357,6 +357,7 @@ model User {
   appSubscriptions               AppSubscription[]                @relation("AppSubscriptionUser")
   appSubscriptionPayments        AppSubscriptionPayment[]         @relation("AppSubscriptionPaymentUser")
   appSubscriptionEvents          AppSubscriptionEvent[]           @relation("AppSubscriptionEventUser")
+  appSubscriptionTrials          AppSubscriptionTrial[]           @relation("AppSubscriptionTrialUser")
   manualAppSubscriptionGrants    AppSubscription[]                @relation("ManualAppSubscriptionGrantedBy")
   updatedAppSubscriptionSettings AppSubscriptionSettings[]        @relation("AppSubscriptionSettingsUpdatedBy")
   adminAppSubscriptionEvents     AppSubscriptionEvent[]           @relation("AppSubscriptionEventActor")
@@ -683,6 +684,7 @@ model AppSubscription {
 
   payments AppSubscriptionPayment[]
   events   AppSubscriptionEvent[]
+  trials   AppSubscriptionTrial[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -691,6 +693,28 @@ model AppSubscription {
   @@index([provider, status, currentPeriodEnd])
   @@index([provider, status, pendingExpiresAt])
   @@index([provider, status, cancelAtPeriodEnd, currentPeriodEnd])
+}
+
+model AppSubscriptionTrial {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("AppSubscriptionTrialUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  provider AppSubscriptionProvider
+
+  subscriptionId String?
+  subscription   AppSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  startedAt DateTime
+  endedAt   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([provider, startedAt])
+  @@index([subscriptionId])
 }
 
 model AppSubscriptionPayment {

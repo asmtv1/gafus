@@ -284,7 +284,10 @@ export async function downloadFullCourse(
       courseId: course.id,
       courseType: course.type,
       daysCount: trainingDays.length,
-      totalSteps: trainingDays.reduce((sum: number, day: (typeof trainingDays)[number]) => sum + day.steps.length, 0),
+      totalSteps: trainingDays.reduce(
+        (sum: number, day: (typeof trainingDays)[number]) => sum + day.steps.length,
+        0,
+      ),
       totalVideos: uniqueVideoUrls.length,
       totalImages: uniqueImageUrls.length,
       totalPdfs: uniquePdfUrls.length,

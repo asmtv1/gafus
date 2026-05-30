@@ -22,6 +22,11 @@ export type {
   TrainingDay,
   TrainingLevel,
   User,
+  AppSubscription,
+  AppSubscriptionPayment,
+  AppSubscriptionEvent,
+  AppSubscriptionSettings,
+  AppSubscriptionTrial,
   UserCourse,
   UserProfile,
   UserStep,
@@ -46,6 +51,12 @@ export {
   TrainingStatus,
   TranscodingStatus,
   UserRole,
+  AppSubscriptionEventProcessingStatus,
+  AppSubscriptionEventSource,
+  AppSubscriptionPaymentKind,
+  AppSubscriptionPaymentStatus,
+  AppSubscriptionProvider,
+  AppSubscriptionStatus,
 } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)
@@ -79,6 +90,11 @@ export interface DatabaseClient {
   dailyCourseBundleStep: PrismaClient["dailyCourseBundleStep"];
   dailyCourseUserTraining: PrismaClient["dailyCourseUserTraining"];
   dailyCourseUserStep: PrismaClient["dailyCourseUserStep"];
+  appSubscription: PrismaClient["appSubscription"];
+  appSubscriptionPayment: PrismaClient["appSubscriptionPayment"];
+  appSubscriptionEvent: PrismaClient["appSubscriptionEvent"];
+  appSubscriptionSettings: PrismaClient["appSubscriptionSettings"];
+  appSubscriptionTrial: PrismaClient["appSubscriptionTrial"];
   pet: PrismaClient["pet"];
   $connect: () => Promise<void>;
   $disconnect: () => Promise<void>;

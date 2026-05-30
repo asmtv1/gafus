@@ -1,6 +1,6 @@
 {
   "name": "@gafus/web",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "scripts": {
     "analyze": "node scripts/analyze-bundle.js",

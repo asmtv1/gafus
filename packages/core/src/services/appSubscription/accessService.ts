@@ -1,6 +1,7 @@
 import { prisma } from "@gafus/prisma";
 
 import type { AppSubscriptionStatusDto } from "./types";
+import { getYookassaTrialAvailability } from "./trialService";
 
 const ACTIVE_CANDIDATE_STATUSES = ["ACTIVE", "PENDING", "PAST_DUE"] as const;
 
@@ -8,7 +9,8 @@ export async function getAppSubscriptionAccess(
   userId: string,
   now = new Date(),
 ): Promise<AppSubscriptionStatusDto> {
-  const rows = await (prisma as any).appSubscription.findMany({
+  const yookassaTrial = await getYookassaTrialAvailability(userId);
+  const rows = await prisma.appSubscription.findMany({
     where: {
       userId,
       status: { in: [...ACTIVE_CANDIDATE_STATUSES] },
@@ -16,7 +18,7 @@ export async function getAppSubscriptionAccess(
     orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
   });
 
-  const active = rows.find((row: any) => {
+  const active = rows.find((row) => {
     if (row.status !== "ACTIVE") {
       return false;
     }
@@ -41,11 +43,13 @@ export async function getAppSubscriptionAccess(
       paymentMethodLast4: null,
       paymentMethodTitle: null,
       nextChargeAt: null,
+      yookassaTrialAvailable: yookassaTrial.available,
+      yookassaTrialDays: yookassaTrial.trialDays,
     };
   }
 
   const hasSavedPaymentMethod = Boolean(active.yookassaPaymentMethodId);
-  const lastSucceededPayment = await (prisma as any).appSubscriptionPayment.findFirst({
+  const lastSucceededPayment = await prisma.appSubscriptionPayment.findFirst({
     where: {
       subscriptionId: active.id,
       status: "SUCCEEDED",
@@ -88,5 +92,7 @@ export async function getAppSubscriptionAccess(
     paymentMethodLast4: active.yookassaPaymentMethodLast4 ?? null,
     paymentMethodTitle: active.yookassaPaymentMethodTitle ?? null,
     nextChargeAt,
+    yookassaTrialAvailable: isTrial ? false : yookassaTrial.available,
+    yookassaTrialDays: yookassaTrial.trialDays,
   };
 }

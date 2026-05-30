@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type * as GafusPrisma from "@gafus/prisma";
 
 import {
   ConsultationBookingStatus,
@@ -69,7 +70,7 @@ const {
 }));
 
 vi.mock("@gafus/prisma", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@gafus/prisma")>();
+  const mod = await importOriginal<typeof GafusPrisma>();
   return {
     ...mod,
     prisma: {

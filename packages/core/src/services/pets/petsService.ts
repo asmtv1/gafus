@@ -135,7 +135,11 @@ function sanitizePetDocumentFileBaseName(rawBase: string): string {
   return collapsed.slice(0, PET_DOCUMENT_BASE_NAME_MAX_LENGTH);
 }
 
-function buildDocumentNameWithOriginalExtension(name: string, currentFileName: string, mimeType: string): string {
+function buildDocumentNameWithOriginalExtension(
+  name: string,
+  currentFileName: string,
+  mimeType: string,
+): string {
   const normalizedName = name.trim();
   const originalExtension =
     getExtensionFromFileName(currentFileName) ??

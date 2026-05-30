@@ -14,6 +14,8 @@ export type AppSubscriptionStatusDto = {
   paymentMethodLast4: string | null;
   paymentMethodTitle: string | null;
   nextChargeAt: string | null;
+  yookassaTrialAvailable: boolean;
+  yookassaTrialDays: 3;
 };
 
 export type AppSubscriptionOfferDto = {
@@ -23,6 +25,8 @@ export type AppSubscriptionOfferDto = {
   appleProductId: string | null;
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
+  yookassaTrialAvailable: boolean;
+  yookassaTrialDays: 3;
 };
 
 export const appSubscriptionApi = {
@@ -40,13 +44,13 @@ export const appSubscriptionApi = {
   },
   verifyAppleSubscription(body: {
     signedTransactionInfo: string;
-  }): Promise<ApiResponse<{ success: true }>> {
+  }): Promise<ApiResponse<{ success: true } | { success: false; code: string; error: string }>> {
     return apiClient("/api/v1/app-subscription/apple/verify", { method: "POST", body });
   },
   restoreAppleSubscription(body: {
     originalTransactionId?: string;
     signedTransactionInfo?: string;
-  }): Promise<ApiResponse<{ success: true }>> {
+  }): Promise<ApiResponse<{ success: true } | { success: false; code: string; error: string }>> {
     return apiClient("/api/v1/app-subscription/apple/restore", { method: "POST", body });
   },
 };

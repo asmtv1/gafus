@@ -4,6 +4,7 @@ import { getAppSubscriptionAccess } from "../accessService";
 
 const mockFindMany = vi.fn();
 const mockPaymentFindFirst = vi.fn();
+const mockTrialFindUnique = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -13,6 +14,9 @@ vi.mock("@gafus/prisma", () => ({
     appSubscriptionPayment: {
       findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
     },
+    appSubscriptionTrial: {
+      findUnique: (...args: unknown[]) => mockTrialFindUnique(...args),
+    },
   },
 }));
 
@@ -20,6 +24,7 @@ describe("getAppSubscriptionAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPaymentFindFirst.mockResolvedValue(null);
+    mockTrialFindUnique.mockResolvedValue(null);
   });
 
   it("returns inactive dto when no rows", async () => {
@@ -41,6 +46,8 @@ describe("getAppSubscriptionAccess", () => {
       paymentMethodLast4: null,
       paymentMethodTitle: null,
       nextChargeAt: null,
+      yookassaTrialAvailable: true,
+      yookassaTrialDays: 3,
     });
   });
 
@@ -82,6 +89,8 @@ describe("getAppSubscriptionAccess", () => {
       paymentMethodLast4: "4444",
       paymentMethodTitle: "Bank card *4444",
       nextChargeAt: "2026-05-20T10:00:00.000Z",
+      yookassaTrialAvailable: true,
+      yookassaTrialDays: 3,
     });
   });
 
@@ -127,6 +136,27 @@ describe("getAppSubscriptionAccess", () => {
       isTrial: true,
       trialEndsAt: "2026-05-29T10:00:00.000Z",
       nextChargeAt: "2026-05-29T10:00:00.000Z",
+      yookassaTrialAvailable: false,
+      yookassaTrialDays: 3,
+    });
+  });
+
+  it("returns unavailable YooKassa trial after the user has used it", async () => {
+    mockFindMany.mockResolvedValue([]);
+    mockTrialFindUnique.mockResolvedValue({
+      id: "trial-1",
+      userId: "u1",
+      provider: "YOOKASSA",
+      startedAt: new Date("2026-05-26T10:00:00.000Z"),
+      endedAt: new Date("2026-05-29T10:00:00.000Z"),
+    });
+
+    const result = await getAppSubscriptionAccess("u1", new Date("2026-05-30T10:00:00.000Z"));
+
+    expect(result).toMatchObject({
+      hasActiveSubscription: false,
+      yookassaTrialAvailable: false,
+      yookassaTrialDays: 3,
     });
   });
 });

@@ -140,4 +140,100 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       }),
     );
   });
+
+  it("does not retry an existing payment before its nextAttemptAt", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    mockPaymentFindFirst.mockResolvedValue({
+      id: "existing-pay-1",
+      status: "FAILED",
+      attemptCount: 2,
+      nextAttemptAt: new Date("2026-05-30T11:00:00.000Z"),
+    });
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.skipped).toBe(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "existing-pay-1" } }),
+    );
+  });
+
+  it("stops retrying a renewal payment after the max attempt count", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    mockPaymentFindFirst.mockResolvedValue({
+      id: "existing-pay-1",
+      status: "FAILED",
+      attemptCount: 5,
+      nextAttemptAt: new Date("2026-05-30T09:00:00.000Z"),
+    });
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.skipped).toBe(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: { status: "PAST_DUE" },
+    });
+  });
+
+  it("records backoff when YooKassa request fails before a response", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    mockCreate.mockResolvedValue({
+      id: "pay-1",
+      status: "PENDING",
+      attemptCount: 1,
+      nextAttemptAt: new Date("2026-05-30T10:00:00.000Z"),
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.skipped).toBe(1);
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "pay-1" },
+      data: expect.objectContaining({
+        status: "FAILED",
+        failureCode: "NETWORK",
+        nextAttemptAt: new Date("2026-05-30T10:10:00.000Z"),
+      }),
+    });
+  });
 });

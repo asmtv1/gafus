@@ -98,7 +98,7 @@ export async function getAppSubscriptionAdminDashboard(
   now = new Date(),
 ): Promise<AppSubscriptionAdminDashboard> {
   const [subscriptions, succeededPayments] = await Promise.all([
-    (prisma as any).appSubscription.findMany({
+    prisma.appSubscription.findMany({
       orderBy: [{ updatedAt: "desc" }],
       select: {
         id: true,
@@ -126,7 +126,7 @@ export async function getAppSubscriptionAdminDashboard(
         },
       },
     }),
-    (prisma as any).appSubscriptionPayment.findMany({
+    prisma.appSubscriptionPayment.findMany({
       where: { status: "SUCCEEDED" },
       orderBy: [{ succeededAt: "desc" }, { updatedAt: "desc" }],
       select: {
@@ -163,9 +163,11 @@ export async function getAppSubscriptionAdminDashboard(
     }
   }
 
-  const rows = (subscriptions as any[]).map((subscription) => {
+  const rows = subscriptions.map((subscription) => {
     const payments = paymentsBySubscriptionId.get(subscription.id) ?? [];
-    const sortedPayments = [...payments].sort((a, b) => paymentDate(a).getTime() - paymentDate(b).getTime());
+    const sortedPayments = [...payments].sort(
+      (a, b) => paymentDate(a).getTime() - paymentDate(b).getTime(),
+    );
     const firstPayment = sortedPayments[0] ?? null;
     const lastPayment = sortedPayments[sortedPayments.length - 1] ?? null;
     const isActiveNow = isSubscriptionActiveNow(subscription, now);
@@ -242,7 +244,7 @@ export async function getAppSubscriptionAdminDashboard(
 }
 
 export async function getDefaultAppSubscriptionSettings() {
-  return (prisma as any).appSubscriptionSettings.findUnique({
+  return prisma.appSubscriptionSettings.findUnique({
     where: { key: "default" },
   });
 }
@@ -252,7 +254,7 @@ export async function updateDefaultAppSubscriptionSettings(params: {
   appleProductId: string | null;
   actorId: string;
 }) {
-  return (prisma as any).appSubscriptionSettings.upsert({
+  return prisma.appSubscriptionSettings.upsert({
     where: { key: "default" },
     create: {
       key: "default",
@@ -272,7 +274,7 @@ export async function updateDefaultAppSubscriptionSettings(params: {
 
 export async function getUserAppSubscriptionAdminSummary(userId: string) {
   const [status, rows] = await Promise.all([
-    (prisma as any).appSubscription.findFirst({
+    prisma.appSubscription.findFirst({
       where: {
         userId,
         status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
@@ -286,7 +288,7 @@ export async function getUserAppSubscriptionAdminSummary(userId: string) {
         cancelAtPeriodEnd: true,
       },
     }),
-    (prisma as any).appSubscription.findMany({
+    prisma.appSubscription.findMany({
       where: { userId, provider: "MANUAL" },
       orderBy: [{ updatedAt: "desc" }],
       take: 1,
@@ -323,7 +325,7 @@ export async function adminGrantPaidUntil(params: {
     throw new Error("paidUntil должен быть в будущем");
   }
 
-  const existing = await (prisma as any).appSubscription.findFirst({
+  const existing = await prisma.appSubscription.findFirst({
     where: {
       userId: params.userId,
       provider: "MANUAL",
@@ -333,7 +335,7 @@ export async function adminGrantPaidUntil(params: {
   });
 
   if (existing) {
-    await (prisma as any).appSubscription.update({
+    await prisma.appSubscription.update({
       where: { id: existing.id },
       data: {
         status: "ACTIVE",
@@ -345,7 +347,7 @@ export async function adminGrantPaidUntil(params: {
       },
     });
   } else {
-    await (prisma as any).appSubscription.create({
+    await prisma.appSubscription.create({
       data: {
         userId: params.userId,
         provider: "MANUAL",
@@ -365,7 +367,7 @@ export async function adminGrantLifetime(params: {
   adminUserId: string;
   reason?: string;
 }) {
-  const existing = await (prisma as any).appSubscription.findFirst({
+  const existing = await prisma.appSubscription.findFirst({
     where: {
       userId: params.userId,
       provider: "MANUAL",
@@ -375,7 +377,7 @@ export async function adminGrantLifetime(params: {
   });
 
   if (existing) {
-    await (prisma as any).appSubscription.update({
+    await prisma.appSubscription.update({
       where: { id: existing.id },
       data: {
         status: "ACTIVE",
@@ -387,7 +389,7 @@ export async function adminGrantLifetime(params: {
       },
     });
   } else {
-    await (prisma as any).appSubscription.create({
+    await prisma.appSubscription.create({
       data: {
         userId: params.userId,
         provider: "MANUAL",
@@ -403,7 +405,7 @@ export async function adminGrantLifetime(params: {
 }
 
 export async function adminClearManualGrant(params: { userId: string; adminUserId: string }) {
-  await (prisma as any).appSubscription.updateMany({
+  await prisma.appSubscription.updateMany({
     where: {
       userId: params.userId,
       provider: "MANUAL",

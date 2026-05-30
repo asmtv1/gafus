@@ -448,13 +448,17 @@ export async function checkCourseAccessById(
 
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { isPrivate: true, isPaid: true, access: { where: { userId }, select: { userId: true } } },
+    select: {
+      isPrivate: true,
+      isPaid: true,
+      access: { where: { userId }, select: { userId: true } },
+    },
   });
-  
+
   if (!course) {
     return { hasAccess: false };
   }
-  
+
   // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
   if (course.isPaid || course.isPrivate) {
     return { hasAccess: course.access.length > 0 };
@@ -494,7 +498,9 @@ export async function getCourseMetadata(courseType: string) {
  * Оглавление курса (дни по порядку) — публичная структура, без проверки доступа.
  * Используется на странице платного курса, чтобы показать, что входит в покупку.
  */
-export async function getCourseOutline(courseType: string): Promise<{ title: string; order: number }[]> {
+export async function getCourseOutline(
+  courseType: string,
+): Promise<{ title: string; order: number }[]> {
   const course = await prisma.course.findFirst({
     where: { type: courseType },
     select: {

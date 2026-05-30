@@ -43,14 +43,16 @@ vi.mock("@gafus/webpush", () => ({
 describe("sendBroadcastPush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPartitionPushSubscriptions.mockImplementation((subs: { endpoint: string; keys: unknown }[]) => ({
-      web: subs.map((s) => {
-        const keys = s.keys as { p256dh: string; auth: string };
-        return { endpoint: s.endpoint, keys };
+    mockPartitionPushSubscriptions.mockImplementation(
+      (subs: { endpoint: string; keys: unknown }[]) => ({
+        web: subs.map((s) => {
+          const keys = s.keys as { p256dh: string; auth: string };
+          return { endpoint: s.endpoint, keys };
+        }),
+        expo: [],
+        rustore: [],
       }),
-      expo: [],
-      rustore: [],
-    }));
+    );
     mockSendExpoPushNotifications.mockResolvedValue({
       successCount: 0,
       failureCount: 0,

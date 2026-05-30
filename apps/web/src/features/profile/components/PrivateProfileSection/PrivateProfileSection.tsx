@@ -25,6 +25,8 @@ type AppSubscriptionStatusDto = {
   paymentMethodLast4: string | null;
   paymentMethodTitle: string | null;
   nextChargeAt: string | null;
+  yookassaTrialAvailable: boolean;
+  yookassaTrialDays: 3;
 };
 
 function formatMskDateTime(dateIso: string | null): string {

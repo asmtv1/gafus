@@ -1,14 +1,21 @@
+import { createHash } from "node:crypto";
+
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { Environment, SignedDataVerifier, Type } from "@apple/app-store-server-library";
 
 import { getAppSubscriptionAccess } from "./accessService";
+import {
+  getYookassaTrialAvailability,
+  recordYookassaTrialStarted,
+  YOOKASSA_TRIAL_DAYS,
+} from "./trialService";
 
 const logger = createWebLogger("app-subscription-payment-service");
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
 const YOOKASSA_PAYMENT_METHODS_API = "https://api.yookassa.ru/v3/payment_methods";
-const YOOKASSA_TRIAL_DAYS = 3;
 const YOOKASSA_PENDING_SETUP_TTL_MS = 60 * 60 * 1000;
+const YOOKASSA_START_LOCK_NAMESPACE = 90210018;
 const APPLE_ROOT_CA_G3_DER_BASE64 =
   "MIICQzCCAcmgAwIBAgIILcX8iNLFS5UwCgYIKoZIzj0EAwMwZzEbMBkGA1UEAwwSQXBwbGUgUm9vdCBDQSAtIEczMSYwJAYDVQQLDB1BcHBsZSBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTETMBEGA1UECgwKQXBwbGUgSW5jLjELMAkGA1UEBhMCVVMwHhcNMTQwNDMwMTgxOTA2WhcNMzkwNDMwMTgxOTA2WjBnMRswGQYDVQQDDBJBcHBsZSBSb290IENBIC0gRzMxJjAkBgNVBAsMHUFwcGxlIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRMwEQYDVQQKDApBcHBsZSBJbmMuMQswCQYDVQQGEwJVUzB2MBAGByqGSM49AgEGBSuBBAAiA2IABJjpLz1AcqTtkyJygRMc3RCV8cWjTnHcFBbZDuWmBSp3ZHtfTjjTuxxEtX/1H7YyYl3J6YRbTzBPEVoA/VhYDKX1DyxNB0cTddqXl5dvMVztK517IDvYuVTZXpmkOlEKMaNCMEAwHQYDVR0OBBYEFLuw3qFYM4iapIqZ3r6966/ayySrMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMDA2gAMGUCMQCD6cHEFl4aXTQY2e3v9GwOAEZLuN+yRhHFD/3meoyhpmvOwgPUnPWTxnS4at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM6BgD56KyKA==";
 
@@ -82,6 +89,10 @@ function isPrismaUniqueViolation(error: unknown): boolean {
     "code" in error &&
     (error as { code?: string }).code === "P2002"
   );
+}
+
+function hashAdvisoryLockKey(value: string): number {
+  return createHash("sha256").update(value).digest().readInt32BE(0);
 }
 
 type YooKassaPaymentObject = {
@@ -197,14 +208,18 @@ function assertYookassaPaymentBelongsToLocalPayment(params: {
   }
 }
 
-function assertYookassaPaymentConfirmed(params: Parameters<typeof assertYookassaPaymentBelongsToLocalPayment>[0]) {
+type YookassaPaymentAssertionParams = Parameters<
+  typeof assertYookassaPaymentBelongsToLocalPayment
+>[0];
+
+function assertYookassaPaymentConfirmed(params: YookassaPaymentAssertionParams) {
   assertYookassaPaymentBelongsToLocalPayment(params);
   if (params.providerPayment.status !== "succeeded" || params.providerPayment.paid !== true) {
     throw new Error("YooKassa payment is not confirmed");
   }
 }
 
-function assertYookassaPaymentCanceled(params: Parameters<typeof assertYookassaPaymentBelongsToLocalPayment>[0]) {
+function assertYookassaPaymentCanceled(params: YookassaPaymentAssertionParams) {
   assertYookassaPaymentBelongsToLocalPayment(params);
   if (params.providerPayment.status !== "canceled") {
     throw new Error("YooKassa payment is not canceled");
@@ -221,16 +236,17 @@ function assertYookassaPaymentMethodActive(params: {
   if (method.id !== params.paymentMethodId) {
     throw new Error("YooKassa payment method id mismatch");
   }
-  if (method.metadata) {
-    if (method.metadata.kind !== "app_subscription_payment_method") {
-      throw new Error("YooKassa payment method metadata kind mismatch");
-    }
-    if (method.metadata.subscriptionId !== params.subscriptionId) {
-      throw new Error("YooKassa payment method metadata subscriptionId mismatch");
-    }
-    if (method.metadata.userId !== params.userId) {
-      throw new Error("YooKassa payment method metadata userId mismatch");
-    }
+  if (!method.metadata) {
+    throw new Error("YooKassa payment method metadata is missing");
+  }
+  if (method.metadata.kind !== "app_subscription_payment_method") {
+    throw new Error("YooKassa payment method metadata kind mismatch");
+  }
+  if (method.metadata.subscriptionId !== params.subscriptionId) {
+    throw new Error("YooKassa payment method metadata subscriptionId mismatch");
+  }
+  if (method.metadata.userId !== params.userId) {
+    throw new Error("YooKassa payment method metadata userId mismatch");
   }
   if (method.status !== "active" || method.saved !== true) {
     throw new Error("YooKassa payment method is not active and saved");
@@ -247,16 +263,17 @@ function getYookassaPaymentMethodInactiveReason(params: {
   if (method.id !== params.paymentMethodId) {
     return "YooKassa payment method id mismatch";
   }
-  if (method.metadata) {
-    if (method.metadata.kind !== "app_subscription_payment_method") {
-      return "YooKassa payment method metadata kind mismatch";
-    }
-    if (method.metadata.subscriptionId !== params.subscriptionId) {
-      return "YooKassa payment method metadata subscriptionId mismatch";
-    }
-    if (method.metadata.userId !== params.userId) {
-      return "YooKassa payment method metadata userId mismatch";
-    }
+  if (!method.metadata) {
+    return "YooKassa payment method metadata is missing";
+  }
+  if (method.metadata.kind !== "app_subscription_payment_method") {
+    return "YooKassa payment method metadata kind mismatch";
+  }
+  if (method.metadata.subscriptionId !== params.subscriptionId) {
+    return "YooKassa payment method metadata subscriptionId mismatch";
+  }
+  if (method.metadata.userId !== params.userId) {
+    return "YooKassa payment method metadata userId mismatch";
   }
   if (method.status !== "active" || method.saved !== true) {
     return "YooKassa payment method is not active and saved";
@@ -265,7 +282,7 @@ function getYookassaPaymentMethodInactiveReason(params: {
 }
 
 async function expireYookassaPendingSubscription(subscriptionId: string) {
-  await (prisma as any).appSubscription.update({
+  await prisma.appSubscription.update({
     where: { id: subscriptionId },
     data: {
       status: "EXPIRED",
@@ -312,23 +329,220 @@ async function activateYookassaPaymentMethodSubscription(params: {
     ? params.subscription.currentPeriodEnd
     : new Date(now.getTime() + YOOKASSA_TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
-  await (prisma as any).appSubscription.update({
-    where: { id: params.subscription.id },
+  await prisma.$transaction(async (tx) => {
+    await tx.appSubscription.update({
+      where: { id: params.subscription.id },
+      data: {
+        status: "ACTIVE",
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        pendingExpiresAt: null,
+        cancelAtPeriodEnd: false,
+        yookassaPaymentMethodId: params.paymentMethodId,
+        ...(params.providerPaymentMethod.card?.last4
+          ? { yookassaPaymentMethodLast4: params.providerPaymentMethod.card.last4 }
+          : {}),
+        ...(params.providerPaymentMethod.title
+          ? { yookassaPaymentMethodTitle: params.providerPaymentMethod.title }
+          : {}),
+        renewalReminderSentForPeriodEnd: null,
+      },
+    });
+
+    if (!hasCurrentAccess && periodStart && periodEnd) {
+      await recordYookassaTrialStarted({
+        userId: params.subscription.userId,
+        subscriptionId: params.subscription.id,
+        startedAt: periodStart,
+        endedAt: periodEnd,
+        tx,
+      });
+    }
+  });
+}
+
+async function startInitialYookassaAppSubscriptionPayment(params: {
+  userId: string;
+  origin: string;
+  shopId: string;
+  secretKey: string;
+  subscriptionId: string;
+  amountRub: number;
+  currency: string;
+  intervalDays: number;
+  now: Date;
+}): Promise<
+  | { success: true; localSubscriptionId: string; confirmationUrl: string }
+  | { success: false; error: string }
+> {
+  const periodStart = params.now;
+  const periodEnd = new Date(
+    params.now.getTime() + params.intervalDays * 24 * 60 * 60 * 1000,
+  );
+  const idempotenceKey = `appsub-initial:${params.subscriptionId}`;
+  const payment = await prisma.appSubscriptionPayment.create({
     data: {
-      status: "ACTIVE",
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      pendingExpiresAt: null,
-      cancelAtPeriodEnd: false,
-      yookassaPaymentMethodId: params.paymentMethodId,
-      ...(params.providerPaymentMethod.card?.last4
-        ? { yookassaPaymentMethodLast4: params.providerPaymentMethod.card.last4 }
-        : {}),
-      ...(params.providerPaymentMethod.title
-        ? { yookassaPaymentMethodTitle: params.providerPaymentMethod.title }
-        : {}),
-      renewalReminderSentForPeriodEnd: null,
+      subscriptionId: params.subscriptionId,
+      userId: params.userId,
+      provider: "YOOKASSA",
+      kind: "INITIAL",
+      status: "PENDING",
+      amount: params.amountRub,
+      currency: params.currency,
+      periodStart,
+      periodEnd,
+      idempotenceKey,
+      attemptCount: 1,
+      lastAttemptAt: params.now,
+      nextAttemptAt: params.now,
     },
+    select: { id: true },
+  });
+
+  const returnUrl = `${params.origin.replace(/\/$/, "")}/subscription?paid=1`;
+  const body = {
+    amount: { value: params.amountRub.toFixed(2), currency: params.currency },
+    capture: true,
+    save_payment_method: true,
+    confirmation: { type: "redirect" as const, return_url: returnUrl },
+    description:
+      `Подписка Gafus Premium ${params.amountRub.toFixed(2)} ` +
+      `${params.currency}/${params.intervalDays} дн.`,
+    metadata: {
+      kind: "app_subscription",
+      localPaymentId: payment.id,
+      userId: params.userId,
+      subscriptionId: params.subscriptionId,
+      initial: "true",
+    },
+  };
+
+  const auth = Buffer.from(`${params.shopId}:${params.secretKey}`).toString("base64");
+  let res: Response;
+  try {
+    res = await fetch(YOOKASSA_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+        "Idempotence-Key": idempotenceKey,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    logger.error("YooKassa initial payment request failed (app subscription)", error as Error);
+    await prisma.appSubscriptionPayment.update({
+      where: { id: payment.id },
+      data: {
+        status: "FAILED",
+        failureCode: "NETWORK",
+        failureReason: "YooKassa request failed",
+      },
+    }).catch(() => undefined);
+    await prisma.appSubscription.update({
+      where: { id: params.subscriptionId },
+      data: { status: "CANCELED" },
+    }).catch(() => undefined);
+    return { success: false, error: "Ошибка соединения с платёжной системой" };
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    logger.error(
+      "YooKassa rejected app subscription initial payment",
+      new Error(`${res.status}: ${text}`),
+    );
+    await prisma.appSubscriptionPayment.update({
+      where: { id: payment.id },
+      data: {
+        status: "FAILED",
+        failureCode: "YOOKASSA_REJECTED",
+        failureReason: `${res.status}: ${text}`.slice(0, 512),
+      },
+    }).catch(() => undefined);
+    await prisma.appSubscription.update({
+      where: { id: params.subscriptionId },
+      data: { status: "CANCELED" },
+    }).catch(() => undefined);
+    return { success: false, error: "Платёжная система отклонила запрос" };
+  }
+
+  const data = (await res.json()) as {
+    id?: string;
+    confirmation?: { confirmation_url?: string };
+  };
+  const yookassaPaymentId = data.id ?? null;
+  const confirmationUrl = data.confirmation?.confirmation_url ?? null;
+  if (!yookassaPaymentId || !confirmationUrl) {
+    logger.error(
+      "YooKassa initial payment response has no id/confirmation_url",
+      new Error(JSON.stringify(data)),
+    );
+    await prisma.appSubscriptionPayment.update({
+      where: { id: payment.id },
+      data: {
+        status: "FAILED",
+        failureCode: "BAD_RESPONSE",
+        failureReason: "Missing payment id or confirmation URL",
+      },
+    }).catch(() => undefined);
+    await prisma.appSubscription.update({
+      where: { id: params.subscriptionId },
+      data: { status: "CANCELED" },
+    }).catch(() => undefined);
+    return { success: false, error: "Неверный ответ платёжной системы" };
+  }
+
+  await prisma.appSubscriptionPayment.update({
+    where: { id: payment.id },
+    data: { yookassaPaymentId, confirmationUrl },
+  });
+
+  return { success: true, localSubscriptionId: params.subscriptionId, confirmationUrl };
+}
+
+async function findOrCreateYookassaSetupSubscription(params: {
+  userId: string;
+  now: Date;
+}) {
+  const lockKey = hashAdvisoryLockKey(`app-subscription:yookassa:start:${params.userId}`);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe(
+      `SELECT pg_advisory_xact_lock(${YOOKASSA_START_LOCK_NAMESPACE}, ${lockKey})`,
+    );
+
+    const existingSubscription = await tx.appSubscription.findFirst({
+      where: {
+        userId: params.userId,
+        provider: "YOOKASSA",
+        status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
+        OR: [
+          {
+            status: "PENDING",
+            pendingExpiresAt: { gt: params.now },
+          },
+          { isLifetime: true },
+          { currentPeriodEnd: { gt: params.now } },
+        ],
+      },
+      orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
+      select: { id: true, status: true, yookassaPaymentMethodId: true },
+    });
+
+    if (existingSubscription) {
+      return existingSubscription;
+    }
+
+    return tx.appSubscription.create({
+      data: {
+        userId: params.userId,
+        provider: "YOOKASSA",
+        status: "PENDING",
+        pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+      },
+      select: { id: true, status: true, yookassaPaymentMethodId: true },
+    });
   });
 }
 
@@ -341,7 +555,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
   | { success: true; localSubscriptionId: string; confirmationUrl: string }
   | { success: false; error: string }
 > {
-  const settings = await (prisma as any).appSubscriptionSettings.findUnique({
+  const settings = await prisma.appSubscriptionSettings.findUnique({
     where: { key: "default" },
     select: { yookassaWeeklyPriceRub: true, currency: true, intervalDays: true },
   });
@@ -352,44 +566,45 @@ export async function startYookassaAppSubscriptionPayment(params: {
   if (!Number.isFinite(amountRub) || amountRub <= 0) {
     return { success: false, error: "Некорректная цена подписки" };
   }
+  if (!Number.isFinite(intervalDays) || intervalDays <= 0) {
+    return { success: false, error: "Некорректный период подписки" };
+  }
 
   const now = new Date();
-  const existingSubscription = await (prisma as any).appSubscription.findFirst({
-    where: {
-      userId: params.userId,
-      provider: "YOOKASSA",
-      status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
-      OR: [
-        {
-          status: "PENDING",
-          pendingExpiresAt: { gt: now },
-        },
-        { isLifetime: true },
-        { currentPeriodEnd: { gt: now } },
-      ],
-    },
-    orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
-    select: { id: true, status: true, yookassaPaymentMethodId: true },
+  const yookassaTrial = await getYookassaTrialAvailability(params.userId);
+  const subscription = await findOrCreateYookassaSetupSubscription({
+    userId: params.userId,
+    now,
   });
 
-  if (existingSubscription?.status !== "PENDING" && existingSubscription?.yookassaPaymentMethodId) {
+  if (subscription.status !== "PENDING" && subscription.yookassaPaymentMethodId) {
     return { success: false, error: "Карта уже привязана к подписке" };
   }
 
-  const subscription = existingSubscription ?? await (prisma as any).appSubscription.create({
-    data: {
+  if (!yookassaTrial.available) {
+    return startInitialYookassaAppSubscriptionPayment({
       userId: params.userId,
-      provider: "YOOKASSA",
-      status: "PENDING",
-    },
-    select: { id: true },
-  });
+      origin: params.origin,
+      shopId: params.shopId,
+      secretKey: params.secretKey,
+      subscriptionId: subscription.id,
+      amountRub,
+      currency,
+      intervalDays,
+      now,
+    });
+  }
 
   const returnUrl = `${params.origin.replace(/\/$/, "")}/subscription?trial=1`;
   const body = {
     type: "bank_card",
     confirmation: { type: "redirect" as const, return_url: returnUrl },
     description: `Пробный период Gafus Premium 3 дня, далее ${amountRub.toFixed(2)} ${currency}/${intervalDays} дн.`,
+    metadata: {
+      kind: "app_subscription_payment_method",
+      userId: params.userId,
+      subscriptionId: subscription.id,
+    },
   };
 
   const auth = Buffer.from(`${params.shopId}:${params.secretKey}`).toString("base64");
@@ -406,7 +621,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
     });
   } catch (error) {
     logger.error("YooKassa payment method request failed (app subscription)", error as Error);
-    await (prisma as any).appSubscription.update({
+    await prisma.appSubscription.update({
       where: { id: subscription.id },
       data: { status: "CANCELED" },
     }).catch(() => undefined);
@@ -416,7 +631,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
   if (!res.ok) {
     const text = await res.text();
     logger.error("YooKassa rejected app subscription payment method request", new Error(`${res.status}: ${text}`));
-    await (prisma as any).appSubscription.update({
+    await prisma.appSubscription.update({
       where: { id: subscription.id },
       data: { status: "CANCELED" },
     }).catch(() => undefined);
@@ -428,14 +643,14 @@ export async function startYookassaAppSubscriptionPayment(params: {
   const confirmationUrl = data.confirmation?.confirmation_url ?? null;
   if (!paymentMethodId || !confirmationUrl) {
     logger.error("YooKassa response has no id/confirmation_url", new Error(JSON.stringify(data)));
-    await (prisma as any).appSubscription.update({
+    await prisma.appSubscription.update({
       where: { id: subscription.id },
       data: { status: "CANCELED" },
     }).catch(() => undefined);
     return { success: false, error: "Неверный ответ платёжной системы" };
   }
 
-  await (prisma as any).appSubscription.update({
+  await prisma.appSubscription.update({
     where: { id: subscription.id },
     data: {
       yookassaPaymentMethodId: paymentMethodId,
@@ -453,7 +668,7 @@ export async function reconcilePendingYookassaAppSubscription(params: {
   now?: Date;
 }): Promise<{ activated: true; subscriptionId: string } | { activated: false }> {
   const now = params.now ?? new Date();
-  const subscription = await (prisma as any).appSubscription.findFirst({
+  const subscription = await prisma.appSubscription.findFirst({
     where: {
       userId: params.userId,
       provider: "YOOKASSA",
@@ -546,7 +761,7 @@ export async function reconcileStaleYookassaPendingAppSubscriptions(params?: {
 }): Promise<{ checked: number; activated: number; expired: number; deferred: number }> {
   const now = params?.now ?? new Date();
   const batchSize = params?.batchSize ?? 100;
-  const rows = await (prisma as any).appSubscription.findMany({
+  const rows = await prisma.appSubscription.findMany({
     where: {
       provider: "YOOKASSA",
       status: "PENDING",
@@ -634,7 +849,7 @@ export async function reconcileStaleYookassaPendingAppSubscriptions(params?: {
 }
 
 export async function cancelYookassaAppSubscription(userId: string) {
-  await (prisma as any).appSubscription.updateMany({
+  await prisma.appSubscription.updateMany({
     where: {
       userId,
       provider: "YOOKASSA",
@@ -676,15 +891,18 @@ export async function verifyAppleAppSubscription(_params: {
     return { success: false as const, code: "APPLE_VERIFY_FAILED", error: "Некорректный payload Apple" };
   }
 
-  const settings = await (prisma as any).appSubscriptionSettings.findUnique({
+  const settings = await prisma.appSubscriptionSettings.findUnique({
     where: { key: "default" },
     select: { appleProductId: true },
   });
-  if (settings?.appleProductId && settings.appleProductId !== productId) {
+  if (!settings?.appleProductId) {
+    return { success: false as const, code: "CONFIG_APPLE_IAP", error: "Apple product id подписки не задан" };
+  }
+  if (settings.appleProductId !== productId) {
     return { success: false as const, code: "APPLE_PRODUCT_UNKNOWN", error: "Продукт подписки не совпадает" };
   }
 
-  const user = await (prisma as any).user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: _params.userId },
     select: { appleAppAccountToken: true },
   });
@@ -692,11 +910,14 @@ export async function verifyAppleAppSubscription(_params: {
     typeof (payload as { appAccountToken?: unknown }).appAccountToken === "string"
       ? ((payload as { appAccountToken?: string }).appAccountToken ?? "").trim()
       : "";
-  if (
-    user?.appleAppAccountToken &&
-    payloadAppAccountToken &&
-    user.appleAppAccountToken !== payloadAppAccountToken
-  ) {
+  if (!user?.appleAppAccountToken || !payloadAppAccountToken) {
+    return {
+      success: false as const,
+      code: "APPLE_APP_ACCOUNT_TOKEN_REQUIRED",
+      error: "Транзакция Apple не привязана к аккаунту",
+    };
+  }
+  if (user.appleAppAccountToken !== payloadAppAccountToken) {
     return {
       success: false as const,
       code: "APPLE_APP_ACCOUNT_TOKEN_MISMATCH",
@@ -715,9 +936,9 @@ export async function verifyAppleAppSubscription(_params: {
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const isRevoked = Number.isFinite(revocationDateMs) && revocationDateMs > 0;
 
-  const existingPayment = await (prisma as any).appSubscriptionPayment.findUnique({
+  const existingPayment = await prisma.appSubscriptionPayment.findUnique({
     where: { appleTransactionId: transactionId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, status: true },
   });
   if (existingPayment) {
     if (existingPayment.userId !== _params.userId) {
@@ -727,10 +948,17 @@ export async function verifyAppleAppSubscription(_params: {
         error: "Транзакция уже привязана к другому аккаунту",
       };
     }
-    return { success: true as const };
+    if (existingPayment.status === "SUCCEEDED") {
+      return { success: true as const };
+    }
+    return {
+      success: false as const,
+      code: "APPLE_SUBSCRIPTION_INACTIVE",
+      error: "Подписка Apple не активна",
+    };
   }
 
-  const existingSub = await (prisma as any).appSubscription.findFirst({
+  const existingSub = await prisma.appSubscription.findFirst({
     where: {
       OR: [
         { appleOriginalTransactionId: originalTransactionId },
@@ -747,7 +975,7 @@ export async function verifyAppleAppSubscription(_params: {
   const nextStatus =
     isRevoked ? "REVOKED" : periodEnd > new Date() ? "ACTIVE" : "EXPIRED";
 
-  await (prisma as any).$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     const subscriptionId = existingSub
       ? existingSub.id
       : (
@@ -803,6 +1031,14 @@ export async function verifyAppleAppSubscription(_params: {
     });
   });
 
+  if (nextStatus !== "ACTIVE") {
+    return {
+      success: false as const,
+      code: "APPLE_SUBSCRIPTION_INACTIVE",
+      error: "Подписка Apple не активна",
+    };
+  }
+
   return { success: true as const };
 }
 
@@ -822,7 +1058,7 @@ export async function restoreAppleAppSubscription(_params: {
     return { success: false as const, code: "APPLE_RESTORE_INPUT_REQUIRED", error: "Требуется originalTransactionId или signedTransactionInfo" };
   }
 
-  const subscription = await (prisma as any).appSubscription.findFirst({
+  const subscription = await prisma.appSubscription.findFirst({
     where: {
       userId: _params.userId,
       provider: "APPLE",
@@ -840,7 +1076,7 @@ export async function restoreAppleAppSubscription(_params: {
     (subscription.currentPeriodEnd && subscription.currentPeriodEnd > new Date())
       ? "ACTIVE"
       : "EXPIRED";
-  await (prisma as any).appSubscription.update({
+  await prisma.appSubscription.update({
     where: { id: subscription.id },
     data: { status },
   });
@@ -866,7 +1102,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
   let metadata = params.metadata;
 
   try {
-    const event = await (prisma as any).appSubscriptionEvent.create({
+    const event = await prisma.appSubscriptionEvent.create({
       data: {
         source: "YOOKASSA",
         eventType: params.event,
@@ -890,7 +1126,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       throw error;
     }
 
-    const existingEvent = await (prisma as any).appSubscriptionEvent.findFirst({
+    const existingEvent = await prisma.appSubscriptionEvent.findFirst({
       where: { providerEventKey },
       select: { id: true, metadata: true, processingStatus: true },
     });
@@ -918,7 +1154,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       return { userId: null };
     }
 
-    const subscription = await (prisma as any).appSubscription.findFirst({
+    const subscription = await prisma.appSubscription.findFirst({
       where: subscriptionId
         ? { id: subscriptionId }
         : { yookassaPaymentMethodId: paymentMethodId },
@@ -960,14 +1196,14 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       });
 
       if (eventId) {
-        await (prisma as any).appSubscriptionEvent.update({
+        await prisma.appSubscriptionEvent.update({
           where: { id: eventId },
           data: { processingStatus: "PROCESSED", processedAt: new Date(), userId: subscription.userId, subscriptionId: subscription.id },
         }).catch(() => undefined);
       }
     } catch (error) {
       if (eventId) {
-        await (prisma as any).appSubscriptionEvent.update({
+        await prisma.appSubscriptionEvent.update({
           where: { id: eventId },
           data: {
             processingStatus: "FAILED",
@@ -991,7 +1227,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     return { userId: null };
   }
 
-  const payment = await (prisma as any).appSubscriptionPayment.findUnique({
+  const payment = await prisma.appSubscriptionPayment.findUnique({
     where: { id: localPaymentId },
     select: {
       id: true,
@@ -1013,7 +1249,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
   }
   if (payment.status === "SUCCEEDED") {
     if (eventId) {
-      await (prisma as any).appSubscriptionEvent.update({
+      await prisma.appSubscriptionEvent.update({
         where: { id: eventId },
         data: { processingStatus: "PROCESSED", processedAt: new Date(), userId: payment.userId },
       }).catch(() => undefined);
@@ -1038,7 +1274,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         providerPayment.payment_method?.card?.last4 ?? params.paymentMethodLast4;
       const providerPaymentMethodTitle =
         providerPayment.payment_method?.title ?? params.paymentMethodTitle;
-      const settings = await (prisma as any).appSubscriptionSettings.findUnique({
+      const settings = await prisma.appSubscriptionSettings.findUnique({
         where: { key: "default" },
         select: { intervalDays: true },
       });
@@ -1048,7 +1284,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       const periodStart = currentPeriodEnd && currentPeriodEnd > now ? currentPeriodEnd : now;
       const periodEnd = new Date(periodStart.getTime() + intervalDays * 24 * 60 * 60 * 1000);
 
-      await (prisma as any).$transaction(async (tx: any) => {
+      await prisma.$transaction(async (tx) => {
         await tx.appSubscriptionPayment.update({
           where: { id: payment.id },
           data: {
@@ -1069,10 +1305,17 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
               status: "ACTIVE",
               currentPeriodStart: periodStart,
               currentPeriodEnd: periodEnd,
+              pendingExpiresAt: null,
               cancelAtPeriodEnd: false,
-              ...(providerPaymentMethodId ? { yookassaPaymentMethodId: providerPaymentMethodId } : {}),
-              ...(providerPaymentMethodLast4 ? { yookassaPaymentMethodLast4: providerPaymentMethodLast4 } : {}),
-              ...(providerPaymentMethodTitle ? { yookassaPaymentMethodTitle: providerPaymentMethodTitle } : {}),
+              ...(providerPaymentMethodId
+                ? { yookassaPaymentMethodId: providerPaymentMethodId }
+                : {}),
+              ...(providerPaymentMethodLast4
+                ? { yookassaPaymentMethodLast4: providerPaymentMethodLast4 }
+                : {}),
+              ...(providerPaymentMethodTitle
+                ? { yookassaPaymentMethodTitle: providerPaymentMethodTitle }
+                : {}),
               renewalReminderSentForPeriodEnd: null,
             },
           });
@@ -1084,9 +1327,16 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
               status: "ACTIVE",
               currentPeriodStart: periodStart,
               currentPeriodEnd: periodEnd,
-              ...(providerPaymentMethodId ? { yookassaPaymentMethodId: providerPaymentMethodId } : {}),
-              ...(providerPaymentMethodLast4 ? { yookassaPaymentMethodLast4: providerPaymentMethodLast4 } : {}),
-              ...(providerPaymentMethodTitle ? { yookassaPaymentMethodTitle: providerPaymentMethodTitle } : {}),
+              pendingExpiresAt: null,
+              ...(providerPaymentMethodId
+                ? { yookassaPaymentMethodId: providerPaymentMethodId }
+                : {}),
+              ...(providerPaymentMethodLast4
+                ? { yookassaPaymentMethodLast4: providerPaymentMethodLast4 }
+                : {}),
+              ...(providerPaymentMethodTitle
+                ? { yookassaPaymentMethodTitle: providerPaymentMethodTitle }
+                : {}),
             },
             select: { id: true },
           });
@@ -1107,7 +1357,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         localPayment: payment,
         yookassaPaymentId: params.yookassaPaymentId,
       });
-      await (prisma as any).appSubscriptionPayment.update({
+      await prisma.appSubscriptionPayment.update({
         where: { id: payment.id },
         data: { status: "CANCELED", yookassaPaymentId: params.yookassaPaymentId },
       });
@@ -1119,14 +1369,14 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     }
 
     if (eventId) {
-      await (prisma as any).appSubscriptionEvent.update({
+      await prisma.appSubscriptionEvent.update({
         where: { id: eventId },
         data: { processingStatus: "PROCESSED", processedAt: new Date(), userId: payment.userId },
       }).catch(() => undefined);
     }
   } catch (error) {
     if (eventId) {
-      await (prisma as any).appSubscriptionEvent.update({
+      await prisma.appSubscriptionEvent.update({
         where: { id: eventId },
         data: {
           processingStatus: "FAILED",
@@ -1158,7 +1408,7 @@ export async function handleAppleAppSubscriptionNotification(params: {
 
   if (notificationUUID) {
     try {
-      await (prisma as any).appSubscriptionEvent.create({
+      await prisma.appSubscriptionEvent.create({
         data: {
           source: "APPLE",
           eventType: subtype ? `${eventType}:${subtype}` : eventType,
@@ -1170,7 +1420,7 @@ export async function handleAppleAppSubscriptionNotification(params: {
           },
         },
       });
-    } catch (_error) {
+    } catch {
       logger.warn("Duplicate app-subscription Apple notification", {
         metric: "webhook_duplicate_total",
         source: "APPLE",
@@ -1186,7 +1436,7 @@ export async function handleAppleAppSubscriptionNotification(params: {
     const tx = await verifierOrErr.verifyAndDecodeTransaction(signedTransactionInfo);
     const originalTransactionId = tx.originalTransactionId?.trim();
     const candidate = originalTransactionId
-      ? await (prisma as any).appSubscription.findFirst({
+      ? await prisma.appSubscription.findFirst({
           where: {
             provider: "APPLE",
             appleOriginalTransactionId: originalTransactionId,

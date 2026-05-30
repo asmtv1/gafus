@@ -4,7 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
 import { fetchAppSubscriptionOffer } from "@/shared/lib/app-subscription/client";
+import {
+  getYookassaLegalText,
+  getYookassaPriceNote,
+  getYookassaPrimaryCta,
+  getYookassaReturnSuccessTitle,
+} from "@/shared/lib/app-subscription/presentation";
 import styles from "./app-subscription-paywall.module.css";
+
+type AppSubscriptionOffer = {
+  intervalDays: number;
+  yookassaPriceRub: number;
+  yookassaTrialAvailable: boolean;
+  yookassaTrialDays: number;
+};
 
 export function AppSubscriptionPaywall() {
   const router = useRouter();
@@ -13,6 +26,7 @@ export function AppSubscriptionPaywall() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [priceText, setPriceText] = useState("200 ₽/неделю");
+  const [offer, setOffer] = useState<AppSubscriptionOffer | null>(null);
   const [returnState, setReturnState] = useState<"idle" | "checking" | "success" | "pending">("idle");
   const isPaidReturn = searchParams.get("paid") === "1" || searchParams.get("trial") === "1";
 
@@ -26,6 +40,9 @@ export function AppSubscriptionPaywall() {
     const loadOffer = async () => {
       try {
         const response = await fetchAppSubscriptionOffer();
+        if (response?.data) {
+          setOffer(response.data as AppSubscriptionOffer);
+        }
         const price = Number(response?.data?.yookassaPriceRub);
         const interval = Number(response?.data?.intervalDays);
         if (Number.isFinite(price) && Number.isFinite(interval) && price > 0 && interval > 0) {
@@ -123,9 +140,9 @@ export function AppSubscriptionPaywall() {
         {returnState === "success" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Пробный период подключён</h1>
+            <h1 className={styles.returnTitle}>{getYookassaReturnSuccessTitle(offer)}</h1>
             <p className={styles.returnText}>
-              Карта привязана. Сейчас откроем список курсов.
+              Premium активен. Сейчас откроем список курсов.
             </p>
           </div>
         ) : returnState === "checking" ? (
@@ -157,7 +174,7 @@ export function AppSubscriptionPaywall() {
             <div className={styles.priceCard}>
               <p className={styles.priceLabel}>Текущий тариф</p>
               <p className={styles.price}>{priceText}</p>
-              <p className={styles.priceNote}>3 дня бесплатно, затем автопродление</p>
+              <p className={styles.priceNote}>{getYookassaPriceNote(offer)}</p>
             </div>
           </div>
 
@@ -186,18 +203,18 @@ export function AppSubscriptionPaywall() {
             onClick={onStart}
             disabled={loading || csrfLoading}
           >
-            {loading || csrfLoading ? "Переход в ЮKassa..." : "Попробовать 3 дня бесплатно"}
+            {loading || csrfLoading ? "Переход в ЮKassa..." : getYookassaPrimaryCta(offer)}
           </button>
           <p className={styles.legalText}>
             Нажимая кнопку, вы принимаете{" "}
             <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
               Оферту
             </a>
-            : карта привязывается сейчас без списания, первые 3 дня бесплатны, затем подписка
-            продлевается автоматически по тарифу {priceText}. Автопродление можно отключить в
-            профиле до первого списания.
+            : {getYookassaLegalText(offer, priceText)}
           </p>
-          <p className={styles.assurance}>Безопасная привязка карты через ЮKassa • Чек придёт после первого списания</p>
+          <p className={styles.assurance}>
+            Безопасная привязка карты через ЮKassa • Чек придёт после первого списания
+          </p>
 
           {error ? (
             <p className={styles.errorText} role="alert">

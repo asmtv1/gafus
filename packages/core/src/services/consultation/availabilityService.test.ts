@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as GafusPrisma from "@gafus/prisma";
 
 import { ConsultationNotFoundError } from "./errors";
 
@@ -17,7 +18,7 @@ vi.mock("@gafus/logger", () => ({
 }));
 
 vi.mock("@gafus/prisma", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@gafus/prisma")>();
+  const mod = await importOriginal<typeof GafusPrisma>();
   return {
     ...mod,
     prisma: {

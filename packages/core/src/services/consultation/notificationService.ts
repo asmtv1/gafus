@@ -1,4 +1,5 @@
-import { ConsultationEmailStatus, ConsultationEmailType, prisma } from "@gafus/prisma";
+import type { ConsultationEmailType} from "@gafus/prisma";
+import { ConsultationEmailStatus, prisma } from "@gafus/prisma";
 import { Prisma } from "@gafus/prisma";
 import {
   CONSULTATION_MAIL_JOB_ID,

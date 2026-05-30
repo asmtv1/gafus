@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -24,6 +24,30 @@ const restoreAppleSchema = z.object({
   originalTransactionId: z.string().min(1).optional(),
   signedTransactionInfo: z.string().min(1).optional(),
 });
+
+type AppleAppSubscriptionResult =
+  | { success: true }
+  | { success: false; code: string; error: string };
+
+function appleResultStatus(code: string): 400 | 409 | 500 {
+  if (code === "APPLE_TRANSACTION_CONFLICT") return 409;
+  if (code === "CONFIG_APPLE_IAP") return 500;
+  return 400;
+}
+
+function jsonAppleResult(c: Context, data: AppleAppSubscriptionResult) {
+  if (data.success) {
+    return c.json({ success: true, data });
+  }
+  return c.json(
+    {
+      success: false,
+      error: data.error,
+      code: data.code,
+    },
+    appleResultStatus(data.code),
+  );
+}
 
 appSubscriptionRoutes.get("/status", async (c) => {
   try {
@@ -117,7 +141,7 @@ appSubscriptionRoutes.post("/apple/verify", zValidator("json", verifyAppleSchema
     const user = c.get("user");
     const body = c.req.valid("json");
     const data = await verifyAppleAppSubscription({ userId: user.id, ...body });
-    return c.json({ success: true, data });
+    return jsonAppleResult(c, data);
   } catch (error) {
     logger.error("POST /apple/verify error", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
@@ -132,7 +156,7 @@ appSubscriptionRoutes.post(
       const user = c.get("user");
       const body = c.req.valid("json");
       const data = await restoreAppleAppSubscription({ userId: user.id, ...body });
-      return c.json({ success: true, data });
+      return jsonAppleResult(c, data);
     } catch (error) {
       logger.error("POST /apple/restore error", error as Error);
       return c.json({ success: false, error: "Внутренняя ошибка" }, 500);

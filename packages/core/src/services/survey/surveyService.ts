@@ -117,7 +117,10 @@ export async function getSurveyResponse(
 async function validateSurveyStep(
   userId: string,
   input: SubmitSurveyResponseInput,
-): Promise<{ ok: true; template: SurveyTemplate; userTrainingId: string } | { ok: false; error: string; code: string }> {
+): Promise<
+  | { ok: true; template: SurveyTemplate; userTrainingId: string }
+  | { ok: false; error: string; code: string }
+> {
   const template = findSurveyTemplate(input.surveySlug);
   if (!template) {
     return { ok: false, error: "Анкета не найдена", code: "SURVEY_NOT_FOUND" };
@@ -253,7 +256,9 @@ export async function getSurveyComparison(
 
   const initialAnswers = normalizeAnswers(initial.answers);
   const finalAnswers = normalizeAnswers(final.answers);
-  const questionIds = Array.from(new Set([...Object.keys(initialAnswers), ...Object.keys(finalAnswers)]));
+  const questionIds = Array.from(
+    new Set([...Object.keys(initialAnswers), ...Object.keys(finalAnswers)]),
+  );
 
   return {
     familySlug,

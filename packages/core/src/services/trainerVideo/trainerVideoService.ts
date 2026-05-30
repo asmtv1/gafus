@@ -411,7 +411,9 @@ export interface VideoMetadata {
  * Получает метаданные видео по videoUrl.
  * Для CDN — извлекает videoId и ищет по id; для внешних URL — возвращает isExternal: true.
  */
-export async function getVideoMetadataByUrl(videoUrl: string | null | undefined): Promise<VideoMetadata> {
+export async function getVideoMetadataByUrl(
+  videoUrl: string | null | undefined,
+): Promise<VideoMetadata> {
   if (!videoUrl) {
     return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
   }

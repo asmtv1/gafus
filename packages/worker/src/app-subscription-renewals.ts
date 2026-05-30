@@ -10,6 +10,8 @@ import {
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
+const MAX_RENEWAL_ATTEMPTS = 5;
+const RETRY_BACKOFF_MINUTES = [10, 30, 120, 360, 1440] as const;
 
 function buildIdempotenceKey(userId: string, subscriptionId: string, periodEnd: Date): string {
   return createHash("sha256")
@@ -24,6 +26,12 @@ function isPrismaUniqueViolation(error: unknown): boolean {
     "code" in error &&
     (error as { code?: string }).code === "P2002"
   );
+}
+
+function getNextAttemptAt(now: Date, attemptCount: number): Date {
+  const delayMinutes =
+    RETRY_BACKOFF_MINUTES[Math.min(Math.max(attemptCount - 1, 0), RETRY_BACKOFF_MINUTES.length - 1)];
+  return new Date(now.getTime() + delayMinutes * 60 * 1000);
 }
 
 export async function processDueYookassaAppSubscriptionRenewals(params?: { batchSize?: number }) {
@@ -113,9 +121,10 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         const paymentKind = Array.isArray(row.payments) && row.payments.length === 0 ? "INITIAL" : "RENEWAL";
         const existingPayment = await (prisma as any).appSubscriptionPayment.findFirst({
           where: { idempotenceKey },
-          select: { id: true, status: true, attemptCount: true },
+          select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
         });
         let payment = existingPayment;
+        let attemptCountForThisRun = payment?.attemptCount ?? 1;
         if (!payment) {
           try {
             payment = await (prisma as any).appSubscriptionPayment.create({
@@ -134,21 +143,36 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 lastAttemptAt: now,
                 nextAttemptAt: now,
               },
-              select: { id: true, status: true, attemptCount: true },
+              select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
             });
+            attemptCountForThisRun = payment?.attemptCount ?? 1;
           } catch (error) {
             if (!isPrismaUniqueViolation(error)) {
               throw error;
             }
             payment = await (prisma as any).appSubscriptionPayment.findFirst({
               where: { idempotenceKey },
-              select: { id: true, status: true, attemptCount: true },
+              select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
             });
+            attemptCountForThisRun = payment?.attemptCount ?? 1;
           }
         } else if (payment.status === "SUCCEEDED") {
           processed += 1;
           continue;
         } else {
+          if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
+            await (prisma as any).appSubscription.update({
+              where: { id: row.id },
+              data: { status: "PAST_DUE" },
+            });
+            skipped += 1;
+            continue;
+          }
+          if (payment.nextAttemptAt instanceof Date && payment.nextAttemptAt > now) {
+            skipped += 1;
+            continue;
+          }
+          attemptCountForThisRun = payment.attemptCount + 1;
           await (prisma as any).appSubscriptionPayment.update({
             where: { id: payment.id },
             data: {
@@ -167,27 +191,48 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         }
 
         const auth = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
-        const res = await fetch(YOOKASSA_API, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Basic ${auth}`,
-            "Idempotence-Key": idempotenceKey,
-          },
-          body: JSON.stringify({
-            amount: { value: amountRub.toFixed(2), currency },
-            capture: true,
-            payment_method_id: row.yookassaPaymentMethodId,
-            description: `Продление подписки Gafus Premium (${intervalDays} дн.)`,
-            metadata: {
-              kind: "app_subscription",
-              localPaymentId: payment.id,
-              userId: row.userId,
-              subscriptionId: row.id,
-              renewal: paymentKind === "RENEWAL" ? "true" : "false",
+        let res: Awaited<ReturnType<typeof fetch>>;
+        try {
+          res = await fetch(YOOKASSA_API, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Basic ${auth}`,
+              "Idempotence-Key": idempotenceKey,
             },
-          }),
-        });
+            body: JSON.stringify({
+              amount: { value: amountRub.toFixed(2), currency },
+              capture: true,
+              payment_method_id: row.yookassaPaymentMethodId,
+              description: `Продление подписки Gafus Premium (${intervalDays} дн.)`,
+              metadata: {
+                kind: "app_subscription",
+                localPaymentId: payment.id,
+                userId: row.userId,
+                subscriptionId: row.id,
+                renewal: paymentKind === "RENEWAL" ? "true" : "false",
+              },
+            }),
+          });
+        } catch (error) {
+          const failureReason = error instanceof Error ? error.message : "YooKassa request failed";
+          await (prisma as any).appSubscriptionPayment.update({
+            where: { id: payment.id },
+            data: {
+              status: "FAILED",
+              failureCode: "NETWORK",
+              failureReason: failureReason.slice(0, 512),
+              nextAttemptAt: getNextAttemptAt(now, attemptCountForThisRun),
+            },
+          });
+          await (prisma as any).appSubscription.update({
+            where: { id: row.id },
+            data: { status: "PAST_DUE" },
+          });
+          incrementRenewalFailedTotal(1);
+          skipped += 1;
+          continue;
+        }
 
         if (!res.ok) {
           const text = await res.text();
@@ -197,6 +242,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               status: "FAILED",
               failureCode: "YOOKASSA_REJECTED",
               failureReason: `${res.status}: ${text}`.slice(0, 512),
+              nextAttemptAt: getNextAttemptAt(now, attemptCountForThisRun),
             },
           });
           await (prisma as any).appSubscription.update({

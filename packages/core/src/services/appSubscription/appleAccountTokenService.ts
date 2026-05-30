@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
 
 export async function ensureAppleAppAccountToken(userId: string): Promise<string> {
-  const user = await (prisma as any).user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { appleAppAccountToken: true },
   });
@@ -13,7 +13,7 @@ export async function ensureAppleAppAccountToken(userId: string): Promise<string
   }
 
   const token = randomUUID();
-  const updated = await (prisma as any).user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { appleAppAccountToken: token },
     select: { appleAppAccountToken: true },

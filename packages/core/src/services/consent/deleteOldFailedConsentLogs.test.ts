@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as GafusPrisma from "@gafus/prisma";
 
 import { deleteOldFailedConsentLogs } from "./consentService";
 
 const mockDeleteMany = vi.fn();
 
 vi.mock("@gafus/prisma", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@gafus/prisma")>();
+  const actual = await importOriginal<typeof GafusPrisma>();
   return {
     ...actual,
     prisma: {

@@ -181,7 +181,10 @@ export async function addSlotException(
   await rebuildSlotsForCynologist(cynId, from, to);
 }
 
-export async function removeSlotException(trainerUserId: string, exceptionId: string): Promise<void> {
+export async function removeSlotException(
+  trainerUserId: string,
+  exceptionId: string,
+): Promise<void> {
   const cynId = await ensureConsultationCynologistRow(trainerUserId);
   const row = await prisma.consultationSlotException.findFirst({
     where: { id: exceptionId, cynologistId: cynId },

@@ -9,7 +9,8 @@ import {
   getRelativePathFromCDNUrl,
   uploadBufferToCDN,
 } from "@gafus/cdn-upload";
-import { Prisma, prisma, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import type { Prisma, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { calculateDayStatusFromStatuses, type ActionResult } from "@gafus/types";
 

@@ -4,11 +4,11 @@ import { cynologistDisplayInitials, plainConsultationAboutHtml } from "./consult
 
 describe("plainConsultationAboutHtml", () => {
   it("удаляет теги и управляющие символы", () => {
-    expect(plainConsultationAboutHtml('<p>Текст</p>\u0000')).toBe("Текст");
+    expect(plainConsultationAboutHtml("<p>Текст</p>\u0000")).toBe("Текст");
   });
 
   it("ограничивает длину", () => {
-    const long = `a`.repeat(25_000);
+    const long = "a".repeat(25_000);
     expect(plainConsultationAboutHtml(long).length).toBeLessThanOrEqual(20_000);
   });
 });

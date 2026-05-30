@@ -1,4 +1,6 @@
-export {
+import * as trainingService from "./trainingService";
+
+export const {
   updateStepAndDay,
   validateTheoryStepForCompletion,
   getTrainingDays,
@@ -8,5 +10,5 @@ export {
   getStepInfoByIndex,
   validateStepTypeAndGetInfo,
   checkDayAccess,
-} from "./trainingService";
+} = trainingService;
 export type { StepOperation } from "./trainingService";

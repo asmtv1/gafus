@@ -500,7 +500,12 @@ export async function confirmPaymentFromWebhook(
   try {
     await prisma.$transaction(async (tx) => {
       await tx.articleAccess.upsert({
-        where: { articleId_userId: { articleId: articlePayment.articleId, userId: articlePayment.userId } },
+        where: {
+          articleId_userId: {
+            articleId: articlePayment.articleId,
+            userId: articlePayment.userId,
+          },
+        },
         create: { articleId: articlePayment.articleId, userId: articlePayment.userId },
         update: {},
       });
@@ -588,7 +593,12 @@ export async function refundPaymentFromWebhook(yookassaPaymentId: string): Promi
   await prisma.$transaction(async (tx) => {
     await tx.articleAccess
       .delete({
-        where: { articleId_userId: { articleId: articlePayment.articleId, userId: articlePayment.userId } },
+        where: {
+          articleId_userId: {
+            articleId: articlePayment.articleId,
+            userId: articlePayment.userId,
+          },
+        },
       })
       .catch(() => undefined);
     await tx.articlePayment.update({
