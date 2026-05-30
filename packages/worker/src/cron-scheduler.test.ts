@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSchedule = vi.fn();
+const mockReconcileStaleYookassaPendingAppSubscriptions = vi.fn().mockResolvedValue({
+  checked: 0,
+  activated: 0,
+  expired: 0,
+  deferred: 0,
+});
+const mockProcessDueYookassaAppSubscriptionRenewals = vi.fn().mockResolvedValue({
+  processed: 0,
+  skipped: 0,
+  lockAcquired: true,
+});
 
 vi.mock("node-cron", () => ({
   default: {
@@ -22,16 +33,16 @@ vi.mock("@gafus/reengagement", () => ({
   recordDailyMetrics: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@gafus/core/services/appSubscription", () => ({
+  reconcileStaleYookassaPendingAppSubscriptions: mockReconcileStaleYookassaPendingAppSubscriptions,
+}));
+
 vi.mock("./training-reminders-sender", () => ({
   sendTrainingReminders: vi.fn().mockResolvedValue({ sent: 0, skipped: 0, errors: 0 }),
 }));
 
 vi.mock("./app-subscription-renewals", () => ({
-  processDueYookassaAppSubscriptionRenewals: vi.fn().mockResolvedValue({
-    processed: 0,
-    skipped: 0,
-    lockAcquired: true,
-  }),
+  processDueYookassaAppSubscriptionRenewals: mockProcessDueYookassaAppSubscriptionRenewals,
 }));
 
 vi.mock("./app-subscription-renewal-reminders", () => ({
@@ -62,6 +73,17 @@ describe("cron-scheduler", () => {
       startCronJobs();
 
       expect(mockSchedule).toHaveBeenCalledTimes(5);
+    });
+
+    it("запускает reconciliation pending app subscription в cron подписок", async () => {
+      const { startCronJobs } = await import("./cron-scheduler");
+
+      startCronJobs();
+      const subscriptionCron = mockSchedule.mock.calls.find((call) => call[0] === "*/15 * * * *");
+      await subscriptionCron?.[1]();
+
+      expect(mockReconcileStaleYookassaPendingAppSubscriptions).toHaveBeenCalledWith({ batchSize: 100 });
+      expect(mockProcessDueYookassaAppSubscriptionRenewals).toHaveBeenCalledWith({ batchSize: 100 });
     });
   });
 });

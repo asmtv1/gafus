@@ -14,6 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@gafus/core/services/consent": ["../../packages/core/src/services/consent"],
+      "@gafus/core/services/appSubscription": ["../../packages/core/src/services/appSubscription/index.ts"],
       "@gafus/core/services/consultation": ["../../packages/core/src/services/consultation/index.ts"],
       "@gafus/core/services/notifications": ["../../packages/core/src/services/notifications"],
       "@gafus/prisma": ["../../packages/prisma/src/index.ts"],

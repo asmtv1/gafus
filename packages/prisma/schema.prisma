@@ -665,6 +665,7 @@ model AppSubscription {
 
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
+  pendingExpiresAt   DateTime?
   isLifetime         Boolean @default(false)
   cancelAtPeriodEnd  Boolean @default(false)
   canceledAt         DateTime?
@@ -688,6 +689,7 @@ model AppSubscription {
 
   @@index([userId, status, currentPeriodEnd])
   @@index([provider, status, currentPeriodEnd])
+  @@index([provider, status, pendingExpiresAt])
   @@index([provider, status, cancelAtPeriodEnd, currentPeriodEnd])
 }
 

@@ -7,6 +7,7 @@ const mockPaymentFindUnique = vi.fn();
 const mockPaymentUpdate = vi.fn();
 const mockPaymentCreate = vi.fn();
 const mockSubscriptionFindFirst = vi.fn();
+const mockSubscriptionFindMany = vi.fn();
 const mockSubscriptionCreate = vi.fn();
 const mockSubscriptionUpdate = vi.fn();
 const mockSettingsFindUnique = vi.fn();
@@ -29,6 +30,7 @@ vi.mock("@gafus/prisma", () => ({
       create: (...args: unknown[]) => mockSubscriptionCreate(...args),
       update: (...args: unknown[]) => mockSubscriptionUpdate(...args),
       findFirst: (...args: unknown[]) => mockSubscriptionFindFirst(...args),
+      findMany: (...args: unknown[]) => mockSubscriptionFindMany(...args),
     },
     appSubscriptionSettings: {
       findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
@@ -74,6 +76,7 @@ describe("app subscription payment service", () => {
     mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
     mockPaymentUpdate.mockResolvedValue({});
     mockSubscriptionFindFirst.mockResolvedValue(null);
+    mockSubscriptionFindMany.mockResolvedValue([]);
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
     mockSubscriptionUpdate.mockResolvedValue({});
     mockSettingsFindUnique.mockResolvedValue({
@@ -99,6 +102,8 @@ describe("app subscription payment service", () => {
       intervalDays: 7,
     });
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -119,6 +124,20 @@ describe("app subscription payment service", () => {
       localSubscriptionId: "sub-1",
       confirmationUrl: "https://yookassa.test/confirm",
     });
+    expect(mockSubscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              status: "PENDING",
+              pendingExpiresAt: { gt: new Date("2026-05-26T10:00:00.000Z") },
+            },
+            { isLifetime: true },
+            { currentPeriodEnd: { gt: new Date("2026-05-26T10:00:00.000Z") } },
+          ],
+        }),
+      }),
+    );
     expect(mockPaymentCreate).not.toHaveBeenCalled();
     expect(fetch).toHaveBeenCalledWith(
       "https://api.yookassa.ru/v3/payment_methods",
@@ -134,7 +153,10 @@ describe("app subscription payment service", () => {
     expect(mockSubscriptionUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "sub-1" },
-        data: expect.objectContaining({ yookassaPaymentMethodId: "pm-1" }),
+        data: expect.objectContaining({
+          yookassaPaymentMethodId: "pm-1",
+          pendingExpiresAt: new Date("2026-05-26T11:00:00.000Z"),
+        }),
       }),
     );
   });
@@ -177,6 +199,7 @@ describe("app subscription payment service", () => {
         status: "ACTIVE",
         currentPeriodStart: new Date("2026-05-26T10:00:00.000Z"),
         currentPeriodEnd: new Date("2026-05-29T10:00:00.000Z"),
+        pendingExpiresAt: null,
         yookassaPaymentMethodId: "pm-1",
         yookassaPaymentMethodLast4: "4444",
         yookassaPaymentMethodTitle: "Bank card *4444",
@@ -232,11 +255,83 @@ describe("app subscription payment service", () => {
         status: "ACTIVE",
         currentPeriodStart: new Date("2026-05-27T10:00:00.000Z"),
         currentPeriodEnd: new Date("2026-05-30T10:00:00.000Z"),
+        pendingExpiresAt: null,
         yookassaPaymentMethodId: "pm-1",
         yookassaPaymentMethodLast4: "0408",
         yookassaPaymentMethodTitle: "Bank card *0408",
       }),
     });
+  });
+
+  it("expires a pending YooKassa subscription during user reconciliation after setup deadline", async () => {
+    const { reconcilePendingYookassaAppSubscription } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      status: "PENDING",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      pendingExpiresAt: new Date("2026-05-30T08:59:00.000Z"),
+      isLifetime: false,
+      yookassaPaymentMethodId: "pm-1",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        status: "pending",
+        saved: false,
+        type: "bank_card",
+      }),
+    }));
+
+    const result = await reconcilePendingYookassaAppSubscription({
+      userId: "user-1",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      now: new Date("2026-05-30T10:00:00.000Z"),
+    });
+
+    expect(result).toEqual({ activated: false });
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: {
+        status: "EXPIRED",
+        pendingExpiresAt: null,
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+      },
+    });
+  });
+
+  it("does not expire a pending YooKassa subscription during user reconciliation on transient provider failure", async () => {
+    const { reconcilePendingYookassaAppSubscription } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      status: "PENDING",
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      pendingExpiresAt: new Date("2026-05-30T08:59:00.000Z"),
+      isLifetime: false,
+      yookassaPaymentMethodId: "pm-1",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => "temporary outage",
+    }));
+
+    const result = await reconcilePendingYookassaAppSubscription({
+      userId: "user-1",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      now: new Date("2026-05-30T10:00:00.000Z"),
+    });
+
+    expect(result).toEqual({ activated: false });
+    expect(mockSubscriptionUpdate).not.toHaveBeenCalled();
   });
 
   it("keeps current paid period when an active user binds a new YooKassa card", async () => {
@@ -284,6 +379,177 @@ describe("app subscription payment service", () => {
       data: expect.objectContaining({
         currentPeriodEnd: new Date("2026-06-02T10:00:00.000Z"),
       }),
+    });
+  });
+
+  it("reconciles stale pending YooKassa subscriptions by activating provider-active methods", async () => {
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockSubscriptionFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        status: "PENDING",
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        pendingExpiresAt: new Date("2026-05-30T08:59:00.000Z"),
+        isLifetime: false,
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        status: "active",
+        saved: true,
+        type: "bank_card",
+        card: { last4: "0408" },
+        title: "Bank card *0408",
+      }),
+    }));
+
+    const result = await reconcileStaleYookassaPendingAppSubscriptions({
+      now: new Date("2026-05-30T10:00:00.000Z"),
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({ checked: 1, activated: 1, expired: 0, deferred: 0 });
+    expect(mockSubscriptionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          provider: "YOOKASSA",
+          status: "PENDING",
+          yookassaPaymentMethodId: { not: null },
+          pendingExpiresAt: { lte: new Date("2026-05-30T10:00:00.000Z") },
+        },
+      }),
+    );
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: expect.objectContaining({
+        status: "ACTIVE",
+        pendingExpiresAt: null,
+        currentPeriodStart: new Date("2026-05-30T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-06-02T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      }),
+    });
+  });
+
+  it("expires stale pending YooKassa subscriptions when provider method is not active", async () => {
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockSubscriptionFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        status: "PENDING",
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        pendingExpiresAt: new Date("2026-05-30T08:59:00.000Z"),
+        isLifetime: false,
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-1",
+        status: "pending",
+        saved: false,
+        type: "bank_card",
+      }),
+    }));
+
+    const result = await reconcileStaleYookassaPendingAppSubscriptions({
+      now: new Date("2026-05-30T10:00:00.000Z"),
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({ checked: 1, activated: 0, expired: 1, deferred: 0 });
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: {
+        status: "EXPIRED",
+        pendingExpiresAt: null,
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+      },
+    });
+  });
+
+  it("defers stale pending YooKassa reconciliation when provider check fails transiently", async () => {
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    mockSubscriptionFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        status: "PENDING",
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        pendingExpiresAt: new Date("2026-05-30T08:59:00.000Z"),
+        isLifetime: false,
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => "temporary outage",
+    }));
+
+    const result = await reconcileStaleYookassaPendingAppSubscriptions({
+      now: new Date("2026-05-30T10:00:00.000Z"),
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({ checked: 1, activated: 0, expired: 0, deferred: 1 });
+    expect(mockSubscriptionUpdate).not.toHaveBeenCalled();
+  });
+
+  it("expires stale pending YooKassa subscriptions when provider method is not found", async () => {
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    mockSubscriptionFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        status: "PENDING",
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        pendingExpiresAt: new Date("2026-05-30T08:59:00.000Z"),
+        isLifetime: false,
+        yookassaPaymentMethodId: "pm-missing",
+      },
+    ]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: async () => "not found",
+    }));
+
+    const result = await reconcileStaleYookassaPendingAppSubscriptions({
+      now: new Date("2026-05-30T10:00:00.000Z"),
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({ checked: 1, activated: 0, expired: 1, deferred: 0 });
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: {
+        status: "EXPIRED",
+        pendingExpiresAt: null,
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+      },
     });
   });
 

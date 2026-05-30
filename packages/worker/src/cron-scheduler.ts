@@ -7,6 +7,7 @@ import cron from "node-cron";
 import { scheduleReengagementCampaigns } from "@gafus/reengagement";
 import { recordDailyMetrics } from "@gafus/reengagement";
 import { createWorkerLogger } from "@gafus/logger";
+import { reconcileStaleYookassaPendingAppSubscriptions } from "@gafus/core/services/appSubscription";
 import { reconcileMissedConsultationReminders } from "@gafus/core/services/consultation";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
@@ -89,6 +90,13 @@ export function startCronJobs(): void {
         await sendYookassaAppSubscriptionRenewalReminders({ batchSize: 100 });
       } catch (error) {
         logger.error("Ошибка renewal reminders app subscription", error as Error);
+      }
+
+      logger.info("Запуск reconciliation pending app subscription");
+      try {
+        await reconcileStaleYookassaPendingAppSubscriptions({ batchSize: 100 });
+      } catch (error) {
+        logger.error("Ошибка reconciliation pending app subscription", error as Error);
       }
 
       logger.info("Запуск renewals app subscription");

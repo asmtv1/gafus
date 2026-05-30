@@ -8,11 +8,22 @@ const logger = createWebLogger("app-subscription-payment-service");
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
 const YOOKASSA_PAYMENT_METHODS_API = "https://api.yookassa.ru/v3/payment_methods";
 const YOOKASSA_TRIAL_DAYS = 3;
+const YOOKASSA_PENDING_SETUP_TTL_MS = 60 * 60 * 1000;
 const APPLE_ROOT_CA_G3_DER_BASE64 =
   "MIICQzCCAcmgAwIBAgIILcX8iNLFS5UwCgYIKoZIzj0EAwMwZzEbMBkGA1UEAwwSQXBwbGUgUm9vdCBDQSAtIEczMSYwJAYDVQQLDB1BcHBsZSBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTETMBEGA1UECgwKQXBwbGUgSW5jLjELMAkGA1UEBhMCVVMwHhcNMTQwNDMwMTgxOTA2WhcNMzkwNDMwMTgxOTA2WjBnMRswGQYDVQQDDBJBcHBsZSBSb290IENBIC0gRzMxJjAkBgNVBAsMHUFwcGxlIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRMwEQYDVQQKDApBcHBsZSBJbmMuMQswCQYDVQQGEwJVUzB2MBAGByqGSM49AgEGBSuBBAAiA2IABJjpLz1AcqTtkyJygRMc3RCV8cWjTnHcFBbZDuWmBSp3ZHtfTjjTuxxEtX/1H7YyYl3J6YRbTzBPEVoA/VhYDKX1DyxNB0cTddqXl5dvMVztK517IDvYuVTZXpmkOlEKMaNCMEAwHQYDVR0OBBYEFLuw3qFYM4iapIqZ3r6966/ayySrMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMDA2gAMGUCMQCD6cHEFl4aXTQY2e3v9GwOAEZLuN+yRhHFD/3meoyhpmvOwgPUnPWTxnS4at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM6BgD56KyKA==";
 
 let appleVerifierSingleton: SignedDataVerifier | null = null;
 let appleVerifierConfigKey: string | null = null;
+
+class YookassaHttpError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "YookassaHttpError";
+  }
+}
 
 function parseEnvBoolean(raw: string | undefined): boolean {
   return raw === "1" || raw?.toLowerCase() === "true";
@@ -125,7 +136,10 @@ async function fetchYookassaPaymentObject(params: {
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(`YooKassa payment verification failed: ${response.status} ${text}`.slice(0, 512));
+    throw new YookassaHttpError(
+      `YooKassa payment verification failed: ${response.status} ${text}`.slice(0, 512),
+      response.status,
+    );
   }
   return (await response.json()) as YooKassaPaymentObject;
 }
@@ -143,7 +157,10 @@ async function fetchYookassaPaymentMethodObject(params: {
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(`YooKassa payment method verification failed: ${response.status} ${text}`.slice(0, 512));
+    throw new YookassaHttpError(
+      `YooKassa payment method verification failed: ${response.status} ${text}`.slice(0, 512),
+      response.status,
+    );
   }
   return (await response.json()) as YooKassaPaymentMethodObject;
 }
@@ -220,6 +237,53 @@ function assertYookassaPaymentMethodActive(params: {
   }
 }
 
+function getYookassaPaymentMethodInactiveReason(params: {
+  providerPaymentMethod: YooKassaPaymentMethodObject;
+  paymentMethodId: string;
+  subscriptionId: string;
+  userId: string;
+}): string | null {
+  const method = params.providerPaymentMethod;
+  if (method.id !== params.paymentMethodId) {
+    return "YooKassa payment method id mismatch";
+  }
+  if (method.metadata) {
+    if (method.metadata.kind !== "app_subscription_payment_method") {
+      return "YooKassa payment method metadata kind mismatch";
+    }
+    if (method.metadata.subscriptionId !== params.subscriptionId) {
+      return "YooKassa payment method metadata subscriptionId mismatch";
+    }
+    if (method.metadata.userId !== params.userId) {
+      return "YooKassa payment method metadata userId mismatch";
+    }
+  }
+  if (method.status !== "active" || method.saved !== true) {
+    return "YooKassa payment method is not active and saved";
+  }
+  return null;
+}
+
+async function expireYookassaPendingSubscription(subscriptionId: string) {
+  await (prisma as any).appSubscription.update({
+    where: { id: subscriptionId },
+    data: {
+      status: "EXPIRED",
+      pendingExpiresAt: null,
+      yookassaPaymentMethodId: null,
+      yookassaPaymentMethodLast4: null,
+      yookassaPaymentMethodTitle: null,
+    },
+  });
+}
+
+function isYookassaPendingSetupExpired(params: {
+  pendingExpiresAt?: Date | null;
+  now: Date;
+}): boolean {
+  return params.pendingExpiresAt instanceof Date && params.pendingExpiresAt <= params.now;
+}
+
 async function activateYookassaPaymentMethodSubscription(params: {
   subscription: {
     id: string;
@@ -254,6 +318,7 @@ async function activateYookassaPaymentMethodSubscription(params: {
       status: "ACTIVE",
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
+      pendingExpiresAt: null,
       cancelAtPeriodEnd: false,
       yookassaPaymentMethodId: params.paymentMethodId,
       ...(params.providerPaymentMethod.card?.last4
@@ -295,7 +360,10 @@ export async function startYookassaAppSubscriptionPayment(params: {
       provider: "YOOKASSA",
       status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
       OR: [
-        { status: "PENDING" },
+        {
+          status: "PENDING",
+          pendingExpiresAt: { gt: now },
+        },
         { isLifetime: true },
         { currentPeriodEnd: { gt: now } },
       ],
@@ -369,7 +437,10 @@ export async function startYookassaAppSubscriptionPayment(params: {
 
   await (prisma as any).appSubscription.update({
     where: { id: subscription.id },
-    data: { yookassaPaymentMethodId: paymentMethodId },
+    data: {
+      yookassaPaymentMethodId: paymentMethodId,
+      pendingExpiresAt: new Date(now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+    },
   });
 
   return { success: true, localSubscriptionId: subscription.id, confirmationUrl };
@@ -379,7 +450,9 @@ export async function reconcilePendingYookassaAppSubscription(params: {
   userId: string;
   shopId?: string;
   secretKey?: string;
+  now?: Date;
 }): Promise<{ activated: true; subscriptionId: string } | { activated: false }> {
+  const now = params.now ?? new Date();
   const subscription = await (prisma as any).appSubscription.findFirst({
     where: {
       userId: params.userId,
@@ -395,6 +468,7 @@ export async function reconcilePendingYookassaAppSubscription(params: {
       isLifetime: true,
       currentPeriodStart: true,
       currentPeriodEnd: true,
+      pendingExpiresAt: true,
       yookassaPaymentMethodId: true,
     },
   });
@@ -410,12 +484,27 @@ export async function reconcilePendingYookassaAppSubscription(params: {
       shopId: params.shopId,
       secretKey: params.secretKey,
     });
-    assertYookassaPaymentMethodActive({
+    const inactiveReason = getYookassaPaymentMethodInactiveReason({
       providerPaymentMethod,
       paymentMethodId,
       subscriptionId: subscription.id,
       userId: subscription.userId,
     });
+    if (inactiveReason) {
+      if (isYookassaPendingSetupExpired({
+        pendingExpiresAt: subscription.pendingExpiresAt,
+        now,
+      })) {
+        logger.warn("Expiring pending YooKassa app subscription during user reconciliation", {
+          userId: params.userId,
+          subscriptionId: subscription.id,
+          paymentMethodId,
+          reason: inactiveReason,
+        });
+        await expireYookassaPendingSubscription(subscription.id);
+      }
+      return { activated: false };
+    }
     await activateYookassaPaymentMethodSubscription({
       subscription,
       paymentMethodId,
@@ -423,6 +512,22 @@ export async function reconcilePendingYookassaAppSubscription(params: {
     });
     return { activated: true, subscriptionId: subscription.id };
   } catch (error) {
+    if (
+      error instanceof YookassaHttpError &&
+      error.status === 404 &&
+      isYookassaPendingSetupExpired({
+        pendingExpiresAt: subscription.pendingExpiresAt,
+        now,
+      })
+    ) {
+      logger.warn("Expiring pending YooKassa app subscription with missing provider method", {
+        userId: params.userId,
+        subscriptionId: subscription.id,
+        paymentMethodId,
+      });
+      await expireYookassaPendingSubscription(subscription.id);
+      return { activated: false };
+    }
     logger.warn("Pending YooKassa app subscription reconciliation failed", {
       userId: params.userId,
       subscriptionId: subscription.id,
@@ -431,6 +536,101 @@ export async function reconcilePendingYookassaAppSubscription(params: {
     });
     return { activated: false };
   }
+}
+
+export async function reconcileStaleYookassaPendingAppSubscriptions(params?: {
+  now?: Date;
+  batchSize?: number;
+  shopId?: string;
+  secretKey?: string;
+}): Promise<{ checked: number; activated: number; expired: number; deferred: number }> {
+  const now = params?.now ?? new Date();
+  const batchSize = params?.batchSize ?? 100;
+  const rows = await (prisma as any).appSubscription.findMany({
+    where: {
+      provider: "YOOKASSA",
+      status: "PENDING",
+      yookassaPaymentMethodId: { not: null },
+      pendingExpiresAt: { lte: now },
+    },
+    orderBy: [{ pendingExpiresAt: "asc" }, { id: "asc" }],
+    take: batchSize,
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      isLifetime: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+      pendingExpiresAt: true,
+      yookassaPaymentMethodId: true,
+    },
+  });
+
+  let activated = 0;
+  let expired = 0;
+  let deferred = 0;
+
+  for (const row of rows) {
+    const paymentMethodId = row.yookassaPaymentMethodId;
+    if (!paymentMethodId) {
+      deferred += 1;
+      continue;
+    }
+
+    try {
+      const providerPaymentMethod = await fetchYookassaPaymentMethodObject({
+        paymentMethodId,
+        shopId: params?.shopId,
+        secretKey: params?.secretKey,
+      });
+      const inactiveReason = getYookassaPaymentMethodInactiveReason({
+        providerPaymentMethod,
+        paymentMethodId,
+        subscriptionId: row.id,
+        userId: row.userId,
+      });
+
+      if (!inactiveReason) {
+        await activateYookassaPaymentMethodSubscription({
+          subscription: row,
+          paymentMethodId,
+          providerPaymentMethod,
+        });
+        activated += 1;
+        continue;
+      }
+
+      logger.warn("Expiring stale pending YooKassa app subscription", {
+        userId: row.userId,
+        subscriptionId: row.id,
+        paymentMethodId,
+        reason: inactiveReason,
+      });
+      await expireYookassaPendingSubscription(row.id);
+      expired += 1;
+    } catch (error) {
+      if (error instanceof YookassaHttpError && error.status === 404) {
+        logger.warn("Expiring stale pending YooKassa app subscription with missing provider method", {
+          userId: row.userId,
+          subscriptionId: row.id,
+          paymentMethodId,
+        });
+        await expireYookassaPendingSubscription(row.id);
+        expired += 1;
+        continue;
+      }
+      logger.warn("Deferred stale pending YooKassa app subscription reconciliation", {
+        userId: row.userId,
+        subscriptionId: row.id,
+        paymentMethodId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      deferred += 1;
+    }
+  }
+
+  return { checked: rows.length, activated, expired, deferred };
 }
 
 export async function cancelYookassaAppSubscription(userId: string) {
