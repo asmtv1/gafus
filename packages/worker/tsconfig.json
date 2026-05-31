@@ -18,7 +18,7 @@
       "@gafus/core/services/consultation": ["../../packages/core/src/services/consultation/index.ts"],
       "@gafus/core/services/notifications": ["../../packages/core/src/services/notifications"],
       "@gafus/prisma": ["../../packages/prisma/src/index.ts"],
-      "@gafus/queues": ["../../packages/queues/src"]
+      "@gafus/queues": ["../../packages/queues/dist/index.js"]
     }
   },
   "include": ["src"],

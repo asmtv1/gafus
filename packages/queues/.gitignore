@@ -1,0 +1,5 @@
+# tsc не должен коммитить артефакты в src (ломает Next/webpack)
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map

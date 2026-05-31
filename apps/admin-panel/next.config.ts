@@ -74,8 +74,6 @@ const nextConfig: NextConfig = {
       ),
       /** Иначе webpack не резолвит named exports из dist CJS при импорте из core. */
       "@gafus/prisma": path.resolve(__dirname, "../../packages/prisma/src/index.ts"),
-      /** index.ts импортирует .js-модули, которые есть только в dist после tsc. */
-      "@gafus/queues": path.resolve(__dirname, "../../packages/queues/dist/index.js"),
     };
     if (isServer) {
       const { PrismaPlugin } = require("@prisma/nextjs-monorepo-workaround-plugin");

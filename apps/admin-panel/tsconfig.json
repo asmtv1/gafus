@@ -74,12 +74,6 @@
       "@gafus/reengagement/*": [
         "../../packages/reengagement/src/*"
       ],
-      "@gafus/queues": [
-        "../../packages/queues/dist/index.js"
-      ],
-      "@gafus/queues/*": [
-        "../../packages/queues/dist/*"
-      ],
       "@gafus/webpush": [
         "../../packages/webpush/src/index.ts"
       ],
