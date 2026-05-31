@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import PageLayout from "@/shared/components/PageLayout";
 import type { AppSubscriptionDashboard } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
+import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
 
 import AppSubscriptionsTable, { type AppSubscriptionFilter } from "./AppSubscriptionsTable";
 
@@ -60,6 +61,7 @@ export default function AppSubscriptionsClient({ dashboard }: AppSubscriptionsCl
           row.id,
           row.provider,
           row.status,
+          getAppSubscriptionStatusLabel(row),
           row.paymentMethod,
           row.appleProductId,
           row.manualReason,
@@ -90,8 +92,8 @@ export default function AppSubscriptionsClient({ dashboard }: AppSubscriptionsCl
           bValue = b.totalPaidRub;
           break;
         case "status":
-          aValue = a.status;
-          bValue = b.status;
+          aValue = getAppSubscriptionStatusLabel(a);
+          bValue = getAppSubscriptionStatusLabel(b);
           break;
         case "user":
           aValue = (a.user.fullName ?? a.user.username).toLowerCase();

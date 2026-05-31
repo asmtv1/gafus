@@ -51,10 +51,46 @@
         "../../packages/auth/src"
       ],
       "@gafus/csrf": [
-        "../../packages/csrf/src"
+        "../../packages/csrf/src/index.ts"
+      ],
+      "@gafus/csrf/*": [
+        "../../packages/csrf/src/*"
       ],
       "@gafus/react-query": [
-        "../../packages/react-query/src"
+        "../../packages/react-query/src/index.ts"
+      ],
+      "@gafus/react-query/*": [
+        "../../packages/react-query/src/*"
+      ],
+      "@gafus/cdn-upload": [
+        "../../packages/cdn-upload/src/index.ts"
+      ],
+      "@gafus/cdn-upload/*": [
+        "../../packages/cdn-upload/src/*"
+      ],
+      "@gafus/reengagement": [
+        "../../packages/reengagement/src/index.ts"
+      ],
+      "@gafus/reengagement/*": [
+        "../../packages/reengagement/src/*"
+      ],
+      "@gafus/queues": [
+        "../../packages/queues/src/index.ts"
+      ],
+      "@gafus/queues/*": [
+        "../../packages/queues/src/*"
+      ],
+      "@gafus/webpush": [
+        "../../packages/webpush/src/index.ts"
+      ],
+      "@gafus/webpush/*": [
+        "../../packages/webpush/src/*"
+      ],
+      "@gafus/video-access": [
+        "../../packages/video-access/src/index.ts"
+      ],
+      "@gafus/video-access/*": [
+        "../../packages/video-access/src/*"
       ],
       "@gafus/consultation-shared": [
         "../../packages/consultation-shared/src/index.ts"

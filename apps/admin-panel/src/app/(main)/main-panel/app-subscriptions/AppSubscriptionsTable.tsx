@@ -24,6 +24,7 @@ import {
   UnfoldMoreIcon,
 } from "@/utils/muiImports";
 import type { AppSubscriptionDashboardRow } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
+import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
 import type { AppSubscriptionAdminDashboardMetrics } from "@gafus/core/services/appSubscription";
 
 export type AppSubscriptionFilter =
@@ -56,16 +57,6 @@ const providerLabels: Record<string, string> = {
   YOOKASSA: "YooKassa",
   APPLE: "Apple",
   MANUAL: "Manual",
-};
-
-const statusLabels: Record<string, string> = {
-  PENDING: "Ожидает",
-  ACTIVE: "Активна",
-  PAST_DUE: "Проблема оплаты",
-  CANCELED: "Отменена",
-  EXPIRED: "Истекла",
-  REFUNDED: "Возврат",
-  REVOKED: "Отозвана",
 };
 
 const filterLabels: { value: AppSubscriptionFilter; label: string }[] = [
@@ -112,7 +103,15 @@ function getStatusColor(row: AppSubscriptionDashboardRow): "success" | "warning"
   return "default";
 }
 
-function MetricCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
+function MetricCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
   return (
     <Paper variant="outlined" sx={{ p: 2, minHeight: 94 }}>
       <Typography variant="body2" color="text.secondary">
@@ -265,7 +264,7 @@ export default function AppSubscriptionsTable({
                   <TableCell>{providerLabels[row.provider] ?? row.provider}</TableCell>
                   <TableCell>
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, alignItems: "flex-start" }}>
-                      <Chip size="small" color={getStatusColor(row)} label={statusLabels[row.status] ?? row.status} />
+                      <Chip size="small" color={getStatusColor(row)} label={getAppSubscriptionStatusLabel(row)} />
                       {row.attention ? <Chip size="small" variant="outlined" label={attentionLabels[row.attention]} /> : null}
                     </Box>
                   </TableCell>
@@ -305,7 +304,7 @@ export default function AppSubscriptionsTable({
                     @{row.user.username}
                   </Typography>
                 </Box>
-                <Chip size="small" color={getStatusColor(row)} label={statusLabels[row.status] ?? row.status} />
+                <Chip size="small" color={getStatusColor(row)} label={getAppSubscriptionStatusLabel(row)} />
               </Box>
               <Typography variant="body2" sx={{ mt: 1 }}>
                 {providerLabels[row.provider] ?? row.provider} · купил {formatDate(row.boughtAt)}
