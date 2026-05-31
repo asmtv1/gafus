@@ -71,9 +71,10 @@ COPY --from=base /app/packages/core/package.json ./packages/core/package.json
 COPY --from=base /app/packages/mailer/package.json ./packages/mailer/package.json
 
 # Устанавливаем только production зависимости (expo-server-sdk нужен для push в мобильное приложение)
-# bcryptjs, libphonenumber-js, zod, petrovich — deps @gafus/core
+# bcryptjs, libphonenumber-js, zod, petrovich, @apple/app-store-server-library — deps @gafus/core
 RUN npm init -y && \
     npm install --production --no-optional \
+    @apple/app-store-server-library@3.0.0 \
     bullmq@5.2.0 \
     ioredis@5.3.2 \
     web-push@3.6.6 \

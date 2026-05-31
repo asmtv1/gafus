@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.0.0",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/core": "workspace:*",
     "@gafus/logger": "workspace:*",
