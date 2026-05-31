@@ -75,10 +75,10 @@
         "../../packages/reengagement/src/*"
       ],
       "@gafus/queues": [
-        "../../packages/queues/src/index.ts"
+        "../../packages/queues/dist/index.js"
       ],
       "@gafus/queues/*": [
-        "../../packages/queues/src/*"
+        "../../packages/queues/dist/*"
       ],
       "@gafus/webpush": [
         "../../packages/webpush/src/index.ts"
