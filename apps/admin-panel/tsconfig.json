@@ -81,6 +81,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "../../packages/core/src/petrovich.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
