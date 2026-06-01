@@ -4,10 +4,8 @@ import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { z } from "zod";
 
 import {
-  getDailyCourseDayWithMonetizedSteps,
+  getDailyCourseDayWithUserSteps,
   getTodayDailyCourse,
-  requireDailyCourseStepPremiumOrRewardedUnlock,
-  unlockDailyCourseStepRewardedTarget,
   updateDailyCourseStepAndDay,
   type DailyCourseDayResponse,
   type TodayDailyCourseResponse,
@@ -76,20 +74,10 @@ export async function getDailyCourseTrainingForWeb(
   noStore();
   const safeScheduleId = scheduleIdSchema.parse(scheduleId);
   const userId = await getCurrentUserId();
-  const day = await getDailyCourseDayWithMonetizedSteps(userId, safeScheduleId, {
+  const day = await getDailyCourseDayWithUserSteps(userId, safeScheduleId, {
     createIfMissing: true,
-    platform: "WEB_DESKTOP",
   });
   return day ? mapDailyCourseDayToTraining(day) : null;
-}
-
-async function requireDailyCourseRewardedAccess(userId: string, scheduleId: string, stepIndex: number) {
-  await requireDailyCourseStepPremiumOrRewardedUnlock({
-    userId,
-    platform: "WEB_DESKTOP",
-    scheduleId,
-    stepIndex,
-  });
 }
 
 export async function startDailyCourseStepServerAction(
@@ -100,7 +88,6 @@ export async function startDailyCourseStepServerAction(
   const safeScheduleId = scheduleIdSchema.parse(scheduleId);
   const safeStepIndex = stepIndexSchema.parse(stepIndex);
   const userId = await getCurrentUserId();
-  await requireDailyCourseRewardedAccess(userId, safeScheduleId, safeStepIndex);
   await updateDailyCourseStepAndDay(userId, safeScheduleId, safeStepIndex, {
     type: "start",
     remainingSec: Math.max(Math.floor(Number(durationSec) || 0), 0),
@@ -118,7 +105,6 @@ export async function pauseDailyCourseStepServerAction(
   const safeStepIndex = stepIndexSchema.parse(stepIndex);
   const safeTimeLeftSec = timeLeftSchema.parse(timeLeftSec);
   const userId = await getCurrentUserId();
-  await requireDailyCourseRewardedAccess(userId, safeScheduleId, safeStepIndex);
   await updateDailyCourseStepAndDay(userId, safeScheduleId, safeStepIndex, {
     type: "pause",
     remainingSec: Math.max(Math.floor(Number(safeTimeLeftSec) || 0), 0),
@@ -134,7 +120,6 @@ export async function resumeDailyCourseStepServerAction(
   const safeScheduleId = scheduleIdSchema.parse(scheduleId);
   const safeStepIndex = stepIndexSchema.parse(stepIndex);
   const userId = await getCurrentUserId();
-  await requireDailyCourseRewardedAccess(userId, safeScheduleId, safeStepIndex);
   await updateDailyCourseStepAndDay(userId, safeScheduleId, safeStepIndex, { type: "resume" });
   revalidatePath(`/daily-course/${safeScheduleId}`);
   return { success: true };
@@ -147,7 +132,6 @@ export async function resetDailyCourseStepServerAction(
   const safeScheduleId = scheduleIdSchema.parse(scheduleId);
   const safeStepIndex = stepIndexSchema.parse(stepIndex);
   const userId = await getCurrentUserId();
-  await requireDailyCourseRewardedAccess(userId, safeScheduleId, safeStepIndex);
   await updateDailyCourseStepAndDay(userId, safeScheduleId, safeStepIndex, { type: "reset" });
   revalidatePath(`/daily-course/${safeScheduleId}`);
   return { success: true };
@@ -160,7 +144,6 @@ export async function completeDailyCourseStepServerAction(
   const safeScheduleId = scheduleIdSchema.parse(scheduleId);
   const safeStepIndex = stepIndexSchema.parse(stepIndex);
   const userId = await getCurrentUserId();
-  await requireDailyCourseRewardedAccess(userId, safeScheduleId, safeStepIndex);
   await updateDailyCourseStepAndDay(userId, safeScheduleId, safeStepIndex, { type: "complete" });
   revalidatePath(`/daily-course/${safeScheduleId}`);
   return { success: true };
@@ -171,14 +154,8 @@ export async function unlockDailyCourseStepServerAction(
   stepIndex: number,
 ): Promise<{ success: boolean }> {
   const safeScheduleId = scheduleIdSchema.parse(scheduleId);
-  const safeStepIndex = stepIndexSchema.parse(stepIndex);
-  const userId = await getCurrentUserId();
-  await unlockDailyCourseStepRewardedTarget({
-    userId,
-    platform: "WEB_DESKTOP",
-    scheduleId: safeScheduleId,
-    stepIndex: safeStepIndex,
-  });
+  stepIndexSchema.parse(stepIndex);
+  await getCurrentUserId();
   revalidatePath(`/daily-course/${safeScheduleId}`);
   return { success: true };
 }

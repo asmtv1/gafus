@@ -7,10 +7,8 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import {
-  getDailyCourseDayWithMonetizedSteps,
+  getDailyCourseDayWithUserSteps,
   getTodayDailyCourse,
-  requireDailyCourseStepPremiumOrRewardedUnlock,
-  unlockDailyCourseStepRewardedTarget,
   updateDailyCourseStepAndDay,
 } from "@gafus/core/services/dailyCourse";
 import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
@@ -101,16 +99,6 @@ function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
   );
 }
 
-function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
-  const candidate =
-    platform ??
-    c.req.query("platform") ??
-    c.req.header("x-rewarded-platform") ??
-    c.req.header("x-platform");
-  const parsed = rewardedPlatformSchema.safeParse(candidate);
-  return parsed.success ? parsed.data : "ANDROID";
-}
-
 function subscriptionOrCreditsResponse(c: Context): Response {
   return c.json(
     {
@@ -121,27 +109,6 @@ function subscriptionOrCreditsResponse(c: Context): Response {
     402,
     noStoreHeaders,
   );
-}
-
-async function requireRewardedDailyStepAccess(
-  c: Context,
-  input: { scheduleId: string; stepIndex: number; platform?: string },
-): Promise<Response | null> {
-  const user = c.get("user");
-  try {
-    await requireDailyCourseStepPremiumOrRewardedUnlock({
-      userId: user.id,
-      platform: getRewardedPlatform(c, input.platform),
-      scheduleId: input.scheduleId,
-      stepIndex: input.stepIndex,
-    });
-    return null;
-  } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
-    throw error;
-  }
 }
 
 dailyCourseRoutes.get("/today", async (c) => {
@@ -159,10 +126,9 @@ dailyCourseRoutes.get("/today", async (c) => {
 dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { scheduleId, createIfMissing, platform } = c.req.valid("query");
-    const result = await getDailyCourseDayWithMonetizedSteps(user.id, scheduleId, {
+    const { scheduleId, createIfMissing } = c.req.valid("query");
+    const result = await getDailyCourseDayWithUserSteps(user.id, scheduleId, {
       createIfMissing,
-      platform: getRewardedPlatform(c, platform),
     });
     if (!result) {
       return c.json(
@@ -181,15 +147,22 @@ dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c
 
 dailyCourseRoutes.post("/step/unlock", zValidator("json", stepActionSchema), async (c) => {
   try {
-    const user = c.get("user");
-    const { scheduleId, stepIndex, platform } = c.req.valid("json");
-    const result = await unlockDailyCourseStepRewardedTarget({
-      userId: user.id,
-      platform: getRewardedPlatform(c, platform),
-      scheduleId,
-      stepIndex,
-    });
-    return c.json({ success: true, data: result }, 200, noStoreHeaders);
+    const { scheduleId, stepIndex } = c.req.valid("json");
+    return c.json(
+      {
+        success: true,
+        data: {
+          targetType: "DAILY_COURSE_STEP",
+          targetId: `${scheduleId}:${stepIndex}`,
+          unlocked: true,
+          spentCredits: 0,
+          balance: 0,
+          pendingRefundCredits: 0,
+        },
+      },
+      200,
+      noStoreHeaders,
+    );
   } catch (error) {
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
@@ -203,13 +176,7 @@ dailyCourseRoutes.post("/step/unlock", zValidator("json", stepActionSchema), asy
 dailyCourseRoutes.post("/step/start", zValidator("json", startStepSchema), async (c) => {
   try {
     const user = c.get("user");
-    const { scheduleId, stepIndex, durationSec, platform } = c.req.valid("json");
-    const accessResponse = await requireRewardedDailyStepAccess(c, {
-      scheduleId,
-      stepIndex,
-      platform,
-    });
-    if (accessResponse) return accessResponse;
+    const { scheduleId, stepIndex, durationSec } = c.req.valid("json");
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, {
       type: "start",
       remainingSec: durationSec,
@@ -228,13 +195,7 @@ dailyCourseRoutes.post("/step/start", zValidator("json", startStepSchema), async
 dailyCourseRoutes.post("/step/pause", zValidator("json", pauseStepSchema), async (c) => {
   try {
     const user = c.get("user");
-    const { scheduleId, stepIndex, timeLeftSec, platform } = c.req.valid("json");
-    const accessResponse = await requireRewardedDailyStepAccess(c, {
-      scheduleId,
-      stepIndex,
-      platform,
-    });
-    if (accessResponse) return accessResponse;
+    const { scheduleId, stepIndex, timeLeftSec } = c.req.valid("json");
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, {
       type: "pause",
       remainingSec: timeLeftSec,
@@ -253,13 +214,7 @@ dailyCourseRoutes.post("/step/pause", zValidator("json", pauseStepSchema), async
 dailyCourseRoutes.post("/step/resume", zValidator("json", stepActionSchema), async (c) => {
   try {
     const user = c.get("user");
-    const { scheduleId, stepIndex, platform } = c.req.valid("json");
-    const accessResponse = await requireRewardedDailyStepAccess(c, {
-      scheduleId,
-      stepIndex,
-      platform,
-    });
-    if (accessResponse) return accessResponse;
+    const { scheduleId, stepIndex } = c.req.valid("json");
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "resume" });
     return c.json({ success: true });
   } catch (error) {
@@ -275,13 +230,7 @@ dailyCourseRoutes.post("/step/resume", zValidator("json", stepActionSchema), asy
 dailyCourseRoutes.post("/step/reset", zValidator("json", stepActionSchema), async (c) => {
   try {
     const user = c.get("user");
-    const { scheduleId, stepIndex, platform } = c.req.valid("json");
-    const accessResponse = await requireRewardedDailyStepAccess(c, {
-      scheduleId,
-      stepIndex,
-      platform,
-    });
-    if (accessResponse) return accessResponse;
+    const { scheduleId, stepIndex } = c.req.valid("json");
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "reset" });
     return c.json({ success: true });
   } catch (error) {
@@ -297,13 +246,7 @@ dailyCourseRoutes.post("/step/reset", zValidator("json", stepActionSchema), asyn
 dailyCourseRoutes.post("/step/complete", zValidator("json", stepActionSchema), async (c) => {
   try {
     const user = c.get("user");
-    const { scheduleId, stepIndex, platform } = c.req.valid("json");
-    const accessResponse = await requireRewardedDailyStepAccess(c, {
-      scheduleId,
-      stepIndex,
-      platform,
-    });
-    if (accessResponse) return accessResponse;
+    const { scheduleId, stepIndex } = c.req.valid("json");
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "complete" });
     return c.json({ success: true });
   } catch (error) {
