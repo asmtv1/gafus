@@ -25,10 +25,13 @@ vi.mock("../api/rewardedAdsApi", () => ({
   },
 }));
 
-vi.mock("yandex-mobile-ads", () => ({
+vi.mock("yandex-mobile-ads/src/MobileAds", () => ({
   MobileAds: {
     initialize: initializeMock,
   },
+}));
+
+vi.mock("yandex-mobile-ads/src/rewarded/RewardedAdLoader", () => ({
   RewardedAdLoader: {
     create: createLoaderMock,
   },

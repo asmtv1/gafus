@@ -4,12 +4,13 @@ import {
   type RewardedGrantResultDto,
 } from "../api/rewardedAdsApi";
 import type { ApiResponse } from "@/shared/lib/api/client";
+import { MobileAds } from "yandex-mobile-ads/src/MobileAds";
+import { RewardedAdLoader } from "yandex-mobile-ads/src/rewarded/RewardedAdLoader";
 
 let initialized = false;
 
 async function initializeMobileAds() {
   if (initialized) return;
-  const { MobileAds } = await import("yandex-mobile-ads");
   await MobileAds.initialize();
   initialized = true;
 }
@@ -18,7 +19,6 @@ export async function showYandexRewardedAd(
   session: RewardedAdSessionDto,
 ): Promise<ApiResponse<RewardedGrantResultDto> | null> {
   await initializeMobileAds();
-  const { RewardedAdLoader } = await import("yandex-mobile-ads");
   const loader = await RewardedAdLoader.create();
   const ad = await loader.loadAd({ adUnitId: session.placementId });
   let granted = false;
