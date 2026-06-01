@@ -1,0 +1,8 @@
+export const REWARDED_CREDITS_PER_REWARD = 5;
+export const REWARDED_MAX_CREDIT_BALANCE = 5;
+export const REWARDED_ARTICLE_COST = 1;
+export const REWARDED_STEP_UNLOCK_COST = 1;
+export const REWARDED_CONSULTATION_BOOKING_COST = 5;
+export const REWARDED_AD_SESSION_TTL_MINUTES = 10;
+export const REWARDED_DAILY_LIMIT_VALUES = [1, 2, 3] as const;
+export const REWARDED_DAILY_LIMIT_TIMEZONE = "Europe/Moscow";

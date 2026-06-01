@@ -11,8 +11,11 @@ const {
   generateTokenMock,
   getAppFeatureFlagEnabledMock,
   getAppSubscriptionAccessMock,
+  getTrainingDayWithMonetizedStepsMock,
+  requireCourseStepPremiumOrRewardedUnlockMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
+  unlockCourseStepRewardedTargetMock,
   verifyTokenMock,
 } = vi.hoisted(() => ({
   checkCourseAccessByIdMock: vi.fn(),
@@ -22,17 +25,32 @@ const {
   generateTokenMock: vi.fn(),
   getAppFeatureFlagEnabledMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
+  getTrainingDayWithMonetizedStepsMock: vi.fn(),
+  requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
+  unlockCourseStepRewardedTargetMock: vi.fn(),
   verifyTokenMock: vi.fn(),
 }));
 
 vi.mock("@gafus/core/services/training", () => ({
   getTrainingDays: vi.fn(),
+  getTrainingDayWithMonetizedSteps: getTrainingDayWithMonetizedStepsMock,
   getTrainingDayWithUserSteps: vi.fn(),
+  requireCourseStepPremiumOrRewardedUnlock: requireCourseStepPremiumOrRewardedUnlockMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
+  unlockCourseStepRewardedTarget: unlockCourseStepRewardedTargetMock,
   updateStepAndDay: updateStepAndDayMock,
   validateTheoryStepForCompletion: vi.fn(),
+}));
+
+vi.mock("@gafus/core/services/rewardedCredits", () => ({
+  SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
+    constructor() {
+      super("Для действия нужна подписка или rewarded credits");
+      this.name = "SubscriptionOrCreditsRequiredError";
+    }
+  },
 }));
 
 vi.mock("@gafus/core/services/course", () => ({
@@ -102,6 +120,16 @@ describe("training route validation", () => {
     checkCourseAccessByIdMock.mockResolvedValue({ hasAccess: true });
     getAppFeatureFlagEnabledMock.mockResolvedValue(false);
     getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
+    getTrainingDayWithMonetizedStepsMock.mockResolvedValue({ trainingDayId: "day-1", steps: [] });
+    requireCourseStepPremiumOrRewardedUnlockMock.mockResolvedValue(null);
+    unlockCourseStepRewardedTargetMock.mockResolvedValue({
+      targetType: "COURSE_STEP",
+      targetId: "step-on-day-1",
+      unlocked: true,
+      spentCredits: 1,
+      balance: 4,
+      pendingRefundCredits: 0,
+    });
     updateStepAndDayMock.mockResolvedValue({
       courseId: "7b9e6c3a-321f-40de-ada8-11309951b181",
       allCompleted: false,

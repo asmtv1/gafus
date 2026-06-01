@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { getCDNUrl } from "@gafus/cdn-upload";
-import { getArticleBySlug } from "@gafus/core/services/article";
+import { getArticleBySlug, getArticleBySlugForMonetizedAccess } from "@gafus/core/services/article";
 import ArticleDetailClient from "./ArticleDetailClient";
 import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
@@ -39,7 +39,11 @@ export default async function ArticlePage({ params }: Props) {
   if (userId) {
     await requireWebAppSubscription(userId);
   }
-  const result = await getArticleBySlug(slug, userId);
+  const result = await getArticleBySlugForMonetizedAccess({
+    slug,
+    userId,
+    platform: "WEB_DESKTOP",
+  });
 
   if (!result.success) notFound();
 

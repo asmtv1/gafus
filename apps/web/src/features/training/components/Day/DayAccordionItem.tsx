@@ -41,6 +41,7 @@ interface DayAccordionItemProps {
     pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
     resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
     resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    unlockStep?: (stepIndex: number) => Promise<{ success: boolean }>;
   };
 }
 
@@ -58,7 +59,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
 }: DayAccordionItemProps) {
   const stepState = useStepState(training.courseId, training.dayOnCourseId, index);
   const updateStepStatus = useStepStore((s) => s.updateStepStatus);
-  const [, startTheoryTransition] = useTransition();
+  const [isPending, startTheoryTransition] = useTransition();
 
   const isBreakStep = step.type === "BREAK";
   const isDiaryStep = step.type === "DIARY";
@@ -72,6 +73,22 @@ export const DayAccordionItem = memo(function DayAccordionItem({
 
   const handleClick = useCallback(() => {
     const newOpenIndex: number | null = openIndex === index ? null : index;
+    if (newOpenIndex !== null && step.locked) {
+      startTheoryTransition(async () => {
+        try {
+          const result = await serverActions?.unlockStep?.(index);
+          if (result?.success) {
+            window.location.reload();
+          }
+        } catch (e) {
+          reportClientError(e, {
+            issueKey: "DayAccordionItem",
+            keys: { step: "unlockStep", stepIndex: index, courseId: training.courseId },
+          });
+        }
+      });
+      return;
+    }
     onOpenChange(newOpenIndex);
 
     if (newOpenIndex !== null) {
@@ -125,7 +142,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
               className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ""}`}
             />
             <span className={styles.expandText}>
-              {openIndex === index ? "Скрыть" : "Подробнее"}
+              {isPending ? "Открываем" : step.locked ? "Открыть" : openIndex === index ? "Скрыть" : "Подробнее"}
             </span>
           </div>
           <h3 className={styles.stepTitle}>

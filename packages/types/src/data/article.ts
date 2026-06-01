@@ -33,6 +33,14 @@ export interface ArticleListDto {
 export interface ArticleDetailDto extends ArticleListDto {
   /** null для PAID без доступа — контент скрыт */
   content: string | null;
+  monetization?: {
+    locked: boolean;
+    target?: {
+      targetType: "ARTICLE";
+      targetId: string;
+      cost: number;
+    };
+  };
 }
 
 export interface CreateArticleInput {

@@ -30,6 +30,26 @@ async function main() {
     role: admin.role,
   });
 
+  await prismaClient.rewardedAdSettings.upsert({
+    where: { key: "default" },
+    update: {},
+    create: {
+      key: "default",
+      androidEnabled: false,
+      iosEnabled: false,
+      webDesktopEnabled: false,
+      webTouchEnabled: false,
+      paywallCtaEnabled: false,
+      dailyAdLimit: 1,
+      testMode: true,
+    },
+  });
+  console.log("Rewarded ads settings созданы или найдены", {
+    paywallCtaEnabled: false,
+    dailyAdLimit: 1,
+    testMode: true,
+  });
+
   const [homeCourse, streetCourse, puppyCourse, authorCourse] = await prismaClient.$transaction(
     [
       prismaClient.course.upsert({

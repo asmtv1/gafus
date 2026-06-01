@@ -27,6 +27,35 @@ describe("validate analytics", () => {
     expect(r.ok).toBe(true);
   });
 
+  it("принимает rewarded analytics payload и отклоняет лишний provider payload", () => {
+    const valid = safeParseTrackPayload({
+      eventName: "rewarded_credits_granted",
+      pathOrScreen: "/articles/paid",
+      platform: "web",
+      sessionId: "s",
+      ts: new Date().toISOString(),
+      targetType: "ARTICLE",
+      creditsDelta: 5,
+      balance: 5,
+      dailyLimit: 1,
+      provider: "YANDEX",
+    });
+    expect(valid.ok).toBe(true);
+
+    const withRawPayload = safeParseTrackPayload({
+      eventName: "rewarded_credits_granted",
+      pathOrScreen: "/articles/paid",
+      platform: "web",
+      sessionId: "s",
+      ts: new Date().toISOString(),
+      targetType: "ARTICLE",
+      creditsDelta: 5,
+      balance: 5,
+      providerPayload: { raw: true },
+    });
+    expect(withRawPayload.ok).toBe(false);
+  });
+
   it("при превышении лимита возвращает truncated (F6)", () => {
     const big = "x".repeat(MAX_ANALYTICS_PROPS_BYTES + 100);
     const r = safeParseTrackPayload({

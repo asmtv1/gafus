@@ -26,9 +26,9 @@ export async function getMobileIosRuCardPaymentFlag(): Promise<boolean> {
 }
 
 export async function getAppSubscriptionPaywallFlag(): Promise<boolean> {
-  return getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, false);
+  return getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, true);
 }
 
 export async function getAppSubscriptionGatingFlag(): Promise<boolean> {
-  return getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  return getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
 }

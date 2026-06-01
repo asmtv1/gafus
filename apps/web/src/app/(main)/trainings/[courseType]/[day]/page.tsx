@@ -7,8 +7,10 @@ import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { AccessDeniedAlert } from "@/features/training";
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { checkCourseAccessById } from "@gafus/core/services/course";
+import { unlockCourseStepRewardedTarget } from "@gafus/core/services/training";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
+import { revalidatePath } from "next/cache";
 
 import type { Metadata } from "next";
 
@@ -62,7 +64,22 @@ export default async function DayPage(props: {
     return <AccessDeniedAlert courseType={courseType} />;
   }
 
-  return <Day training={training} courseType={courseType} />;
+  async function unlockStep(stepIndex: number) {
+    "use server";
+    const userId = await getCurrentUserId();
+    if (!userId) return { success: false };
+    await unlockCourseStepRewardedTarget({
+      userId,
+      platform: "WEB_DESKTOP",
+      courseType,
+      dayOnCourseId: dayId,
+      stepIndex,
+    });
+    revalidatePath(`/trainings/${courseType}/${dayId}`);
+    return { success: true };
+  }
+
+  return <Day training={training} courseType={courseType} serverActions={{ unlockStep }} />;
 }
 
 // Генерация метаданных (read-only, не создает данные в БД)

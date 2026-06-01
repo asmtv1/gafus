@@ -8,8 +8,10 @@ import { zValidator } from "@hono/zod-validator";
 
 import {
   getTrainingDays,
-  getTrainingDayWithUserSteps,
+  getTrainingDayWithMonetizedSteps,
+  requireCourseStepPremiumOrRewardedUnlock,
   syncUserCourseStatusFromDays,
+  unlockCourseStepRewardedTarget,
   updateStepAndDay,
   validateTheoryStepForCompletion,
 } from "@gafus/core/services/training";
@@ -20,6 +22,7 @@ import {
   APP_FEATURE_APP_SUBSCRIPTION_GATING,
   getAppFeatureFlagEnabled,
 } from "@gafus/core/services/appFeatureFlags";
+import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { checkVideoAccess, getVideoManifestInfo } from "@gafus/core/services/video";
 import {
   createStepNotificationForStepStart,
@@ -62,8 +65,56 @@ if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
 
 export const trainingRoutes = new Hono();
 
+const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
+
+function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
+  return (
+    error instanceof SubscriptionOrCreditsRequiredError ||
+    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+  );
+}
+
+function subscriptionOrCreditsResponse(c: Context): Response {
+  return c.json(
+    {
+      success: false,
+      error: "Для действия нужна подписка или rewarded credits",
+      code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+    },
+    402,
+  );
+}
+
+function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
+  const candidate =
+    platform ?? c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+  const parsed = rewardedPlatformSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : "ANDROID";
+}
+
+async function requireRewardedStepAccess(
+  c: Context,
+  input: { dayOnCourseId: string; stepIndex: number },
+): Promise<Response | null> {
+  const user = c.get("user");
+  try {
+    await requireCourseStepPremiumOrRewardedUnlock({
+      userId: user.id,
+      platform: getRewardedPlatform(c),
+      dayOnCourseId: input.dayOnCourseId,
+      stepIndex: input.stepIndex,
+    });
+    return null;
+  } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
+    throw error;
+  }
+}
+
 async function requireActiveAppSubscription(c: Context): Promise<Response | null> {
-  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) return null;
 
   const user = c.get("user");
@@ -108,8 +159,6 @@ trainingRoutes.get("/days", zValidator("query", daysQuerySchema), async (c) => {
   try {
     const user = c.get("user");
     const { type } = c.req.valid("query");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
 
     const result = await getTrainingDays(user.id, type);
     return c.json({ success: true, data: result });
@@ -127,6 +176,7 @@ trainingRoutes.get("/days", zValidator("query", daysQuerySchema), async (c) => {
 const dayQuerySchema = z.object({
   courseType: z.string().min(1, "courseType обязателен"),
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
+  platform: rewardedPlatformSchema.optional(),
   createIfMissing: z
     .enum(["true", "false"])
     .optional()
@@ -136,12 +186,11 @@ const dayQuerySchema = z.object({
 trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
   try {
     const user = c.get("user");
-    const { courseType, dayOnCourseId, createIfMissing } = c.req.valid("query");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
+    const { courseType, dayOnCourseId, createIfMissing, platform } = c.req.valid("query");
 
-    const result = await getTrainingDayWithUserSteps(user.id, courseType, dayOnCourseId, {
+    const result = await getTrainingDayWithMonetizedSteps(user.id, courseType, dayOnCourseId, {
       createIfMissing,
+      platform: getRewardedPlatform(c, platform),
     });
 
     if (!result) {
@@ -169,6 +218,46 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
   }
 });
 
+// ==================== POST /training/step/unlock ====================
+const unlockStepBodySchema = z.object({
+  courseType: z.string().min(1, "courseType обязателен"),
+  dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
+  stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  platform: rewardedPlatformSchema.optional(),
+});
+
+trainingRoutes.post("/step/unlock", zValidator("json", unlockStepBodySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { courseType, dayOnCourseId, stepIndex, platform } = c.req.valid("json");
+
+    const result = await unlockCourseStepRewardedTarget({
+      userId: user.id,
+      platform: getRewardedPlatform(c, platform),
+      courseType,
+      dayOnCourseId,
+      stepIndex,
+    });
+
+    return c.json({ success: true, data: result });
+  } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
+    if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
+      return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
+    }
+    if (error instanceof Error && error.message === "DayOnCourse or day not found") {
+      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+    }
+    if (error instanceof Error && error.message === "Step not found") {
+      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+    logger.error("Error unlocking rewarded training step", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
 // ==================== POST /training/step/start ====================
 const startStepBodySchema = z.object({
   courseId: courseIdSchema,
@@ -182,10 +271,10 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex, durationSec } = c.req.valid("json");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
     const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
     if (courseAccessResponse) return courseAccessResponse;
+    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+    if (rewardedAccessResponse) return rewardedAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
       type: "start",
@@ -216,6 +305,9 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
     if (error instanceof Error && error.message === "Step not found") {
       return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
     }
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
     logger.error("Error starting step", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
@@ -233,10 +325,10 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex, timeLeftSec } = c.req.valid("json");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
     const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
     if (courseAccessResponse) return courseAccessResponse;
+    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+    if (rewardedAccessResponse) return rewardedAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
       type: "pause",
@@ -268,6 +360,9 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
     if (error instanceof Error && error.message === "Step not found") {
       return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
     }
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
     logger.error("Error pausing step", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
@@ -284,10 +379,10 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
     const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
     if (courseAccessResponse) return courseAccessResponse;
+    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+    if (rewardedAccessResponse) return rewardedAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "resume" });
     try {
@@ -316,6 +411,9 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
     if (error instanceof Error && error.message === "Step not found") {
       return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
     }
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
     logger.error("Error resuming step", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
@@ -333,10 +431,10 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
     const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
     if (courseAccessResponse) return courseAccessResponse;
+    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+    if (rewardedAccessResponse) return rewardedAccessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "reset" });
     try {
@@ -364,6 +462,9 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
     }
     if (error instanceof Error && error.message === "Step not found") {
       return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
     }
     if (error instanceof Error && error.message.startsWith("INVALID_STATE")) {
       return c.json(
@@ -399,10 +500,10 @@ trainingRoutes.post(
     try {
       const user = c.get("user");
       const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-      const subscriptionResponse = await requireActiveAppSubscription(c);
-      if (subscriptionResponse) return subscriptionResponse;
       const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
       if (courseAccessResponse) return courseAccessResponse;
+      const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+      if (rewardedAccessResponse) return rewardedAccessResponse;
 
       const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
         type: "complete",
@@ -420,6 +521,9 @@ trainingRoutes.post(
       }
       if (error instanceof Error && error.message === "Step not found") {
         return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+      }
+      if (isSubscriptionOrCreditsRequiredError(error)) {
+        return subscriptionOrCreditsResponse(c);
       }
       logger.error("Error completing practice step", error as Error);
       return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
@@ -439,10 +543,10 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
     const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
     if (courseAccessResponse) return courseAccessResponse;
+    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+    if (rewardedAccessResponse) return rewardedAccessResponse;
 
     const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
     if (!validation.valid) {
@@ -465,6 +569,9 @@ trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBo
     }
     if (error instanceof Error && error.message === "Step not found") {
       return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+    }
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
     }
     logger.error("Error completing theory step", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);

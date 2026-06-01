@@ -113,6 +113,10 @@
       "types": "./dist/core/src/services/reminders/index.d.ts",
       "default": "./dist/core/src/services/reminders/index.js"
     },
+    "./services/rewardedCredits": {
+      "types": "./dist/core/src/services/rewardedCredits/index.d.ts",
+      "default": "./dist/core/src/services/rewardedCredits/index.js"
+    },
     "./services/video": {
       "types": "./dist/core/src/services/video/index.d.ts",
       "default": "./dist/core/src/services/video/index.js"

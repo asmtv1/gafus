@@ -8,6 +8,15 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import type { ChecklistQuestion } from "@gafus/types";
 import { randomUUID } from "crypto";
+import {
+  getPremiumOrRewardedAccess,
+  REWARDED_STEP_UNLOCK_COST,
+  requirePremiumOrRewardedUnlock,
+  unlockRewardedTarget,
+  SubscriptionOrCreditsRequiredError,
+  type RewardedPlatform,
+  type RewardedTargetInput,
+} from "../rewardedCredits";
 import { estimateDayDurations } from "../../utils/training";
 import {
   parseDailyCourseImportFile,
@@ -30,6 +39,13 @@ const logger = createWebLogger("daily-course");
 const ALLOWED_ROLES = new Set(["TRAINER", "ADMIN", "MODERATOR"]);
 const ADMIN_ROLES = new Set(["ADMIN", "MODERATOR"]);
 const ALLOWED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "BREAK", "EXAMINATION", "SURVEY"]);
+const REWARDED_MONETIZED_STEP_TYPES = new Set([
+  "TRAINING",
+  "PRACTICE",
+  "THEORY",
+  "EXAMINATION",
+  "SURVEY",
+]);
 const NON_EXAMINATION_STEP_TYPES: PrismaStepType[] = ["TRAINING", "PRACTICE", "THEORY", "BREAK", "SURVEY"];
 const MIN_STEPS = 2;
 const MAX_STEPS = 5;
@@ -56,6 +72,12 @@ export interface DailyCourseStepDto {
   completedAt: string | null;
   isPausedOnServer: boolean;
   remainingSecOnServer?: number;
+  locked?: boolean;
+  unlockCost?: number;
+  monetizationTarget?: {
+    targetType: "DAILY_COURSE_STEP";
+    targetId: string;
+  };
   step: {
     id: string;
     title: string;
@@ -479,6 +501,41 @@ function mapDailyCourseSteps(
   });
 }
 
+function isRewardedMonetizedDailyCourseStep(stepType: string | null | undefined): boolean {
+  return REWARDED_MONETIZED_STEP_TYPES.has(stepType ?? "");
+}
+
+function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
+  return (
+    error instanceof SubscriptionOrCreditsRequiredError ||
+    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+  );
+}
+
+function redactLockedDailyCourseStep(
+  dailyStep: DailyCourseStepDto,
+  target: RewardedTargetInput,
+): DailyCourseStepDto {
+  return {
+    ...dailyStep,
+    locked: true,
+    unlockCost: target.cost ?? REWARDED_STEP_UNLOCK_COST,
+    monetizationTarget: {
+      targetType: "DAILY_COURSE_STEP",
+      targetId: target.targetId,
+    },
+    step: {
+      ...dailyStep.step,
+      description: "",
+      videoUrl: null,
+      imageUrls: [],
+      pdfUrls: [],
+      checklist: null,
+      surveySlug: null,
+    },
+  };
+}
+
 function cleanDailyCourseMarkdownDescription(description: string): string {
   const trimmed = description.trim();
   const unquoted =
@@ -662,6 +719,147 @@ export async function getDailyCourseDayWithUserSteps(
     userStatus,
     steps: mapDailyCourseSteps(stepLinks, userSteps),
   };
+}
+
+export async function resolveDailyCourseStepRewardedTarget(input: {
+  userId: string;
+  scheduleId: string;
+  stepIndex: number;
+}): Promise<RewardedTargetInput | null> {
+  const schedule = await prisma.dailyCourseSchedule.findFirst({
+    where: { id: input.scheduleId, isPublished: true, date: { lte: getTodayDate() } },
+    select: {
+      id: true,
+      bundle: {
+        select: {
+          stepLinks: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              step: {
+                select: {
+                  type: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!schedule) {
+    throw new Error("SCHEDULE_NOT_FOUND");
+  }
+
+  const stepLink = schedule.bundle.stepLinks[input.stepIndex];
+  if (!stepLink?.step) {
+    throw new Error("STEP_NOT_FOUND");
+  }
+
+  if (!isRewardedMonetizedDailyCourseStep(stepLink.step.type)) {
+    return null;
+  }
+
+  return {
+    targetType: "DAILY_COURSE_STEP",
+    targetId: `${schedule.id}:${stepLink.id}`,
+    cost: REWARDED_STEP_UNLOCK_COST,
+  };
+}
+
+export async function getDailyCourseDayWithMonetizedSteps(
+  userId: string,
+  scheduleId: string,
+  options: { platform: RewardedPlatform; createIfMissing?: boolean },
+): Promise<DailyCourseDayResponse | null> {
+  const day = await getDailyCourseDayWithUserSteps(userId, scheduleId, {
+    createIfMissing: options.createIfMissing,
+  });
+  if (!day) return null;
+
+  const steps = await Promise.all(
+    day.steps.map(async (step, stepIndex) => {
+      if (!isRewardedMonetizedDailyCourseStep(step.step.type)) {
+        return { ...step, locked: false };
+      }
+
+      const target = await resolveDailyCourseStepRewardedTarget({
+        userId,
+        scheduleId,
+        stepIndex,
+      });
+      if (!target) {
+        return { ...step, locked: false };
+      }
+
+      try {
+        await getPremiumOrRewardedAccess({
+          userId,
+          platform: options.platform,
+          target,
+        });
+      } catch (error) {
+        if (isSubscriptionOrCreditsRequiredError(error)) {
+          return redactLockedDailyCourseStep(step, target);
+        }
+        throw error;
+      }
+
+      return {
+        ...step,
+        locked: false,
+        unlockCost: target.cost ?? REWARDED_STEP_UNLOCK_COST,
+        monetizationTarget: {
+          targetType: "DAILY_COURSE_STEP" as const,
+          targetId: target.targetId,
+        },
+      };
+    }),
+  );
+
+  return { ...day, steps };
+}
+
+export async function requireDailyCourseStepPremiumOrRewardedUnlock(input: {
+  userId: string;
+  platform: RewardedPlatform;
+  scheduleId: string;
+  stepIndex: number;
+}) {
+  const target = await resolveDailyCourseStepRewardedTarget(input);
+  if (!target) return null;
+
+  return requirePremiumOrRewardedUnlock({
+    userId: input.userId,
+    platform: input.platform,
+    target,
+  });
+}
+
+export async function unlockDailyCourseStepRewardedTarget(input: {
+  userId: string;
+  platform: RewardedPlatform;
+  scheduleId: string;
+  stepIndex: number;
+}) {
+  const target = await resolveDailyCourseStepRewardedTarget(input);
+  if (!target) {
+    return {
+      targetType: "DAILY_COURSE_STEP" as const,
+      targetId: input.scheduleId,
+      unlocked: true as const,
+      spentCredits: 0,
+      balance: 0,
+      pendingRefundCredits: 0,
+    };
+  }
+
+  return unlockRewardedTarget({
+    userId: input.userId,
+    platform: input.platform,
+    target,
+  });
 }
 
 export async function updateDailyCourseStepAndDay(

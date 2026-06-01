@@ -166,6 +166,71 @@
   line-height: 1.35;
 }
 
+.rewardedBlock {
+  margin-top: 18px;
+  max-width: 620px;
+  border: 1px solid rgba(99, 97, 40, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 252, 242, 0.86);
+  padding: 16px;
+}
+
+.rewardedTitle {
+  margin: 0;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.rewardedText,
+.rewardedBalance,
+.rewardedHint {
+  margin: 6px 0 0;
+  color: rgba(53, 46, 46, 0.88);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.rewardedBalance {
+  color: rgba(53, 46, 46, 0.68);
+}
+
+.rewardedHint {
+  color: rgba(53, 46, 46, 0.68);
+}
+
+.rewardedButton {
+  margin-top: 12px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(140deg, #767429 0%, #626124 100%);
+  color: #fff8e5;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+  padding: 13px 18px;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+  box-shadow: 0 8px 18px rgba(99, 97, 40, 0.22);
+}
+
+.rewardedButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(99, 97, 40, 0.3);
+}
+
+.rewardedButton:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
 .legalText {
   margin: 12px 0 0;
   max-width: 620px;
@@ -244,6 +309,14 @@
     width: 100%;
     font-size: 18px;
     padding: 16px 20px;
+  }
+
+  .rewardedBlock {
+    padding: 14px;
+  }
+
+  .rewardedButton {
+    width: 100%;
   }
 
   .returnTitle {

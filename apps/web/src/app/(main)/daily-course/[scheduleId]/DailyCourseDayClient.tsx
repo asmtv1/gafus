@@ -10,6 +10,7 @@ import {
   resetDailyCourseStepServerAction,
   resumeDailyCourseStepServerAction,
   startDailyCourseStepServerAction,
+  unlockDailyCourseStepServerAction,
 } from "@shared/lib/daily-course/actions";
 
 interface DailyCourseDayClientProps {
@@ -40,10 +41,14 @@ export function DailyCourseDayClient({ scheduleId, training }: DailyCourseDayCli
     (stepIndex: number) => resetDailyCourseStepServerAction(scheduleId, stepIndex),
     [scheduleId],
   );
+  const unlockStep = useCallback(
+    (stepIndex: number) => unlockDailyCourseStepServerAction(scheduleId, stepIndex),
+    [scheduleId],
+  );
 
   const serverActions = useMemo(
-    () => ({ startStep, completeStep, pauseStep, resumeStep, resetStep }),
-    [completeStep, pauseStep, resetStep, resumeStep, startStep],
+    () => ({ startStep, completeStep, pauseStep, resumeStep, resetStep, unlockStep }),
+    [completeStep, pauseStep, resetStep, resumeStep, startStep, unlockStep],
   );
 
   return (

@@ -36,6 +36,7 @@ import { paymentsRoutes } from "./routes/v1/payments.js";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
+import { rewardedAdsRoutes } from "./routes/v1/rewarded-ads.js";
 import { shouldRateLimitAppSubscriptionPath } from "./middleware/app-subscription-rate-limit.js";
 
 export const app = new Hono();
@@ -137,6 +138,16 @@ app.use("/api/v1/app-subscription/*", (c, next) => {
   return next();
 });
 app.route("/api/v1/app-subscription", appSubscriptionRoutes);
+
+app.use("/api/v1/rewarded-ads/*", authMiddleware);
+app.use("/api/v1/rewarded-ads/*", (c, next) => {
+  const { pathname } = new URL(c.req.url);
+  if (c.req.method === "POST" && (pathname.endsWith("/session") || pathname.endsWith("/grant"))) {
+    return paymentsRateLimiter(c, next);
+  }
+  return apiRateLimiter(c, next);
+});
+app.route("/api/v1/rewarded-ads", rewardedAdsRoutes);
 
 // Global error handler
 app.onError(errorHandler);

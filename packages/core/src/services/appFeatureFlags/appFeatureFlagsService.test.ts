@@ -66,4 +66,11 @@ describe("app feature flags", () => {
       iosRuCardPaymentHintEnabled: true,
     });
   });
+
+  it("defaults app subscription paywall and gating to enabled when no flag row exists", async () => {
+    await expect(getMobileAppPublicConfig()).resolves.toMatchObject({
+      appSubscriptionPaywallEnabled: true,
+      appSubscriptionGatingEnabled: true,
+    });
+  });
 });

@@ -1,6 +1,9 @@
 "use server";
 
-import { getTrainingDayWithUserSteps as getTrainingDayWithUserStepsFromCore } from "@gafus/core/services/training/trainingService";
+import {
+  getTrainingDayWithMonetizedSteps,
+  getTrainingDayWithUserSteps as getTrainingDayWithUserStepsFromCore,
+} from "@gafus/core/services/training/trainingService";
 
 import type { TrainingDetail } from "@gafus/types";
 
@@ -24,12 +27,13 @@ export async function getTrainingDayWithUserSteps(
   const userId = await getCurrentUserId();
 
   try {
-    const training = await getTrainingDayWithUserStepsFromCore(
-      userId ?? undefined,
-      safeCourseType,
-      safeDayId,
-      options,
-    );
+    const training =
+      userId ?
+        await getTrainingDayWithMonetizedSteps(userId, safeCourseType, safeDayId, {
+          ...options,
+          platform: "WEB_DESKTOP",
+        })
+      : await getTrainingDayWithUserStepsFromCore(undefined, safeCourseType, safeDayId, options);
 
     return { training };
   } catch (error) {

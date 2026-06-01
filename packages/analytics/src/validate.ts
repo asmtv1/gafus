@@ -20,7 +20,17 @@ const base = z
     ts: z.string(),
     userId: z.string().optional(),
   })
-  .strict();
+    .strict();
+
+const rewardedFields = {
+  rewardedPlatform: z.string().optional(),
+  targetType: z.string().optional(),
+  creditsDelta: z.number().optional(),
+  balance: z.number().optional(),
+  dailyLimit: z.number().optional(),
+  reason: z.string().optional(),
+  provider: z.string().optional(),
+};
 
 const schemas = {
   page_view: base.extend({ eventName: z.literal("page_view") }).strict(),
@@ -106,6 +116,46 @@ const schemas = {
       version: z.string(),
       stepId: z.string().optional(),
     })
+    .strict(),
+
+  rewarded_ad_cta_shown: base
+    .extend({ eventName: z.literal("rewarded_ad_cta_shown"), ...rewardedFields })
+    .strict(),
+  rewarded_ad_session_created: base
+    .extend({ eventName: z.literal("rewarded_ad_session_created"), ...rewardedFields })
+    .strict(),
+  rewarded_ad_loaded: base
+    .extend({ eventName: z.literal("rewarded_ad_loaded"), ...rewardedFields })
+    .strict(),
+  rewarded_ad_shown: base
+    .extend({ eventName: z.literal("rewarded_ad_shown"), ...rewardedFields })
+    .strict(),
+  rewarded_ad_failed: base
+    .extend({ eventName: z.literal("rewarded_ad_failed"), ...rewardedFields })
+    .strict(),
+  rewarded_ad_dismissed: base
+    .extend({ eventName: z.literal("rewarded_ad_dismissed"), ...rewardedFields })
+    .strict(),
+  rewarded_ad_rewarded: base
+    .extend({ eventName: z.literal("rewarded_ad_rewarded"), ...rewardedFields })
+    .strict(),
+  rewarded_credits_granted: base
+    .extend({ eventName: z.literal("rewarded_credits_granted"), ...rewardedFields })
+    .strict(),
+  rewarded_credits_spent: base
+    .extend({ eventName: z.literal("rewarded_credits_spent"), ...rewardedFields })
+    .strict(),
+  rewarded_credits_refunded: base
+    .extend({ eventName: z.literal("rewarded_credits_refunded"), ...rewardedFields })
+    .strict(),
+  rewarded_daily_limit_reached: base
+    .extend({ eventName: z.literal("rewarded_daily_limit_reached"), ...rewardedFields })
+    .strict(),
+  rewarded_target_unlocked: base
+    .extend({ eventName: z.literal("rewarded_target_unlocked"), ...rewardedFields })
+    .strict(),
+  rewarded_to_subscription_started: base
+    .extend({ eventName: z.literal("rewarded_to_subscription_started"), ...rewardedFields })
     .strict(),
 } as const;
 

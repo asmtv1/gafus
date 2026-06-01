@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 
 import CacheManagement from "@/features/admin/components/CacheManagement";
 import { AppSubscriptionSettingsCard } from "@/features/admin/components/AppSubscriptionSettingsCard";
+import { RewardedAdsSettingsCard } from "@/features/admin/components/RewardedAdsSettingsCard";
 import StorageManagement from "@/features/admin/components/StorageManagement";
 import {
   getStorageStats,
   type StorageStats,
 } from "@/features/admin/lib/getStorageStats";
 import { getAppSubscriptionSettingsAction } from "@/shared/lib/actions/appSubscriptionAdminActions";
+import { getRewardedAdSettingsAction } from "@/shared/lib/actions/rewardedAdsAdminActions";
 import PageLayout from "@/shared/components/PageLayout";
 
 export default async function AdminPage() {
@@ -30,6 +32,7 @@ export default async function AdminPage() {
   }
 
   const appSubscriptionSettings = await getAppSubscriptionSettingsAction();
+  const rewardedAdSettings = await getRewardedAdSettingsAction();
 
   return (
     <PageLayout title="Администрирование" subtitle="Управление системой и кэшированием данных">
@@ -47,6 +50,11 @@ export default async function AdminPage() {
           actorRole={session.user.role}
           initialYookassaWeeklyPriceRub={appSubscriptionSettings.yookassaWeeklyPriceRub}
           initialAppleProductId={appSubscriptionSettings.appleProductId}
+        />
+
+        <RewardedAdsSettingsCard
+          actorRole={session.user.role}
+          initialSettings={rewardedAdSettings}
         />
 
         {/* Управление кэшем */}

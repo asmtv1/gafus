@@ -65,6 +65,9 @@ module.exports = ({ config }) => ({
     vkMobileRedirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "gafus://auth/vk",
     ymMobileApiKey: process.env.EXPO_PUBLIC_YM_MOBILE_API_KEY ?? "",
     ymMobileEnabled: process.env.EXPO_PUBLIC_YM_MOBILE_ENABLED === "true",
+    rewardedAdsAndroidPlacementId: process.env.EXPO_PUBLIC_REWARDED_ADS_ANDROID_PLACEMENT_ID ?? "",
+    rewardedAdsIosPlacementId: process.env.EXPO_PUBLIC_REWARDED_ADS_IOS_PLACEMENT_ID ?? "",
+    rewardedAdsTestMode: process.env.EXPO_PUBLIC_REWARDED_ADS_TEST_MODE === "true",
     analyticsDebug: process.env.EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1",
   },
 });

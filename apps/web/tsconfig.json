@@ -75,6 +75,9 @@
       "@gafus/core/services/reminders": [
         "../../packages/core/src/services/reminders/index.ts"
       ],
+      "@gafus/core/services/rewardedCredits": [
+        "../../packages/core/src/services/rewardedCredits/index.ts"
+      ],
       "@gafus/core/services/exam": ["../../packages/core/src/services/exam/index.ts"],
       "@gafus/core/services/offline": ["../../packages/core/src/services/offline/index.ts"],
       "@gafus/core/services/video": ["../../packages/core/src/services/video/index.ts"],

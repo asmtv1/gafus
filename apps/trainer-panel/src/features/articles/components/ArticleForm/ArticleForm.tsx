@@ -20,7 +20,7 @@ import { createId } from "@paralleldrive/cuid2";
 import {
   createArticleSchema,
   type CreateArticleSchemaInput,
-} from "@gafus/core/services/article";
+} from "@gafus/core/services/article/schemas";
 import { transliterate } from "@gafus/core/utils";
 import type { TrainerVideoDto } from "@gafus/types";
 import type { z } from "zod";

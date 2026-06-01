@@ -95,6 +95,24 @@ export const dailyCourseApi = {
       body: params,
     });
   },
+
+  unlockStep: async (
+    params: DailyCourseStepActionParams,
+  ): Promise<
+    ApiResponse<{
+      targetType: "DAILY_COURSE_STEP";
+      targetId: string;
+      unlocked: true;
+      spentCredits: number;
+      balance: number;
+      pendingRefundCredits: number;
+    }>
+  > => {
+    return apiClient("/api/v1/daily-course/step/unlock", {
+      method: "POST",
+      body: params,
+    });
+  },
 };
 
 export function getDailyCourseStoreCourseId(scheduleId: string): string {

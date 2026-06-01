@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 
-const { cancelBookingByUserMock, getServerSessionMock, requireSubscriptionMock } = vi.hoisted(
+const { cancelBookingByUserMock, getServerSessionMock } = vi.hoisted(
   () => ({
     cancelBookingByUserMock: vi.fn(),
     getServerSessionMock: vi.fn(),
-    requireSubscriptionMock: vi.fn(),
   }),
 );
 
@@ -14,9 +13,6 @@ vi.mock("@gafus/auth", () => ({ authOptions: {} }));
 vi.mock("@gafus/core", () => ({
   cancelBookingBodySchema: { parse: (value: unknown) => value },
   cancelBookingByUser: cancelBookingByUserMock,
-}));
-vi.mock("@shared/lib/app-subscription/server", () => ({
-  requireWebAppSubscriptionOrThrow: requireSubscriptionMock,
 }));
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 vi.mock("@/shared/lib/consultation-cache-tags", () => ({

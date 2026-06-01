@@ -16,7 +16,7 @@ import {
   adminSetListedCynologists,
   addDayOff,
   addSlotException,
-  bookSlot,
+  bookSlotWithPremiumOrRewardedCredits,
   bookSlotInputSchema,
   cancelBookingBodySchema,
   cancelBookingByUser,
@@ -44,6 +44,10 @@ import {
   verifyConsultationSlotFreeForCynologist,
   trainerAvailabilityInputSchema,
 } from "@gafus/core/services/consultation";
+import {
+  RewardedCreditsRequiredError,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
 
 import { requireRole } from "../../middleware/auth.js";
@@ -63,6 +67,19 @@ async function targetTrainerIdFromRequest(c: Context): Promise<string> {
 }
 
 function handleConsultationError(c: import("hono").Context, error: unknown) {
+  if (
+    error instanceof RewardedCreditsRequiredError ||
+    error instanceof SubscriptionOrCreditsRequiredError
+  ) {
+    return c.json(
+      {
+        success: false,
+        error: "Для действия нужна подписка или rewarded credits",
+        code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+      },
+      402,
+    );
+  }
   if (error instanceof ConsultationSlotTakenError) {
     return c.json({ success: false, error: error.message, code: error.code }, 409);
   }
@@ -81,6 +98,11 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
     logger.error("consultations route", error instanceof Error ? error : new Error(String(error)));
   }
   return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+}
+
+function getMobileRewardedPlatform(c: Context): "ANDROID" | "IOS" {
+  const platform = c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+  return platform === "IOS" ? "IOS" : "ANDROID";
 }
 
 consultationsRoutes.get("/cynologists", async (c) => {
@@ -130,7 +152,12 @@ consultationsRoutes.post("/book", consultationBookRateLimiter, zValidator("json"
     const user = c.get("user");
     const body = c.req.valid("json");
     const requestId = c.req.header("X-Request-Id") ?? undefined;
-    const result = await bookSlot(user.id, body, requestId);
+    const result = await bookSlotWithPremiumOrRewardedCredits({
+      userId: user.id,
+      platform: getMobileRewardedPlatform(c),
+      body,
+      requestId,
+    });
     const status = result.kind === "created" ? 201 : 200;
     return c.json({ success: true, data: result }, status);
   } catch (error) {

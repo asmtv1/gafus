@@ -361,6 +361,10 @@ model User {
   manualAppSubscriptionGrants    AppSubscription[]                @relation("ManualAppSubscriptionGrantedBy")
   updatedAppSubscriptionSettings AppSubscriptionSettings[]        @relation("AppSubscriptionSettingsUpdatedBy")
   adminAppSubscriptionEvents     AppSubscriptionEvent[]           @relation("AppSubscriptionEventActor")
+  rewardedCreditWallet           RewardedCreditWallet?
+  rewardedAdSessions             RewardedAdSession[]
+  rewardedCreditTransactions     RewardedCreditTransaction[]
+  updatedRewardedAdSettings      RewardedAdSettings[]
 }
 
 enum ConsentType {
@@ -653,6 +657,126 @@ model AppSubscriptionSettings {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model RewardedAdSettings {
+  key String @id @default("default") @db.VarChar(32)
+
+  androidEnabled    Boolean @default(false)
+  iosEnabled        Boolean @default(false)
+  webDesktopEnabled Boolean @default(false)
+  webTouchEnabled   Boolean @default(false)
+  paywallCtaEnabled Boolean @default(false)
+
+  dailyAdLimit Int @default(1)
+
+  yandexAndroidPlacementId String?
+  yandexIosPlacementId     String?
+  yandexWebDesktopBlockId  String?
+  yandexWebTouchBlockId    String?
+
+  testMode Boolean @default(true)
+
+  updatedById String?
+  updatedBy   User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RewardedCreditWallet {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance              Int @default(0)
+  pendingRefundCredits Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RewardedAdSession {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform    RewardedPlatform
+  provider    RewardedProvider @default(YANDEX)
+  placementId String
+
+  status RewardedAdSessionStatus @default(CREATED)
+
+  targetType RewardedTargetType?
+  targetId   String?
+
+  requestNonceHash String @unique
+  providerPayload  Json?
+  errorCode        String?
+  errorMessage     String?
+
+  expiresAt  DateTime
+  rewardedAt DateTime?
+  grantedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events       RewardedAdEvent[]
+  transactions RewardedCreditTransaction[]
+
+  @@index([userId, createdAt])
+  @@index([userId, status, expiresAt])
+  @@index([platform, status, createdAt])
+}
+
+model RewardedCreditTransaction {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   RewardedCreditTransactionType
+  amount Int
+
+  balanceBefore Int
+  balanceAfter  Int
+
+  targetType RewardedTargetType?
+  targetId   String?
+
+  provider  RewardedProvider?
+  sessionId String?
+  session   RewardedAdSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  idempotencyKey String @unique
+
+  refundedTransactionId String?
+  refundReason          String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, type, createdAt])
+  @@index([userId, targetType, targetId])
+  @@index([sessionId])
+}
+
+model RewardedAdEvent {
+  id String @id @default(cuid())
+
+  sessionId String
+  session   RewardedAdSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  eventType String
+  payload   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model AppSubscription {
@@ -1419,6 +1543,42 @@ enum AppSubscriptionEventProcessingStatus {
   PROCESSING
   PROCESSED
   FAILED
+}
+
+enum RewardedPlatform {
+  ANDROID
+  IOS
+  WEB_DESKTOP
+  WEB_TOUCH
+}
+
+enum RewardedProvider {
+  YANDEX
+}
+
+enum RewardedAdSessionStatus {
+  CREATED
+  LOADED
+  SHOWN
+  REWARDED
+  GRANTED
+  DISMISSED
+  FAILED
+  EXPIRED
+}
+
+enum RewardedCreditTransactionType {
+  EARN
+  SPEND
+  REFUND
+  ADJUSTMENT
+}
+
+enum RewardedTargetType {
+  ARTICLE
+  COURSE_STEP
+  DAILY_COURSE_STEP
+  CONSULTATION_BOOKING
 }
 
 enum PaymentStatus {

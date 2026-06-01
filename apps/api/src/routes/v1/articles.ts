@@ -7,9 +7,10 @@ import { zValidator } from "@hono/zod-validator";
 
 import {
   getArticles,
-  getArticleBySlug,
+  getArticleBySlugForMonetizedAccess,
   toggleArticleLike,
   incrementArticleView,
+  unlockArticleBySlug,
 } from "@gafus/core/services/article";
 import { createWebLogger } from "@gafus/logger";
 
@@ -45,6 +46,7 @@ articlesRoutes.post("/:id/like", zValidator("param", likeParamSchema), async (c)
 });
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });
+const platformQuerySchema = z.object({ platform: z.enum(["ANDROID", "IOS"]).optional() });
 
 const viewParamSchema = z.object({ slug: z.string().min(1) });
 
@@ -76,13 +78,39 @@ articlesRoutes.get("/:slug", zValidator("param", slugParamSchema), async (c) => 
   try {
     const user = c.get("user");
     const { slug } = c.req.valid("param");
-    const result = await getArticleBySlug(slug, user.id);
+    const platform = platformQuerySchema.safeParse({
+      platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
+    }).success
+      ? platformQuerySchema.parse({
+          platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
+        }).platform ?? "ANDROID"
+      : "ANDROID";
+    const result = await getArticleBySlugForMonetizedAccess({ slug, userId: user.id, platform });
     if (!result.success) {
       return c.json(result, 404);
     }
     return c.json(result);
   } catch (error) {
     logger.error("Error in article detail GET", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
+
+articlesRoutes.post("/:slug/unlock", zValidator("param", slugParamSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const { slug } = c.req.valid("param");
+    const platform = platformQuerySchema.safeParse({
+      platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
+    }).success
+      ? platformQuerySchema.parse({
+          platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
+        }).platform ?? "ANDROID"
+      : "ANDROID";
+    const result = await unlockArticleBySlug({ slug, userId: user.id, platform });
+    return c.json(result, result.success ? 200 : 404);
+  } catch (error) {
+    logger.error("Error in article unlock POST", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });

@@ -6,11 +6,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { bookSlot, bookSlotInputSchema } from "@gafus/core";
+import { bookSlotInputSchema, bookSlotWithPremiumOrRewardedCredits } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
-import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
+import {
+  RewardedCreditsRequiredError,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 
 import {
   consultationTrainerBookingsTag,
@@ -33,18 +35,32 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         { status: 401 },
       );
     }
-    await requireWebAppSubscriptionOrThrow(session.user.id);
     const json = await request.json();
     const body = bookSlotInputSchema.parse(json);
     const requestId = request.headers.get("x-request-id") ?? undefined;
-    const result = await bookSlot(session.user.id, body, requestId);
+    const result = await bookSlotWithPremiumOrRewardedCredits({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+      body,
+      requestId,
+    });
     revalidateTag(consultationUserBookingsTag(session.user.id));
     revalidateTag(consultationTrainerBookingsTag(result.booking.cynologistUserId));
     const status = result.kind === "created" ? 201 : 200;
     return NextResponse.json({ success: true, data: result }, { status });
   } catch (error) {
-    if (error instanceof SubscriptionRequiredError) {
-      return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: error.status });
+    if (
+      error instanceof RewardedCreditsRequiredError ||
+      error instanceof SubscriptionOrCreditsRequiredError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        },
+        { status: 402 },
+      );
     }
     const mapped = mapConsultationError(error);
     if (mapped) {

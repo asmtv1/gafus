@@ -4,6 +4,7 @@ import {
   createArticle,
   deleteArticle,
   getArticleBySlug,
+  getArticleBySlugForMonetizedAccess,
   getArticleForEdit,
   getArticles,
   incrementArticleView,
@@ -18,8 +19,11 @@ const mockArticleDelete = vi.fn();
 const mockArticleUpdateMany = vi.fn();
 const mockTransaction = vi.fn();
 const mockArticleViewerCreate = vi.fn();
+const mockArticleViewerCreateMany = vi.fn();
 const mockArticleViewerUpdate = vi.fn();
 const mockArticleGuestViewCreate = vi.fn();
+const mockArticleGuestViewCreateMany = vi.fn();
+const mockGetPremiumOrRewardedAccess = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   isPrismaUniqueConstraintError: (error: unknown) =>
@@ -41,10 +45,12 @@ vi.mock("@gafus/prisma", () => ({
     },
     articleViewer: {
       create: (...args: unknown[]) => mockArticleViewerCreate(...args),
+      createMany: (...args: unknown[]) => mockArticleViewerCreateMany(...args),
       update: (...args: unknown[]) => mockArticleViewerUpdate(...args),
     },
     articleGuestView: {
       create: (...args: unknown[]) => mockArticleGuestViewCreate(...args),
+      createMany: (...args: unknown[]) => mockArticleGuestViewCreateMany(...args),
     },
   },
 }));
@@ -56,6 +62,14 @@ vi.mock("@gafus/logger", () => ({
     error: vi.fn(),
     success: vi.fn(),
   }),
+}));
+
+vi.mock("../rewardedCredits", () => ({
+  getPremiumOrRewardedAccess: (...args: unknown[]) => mockGetPremiumOrRewardedAccess(...args),
+  REWARDED_ARTICLE_COST: 1,
+  SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
+    code = "SUBSCRIPTION_OR_CREDITS_REQUIRED" as const;
+  },
 }));
 
 function listRow(overrides: Record<string, unknown> = {}) {
@@ -170,6 +184,60 @@ describe("getArticleBySlug", () => {
     if (r.success) {
       expect(r.data.hasAccess).toBe(false);
       expect(r.data.content).toBeNull();
+    }
+  });
+});
+
+describe("getArticleBySlugForMonetizedAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("PAID без Premium/rewarded access: не раскрывает content и не списывает", async () => {
+    mockArticleFindUnique.mockResolvedValue({
+      ...listRow({ visibility: "PAID", priceRub: 100 }),
+      content: "<p>Секрет</p>",
+      articleLikes: [],
+      access: [],
+    });
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(new Error("Требуется подписка или credits"));
+
+    const r = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug",
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+    });
+
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.content).toBeNull();
+      expect(r.data.monetization).toMatchObject({
+        locked: true,
+        target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
+      });
+    }
+    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalled();
+  });
+
+  it("PAID с Premium/rewarded access: раскрывает content", async () => {
+    mockArticleFindUnique.mockResolvedValue({
+      ...listRow({ visibility: "PAID", priceRub: 100 }),
+      content: "<p>Секрет</p>",
+      articleLikes: [],
+      access: [],
+    });
+    mockGetPremiumOrRewardedAccess.mockResolvedValue({ allowed: true, source: "PREMIUM" });
+
+    const r = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug",
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+    });
+
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.content).toBe("<p>Секрет</p>");
+      expect(r.data.monetization?.locked).toBe(false);
     }
   });
 });
@@ -349,26 +417,36 @@ describe("incrementArticleView", () => {
     mockArticleFindUnique.mockResolvedValue({ id: "art1" });
     mockArticleUpdate.mockResolvedValue({});
     mockArticleViewerCreate.mockResolvedValue({});
+    mockArticleViewerCreateMany.mockResolvedValue({ count: 1 });
     mockArticleViewerUpdate.mockResolvedValue({});
     mockArticleGuestViewCreate.mockResolvedValue({});
+    mockArticleGuestViewCreateMany.mockResolvedValue({ count: 1 });
     mockTransaction.mockImplementation(
       async (
         fn: (tx: {
           article: { update: typeof mockArticleUpdate };
           articleViewer: {
             create: typeof mockArticleViewerCreate;
+            createMany: typeof mockArticleViewerCreateMany;
             update: typeof mockArticleViewerUpdate;
           };
-          articleGuestView: { create: typeof mockArticleGuestViewCreate };
+          articleGuestView: {
+            create: typeof mockArticleGuestViewCreate;
+            createMany: typeof mockArticleGuestViewCreateMany;
+          };
         }) => Promise<void>
       ) => {
         await fn({
           article: { update: mockArticleUpdate },
           articleViewer: {
             create: mockArticleViewerCreate,
+            createMany: mockArticleViewerCreateMany,
             update: mockArticleViewerUpdate,
           },
-          articleGuestView: { create: mockArticleGuestViewCreate },
+          articleGuestView: {
+            create: mockArticleGuestViewCreate,
+            createMany: mockArticleGuestViewCreateMany,
+          },
         });
       }
     );
@@ -386,28 +464,33 @@ describe("incrementArticleView", () => {
     await expect(
       incrementArticleView("slug-x", { guestVisitorKey: "abcd1234abcd1234" }),
     ).resolves.toEqual({ success: true });
-    expect(mockArticleGuestViewCreate).toHaveBeenCalledWith({
+    expect(mockArticleGuestViewCreateMany).toHaveBeenCalledWith({
       data: { articleId: "art1", visitorKey: "abcd1234abcd1234" },
+      skipDuplicates: true,
     });
+    expect(mockArticleGuestViewCreate).not.toHaveBeenCalled();
     expect(mockArticleUpdate).toHaveBeenCalledWith({
       where: { id: "art1" },
       data: { viewCount: { increment: 1 } },
     });
   });
 
-  it("гость с ключом повторно — P2002, без инкремента", async () => {
-    mockArticleGuestViewCreate.mockRejectedValueOnce({ code: "P2002" });
+  it("гость с ключом повторно — createMany count 0, без инкремента", async () => {
+    mockArticleGuestViewCreateMany.mockResolvedValueOnce({ count: 0 });
     await expect(
       incrementArticleView("slug-x", { guestVisitorKey: "abcd1234abcd1234" }),
     ).resolves.toEqual({ success: true });
     expect(mockArticleUpdate).not.toHaveBeenCalled();
+    expect(mockArticleGuestViewCreate).not.toHaveBeenCalled();
   });
 
   it("авторизованный первый просмотр — create зрителя и инкремент", async () => {
     await incrementArticleView("slug-x", { viewerUserId: "user-1" });
-    expect(mockArticleViewerCreate).toHaveBeenCalledWith({
+    expect(mockArticleViewerCreateMany).toHaveBeenCalledWith({
       data: { articleId: "art1", userId: "user-1" },
+      skipDuplicates: true,
     });
+    expect(mockArticleViewerCreate).not.toHaveBeenCalled();
     expect(mockArticleUpdate).toHaveBeenCalledWith({
       where: { id: "art1" },
       data: { viewCount: { increment: 1 } },
@@ -415,14 +498,15 @@ describe("incrementArticleView", () => {
     expect(mockArticleViewerUpdate).not.toHaveBeenCalled();
   });
 
-  it("авторизованный повторный просмотр — только lastViewedAt", async () => {
-    mockArticleViewerCreate.mockRejectedValueOnce({ code: "P2002" });
+  it("авторизованный повторный просмотр — createMany count 0 и только lastViewedAt", async () => {
+    mockArticleViewerCreateMany.mockResolvedValueOnce({ count: 0 });
     await incrementArticleView("slug-x", { viewerUserId: "user-1" });
     expect(mockArticleViewerUpdate).toHaveBeenCalledWith({
       where: { articleId_userId: { articleId: "art1", userId: "user-1" } },
       data: { lastViewedAt: expect.any(Date) as Date },
     });
     expect(mockArticleUpdate).not.toHaveBeenCalled();
+    expect(mockArticleViewerCreate).not.toHaveBeenCalled();
   });
 
   it("slug не найден — без транзакции", async () => {

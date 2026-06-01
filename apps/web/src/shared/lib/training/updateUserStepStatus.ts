@@ -5,6 +5,7 @@ import { TrainingStatus } from "@gafus/types";
 import {
   updateStepAndDay,
   getCourseTypeByDayOnCourseId,
+  requireCourseStepPremiumOrRewardedUnlock,
   type StepOperation,
 } from "@gafus/core/services/training/trainingService";
 import { createImmediatePushNotification } from "@gafus/core/services/notifications";
@@ -76,6 +77,12 @@ export async function updateUserStepStatus(
   });
   try {
     const operation = statusToOperation(safeStatus);
+    await requireCourseStepPremiumOrRewardedUnlock({
+      userId: safeUserId,
+      platform: "WEB_DESKTOP",
+      dayOnCourseId: safeDayOnCourseId,
+      stepIndex: safeStepIndex,
+    });
     const result = await updateStepAndDay(safeUserId, safeDayOnCourseId, safeStepIndex, operation);
 
     if (operation.type === "complete" && result.stepJustCompleted) {

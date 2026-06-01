@@ -3,11 +3,9 @@ import type { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { toggleArticleLike } from "@gafus/core/services/article";
+import { getArticleBySlugForMonetizedAccess, toggleArticleLike } from "@gafus/core/services/article";
 import { revalidateTag } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
-import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("api-article-like");
 
@@ -26,7 +24,6 @@ export const POST = withCSRFProtection(async (
         { status: 401 }
       );
     }
-    await requireWebAppSubscriptionOrThrow(session.user.id);
 
     const { slug: articleId } = await context.params;
 
@@ -37,17 +34,27 @@ export const POST = withCSRFProtection(async (
       );
     }
 
+    const article = await getArticleBySlugForMonetizedAccess({
+      slug: articleId,
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+    });
+    if (!article.success || article.data.monetization?.locked) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        },
+        { status: 402 },
+      );
+    }
+
     const isLiked = await toggleArticleLike(session.user.id, articleId);
     revalidateTag("articles");
 
     return NextResponse.json({ success: true, data: { isLiked } });
   } catch (error) {
-    if (error instanceof SubscriptionRequiredError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.status }
-      );
-    }
     logger.error("Error in article like POST", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },

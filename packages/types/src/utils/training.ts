@@ -35,6 +35,12 @@ export interface TrainingStep {
 
   // ID пользовательского шага для экзаменов
   userStepId?: string;
+  locked?: boolean;
+  unlockCost?: number;
+  monetizationTarget?: {
+    targetType: "COURSE_STEP" | "DAILY_COURSE_STEP";
+    targetId: string;
+  };
 }
 
 /** Результат getTrainingDays — дни курса */

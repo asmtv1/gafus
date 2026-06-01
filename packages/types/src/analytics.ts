@@ -16,6 +16,19 @@ export const ANALYTICS_EVENT_NAMES = {
   mobile_onboarding_step_viewed: "mobile_onboarding_step_viewed",
   mobile_onboarding_skipped: "mobile_onboarding_skipped",
   mobile_onboarding_completed: "mobile_onboarding_completed",
+  rewarded_ad_cta_shown: "rewarded_ad_cta_shown",
+  rewarded_ad_session_created: "rewarded_ad_session_created",
+  rewarded_ad_loaded: "rewarded_ad_loaded",
+  rewarded_ad_shown: "rewarded_ad_shown",
+  rewarded_ad_failed: "rewarded_ad_failed",
+  rewarded_ad_dismissed: "rewarded_ad_dismissed",
+  rewarded_ad_rewarded: "rewarded_ad_rewarded",
+  rewarded_credits_granted: "rewarded_credits_granted",
+  rewarded_credits_spent: "rewarded_credits_spent",
+  rewarded_credits_refunded: "rewarded_credits_refunded",
+  rewarded_daily_limit_reached: "rewarded_daily_limit_reached",
+  rewarded_target_unlocked: "rewarded_target_unlocked",
+  rewarded_to_subscription_started: "rewarded_to_subscription_started",
 } as const;
 
 /** Зарезервировано для Phase 2; в MVP не используется в инструментации. */
@@ -29,6 +42,20 @@ export const ANALYTICS_EVENT_NAMES_EXTENSION = {
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[keyof typeof ANALYTICS_EVENT_NAMES];
 
 export type AnalyticsPlatform = "web" | "mobile";
+export type RewardedAnalyticsEventName =
+  | "rewarded_ad_cta_shown"
+  | "rewarded_ad_session_created"
+  | "rewarded_ad_loaded"
+  | "rewarded_ad_shown"
+  | "rewarded_ad_failed"
+  | "rewarded_ad_dismissed"
+  | "rewarded_ad_rewarded"
+  | "rewarded_credits_granted"
+  | "rewarded_credits_spent"
+  | "rewarded_credits_refunded"
+  | "rewarded_daily_limit_reached"
+  | "rewarded_target_unlocked"
+  | "rewarded_to_subscription_started";
 
 /** Базовые поля payload после нормализации в @gafus/analytics. */
 export interface AnalyticsBaseFields {
@@ -79,6 +106,16 @@ export type AnalyticsTrackPayload =
       elementId: string;
       version: string;
       stepId?: string;
+    })
+  | (AnalyticsBaseFields & {
+      eventName: RewardedAnalyticsEventName;
+      rewardedPlatform?: string;
+      targetType?: string;
+      creditsDelta?: number;
+      balance?: number;
+      dailyLimit?: number;
+      reason?: string;
+      provider?: string;
     });
 
 type SessionTsOptional = { sessionId?: string; ts?: string };
@@ -151,5 +188,18 @@ export type AnalyticsTrackEventInput =
       elementId: string;
       version: string;
       stepId?: string;
+      userId?: string;
+    } & SessionTsOptional)
+  | ({
+      eventName: RewardedAnalyticsEventName;
+      platform: AnalyticsPlatform;
+      pathOrScreen: string;
+      rewardedPlatform?: string;
+      targetType?: string;
+      creditsDelta?: number;
+      balance?: number;
+      dailyLimit?: number;
+      reason?: string;
+      provider?: string;
       userId?: string;
     } & SessionTsOptional);

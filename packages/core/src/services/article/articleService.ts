@@ -1,7 +1,7 @@
 /**
  * Article Service — бизнес-логика статей.
  */
-import { isPrismaUniqueConstraintError, prisma } from "@gafus/prisma";
+import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
@@ -10,6 +10,12 @@ import {
   updateArticleSchema,
   type CreateArticleSchemaInput,
 } from "./schemas";
+import {
+  getPremiumOrRewardedAccess,
+  REWARDED_ARTICLE_COST,
+  unlockRewardedTarget,
+  type RewardedPlatform,
+} from "../rewardedCredits";
 
 const logger = createWebLogger("article-service");
 
@@ -165,6 +171,106 @@ export async function getArticleBySlug(
     logger.error("Ошибка getArticleBySlug", error as Error);
     return { success: false, error: "Не удалось загрузить статью" };
   }
+}
+
+export async function getArticleBySlugForMonetizedAccess(input: {
+  slug: string;
+  userId?: string;
+  platform: RewardedPlatform;
+}): Promise<GetArticleBySlugResult> {
+  try {
+    const row = await prisma.article.findUnique({
+      where: { slug: input.slug },
+      select: {
+        ...articleListSelect,
+        content: true,
+        articleLikes: { select: { userId: true } },
+        access: { select: { userId: true } },
+      },
+    });
+
+    if (!row) {
+      return { success: false, error: "Статья не найдена" };
+    }
+
+    const filteredLikes = input.userId
+      ? row.articleLikes.filter((l) => l.userId === input.userId)
+      : [];
+    const filteredAccess = input.userId
+      ? row.access.filter((a) => a.userId === input.userId)
+      : [];
+    const hasExistingAccess = row.visibility === "PUBLIC" || filteredAccess.length > 0;
+    const target = {
+      targetType: "ARTICLE" as const,
+      targetId: row.id,
+      cost: REWARDED_ARTICLE_COST,
+    };
+
+    let hasMonetizedAccess = false;
+    if (!hasExistingAccess && input.userId) {
+      try {
+        await getPremiumOrRewardedAccess({
+          userId: input.userId,
+          platform: input.platform,
+          target,
+        });
+        hasMonetizedAccess = true;
+      } catch {
+        hasMonetizedAccess = false;
+      }
+    }
+
+    const hasAccess = hasExistingAccess || hasMonetizedAccess;
+    const dto: ArticleDetailDto = {
+      ...mapToListDto(
+        {
+          ...row,
+          articleLikes: filteredLikes,
+          access: hasAccess ? [{ userId: input.userId ?? "" }] : filteredAccess,
+        } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
+        input.userId,
+      ),
+      hasAccess,
+      content: hasAccess ? row.content : null,
+      monetization:
+        row.visibility === "PAID"
+          ? {
+              locked: !hasAccess,
+              target,
+            }
+          : undefined,
+    };
+
+    return { success: true, data: dto };
+  } catch (error) {
+    logger.error("Ошибка getArticleBySlugForMonetizedAccess", error as Error);
+    return { success: false, error: "Не удалось загрузить статью" };
+  }
+}
+
+export async function unlockArticleBySlug(input: {
+  slug: string;
+  userId: string;
+  platform: RewardedPlatform;
+}) {
+  const row = await prisma.article.findUnique({
+    where: { slug: input.slug },
+    select: { id: true, visibility: true },
+  });
+  if (!row) {
+    return { success: false as const, error: "Статья не найдена" };
+  }
+
+  const data = await unlockRewardedTarget({
+    userId: input.userId,
+    platform: input.platform,
+    target: {
+      targetType: "ARTICLE",
+      targetId: row.id,
+      cost: REWARDED_ARTICLE_COST,
+    },
+  });
+  return { success: true as const, data };
 }
 
 export type GetArticleForEditResult =
@@ -348,19 +454,16 @@ export async function incrementArticleView(
       const articleId = article.id;
 
       if (userId) {
-        try {
-          await tx.articleViewer.create({
-            data: { articleId, userId },
+        const created = await tx.articleViewer.createMany({
+          data: { articleId, userId },
+          skipDuplicates: true,
+        });
+        if (created.count === 0) {
+          await tx.articleViewer.update({
+            where: { articleId_userId: { articleId, userId } },
+            data: { lastViewedAt: new Date() },
           });
-        } catch (e) {
-          if (isPrismaUniqueConstraintError(e)) {
-            await tx.articleViewer.update({
-              where: { articleId_userId: { articleId, userId } },
-              data: { lastViewedAt: new Date() },
-            });
-            return;
-          }
-          throw e;
+          return;
         }
         await tx.article.update({
           where: { id: articleId },
@@ -370,15 +473,12 @@ export async function incrementArticleView(
       }
 
       if (guestKey) {
-        try {
-          await tx.articleGuestView.create({
-            data: { articleId, visitorKey: guestKey },
-          });
-        } catch (e) {
-          if (isPrismaUniqueConstraintError(e)) {
-            return;
-          }
-          throw e;
+        const created = await tx.articleGuestView.createMany({
+          data: { articleId, visitorKey: guestKey },
+          skipDuplicates: true,
+        });
+        if (created.count === 0) {
+          return;
         }
         await tx.article.update({
           where: { id: articleId },

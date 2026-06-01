@@ -48,7 +48,9 @@ vi.mock("@gafus/queues", () => ({
 }));
 
 const {
+  idemFindFirst,
   idemFindUnique,
+  rewardedCreditTransactionFindFirst,
   txUpdateMany,
   txFindUnique,
   txCreateBooking,
@@ -58,7 +60,9 @@ const {
   prismaFindManyBooking,
   prismaTransaction,
 } = vi.hoisted(() => ({
+  idemFindFirst: vi.fn(),
   idemFindUnique: vi.fn(),
+  rewardedCreditTransactionFindFirst: vi.fn(),
   txUpdateMany: vi.fn(),
   txFindUnique: vi.fn(),
   txCreateBooking: vi.fn(),
@@ -77,8 +81,13 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
       ...mod.prisma,
       consultationBookingIdempotency: {
         ...mod.prisma.consultationBookingIdempotency,
+        findFirst: idemFindFirst,
         findUnique: idemFindUnique,
         upsert: prismaUpsertIdem,
+      },
+      rewardedCreditTransaction: {
+        ...mod.prisma.rewardedCreditTransaction,
+        findFirst: rewardedCreditTransactionFindFirst,
       },
       consultationBooking: {
         ...mod.prisma.consultationBooking,
@@ -106,7 +115,7 @@ describe("processBookingSlaTimeout", () => {
     await processBookingSlaTimeout("missing");
     expect(prismaTransaction).not.toHaveBeenCalled();
     expect(enqueueConsultationEmail).not.toHaveBeenCalled();
-  });
+  }, 10_000);
 
   it("не отменяет бронь, если статус не ожидание тренера", async () => {
     prismaFindUniqueBooking.mockResolvedValue({

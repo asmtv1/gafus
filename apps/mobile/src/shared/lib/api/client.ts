@@ -229,7 +229,10 @@ export async function apiClient<T>(
 
     if (!response.ok) {
       const code = extractHttpErrorCode(data);
-      if (response.status === 402 && code === "SUBSCRIPTION_REQUIRED") {
+      if (
+        response.status === 402 &&
+        (code === "SUBSCRIPTION_REQUIRED" || code === "SUBSCRIPTION_OR_CREDITS_REQUIRED")
+      ) {
         notifySubscriptionRequired("required");
       }
       return {

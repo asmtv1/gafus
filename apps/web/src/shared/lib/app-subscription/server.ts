@@ -8,7 +8,7 @@ import {
 } from "@gafus/core/services/appFeatureFlags";
 
 export async function requireWebAppSubscription(userId: string) {
-  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) {
     return null;
   }
@@ -22,7 +22,7 @@ export async function requireWebAppSubscription(userId: string) {
 }
 
 export async function requireWebAppSubscriptionOrThrow(userId: string) {
-  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) {
     return;
   }

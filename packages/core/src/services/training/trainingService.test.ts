@@ -2,8 +2,10 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
   getTrainingDays,
+  getTrainingDayWithMonetizedSteps,
   getTrainingDayWithUserSteps,
-} from "./trainingService";
+  resolveCourseStepRewardedTarget,
+} from "./trainingService.ts";
 import { checkCourseAccess } from "../course";
 
 const mockCourseFindFirst = vi.fn();
@@ -21,6 +23,8 @@ const mockUserCourseFindUnique = vi.fn();
 const mockUserCourseUpsert = vi.fn();
 const mockTransaction = vi.fn();
 const mockIsPrismaUniqueConstraintError = vi.fn();
+const mockGetPremiumOrRewardedAccess = vi.fn();
+const mockUnlockRewardedTarget = vi.fn();
 
 const txForMissingSteps = {
   userStep: {
@@ -58,6 +62,18 @@ vi.mock("@gafus/prisma", () => ({
 vi.mock("../course", () => ({
   checkCourseAccess: vi.fn().mockResolvedValue({ hasAccess: true }),
   checkCourseAccessById: (...args: unknown[]) => mockCheckCourseAccessById(...args),
+}));
+
+vi.mock("../rewardedCredits", () => ({
+  getPremiumOrRewardedAccess: (...args: unknown[]) => mockGetPremiumOrRewardedAccess(...args),
+  unlockRewardedTarget: (...args: unknown[]) => mockUnlockRewardedTarget(...args),
+  REWARDED_STEP_UNLOCK_COST: 1,
+  SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
+    constructor() {
+      super("Для действия нужна подписка или rewarded credits");
+      this.name = "SubscriptionOrCreditsRequiredError";
+    }
+  },
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -423,6 +439,102 @@ describe("getTrainingDays", () => {
   });
 });
 
+describe("rewarded training step access", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (checkCourseAccess as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ hasAccess: true });
+    mockDayOnCourseFindMany.mockResolvedValue([{ order: 1, day: { type: "regular" } }]);
+    mockDayOnCourseFindFirst.mockResolvedValue({
+      id: "doc-1",
+      order: 1,
+      courseId: "course-1",
+      course: { duration: "1 week", isPersonalized: false, userCourses: [] },
+      day: {
+        id: "day-1",
+        title: "Day",
+        description: "Day description",
+        type: "regular",
+        showCoursePathExport: false,
+        stepLinks: [
+          {
+            id: "sod-1",
+            order: 0,
+            step: {
+              id: "step-1",
+              title: "Theory",
+              description: "Secret content",
+              durationSec: null,
+              estimatedDurationSec: 60,
+              videoUrl: "video.mp4",
+              imageUrls: ["image.png"],
+              pdfUrls: ["file.pdf"],
+              type: "THEORY",
+              checklist: [{ id: "q1" }],
+              requiresVideoReport: false,
+              requiresWrittenFeedback: false,
+              hasTestQuestions: true,
+              surveySlug: "survey",
+            },
+          },
+          {
+            id: "sod-2",
+            order: 1,
+            step: {
+              id: "step-2",
+              title: "Break",
+              description: "Free break",
+              durationSec: null,
+              estimatedDurationSec: null,
+              videoUrl: null,
+              imageUrls: [],
+              pdfUrls: [],
+              type: "BREAK",
+              checklist: null,
+              requiresVideoReport: false,
+              requiresWrittenFeedback: false,
+              hasTestQuestions: false,
+              surveySlug: null,
+            },
+          },
+        ],
+      },
+      userTrainings: [],
+    });
+  });
+
+  it("redacts monetized locked steps without redacting free break steps", async () => {
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(
+      Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
+    );
+
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform: "ANDROID",
+    });
+
+    expect(result?.steps[0]).toMatchObject({
+      locked: true,
+      description: "",
+      videoUrl: "",
+      imageUrls: [],
+      pdfUrls: [],
+      checklist: null,
+      monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" },
+    });
+    expect(result?.steps[1]).toMatchObject({ locked: false, description: "Free break" });
+  });
+
+  it("resolves a monetized course step target by day and step index", async () => {
+    const target = await resolveCourseStepRewardedTarget({
+      userId: "user-1",
+      courseType: "course",
+      dayOnCourseId: "doc-1",
+      stepIndex: 0,
+    });
+
+    expect(target).toEqual({ targetType: "COURSE_STEP", targetId: "sod-1", cost: 1 });
+  });
+});
+
 describe("getTrainingDayWithUserSteps", () => {
   const baseFoundDay = {
     id: "doc-1",
@@ -592,4 +704,3 @@ describe("getTrainingDayWithUserSteps", () => {
     expect(result?.steps).toHaveLength(1);
   });
 });
-

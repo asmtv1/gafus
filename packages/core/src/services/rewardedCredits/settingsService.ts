@@ -1,0 +1,166 @@
+import { prisma } from "@gafus/prisma";
+
+import { REWARDED_DAILY_LIMIT_VALUES } from "./constants";
+import type {
+  RewardedAdSettingsDto,
+  RewardedDailyLimit,
+  RewardedPlatform,
+  RewardedPlatformSettingsDto,
+} from "./types";
+
+const SETTINGS_KEY = "default";
+const MAX_PLACEMENT_ID_LENGTH = 256;
+
+type SettingsUpdateInput = Partial<RewardedAdSettingsDto>;
+type SettingsRowInput = Omit<Partial<RewardedAdSettingsDto>, "dailyAdLimit"> & {
+  dailyAdLimit?: number;
+};
+
+const DEFAULT_SETTINGS: RewardedAdSettingsDto = {
+  androidEnabled: false,
+  iosEnabled: false,
+  webDesktopEnabled: false,
+  webTouchEnabled: false,
+  paywallCtaEnabled: false,
+  dailyAdLimit: 1,
+  yandexAndroidPlacementId: null,
+  yandexIosPlacementId: null,
+  yandexWebDesktopBlockId: null,
+  yandexWebTouchBlockId: null,
+  testMode: true,
+};
+
+function normalizePlacementId(value: string | null | undefined): string | null {
+  const normalized = typeof value === "string" ? value.trim() : value ?? null;
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.length > MAX_PLACEMENT_ID_LENGTH) {
+    throw new Error("placement id is too long");
+  }
+  return normalized;
+}
+
+function normalizeDailyLimit(value: number | undefined): RewardedDailyLimit | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!REWARDED_DAILY_LIMIT_VALUES.includes(value as RewardedDailyLimit)) {
+    throw new Error("dailyAdLimit must be 1, 2 or 3");
+  }
+  return value as RewardedDailyLimit;
+}
+
+function mapSettingsRow(row: SettingsRowInput | null | undefined): RewardedAdSettingsDto {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...row,
+    dailyAdLimit: normalizeDailyLimit(row?.dailyAdLimit) ?? DEFAULT_SETTINGS.dailyAdLimit,
+    yandexAndroidPlacementId: normalizePlacementId(row?.yandexAndroidPlacementId),
+    yandexIosPlacementId: normalizePlacementId(row?.yandexIosPlacementId),
+    yandexWebDesktopBlockId: normalizePlacementId(row?.yandexWebDesktopBlockId),
+    yandexWebTouchBlockId: normalizePlacementId(row?.yandexWebTouchBlockId),
+  };
+}
+
+function validateEnabledPlatforms(settings: RewardedAdSettingsDto): void {
+  if (settings.testMode) {
+    return;
+  }
+  const required: [boolean, string | null][] = [
+    [settings.androidEnabled, settings.yandexAndroidPlacementId],
+    [settings.iosEnabled, settings.yandexIosPlacementId],
+    [settings.webDesktopEnabled, settings.yandexWebDesktopBlockId],
+    [settings.webTouchEnabled, settings.yandexWebTouchBlockId],
+  ];
+  if (required.some(([enabled, placementId]) => enabled && !placementId)) {
+    throw new Error("placement id is required before enabling production rewarded ads");
+  }
+}
+
+export async function getRewardedAdSettings(): Promise<RewardedAdSettingsDto> {
+  const row = await prisma.rewardedAdSettings.findUnique({
+    where: { key: SETTINGS_KEY },
+  });
+  return mapSettingsRow(row);
+}
+
+export async function updateRewardedAdSettings(
+  input: SettingsUpdateInput,
+  actorId?: string | null,
+): Promise<RewardedAdSettingsDto> {
+  const current = await getRewardedAdSettings();
+  const next = mapSettingsRow({
+    ...current,
+    ...input,
+    dailyAdLimit: normalizeDailyLimit(input.dailyAdLimit) ?? current.dailyAdLimit,
+    yandexAndroidPlacementId:
+      input.yandexAndroidPlacementId === undefined
+        ? current.yandexAndroidPlacementId
+        : normalizePlacementId(input.yandexAndroidPlacementId),
+    yandexIosPlacementId:
+      input.yandexIosPlacementId === undefined
+        ? current.yandexIosPlacementId
+        : normalizePlacementId(input.yandexIosPlacementId),
+    yandexWebDesktopBlockId:
+      input.yandexWebDesktopBlockId === undefined
+        ? current.yandexWebDesktopBlockId
+        : normalizePlacementId(input.yandexWebDesktopBlockId),
+    yandexWebTouchBlockId:
+      input.yandexWebTouchBlockId === undefined
+        ? current.yandexWebTouchBlockId
+        : normalizePlacementId(input.yandexWebTouchBlockId),
+  });
+
+  validateEnabledPlatforms(next);
+
+  const data = {
+    ...next,
+    updatedById: actorId ?? null,
+  };
+  const saved = await prisma.rewardedAdSettings.upsert({
+    where: { key: SETTINGS_KEY },
+    create: { key: SETTINGS_KEY, ...data },
+    update: data,
+  });
+
+  return mapSettingsRow(saved);
+}
+
+export async function resolveRewardedPlatformSettings(
+  platform: RewardedPlatform,
+): Promise<RewardedPlatformSettingsDto> {
+  const settings = await getRewardedAdSettings();
+  const byPlatform: Record<RewardedPlatform, { enabled: boolean; placementId: string | null }> = {
+    ANDROID: {
+      enabled: settings.androidEnabled,
+      placementId: settings.yandexAndroidPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
+    },
+    IOS: {
+      enabled: settings.iosEnabled,
+      placementId: settings.yandexIosPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
+    },
+    WEB_DESKTOP: {
+      enabled: settings.webDesktopEnabled,
+      placementId: settings.yandexWebDesktopBlockId ?? (settings.testMode ? "demo-web-rewarded-desktop" : null),
+    },
+    WEB_TOUCH: {
+      enabled: settings.webTouchEnabled,
+      placementId: settings.yandexWebTouchBlockId ?? (settings.testMode ? "demo-web-rewarded-touch" : null),
+    },
+  };
+  const selected = byPlatform[platform];
+
+  return {
+    platform,
+    platformEnabled: selected.enabled,
+    paywallCtaEnabled: settings.paywallCtaEnabled,
+    placementId: selected.placementId ?? "",
+    dailyAdLimit: settings.dailyAdLimit,
+    testMode: settings.testMode,
+  };
+}
+
+export async function getPlacementIdForPlatform(platform: RewardedPlatform): Promise<string> {
+  return (await resolveRewardedPlatformSettings(platform)).placementId;
+}

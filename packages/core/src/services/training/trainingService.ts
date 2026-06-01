@@ -7,15 +7,69 @@ import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
+import {
+  getPremiumOrRewardedAccess,
+  REWARDED_STEP_UNLOCK_COST,
+  requirePremiumOrRewardedUnlock,
+  unlockRewardedTarget,
+  SubscriptionOrCreditsRequiredError,
+  type RewardedPlatform,
+  type RewardedTargetInput,
+} from "../rewardedCredits";
 import { calculateCourseStatusFromDayStatuses } from "../../utils/training";
 import { replacePersonalizationPlaceholders } from "../../utils/personalization";
 
-import type { ChecklistQuestion, TrainingDetail, UserCoursePersonalization } from "@gafus/types";
+import type {
+  ChecklistQuestion,
+  TrainingDetail,
+  TrainingStep,
+  UserCoursePersonalization,
+} from "@gafus/types";
 
 const logger = createWebLogger("core-training");
 
 // Типы дней, которые не нумеруются (не считаются тренировочными днями)
 const NON_NUMBERED_DAY_TYPES = ["instructions", "introduction", "diagnostics", "summary"] as const;
+const REWARDED_MONETIZED_STEP_TYPES = [
+  "TRAINING",
+  "PRACTICE",
+  "THEORY",
+  "EXAMINATION",
+  "SURVEY",
+] as const;
+
+function isRewardedMonetizedStepType(
+  stepType: TrainingStep["type"] | string | null | undefined,
+): boolean {
+  return REWARDED_MONETIZED_STEP_TYPES.includes(
+    stepType as (typeof REWARDED_MONETIZED_STEP_TYPES)[number],
+  );
+}
+
+function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
+  return (
+    error instanceof SubscriptionOrCreditsRequiredError ||
+    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+  );
+}
+
+function redactLockedTrainingStep(step: TrainingStep, target: RewardedTargetInput): TrainingStep {
+  return {
+    ...step,
+    description: "",
+    videoUrl: "",
+    imageUrls: [],
+    pdfUrls: [],
+    checklist: null,
+    surveySlug: null,
+    locked: true,
+    unlockCost: target.cost ?? REWARDED_STEP_UNLOCK_COST,
+    monetizationTarget: {
+      targetType: "COURSE_STEP",
+      targetId: target.targetId,
+    },
+  };
+}
 
 type CourseWithDayLinks = {
   id: string;
@@ -752,6 +806,161 @@ export async function getTrainingDayWithUserSteps(
     steps,
     showCoursePathExport: showCoursePathExport ?? false,
   };
+}
+
+export async function resolveCourseStepRewardedTarget(input: {
+  userId: string;
+  courseType?: string;
+  dayOnCourseId: string;
+  stepIndex: number;
+}): Promise<RewardedTargetInput | null> {
+  if (input.courseType) {
+    const accessCheck = await checkCourseAccess(input.courseType, input.userId);
+    if (!accessCheck.hasAccess) {
+      throw new Error("COURSE_ACCESS_DENIED");
+    }
+  }
+
+  const found = await prisma.dayOnCourse.findFirst({
+    where: {
+      id: input.dayOnCourseId,
+      ...(input.courseType ? { course: { type: input.courseType } } : {}),
+    },
+    select: {
+      day: {
+        select: {
+          stepLinks: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              step: {
+                select: {
+                  type: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!found?.day) {
+    throw new Error("DayOnCourse or day not found");
+  }
+
+  const stepLink = found.day.stepLinks[input.stepIndex];
+  if (!stepLink?.step) {
+    throw new Error("Step not found");
+  }
+
+  if (!isRewardedMonetizedStepType(stepLink.step.type)) {
+    return null;
+  }
+
+  return {
+    targetType: "COURSE_STEP",
+    targetId: stepLink.id,
+    cost: REWARDED_STEP_UNLOCK_COST,
+  };
+}
+
+export async function getTrainingDayWithMonetizedSteps(
+  userId: string,
+  courseType: string,
+  dayOnCourseId: string,
+  options: { platform: RewardedPlatform; createIfMissing?: boolean },
+): Promise<TrainingDetail | null> {
+  const detail = await getTrainingDayWithUserSteps(userId, courseType, dayOnCourseId, {
+    createIfMissing: options.createIfMissing,
+  });
+  if (!detail) return null;
+
+  const steps = await Promise.all(
+    detail.steps.map(async (step, stepIndex) => {
+      if (!isRewardedMonetizedStepType(step.type)) {
+        return { ...step, locked: false };
+      }
+
+      const target = await resolveCourseStepRewardedTarget({
+        userId,
+        courseType,
+        dayOnCourseId,
+        stepIndex,
+      });
+      if (!target) {
+        return { ...step, locked: false };
+      }
+
+      try {
+        await getPremiumOrRewardedAccess({
+          userId,
+          platform: options.platform,
+          target,
+        });
+      } catch (error) {
+        if (isSubscriptionOrCreditsRequiredError(error)) {
+          return redactLockedTrainingStep(step, target);
+        }
+        throw error;
+      }
+
+      return {
+        ...step,
+        locked: false,
+        unlockCost: target.cost ?? REWARDED_STEP_UNLOCK_COST,
+        monetizationTarget: {
+          targetType: "COURSE_STEP" as const,
+          targetId: target.targetId,
+        },
+      };
+    }),
+  );
+
+  return { ...detail, steps };
+}
+
+export async function requireCourseStepPremiumOrRewardedUnlock(input: {
+  userId: string;
+  platform: RewardedPlatform;
+  courseType?: string;
+  dayOnCourseId: string;
+  stepIndex: number;
+}) {
+  const target = await resolveCourseStepRewardedTarget(input);
+  if (!target) return null;
+
+  return requirePremiumOrRewardedUnlock({
+    userId: input.userId,
+    platform: input.platform,
+    target,
+  });
+}
+
+export async function unlockCourseStepRewardedTarget(input: {
+  userId: string;
+  platform: RewardedPlatform;
+  courseType?: string;
+  dayOnCourseId: string;
+  stepIndex: number;
+}) {
+  const target = await resolveCourseStepRewardedTarget(input);
+  if (!target) {
+    return {
+      targetType: "COURSE_STEP" as const,
+      targetId: input.dayOnCourseId,
+      unlocked: true as const,
+      spentCredits: 0,
+      balance: 0,
+      pendingRefundCredits: 0,
+    };
+  }
+
+  return unlockRewardedTarget({
+    userId: input.userId,
+    platform: input.platform,
+    target,
+  });
 }
 
 /** Операция над шагом тренировки (дискриминант по type). */

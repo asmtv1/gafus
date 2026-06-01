@@ -52,11 +52,11 @@ export async function getMobileAppPublicConfig(): Promise<{
   );
   const appSubscriptionPaywallEnabled = await getAppFeatureFlagEnabled(
     APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-    false,
+    true,
   );
   const appSubscriptionGatingEnabled = await getAppFeatureFlagEnabled(
     APP_FEATURE_APP_SUBSCRIPTION_GATING,
-    false,
+    true,
   );
   const iosRuCardPaymentHintEnabled = await getAppFeatureFlagEnabled(
     APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,

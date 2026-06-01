@@ -27,6 +27,11 @@ export type {
   AppSubscriptionEvent,
   AppSubscriptionSettings,
   AppSubscriptionTrial,
+  RewardedAdEvent,
+  RewardedAdSession,
+  RewardedAdSettings,
+  RewardedCreditTransaction,
+  RewardedCreditWallet,
   UserCourse,
   UserProfile,
   UserStep,
@@ -57,6 +62,11 @@ export {
   AppSubscriptionPaymentStatus,
   AppSubscriptionProvider,
   AppSubscriptionStatus,
+  RewardedAdSessionStatus,
+  RewardedCreditTransactionType,
+  RewardedPlatform,
+  RewardedProvider,
+  RewardedTargetType,
 } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)
@@ -95,6 +105,11 @@ export interface DatabaseClient {
   appSubscriptionEvent: PrismaClient["appSubscriptionEvent"];
   appSubscriptionSettings: PrismaClient["appSubscriptionSettings"];
   appSubscriptionTrial: PrismaClient["appSubscriptionTrial"];
+  rewardedAdSettings: PrismaClient["rewardedAdSettings"];
+  rewardedCreditWallet: PrismaClient["rewardedCreditWallet"];
+  rewardedAdSession: PrismaClient["rewardedAdSession"];
+  rewardedCreditTransaction: PrismaClient["rewardedCreditTransaction"];
+  rewardedAdEvent: PrismaClient["rewardedAdEvent"];
   pet: PrismaClient["pet"];
   $connect: () => Promise<void>;
   $disconnect: () => Promise<void>;
