@@ -16,6 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@gafus/core/services/course": ["../../packages/core/src/services/course/index.ts"],
+      "@gafus/core/services/article": ["../../packages/core/src/services/article/index.ts"],
       "@gafus/core/services/pets": ["../../packages/core/src/services/pets/index.ts"],
       "@gafus/core/services/training": ["../../packages/core/src/services/training/index.ts"],
       "@gafus/core/services/user": ["../../packages/core/src/services/user/index.ts"],

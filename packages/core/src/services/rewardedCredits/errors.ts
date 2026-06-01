@@ -49,7 +49,9 @@ export class RewardedAdSessionError extends Error {
       | "REWARDED_SESSION_NOT_FOUND"
       | "REWARDED_SESSION_EXPIRED"
       | "REWARDED_SESSION_ALREADY_GRANTED"
-      | "REWARDED_SESSION_INVALID_NONCE",
+      | "REWARDED_SESSION_INVALID_NONCE"
+      | "REWARDED_SESSION_NOT_REWARDED"
+      | "REWARDED_SESSION_INVALID_TRANSITION",
     message: string,
   ) {
     super(message);

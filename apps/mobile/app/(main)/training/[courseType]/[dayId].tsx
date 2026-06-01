@@ -37,6 +37,7 @@ import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapP
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 /**
  * Экран дня тренировки с шагами
@@ -208,11 +209,38 @@ export default function TrainingDayScreen() {
   }, [courseId, dayData?.steps, dayId, isOffline, refetch]);
 
   // Обработчики
+  const unlockStepWithRewarded = useCallback(
+    async (index: number) => {
+      const response = await trainingApi.unlockStep({
+        courseType,
+        dayOnCourseId: dayId,
+        stepIndex: index,
+      });
+      if (!response.success) {
+        const message = response.error ?? "Не удалось открыть шаг";
+        setSnackbar({ visible: true, message });
+        throw new Error(message);
+      }
+      await refetch();
+      setOpenIndex(courseId, dayId, index);
+    },
+    [courseId, courseType, dayId, refetch, setOpenIndex],
+  );
+
   const handleToggleStep = useCallback(
     (index: number) => {
+      const step = dayData?.steps?.[index];
+      if (step?.locked && step.monetizationTarget) {
+        openAppSubscriptionPaywall({
+          reason: "required",
+          rewardedTarget: step.monetizationTarget,
+          onRewardedGrant: () => unlockStepWithRewarded(index),
+        });
+        return;
+      }
       setOpenIndex(courseId, dayId, openIndex === index ? null : index);
     },
-    [courseId, dayId, openIndex, setOpenIndex],
+    [courseId, dayData?.steps, dayId, openIndex, setOpenIndex, unlockStepWithRewarded],
   );
 
   const handleStartStep = useCallback(

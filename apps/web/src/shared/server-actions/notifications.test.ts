@@ -5,12 +5,14 @@ const {
   getCurrentUserIdMock,
   getDayFromDayOnCourseIdMock,
   pauseStepNotificationMock,
+  requirePremiumOrRewardedAccessForStepNotificationMock,
   resumeStepNotificationMock,
 } = vi.hoisted(() => ({
   createStepNotificationMock: vi.fn(),
   getCurrentUserIdMock: vi.fn(),
   getDayFromDayOnCourseIdMock: vi.fn(),
   pauseStepNotificationMock: vi.fn(),
+  requirePremiumOrRewardedAccessForStepNotificationMock: vi.fn(),
   resumeStepNotificationMock: vi.fn(),
 }));
 
@@ -35,6 +37,11 @@ vi.mock("@gafus/core/services/notifications", () => ({
   resetStepNotification: vi.fn(),
   resumeStepNotification: resumeStepNotificationMock,
   toggleStepNotificationPause: vi.fn(),
+}));
+
+vi.mock("@gafus/core/services/rewardedCredits", () => ({
+  requirePremiumOrRewardedAccessForStepNotification:
+    requirePremiumOrRewardedAccessForStepNotificationMock,
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -64,6 +71,13 @@ describe("web notification server actions", () => {
     });
 
     expect(pauseStepNotificationMock).toHaveBeenCalledWith("user-1", 3, 0);
+    expect(requirePremiumOrRewardedAccessForStepNotificationMock).toHaveBeenCalledWith({
+      day: 3,
+      dayOnCourseId: "cmlp7m13t004emr018jrl30af",
+      platform: "WEB_DESKTOP",
+      stepIndex: 0,
+      userId: "user-1",
+    });
   });
 
   it("resumes a step notification with duration and dayOnCourseId", async () => {

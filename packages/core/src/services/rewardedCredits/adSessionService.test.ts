@@ -166,7 +166,26 @@ describe("rewarded ad sessions", () => {
     expect(state.sessions.get(session.sessionId)?.status).toBe("SHOWN");
   });
 
-  it("grants only with the matching session nonce", async () => {
+  it("rejects rewarded callbacks before the ad is shown", async () => {
+    const session = await createRewardedAdSession({
+      userId: "user-1",
+      platform: "ANDROID",
+      now: new Date("2026-05-31T10:00:00.000Z"),
+    });
+
+    await expect(
+      recordRewardedAdEvent({
+        userId: "user-1",
+        sessionId: session.sessionId,
+        eventType: "REWARDED",
+        payload: { amount: 1 },
+      }),
+    ).rejects.toMatchObject({ code: "REWARDED_SESSION_INVALID_TRANSITION" });
+    expect(state.events).toEqual([]);
+    expect(state.sessions.get(session.sessionId)?.status).toBe("CREATED");
+  });
+
+  it("does not grant before the provider rewarded callback is recorded", async () => {
     const session = await createRewardedAdSession({
       userId: "user-1",
       platform: "ANDROID",
@@ -181,6 +200,27 @@ describe("rewarded ad sessions", () => {
         now: new Date("2026-05-31T10:01:00.000Z"),
       }),
     ).rejects.toMatchObject({ code: "REWARDED_SESSION_INVALID_NONCE" });
+
+    await expect(
+      grantRewardedCredits({
+        userId: "user-1",
+        sessionId: session.sessionId,
+        requestNonce: session.requestNonce,
+        now: new Date("2026-05-31T10:01:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "REWARDED_SESSION_NOT_REWARDED" });
+
+    await recordRewardedAdEvent({
+      userId: "user-1",
+      sessionId: session.sessionId,
+      eventType: "SHOWN",
+    });
+    await recordRewardedAdEvent({
+      userId: "user-1",
+      sessionId: session.sessionId,
+      eventType: "REWARDED",
+      payload: { amount: 1 },
+    });
 
     await grantRewardedCredits({
       userId: "user-1",

@@ -7,11 +7,41 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
 import { getExamResult, submitExamResult, uploadExamVideoFile } from "@gafus/core/services/exam";
+import {
+  requirePremiumOrRewardedAccessForUserStep,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-exam");
 
 export const examRoutes = new Hono();
+
+const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
+
+function getRewardedPlatform(c: { req: { query(name: string): string | undefined; header(name: string): string | undefined } }): "ANDROID" | "IOS" {
+  const candidate = c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+  const parsed = rewardedPlatformSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : "ANDROID";
+}
+
+function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
+  return (
+    error instanceof SubscriptionOrCreditsRequiredError ||
+    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+  );
+}
+
+function subscriptionOrCreditsResponse(c: { json: (body: unknown, status: 402) => Response }): Response {
+  return c.json(
+    {
+      success: false,
+      error: "Для действия нужна подписка или rewarded credits",
+      code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+    },
+    402,
+  );
+}
 
 // ==================== GET /exam/result ====================
 // Получить результат экзамена
@@ -24,6 +54,12 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
     const user = c.get("user");
     const { userStepId } = c.req.valid("query");
 
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: user.id,
+      platform: getRewardedPlatform(c),
+      userStepId,
+    });
+
     const result = await getExamResult(user.id, userStepId);
 
     if (!result) {
@@ -35,6 +71,9 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
 
     return c.json({ success: true, data: result });
   } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
     logger.error("Error getting exam result", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
@@ -59,10 +98,19 @@ examRoutes.post("/submit", zValidator("json", submitExamSchema), async (c) => {
     const user = c.get("user");
     const data = c.req.valid("json");
 
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: user.id,
+      platform: getRewardedPlatform(c),
+      userStepId: data.userStepId,
+    });
+
     const result = await submitExamResult(user.id, data);
 
     return c.json({ success: true, data: result });
   } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
     if (error instanceof Error && error.message.includes("не найден")) {
       return c.json({ success: false, error: error.message, code: "NOT_FOUND" }, 404);
     }
@@ -99,6 +147,12 @@ examRoutes.post("/upload-video", async (c) => {
       return c.json({ success: false, error: "Видео файл не предоставлен" }, 400);
     }
 
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: user.id,
+      platform: getRewardedPlatform(c),
+      userStepId,
+    });
+
     const uploadResult = await uploadExamVideoFile(user.id, userStepId, file as File);
     if (!uploadResult.success) {
       return c.json({ success: false, error: uploadResult.error }, 400);
@@ -106,6 +160,9 @@ examRoutes.post("/upload-video", async (c) => {
 
     return c.json({ success: true, data: { videoUrl: uploadResult.videoUrl } });
   } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
     logger.error("Error uploading exam video", error as Error);
     return c.json({ success: false, error: "Ошибка при загрузке видео" }, 500);
   }

@@ -12,6 +12,7 @@ const {
   getAppFeatureFlagEnabledMock,
   getAppSubscriptionAccessMock,
   getTrainingDayWithMonetizedStepsMock,
+  requirePremiumOrRewardedAccessForVideoUrlMock,
   requireCourseStepPremiumOrRewardedUnlockMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
@@ -26,6 +27,7 @@ const {
   getAppFeatureFlagEnabledMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
+  requirePremiumOrRewardedAccessForVideoUrlMock: vi.fn(),
   requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock("@gafus/core/services/training", () => ({
 }));
 
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: requirePremiumOrRewardedAccessForVideoUrlMock,
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
     constructor() {
       super("Для действия нужна подписка или rewarded credits");
@@ -121,6 +124,7 @@ describe("training route validation", () => {
     getAppFeatureFlagEnabledMock.mockResolvedValue(false);
     getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
     getTrainingDayWithMonetizedStepsMock.mockResolvedValue({ trainingDayId: "day-1", steps: [] });
+    requirePremiumOrRewardedAccessForVideoUrlMock.mockResolvedValue(null);
     requireCourseStepPremiumOrRewardedUnlockMock.mockResolvedValue(null);
     unlockCourseStepRewardedTargetMock.mockResolvedValue({
       targetType: "COURSE_STEP",
@@ -195,6 +199,11 @@ describe("training route validation", () => {
     expect(checkVideoAccessMock).toHaveBeenCalledWith({
       userId: "cmhf79vic0000qr4m219z780r",
       videoId: "video-1",
+    });
+    expect(requirePremiumOrRewardedAccessForVideoUrlMock).toHaveBeenCalledWith({
+      userId: "cmhf79vic0000qr4m219z780r",
+      platform: "ANDROID",
+      videoUrl: "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
     });
     expect(generateTokenMock).not.toHaveBeenCalled();
   });

@@ -8,11 +8,41 @@ import {
   getSurveyTemplate,
   submitSurveyResponse,
 } from "@gafus/core/services/survey";
+import {
+  requirePremiumOrRewardedAccessForUserStep,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-surveys");
 
 export const surveysRoutes = new Hono();
+
+const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
+
+function getRewardedPlatform(c: { req: { query(name: string): string | undefined; header(name: string): string | undefined } }): "ANDROID" | "IOS" {
+  const candidate = c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+  const parsed = rewardedPlatformSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : "ANDROID";
+}
+
+function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
+  return (
+    error instanceof SubscriptionOrCreditsRequiredError ||
+    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+  );
+}
+
+function subscriptionOrCreditsResponse(c: { json: (body: unknown, status: 402) => Response }): Response {
+  return c.json(
+    {
+      success: false,
+      error: "Для действия нужна подписка или rewarded credits",
+      code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+    },
+    402,
+  );
+}
 
 const slugParamSchema = z.object({
   slug: z.string().min(1),
@@ -92,12 +122,20 @@ surveysRoutes.post(
       const user = c.get("user");
       const { slug } = c.req.valid("param");
       const body = c.req.valid("json");
+      await requirePremiumOrRewardedAccessForUserStep({
+        userId: user.id,
+        platform: getRewardedPlatform(c),
+        userStepId: body.userStepId,
+      });
       const result = await submitSurveyResponse(user.id, { ...body, surveySlug: slug });
       if (!result.success) {
         return c.json(result, result.code === "SURVEY_EDIT_WINDOW_EXPIRED" ? 423 : 400);
       }
       return c.json(result);
     } catch (error) {
+      if (isSubscriptionOrCreditsRequiredError(error)) {
+        return subscriptionOrCreditsResponse(c);
+      }
       logger.error("Error submitting survey", error as Error);
       return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
     }

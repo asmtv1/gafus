@@ -18,6 +18,7 @@ import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
 } from "@gafus/core/services/notifications";
+import { requirePremiumOrRewardedAccessForStepNotification } from "@gafus/core/services/rewardedCredits";
 import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
@@ -60,6 +61,21 @@ const togglePauseByDayOnCourseSchema = notificationKeySchema.extend({
   pause: z.boolean(),
 });
 
+async function requireNotificationStepAccess(input: {
+  userId: string;
+  day: number;
+  stepIndex: number;
+  dayOnCourseId?: string;
+}) {
+  await requirePremiumOrRewardedAccessForStepNotification({
+    userId: input.userId,
+    platform: "WEB_DESKTOP",
+    day: input.day,
+    stepIndex: input.stepIndex,
+    dayOnCourseId: input.dayOnCourseId,
+  });
+}
+
 // ========== Server Actions ==========
 
 /**
@@ -74,6 +90,12 @@ export async function pauseNotificationAction(
     const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    await requireNotificationStepAccess({
+      userId,
+      day,
+      stepIndex: parsed.stepIndex,
+      dayOnCourseId: parsed.dayOnCourseId,
+    });
 
     await pauseStepNotification(userId, day, parsed.stepIndex);
     return { success: true };
@@ -103,6 +125,12 @@ export async function resetNotificationAction(
     const parsed = notificationKeySchema.parse({ courseId, dayOnCourseId, stepIndex });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    await requireNotificationStepAccess({
+      userId,
+      day,
+      stepIndex: parsed.stepIndex,
+      dayOnCourseId: parsed.dayOnCourseId,
+    });
 
     await resetStepNotification(userId, day, parsed.stepIndex);
     return { success: true };
@@ -138,6 +166,12 @@ export async function resumeNotificationAction(
     });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    await requireNotificationStepAccess({
+      userId,
+      day,
+      stepIndex: parsed.stepIndex,
+      dayOnCourseId: parsed.dayOnCourseId,
+    });
 
     await resumeStepNotification(
       userId,
@@ -179,6 +213,12 @@ export async function toggleStepNotificationPauseByDayOnCourseAction(
     });
     const userId = await getCurrentUserId();
     const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    await requireNotificationStepAccess({
+      userId,
+      day,
+      stepIndex: parsed.stepIndex,
+      dayOnCourseId: parsed.dayOnCourseId,
+    });
     return toggleStepNotificationPause(userId, day, parsed.stepIndex, parsed.pause);
   } catch (error) {
     unstable_rethrow(error);
@@ -205,6 +245,11 @@ export async function toggleStepNotificationPauseAction(
   try {
     const parsed = togglePauseSchema.parse({ day, stepIndex, pause });
     const userId = await getCurrentUserId();
+    await requireNotificationStepAccess({
+      userId,
+      day: parsed.day,
+      stepIndex: parsed.stepIndex,
+    });
 
     return toggleStepNotificationPause(userId, parsed.day, parsed.stepIndex, parsed.pause);
   } catch (error) {
@@ -232,6 +277,11 @@ export async function deleteStepNotificationAction(
   try {
     const parsed = deleteSchema.parse({ day, stepIndex, deleted });
     const userId = await getCurrentUserId();
+    await requireNotificationStepAccess({
+      userId,
+      day: parsed.day,
+      stepIndex: parsed.stepIndex,
+    });
 
     return deleteStepNotification(userId, parsed.day, parsed.stepIndex, parsed.deleted);
   } catch (error) {
@@ -268,6 +318,13 @@ export async function createStepNotificationAction(params: {
     });
 
     const userId = await getCurrentUserId();
+    const day = await getDayFromDayOnCourseId(parsed.dayOnCourseId);
+    await requireNotificationStepAccess({
+      userId,
+      day,
+      stepIndex: parsed.stepIndex,
+      dayOnCourseId: parsed.dayOnCourseId,
+    });
     await createStepNotificationForStepStart(
       userId,
       parsed.dayOnCourseId,

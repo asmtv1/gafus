@@ -16,9 +16,10 @@ import {
   useDailyCourseResumeStep,
   useDailyCourseStartStep,
 } from "@/shared/hooks/useDailyCourse";
-import { getDailyCourseStoreCourseId } from "@/shared/lib/api";
+import { dailyCourseApi, getDailyCourseStoreCourseId } from "@/shared/lib/api";
 import { useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 export default function DailyCourseDayScreen() {
   const { scheduleId } = useLocalSearchParams<{ scheduleId: string }>();
@@ -75,11 +76,42 @@ export default function DailyCourseDayScreen() {
     return { completed, total, percent };
   }, [courseId, dayData?.steps, getStepState, normalizedScheduleId]);
 
+  const unlockDailyStepWithRewarded = useCallback(
+    async (index: number) => {
+      const response = await dailyCourseApi.unlockStep({
+        scheduleId: normalizedScheduleId,
+        stepIndex: index,
+      });
+      if (!response.success) {
+        throw new Error(response.error ?? "Не удалось открыть шаг");
+      }
+      await refetch();
+      setOpenIndex(courseId, normalizedScheduleId, index);
+    },
+    [courseId, normalizedScheduleId, refetch, setOpenIndex],
+  );
+
   const handleToggle = useCallback(
     (index: number) => {
+      const step = dayData?.steps?.[index];
+      if (step?.locked && step.monetizationTarget) {
+        openAppSubscriptionPaywall({
+          reason: "required",
+          rewardedTarget: step.monetizationTarget,
+          onRewardedGrant: () => unlockDailyStepWithRewarded(index),
+        });
+        return;
+      }
       setOpenIndex(courseId, normalizedScheduleId, openIndex === index ? null : index);
     },
-    [courseId, normalizedScheduleId, openIndex, setOpenIndex],
+    [
+      courseId,
+      dayData?.steps,
+      normalizedScheduleId,
+      openIndex,
+      setOpenIndex,
+      unlockDailyStepWithRewarded,
+    ],
   );
 
   const handleStart = useCallback(

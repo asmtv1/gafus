@@ -6,8 +6,12 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { verifyConsultationSlotFreeForCynologist } from "@gafus/core";
+import {
+  requireConsultationSlotsPremiumOrRewardedAccess,
+  verifyConsultationSlotFreeForCynologist,
+} from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
+import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 import { logConsultationRouteError, mapConsultationError } from "@/shared/lib/consultation-route-errors";
@@ -24,6 +28,10 @@ export async function GET(
       throw new AuthorizationError("Не авторизован");
     }
     const { cynologistUserId, slotId } = await context.params;
+    await requireConsultationSlotsPremiumOrRewardedAccess({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+    });
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -31,6 +39,16 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: error.message, code: "UNAUTHORIZED" },
         { status: 401 },
+      );
+    }
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: error.code,
+        },
+        { status: 402 },
       );
     }
     const mapped = mapConsultationError(error);

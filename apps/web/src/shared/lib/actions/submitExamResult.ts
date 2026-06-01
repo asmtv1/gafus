@@ -2,6 +2,7 @@
 
 import { getErrorMessage } from "@gafus/core/errors";
 import { submitExamResult as submitExamResultCore } from "@gafus/core/services/exam";
+import { requirePremiumOrRewardedAccessForUserStep } from "@gafus/core/services/rewardedCredits";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { revalidatePath } from "next/cache";
@@ -24,6 +25,11 @@ export async function submitExamResult(data: ExamSubmissionData) {
     throw new Error("Не авторизован");
   }
   try {
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+      userStepId: data.userStepId,
+    });
     const result = await submitExamResultCore(session.user.id, data);
     revalidatePath("/trainings");
     return { success: true, examResultId: result.examResultId };

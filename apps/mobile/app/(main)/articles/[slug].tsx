@@ -23,6 +23,7 @@ import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 /** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
 const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
@@ -35,7 +36,7 @@ export default function ArticleDetailScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
-  const { data: res, isLoading, error } = useQuery({
+  const { data: res, isLoading, error, refetch } = useQuery({
     queryKey: ["article", slug],
     queryFn: async () => {
       const r = await articlesApi.getBySlug(slug as string);
@@ -120,6 +121,35 @@ export default function ArticleDetailScreen() {
       setPayLoading(false);
     }
   }, [article]);
+
+  const handleRewardedPaywall = useCallback(() => {
+    if (!article) return;
+    trackEvent({
+      eventName: "button_click",
+      platform: "mobile",
+      pathOrScreen: `/articles/${article.slug}`,
+      elementId: "article-rewarded-paywall-open",
+    });
+    openAppSubscriptionPaywall({
+      reason: "required",
+      rewardedTarget: { targetType: "ARTICLE", targetId: article.id },
+      onRewardedGrant: async () => {
+        trackEvent({
+          eventName: "button_click",
+          platform: "mobile",
+          pathOrScreen: `/articles/${article.slug}`,
+          elementId: "article-rewarded-unlock",
+        });
+        const unlockResponse = await articlesApi.unlock(article.slug);
+        if (!unlockResponse.success) {
+          const message = unlockResponse.error ?? "Не удалось открыть статью";
+          setPayError(message);
+          throw new Error(message);
+        }
+        await refetch();
+      },
+    });
+  }, [article, refetch]);
 
   const hasMeasuredArticleHtml =
     htmlHeight != null && htmlHeight > 0;
@@ -252,11 +282,17 @@ export default function ArticleDetailScreen() {
                   <Text style={styles.payErrorText}>{payError}</Text>
                 ) : null}
                 <Pressable
-                  style={[styles.btnPrimary, payLoading && styles.btnDisabled]}
+                  style={styles.btnPrimary}
+                  onPress={handleRewardedPaywall}
+                >
+                  <Text style={styles.btnPrimaryText}>Открыть через Premium или рекламу</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.btnOutline, payLoading && styles.btnDisabled]}
                   onPress={handlePay}
                   disabled={payLoading}
                 >
-                  <Text style={styles.btnPrimaryText}>
+                  <Text style={styles.btnOutlineText}>
                     {payLoading ? "Загрузка…" : "Оплатить статью"}
                   </Text>
                 </Pressable>

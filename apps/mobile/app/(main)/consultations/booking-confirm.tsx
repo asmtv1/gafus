@@ -33,6 +33,7 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 function one(param: string | string[] | undefined): string {
   return Array.isArray(param) ? (param[0] ?? "") : (param ?? "");
@@ -151,6 +152,15 @@ export default function ConsultationBookingConfirmScreen() {
     onError: (e: unknown) => {
       const code = typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
       const msg = e instanceof Error ? e.message : String(e);
+      if (code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+        openAppSubscriptionPaywall({
+          reason: "required",
+          onRewardedGrant: async () => {
+            await bookMutation.mutateAsync();
+          },
+        });
+        return;
+      }
       if (
         code === "CONSULTATION_SLOT_TAKEN" ||
         code === "CONSULTATION_NOT_FOUND" ||

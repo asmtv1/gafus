@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
+import { CloseIcon, IconButton } from "@shared/utils/muiImports";
 import { fetchAppSubscriptionOffer } from "@/shared/lib/app-subscription/client";
 import { renderYandexRewarded } from "@/features/rewarded-ads/yandexRewardedWeb";
 import {
@@ -53,6 +54,12 @@ type RewardedAdSession = {
   placementId: string;
 };
 
+type AppSubscriptionPaywallProps = {
+  mode?: "page" | "embedded";
+  onClose?: () => void;
+  onRewardedGrant?: () => Promise<void> | void;
+};
+
 function getWebRewardedPlatform(): WebRewardedPlatform {
   if (typeof window === "undefined") return "WEB_DESKTOP";
   return window.matchMedia("(pointer: coarse)").matches ? "WEB_TOUCH" : "WEB_DESKTOP";
@@ -73,7 +80,11 @@ function getRewardedUnavailableText(reason: RewardedCreditsStatus["canWatchAdRea
   }
 }
 
-export function AppSubscriptionPaywall() {
+export function AppSubscriptionPaywall({
+  mode = "page",
+  onClose,
+  onRewardedGrant,
+}: AppSubscriptionPaywallProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
@@ -261,6 +272,10 @@ export function AppSubscriptionPaywall() {
         sessionId: session.sessionId,
         eventType: "LOADED",
       });
+      await postRewardedJson<{ recorded: true }>("/api/v1/rewarded-ads/events", {
+        sessionId: session.sessionId,
+        eventType: "SHOWN",
+      });
       await renderYandexRewarded({
         blockId: session.placementId,
         sessionId: session.sessionId,
@@ -272,9 +287,18 @@ export function AppSubscriptionPaywall() {
           }).catch(() => undefined);
         },
         onGrant: async ({ sessionId, requestNonce }) => {
+          await postRewardedJson<{ recorded: true }>("/api/v1/rewarded-ads/events", {
+            sessionId,
+            eventType: "REWARDED",
+          });
           await postRewardedJson("/api/v1/rewarded-ads/grant", { sessionId, requestNonce });
-          setRewardedMessage("Кредиты начислены. Теперь можно открыть платный материал без подписки.");
+          setRewardedMessage(
+            onRewardedGrant
+              ? "Кредиты начислены. Открываем материал."
+              : "Кредиты начислены. Теперь можно открыть платный материал без подписки.",
+          );
           await loadRewardedStatus();
+          await onRewardedGrant?.();
         },
       });
     } catch (e) {
@@ -295,7 +319,7 @@ export function AppSubscriptionPaywall() {
     : "";
 
   return (
-    <section className={styles.page}>
+    <section className={`${styles.page} ${mode === "embedded" ? styles.embedded : ""}`}>
       <div className={styles.inner}>
         {returnState === "success" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
@@ -323,6 +347,16 @@ export function AppSubscriptionPaywall() {
           </div>
         ) : (
         <div className={styles.card}>
+          {onClose ? (
+            <IconButton
+              className={styles.closeButton}
+              type="button"
+              onClick={onClose}
+              aria-label="Закрыть"
+            >
+              <CloseIcon />
+            </IconButton>
+          ) : null}
           <div className={styles.hero}>
             <div>
               <p className={styles.kicker}>Gafus Premium</p>

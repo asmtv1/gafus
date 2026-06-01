@@ -1,6 +1,7 @@
 "use server";
 
 import { uploadExamVideoFile } from "@gafus/core/services/exam";
+import { requirePremiumOrRewardedAccessForUserStep } from "@gafus/core/services/rewardedCredits";
 import { getErrorMessage } from "@gafus/core/errors";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -27,6 +28,11 @@ export async function uploadExamVideo(
       return { success: false, error: "userStepId обязателен для загрузки видео экзамена" };
     }
 
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+      userStepId,
+    });
     const result = await uploadExamVideoFile(session.user.id, userStepId, videoFile);
     if (!result.success) {
       return { success: false, error: result.error };

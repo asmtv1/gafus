@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { unlockArticleBySlug } from "@gafus/core/services/article";
+import { RewardedCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-article-unlock");
@@ -32,6 +33,16 @@ export const POST = withCSRFProtection(async (_request: NextRequest, context: Ro
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
+    if (error instanceof RewardedCreditsRequiredError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        },
+        { status: 402 },
+      );
+    }
     logger.error("Error in article unlock POST", error as Error);
     return NextResponse.json(
       { success: false, error: "Внутренняя ошибка сервера" },

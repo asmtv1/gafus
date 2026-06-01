@@ -68,6 +68,17 @@ function createMockClient() {
           ),
         ),
       ),
+      findFirst: vi.fn(({ where }) =>
+        Promise.resolve(
+          [...state.transactions.values()].find(
+            (tx) =>
+              tx.userId === where.userId &&
+              (!where.type || tx.type === where.type) &&
+              (!where.targetType || tx.targetType === where.targetType) &&
+              (!where.targetId || tx.targetId === where.targetId),
+          ) ?? null,
+        ),
+      ),
       create: vi.fn(({ data }) => {
         const tx = { id: `tx-${state.transactions.size + 1}`, createdAt: new Date(), ...data };
         state.transactions.set(data.idempotencyKey, tx);
@@ -117,6 +128,35 @@ describe("rewarded credits wallet", () => {
       .toMatchObject({
         wallet: { balance: 0, pendingRefundCredits: 0, maxBalance: REWARDED_MAX_CREDIT_BALANCE },
       });
+  });
+
+  it("marks target as unlocked when it already has a spend transaction", async () => {
+    state.transactions.set("rewarded:spend:user-1:ARTICLE:article-1", {
+      id: "tx-1",
+      userId: "user-1",
+      type: "SPEND",
+      amount: 1,
+      balanceBefore: 5,
+      balanceAfter: 4,
+      targetType: "ARTICLE",
+      targetId: "article-1",
+      idempotencyKey: "rewarded:spend:user-1:ARTICLE:article-1",
+      createdAt: new Date("2026-05-31T10:00:00.000Z"),
+    });
+
+    const status = await getRewardedCreditsStatus({
+      userId: "user-1",
+      platform: "ANDROID",
+      target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
+    });
+
+    expect(status.target).toMatchObject({
+      targetType: "ARTICLE",
+      targetId: "article-1",
+      unlocked: true,
+      canUnlockWithCurrentBalance: true,
+      missingCredits: 0,
+    });
   });
 
   it("caps grant at the missing balance", async () => {

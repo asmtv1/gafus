@@ -8,7 +8,6 @@ import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
 import { getCourseMetadata, getCourseOutline, checkCourseAccessById } from "@gafus/core/services/course";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { generateCourseMetadata } from "@gafus/metadata";
-import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 import styles from "./trainings.module.css";
 
@@ -51,9 +50,6 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   ]);
   const courseName = courseMetadata?.name;
   const userId = userIdResult;
-  if (userId) {
-    await requireWebAppSubscription(userId);
-  }
 
   if (!userId && courseMetadata && (courseMetadata.isPaid || courseMetadata.isPrivate)) {
     redirect("/");

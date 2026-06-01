@@ -9,6 +9,10 @@ import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
 import { userStepIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
+import {
+  requirePremiumOrRewardedAccessForUserStep,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 
 const logger = createWebLogger("api-exam-result");
 
@@ -26,6 +30,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const parsed = querySchema.parse({
       userStepId: searchParams.get("userStepId"),
+    });
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+      userStepId: parsed.userStepId,
     });
 
     // Динамический импорт
@@ -52,6 +61,12 @@ export async function GET(request: NextRequest) {
           code: "VALIDATION_ERROR",
         },
         { status: 400 },
+      );
+    }
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: 402 },
       );
     }
     if (error instanceof Error && error.message === "Шаг не найден или нет доступа") {

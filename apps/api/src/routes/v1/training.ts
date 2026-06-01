@@ -22,7 +22,10 @@ import {
   APP_FEATURE_APP_SUBSCRIPTION_GATING,
   getAppFeatureFlagEnabled,
 } from "@gafus/core/services/appFeatureFlags";
-import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
+import {
+  requirePremiumOrRewardedAccessForVideoUrl,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 import { checkVideoAccess, getVideoManifestInfo } from "@gafus/core/services/video";
 import {
   createStepNotificationForStepStart,
@@ -70,7 +73,9 @@ const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
 function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
   return (
     error instanceof SubscriptionOrCreditsRequiredError ||
-    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+    (error instanceof Error &&
+      (error.name === "SubscriptionOrCreditsRequiredError" ||
+        error.name === "RewardedCreditsRequiredError"))
   );
 }
 
@@ -87,7 +92,10 @@ function subscriptionOrCreditsResponse(c: Context): Response {
 
 function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
   const candidate =
-    platform ?? c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+    platform ??
+    c.req.query("platform") ??
+    c.req.header("x-rewarded-platform") ??
+    c.req.header("x-platform");
   const parsed = rewardedPlatformSchema.safeParse(candidate);
   return parsed.success ? parsed.data : "ANDROID";
 }
@@ -145,9 +153,13 @@ async function requireCourseAccessByCourseId(
 const courseIdSchema = z
   .string()
   .min(1, "courseId обязателен")
-  .refine((value) => z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success, {
-    message: "courseId должен быть CUID или UUID",
-  });
+  .refine(
+    (value) =>
+      z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success,
+    {
+      message: "courseId должен быть CUID или UUID",
+    },
+  );
 
 // ==================== GET /training/days ====================
 // Получить дни тренировок курса
@@ -470,9 +482,8 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
       return c.json(
         {
           success: false,
-          error:
-            error.message.includes("not started") ?
-              "Нельзя сбросить шаг, который не начат"
+          error: error.message.includes("not started")
+            ? "Нельзя сбросить шаг, который не начат"
             : "Нельзя сбросить завершённый шаг",
           code: "INVALID_STATE",
         },
@@ -502,7 +513,10 @@ trainingRoutes.post(
       const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
       const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
       if (courseAccessResponse) return courseAccessResponse;
-      const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
+      const rewardedAccessResponse = await requireRewardedStepAccess(c, {
+        dayOnCourseId,
+        stepIndex,
+      });
       if (rewardedAccessResponse) return rewardedAccessResponse;
 
       const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
@@ -539,44 +553,48 @@ const completeTheoryBodySchema = z.object({
   stepOrder: z.number().int().min(0).optional(),
 });
 
-trainingRoutes.post("/step/complete/theory", zValidator("json", completeTheoryBodySchema), async (c) => {
-  try {
-    const user = c.get("user");
-    const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-    if (courseAccessResponse) return courseAccessResponse;
-    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
-    if (rewardedAccessResponse) return rewardedAccessResponse;
+trainingRoutes.post(
+  "/step/complete/theory",
+  zValidator("json", completeTheoryBodySchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+      const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
+      if (courseAccessResponse) return courseAccessResponse;
+      const rewardedAccessResponse = await requireRewardedStepAccess(c, {
+        dayOnCourseId,
+        stepIndex,
+      });
+      if (rewardedAccessResponse) return rewardedAccessResponse;
 
-    const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
-    if (!validation.valid) {
-      const status = validation.code === "NOT_FOUND" ? 404 : 400;
-      return c.json(
-        { success: false, error: validation.error, code: validation.code },
-        status,
-      );
-    }
+      const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
+      if (!validation.valid) {
+        const status = validation.code === "NOT_FOUND" ? 404 : 400;
+        return c.json({ success: false, error: validation.error, code: validation.code }, status);
+      }
 
-    const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
-      type: "complete",
-    });
-    await syncUserCourseStatusFromDays(user.id, result.courseId);
+      const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
+        type: "complete",
+      });
+      await syncUserCourseStatusFromDays(user.id, result.courseId);
 
-    return c.json({ success: true });
-  } catch (error) {
-    if (error instanceof Error && error.message === "DayOnCourse or day not found") {
-      return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === "DayOnCourse or day not found") {
+        return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
+      }
+      if (error instanceof Error && error.message === "Step not found") {
+        return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
+      }
+      if (isSubscriptionOrCreditsRequiredError(error)) {
+        return subscriptionOrCreditsResponse(c);
+      }
+      logger.error("Error completing theory step", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
     }
-    if (error instanceof Error && error.message === "Step not found") {
-      return c.json({ success: false, error: "Шаг не найден", code: "NOT_FOUND" }, 404);
-    }
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
-    logger.error("Error completing theory step", error as Error);
-    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
-  }
-});
+  },
+);
 
 const postDiaryBodySchema = z.object({
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
@@ -664,9 +682,6 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       return c.json({ success: false, error: "Ошибка авторизации", code: "AUTH_ERROR" }, 401);
     }
 
-    const subscriptionResponse = await requireActiveAppSubscription(c);
-    if (subscriptionResponse) return subscriptionResponse;
-
     // Получаем и валидируем videoUrl
     let videoUrl: string;
     try {
@@ -705,6 +720,12 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     logger.info("[training/video/url] Запрос video URL", {
       userId: user.id,
       videoUrl: videoUrl.substring(0, 100),
+    });
+
+    await requirePremiumOrRewardedAccessForVideoUrl({
+      userId: user.id,
+      platform: getRewardedPlatform(c),
+      videoUrl,
     });
 
     // Внешние видео (YouTube, VK, RuTube) - возвращаем как есть
@@ -828,6 +849,10 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     logger.info("[training/video/url] Неизвестный тип видео, возвращаем как есть", { videoUrl });
     return c.json({ success: true, data: { url: videoUrl } });
   } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) {
+      return subscriptionOrCreditsResponse(c);
+    }
+
     // Безопасное получение videoUrl для логирования
     let videoUrlForLog = "unknown";
     try {

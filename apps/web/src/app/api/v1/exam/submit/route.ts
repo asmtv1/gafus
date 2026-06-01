@@ -10,8 +10,10 @@ import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
 import { stepIdEntitySchema, userStepIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
-import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
+import {
+  requirePremiumOrRewardedAccessForUserStep,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 
 const logger = createWebLogger("api-exam-submit");
 
@@ -33,10 +35,14 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     if (!session?.user?.id) {
       throw new AuthorizationError("Не авторизован");
     }
-    await requireWebAppSubscriptionOrThrow(session.user.id);
 
     const body = await request.json();
     const parsed = submitExamSchema.parse(body);
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+      userStepId: parsed.userStepId,
+    });
 
     // Динамический импорт
     const { submitExamResult } = await import("@shared/lib/actions/submitExamResult");
@@ -54,10 +60,10 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         { status: 401 },
       );
     }
-    if (error instanceof SubscriptionRequiredError) {
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
-        { status: error.status },
+        { status: 402 },
       );
     }
     if (error instanceof z.ZodError) {

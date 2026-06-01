@@ -1,18 +1,28 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createStepNotificationMock, deleteStepNotificationMock, getServerSessionMock } = vi.hoisted(
+const {
+  createStepNotificationMock,
+  deleteStepNotificationMock,
+  getServerSessionMock,
+  requirePremiumOrRewardedAccessForStepNotificationMock,
+} = vi.hoisted(
   () => ({
     createStepNotificationMock: vi.fn(),
     deleteStepNotificationMock: vi.fn(),
     getServerSessionMock: vi.fn(),
+    requirePremiumOrRewardedAccessForStepNotificationMock: vi.fn(),
   }),
 );
 
 vi.mock("next-auth", () => ({ getServerSession: getServerSessionMock }));
 vi.mock("@gafus/auth", () => ({ authOptions: {} }));
-vi.mock("@shared/lib/app-subscription/server", () => ({
-  requireWebAppSubscriptionOrThrow: vi.fn(),
+vi.mock("@gafus/core/services/rewardedCredits", () => ({
+  requirePremiumOrRewardedAccessForStepNotification:
+    requirePremiumOrRewardedAccessForStepNotificationMock,
+  SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
+    code = "SUBSCRIPTION_OR_CREDITS_REQUIRED" as const;
+  },
 }));
 vi.mock("@gafus/core/services/notifications", () => ({
   createStepNotification: createStepNotificationMock,
@@ -31,6 +41,10 @@ function request(body: unknown, method = "POST") {
 }
 
 describe("/api/v1/notifications/step", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("requires auth before creating notifications", async () => {
     getServerSessionMock.mockResolvedValueOnce(null);
 
@@ -45,6 +59,13 @@ describe("/api/v1/notifications/step", () => {
     const response = await POST(request({ day: 1, durationSec: 60, stepIndex: 0 }));
 
     expect(response.status).toBe(200);
+    expect(requirePremiumOrRewardedAccessForStepNotificationMock).toHaveBeenCalledWith({
+      day: 1,
+      maybeUrl: undefined,
+      platform: "WEB_DESKTOP",
+      stepIndex: 0,
+      userId: "user-1",
+    });
     expect(createStepNotificationMock).toHaveBeenCalledWith({
       day: 1,
       durationSec: 60,

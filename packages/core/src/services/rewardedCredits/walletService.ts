@@ -83,6 +83,23 @@ async function getAdsWatchedToday(client: PrismaTx, userId: string, now: Date): 
   return transactions.length;
 }
 
+async function hasTargetUnlock(
+  client: PrismaTx,
+  userId: string,
+  target: RewardedTargetInput,
+): Promise<boolean> {
+  const transaction = await client.rewardedCreditTransaction.findFirst({
+    where: {
+      userId,
+      type: "SPEND",
+      targetType: target.targetType,
+      targetId: target.targetId,
+    },
+    select: { id: true },
+  });
+  return Boolean(transaction);
+}
+
 export async function getRewardedCreditsStatus(input: {
   userId: string;
   platform: RewardedPlatform;
@@ -110,14 +127,18 @@ export async function getRewardedCreditsStatus(input: {
       canWatchAdReason = "BALANCE_FULL";
     }
 
+    const targetUnlocked = input.target
+      ? await hasTargetUnlock(tx, input.userId, input.target)
+      : false;
+    const targetCost = input.target?.cost ?? 1;
     const target = input.target
       ? {
           targetType: input.target.targetType,
           targetId: input.target.targetId,
-          cost: input.target.cost ?? 1,
-          unlocked: false,
-          canUnlockWithCurrentBalance: wallet.balance >= (input.target.cost ?? 1),
-          missingCredits: Math.max(0, (input.target.cost ?? 1) - wallet.balance),
+          cost: targetCost,
+          unlocked: targetUnlocked,
+          canUnlockWithCurrentBalance: targetUnlocked || wallet.balance >= targetCost,
+          missingCredits: targetUnlocked ? 0 : Math.max(0, targetCost - wallet.balance),
         }
       : undefined;
 

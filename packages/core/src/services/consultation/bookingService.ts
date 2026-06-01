@@ -25,11 +25,15 @@ import type { BookSlotResult, ConsultationBookingDto } from "./types";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
 import {
   REWARDED_CONSULTATION_BOOKING_COST,
+  getRewardedCreditsStatus,
   refundRewardedCredits,
+  SubscriptionOrCreditsRequiredError,
   unlockRewardedTarget,
   type RewardedPlatform,
   type RewardedTargetInput,
 } from "../rewardedCredits";
+import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
+import { getAppSubscriptionAccess } from "../appSubscription";
 
 const logger = createWebLogger("core-consultation-booking");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
@@ -510,6 +514,30 @@ export async function bookSlotWithPremiumOrRewardedCredits(input: {
     }
     throw error;
   }
+}
+
+export async function requireConsultationSlotsPremiumOrRewardedAccess(input: {
+  userId: string;
+  platform: RewardedPlatform;
+  now?: Date;
+}): Promise<void> {
+  const gatingEnabled = await getAppFeatureFlagEnabled(
+    APP_FEATURE_APP_SUBSCRIPTION_GATING,
+    true,
+  );
+  if (!gatingEnabled) return;
+
+  const subscription = await getAppSubscriptionAccess(input.userId, input.now);
+  if (subscription.hasActiveSubscription) return;
+
+  const status = await getRewardedCreditsStatus({
+    userId: input.userId,
+    platform: input.platform,
+    now: input.now,
+  });
+  if (status.wallet.balance >= REWARDED_CONSULTATION_BOOKING_COST) return;
+
+  throw new SubscriptionOrCreditsRequiredError();
 }
 
 export async function confirmBookingByTrainer(

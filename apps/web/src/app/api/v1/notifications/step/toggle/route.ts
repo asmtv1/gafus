@@ -14,8 +14,10 @@ import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
-import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
+import {
+  requirePremiumOrRewardedAccessForStepNotification,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 
 const logger = createWebLogger("api-notifications-toggle");
 
@@ -34,9 +36,14 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     }
 
     const userId = session.user.id;
-    await requireWebAppSubscriptionOrThrow(userId);
     const body = await request.json();
     const { day, stepIndex, pause } = schema.parse(body);
+    await requirePremiumOrRewardedAccessForStepNotification({
+      userId,
+      platform: "WEB_DESKTOP",
+      day,
+      stepIndex,
+    });
 
     // Динамический импорт для избежания ошибки REDIS_URL при сборке
     const { toggleStepNotificationPause } = await import("@gafus/core/services/notifications");
@@ -49,10 +56,10 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof SubscriptionRequiredError) {
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
-        { status: error.status },
+        { status: 402 },
       );
     }
     if (error instanceof z.ZodError) {

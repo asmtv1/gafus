@@ -10,6 +10,21 @@ export const articlesApi = {
   getBySlug: (slug: string): Promise<ApiResponse<ArticleDetailDto>> =>
     apiClient<ArticleDetailDto>(`/api/v1/articles/${slug}`),
 
+  unlock: (slug: string): Promise<
+    ApiResponse<{
+      targetType: "ARTICLE";
+      targetId: string;
+      unlocked: true;
+      spentCredits: number;
+      balance: number;
+      pendingRefundCredits: number;
+    }>
+  > =>
+    apiClient(`/api/v1/articles/${encodeURIComponent(slug)}/unlock`, {
+      method: "POST",
+      body: {},
+    }),
+
   toggleLike: (
     articleId: string
   ): Promise<ApiResponse<{ isLiked: boolean }>> =>

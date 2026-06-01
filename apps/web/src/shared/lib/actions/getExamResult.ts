@@ -2,6 +2,7 @@
 
 import { getErrorMessage } from "@gafus/core/errors";
 import { getExamResult as getExamResultCore } from "@gafus/core/services/exam";
+import { requirePremiumOrRewardedAccessForUserStep } from "@gafus/core/services/rewardedCredits";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 
@@ -33,6 +34,11 @@ export async function getExamResult(userStepId: string): Promise<ExamResultData 
     throw new Error("Не авторизован");
   }
   try {
+    await requirePremiumOrRewardedAccessForUserStep({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+      userStepId,
+    });
     return await getExamResultCore(session.user.id, userStepId);
   } catch (error) {
     console.error("Ошибка при получении результата экзамена:", error);

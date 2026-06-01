@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -18,6 +19,7 @@ import { trackEvent } from "@gafus/analytics";
 import type { ArticleDetailDto } from "@gafus/types";
 import { usePathname } from "next/navigation";
 
+import { AppSubscriptionPaywall } from "@/features/app-subscription/components/AppSubscriptionPaywall";
 import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
 
 import styles from "./ArticleDetailClient.module.css";
@@ -33,48 +35,54 @@ function PaidArticleBlock({
   userId,
   csrfToken,
 }: PaidArticleBlockProps) {
+  const router = useRouter();
   const pathname = usePathname() ?? `/articles/${article.slug}`;
-  const [payLoading, setPayLoading] = useState(false);
-  const [payError, setPayError] = useState<string | null>(null);
   const isGuest = userId === undefined;
 
-  const handlePay = useCallback(async () => {
-    if (!csrfToken || isGuest) return;
+  const unlockAfterRewardedGrant = useCallback(async () => {
+    if (!csrfToken || isGuest) {
+      throw new Error("Не авторизован");
+    }
     trackEvent({
       eventName: "button_click",
       platform: "web",
       pathOrScreen: pathname,
-      elementId: "article-pay-start",
+      elementId: "article-rewarded-unlock",
     });
-    setPayError(null);
-    setPayLoading(true);
-    try {
-      const res = await fetch("/api/v1/payments/create", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": csrfToken,
-        },
-        body: JSON.stringify({ articleId: article.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPayError(data.error ?? "Ошибка создания платежа");
-        return;
-      }
-      if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
-      } else {
-        setPayError("Нет ссылки на оплату");
-      }
-    } catch (error) {
-      reportClientError(error, { issueKey: "ArticleDetailClient", keys: { operation: "pay_article" } });
-      setPayError("Ошибка сети");
-    } finally {
-      setPayLoading(false);
+    const res = await fetch(`/api/v1/articles/${encodeURIComponent(article.slug)}/unlock`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrf-token": csrfToken,
+      },
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? "Не удалось открыть статью");
     }
-  }, [article.id, csrfToken, isGuest, pathname]);
+    router.refresh();
+  }, [article.slug, csrfToken, isGuest, pathname, router]);
+
+  if (isGuest) {
+    return (
+      <main style={{ padding: 24, maxWidth: 600, margin: "0 auto" }}>
+        <h1>{article.title}</h1>
+        <div className={styles.accessDeniedBlock}>
+          <h2 className={styles.title}>Нужен доступ</h2>
+          <p className={styles.subtitle}>
+            Войдите, чтобы оформить подписку или открыть материал за просмотр рекламы.
+          </p>
+          <Link
+            href={`/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}`}
+            className={styles.btnPrimary}
+          >
+            Войти
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main style={{ padding: 24, maxWidth: 600, margin: "0 auto" }}>
@@ -87,36 +95,7 @@ function PaidArticleBlock({
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{article.description}</ReactMarkdown>
         </div>
       )}
-      <div className={styles.accessDeniedBlock}>
-        <h2 className={styles.title}>Платная статья</h2>
-        <p className={styles.subtitle}>
-          Оплатите «{article.title}» для доступа к содержимому.
-          {(article.priceRub ?? 0) > 0 && ` Стоимость: ${article.priceRub} ₽.`}
-        </p>
-        {isGuest ? (
-          <Link
-            href={`/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}`}
-            className={styles.btnPrimary}
-          >
-            Войти
-          </Link>
-        ) : (
-          <div className={styles.buttonsRow}>
-            {payError && <p style={{ color: "red", width: "100%", margin: 0 }}>{payError}</p>}
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              disabled={payLoading}
-              onClick={handlePay}
-            >
-              {payLoading ? "Загрузка…" : "Оплатить статью"}
-            </button>
-            <a href="/oferta.html" target="_blank" rel="noopener noreferrer" className={styles.btnOutline}>
-              Оферта
-            </a>
-          </div>
-        )}
-      </div>
+      <AppSubscriptionPaywall mode="embedded" onRewardedGrant={unlockAfterRewardedGrant} />
     </main>
   );
 }

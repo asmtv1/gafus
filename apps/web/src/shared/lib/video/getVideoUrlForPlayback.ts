@@ -1,18 +1,31 @@
 "use server";
 
 import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
+import { authOptions } from "@gafus/auth";
 import { getVideoForPlaybackCheck } from "@gafus/core/services/trainerVideo";
+import { requirePremiumOrRewardedAccessForVideoUrl } from "@gafus/core/services/rewardedCredits";
+import { getServerSession } from "next-auth";
 
 import { getSignedVideoUrl } from "./getSignedVideoUrl";
 
 /**
  * Преобразует videoUrl в URL для воспроизведения.
- * Core проверяет статус; web генерирует signed URL (требует сессию и headers).
+ * Core проверяет монетизацию и статус; web генерирует signed URL (требует сессию и headers).
  */
 export async function getVideoUrlForPlayback(
   videoUrl: string | null | undefined,
+  options?: { userId?: string },
 ): Promise<string | null> {
   if (!videoUrl) return null;
+
+  const userId = options?.userId ?? (await getServerSession(authOptions))?.user?.id;
+  if (!userId) return null;
+
+  await requirePremiumOrRewardedAccessForVideoUrl({
+    userId,
+    platform: "WEB_DESKTOP",
+    videoUrl,
+  });
 
   const externalPatterns = [
     /youtube\.com/,

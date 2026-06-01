@@ -3,14 +3,17 @@
  */
 import { prisma } from "@gafus/prisma";
 
+import {
+  getPremiumOrRewardedAccess,
+  REWARDED_ARTICLE_COST,
+  type RewardedPlatform,
+} from "../rewardedCredits";
+
 /**
  * Переключает лайк статьи пользователем.
  * @returns true если лайк поставлен, false если снят
  */
-export async function toggleArticleLike(
-  userId: string,
-  articleId: string
-): Promise<boolean> {
+export async function toggleArticleLike(userId: string, articleId: string): Promise<boolean> {
   const existing = await prisma.articleLike.findUnique({
     where: { userId_articleId: { userId, articleId } },
   });
@@ -26,4 +29,38 @@ export async function toggleArticleLike(
     data: { userId, articleId },
   });
   return true;
+}
+
+export async function toggleArticleLikeWithMonetizedAccess(input: {
+  userId: string;
+  articleId: string;
+  platform: RewardedPlatform;
+}): Promise<boolean> {
+  const article = await prisma.article.findUnique({
+    where: { id: input.articleId },
+    select: {
+      id: true,
+      access: {
+        where: { userId: input.userId },
+        select: { userId: true },
+      },
+    },
+  });
+  if (!article) {
+    throw new Error("ARTICLE_NOT_FOUND");
+  }
+
+  if (article.access.length === 0) {
+    await getPremiumOrRewardedAccess({
+      userId: input.userId,
+      platform: input.platform,
+      target: {
+        targetType: "ARTICLE",
+        targetId: article.id,
+        cost: REWARDED_ARTICLE_COST,
+      },
+    });
+  }
+
+  return toggleArticleLike(input.userId, article.id);
 }

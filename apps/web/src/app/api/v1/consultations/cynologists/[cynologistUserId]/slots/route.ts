@@ -10,8 +10,10 @@ import {
   getCalendarSlots,
   getCynologistDayOffDates,
   getSlotsQuerySchema,
+  requireConsultationSlotsPremiumOrRewardedAccess,
 } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
+import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 import { logConsultationRouteError } from "@/shared/lib/consultation-route-errors";
@@ -36,6 +38,10 @@ export async function GET(
     const includeBusy = sp.get("includeBusy") === "1";
     const from = new Date(parsed.from);
     const to = new Date(parsed.to);
+    await requireConsultationSlotsPremiumOrRewardedAccess({
+      userId: session.user.id,
+      platform: "WEB_DESKTOP",
+    });
     const data = includeBusy
       ? await getCalendarSlots(cynologistUserId, from, to)
       : await getAvailableSlots(cynologistUserId, from, to);
@@ -46,6 +52,16 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: error.message, code: "UNAUTHORIZED" },
         { status: 401 },
+      );
+    }
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: error.code,
+        },
+        { status: 402 },
       );
     }
     logConsultationRouteError(logger, "GET slots", error);

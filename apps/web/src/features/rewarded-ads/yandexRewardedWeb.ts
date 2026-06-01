@@ -74,7 +74,6 @@ export async function renderYandexRewarded(input: YandexRewardedRenderInput): Pr
     onRewarded: (isRewarded) => {
       if (!isRewarded || granted) return;
       granted = true;
-      input.onEvent?.("REWARDED");
       void input.onGrant({ sessionId: input.sessionId, requestNonce: input.requestNonce });
     },
     onClose: () => input.onEvent?.("DISMISSED"),

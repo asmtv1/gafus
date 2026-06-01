@@ -28,7 +28,7 @@ interface DayProps {
     pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
     resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
     resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
-    unlockStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    unlockStep?: (stepIndex: number) => Promise<{ success: boolean; reason?: "PAYWALL" }>;
   };
 }
 

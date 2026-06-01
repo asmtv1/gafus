@@ -4,7 +4,6 @@ import { listListedCynologists } from "@gafus/core";
 import { Box, Typography } from "@mui/material";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 import { ConsultationsSubNav } from "@/features/consultations";
 import { CynologistSlotsClient } from "@/features/consultations";
@@ -23,7 +22,6 @@ export default async function ConsultationCynologistPage({ params }: PageProps) 
   if (!session?.user?.id) {
     redirect("/login");
   }
-  await requireWebAppSubscription(session.user.id);
 
   const { cynologistUserId } = await params;
   const listed = await listListedCynologists();

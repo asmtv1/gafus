@@ -32,6 +32,7 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 interface ConsultationSlotsCalendarProps {
   cynologistUserId: string;
@@ -85,6 +86,16 @@ export function ConsultationSlotsCalendar({
     queryFn: async () => {
       const res = await consultationsApi.getSlotsCalendar(cynologistUserId, fromIso, toIso);
       if (!res.success || !res.data) {
+        if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+          openAppSubscriptionPaywall({
+            reason: "required",
+            onRewardedGrant: async () => {
+              await queryClient.invalidateQueries({
+                queryKey: ["consultations", "slotsCalendar", cynologistUserId],
+              });
+            },
+          });
+        }
         throw new Error(res.error ?? "Ошибка загрузки слотов");
       }
       const raw = res.data.filter((s) => s.status !== "BLOCKED");
@@ -205,6 +216,13 @@ export function ConsultationSlotsCalendar({
             elementId: "consultation-booking-confirm-open",
           });
           openConfirm(slot);
+          return;
+        }
+        if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+          openAppSubscriptionPaywall({
+            reason: "required",
+            onRewardedGrant: () => verifyAndBook(slot),
+          });
           return;
         }
         if (

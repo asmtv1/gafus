@@ -8,8 +8,10 @@ import {
   getArticleForEdit,
   getArticles,
   incrementArticleView,
+  unlockArticleBySlug,
   updateArticle,
 } from "./articleService";
+import { SubscriptionOrCreditsRequiredError } from "../rewardedCredits";
 
 const mockArticleFindMany = vi.fn();
 const mockArticleFindUnique = vi.fn();
@@ -24,6 +26,7 @@ const mockArticleViewerUpdate = vi.fn();
 const mockArticleGuestViewCreate = vi.fn();
 const mockArticleGuestViewCreateMany = vi.fn();
 const mockGetPremiumOrRewardedAccess = vi.fn();
+const mockUnlockRewardedTarget = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   isPrismaUniqueConstraintError: (error: unknown) =>
@@ -66,6 +69,7 @@ vi.mock("@gafus/logger", () => ({
 
 vi.mock("../rewardedCredits", () => ({
   getPremiumOrRewardedAccess: (...args: unknown[]) => mockGetPremiumOrRewardedAccess(...args),
+  unlockRewardedTarget: (...args: unknown[]) => mockUnlockRewardedTarget(...args),
   REWARDED_ARTICLE_COST: 1,
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
     code = "SUBSCRIPTION_OR_CREDITS_REQUIRED" as const;
@@ -112,7 +116,7 @@ describe("getArticles", () => {
     if (r.success) {
       expect(r.data).toHaveLength(1);
       expect(r.data[0].slug).toBe("slug-one");
-      expect(r.data[0].hasAccess).toBe(true);
+      expect(r.data[0].hasAccess).toBe(false);
     }
   });
 
@@ -156,7 +160,7 @@ describe("getArticleBySlug", () => {
     }
   });
 
-  it("PUBLIC: контент доступен без userId", async () => {
+  it("PUBLIC: контент не раскрывается без monetized access", async () => {
     mockArticleFindUnique.mockResolvedValue({
       ...listRow(),
       content: "<p>HTML</p>",
@@ -166,7 +170,8 @@ describe("getArticleBySlug", () => {
 
     expect(r.success).toBe(true);
     if (r.success) {
-      expect(r.data.content).toBe("<p>HTML</p>");
+      expect(r.data.hasAccess).toBe(false);
+      expect(r.data.content).toBeNull();
     }
   });
 
@@ -193,6 +198,33 @@ describe("getArticleBySlugForMonetizedAccess", () => {
     vi.clearAllMocks();
   });
 
+  it("PUBLIC без Premium/rewarded access: не раскрывает content", async () => {
+    mockArticleFindUnique.mockResolvedValue({
+      ...listRow({ visibility: "PUBLIC", priceRub: null }),
+      content: "<p>Открытый текст тоже за paywall</p>",
+      articleLikes: [],
+      access: [],
+    });
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(new SubscriptionOrCreditsRequiredError());
+
+    const r = await getArticleBySlugForMonetizedAccess({
+      slug: "public-slug",
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+    });
+
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.content).toBeNull();
+      expect(r.data.hasAccess).toBe(false);
+      expect(r.data.monetization).toMatchObject({
+        locked: true,
+        target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
+      });
+    }
+    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalled();
+  });
+
   it("PAID без Premium/rewarded access: не раскрывает content и не списывает", async () => {
     mockArticleFindUnique.mockResolvedValue({
       ...listRow({ visibility: "PAID", priceRub: 100 }),
@@ -200,7 +232,7 @@ describe("getArticleBySlugForMonetizedAccess", () => {
       articleLikes: [],
       access: [],
     });
-    mockGetPremiumOrRewardedAccess.mockRejectedValue(new Error("Требуется подписка или credits"));
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(new SubscriptionOrCreditsRequiredError());
 
     const r = await getArticleBySlugForMonetizedAccess({
       slug: "paid-slug",
@@ -239,6 +271,74 @@ describe("getArticleBySlugForMonetizedAccess", () => {
       expect(r.data.content).toBe("<p>Секрет</p>");
       expect(r.data.monetization?.locked).toBe(false);
     }
+  });
+
+  it("PAID с существующим ArticleAccess раскрывает content без Premium/rewarded проверки", async () => {
+    mockArticleFindUnique.mockResolvedValue({
+      ...listRow({ visibility: "PAID", priceRub: 100 }),
+      content: "<p>Купленный доступ</p>",
+      articleLikes: [],
+      access: [{ userId: "user-1" }],
+    });
+
+    const r = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug",
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+    });
+
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.content).toBe("<p>Купленный доступ</p>");
+      expect(r.data.hasAccess).toBe(true);
+      expect(r.data.monetization?.locked).toBe(false);
+    }
+    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe("unlockArticleBySlug", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("spends rewarded credits for a public article because all articles are behind paywall", async () => {
+    mockArticleFindUnique.mockResolvedValue({
+      id: "a1",
+      visibility: "PUBLIC",
+      access: [],
+    });
+    mockUnlockRewardedTarget.mockResolvedValue({
+      targetType: "ARTICLE",
+      targetId: "a1",
+      unlocked: true,
+      spentCredits: 1,
+      balance: 4,
+      pendingRefundCredits: 0,
+    });
+
+    const result = await unlockArticleBySlug({
+      slug: "public-slug",
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        targetType: "ARTICLE",
+        targetId: "a1",
+        unlocked: true,
+        spentCredits: 1,
+        balance: 4,
+        pendingRefundCredits: 0,
+      },
+    });
+    expect(mockUnlockRewardedTarget).toHaveBeenCalledWith({
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+      target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
+    });
   });
 });
 
@@ -330,11 +430,7 @@ describe("updateArticle", () => {
   it("ошибка валидации частичного update", async () => {
     mockArticleFindUnique.mockResolvedValue({ authorId: "u1" });
 
-    const r = await updateArticle(
-      "a1",
-      { slug: "НЕ_ЛАТИНИЦА" },
-      "u1",
-    );
+    const r = await updateArticle("a1", { slug: "НЕ_ЛАТИНИЦА" }, "u1");
 
     expect(r.success).toBe(false);
     expect(mockArticleUpdate).not.toHaveBeenCalled();
@@ -343,11 +439,7 @@ describe("updateArticle", () => {
   it("успешное обновление", async () => {
     mockArticleFindUnique.mockResolvedValue({ authorId: "u1" });
 
-    const r = await updateArticle(
-      "a1",
-      { title: "Новый заголовок" },
-      "u1",
-    );
+    const r = await updateArticle("a1", { title: "Новый заголовок" }, "u1");
 
     expect(r.success).toBe(true);
     expect(mockArticleUpdate).toHaveBeenCalledWith(
@@ -434,7 +526,7 @@ describe("incrementArticleView", () => {
             create: typeof mockArticleGuestViewCreate;
             createMany: typeof mockArticleGuestViewCreateMany;
           };
-        }) => Promise<void>
+        }) => Promise<void>,
       ) => {
         await fn({
           article: { update: mockArticleUpdate },
@@ -448,7 +540,7 @@ describe("incrementArticleView", () => {
             createMany: mockArticleGuestViewCreateMany,
           },
         });
-      }
+      },
     );
   });
 

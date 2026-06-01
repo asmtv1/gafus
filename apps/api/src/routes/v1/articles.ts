@@ -8,15 +8,29 @@ import { zValidator } from "@hono/zod-validator";
 import {
   getArticles,
   getArticleBySlugForMonetizedAccess,
-  toggleArticleLike,
+  toggleArticleLikeWithMonetizedAccess,
   incrementArticleView,
   unlockArticleBySlug,
 } from "@gafus/core/services/article";
+import {
+  RewardedCreditsRequiredError,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-articles");
 
 export const articlesRoutes = new Hono();
+const platformQuerySchema = z.object({ platform: z.enum(["ANDROID", "IOS"]).optional() });
+
+function getArticlePlatform(c: {
+  req: { query(name: string): string | undefined; header(name: string): string | undefined };
+}): "ANDROID" | "IOS" {
+  const parsed = platformQuerySchema.safeParse({
+    platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
+  });
+  return parsed.success ? (parsed.data.platform ?? "ANDROID") : "ANDROID";
+}
 
 articlesRoutes.get("/", async (c) => {
   try {
@@ -37,16 +51,35 @@ articlesRoutes.post("/:id/like", zValidator("param", likeParamSchema), async (c)
   try {
     const user = c.get("user");
     const { id } = c.req.valid("param");
-    const isLiked = await toggleArticleLike(user.id, id);
+    const isLiked = await toggleArticleLikeWithMonetizedAccess({
+      userId: user.id,
+      articleId: id,
+      platform: getArticlePlatform(c),
+    });
     return c.json({ success: true, data: { isLiked } });
   } catch (error) {
+    if (
+      error instanceof SubscriptionOrCreditsRequiredError ||
+      error instanceof RewardedCreditsRequiredError
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        },
+        402,
+      );
+    }
+    if (error instanceof Error && error.message === "ARTICLE_NOT_FOUND") {
+      return c.json({ success: false, error: "Статья не найдена", code: "NOT_FOUND" }, 404);
+    }
     logger.error("Error in article like POST", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });
-const platformQuerySchema = z.object({ platform: z.enum(["ANDROID", "IOS"]).optional() });
 
 const viewParamSchema = z.object({ slug: z.string().min(1) });
 
@@ -67,7 +100,10 @@ articlesRoutes.post("/:slug/view", zValidator("param", viewParamSchema), async (
       viewerUserId: user?.id,
       guestVisitorKey,
     });
-    return c.json(result.success ? { success: true } : { success: false, error: result.error }, 200);
+    return c.json(
+      result.success ? { success: true } : { success: false, error: result.error },
+      200,
+    );
   } catch (error) {
     logger.error("Error in article view POST", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
@@ -78,14 +114,11 @@ articlesRoutes.get("/:slug", zValidator("param", slugParamSchema), async (c) => 
   try {
     const user = c.get("user");
     const { slug } = c.req.valid("param");
-    const platform = platformQuerySchema.safeParse({
-      platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
-    }).success
-      ? platformQuerySchema.parse({
-          platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
-        }).platform ?? "ANDROID"
-      : "ANDROID";
-    const result = await getArticleBySlugForMonetizedAccess({ slug, userId: user.id, platform });
+    const result = await getArticleBySlugForMonetizedAccess({
+      slug,
+      userId: user.id,
+      platform: getArticlePlatform(c),
+    });
     if (!result.success) {
       return c.json(result, 404);
     }
@@ -100,16 +133,26 @@ articlesRoutes.post("/:slug/unlock", zValidator("param", slugParamSchema), async
   try {
     const user = c.get("user");
     const { slug } = c.req.valid("param");
-    const platform = platformQuerySchema.safeParse({
-      platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
-    }).success
-      ? platformQuerySchema.parse({
-          platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
-        }).platform ?? "ANDROID"
-      : "ANDROID";
-    const result = await unlockArticleBySlug({ slug, userId: user.id, platform });
+    const result = await unlockArticleBySlug({
+      slug,
+      userId: user.id,
+      platform: getArticlePlatform(c),
+    });
     return c.json(result, result.success ? 200 : 404);
   } catch (error) {
+    if (
+      error instanceof SubscriptionOrCreditsRequiredError ||
+      error instanceof RewardedCreditsRequiredError
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: "Для действия нужна подписка или rewarded credits",
+          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        },
+        402,
+      );
+    }
     logger.error("Error in article unlock POST", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }

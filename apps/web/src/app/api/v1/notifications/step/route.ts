@@ -15,8 +15,10 @@ import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
-import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
+import {
+  requirePremiumOrRewardedAccessForStepNotification,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 
 const logger = createWebLogger("api-notifications-step");
 
@@ -46,9 +48,15 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     }
 
     const userId = session.user.id;
-    await requireWebAppSubscriptionOrThrow(userId);
     const body = await request.json();
     const data = createSchema.parse(body);
+    await requirePremiumOrRewardedAccessForStepNotification({
+      userId,
+      platform: "WEB_DESKTOP",
+      day: data.day,
+      stepIndex: data.stepIndex,
+      maybeUrl: data.maybeUrl,
+    });
 
     const { createStepNotification } = await getNotificationService();
 
@@ -69,10 +77,10 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         { status: 400 },
       );
     }
-    if (error instanceof SubscriptionRequiredError) {
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
-        { status: error.status },
+        { status: 402 },
       );
     }
 
@@ -100,9 +108,14 @@ export const DELETE = withCSRFProtection(async (request: NextRequest) => {
     }
 
     const userId = session.user.id;
-    await requireWebAppSubscriptionOrThrow(userId);
     const body = await request.json();
     const { day, stepIndex, deleted } = deleteSchema.parse(body);
+    await requirePremiumOrRewardedAccessForStepNotification({
+      userId,
+      platform: "WEB_DESKTOP",
+      day,
+      stepIndex,
+    });
 
     const { deleteStepNotification } = await getNotificationService();
 
@@ -120,10 +133,10 @@ export const DELETE = withCSRFProtection(async (request: NextRequest) => {
         { status: 400 },
       );
     }
-    if (error instanceof SubscriptionRequiredError) {
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
-        { status: error.status },
+        { status: 402 },
       );
     }
 

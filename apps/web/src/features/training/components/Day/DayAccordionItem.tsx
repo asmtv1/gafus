@@ -1,11 +1,12 @@
 "use client";
 
-import { memo, useCallback, useTransition } from "react";
+import { memo, useCallback, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 
 import { getStepDisplayStatus, STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { TrainingStatus, type TrainingDetail } from "@gafus/types";
 import { reportClientError } from "@gafus/error-handling";
+import { AppSubscriptionPaywall } from "@/features/app-subscription/components/AppSubscriptionPaywall";
 import { useStepState, useStepStore } from "@shared/stores/stepStore";
 import { markTheoryStepAsCompleted } from "@shared/lib/training/markTheoryStepAsCompleted";
 import { ExpandMoreIcon } from "@shared/utils/muiImports";
@@ -41,7 +42,7 @@ interface DayAccordionItemProps {
     pauseStep?: (stepIndex: number, timeLeftSec: number) => Promise<{ success: boolean }>;
     resumeStep?: (stepIndex: number) => Promise<{ success: boolean }>;
     resetStep?: (stepIndex: number) => Promise<{ success: boolean }>;
-    unlockStep?: (stepIndex: number) => Promise<{ success: boolean }>;
+    unlockStep?: (stepIndex: number) => Promise<{ success: boolean; reason?: "PAYWALL" }>;
   };
 }
 
@@ -60,6 +61,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
   const stepState = useStepState(training.courseId, training.dayOnCourseId, index);
   const updateStepStatus = useStepStore((s) => s.updateStepStatus);
   const [isPending, startTheoryTransition] = useTransition();
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const isBreakStep = step.type === "BREAK";
   const isDiaryStep = step.type === "DIARY";
@@ -74,17 +76,26 @@ export const DayAccordionItem = memo(function DayAccordionItem({
   const handleClick = useCallback(() => {
     const newOpenIndex: number | null = openIndex === index ? null : index;
     if (newOpenIndex !== null && step.locked) {
+      if (!serverActions?.unlockStep) {
+        setPaywallOpen(true);
+        return;
+      }
       startTheoryTransition(async () => {
         try {
-          const result = await serverActions?.unlockStep?.(index);
+          const result = await serverActions.unlockStep?.(index);
           if (result?.success) {
             window.location.reload();
+            return;
+          }
+          if (result?.reason === "PAYWALL") {
+            setPaywallOpen(true);
           }
         } catch (e) {
           reportClientError(e, {
             issueKey: "DayAccordionItem",
             keys: { step: "unlockStep", stepIndex: index, courseId: training.courseId },
           });
+          setPaywallOpen(true);
         }
       });
       return;
@@ -128,6 +139,16 @@ export const DayAccordionItem = memo(function DayAccordionItem({
     startTheoryTransition,
     serverActions,
   ]);
+
+  const handleRewardedGrant = useCallback(async () => {
+    if (!serverActions?.unlockStep) return;
+    const result = await serverActions.unlockStep(index);
+    if (result.success) {
+      window.location.reload();
+      return;
+    }
+    throw new Error("Не удалось открыть шаг после начисления кредитов.");
+  }, [index, serverActions]);
 
   return (
     <div key={`${step.id}-${index}`} className={styles.accordionItem}>
@@ -194,6 +215,22 @@ export const DayAccordionItem = memo(function DayAccordionItem({
           />
         </div>
       )}
+      {paywallOpen ? (
+        <div
+          className={styles.paywallOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Доступ к шагу"
+        >
+          <div className={styles.paywallPanel}>
+            <AppSubscriptionPaywall
+              mode="embedded"
+              onClose={() => setPaywallOpen(false)}
+              onRewardedGrant={handleRewardedGrant}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 });

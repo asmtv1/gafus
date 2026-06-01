@@ -7,9 +7,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
+import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { z } from "zod";
-import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
 
 const logger = createWebLogger("api-video-playback-url");
 
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       throw new AuthorizationError("Не авторизован");
     }
-    await requireWebAppSubscriptionOrThrow(session.user.id);
 
     const { searchParams } = request.nextUrl;
     const parsed = querySchema.parse({
@@ -33,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Динамический импорт
     const { getVideoUrlForPlayback } = await import("@shared/lib/video/getVideoUrlForPlayback");
 
-    const playbackUrl = await getVideoUrlForPlayback(parsed.videoUrl);
+    const playbackUrl = await getVideoUrlForPlayback(parsed.videoUrl, { userId: session.user.id });
 
     return NextResponse.json({
       success: true,
@@ -46,10 +44,10 @@ export async function GET(request: NextRequest) {
         { status: 401 },
       );
     }
-    if (error instanceof SubscriptionRequiredError) {
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
-        { status: error.status },
+        { status: 402 },
       );
     }
     if (error instanceof z.ZodError) {

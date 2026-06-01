@@ -20,6 +20,11 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Text } from "react-native-paper";
 import { appSubscriptionApi, type AppSubscriptionOfferDto } from "../api/appSubscriptionApi";
+import {
+  rewardedAdsApi,
+  showYandexRewardedAd,
+} from "@/features/rewarded-ads";
+import { reportClientError } from "@/shared/lib/tracer";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import {
   getYookassaLegalSuffix,
@@ -27,6 +32,11 @@ import {
   getYookassaPricePillText,
   getYookassaPrimaryCta,
 } from "../lib/appSubscriptionPresentation";
+import {
+  getRewardedEarnText,
+  getRewardedSpendText,
+  getRewardedStatusMessage,
+} from "../lib/rewardedPaywallCopy";
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
 import { yookassaAppSubscriptionPurchase } from "../lib/yookassaAppSubscriptionPurchase";
 import { usePaywallStore } from "../store/paywallStore";
@@ -74,8 +84,12 @@ export function AppSubscriptionPaywall() {
   const queryClient = useQueryClient();
   const close = usePaywallStore((s) => s.close);
   const reason = usePaywallStore((s) => s.reason);
+  const rewardedTarget = usePaywallStore((s) => s.rewardedTarget);
+  const onRewardedGrant = usePaywallStore((s) => s.onRewardedGrant);
   const [isPaying, setIsPaying] = useState(false);
+  const [isRewardedLoading, setIsRewardedLoading] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [rewardedMessage, setRewardedMessage] = useState<string | null>(null);
   const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
     null,
   );
@@ -86,6 +100,21 @@ export function AppSubscriptionPaywall() {
     staleTime: 5 * 60_000,
   });
   const offer = offerQuery.data?.success ? offerQuery.data.data : null;
+  const rewardedStatusQuery = useQuery({
+    queryKey: ["rewarded-ads", "status", rewardedTarget?.targetType ?? null, rewardedTarget?.targetId ?? null],
+    queryFn: () => rewardedAdsApi.getStatus(rewardedTarget ?? undefined),
+    staleTime: 30_000,
+  });
+  const rewardedStatus =
+    rewardedStatusQuery.data?.success && rewardedStatusQuery.data.data
+      ? rewardedStatusQuery.data.data
+      : null;
+  const rewardedQueryError =
+    rewardedStatusQuery.data && !rewardedStatusQuery.data.success
+      ? rewardedStatusQuery.data.error
+      : rewardedStatusQuery.error instanceof Error
+        ? rewardedStatusQuery.error.message
+        : null;
   useEffect(() => {
     if (offer) setLastSuccessfulOffer(offer);
   }, [offer]);
@@ -171,9 +200,56 @@ export function AppSubscriptionPaywall() {
     setPendingMessage("Привязка карты ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
+  const handleWatchRewardedAd = async () => {
+    if (isRewardedLoading || !rewardedStatus?.canWatchAd) return;
+    setIsRewardedLoading(true);
+    setRewardedMessage(null);
+    try {
+      const sessionResponse = await rewardedAdsApi.createSession(rewardedTarget ?? undefined);
+      if (!sessionResponse.success || !sessionResponse.data) {
+        setRewardedMessage(sessionResponse.error ?? "Не удалось подготовить рекламу.");
+        return;
+      }
+      const grantResponse = await showYandexRewardedAd(sessionResponse.data);
+      if (!grantResponse) {
+        setRewardedMessage("Просмотр не завершён. Кредиты начисляются только за полный просмотр.");
+        return;
+      }
+      if (!grantResponse.success) {
+        setRewardedMessage(grantResponse.error ?? "Не удалось начислить кредиты.");
+        return;
+      }
+      setRewardedMessage(
+        onRewardedGrant
+          ? "Кредиты начислены. Открываем материал."
+          : `Начислено кредитов: ${grantResponse.data?.grantedCredits ?? 0}.`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["rewarded-ads"] });
+      await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
+      await onRewardedGrant?.();
+      if (onRewardedGrant) {
+        close();
+      }
+    } catch (error) {
+      reportClientError(error, {
+        issueKey: "AppSubscriptionPaywall",
+        keys: { operation: "watch_rewarded_ad" },
+      });
+      setRewardedMessage(error instanceof Error ? error.message : "Не удалось показать рекламу.");
+    } finally {
+      setIsRewardedLoading(false);
+    }
+  };
+
   const openLegalLink = (url: string) => {
     void Linking.openURL(url);
   };
+  const rewardedUnavailableText = getRewardedStatusMessage({
+    isLoading: rewardedStatusQuery.isLoading,
+    error: rewardedQueryError,
+    status: rewardedStatus,
+  });
+  const canWatchRewardedAd = Boolean(rewardedStatus?.canWatchAd);
 
   return (
     <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={close}>
@@ -251,6 +327,47 @@ export function AppSubscriptionPaywall() {
               ) : null}
             </Pressable>
           ) : null}
+
+          <View style={styles.rewardedBox}>
+            <View style={styles.rewardedHeader}>
+              <MaterialCommunityIcons
+                name="play-circle-outline"
+                size={22}
+                color={COLORS.primary}
+              />
+              <Text style={styles.rewardedTitle}>Открыть за просмотр рекламы</Text>
+            </View>
+            <Text style={styles.rewardedText}>{getRewardedEarnText(rewardedStatus)}</Text>
+            <Text style={styles.rewardedHint}>{getRewardedSpendText(rewardedStatus)}</Text>
+            {rewardedStatus ? (
+              <>
+                <Text style={styles.rewardedHint}>
+                  Баланс: {rewardedStatus.wallet.balance} из {rewardedStatus.wallet.maxBalance}.
+                  Сегодня: {rewardedStatus.today.adsWatchedToday} из{" "}
+                  {rewardedStatus.today.dailyAdLimit} просмотров рекламы.
+                </Text>
+              </>
+            ) : null}
+            {rewardedUnavailableText ? (
+              <Text style={styles.rewardedUnavailable}>{rewardedUnavailableText}</Text>
+            ) : null}
+            {rewardedMessage ? (
+              <Text style={styles.rewardedMessage}>{rewardedMessage}</Text>
+            ) : null}
+            <Pressable
+              style={[
+                styles.rewardedButton,
+                (!canWatchRewardedAd || isRewardedLoading) && styles.disabledButton,
+              ]}
+              onPress={() => void handleWatchRewardedAd()}
+              disabled={!canWatchRewardedAd || isRewardedLoading}
+            >
+              {isRewardedLoading ? <ActivityIndicator color={COLORS.primary} /> : null}
+              <Text style={styles.rewardedButtonText}>
+                {isRewardedLoading ? "Открываем рекламу..." : "Посмотреть рекламу"}
+              </Text>
+            </Pressable>
+          </View>
 
           <View style={[styles.benefits, useCompactLayout && styles.benefitsCompact]}>
             {BENEFITS.map((benefit) => (
@@ -419,6 +536,66 @@ const styles = StyleSheet.create({
     color: "#ECE5D2",
     fontSize: 12,
     lineHeight: 17,
+  },
+  rewardedBox: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.22)",
+    backgroundColor: "#FFF9EA",
+    padding: 14,
+    gap: 8,
+  },
+  rewardedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  rewardedTitle: {
+    flex: 1,
+    fontFamily: FONTS.montserratBold,
+    color: "#352E2E",
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  rewardedText: {
+    fontFamily: FONTS.montserrat,
+    color: "#4E4743",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  rewardedHint: {
+    fontFamily: FONTS.montserrat,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  rewardedUnavailable: {
+    fontFamily: FONTS.montserratMedium,
+    color: "#9B2F1C",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  rewardedMessage: {
+    fontFamily: FONTS.montserratMedium,
+    color: COLORS.primary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  rewardedButton: {
+    minHeight: 46,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#636128",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: SPACING.md,
+  },
+  rewardedButtonText: {
+    fontFamily: FONTS.montserratBold,
+    color: "#636128",
+    fontSize: 14,
   },
   benefits: {
     borderTopWidth: 1,

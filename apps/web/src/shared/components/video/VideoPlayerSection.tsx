@@ -6,7 +6,6 @@ import { getCDNUrl } from "@gafus/cdn-upload";
 import { CourseVideoPlayer } from "@shared/components/video/CourseVideoPlayer";
 import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";
-import { getSignedVideoUrl } from "@shared/lib/video/getSignedVideoUrl";
 import { getOfflineCourseByType } from "@shared/lib/offline/offlineCourseStorage";
 import { getVideoProgress, saveVideoProgress } from "@shared/lib/video/videoProgressActions";
 import {
@@ -213,13 +212,7 @@ export function VideoPlayerSection({
 
     async function loadSignedUrl() {
       try {
-        // Запускаем обе операции параллельно (2x быстрее)
-        const [urlFromVideoId, urlFromPlayback] = await Promise.all([
-          videoId ? getSignedVideoUrl(videoId) : Promise.resolve(null),
-          getVideoUrlForPlayback(videoUrl),
-        ]);
-
-        const url = urlFromVideoId || urlFromPlayback;
+        const url = await getVideoUrlForPlayback(videoUrl);
 
         if (url) {
           setSignedUrl(url);
@@ -239,7 +232,7 @@ export function VideoPlayerSection({
     }
 
     loadSignedUrl();
-  }, [videoUrl, videoId, isOfflineVideo, signedUrl, shouldLoadVideo]);
+  }, [videoUrl, isOfflineVideo, signedUrl, shouldLoadVideo]);
 
 
   // Внешние видео (YouTube/VK) - показываем iframe сразу

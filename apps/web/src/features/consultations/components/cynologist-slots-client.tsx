@@ -36,6 +36,7 @@ import {
 } from "@gafus/consultation-shared";
 import { reportClientError } from "@gafus/error-handling";
 
+import { AppSubscriptionPaywall } from "@/features/app-subscription/components/AppSubscriptionPaywall";
 import { showErrorAlert } from "@shared/utils/sweetAlert";
 
 import styles from "./cynologist-slots-client.module.css";
@@ -70,6 +71,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
   const [error, setError] = useState<string | null>(null);
   const [pending] = useTransition();
   const [verifyingSlotId, setVerifyingSlotId] = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const [selectedDayKey, setSelectedDayKey] = useState<string>("");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>("");
 
@@ -93,6 +95,12 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
         { credentials: "include" },
       );
       const json = (await res.json()) as SlotsResponse;
+      if (res.status === 402) {
+        setPaywallOpen(true);
+        setSlots([]);
+        setDayOffDates([]);
+        return;
+      }
       if (!res.ok || !json.success || !json.data) {
         setError(json.error ?? "Не удалось загрузить слоты");
         setSlots([]);
@@ -101,6 +109,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
       }
       setSlots(json.data.filter((slot) => slot.status !== "BLOCKED"));
       setDayOffDates(Array.isArray(json.dayOffDates) ? json.dayOffDates : []);
+      setPaywallOpen(false);
       trackEvent({
         eventName: "button_click",
         platform: "web",
@@ -310,7 +319,15 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
           {error}
         </Alert>
       ) : null}
-      {loading ? (
+      {paywallOpen ? (
+        <AppSubscriptionPaywall
+          mode="embedded"
+          onRewardedGrant={async () => {
+            setPaywallOpen(false);
+            await loadSlots();
+          }}
+        />
+      ) : loading ? (
         <div className={styles.loading}>
           <CircularProgress size={28} />
         </div>

@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
+import { isAbortError } from "./abortError";
 import { notifySubscriptionRequired } from "./subscriptionRequired";
 
 interface ApiClientOptions {
@@ -245,7 +246,7 @@ export async function apiClient<T>(
     return data as ApiResponse<T>;
   } catch (error) {
     reportClientError(error, { issueKey: "ApiClient", keys: { endpoint } });
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (isAbortError(error)) {
       return getAbortTimeoutError();
     }
     // Обработка сетевых ошибок
@@ -333,7 +334,7 @@ export async function apiClientMultipart<T>(
     return data as ApiResponse<T>;
   } catch (error) {
     reportClientError(error, { issueKey: "ApiClientMultipart", keys: { endpoint } });
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (isAbortError(error)) {
       return getAbortTimeoutError();
     }
     if (error instanceof TypeError && error.message === "Network request failed") {

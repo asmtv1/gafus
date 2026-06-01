@@ -6,6 +6,10 @@ import { z } from "zod";
 import { authOptions } from "@gafus/auth";
 import { AuthorizationError } from "@gafus/core/errors";
 import { submitSurveyResponse } from "@gafus/core/services/survey";
+import {
+  requirePremiumOrRewardedAccessForUserStep,
+  SubscriptionOrCreditsRequiredError,
+} from "@gafus/core/services/rewardedCredits";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { createWebLogger } from "@gafus/logger";
 
@@ -40,6 +44,11 @@ export const POST = withCSRFProtection(
 
       const params = paramsSchema.parse(await context.params);
       const body = submitSchema.parse(await request.json());
+      await requirePremiumOrRewardedAccessForUserStep({
+        userId: session.user.id,
+        platform: "WEB_DESKTOP",
+        userStepId: body.userStepId,
+      });
       const result = await submitSurveyResponse(session.user.id, {
         ...body,
         surveySlug: params.slug,
@@ -56,6 +65,12 @@ export const POST = withCSRFProtection(
         return NextResponse.json(
           { success: false, error: error.message, code: "UNAUTHORIZED" },
           { status: 401 },
+        );
+      }
+      if (error instanceof SubscriptionOrCreditsRequiredError) {
+        return NextResponse.json(
+          { success: false, error: error.message, code: error.code },
+          { status: 402 },
         );
       }
       if (error instanceof z.ZodError) {

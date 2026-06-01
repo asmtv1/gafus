@@ -29,6 +29,7 @@ import {
   getCynologistDayOffDates,
   getSlotsQuerySchema,
   getTrainerAvailability,
+  requireConsultationSlotsPremiumOrRewardedAccess,
   listAdminBookings,
   listAllTrainersForAdmin,
   listClientBookings,
@@ -114,56 +115,71 @@ consultationsRoutes.get("/cynologists", async (c) => {
   }
 });
 
+consultationsRoutes.get("/cynologists/:cynologistUserId/slots/:slotId/verify", async (c) => {
+  try {
+    const user = c.get("user");
+    const { cynologistUserId, slotId } = c.req.param();
+    await requireConsultationSlotsPremiumOrRewardedAccess({
+      userId: user.id,
+      platform: getMobileRewardedPlatform(c),
+    });
+    await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
+    return c.json({ success: true });
+  } catch (error) {
+    return handleConsultationError(c, error);
+  }
+});
+
 consultationsRoutes.get(
-  "/cynologists/:cynologistUserId/slots/:slotId/verify",
+  "/cynologists/:cynologistUserId/slots",
+  zValidator("query", getSlotsQuerySchema),
   async (c) => {
     try {
-      const { cynologistUserId, slotId } = c.req.param();
-      await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
-      return c.json({ success: true });
+      const { cynologistUserId } = c.req.param();
+      const q = c.req.valid("query");
+      const from = new Date(q.from);
+      const to = new Date(q.to);
+      const includeBusy = q.includeBusy === "1";
+      await requireConsultationSlotsPremiumOrRewardedAccess({
+        userId: c.get("user").id,
+        platform: getMobileRewardedPlatform(c),
+      });
+      const data = includeBusy
+        ? await getCalendarSlots(cynologistUserId, from, to)
+        : await getAvailableSlots(cynologistUserId, from, to);
+      if (includeBusy) {
+        const dayOffDates = await getCynologistDayOffDates(cynologistUserId, from, to);
+        return c.json({ success: true, data, dayOffDates });
+      }
+      return c.json({ success: true, data });
     } catch (error) {
       return handleConsultationError(c, error);
     }
   },
 );
 
-consultationsRoutes.get("/cynologists/:cynologistUserId/slots", zValidator("query", getSlotsQuerySchema), async (c) => {
-  try {
-    const { cynologistUserId } = c.req.param();
-    const q = c.req.valid("query");
-    const from = new Date(q.from);
-    const to = new Date(q.to);
-    const includeBusy = q.includeBusy === "1";
-    const data = includeBusy
-      ? await getCalendarSlots(cynologistUserId, from, to)
-      : await getAvailableSlots(cynologistUserId, from, to);
-    if (includeBusy) {
-      const dayOffDates = await getCynologistDayOffDates(cynologistUserId, from, to);
-      return c.json({ success: true, data, dayOffDates });
+consultationsRoutes.post(
+  "/book",
+  consultationBookRateLimiter,
+  zValidator("json", bookSlotInputSchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const body = c.req.valid("json");
+      const requestId = c.req.header("X-Request-Id") ?? undefined;
+      const result = await bookSlotWithPremiumOrRewardedCredits({
+        userId: user.id,
+        platform: getMobileRewardedPlatform(c),
+        body,
+        requestId,
+      });
+      const status = result.kind === "created" ? 201 : 200;
+      return c.json({ success: true, data: result }, status);
+    } catch (error) {
+      return handleConsultationError(c, error);
     }
-    return c.json({ success: true, data });
-  } catch (error) {
-    return handleConsultationError(c, error);
-  }
-});
-
-consultationsRoutes.post("/book", consultationBookRateLimiter, zValidator("json", bookSlotInputSchema), async (c) => {
-  try {
-    const user = c.get("user");
-    const body = c.req.valid("json");
-    const requestId = c.req.header("X-Request-Id") ?? undefined;
-    const result = await bookSlotWithPremiumOrRewardedCredits({
-      userId: user.id,
-      platform: getMobileRewardedPlatform(c),
-      body,
-      requestId,
-    });
-    const status = result.kind === "created" ? 201 : 200;
-    return c.json({ success: true, data: result }, status);
-  } catch (error) {
-    return handleConsultationError(c, error);
-  }
-});
+  },
+);
 
 consultationsRoutes.get("/my", zValidator("query", cursorPaginationSchema), async (c) => {
   try {
@@ -253,10 +269,7 @@ consultationsRoutes.post(
 consultationsRoutes.post(
   "/trainer/bookings/:bookingId/reject",
   requireRole("TRAINER", "ADMIN", "MODERATOR"),
-  zValidator(
-    "json",
-    z.object({ reason: z.string().max(500).optional() }),
-  ),
+  zValidator("json", z.object({ reason: z.string().max(500).optional() })),
   async (c) => {
     try {
       const user = c.get("user");
@@ -270,15 +283,19 @@ consultationsRoutes.post(
   },
 );
 
-consultationsRoutes.get("/trainer/availability", requireRole("TRAINER", "ADMIN", "MODERATOR"), async (c) => {
-  try {
-    const targetId = await targetTrainerIdFromRequest(c);
-    const data = await getTrainerAvailability(targetId);
-    return c.json({ success: true, data });
-  } catch (error) {
-    return handleConsultationError(c, error);
-  }
-});
+consultationsRoutes.get(
+  "/trainer/availability",
+  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  async (c) => {
+    try {
+      const targetId = await targetTrainerIdFromRequest(c);
+      const data = await getTrainerAvailability(targetId);
+      return c.json({ success: true, data });
+    } catch (error) {
+      return handleConsultationError(c, error);
+    }
+  },
+);
 
 consultationsRoutes.put(
   "/trainer/availability",
@@ -312,16 +329,20 @@ consultationsRoutes.post(
   },
 );
 
-consultationsRoutes.delete("/trainer/day-offs/:dayOffId", requireRole("TRAINER", "ADMIN", "MODERATOR"), async (c) => {
-  try {
-    const targetId = await targetTrainerIdFromRequest(c);
-    const dayOffId = c.req.param("dayOffId");
-    await removeDayOff(targetId, dayOffId);
-    return c.json({ success: true, data: {} });
-  } catch (error) {
-    return handleConsultationError(c, error);
-  }
-});
+consultationsRoutes.delete(
+  "/trainer/day-offs/:dayOffId",
+  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  async (c) => {
+    try {
+      const targetId = await targetTrainerIdFromRequest(c);
+      const dayOffId = c.req.param("dayOffId");
+      await removeDayOff(targetId, dayOffId);
+      return c.json({ success: true, data: {} });
+    } catch (error) {
+      return handleConsultationError(c, error);
+    }
+  },
+);
 
 consultationsRoutes.post(
   "/trainer/exceptions",
@@ -331,12 +352,7 @@ consultationsRoutes.post(
     try {
       const targetId = await targetTrainerIdFromRequest(c);
       const body = c.req.valid("json");
-      await addSlotException(
-        targetId,
-        new Date(body.startAt),
-        new Date(body.endAt),
-        body.reason,
-      );
+      await addSlotException(targetId, new Date(body.startAt), new Date(body.endAt), body.reason);
       return c.json({ success: true, data: {} });
     } catch (error) {
       return handleConsultationError(c, error);

@@ -8,8 +8,8 @@ import { AccessDeniedAlert } from "@/features/training";
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { checkCourseAccessById } from "@gafus/core/services/course";
 import { unlockCourseStepRewardedTarget } from "@gafus/core/services/training";
+import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 import { revalidatePath } from "next/cache";
 
 import type { Metadata } from "next";
@@ -21,9 +21,6 @@ export default async function DayPage(props: {
   const currentUserId = await getCurrentUserId()
     .then((id) => id as string)
     .catch(() => null);
-  if (currentUserId) {
-    await requireWebAppSubscription(currentUserId);
-  }
 
   // Валидируем, что day является корректным ID
   const dayId = dayOnCourseIdSchema.parse(day);
@@ -68,13 +65,20 @@ export default async function DayPage(props: {
     "use server";
     const userId = await getCurrentUserId();
     if (!userId) return { success: false };
-    await unlockCourseStepRewardedTarget({
-      userId,
-      platform: "WEB_DESKTOP",
-      courseType,
-      dayOnCourseId: dayId,
-      stepIndex,
-    });
+    try {
+      await unlockCourseStepRewardedTarget({
+        userId,
+        platform: "WEB_DESKTOP",
+        courseType,
+        dayOnCourseId: dayId,
+        stepIndex,
+      });
+    } catch (error) {
+      if (error instanceof SubscriptionOrCreditsRequiredError) {
+        return { success: false, reason: "PAYWALL" as const };
+      }
+      throw error;
+    }
     revalidatePath(`/trainings/${courseType}/${dayId}`);
     return { success: true };
   }

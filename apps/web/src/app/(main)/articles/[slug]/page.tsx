@@ -5,7 +5,6 @@ import { authOptions } from "@gafus/auth";
 import { getCDNUrl } from "@gafus/cdn-upload";
 import { getArticleBySlug, getArticleBySlugForMonetizedAccess } from "@gafus/core/services/article";
 import ArticleDetailClient from "./ArticleDetailClient";
-import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -36,9 +35,6 @@ export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
-  if (userId) {
-    await requireWebAppSubscription(userId);
-  }
   const result = await getArticleBySlugForMonetizedAccess({
     slug,
     userId,

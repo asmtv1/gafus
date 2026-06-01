@@ -10,11 +10,18 @@
   justify-content: center;
 }
 
+.embedded {
+  min-height: auto;
+  background: transparent;
+  padding: 0;
+}
+
 .inner {
   width: min(860px, 100%);
 }
 
 .card {
+  position: relative;
   width: 100%;
   max-width: 860px;
   border: 1px solid rgba(99, 97, 40, 0.35);
@@ -25,6 +32,19 @@
     0 20px 44px rgba(53, 46, 46, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
   padding: 34px;
+}
+
+.embedded .card {
+  border-radius: 16px;
+  box-shadow: none;
+  padding: 28px;
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #352e2e;
 }
 
 .hero {

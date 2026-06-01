@@ -37,6 +37,18 @@ function shouldMoveStatusForward(currentStatus: string, nextStatus: string): boo
   return (STATUS_ORDER[nextStatus] ?? 0) >= (STATUS_ORDER[currentStatus] ?? 0);
 }
 
+function assertValidLifecycleTransition(
+  currentStatus: string,
+  eventType: RewardedAdLifecycleEvent,
+): void {
+  if (eventType === "REWARDED" && currentStatus !== "SHOWN") {
+    throw new RewardedAdSessionError(
+      "REWARDED_SESSION_INVALID_TRANSITION",
+      "Rewarded ad session must be shown before it can be rewarded",
+    );
+  }
+}
+
 export async function createRewardedAdSession(input: {
   userId: string;
   platform: RewardedPlatform;
@@ -114,6 +126,7 @@ export async function recordRewardedAdEvent(input: {
   if (!session || session.userId !== input.userId) {
     throw new RewardedAdSessionError("REWARDED_SESSION_NOT_FOUND", "Rewarded ad session not found");
   }
+  assertValidLifecycleTransition(session.status, input.eventType);
 
   await prisma.rewardedAdEvent.create({
     data: {
@@ -173,13 +186,10 @@ export async function grantRewardedCredits(input: {
   }
 
   if (session.status !== "REWARDED") {
-    await prisma.rewardedAdEvent.create({
-      data: {
-        sessionId: session.id,
-        eventType: "REWARDED",
-        payload: input.providerPayload as Prisma.InputJsonValue | undefined,
-      },
-    });
+    throw new RewardedAdSessionError(
+      "REWARDED_SESSION_NOT_REWARDED",
+      "Rewarded ad session has no rewarded callback",
+    );
   }
 
   const result = await grantRewardedCreditsToWallet({

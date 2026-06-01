@@ -50,16 +50,26 @@ const pauseStepSchema = stepActionSchema.extend({
   timeLeftSec: z.number().int().min(0, "timeLeftSec >= 0"),
 });
 
-function mapDailyCourseError(error: unknown): { status: 400 | 403 | 404 | 409 | 500; body: object } {
+function mapDailyCourseError(error: unknown): {
+  status: 400 | 402 | 404 | 409 | 500;
+  body: object;
+} {
   const message = error instanceof Error ? error.message : "UNKNOWN";
-  if (message === "SubscriptionOrCreditsRequiredError" || message === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+  if (isSubscriptionOrCreditsRequiredError(error)) {
     return {
-      status: 403,
-      body: { success: false, error: "Для действия нужна подписка или rewarded credits", code: "SUBSCRIPTION_OR_CREDITS_REQUIRED" },
+      status: 402,
+      body: {
+        success: false,
+        error: "Для действия нужна подписка или rewarded credits",
+        code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+      },
     };
   }
   if (message === "SCHEDULE_NOT_FOUND") {
-    return { status: 404, body: { success: false, error: "Курс дня не найден", code: "NOT_FOUND" } };
+    return {
+      status: 404,
+      body: { success: false, error: "Курс дня не найден", code: "NOT_FOUND" },
+    };
   }
   if (message === "STEP_NOT_FOUND") {
     return { status: 404, body: { success: false, error: "Шаг не найден", code: "NOT_FOUND" } };
@@ -85,13 +95,18 @@ function mapDailyCourseError(error: unknown): { status: 400 | 403 | 404 | 409 | 
 function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
   return (
     error instanceof SubscriptionOrCreditsRequiredError ||
-    (error instanceof Error && error.name === "SubscriptionOrCreditsRequiredError")
+    (error instanceof Error &&
+      (error.name === "SubscriptionOrCreditsRequiredError" ||
+        error.name === "RewardedCreditsRequiredError"))
   );
 }
 
 function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
   const candidate =
-    platform ?? c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+    platform ??
+    c.req.query("platform") ??
+    c.req.header("x-rewarded-platform") ??
+    c.req.header("x-platform");
   const parsed = rewardedPlatformSchema.safeParse(candidate);
   return parsed.success ? parsed.data : "ANDROID";
 }

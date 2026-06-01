@@ -5,14 +5,11 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
-import {
-  createArticleSchema,
-  updateArticleSchema,
-  type CreateArticleSchemaInput,
-} from "./schemas";
+import { createArticleSchema, updateArticleSchema, type CreateArticleSchemaInput } from "./schemas";
 import {
   getPremiumOrRewardedAccess,
   REWARDED_ARTICLE_COST,
+  SubscriptionOrCreditsRequiredError,
   unlockRewardedTarget,
   type RewardedPlatform,
 } from "../rewardedCredits";
@@ -52,11 +49,9 @@ type ArticleListRow = Awaited<
 
 function mapToListDto(
   row: ArticleListRow & { articleLikes?: { userId: string }[]; access?: { userId: string }[] },
-  userId?: string
+  userId?: string,
 ): ArticleListDto {
-  const hasAccess =
-    row.visibility === "PUBLIC" ||
-    (!!userId && (row.access?.length ?? 0) > 0);
+  const hasAccess = !!userId && (row.access?.length ?? 0) > 0;
   const isLiked = !!userId && (row.articleLikes?.length ?? 0) > 0;
   const likeCount = row._count.articleLikes;
 
@@ -91,7 +86,7 @@ export async function getArticles(
   userId?: string,
   take = 50,
   skip = 0,
-  authorId?: string
+  authorId?: string,
 ): Promise<GetArticlesResult> {
   try {
     const rows = await prisma.article.findMany({
@@ -110,13 +105,11 @@ export async function getArticles(
       mapToListDto(
         {
           ...r,
-          articleLikes: userId
-            ? r.articleLikes.filter((l) => l.userId === userId)
-            : [],
+          articleLikes: userId ? r.articleLikes.filter((l) => l.userId === userId) : [],
           access: userId ? r.access.filter((a) => a.userId === userId) : [],
         } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
-        userId
-      )
+        userId,
+      ),
     );
     return { success: true, data: dtos };
   } catch (error) {
@@ -131,7 +124,7 @@ export type GetArticleBySlugResult =
 
 export async function getArticleBySlug(
   slug: string,
-  userId?: string
+  userId?: string,
 ): Promise<GetArticleBySlugResult> {
   try {
     const row = await prisma.article.findUnique({
@@ -151,8 +144,7 @@ export async function getArticleBySlug(
     const filteredLikes = userId ? row.articleLikes.filter((l) => l.userId === userId) : [];
     const filteredAccess = userId ? row.access.filter((a) => a.userId === userId) : [];
 
-    const hasAccess =
-      row.visibility === "PUBLIC" || filteredAccess.length > 0;
+    const hasAccess = filteredAccess.length > 0;
 
     const dto: ArticleDetailDto = {
       ...mapToListDto(
@@ -161,7 +153,7 @@ export async function getArticleBySlug(
           articleLikes: filteredLikes,
           access: filteredAccess,
         } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
-        userId
+        userId,
       ),
       content: hasAccess ? row.content : null,
     };
@@ -196,18 +188,17 @@ export async function getArticleBySlugForMonetizedAccess(input: {
     const filteredLikes = input.userId
       ? row.articleLikes.filter((l) => l.userId === input.userId)
       : [];
-    const filteredAccess = input.userId
-      ? row.access.filter((a) => a.userId === input.userId)
-      : [];
-    const hasExistingAccess = row.visibility === "PUBLIC" || filteredAccess.length > 0;
+    const filteredAccess = input.userId ? row.access.filter((a) => a.userId === input.userId) : [];
     const target = {
       targetType: "ARTICLE" as const,
       targetId: row.id,
       cost: REWARDED_ARTICLE_COST,
     };
 
+    const hasExistingArticleAccess = filteredAccess.length > 0;
+
     let hasMonetizedAccess = false;
-    if (!hasExistingAccess && input.userId) {
+    if (!hasExistingArticleAccess && input.userId) {
       try {
         await getPremiumOrRewardedAccess({
           userId: input.userId,
@@ -215,30 +206,30 @@ export async function getArticleBySlugForMonetizedAccess(input: {
           target,
         });
         hasMonetizedAccess = true;
-      } catch {
+      } catch (error) {
+        if (!(error instanceof SubscriptionOrCreditsRequiredError)) {
+          throw error;
+        }
         hasMonetizedAccess = false;
       }
     }
 
-    const hasAccess = hasExistingAccess || hasMonetizedAccess;
+    const hasAccess = hasExistingArticleAccess || hasMonetizedAccess;
     const dto: ArticleDetailDto = {
       ...mapToListDto(
         {
           ...row,
           articleLikes: filteredLikes,
-          access: hasAccess ? [{ userId: input.userId ?? "" }] : filteredAccess,
+          access: hasAccess ? [{ userId: input.userId ?? "" }] : [],
         } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
         input.userId,
       ),
       hasAccess,
       content: hasAccess ? row.content : null,
-      monetization:
-        row.visibility === "PAID"
-          ? {
-              locked: !hasAccess,
-              target,
-            }
-          : undefined,
+      monetization: {
+        locked: !hasAccess,
+        target,
+      },
     };
 
     return { success: true, data: dto };
@@ -255,10 +246,30 @@ export async function unlockArticleBySlug(input: {
 }) {
   const row = await prisma.article.findUnique({
     where: { slug: input.slug },
-    select: { id: true, visibility: true },
+    select: {
+      id: true,
+      visibility: true,
+      access: {
+        where: { userId: input.userId },
+        select: { userId: true },
+      },
+    },
   });
   if (!row) {
     return { success: false as const, error: "Статья не найдена" };
+  }
+  if (row.access.length > 0) {
+    return {
+      success: true as const,
+      data: {
+        targetType: "ARTICLE" as const,
+        targetId: row.id,
+        unlocked: true as const,
+        spentCredits: 0,
+        balance: 0,
+        pendingRefundCredits: 0,
+      },
+    };
   }
 
   const data = await unlockRewardedTarget({
@@ -279,7 +290,7 @@ export type GetArticleForEditResult =
 
 export async function getArticleForEdit(
   id: string,
-  userId: string
+  userId: string,
 ): Promise<GetArticleForEditResult> {
   try {
     const row = await prisma.article.findUnique({
@@ -331,12 +342,14 @@ export type CreateArticleResult =
 
 export async function createArticle(
   input: Record<string, unknown>,
-  userId: string
+  userId: string,
 ): Promise<CreateArticleResult> {
   try {
     const parsed = createArticleSchema.safeParse(input);
     if (!parsed.success) {
-      const msg = parsed.error.errors.map((err: { message: string }) => err.message).join("; ") || "Ошибка валидации";
+      const msg =
+        parsed.error.errors.map((err: { message: string }) => err.message).join("; ") ||
+        "Ошибка валидации";
       return { success: false, error: msg };
     }
 
@@ -368,7 +381,7 @@ export async function createArticle(
 export async function updateArticle(
   id: string,
   input: Record<string, unknown>,
-  userId: string
+  userId: string,
 ): Promise<ActionResult> {
   try {
     const article = await prisma.article.findUnique({
@@ -385,7 +398,9 @@ export async function updateArticle(
 
     const parsed = updateArticleSchema.safeParse({ ...input, id });
     if (!parsed.success) {
-      const msg = parsed.error.errors.map((err: { message: string }) => err.message).join("; ") || "Ошибка валидации";
+      const msg =
+        parsed.error.errors.map((err: { message: string }) => err.message).join("; ") ||
+        "Ошибка валидации";
       return { success: false, error: msg };
     }
 
@@ -436,7 +451,7 @@ function normalizeGuestVisitorKey(key: string | null | undefined): string | null
  */
 export async function incrementArticleView(
   slug: string,
-  options?: IncrementArticleViewOptions
+  options?: IncrementArticleViewOptions,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const article = await prisma.article.findUnique({
@@ -506,7 +521,7 @@ export type GetArticleViewersResult =
  */
 export async function getArticleViewersForAuthor(
   articleId: string,
-  authorId: string
+  authorId: string,
 ): Promise<GetArticleViewersResult> {
   try {
     const article = await prisma.article.findFirst({
@@ -548,10 +563,7 @@ export async function getArticleViewersForAuthor(
 
 export type DeleteArticleResult = ActionResult & { trainerId?: string };
 
-export async function deleteArticle(
-  id: string,
-  userId: string
-): Promise<DeleteArticleResult> {
+export async function deleteArticle(id: string, userId: string): Promise<DeleteArticleResult> {
   try {
     const article = await prisma.article.findUnique({
       where: { id },
