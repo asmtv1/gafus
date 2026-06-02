@@ -189,6 +189,12 @@ export function AppSubscriptionPaywall() {
     }
     if (!result.ok) {
       setIsPaying(false);
+      if (result.userCancelled) {
+        setPendingMessage(result.message);
+        await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
+        await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
+        return;
+      }
       Alert.alert("Привязка карты не началась", result.message);
       return;
     }

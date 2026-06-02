@@ -19,7 +19,7 @@ import { yookassaAppSubscriptionPurchase } from "./yookassaAppSubscriptionPurcha
 describe("yookassaAppSubscriptionPurchase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    openBrowserAsyncMock.mockResolvedValue({ type: "dismiss" });
+    openBrowserAsyncMock.mockResolvedValue({ type: "opened" });
   });
 
   it("opens YooKassa confirmation when backend returns localSubscriptionId", async () => {
@@ -38,5 +38,24 @@ describe("yookassaAppSubscriptionPurchase", () => {
       "https://yookassa.test/confirm",
       { presentationStyle: "fullScreen" },
     );
+  });
+
+  it("does not report purchase success when the YooKassa page is dismissed", async () => {
+    startYookassaMock.mockResolvedValue({
+      success: true,
+      data: {
+        confirmationUrl: "https://yookassa.test/confirm",
+        localSubscriptionId: "sub-1",
+      },
+    });
+    openBrowserAsyncMock.mockResolvedValueOnce({ type: "dismiss" });
+
+    const result = await yookassaAppSubscriptionPurchase();
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Привязка карты не завершена.",
+      userCancelled: true,
+    });
   });
 });

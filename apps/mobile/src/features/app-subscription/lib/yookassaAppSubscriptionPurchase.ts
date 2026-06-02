@@ -6,7 +6,7 @@ const isDev = typeof __DEV__ !== "undefined" && __DEV__;
 
 export type YookassaAppSubscriptionPurchaseResult =
   | { ok: true; localSubscriptionId: string }
-  | { ok: false; message: string };
+  | { ok: false; message: string; userCancelled?: boolean };
 
 export async function yookassaAppSubscriptionPurchase(): Promise<
   YookassaAppSubscriptionPurchaseResult
@@ -42,6 +42,13 @@ export async function yookassaAppSubscriptionPurchase(): Promise<
       localSubscriptionId,
       browserResult,
     });
+  }
+  if (browserResult.type === "cancel" || browserResult.type === "dismiss") {
+    return {
+      ok: false,
+      message: "Привязка карты не завершена.",
+      userCancelled: true,
+    };
   }
 
   return { ok: true, localSubscriptionId };
