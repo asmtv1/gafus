@@ -93,7 +93,7 @@ describe("app subscription payment service", () => {
     });
     mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
-        $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+        $executeRawUnsafe: vi.fn().mockResolvedValue(0),
         appSubscriptionPayment: { create: mockPaymentCreate, update: mockPaymentUpdate },
         appSubscription: {
           create: mockSubscriptionCreate,
@@ -320,10 +320,10 @@ describe("app subscription payment service", () => {
     const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
     const txSubscriptionFindFirst = vi.fn().mockResolvedValue(null);
     const txSubscriptionCreate = vi.fn().mockResolvedValue({ id: "sub-locked" });
-    const txQueryRawUnsafe = vi.fn().mockResolvedValue([]);
+    const txExecuteRawUnsafe = vi.fn().mockResolvedValue(0);
     mockTransaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
-        $queryRawUnsafe: txQueryRawUnsafe,
+        $executeRawUnsafe: txExecuteRawUnsafe,
         appSubscription: {
           findFirst: txSubscriptionFindFirst,
           create: txSubscriptionCreate,
@@ -347,7 +347,7 @@ describe("app subscription payment service", () => {
 
     expect(result).toMatchObject({ success: true, localSubscriptionId: "sub-locked" });
     expect(mockTransaction).toHaveBeenCalled();
-    expect(txQueryRawUnsafe).toHaveBeenCalledWith(expect.stringContaining("pg_advisory_xact_lock"));
+    expect(txExecuteRawUnsafe).toHaveBeenCalledWith(expect.stringContaining("pg_advisory_xact_lock"));
     expect(txSubscriptionFindFirst).toHaveBeenCalled();
     expect(txSubscriptionCreate).toHaveBeenCalled();
   });

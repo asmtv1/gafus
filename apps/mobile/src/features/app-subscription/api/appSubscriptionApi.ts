@@ -1,5 +1,7 @@
 import { apiClient, type ApiResponse } from "@/shared/lib/api/client";
 
+const isDev = typeof __DEV__ !== "undefined" && __DEV__;
+
 export type AppSubscriptionStatusDto = {
   hasActiveSubscription: boolean;
   paidAt: string | null;
@@ -36,8 +38,22 @@ export const appSubscriptionApi = {
   getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
     return apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
   },
-  startYookassa(): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
-    return apiClient("/api/v1/app-subscription/yookassa/start", { method: "POST", body: {} });
+  async startYookassa(): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
+    if (isDev) console.log("[appSubscriptionApi] startYookassa request");
+    const result = await apiClient<{ confirmationUrl: string; localSubscriptionId: string }>(
+      "/api/v1/app-subscription/yookassa/start",
+      { method: "POST", body: {} },
+    );
+    if (isDev) {
+      console.log("[appSubscriptionApi] startYookassa response", {
+        success: result.success,
+        error: result.error,
+        code: result.code,
+        hasConfirmationUrl: Boolean(result.data?.confirmationUrl),
+        localSubscriptionId: result.data?.localSubscriptionId ?? null,
+      });
+    }
+    return result;
   },
   cancelYookassa(): Promise<ApiResponse<AppSubscriptionStatusDto>> {
     return apiClient("/api/v1/app-subscription/yookassa/cancel", { method: "POST", body: {} });

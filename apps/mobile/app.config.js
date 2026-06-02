@@ -12,6 +12,26 @@ load(path.resolve(__dirname, "../.."), { force: true });
 
 const vkClientIdAndroid = process.env.VK_CLIENT_ID_ANDROID ?? "";
 const vkClientIdIos = process.env.VK_CLIENT_ID_IOS ?? "";
+const yandexSkAdNetworkIdentifiers = ["zq492l623r.skadnetwork"];
+
+function withYandexSkAdNetworkItems(infoPlist = {}) {
+  const existingItems = Array.isArray(infoPlist.SKAdNetworkItems)
+    ? infoPlist.SKAdNetworkItems
+    : [];
+  const existingIds = new Set(
+    existingItems
+      .map((item) => item?.SKAdNetworkIdentifier)
+      .filter((id) => typeof id === "string")
+  );
+  const yandexItems = yandexSkAdNetworkIdentifiers
+    .filter((id) => !existingIds.has(id))
+    .map((id) => ({ SKAdNetworkIdentifier: id }));
+
+  return {
+    ...infoPlist,
+    SKAdNetworkItems: [...existingItems, ...yandexItems],
+  };
+}
 
 /** Схемы deep link: gafus + vk{id} для OAuth VK ID (iOS требует регистрации в Info.plist). */
 function resolveSchemes(baseConfig) {
@@ -44,6 +64,10 @@ const vkIntentFilters = vkClientIdAndroid
 module.exports = ({ config }) => ({
   ...config,
   scheme: resolveSchemes(config),
+  ios: {
+    ...config.ios,
+    infoPlist: withYandexSkAdNetworkItems(config.ios?.infoPlist),
+  },
   android: {
     ...config.android,
     intentFilters: [...(config.android?.intentFilters ?? []), ...vkIntentFilters],

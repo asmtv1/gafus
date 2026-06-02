@@ -25,9 +25,24 @@ vi.mock("../api/rewardedAdsApi", () => ({
   },
 }));
 
+vi.mock("yandex-mobile-ads/src/YandexMobileAdsModule", () => ({
+  default: {
+    YandexMobileAds: {},
+    YandexRewardedAdModule: {},
+    YandexInterstitialAdModule: {},
+    YandexBannerAdSizeModule: {},
+    YandexAppOpenAdModule: {},
+  },
+}));
+
 vi.mock("yandex-mobile-ads/src/MobileAds", () => ({
+  default: {
+    initialize: initializeMock,
+    pluginVersion: "test",
+  },
   MobileAds: {
     initialize: initializeMock,
+    pluginVersion: "test",
   },
 }));
 
@@ -78,7 +93,7 @@ describe("showYandexRewardedAd", () => {
       testMode: true,
     });
 
-    expect(loadAdMock).toHaveBeenCalledWith({ adUnitId: "placement-1" });
+    expect(loadAdMock).toHaveBeenCalledWith(expect.objectContaining({ _adUnitId: "placement-1" }));
     expect(recordEventMock).toHaveBeenCalledWith({
       sessionId: "session-1",
       eventType: "LOADED",
@@ -194,6 +209,32 @@ describe("showYandexRewardedAd", () => {
       sessionId: "session-1",
       eventType: "REWARDED",
       payload: { amount: 1, type: "credit" },
+    });
+  });
+
+  it("marks the server session as failed when the ad cannot be loaded", async () => {
+    const loadError = new Error("no fill");
+    loadAdMock.mockRejectedValueOnce(loadError);
+
+    await expect(
+      showYandexRewardedAd({
+        sessionId: "session-1",
+        requestNonce: "nonce-1",
+        provider: "YANDEX",
+        placementId: "placement-1",
+        platform: "ANDROID",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        testMode: true,
+      }),
+    ).rejects.toThrow("no fill");
+
+    expect(recordEventMock).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      eventType: "FAILED",
+      payload: {
+        code: "REWARDED_AD_LOAD_FAILED",
+        message: "no fill",
+      },
     });
   });
 });

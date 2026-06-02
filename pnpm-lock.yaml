@@ -554,8 +554,8 @@ importers:
         specifier: ^0.5.1
         version: 0.5.1(@babel/core@7.29.0)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       yandex-mobile-ads:
-        specifier: 8.0.0
-        version: 8.0.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: 7.14.0
+        version: 7.14.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -9945,6 +9945,7 @@ packages:
   recharts@2.12.0:
     resolution: {integrity: sha512-rVNcdNQ5b7+40Ue7mcEKZJyEv+3SUk2bDEVvOyXPDXXVE7TU3lrvnJUgAvO36hSzhRP2DnAamKXvHLFIFOU0Ww==}
     engines: {node: '>=14'}
+    deprecated: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
     peerDependencies:
       react: 19.1.0
       react-dom: 19.1.0
@@ -11533,8 +11534,8 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
-  yandex-mobile-ads@8.0.0:
-    resolution: {integrity: sha512-VIL4yVYP6jb6nuZRYr7Dm5fThtsflIzvVl0bTFvjXFN8hxUVOIWvIiDT4COEdwdP6Pya5ihrCDGTaUoij084SQ==}
+  yandex-mobile-ads@7.14.0:
+    resolution: {integrity: sha512-uHaXyJ56W07iRebojsyT66/rakq1Nk2uu0KiLKn8FbokmqWbr6Rp5El2nbBnewJ/PNZKGc/QBR/F6SVXeQX0Jw==}
     peerDependencies:
       react: 19.1.0
       react-native: '*'
@@ -24389,7 +24390,7 @@ snapshots:
 
   yaml@2.8.2: {}
 
-  yandex-mobile-ads@8.0.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  yandex-mobile-ads@7.14.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0)

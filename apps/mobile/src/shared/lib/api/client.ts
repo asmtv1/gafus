@@ -231,6 +231,18 @@ export async function apiClient<T>(
     if (!response.ok) {
       const code = extractHttpErrorCode(data);
       if (
+        typeof __DEV__ !== "undefined" &&
+        __DEV__ &&
+        endpoint === "/api/v1/app-subscription/yookassa/start"
+      ) {
+        console.log("[apiClient] app-subscription/yookassa/start non-ok", {
+          status: response.status,
+          statusText: response.statusText,
+          code,
+          data,
+        });
+      }
+      if (
         response.status === 402 &&
         (code === "SUBSCRIPTION_REQUIRED" || code === "SUBSCRIPTION_OR_CREDITS_REQUIRED")
       ) {

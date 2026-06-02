@@ -79,9 +79,15 @@ appSubscriptionRoutes.get("/offer", async (c) => {
 appSubscriptionRoutes.post("/yookassa/start", async (c) => {
   try {
     const user = c.get("user");
+    console.log("[api app-subscription/yookassa/start] request", { userId: user.id });
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;
     if (!shopId || !secretKey) {
+      console.log("[api app-subscription/yookassa/start] YooKassa config missing", {
+        userId: user.id,
+        hasShopId: Boolean(shopId),
+        hasSecretKey: Boolean(secretKey),
+      });
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, 500);
     }
 
@@ -91,17 +97,33 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       process.env.NEXT_PUBLIC_APP_URL ??
       process.env.NEXTAUTH_URL;
     if (!originRaw) {
+      console.log("[api app-subscription/yookassa/start] web origin missing", { userId: user.id });
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
     }
     const originUrl = new URL(originRaw);
     if (!["http:", "https:"].includes(originUrl.protocol)) {
+      console.log("[api app-subscription/yookassa/start] invalid web origin protocol", {
+        userId: user.id,
+        origin: originRaw,
+      });
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
     }
+    console.log("[api app-subscription/yookassa/start] starting payment", {
+      userId: user.id,
+      origin: originUrl.origin,
+    });
     const data = await startYookassaAppSubscriptionPayment({
       userId: user.id,
       origin: originUrl.origin,
       shopId,
       secretKey,
+    });
+    console.log("[api app-subscription/yookassa/start] payment service result", {
+      userId: user.id,
+      success: data.success,
+      error: data.success ? null : data.error,
+      hasConfirmationUrl: data.success ? Boolean(data.confirmationUrl) : false,
+      localSubscriptionId: data.success ? data.localSubscriptionId : null,
     });
     if (!data.success) {
       return c.json({ success: false, error: data.error, code: "PAYMENT_ERROR" }, 400);
@@ -109,6 +131,7 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
 
     return c.json({ success: true, data });
   } catch (error) {
+    console.error("[api app-subscription/yookassa/start] unexpected error", error);
     logger.error("POST /yookassa/start error", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }

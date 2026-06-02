@@ -43,6 +43,7 @@ import { usePaywallStore } from "../store/paywallStore";
 
 const STATUS_QUERY_KEY = ["app-subscription", "status"] as const;
 const OFFER_QUERY_KEY = ["app-subscription", "offer"] as const;
+const isDev = typeof __DEV__ !== "undefined" && __DEV__;
 const STATUS_POLL_ATTEMPTS = 8;
 const STATUS_POLL_DELAY_MS = 1500;
 const BENEFITS = [
@@ -179,9 +180,13 @@ export function AppSubscriptionPaywall() {
 
   const handleYookassaPay = async () => {
     if (isPaying) return;
+    if (isDev) console.log("[AppSubscriptionPaywall] handleYookassaPay start");
     setIsPaying(true);
     setPendingMessage(null);
     const result = await yookassaAppSubscriptionPurchase();
+    if (isDev) {
+      console.log("[AppSubscriptionPaywall] handleYookassaPay purchase result", result);
+    }
     if (!result.ok) {
       setIsPaying(false);
       Alert.alert("Привязка карты не началась", result.message);
@@ -190,6 +195,12 @@ export function AppSubscriptionPaywall() {
 
     setPendingMessage("Проверяем привязку карты в ЮKassa...");
     const isActive = await pollActiveSubscription();
+    if (isDev) {
+      console.log("[AppSubscriptionPaywall] handleYookassaPay poll result", {
+        localSubscriptionId: result.localSubscriptionId,
+        isActive,
+      });
+    }
     setIsPaying(false);
     await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
     await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
