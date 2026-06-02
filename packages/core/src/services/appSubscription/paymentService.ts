@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { randomUUID } from "node:crypto";
+
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { Environment, SignedDataVerifier, Type } from "@apple/app-store-server-library";
@@ -379,7 +381,7 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
   const periodEnd = new Date(
     params.now.getTime() + params.intervalDays * 24 * 60 * 60 * 1000,
   );
-  const idempotenceKey = `appsub-initial:${params.subscriptionId}`;
+  const idempotenceKey = `appsub-initial:${params.subscriptionId}:${randomUUID()}`;
   const payment = await prisma.appSubscriptionPayment.create({
     data: {
       subscriptionId: params.subscriptionId,
@@ -658,7 +660,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Basic ${auth}`,
-        "Idempotence-Key": `appsub-pm:${subscription.id}`,
+        "Idempotence-Key": `appsub-pm:${subscription.id}:${randomUUID()}`,
       },
       body: JSON.stringify(body),
     });

@@ -277,6 +277,9 @@ describe("app subscription payment service", () => {
       "https://api.yookassa.ru/v3/payments",
       expect.objectContaining({
         method: "POST",
+        headers: expect.objectContaining({
+          "Idempotence-Key": expect.stringMatching(/^appsub-initial:sub-2:/),
+        }),
         body: JSON.stringify({
           amount: { value: "200.00", currency: "RUB" },
           capture: true,
@@ -305,6 +308,7 @@ describe("app subscription payment service", () => {
           currency: "RUB",
           periodStart: new Date("2026-05-30T10:00:00.000Z"),
           periodEnd: new Date("2026-06-06T10:00:00.000Z"),
+          idempotenceKey: expect.stringMatching(/^appsub-initial:sub-2:/),
         }),
       }),
     );
