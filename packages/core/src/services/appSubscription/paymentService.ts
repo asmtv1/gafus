@@ -381,7 +381,7 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
   const periodEnd = new Date(
     params.now.getTime() + params.intervalDays * 24 * 60 * 60 * 1000,
   );
-  const idempotenceKey = `appsub-initial:${params.subscriptionId}:${randomUUID()}`;
+  const idempotenceKey = `appsub-init:${randomUUID()}`;
   const payment = await prisma.appSubscriptionPayment.create({
     data: {
       subscriptionId: params.subscriptionId,
@@ -660,7 +660,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Basic ${auth}`,
-        "Idempotence-Key": `appsub-pm:${subscription.id}:${randomUUID()}`,
+        "Idempotence-Key": `appsub-pm:${randomUUID()}`,
       },
       body: JSON.stringify(body),
     });

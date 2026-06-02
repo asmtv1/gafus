@@ -278,7 +278,7 @@ describe("app subscription payment service", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          "Idempotence-Key": expect.stringMatching(/^appsub-initial:sub-2:/),
+          "Idempotence-Key": expect.stringMatching(/^appsub-init:[0-9a-f-]{36}$/),
         }),
         body: JSON.stringify({
           amount: { value: "200.00", currency: "RUB" },
@@ -308,7 +308,7 @@ describe("app subscription payment service", () => {
           currency: "RUB",
           periodStart: new Date("2026-05-30T10:00:00.000Z"),
           periodEnd: new Date("2026-06-06T10:00:00.000Z"),
-          idempotenceKey: expect.stringMatching(/^appsub-initial:sub-2:/),
+          idempotenceKey: expect.stringMatching(/^appsub-init:[0-9a-f-]{36}$/),
         }),
       }),
     );
