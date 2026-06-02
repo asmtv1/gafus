@@ -517,20 +517,24 @@ async function findOrCreateYookassaSetupSubscription(params: {
         userId: params.userId,
         provider: "YOOKASSA",
         status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
-        OR: [
-          {
-            status: "PENDING",
-            pendingExpiresAt: { gt: params.now },
-          },
-          { isLifetime: true },
-          { currentPeriodEnd: { gt: params.now } },
-        ],
       },
       orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
       select: { id: true, status: true, yookassaPaymentMethodId: true },
     });
 
     if (existingSubscription) {
+      if (existingSubscription.status === "PENDING") {
+        return tx.appSubscription.update({
+          where: { id: existingSubscription.id },
+          data: {
+            pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+            yookassaPaymentMethodId: null,
+            yookassaPaymentMethodLast4: null,
+            yookassaPaymentMethodTitle: null,
+          },
+          select: { id: true, status: true, yookassaPaymentMethodId: true },
+        });
+      }
       return existingSubscription;
     }
 

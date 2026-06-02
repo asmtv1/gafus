@@ -140,14 +140,9 @@ describe("app subscription payment service", () => {
     expect(mockSubscriptionFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [
-            {
-              status: "PENDING",
-              pendingExpiresAt: { gt: new Date("2026-05-26T10:00:00.000Z") },
-            },
-            { isLifetime: true },
-            { currentPeriodEnd: { gt: new Date("2026-05-26T10:00:00.000Z") } },
-          ],
+          provider: "YOOKASSA",
+          status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
+          userId: "user-1",
         }),
       }),
     );
@@ -350,6 +345,64 @@ describe("app subscription payment service", () => {
     expect(txExecuteRawUnsafe).toHaveBeenCalledWith(expect.stringContaining("pg_advisory_xact_lock"));
     expect(txSubscriptionFindFirst).toHaveBeenCalled();
     expect(txSubscriptionCreate).toHaveBeenCalled();
+  });
+
+  it("reuses an existing pending YooKassa setup subscription under the provider uniqueness constraint", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const txSubscriptionFindFirst = vi.fn().mockResolvedValue({
+      id: "sub-pending",
+      status: "PENDING",
+      yookassaPaymentMethodId: "pm-old",
+    });
+    const txSubscriptionUpdate = vi.fn().mockResolvedValue({
+      id: "sub-pending",
+      status: "PENDING",
+      yookassaPaymentMethodId: null,
+    });
+    const txSubscriptionCreate = vi.fn();
+    mockTransaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        appSubscription: {
+          findFirst: txSubscriptionFindFirst,
+          update: txSubscriptionUpdate,
+          create: txSubscriptionCreate,
+        },
+      }),
+    );
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "pm-new",
+        confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+      }),
+    }));
+
+    const result = await startYookassaAppSubscriptionPayment({
+      userId: "user-1",
+      origin: "https://gafus.ru",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      localSubscriptionId: "sub-pending",
+      confirmationUrl: "https://yookassa.test/confirm",
+    });
+    expect(txSubscriptionCreate).not.toHaveBeenCalled();
+    expect(txSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-pending" },
+      data: {
+        pendingExpiresAt: new Date("2026-05-30T11:00:00.000Z"),
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+      },
+      select: { id: true, status: true, yookassaPaymentMethodId: true },
+    });
   });
 
   it("reconciles a pending YooKassa subscription when saved payment method is already active", async () => {
