@@ -18,3 +18,13 @@ export function setSubscriptionRequiredHandler(
 export function notifySubscriptionRequired(reason: SubscriptionRequiredReason = "required"): void {
   subscriptionRequiredHandler?.(reason);
 }
+
+export function shouldNotifySubscriptionRequired(input: {
+  httpStatus: number;
+  code?: string;
+  suppressSubscriptionPaywall?: boolean;
+}): boolean {
+  if (input.suppressSubscriptionPaywall) return false;
+  if (input.httpStatus !== 402) return false;
+  return input.code === "SUBSCRIPTION_REQUIRED" || input.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED";
+}

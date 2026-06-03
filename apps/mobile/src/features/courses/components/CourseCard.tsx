@@ -18,7 +18,6 @@ import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVa
 import type { Course } from "@/shared/lib/api";
 import type { MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { TourTarget } from "@/shared/lib/tour-targets";
-import { useRequireAppSubscription } from "@/features/app-subscription";
 
 const LEVEL_LABELS: Record<string, string> = {
   BEGINNER: "Начальный",
@@ -196,7 +195,6 @@ function CourseCardComponent({
   tourTargetId,
 }: CourseCardProps) {
   const router = useRouter();
-  const requireSubscription = useRequireAppSubscription();
   const courseType = course.type;
   const reviewsCount = course.reviews?.length ?? 0;
   const formattedStartedAt = formatDate(course.startedAt);
@@ -348,18 +346,20 @@ function CourseCardComponent({
     }
   };
 
-  const handleOpenCourse = useCallback(async () => {
-    const canOpen = await requireSubscription();
-    if (!canOpen) {
-      return;
-    }
+  const handleOpenCourse = useCallback(() => {
+    console.log("[rewarded-unlock] course card open detail", {
+      courseId: course.id,
+      courseType: course.type,
+      isPaid: course.isPaid,
+      hasAccess: course.hasAccess,
+    });
     router.push(`/training/${course.type}`);
-  }, [course.type, requireSubscription, router]);
+  }, [course.hasAccess, course.id, course.isPaid, course.type, router]);
 
   return (
     <View style={styles.courseCard}>
       <View style={styles.courseCardContent}>
-        <Pressable style={styles.link} onPress={() => void handleOpenCourse()}>
+        <Pressable style={styles.link} onPress={handleOpenCourse}>
             {tourTargetId ? <TourTarget id={tourTargetId} style={styles.tourTargetFill} /> : null}
             <View style={styles.imageContainer}>
               <View style={styles.imageFrame}>

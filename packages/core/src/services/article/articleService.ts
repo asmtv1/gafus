@@ -194,11 +194,30 @@ export async function getArticleBySlugForMonetizedAccess(input: {
       targetId: row.id,
       cost: REWARDED_ARTICLE_COST,
     };
-
     const hasExistingArticleAccess = filteredAccess.length > 0;
 
+    if (row.visibility === "PAID") {
+      const dto: ArticleDetailDto = {
+        ...mapToListDto(
+          {
+            ...row,
+            articleLikes: filteredLikes,
+            access: filteredAccess,
+          } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
+          input.userId,
+        ),
+        hasAccess: hasExistingArticleAccess,
+        content: hasExistingArticleAccess ? row.content : null,
+        monetization: {
+          locked: !hasExistingArticleAccess,
+        },
+      };
+
+      return { success: true, data: dto };
+    }
+
     let hasMonetizedAccess = false;
-    if (!hasExistingArticleAccess && input.userId) {
+    if (input.userId) {
       try {
         await getPremiumOrRewardedAccess({
           userId: input.userId,
@@ -214,20 +233,39 @@ export async function getArticleBySlugForMonetizedAccess(input: {
       }
     }
 
-    const hasAccess = hasExistingArticleAccess || hasMonetizedAccess;
+    if (hasMonetizedAccess) {
+      const dto: ArticleDetailDto = {
+        ...mapToListDto(
+          {
+            ...row,
+            articleLikes: filteredLikes,
+            access: [{ userId: input.userId ?? "" }],
+          } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
+          input.userId,
+        ),
+        hasAccess: true,
+        content: row.content,
+        monetization: {
+          locked: false,
+        },
+      };
+
+      return { success: true, data: dto };
+    }
+
     const dto: ArticleDetailDto = {
       ...mapToListDto(
         {
           ...row,
           articleLikes: filteredLikes,
-          access: hasAccess ? [{ userId: input.userId ?? "" }] : [],
+          access: [],
         } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
         input.userId,
       ),
-      hasAccess,
-      content: hasAccess ? row.content : null,
+      hasAccess: false,
+      content: null,
       monetization: {
-        locked: !hasAccess,
+        locked: true,
         target,
       },
     };
@@ -257,6 +295,25 @@ export async function unlockArticleBySlug(input: {
   });
   if (!row) {
     return { success: false as const, error: "Статья не найдена" };
+  }
+  if (row.visibility === "PAID") {
+    if (row.access.length > 0) {
+      return {
+        success: true as const,
+        data: {
+          targetType: "ARTICLE" as const,
+          targetId: row.id,
+          unlocked: true as const,
+          spentCredits: 0,
+          balance: 0,
+          pendingRefundCredits: 0,
+        },
+      };
+    }
+    return {
+      success: false as const,
+      error: "Статья доступна только после отдельной оплаты",
+    };
   }
   if (row.access.length > 0) {
     return {

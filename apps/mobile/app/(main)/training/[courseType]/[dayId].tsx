@@ -13,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { WebView } from "react-native-webview";
 import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
@@ -37,7 +38,12 @@ import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapP
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
-import { openAppSubscriptionPaywall } from "@/features/app-subscription";
+import {
+  getRewardedAccessPrompt,
+  openAppSubscriptionPaywall,
+  RewardedAccessGate,
+} from "@/features/app-subscription";
+import { rewardedAdsApi } from "@/features/rewarded-ads";
 
 /**
  * Экран дня тренировки с шагами
@@ -58,6 +64,8 @@ export default function TrainingDayScreen() {
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [isPaymentChecking, setIsPaymentChecking] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [unlockingStepIndex, setUnlockingStepIndex] = useState<number | null>(null);
+  const [stepAccessError, setStepAccessError] = useState<string | null>(null);
   const hasHandledPaymentReturnRef = useRef(false);
   const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
   /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
@@ -101,6 +109,36 @@ export default function TrainingDayScreen() {
     return s.openIndexes[key] ?? null;
   });
   const openIndex = openIndexRaw ?? -1;
+  const activeLockedStep =
+    openIndex >= 0 &&
+    dayData?.steps?.[openIndex]?.locked &&
+    dayData.steps[openIndex].monetizationTarget
+      ? dayData.steps[openIndex]
+      : null;
+  const activeRewardedTarget = activeLockedStep?.monetizationTarget ?? null;
+  const rewardedStatusQuery = useQuery({
+    queryKey: [
+      "rewarded-ads",
+      "status",
+      activeRewardedTarget?.targetType ?? null,
+      activeRewardedTarget?.targetId ?? null,
+    ],
+    queryFn: () => rewardedAdsApi.getStatus(activeRewardedTarget ?? undefined),
+    enabled: Boolean(activeRewardedTarget),
+    staleTime: 30_000,
+  });
+  const rewardedStatus =
+    rewardedStatusQuery.data?.success && rewardedStatusQuery.data.data
+      ? rewardedStatusQuery.data.data
+      : null;
+  const rewardedPrompt = getRewardedAccessPrompt({
+    isLoading: rewardedStatusQuery.isLoading,
+    status: rewardedStatus,
+  });
+  const loadingRewardedPrompt = getRewardedAccessPrompt({
+    isLoading: true,
+    status: null,
+  });
 
   useEffect(() => {
     if (!courseId) return;
@@ -211,6 +249,7 @@ export default function TrainingDayScreen() {
   // Обработчики
   const unlockStepWithRewarded = useCallback(
     async (index: number) => {
+      setStepAccessError(null);
       const response = await trainingApi.unlockStep({
         courseType,
         dayOnCourseId: dayId,
@@ -218,6 +257,7 @@ export default function TrainingDayScreen() {
       });
       if (!response.success) {
         const message = response.error ?? "Не удалось открыть шаг";
+        setStepAccessError(message);
         setSnackbar({ visible: true, message });
         throw new Error(message);
       }
@@ -231,17 +271,49 @@ export default function TrainingDayScreen() {
     (index: number) => {
       const step = dayData?.steps?.[index];
       if (step?.locked && step.monetizationTarget) {
-        openAppSubscriptionPaywall({
-          reason: "required",
-          rewardedTarget: step.monetizationTarget,
-          onRewardedGrant: () => unlockStepWithRewarded(index),
-        });
+        setStepAccessError(null);
+        setOpenIndex(courseId, dayId, openIndex === index ? null : index);
         return;
       }
       setOpenIndex(courseId, dayId, openIndex === index ? null : index);
     },
-    [courseId, dayData?.steps, dayId, openIndex, setOpenIndex, unlockStepWithRewarded],
+    [courseId, dayData?.steps, dayId, openIndex, setOpenIndex],
   );
+
+  const handleDirectStepUnlock = useCallback(
+    async (index: number) => {
+      if (unlockingStepIndex !== null) return;
+      setUnlockingStepIndex(index);
+      try {
+        await unlockStepWithRewarded(index);
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: { operation: "unlock_step_with_credit", dayId, courseId, stepIndex: String(index) },
+        });
+      } finally {
+        setUnlockingStepIndex(null);
+      }
+    },
+    [courseId, dayId, unlockingStepIndex, unlockStepWithRewarded],
+  );
+
+  const handleStepRewardedPaywall = useCallback(
+    (index: number) => {
+      const target = dayData?.steps?.[index]?.monetizationTarget;
+      if (!target) return;
+      openAppSubscriptionPaywall({
+        reason: "required",
+        rewardedTarget: target,
+        onRewardedGrant: () => unlockStepWithRewarded(index),
+      });
+    },
+    [dayData?.steps, unlockStepWithRewarded],
+  );
+
+  const handleSubscriptionPaywall = useCallback(() => {
+    openAppSubscriptionPaywall({ reason: "required" });
+  }, []);
 
   const handleStartStep = useCallback(
     async (stepIndex: number, durationSec: number) => {
@@ -874,6 +946,7 @@ export default function TrainingDayScreen() {
 
                   const stepId = "id" in step ? step.id : stepData.id;
                   const uniqueKey = `${dayId}-${stepData.order ?? index}-${stepId}-${index}`;
+                  const isLockedRewardedStep = Boolean(step.locked && step.monetizationTarget);
 
                   return (
                     <AccordionStep
@@ -908,6 +981,25 @@ export default function TrainingDayScreen() {
                     }}
                     diaryEntries={diaryEntries}
                     onSaveDiary={stepType === "DIARY" ? handleSaveDiaryForStep : undefined}
+                    accessGate={
+                      isLockedRewardedStep ? (
+                        <RewardedAccessGate
+                          title="Нужен доступ"
+                          subtitle="Откройте шаг за кредит или оформите Premium."
+                          prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
+                          errorText={openIndex === index ? stepAccessError : null}
+                          isBusy={unlockingStepIndex === index}
+                          onPrimaryPress={() => {
+                            if (rewardedPrompt.mode === "direct-credit") {
+                              void handleDirectStepUnlock(index);
+                            } else {
+                              handleStepRewardedPaywall(index);
+                            }
+                          }}
+                          onSubscriptionPress={handleSubscriptionPaywall}
+                        />
+                      ) : undefined
+                    }
                   />
                   );
                 } catch (error) {

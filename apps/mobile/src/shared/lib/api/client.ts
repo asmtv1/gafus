@@ -4,13 +4,14 @@ import { Platform } from "react-native";
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 import { isAbortError } from "./abortError";
-import { notifySubscriptionRequired } from "./subscriptionRequired";
+import { notifySubscriptionRequired, shouldNotifySubscriptionRequired } from "./subscriptionRequired";
 
 interface ApiClientOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   body?: unknown;
   headers?: Record<string, string>;
   skipAuth?: boolean;
+  suppressSubscriptionPaywall?: boolean;
 }
 
 export interface ApiResponse<T> {
@@ -171,7 +172,13 @@ export async function apiClient<T>(
   endpoint: string,
   options: ApiClientOptions = {},
 ): Promise<ApiResponse<T>> {
-  const { method = "GET", body, headers = {}, skipAuth = false } = options;
+  const {
+    method = "GET",
+    body,
+    headers = {},
+    skipAuth = false,
+    suppressSubscriptionPaywall = false,
+  } = options;
 
   const token = skipAuth ? null : await SecureStore.getItemAsync("auth_token");
 
@@ -243,8 +250,11 @@ export async function apiClient<T>(
         });
       }
       if (
-        response.status === 402 &&
-        (code === "SUBSCRIPTION_REQUIRED" || code === "SUBSCRIPTION_OR_CREDITS_REQUIRED")
+        shouldNotifySubscriptionRequired({
+          httpStatus: response.status,
+          code,
+          suppressSubscriptionPaywall,
+        })
       ) {
         notifySubscriptionRequired("required");
       }

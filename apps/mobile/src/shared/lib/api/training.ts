@@ -147,7 +147,9 @@ export const trainingApi = {
       dayOnCourseId,
       createIfMissing: String(createIfMissing),
     });
-    return apiClient<TrainingDayResponse>(`/api/v1/training/day?${params}`);
+    return apiClient<TrainingDayResponse>(`/api/v1/training/day?${params}`, {
+      suppressSubscriptionPaywall: true,
+    });
   },
 
   /**
@@ -157,6 +159,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/start", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -169,6 +172,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/status", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -179,6 +183,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/pause", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -189,6 +194,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/resume", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -199,6 +205,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/reset", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -209,6 +216,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/complete/theory", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -219,6 +227,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/step/complete/practice", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -239,6 +248,7 @@ export const trainingApi = {
     return apiClient("/api/v1/training/step/unlock", {
       method: "POST",
       body: params,
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -246,6 +256,7 @@ export const trainingApi = {
     return apiClient<void>("/api/v1/training/diary", {
       method: "POST",
       body: { dayOnCourseId, content },
+      suppressSubscriptionPaywall: true,
     });
   },
 
@@ -255,7 +266,9 @@ export const trainingApi = {
   ): Promise<ApiResponse<{ entries: DiaryEntry[] }>> => {
     const params = new URLSearchParams({ courseId });
     if (upToDayOnCourseId) params.set("upToDayOnCourseId", upToDayOnCourseId);
-    return apiClient<{ entries: DiaryEntry[] }>(`/api/v1/training/diary?${params.toString()}`);
+    return apiClient<{ entries: DiaryEntry[] }>(`/api/v1/training/diary?${params.toString()}`, {
+      suppressSubscriptionPaywall: true,
+    });
   },
 
   /**
@@ -266,6 +279,7 @@ export const trainingApi = {
     return apiClient<{ url: string }>("/api/v1/training/video/url", {
       method: "POST",
       body: { videoUrl },
+      suppressSubscriptionPaywall: true,
     });
   },
 };

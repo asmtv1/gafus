@@ -18,6 +18,7 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   getRewardedCreditsStatus: getRewardedCreditsStatusMock,
   grantRewardedCredits: grantRewardedCreditsMock,
   recordRewardedAdEvent: recordRewardedAdEventMock,
+  REWARDED_CONSULTATION_BOOKING_COST: 5,
   RewardedAdSessionError: class RewardedAdSessionError extends Error {
     constructor(public code: string, message: string) {
       super(message);
@@ -71,6 +72,26 @@ describe("rewarded ads routes", () => {
     await expect(response.json()).resolves.toEqual({
       success: true,
       data: { wallet: { balance: 0 } },
+    });
+  });
+
+  it("uses the consultation booking cost for consultation rewarded targets", async () => {
+    const app = createAuthenticatedTestApp();
+    getRewardedCreditsStatusMock.mockResolvedValueOnce({ wallet: { balance: 3 } });
+
+    const response = await app.request(
+      "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=CONSULTATION_BOOKING&targetId=user-1%3Abooking-1",
+    );
+
+    expect(response.status).toBe(200);
+    expect(getRewardedCreditsStatusMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      platform: "ANDROID",
+      target: {
+        targetType: "CONSULTATION_BOOKING",
+        targetId: "user-1:booking-1",
+        cost: 5,
+      },
     });
   });
 

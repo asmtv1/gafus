@@ -14,6 +14,7 @@ import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
 import { useCallback, useEffect, useMemo, useState, memo, useRef } from "react";
+import type { ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import {
@@ -92,6 +93,7 @@ interface AccordionStepProps {
   diaryEntries?: DiaryEntry[];
   /** Стабильная ссылка из экрана дня: (stepIndex, content, stepTitle?) — без замыкания на каждый map. */
   onSaveDiary?: (stepIndex: number, content: string, stepTitle?: string) => Promise<void>;
+  accessGate?: ReactNode;
 }
 
 /**
@@ -113,6 +115,7 @@ function AccordionStepComponent({
   onReset,
   diaryEntries = [],
   onSaveDiary,
+  accessGate,
 }: AccordionStepProps) {
   // Поддержка обеих структур: с вложенным step.step (UserStep) и плоского шага (офлайн)
   let stepData: StepContent;
@@ -492,6 +495,11 @@ function AccordionStepComponent({
           {isOpen && (
             <View style={styles.stepContentInner}>
               <Divider style={styles.divider} />
+
+              {accessGate ? (
+                <View style={styles.accessGateWrap}>{accessGate}</View>
+              ) : (
+                <>
 
               {/* Информационные карточки для разных типов шагов (как в web) */}
               {isTheory && (
@@ -970,6 +978,8 @@ function AccordionStepComponent({
                   </View>
                 ) : null}
               </View>
+                </>
+              )}
             </View>
           )}
         </Animated.View>
@@ -1112,6 +1122,11 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginHorizontal: SPACING.md,
+  },
+  accessGateWrap: {
+    marginTop: SPACING.md,
+    alignSelf: "stretch",
+    width: "100%",
   },
   descriptionSection: {
     marginTop: SPACING.md,

@@ -32,6 +32,7 @@ export const consultationsApi = {
     const q = new URLSearchParams({ from: fromIso, to: toIso });
     return apiClient<ConsultationSlotDto[]>(
       `/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots?${q}`,
+      { suppressSubscriptionPaywall: true },
     );
   },
 
@@ -44,12 +45,16 @@ export const consultationsApi = {
     const q = new URLSearchParams({ from: fromIso, to: toIso, includeBusy: "1" });
     const res = await apiClient<ConsultationSlotDto[]>(
       `/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots?${q}`,
+      { suppressSubscriptionPaywall: true },
     );
     return res as ApiResponse<ConsultationSlotDto[]> & { dayOffDates?: string[] };
   },
 
   verifySlotFree: (cynologistUserId: string, slotId: string): Promise<ApiResponse<unknown>> =>
-    apiClient(`/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots/${encodeURIComponent(slotId)}/verify`),
+    apiClient(
+      `/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots/${encodeURIComponent(slotId)}/verify`,
+      { suppressSubscriptionPaywall: true },
+    ),
 
   book: (body: {
     slotId: string;
@@ -77,6 +82,7 @@ export const consultationsApi = {
         clientProblem: body.clientProblem,
         clientSelfHelpAttempt: body.clientSelfHelpAttempt,
       },
+      suppressSubscriptionPaywall: true,
     }),
 
   myBookings: (cursor?: string): Promise<ApiResponse<ConsultationsMyResponse>> => {

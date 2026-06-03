@@ -23,6 +23,7 @@ export const articlesApi = {
     apiClient(`/api/v1/articles/${encodeURIComponent(slug)}/unlock`, {
       method: "POST",
       body: {},
+      suppressSubscriptionPaywall: true,
     }),
 
   toggleLike: (

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { notifySubscriptionRequired, setSubscriptionRequiredHandler } from "./subscriptionRequired";
+import {
+  notifySubscriptionRequired,
+  setSubscriptionRequiredHandler,
+  shouldNotifySubscriptionRequired,
+} from "./subscriptionRequired";
 
 describe("subscription required API event", () => {
   afterEach(() => {
@@ -24,5 +28,24 @@ describe("subscription required API event", () => {
     notifySubscriptionRequired("required");
 
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("notifies for subscription-or-credits 402 responses by default", () => {
+    expect(
+      shouldNotifySubscriptionRequired({
+        httpStatus: 402,
+        code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+      }),
+    ).toBe(true);
+  });
+
+  it("can suppress passive subscription-or-credits 402 responses", () => {
+    expect(
+      shouldNotifySubscriptionRequired({
+        httpStatus: 402,
+        code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        suppressSubscriptionPaywall: true,
+      }),
+    ).toBe(false);
   });
 });

@@ -89,6 +89,10 @@ export function ConsultationSlotsCalendar({
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
           openAppSubscriptionPaywall({
             reason: "required",
+            rewardedTarget: {
+              targetType: "CONSULTATION_BOOKING",
+              targetId: `slots:${cynologistUserId}`,
+            },
             onRewardedGrant: async () => {
               await queryClient.invalidateQueries({
                 queryKey: ["consultations", "slotsCalendar", cynologistUserId],
@@ -221,6 +225,10 @@ export function ConsultationSlotsCalendar({
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
           openAppSubscriptionPaywall({
             reason: "required",
+            rewardedTarget: {
+              targetType: "CONSULTATION_BOOKING",
+              targetId: `slot:${slot.id}`,
+            },
             onRewardedGrant: () => verifyAndBook(slot),
           });
           return;

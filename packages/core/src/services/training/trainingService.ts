@@ -53,6 +53,38 @@ function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
   );
 }
 
+async function getCourseRewardedPolicy(courseType: string): Promise<{
+  isPaid: boolean;
+  isPrivate: boolean;
+} | null> {
+  return prisma.course.findFirst({
+    where: { type: courseType },
+    select: { isPaid: true, isPrivate: true },
+  });
+}
+
+async function courseAllowsTrainingDetails(
+  courseType: string | undefined,
+  userId: string | undefined,
+): Promise<boolean> {
+  if (!courseType) return true;
+  const accessCheck = await checkCourseAccess(courseType, userId);
+  if (accessCheck.hasAccess) return true;
+  const course = await getCourseRewardedPolicy(courseType);
+  return Boolean(course && !course.isPaid && !course.isPrivate);
+}
+
+async function shouldApplyRewardedStepAccess(
+  courseType: string | undefined,
+  userId: string | undefined,
+): Promise<boolean> {
+  if (!courseType) return true;
+  const course = await getCourseRewardedPolicy(courseType);
+  if (!course || course.isPaid) return false;
+  const accessCheck = await checkCourseAccess(courseType, userId);
+  return accessCheck.hasAccess || !course.isPrivate;
+}
+
 function redactLockedTrainingStep(step: TrainingStep, target: RewardedTargetInput): TrainingStep {
   return {
     ...step,
@@ -492,8 +524,7 @@ export async function getTrainingDayWithUserSteps(
   options?: { createIfMissing?: boolean },
 ): Promise<TrainingDetail | null> {
   // Проверяем доступ к курсу
-  const accessCheck = await checkCourseAccess(courseType, userId);
-  if (!accessCheck.hasAccess) {
+  if (!(await courseAllowsTrainingDetails(courseType, userId))) {
     return null;
   }
   const userIdForQuery = userId ?? "";
@@ -814,11 +845,8 @@ export async function resolveCourseStepRewardedTarget(input: {
   dayOnCourseId: string;
   stepIndex: number;
 }): Promise<RewardedTargetInput | null> {
-  if (input.courseType) {
-    const accessCheck = await checkCourseAccess(input.courseType, input.userId);
-    if (!accessCheck.hasAccess) {
-      throw new Error("COURSE_ACCESS_DENIED");
-    }
+  if (!(await shouldApplyRewardedStepAccess(input.courseType, input.userId))) {
+    throw new Error("COURSE_ACCESS_DENIED");
   }
 
   const found = await prisma.dayOnCourse.findFirst({
@@ -875,6 +903,13 @@ export async function getTrainingDayWithMonetizedSteps(
     createIfMissing: options.createIfMissing,
   });
   if (!detail) return null;
+  const coursePolicy = await getCourseRewardedPolicy(courseType);
+  if (coursePolicy?.isPaid) {
+    return {
+      ...detail,
+      steps: detail.steps.map((step) => ({ ...step, locked: false })),
+    };
+  }
 
   const steps = await Promise.all(
     detail.steps.map(async (step, stepIndex) => {
@@ -927,6 +962,14 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
   dayOnCourseId: string;
   stepIndex: number;
 }) {
+  if (input.courseType) {
+    const coursePolicy = await getCourseRewardedPolicy(input.courseType);
+    if (coursePolicy?.isPaid) {
+      const accessCheck = await checkCourseAccess(input.courseType, input.userId);
+      if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
+      return null;
+    }
+  }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) return null;
 
@@ -944,6 +987,21 @@ export async function unlockCourseStepRewardedTarget(input: {
   dayOnCourseId: string;
   stepIndex: number;
 }) {
+  if (input.courseType) {
+    const coursePolicy = await getCourseRewardedPolicy(input.courseType);
+    if (coursePolicy?.isPaid) {
+      const accessCheck = await checkCourseAccess(input.courseType, input.userId);
+      if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
+      return {
+        targetType: "COURSE_STEP" as const,
+        targetId: input.dayOnCourseId,
+        unlocked: true as const,
+        spentCredits: 0,
+        balance: 0,
+        pendingRefundCredits: 0,
+      };
+    }
+  }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) {
     return {

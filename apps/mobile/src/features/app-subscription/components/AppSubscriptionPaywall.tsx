@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -40,6 +40,7 @@ import {
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
 import { yookassaAppSubscriptionPurchase } from "../lib/yookassaAppSubscriptionPurchase";
 import { usePaywallStore } from "../store/paywallStore";
+import { shouldTriggerRewardedTargetUnlock } from "../lib/rewardedTargetUnlock";
 
 const STATUS_QUERY_KEY = ["app-subscription", "status"] as const;
 const OFFER_QUERY_KEY = ["app-subscription", "offer"] as const;
@@ -94,6 +95,7 @@ export function AppSubscriptionPaywall() {
   const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
     null,
   );
+  const autoUnlockAttemptKeyRef = useRef<string | null>(null);
 
   const offerQuery = useQuery({
     queryKey: OFFER_QUERY_KEY,
@@ -153,6 +155,9 @@ export function AppSubscriptionPaywall() {
         : "Подписка, которая экономит время и деньги",
     [reason],
   );
+  const rewardedTargetKey = rewardedTarget
+    ? `${rewardedTarget.targetType}:${rewardedTarget.targetId}`
+    : null;
 
   const finishSuccessfulPayment = async () => {
     await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
@@ -257,6 +262,69 @@ export function AppSubscriptionPaywall() {
       setIsRewardedLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log("[rewarded-unlock] paywall status", {
+      rewardedTarget,
+      rewardedTargetKey,
+      hasUnlockCallback: Boolean(onRewardedGrant),
+      walletBalance: rewardedStatus?.wallet.balance,
+      walletMaxBalance: rewardedStatus?.wallet.maxBalance,
+      canWatchAd: rewardedStatus?.canWatchAd,
+      canWatchAdReason: rewardedStatus?.canWatchAdReason,
+      target: rewardedStatus?.target,
+      alreadyAttemptedForTarget: autoUnlockAttemptKeyRef.current === rewardedTargetKey,
+    });
+
+    if (
+      !shouldTriggerRewardedTargetUnlock({
+        hasUnlockCallback: Boolean(onRewardedGrant),
+        status: rewardedStatus,
+      }) ||
+      !rewardedTargetKey ||
+      autoUnlockAttemptKeyRef.current === rewardedTargetKey
+    ) {
+      return;
+    }
+
+    autoUnlockAttemptKeyRef.current = rewardedTargetKey;
+    console.log("[rewarded-unlock] existing credits unlock attempt started", {
+      rewardedTarget,
+      rewardedTargetKey,
+      target: rewardedStatus?.target,
+      walletBalance: rewardedStatus?.wallet.balance,
+    });
+    setIsRewardedLoading(true);
+    setRewardedMessage("Открываем материал за кредиты.");
+
+    void (async () => {
+      try {
+        await onRewardedGrant?.();
+        console.log("[rewarded-unlock] unlock callback succeeded", {
+          rewardedTarget,
+          rewardedTargetKey,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["rewarded-ads"] });
+        await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
+        close();
+      } catch (error) {
+        console.log("[rewarded-unlock] unlock callback failed", {
+          rewardedTarget,
+          rewardedTargetKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        reportClientError(error, {
+          issueKey: "AppSubscriptionPaywall",
+          keys: { operation: "unlock_rewarded_target_with_existing_credits" },
+        });
+        setRewardedMessage(
+          error instanceof Error ? error.message : "Не удалось открыть материал за кредиты.",
+        );
+      } finally {
+        setIsRewardedLoading(false);
+      }
+    })();
+  }, [close, onRewardedGrant, queryClient, rewardedStatus, rewardedTarget, rewardedTargetKey]);
 
   const openLegalLink = (url: string) => {
     void Linking.openURL(url);

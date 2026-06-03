@@ -30,7 +30,6 @@ import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { trackEvent } from "@/shared/lib/analytics";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { useRequireAppSubscription } from "@/features/app-subscription";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS, UI_TIMEOUTS } from "@/shared/config";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
@@ -102,7 +101,6 @@ const ArticleCard = memo(function ArticleCard({
   onViewportCoverReady,
 }: ArticleCardProps) {
   const router = useRouter();
-  const requireSubscription = useRequireAppSubscription();
   const rawCover = article.logoImg || article.imageUrls?.[0];
   const coverUrl = getVersionedImageUrl(rawCover, article.updatedAt);
   const coverCandidates = useMemo(
@@ -173,18 +171,20 @@ const ArticleCard = memo(function ArticleCard({
     onLike(article.id);
   };
 
-  const handleOpenArticle = useCallback(async () => {
-    const canOpen = await requireSubscription();
-    if (!canOpen) {
-      return;
-    }
+  const handleOpenArticle = useCallback(() => {
+    console.log("[rewarded-unlock] article card open detail", {
+      articleId: article.id,
+      slug: article.slug,
+      visibility: article.visibility,
+      hasAccess: article.hasAccess,
+    });
     router.push(`/articles/${article.slug}` as Parameters<typeof router.push>[0]);
-  }, [article.slug, requireSubscription, router]);
+  }, [article.hasAccess, article.id, article.slug, article.visibility, router]);
 
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      onPress={() => void handleOpenArticle()}
+      onPress={handleOpenArticle}
     >
       <View style={styles.row}>
         <View style={styles.logoBox}>

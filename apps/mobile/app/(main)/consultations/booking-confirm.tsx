@@ -155,6 +155,10 @@ export default function ConsultationBookingConfirmScreen() {
       if (code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
         openAppSubscriptionPaywall({
           reason: "required",
+          rewardedTarget: {
+            targetType: "CONSULTATION_BOOKING",
+            targetId: `booking:${idemKey}`,
+          },
           onRewardedGrant: async () => {
             await bookMutation.mutateAsync();
           },

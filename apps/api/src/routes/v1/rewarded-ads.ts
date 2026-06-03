@@ -6,6 +6,7 @@ import {
   getRewardedCreditsStatus,
   grantRewardedCredits,
   recordRewardedAdEvent,
+  REWARDED_CONSULTATION_BOOKING_COST,
   RewardedAdSessionError,
   RewardedAdsDisabledError,
   RewardedBalanceFullError,
@@ -59,6 +60,13 @@ function targetFrom(input: {
 }): RewardedTargetInput | undefined {
   if (!input.targetType || !input.targetId) {
     return undefined;
+  }
+  if (input.targetType === "CONSULTATION_BOOKING") {
+    return {
+      targetType: input.targetType,
+      targetId: input.targetId,
+      cost: REWARDED_CONSULTATION_BOOKING_COST,
+    };
   }
   return { targetType: input.targetType, targetId: input.targetId };
 }

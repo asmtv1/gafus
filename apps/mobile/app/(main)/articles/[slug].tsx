@@ -23,7 +23,12 @@ import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 import { Loading, MascotSpinner } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
-import { openAppSubscriptionPaywall } from "@/features/app-subscription";
+import {
+  getRewardedAccessPrompt,
+  openAppSubscriptionPaywall,
+  RewardedAccessGate,
+} from "@/features/app-subscription";
+import { rewardedAdsApi } from "@/features/rewarded-ads";
 
 /** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
 const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
@@ -49,12 +54,36 @@ export default function ArticleDetailScreen() {
   const article = res?.data;
   const user = useAuthStore((s) => s.user);
   const [payLoading, setPayLoading] = useState(false);
+  const [creditUnlockLoading, setCreditUnlockLoading] = useState(false);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
   const [webViewReady, setWebViewReady] = useState(false);
   /** Таймаут 3.5s выставил 800px — без внутреннего скролла контент длинных статей обрежется. */
   const [articleHeightIsTimeoutFallback, setArticleHeightIsTimeoutFallback] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [isReadCompleteTracked, setIsReadCompleteTracked] = useState(false);
+  const rewardedArticleTarget =
+    article && user && article.content === null && article.visibility !== "PAID"
+      ? { targetType: "ARTICLE" as const, targetId: article.id }
+      : null;
+  const rewardedStatusQuery = useQuery({
+    queryKey: [
+      "rewarded-ads",
+      "status",
+      rewardedArticleTarget?.targetType ?? null,
+      rewardedArticleTarget?.targetId ?? null,
+    ],
+    queryFn: () => rewardedAdsApi.getStatus(rewardedArticleTarget ?? undefined),
+    enabled: Boolean(rewardedArticleTarget),
+    staleTime: 30_000,
+  });
+  const rewardedStatus =
+    rewardedStatusQuery.data?.success && rewardedStatusQuery.data.data
+      ? rewardedStatusQuery.data.data
+      : null;
+  const rewardedPrompt = getRewardedAccessPrompt({
+    isLoading: rewardedStatusQuery.isLoading,
+    status: rewardedStatus,
+  });
 
   useEffect(() => {
     if (slug && article) {
@@ -122,6 +151,33 @@ export default function ArticleDetailScreen() {
     }
   }, [article]);
 
+  const unlockArticleWithCredits = useCallback(async () => {
+    if (!article) return;
+    setPayError(null);
+    const unlockResponse = await articlesApi.unlock(article.slug);
+    if (!unlockResponse.success) {
+      const message = unlockResponse.error ?? "Не удалось открыть статью";
+      setPayError(message);
+      throw new Error(message);
+    }
+    await refetch();
+  }, [article, refetch]);
+
+  const handleCreditUnlock = useCallback(async () => {
+    if (creditUnlockLoading) return;
+    setCreditUnlockLoading(true);
+    try {
+      await unlockArticleWithCredits();
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "ArticleDetailScreen",
+        keys: { operation: "unlock_with_credit" },
+      });
+    } finally {
+      setCreditUnlockLoading(false);
+    }
+  }, [creditUnlockLoading, unlockArticleWithCredits]);
+
   const handleRewardedPaywall = useCallback(() => {
     if (!article) return;
     trackEvent({
@@ -140,16 +196,14 @@ export default function ArticleDetailScreen() {
           pathOrScreen: `/articles/${article.slug}`,
           elementId: "article-rewarded-unlock",
         });
-        const unlockResponse = await articlesApi.unlock(article.slug);
-        if (!unlockResponse.success) {
-          const message = unlockResponse.error ?? "Не удалось открыть статью";
-          setPayError(message);
-          throw new Error(message);
-        }
-        await refetch();
+        await unlockArticleWithCredits();
       },
     });
-  }, [article, refetch]);
+  }, [article, unlockArticleWithCredits]);
+
+  const handleSubscriptionPaywall = useCallback(() => {
+    openAppSubscriptionPaywall({ reason: "required" });
+  }, []);
 
   const hasMeasuredArticleHtml =
     htmlHeight != null && htmlHeight > 0;
@@ -208,6 +262,7 @@ export default function ArticleDetailScreen() {
   }
 
   const isHtmlArticle = article.content !== null && article.contentType !== "TEXT";
+  const isSeparatePaidArticle = article.visibility === "PAID";
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -271,37 +326,56 @@ export default function ArticleDetailScreen() {
                 <Markdown style={markdownStyles}>{article.description}</Markdown>
               </View>
             ) : null}
-            <Text style={styles.paidBlockTitle}>Платная статья</Text>
+            <Text style={styles.paidBlockTitle}>
+              {isSeparatePaidArticle ? "Платная статья" : "Нужен доступ"}
+            </Text>
             <Text style={styles.paidSubtitle}>
-              Оплатите «{article.title}» для доступа к содержимому.
-              {(article.priceRub ?? 0) > 0 && ` Стоимость: ${article.priceRub} ₽.`}
+              {isSeparatePaidArticle
+                ? `Оплатите «${article.title}» для доступа к содержимому.${
+                    (article.priceRub ?? 0) > 0 ? ` Стоимость: ${article.priceRub} ₽.` : ""
+                  }`
+                : "Откройте статью через Premium или спишите 1 кредит."}
             </Text>
             {user ? (
               <View style={styles.paidButtonsRow}>
-                {payError ? (
+                {payError && isSeparatePaidArticle ? (
                   <Text style={styles.payErrorText}>{payError}</Text>
                 ) : null}
-                <Pressable
-                  style={styles.btnPrimary}
-                  onPress={handleRewardedPaywall}
-                >
-                  <Text style={styles.btnPrimaryText}>Открыть через Premium или рекламу</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.btnOutline, payLoading && styles.btnDisabled]}
-                  onPress={handlePay}
-                  disabled={payLoading}
-                >
-                  <Text style={styles.btnOutlineText}>
-                    {payLoading ? "Загрузка…" : "Оплатить статью"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.btnOutline}
-                  onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}
-                >
-                  <Text style={styles.btnOutlineText}>Оферта</Text>
-                </Pressable>
+                {isSeparatePaidArticle ? (
+                  <>
+                    <Pressable
+                      style={[styles.btnPrimary, payLoading && styles.btnDisabled]}
+                      onPress={handlePay}
+                      disabled={payLoading}
+                    >
+                      <Text style={styles.btnPrimaryText}>
+                        {payLoading ? "Загрузка…" : "Оплатить статью"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.btnOutline}
+                      onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}
+                    >
+                      <Text style={styles.btnOutlineText}>Оферта</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <RewardedAccessGate
+                    title="Нужен доступ"
+                    subtitle="Откройте статью за кредит или оформите Premium."
+                    prompt={rewardedPrompt}
+                    errorText={payError}
+                    isBusy={creditUnlockLoading}
+                    onPrimaryPress={() => {
+                      if (rewardedPrompt.mode === "direct-credit") {
+                        void handleCreditUnlock();
+                      } else {
+                        handleRewardedPaywall();
+                      }
+                    }}
+                    onSubscriptionPress={handleSubscriptionPaywall}
+                  />
+                )}
               </View>
             ) : (
               <Pressable

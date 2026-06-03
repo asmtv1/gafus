@@ -198,10 +198,10 @@ describe("getArticleBySlugForMonetizedAccess", () => {
     vi.clearAllMocks();
   });
 
-  it("PUBLIC без Premium/rewarded access: не раскрывает content", async () => {
+  it("PUBLIC без Premium/rewarded access: не раскрывает content и показывает rewarded target", async () => {
     mockArticleFindUnique.mockResolvedValue({
       ...listRow({ visibility: "PUBLIC", priceRub: null }),
-      content: "<p>Открытый текст тоже за paywall</p>",
+      content: "<p>Открытый текст за подписку или кредит</p>",
       articleLikes: [],
       access: [],
     });
@@ -222,17 +222,20 @@ describe("getArticleBySlugForMonetizedAccess", () => {
         target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
       });
     }
-    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalled();
+    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalledWith({
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+      target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
+    });
   });
 
-  it("PAID без Premium/rewarded access: не раскрывает content и не списывает", async () => {
+  it("PAID без отдельной оплаты: не раскрывает content и не проверяет Premium/rewarded", async () => {
     mockArticleFindUnique.mockResolvedValue({
       ...listRow({ visibility: "PAID", priceRub: 100 }),
       content: "<p>Секрет</p>",
       articleLikes: [],
       access: [],
     });
-    mockGetPremiumOrRewardedAccess.mockRejectedValue(new SubscriptionOrCreditsRequiredError());
 
     const r = await getArticleBySlugForMonetizedAccess({
       slug: "paid-slug",
@@ -245,13 +248,13 @@ describe("getArticleBySlugForMonetizedAccess", () => {
       expect(r.data.content).toBeNull();
       expect(r.data.monetization).toMatchObject({
         locked: true,
-        target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
       });
+      expect(r.data.monetization?.target).toBeUndefined();
     }
-    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalled();
+    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
   });
 
-  it("PAID с Premium/rewarded access: раскрывает content", async () => {
+  it("PAID с Premium/rewarded access без отдельной оплаты не раскрывает content", async () => {
     mockArticleFindUnique.mockResolvedValue({
       ...listRow({ visibility: "PAID", priceRub: 100 }),
       content: "<p>Секрет</p>",
@@ -268,9 +271,11 @@ describe("getArticleBySlugForMonetizedAccess", () => {
 
     expect(r.success).toBe(true);
     if (r.success) {
-      expect(r.data.content).toBe("<p>Секрет</p>");
-      expect(r.data.monetization?.locked).toBe(false);
+      expect(r.data.content).toBeNull();
+      expect(r.data.monetization?.locked).toBe(true);
+      expect(r.data.monetization?.target).toBeUndefined();
     }
+    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
   });
 
   it("PAID с существующим ArticleAccess раскрывает content без Premium/rewarded проверки", async () => {
@@ -302,7 +307,7 @@ describe("unlockArticleBySlug", () => {
     vi.clearAllMocks();
   });
 
-  it("spends rewarded credits for a public article because all articles are behind paywall", async () => {
+  it("spends rewarded credits for a public article", async () => {
     mockArticleFindUnique.mockResolvedValue({
       id: "a1",
       visibility: "PUBLIC",
@@ -339,6 +344,26 @@ describe("unlockArticleBySlug", () => {
       platform: "WEB_DESKTOP",
       target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
     });
+  });
+
+  it("does not spend rewarded credits for a paid article without separate access", async () => {
+    mockArticleFindUnique.mockResolvedValue({
+      id: "a1",
+      visibility: "PAID",
+      access: [],
+    });
+
+    const result = await unlockArticleBySlug({
+      slug: "paid-slug",
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Статья доступна только после отдельной оплаты",
+    });
+    expect(mockUnlockRewardedTarget).not.toHaveBeenCalled();
   });
 });
 

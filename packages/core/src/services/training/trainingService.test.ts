@@ -4,6 +4,7 @@ import {
   getTrainingDays,
   getTrainingDayWithMonetizedSteps,
   getTrainingDayWithUserSteps,
+  unlockCourseStepRewardedTarget,
   resolveCourseStepRewardedTarget,
 } from "./trainingService.ts";
 import { checkCourseAccess } from "../course";
@@ -143,6 +144,43 @@ describe("getTrainingDays", () => {
     expect(result.trainingDays).toHaveLength(1);
     expect(result.courseId).toBe("course-1");
     expect(result.trainingDays[0].title).toBe("День 1");
+  });
+
+  it("returns days for a public course without CourseAccess", async () => {
+    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: false });
+    mockCourseFindFirst.mockResolvedValue({
+      id: "course-1",
+      description: "Описание",
+      videoUrl: null,
+      equipment: null,
+      trainingLevel: "beginner",
+      isPersonalized: false,
+      isPrivate: false,
+      isPaid: false,
+      userCourses: [],
+      dayLinks: [
+        {
+          id: "dl-1",
+          order: 0,
+          dayId: "day-1",
+          day: {
+            title: "День 1",
+            type: "regular",
+            equipment: "",
+            showCoursePathExport: false,
+            shareProgressAcrossCourses: false,
+            stepLinks: [],
+          },
+          userTrainings: [],
+        },
+      ],
+    });
+    mockUserTrainingFindMany.mockResolvedValue([]);
+
+    const result = await getTrainingDays("user-1", "course");
+
+    expect(result.trainingDays).toHaveLength(1);
+    expect(mockCheckCourseAccessById).not.toHaveBeenCalled();
   });
 
   it("throws when access denied for private course", async () => {
@@ -532,6 +570,81 @@ describe("rewarded training step access", () => {
     });
 
     expect(target).toEqual({ targetType: "COURSE_STEP", targetId: "sod-1", cost: 1 });
+  });
+
+  it("redacts steps in a public course even without CourseAccess", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: false });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: false, isPrivate: false });
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(
+      Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
+    );
+
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform: "ANDROID",
+    });
+
+    expect(result?.steps[0]).toMatchObject({
+      locked: true,
+      monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" },
+    });
+  });
+
+  it("does not unlock a step in a paid course through rewarded credits without CourseAccess", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: false });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+
+    await expect(
+      unlockCourseStepRewardedTarget({
+        userId: "user-1",
+        platform: "ANDROID",
+        courseType: "course",
+        dayOnCourseId: "doc-1",
+        stepIndex: 0,
+      }),
+    ).rejects.toThrow("COURSE_ACCESS_DENIED");
+    expect(mockUnlockRewardedTarget).not.toHaveBeenCalled();
+  });
+
+  it("does not redact steps in a paid course when separate CourseAccess exists", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(
+      Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
+    );
+
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform: "ANDROID",
+    });
+
+    expect(result?.steps[0]).toMatchObject({
+      locked: false,
+      description: "Secret content",
+      videoUrl: "video.mp4",
+    });
+    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
+  });
+
+  it("does not spend rewarded credits for a paid course step when separate CourseAccess exists", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+
+    const result = await unlockCourseStepRewardedTarget({
+      userId: "user-1",
+      platform: "ANDROID",
+      courseType: "course",
+      dayOnCourseId: "doc-1",
+      stepIndex: 0,
+    });
+
+    expect(result).toEqual({
+      targetType: "COURSE_STEP",
+      targetId: "doc-1",
+      unlocked: true,
+      spentCredits: 0,
+      balance: 0,
+      pendingRefundCredits: 0,
+    });
+    expect(mockUnlockRewardedTarget).not.toHaveBeenCalled();
   });
 });
 
