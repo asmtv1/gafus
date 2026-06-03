@@ -320,24 +320,29 @@ export default function ArticleDetailScreen() {
         )}
 
         {article.content === null ? (
-          <View style={styles.paidBlock}>
+          <View style={[styles.paidBlock, !isSeparatePaidArticle && styles.rewardedPaidBlock]}>
             {article.description ? (
               <View style={styles.paidDescription}>
                 <Markdown style={markdownStyles}>{article.description}</Markdown>
               </View>
             ) : null}
-            <Text style={styles.paidBlockTitle}>
-              {isSeparatePaidArticle ? "Платная статья" : "Нужен доступ"}
-            </Text>
-            <Text style={styles.paidSubtitle}>
-              {isSeparatePaidArticle
-                ? `Оплатите «${article.title}» для доступа к содержимому.${
+            {isSeparatePaidArticle ? (
+              <>
+                <Text style={styles.paidBlockTitle}>Платная статья</Text>
+                <Text style={styles.paidSubtitle}>
+                  {`Оплатите «${article.title}» для доступа к содержимому.${
                     (article.priceRub ?? 0) > 0 ? ` Стоимость: ${article.priceRub} ₽.` : ""
-                  }`
-                : "Откройте статью через Premium или спишите 1 кредит."}
-            </Text>
+                  }`}
+                </Text>
+              </>
+            ) : null}
             {user ? (
-              <View style={styles.paidButtonsRow}>
+              <View
+                style={[
+                  styles.paidButtonsRow,
+                  !isSeparatePaidArticle && styles.rewardedPaidButtonsRow,
+                ]}
+              >
                 {payError && isSeparatePaidArticle ? (
                   <Text style={styles.payErrorText}>{payError}</Text>
                 ) : null}
@@ -362,7 +367,7 @@ export default function ArticleDetailScreen() {
                 ) : (
                   <RewardedAccessGate
                     title="Нужен доступ"
-                    subtitle="Откройте статью за кредит или оформите Premium."
+                    subtitle="Статья закрыта. Можно списать кредит, оформить Premium или добрать кредиты через рекламу."
                     prompt={rewardedPrompt}
                     errorText={payError}
                     isBusy={creditUnlockLoading}
@@ -521,6 +526,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     width: "100%",
   },
+  rewardedPaidBlock: {
+    padding: 0,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+  },
   paidDescription: {
     width: "100%",
     marginBottom: SPACING.lg,
@@ -545,6 +555,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: SPACING.sm,
     justifyContent: "center",
+  },
+  rewardedPaidButtonsRow: {
+    flexDirection: "column",
+    flexWrap: "nowrap",
   },
   payErrorText: {
     width: "100%",

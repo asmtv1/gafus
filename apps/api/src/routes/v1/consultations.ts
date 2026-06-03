@@ -140,10 +140,6 @@ consultationsRoutes.get(
       const from = new Date(q.from);
       const to = new Date(q.to);
       const includeBusy = q.includeBusy === "1";
-      await requireConsultationSlotsPremiumOrRewardedAccess({
-        userId: c.get("user").id,
-        platform: getMobileRewardedPlatform(c),
-      });
       const data = includeBusy
         ? await getCalendarSlots(cynologistUserId, from, to)
         : await getAvailableSlots(cynologistUserId, from, to);

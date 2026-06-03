@@ -8,9 +8,15 @@ export type PaywallRewardedTarget = {
   targetId: string;
 };
 
+export type PaywallAccessSummary = {
+  title: string;
+  subtitle: string;
+};
+
 export type OpenPaywallParams = {
   reason?: PaywallReason;
   rewardedTarget?: PaywallRewardedTarget | null;
+  accessSummary?: PaywallAccessSummary | null;
   onRewardedGrant?: (() => Promise<void> | void) | null;
 };
 
@@ -25,6 +31,8 @@ type PaywallState = {
   pendingReason: PaywallReason | null;
   rewardedTarget: PaywallRewardedTarget | null;
   pendingRewardedTarget: PaywallRewardedTarget | null;
+  accessSummary: PaywallAccessSummary | null;
+  pendingAccessSummary: PaywallAccessSummary | null;
   onRewardedGrant: (() => Promise<void> | void) | null;
   pendingOnRewardedGrant: (() => Promise<void> | void) | null;
   open: (params?: PaywallReason | OpenPaywallParams) => void;
@@ -39,6 +47,8 @@ export const usePaywallStore = create<PaywallState>((set) => ({
   pendingReason: null,
   rewardedTarget: null,
   pendingRewardedTarget: null,
+  accessSummary: null,
+  pendingAccessSummary: null,
   onRewardedGrant: null,
   pendingOnRewardedGrant: null,
   open: (params) => {
@@ -49,6 +59,8 @@ export const usePaywallStore = create<PaywallState>((set) => ({
       pendingReason: null,
       rewardedTarget: normalized.rewardedTarget ?? null,
       pendingRewardedTarget: null,
+      accessSummary: normalized.accessSummary ?? null,
+      pendingAccessSummary: null,
       onRewardedGrant: normalized.onRewardedGrant ?? null,
       pendingOnRewardedGrant: null,
     });
@@ -58,12 +70,25 @@ export const usePaywallStore = create<PaywallState>((set) => ({
     set({
       pendingReason: normalized.reason ?? "required",
       pendingRewardedTarget: normalized.rewardedTarget ?? null,
+      pendingAccessSummary: normalized.accessSummary ?? null,
       pendingOnRewardedGrant: normalized.onRewardedGrant ?? null,
     });
   },
-  close: () => set({ isOpen: false, reason: null, rewardedTarget: null, onRewardedGrant: null }),
+  close: () =>
+    set({
+      isOpen: false,
+      reason: null,
+      rewardedTarget: null,
+      accessSummary: null,
+      onRewardedGrant: null,
+    }),
   clearPending: () =>
-    set({ pendingReason: null, pendingRewardedTarget: null, pendingOnRewardedGrant: null }),
+    set({
+      pendingReason: null,
+      pendingRewardedTarget: null,
+      pendingAccessSummary: null,
+      pendingOnRewardedGrant: null,
+    }),
 }));
 
 export function openAppSubscriptionPaywall(params: PaywallReason | OpenPaywallParams = "required") {
@@ -82,6 +107,7 @@ export function flushDeferredAppSubscriptionPaywall() {
   state.open({
     reason: state.pendingReason,
     rewardedTarget: state.pendingRewardedTarget,
+    accessSummary: state.pendingAccessSummary,
     onRewardedGrant: state.pendingOnRewardedGrant,
   });
 }

@@ -82,7 +82,7 @@ describe("consultations route contracts", () => {
     expect(response.status).toBe(400);
   });
 
-  it("requires premium or rewarded credits before returning slot calendar on mobile API", async () => {
+  it("returns slot calendar without opening the consultation access gate", async () => {
     const app = createAuthenticatedTestApp();
 
     const response = await app.request(
@@ -91,10 +91,7 @@ describe("consultations route contracts", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(consultationMocks.requireConsultationSlotsPremiumOrRewardedAccess).toHaveBeenCalledWith({
-      userId: "user-1",
-      platform: "IOS",
-    });
+    expect(consultationMocks.requireConsultationSlotsPremiumOrRewardedAccess).not.toHaveBeenCalled();
     expect(consultationMocks.getCalendarSlots).toHaveBeenCalled();
   });
 

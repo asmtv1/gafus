@@ -22,6 +22,8 @@ function resetStores() {
     pendingReason: null,
     rewardedTarget: null,
     pendingRewardedTarget: null,
+    accessSummary: null,
+    pendingAccessSummary: null,
     onRewardedGrant: null,
     pendingOnRewardedGrant: null,
   });
@@ -106,6 +108,27 @@ describe("app subscription paywall deferral", () => {
     });
   });
 
+  it("moves explicit rewarded access summary from pending request when flushed", () => {
+    requestAppSubscriptionPaywall({
+      reason: "required",
+      accessSummary: {
+        title: "Не хватает кредитов для записи",
+        subtitle: "Запись к кинологу стоит 5 кредитов. У вас 3, не хватает 2.",
+      },
+    });
+
+    flushDeferredAppSubscriptionPaywall();
+
+    expect(usePaywallStore.getState()).toMatchObject({
+      isOpen: true,
+      accessSummary: {
+        title: "Не хватает кредитов для записи",
+        subtitle: "Запись к кинологу стоит 5 кредитов. У вас 3, не хватает 2.",
+      },
+      pendingAccessSummary: null,
+    });
+  });
+
   it("clears rewarded context when closed", () => {
     const onRewardedGrant = vi.fn();
 
@@ -121,6 +144,7 @@ describe("app subscription paywall deferral", () => {
       isOpen: false,
       reason: null,
       rewardedTarget: null,
+      accessSummary: null,
       onRewardedGrant: null,
     });
   });

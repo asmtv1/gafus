@@ -2,6 +2,7 @@ const DEFAULT_REWARDED_CREDITS_PER_REWARD = 5;
 
 type RewardedCopyStatus = {
   wallet?: {
+    balance?: number;
     creditsPerReward?: number;
     maxBalance?: number;
   };
@@ -12,8 +13,10 @@ type RewardedCopyStatus = {
     paywallCtaEnabled?: boolean;
   };
   target?: {
+    targetType?: string;
     cost: number;
     unlocked: boolean;
+    missingCredits?: number;
   };
 };
 
@@ -75,4 +78,38 @@ export function getRewardedStatusMessage(input: {
     return "Просмотр рекламы сейчас выключен.";
   }
   return getRewardedUnavailableText(input.status.canWatchAdReason);
+}
+
+function getTargetName(targetType?: string): string {
+  if (targetType === "CONSULTATION_BOOKING") return "Запись к кинологу";
+  if (targetType === "ARTICLE") return "Статья";
+  if (targetType === "COURSE_STEP" || targetType === "DAILY_COURSE_STEP") return "Шаг курса";
+  return "Действие";
+}
+
+export function getRewardedAccessSummary(status: RewardedCopyStatus | null): {
+  title: string;
+  subtitle: string;
+} | null {
+  if (!status?.target || status.target.unlocked) return null;
+
+  const targetName = getTargetName(status.target.targetType);
+  const cost = status.target.cost;
+  const balance = status.wallet?.balance ?? 0;
+  const missingCredits = status.target.missingCredits ?? Math.max(0, cost - balance);
+
+  if (missingCredits > 0) {
+    return {
+      title:
+        status.target.targetType === "CONSULTATION_BOOKING"
+          ? "Не хватает кредитов для записи"
+          : "Не хватает кредитов",
+      subtitle: `${targetName} стоит ${cost} ${formatCreditsWord(cost)}. У вас ${balance}, не хватает ${missingCredits}.`,
+    };
+  }
+
+  return {
+    title: `${targetName} доступна за кредиты`,
+    subtitle: `Можно списать ${cost} ${formatCreditsWord(cost)} с вашего баланса.`,
+  };
 }

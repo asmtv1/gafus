@@ -33,6 +33,7 @@ import {
   getYookassaPrimaryCta,
 } from "../lib/appSubscriptionPresentation";
 import {
+  getRewardedAccessSummary,
   getRewardedEarnText,
   getRewardedSpendText,
   getRewardedStatusMessage,
@@ -87,6 +88,7 @@ export function AppSubscriptionPaywall() {
   const close = usePaywallStore((s) => s.close);
   const reason = usePaywallStore((s) => s.reason);
   const rewardedTarget = usePaywallStore((s) => s.rewardedTarget);
+  const explicitAccessSummary = usePaywallStore((s) => s.accessSummary);
   const onRewardedGrant = usePaywallStore((s) => s.onRewardedGrant);
   const [isPaying, setIsPaying] = useState(false);
   const [isRewardedLoading, setIsRewardedLoading] = useState(false);
@@ -155,6 +157,7 @@ export function AppSubscriptionPaywall() {
         : "Подписка, которая экономит время и деньги",
     [reason],
   );
+  const accessSummary = explicitAccessSummary ?? getRewardedAccessSummary(rewardedStatus);
   const rewardedTargetKey = rewardedTarget
     ? `${rewardedTarget.targetType}:${rewardedTarget.targetId}`
     : null;
@@ -359,9 +362,33 @@ export function AppSubscriptionPaywall() {
             </View>
           </View>
 
-          <Text style={[styles.title, useCompactLayout && styles.titleCompact]}>{headline}</Text>
+          {accessSummary ? (
+            <View style={styles.accessSummary}>
+              <View style={styles.accessSummaryHeader}>
+                <MaterialCommunityIcons
+                  name="ticket-confirmation-outline"
+                  size={22}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.accessSummaryTitle}>{accessSummary.title}</Text>
+              </View>
+              <Text style={styles.accessSummaryText}>{accessSummary.subtitle}</Text>
+            </View>
+          ) : null}
+
+          <Text
+            style={[
+              styles.title,
+              useCompactLayout && styles.titleCompact,
+              accessSummary && styles.titleSecondary,
+            ]}
+          >
+            {accessSummary ? "Premium тоже откроет доступ" : headline}
+          </Text>
           <Text style={[styles.subtitle, useCompactLayout && styles.subtitleCompact]}>
-            Получите полный доступ к тренировкам, экзаменам, документам питомца и помощи кинолога.
+            {accessSummary
+              ? "Можно оформить подписку или пополнить кредиты через рекламу ниже."
+              : "Получите полный доступ к тренировкам, экзаменам, документам питомца и помощи кинолога."}
           </Text>
 
           <View style={[styles.priceBox, useCompactLayout && styles.priceBoxCompact]}>
@@ -569,6 +596,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
   },
+  titleSecondary: {
+    fontSize: 22,
+    lineHeight: 26,
+  },
   subtitle: {
     fontFamily: FONTS.montserrat,
     color: "#4E4743",
@@ -578,6 +609,35 @@ const styles = StyleSheet.create({
   subtitleCompact: {
     fontSize: 13,
     lineHeight: 19,
+  },
+  accessSummary: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(99, 97, 40, 0.35)",
+    backgroundColor: "#FFF9EA",
+    padding: 14,
+    gap: 8,
+  },
+  accessSummaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  accessSummaryTitle: {
+    flexShrink: 1,
+    fontFamily: FONTS.impact,
+    color: "#352E2E",
+    fontSize: 22,
+    lineHeight: 26,
+    textAlign: "center",
+  },
+  accessSummaryText: {
+    fontFamily: FONTS.montserratMedium,
+    color: COLORS.primary,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
   priceBox: {
     borderRadius: 18,

@@ -33,7 +33,7 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
-import { openAppSubscriptionPaywall } from "@/features/app-subscription";
+import { openConsultationAccessPaywall } from "@/features/consultations";
 
 function one(param: string | string[] | undefined): string {
   return Array.isArray(param) ? (param[0] ?? "") : (param ?? "");
@@ -153,12 +153,8 @@ export default function ConsultationBookingConfirmScreen() {
       const code = typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
       const msg = e instanceof Error ? e.message : String(e);
       if (code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
-        openAppSubscriptionPaywall({
-          reason: "required",
-          rewardedTarget: {
-            targetType: "CONSULTATION_BOOKING",
-            targetId: `booking:${idemKey}`,
-          },
+        void openConsultationAccessPaywall({
+          targetId: `booking:${idemKey}`,
           onRewardedGrant: async () => {
             await bookMutation.mutateAsync();
           },

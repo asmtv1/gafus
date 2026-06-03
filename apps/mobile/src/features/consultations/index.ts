@@ -9,4 +9,5 @@ export {
   isSelfHelpField,
   SLOT_TAKEN_MESSAGE,
 } from "./lib/bookingIntakeForm";
+export { openConsultationAccessPaywall } from "./lib/consultationAccessPaywall";
 export { default as ConsultationsCynologistsListScreen } from "./screens/ConsultationsCynologistsListScreen";

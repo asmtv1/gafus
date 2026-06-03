@@ -10,7 +10,6 @@ import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { useRequireAppSubscription } from "@/features/app-subscription";
 import { TourTarget } from "@/shared/lib/tour-targets";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -23,7 +22,6 @@ import { trackEvent } from "@/shared/lib/analytics";
  */
 export default function ConsultationsCynologistsListScreen() {
   const router = useRouter();
-  const requireSubscription = useRequireAppSubscription();
   const query = useQuery({
     queryKey: ["consultations", "cynologists"],
     queryFn: async () => {
@@ -47,11 +45,7 @@ export default function ConsultationsCynologistsListScreen() {
   }, [query.isError, query.error]);
 
   const onOpen = useCallback(
-    async (c: ListedCynologistCardDto) => {
-      const canOpen = await requireSubscription();
-      if (!canOpen) {
-        return;
-      }
+    (c: ListedCynologistCardDto) => {
       hapticFeedback.medium();
       trackEvent({
         eventName: "button_click",
@@ -65,7 +59,7 @@ export default function ConsultationsCynologistsListScreen() {
       });
       router.push(`/consultations/${encodeURIComponent(c.userId)}?${q.toString()}` as Href);
     },
-    [requireSubscription, router],
+    [router],
   );
 
   return (
@@ -116,7 +110,7 @@ export default function ConsultationsCynologistsListScreen() {
           const about = plainConsultationAboutHtml(c.about);
           const title = c.displayName ?? "Кинолог";
           return (
-            <Pressable key={c.id} style={styles.card} onPress={() => void onOpen(c)}>
+            <Pressable key={c.id} style={styles.card} onPress={() => onOpen(c)}>
               <View style={styles.cardInner}>
                 <View style={styles.avatarFrame}>
                   {src ? (

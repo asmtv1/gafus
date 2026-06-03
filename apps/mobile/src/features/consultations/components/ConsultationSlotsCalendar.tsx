@@ -32,7 +32,7 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
-import { openAppSubscriptionPaywall } from "@/features/app-subscription";
+import { openConsultationAccessPaywall } from "../lib/consultationAccessPaywall";
 
 interface ConsultationSlotsCalendarProps {
   cynologistUserId: string;
@@ -87,12 +87,8 @@ export function ConsultationSlotsCalendar({
       const res = await consultationsApi.getSlotsCalendar(cynologistUserId, fromIso, toIso);
       if (!res.success || !res.data) {
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
-          openAppSubscriptionPaywall({
-            reason: "required",
-            rewardedTarget: {
-              targetType: "CONSULTATION_BOOKING",
-              targetId: `slots:${cynologistUserId}`,
-            },
+          await openConsultationAccessPaywall({
+            targetId: `slots:${cynologistUserId}`,
             onRewardedGrant: async () => {
               await queryClient.invalidateQueries({
                 queryKey: ["consultations", "slotsCalendar", cynologistUserId],
@@ -223,12 +219,8 @@ export function ConsultationSlotsCalendar({
           return;
         }
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
-          openAppSubscriptionPaywall({
-            reason: "required",
-            rewardedTarget: {
-              targetType: "CONSULTATION_BOOKING",
-              targetId: `slot:${slot.id}`,
-            },
+          await openConsultationAccessPaywall({
+            targetId: `slot:${slot.id}`,
             onRewardedGrant: () => verifyAndBook(slot),
           });
           return;
