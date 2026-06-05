@@ -580,6 +580,10 @@ export default function NewStepForm({
                 options={[
                   { value: "dog-home-alone-initial", label: "Собаке тяжело дома одной — до курса" },
                   { value: "dog-home-alone-final", label: "Собаке тяжело дома одной — после курса" },
+                  {
+                    value: "separation-anxiety-screening",
+                    label: "Тревога расставания — быстрая диагностика",
+                  },
                 ]}
               />
             </FormSection>

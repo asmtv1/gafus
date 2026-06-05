@@ -163,6 +163,30 @@ describe("showYandexRewardedAd", () => {
     });
   });
 
+  it("resolves from callbacks when ad.show never settles after a rewarded view", async () => {
+    showMock.mockImplementation(() => {
+      loadedAd.onAdShown?.();
+      loadedAd.onRewarded?.({ amount: 1, type: "credit" });
+      loadedAd.onAdDismissed?.();
+      return new Promise(() => undefined);
+    });
+
+    const result = await showYandexRewardedAd({
+      sessionId: "session-1",
+      requestNonce: "nonce-1",
+      provider: "YANDEX",
+      placementId: "placement-1",
+      platform: "IOS",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      testMode: true,
+    });
+
+    expect(result).toMatchObject({
+      success: true,
+      data: { grantedCredits: 5, balance: 5 },
+    });
+  });
+
   it("waits until SHOWN is recorded before recording REWARDED", async () => {
     let resolveShown: (value: unknown) => void = () => undefined;
     recordEventMock.mockImplementation(({ eventType }) => {

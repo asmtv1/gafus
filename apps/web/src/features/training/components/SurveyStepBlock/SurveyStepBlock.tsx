@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCSRFStore } from "@gafus/csrf";
-import type {
-  SurveyAnswerValue,
-  SurveyComparisonDto,
-  SurveyResponseDto,
-  SurveyTemplate,
+import {
+  getSurveyScreeningResult,
+  type SurveyAnswerValue,
+  type SurveyComparisonDto,
+  type SurveyResponseDto,
+  type SurveyTemplate,
 } from "@gafus/types";
 
 import styles from "../AccordionStep/AccordionStep.module.css";
@@ -115,6 +116,9 @@ export function SurveyStepBlock({
 
   const canEdit = !data?.response || data.response.canEdit;
   const template = data?.template ?? null;
+  const screeningResult = data?.response
+    ? getSurveyScreeningResult(surveySlug, data.response.answers)
+    : null;
 
   useEffect(() => {
     if (!template || !canEdit) return;
@@ -200,6 +204,13 @@ export function SurveyStepBlock({
                 ? `Можно редактировать до ${formatDateTime(data.response.editableUntil)}.`
                 : "Редактирование закрыто."}
             </p>
+          )}
+
+          {screeningResult && (
+            <section>
+              <h4>Результат анкеты</h4>
+              <p>{screeningResult}</p>
+            </section>
           )}
 
           {template.sections.map((section) => {

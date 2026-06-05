@@ -17,19 +17,19 @@ export type RewardedAccessPrompt =
       mode: "loading";
       balanceText: string;
       primaryText: string;
-      subscriptionText: string;
+      subscriptionText: string | null;
     }
   | {
       mode: "direct-credit";
       balanceText: string;
       primaryText: string;
-      subscriptionText: string;
+      subscriptionText: string | null;
     }
   | {
       mode: "standard-paywall";
       balanceText: string;
       primaryText: string;
-      subscriptionText: string;
+      subscriptionText: string | null;
     };
 
 export function getRewardedAccessPrompt(input: {
@@ -58,6 +58,15 @@ export function getRewardedAccessPrompt(input: {
       balanceText,
       primaryText: `Открыть за ${cost} ${formatCreditsWord(cost)}`,
       subscriptionText: "Оформить подписку",
+    };
+  }
+
+  if (input.status?.wallet?.balance === 0) {
+    return {
+      mode: "standard-paywall",
+      balanceText,
+      primaryText: "Посмотреть рекламу или оформить Premium",
+      subscriptionText: null,
     };
   }
 

@@ -11,6 +11,7 @@ export * from "./pet-prevention";
 export * from "./push";
 export * from "./step";
 export * from "./survey";
+export * from "./survey-screening";
 export * from "./trainer-panel";
 export * from "./trainer-video";
 export * from "./training";

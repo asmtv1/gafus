@@ -43,13 +43,15 @@ export function RewardedAccessGate({
           {isBusy ? <ActivityIndicator color="#fff" /> : null}
           <Text style={styles.primaryText}>{isBusy ? "Открываем..." : prompt.primaryText}</Text>
         </Pressable>
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={onSubscriptionPress}
-          accessibilityRole="button"
-        >
-          <Text style={styles.secondaryText}>{prompt.subscriptionText}</Text>
-        </Pressable>
+        {prompt.subscriptionText ? (
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={onSubscriptionPress}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryText}>{prompt.subscriptionText}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

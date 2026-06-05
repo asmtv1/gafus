@@ -24,7 +24,7 @@ describe("getRewardedAccessPrompt", () => {
     });
   });
 
-  it("falls back to the standard paywall when the wallet has no credits", () => {
+  it("offers only rewarded ad action when the wallet has no credits", () => {
     expect(
       getRewardedAccessPrompt({
         isLoading: false,
@@ -36,7 +36,12 @@ describe("getRewardedAccessPrompt", () => {
             canUnlockWithCurrentBalance: false,
           },
         },
-      }).mode,
-    ).toBe("standard-paywall");
+      }),
+    ).toEqual({
+      mode: "standard-paywall",
+      balanceText: "У вас 0 кредитов из 5.",
+      primaryText: "Посмотреть рекламу или оформить Premium",
+      subscriptionText: null,
+    });
   });
 });

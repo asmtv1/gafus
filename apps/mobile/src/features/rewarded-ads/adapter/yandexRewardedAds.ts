@@ -226,7 +226,31 @@ export async function showYandexRewardedAd(
   logRewardedDebug("recording LOADED", { sessionId: session.sessionId });
   await rewardedAdsApi.recordEvent({ sessionId: session.sessionId, eventType: "LOADED" });
   logRewardedDebug("showing rewarded ad", { sessionId: session.sessionId });
-  await ad.show().catch((error) => recordFailedAndRethrow("REWARDED_AD_SHOW_FAILED", error));
-  logRewardedDebug("ad.show resolved, waiting for callbacks", { sessionId: session.sessionId });
+  void ad
+    .show()
+    .then(() => {
+      logRewardedDebug("ad.show resolved, waiting for callbacks", { sessionId: session.sessionId });
+    })
+    .catch(async (error) => {
+      if (finished) {
+        logRewardedDebug("ad.show failed after rewarded flow finished", {
+          sessionId: session.sessionId,
+          error: formatError(error),
+        });
+        return;
+      }
+      try {
+        await recordFailedOnce("REWARDED_AD_SHOW_FAILED", error);
+      } catch (recordError) {
+        logRewardedDebug("FAILED event record failed", {
+          sessionId: session.sessionId,
+          error: formatError(recordError),
+        });
+      }
+      if (!finished) {
+        finished = true;
+        rejectGrant(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
   return grantPromise;
 }

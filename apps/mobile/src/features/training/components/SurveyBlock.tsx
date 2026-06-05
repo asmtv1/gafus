@@ -3,11 +3,12 @@ import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  SurveyAnswerValue,
-  SurveyComparisonDto,
-  SurveyQuestion,
-  SurveyResponseDto,
+import {
+  getSurveyScreeningResult,
+  type SurveyAnswerValue,
+  type SurveyComparisonDto,
+  type SurveyQuestion,
+  type SurveyResponseDto,
 } from "@gafus/types";
 
 import { MascotSpinner } from "@/shared/components/ui";
@@ -189,6 +190,9 @@ export function SurveyBlock({
   const comparison: SurveyComparisonDto | null = comparisonQuery.data?.success
     ? comparisonQuery.data.data ?? null
     : null;
+  const screeningResult = response
+    ? getSurveyScreeningResult(surveySlug, response.answers)
+    : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -288,6 +292,13 @@ export function SurveyBlock({
           </Text>
         </View>
       )}
+
+      {screeningResult ? (
+        <View style={styles.resultCard}>
+          <Text style={styles.sectionTitle}>Результат анкеты</Text>
+          <Text style={styles.alertText}>{screeningResult}</Text>
+        </View>
+      ) : null}
 
       {template.sections.map((section) => {
         const questions = template.questions.filter(
@@ -453,6 +464,14 @@ const styles = StyleSheet.create({
   alertError: {
     backgroundColor: "rgba(220, 53, 69, 0.12)",
     borderColor: COLORS.error,
+  },
+  resultCard: {
+    backgroundColor: "rgba(99, 97, 40, 0.08)",
+    borderColor: COLORS.primary,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: SPACING.xs,
+    padding: SPACING.sm,
   },
   alertText: {
     color: COLORS.text,

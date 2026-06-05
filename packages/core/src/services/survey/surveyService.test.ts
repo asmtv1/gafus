@@ -201,6 +201,26 @@ describe("surveyService", () => {
     expect(mocks.surveyResponseCreate).not.toHaveBeenCalled();
   });
 
+  it("rejects an incomplete separation anxiety screening response", async () => {
+    mocks.stepFindFirst.mockResolvedValue({
+      id: "step-1",
+      type: "SURVEY",
+      surveySlug: "separation-anxiety-screening",
+    });
+
+    const result = await submitSurveyResponse("user-1", {
+      courseId: "course-1",
+      stepId: "step-1",
+      userStepId: "user-step-1",
+      surveySlug: "separation-anxiety-screening",
+      answers: { separation_sign_1: "yes" },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe("SURVEY_REQUIRED_ANSWERS_MISSING");
+    expect(mocks.surveyResponseCreate).not.toHaveBeenCalled();
+  });
+
   it("returns null comparison when final survey response is missing", async () => {
     mocks.surveyResponseFindMany.mockResolvedValue([
       {

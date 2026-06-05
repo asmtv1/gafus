@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mailer",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "description": "Отправка транзакционной почты через SMTP (Postfix в Docker)",
   "sideEffects": false,

@@ -80,6 +80,24 @@ function normalizeAnswers(value: unknown): Record<string, SurveyAnswerValue> {
   return {};
 }
 
+function hasValidRequiredAnswers(
+  template: SurveyTemplate,
+  answers: Record<string, SurveyAnswerValue>,
+): boolean {
+  if (template.slug !== "separation-anxiety-screening") return true;
+
+  return template.questions
+    .filter((question) => question.required)
+    .every((question) => {
+      const answer = answers[question.id];
+      if (Array.isArray(answer)) return answer.length > 0;
+      if (typeof answer === "boolean") return true;
+      if (typeof answer !== "string" || answer.trim().length === 0) return false;
+      if (question.type !== "singleChoice") return true;
+      return question.options?.some((option) => option.value === answer) ?? false;
+    });
+}
+
 function toDto(row: SurveyResponseRow, now = new Date()): SurveyResponseDto {
   const editableUntil = getEditableUntil(row.submittedAt);
   return {
@@ -124,6 +142,13 @@ async function validateSurveyStep(
   const template = findSurveyTemplate(input.surveySlug);
   if (!template) {
     return { ok: false, error: "Анкета не найдена", code: "SURVEY_NOT_FOUND" };
+  }
+  if (!hasValidRequiredAnswers(template, input.answers)) {
+    return {
+      ok: false,
+      error: "Ответьте на все обязательные вопросы анкеты",
+      code: "SURVEY_REQUIRED_ANSWERS_MISSING",
+    };
   }
 
   const access = await checkCourseAccessById(input.courseId, userId);
