@@ -61,8 +61,13 @@ export const courseIdEntitySchema = z
 // CUID v1 для UserStep.id (экзамен)
 export const userStepIdSchema = z.string().cuid("userStepId должен быть CUID");
 
-// CUID v1 для Step.id (когда в API передаётся именно ID шага)
-export const stepIdEntitySchema = z.string().cuid("stepId должен быть CUID");
+// Step.id в старых курсах CUID, в некоторых платных курсах UUID.
+export const stepIdEntitySchema = z
+  .string()
+  .min(1, "stepId обязателен")
+  .refine((value) => z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success, {
+    message: "stepId должен быть CUID или UUID",
+  });
 
 export const dayNumberSchema = z.number().int().min(1, "Номер дня должен быть положительным");
 

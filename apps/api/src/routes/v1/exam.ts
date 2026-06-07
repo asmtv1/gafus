@@ -18,6 +18,12 @@ const logger = createWebLogger("api-exam");
 export const examRoutes = new Hono();
 
 const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
+const stepIdSchema = z
+  .string()
+  .min(1, "stepId обязателен")
+  .refine((value) => z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success, {
+    message: "stepId должен быть CUID или UUID",
+  });
 
 function getRewardedPlatform(c: { req: { query(name: string): string | undefined; header(name: string): string | undefined } }): "ANDROID" | "IOS" {
   const candidate = c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
@@ -83,7 +89,7 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
 // Отправить результат экзамена
 const submitExamSchema = z.object({
   userStepId: z.string().cuid("userStepId должен быть CUID"),
-  stepId: z.string().cuid("stepId должен быть CUID"),
+  stepId: stepIdSchema,
   testAnswers: z.record(z.string(), z.number()).optional(),
   testScore: z.number().optional(),
   testMaxScore: z.number().optional(),
