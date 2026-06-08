@@ -188,6 +188,10 @@ YOOKASSA_SECRET_KEY=<secret_key>
 APPLE_BUNDLE_ID=ru.gafus.app
 APPLE_APP_ID=<numeric_app_id>   # обязателен в production для SignedDataVerifier
 APPLE_USE_SANDBOX=true          # true/1 — sandbox StoreKit; иначе production
+APPLE_ISSUER_ID=<issuer_id>     # App Store Server API
+APPLE_KEY_ID=<key_id>           # App Store Server API
+APPLE_PRIVATE_KEY_PATH=/run/secrets/apple_app_store_connect_api_key.p8
+APPLE_PRIVATE_KEY_HOST_PATH=/opt/gafus/secrets/AuthKey_<key_id>.p8
 ```
 
 ## Запуск

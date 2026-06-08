@@ -13,6 +13,7 @@ import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 
 function AppSubscriptionOnboardingCoordinator() {
   const hasHydrated = useMobileOnboardingTourStore((s) => s.hasHydrated);
+  const hasLoadedStatus = useMobileOnboardingTourStore((s) => s.hasLoadedStatus);
   const hasSeenV1 = useMobileOnboardingTourStore((s) => s.hasSeenV1);
   const isActive = useMobileOnboardingTourStore((s) => s.isActive);
   const isAwaitingRequiredPetCreation = useMobileOnboardingTourStore(
@@ -21,11 +22,25 @@ function AppSubscriptionOnboardingCoordinator() {
   const pendingReason = usePaywallStore((s) => s.pendingReason);
 
   useEffect(() => {
-    if (!pendingReason || !hasHydrated || !hasSeenV1 || isActive || isAwaitingRequiredPetCreation) {
+    if (
+      !pendingReason ||
+      !hasHydrated ||
+      !hasLoadedStatus ||
+      !hasSeenV1 ||
+      isActive ||
+      isAwaitingRequiredPetCreation
+    ) {
       return;
     }
     flushDeferredAppSubscriptionPaywall();
-  }, [hasHydrated, hasSeenV1, isActive, isAwaitingRequiredPetCreation, pendingReason]);
+  }, [
+    hasHydrated,
+    hasLoadedStatus,
+    hasSeenV1,
+    isActive,
+    isAwaitingRequiredPetCreation,
+    pendingReason,
+  ]);
 
   return null;
 }

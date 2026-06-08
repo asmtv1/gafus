@@ -6,6 +6,7 @@ import { COLORS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { canRetakeRejectedExam } from "../lib/examRetake";
 
 const PASS_THRESHOLD_PERCENT = 70;
 
@@ -99,10 +100,34 @@ export function TestQuestionsBlock({
     }
   };
 
+  const handleReset = () => {
+    setAnswers({});
+    setIsSubmitted(false);
+    setShowResults(false);
+    setSubmitError(null);
+    setExamResult((prev) =>
+      prev
+        ? {
+            ...prev,
+            testAnswers: null,
+            testScore: null,
+            testMaxScore: null,
+            overallScore: null,
+            isPassed: null,
+            trainerComment: null,
+            reviewedAt: null,
+            reviewedById: null,
+            reviewedBy: null,
+          }
+        : prev,
+    );
+  };
+
   const score = getScore();
   const isReviewed = examResult?.reviewedAt != null;
   const isPassed = examResult?.isPassed === true;
   const hasComment = Boolean(examResult?.trainerComment?.trim());
+  const canRetake = canRetakeRejectedExam(examResult);
   const allAnswered = checklist.length > 0 && Object.keys(answers).length === checklist.length;
   const canSubmit = !isSubmitted && allAnswered && !isSubmitting;
 
@@ -216,6 +241,12 @@ export function TestQuestionsBlock({
           <Text style={styles.scoreText}>
             Результат: {score.correct} из {score.total} правильных
           </Text>
+          {canRetake && (
+            <Pressable style={styles.retakeBtn} onPress={handleReset}>
+              <MaterialCommunityIcons name="reload" size={18} color={COLORS.primary} />
+              <Text style={styles.retakeBtnText}>ПРОЙТИ ЗАНОВО</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </View>
@@ -310,6 +341,19 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { backgroundColor: COLORS.disabled, opacity: 0.7 },
   submitBtnText: { color: COLORS.surface, fontSize: 14, fontWeight: "600" },
   submitBtnTextDisabled: { color: COLORS.placeholder },
-  scoreRow: { marginTop: SPACING.sm },
+  scoreRow: { marginTop: SPACING.sm, gap: SPACING.sm },
   scoreText: { fontSize: 14, fontWeight: "600", color: COLORS.text },
+  retakeBtn: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  retakeBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: "600" },
 });

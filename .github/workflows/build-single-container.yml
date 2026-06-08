@@ -423,6 +423,10 @@ jobs:
                 echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}"
                 echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}"
                 echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}"
+                echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}"
+                echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}"
+                echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}"
+                echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}"
                 echo ""
                 echo "# Реквизиты для ЮKassa (контакты на сайте)"
                 echo "NEXT_PUBLIC_CONTACT_EMAIL=${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}"
@@ -482,6 +486,22 @@ jobs:
                 echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}" >> ci-cd/docker/.env
                 echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}" >> ci-cd/docker/.env
                 echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}" >> ci-cd/docker/.env
+                echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}" >> ci-cd/docker/.env
+                echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}" >> ci-cd/docker/.env
+                echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}" >> ci-cd/docker/.env
+                echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^APPLE_ISSUER_ID=" ci-cd/docker/.env; then
+                echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^APPLE_KEY_ID=" ci-cd/docker/.env; then
+                echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^APPLE_PRIVATE_KEY_HOST_PATH=" ci-cd/docker/.env; then
+                echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}" >> ci-cd/docker/.env
+              fi
+              if ! grep -q "^APPLE_PRIVATE_KEY_PATH=" ci-cd/docker/.env; then
+                echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}" >> ci-cd/docker/.env
               fi
               if ! grep -q "^YANDEX_TELEMOST_API_BASE_URL=" ci-cd/docker/.env; then
                 echo "" >> ci-cd/docker/.env

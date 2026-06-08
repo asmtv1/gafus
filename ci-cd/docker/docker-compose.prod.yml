@@ -67,6 +67,12 @@ services:
       - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN}
       - AUTH_TRUST_HOST=true
       - APPLE_TEAM_ID=${APPLE_TEAM_ID}
+      - APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID:-}
+      - APPLE_APP_ID=${APPLE_APP_ID:-}
+      - APPLE_USE_SANDBOX=${APPLE_USE_SANDBOX:-false}
+      - APPLE_ISSUER_ID=${APPLE_ISSUER_ID:-}
+      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
+      - APPLE_PRIVATE_KEY_PATH=${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL}
       - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
@@ -107,6 +113,8 @@ services:
       # Яндекс Телемост (создание конференций при записи на консультацию)
       - YANDEX_TELEMOST_API_BASE_URL=${YANDEX_TELEMOST_API_BASE_URL:-https://cloud-api.yandex.net/v1}
       - YANDEX_TELEMOST_OAUTH_TOKEN=${YANDEX_TELEMOST_OAUTH_TOKEN}
+    volumes:
+      - ${APPLE_PRIVATE_KEY_HOST_PATH:-/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8}:${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}:ro
     # Uploads handled by CDN - no local volume needed
     # Убрали открытые порты - доступ только через Nginx
     restart: unless-stopped
@@ -226,6 +234,13 @@ services:
       # ЮKassa (автопродления подписок)
       - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
       - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      # Apple App Store Server API (синхронизация подписок)
+      - APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID:-}
+      - APPLE_APP_ID=${APPLE_APP_ID:-}
+      - APPLE_USE_SANDBOX=${APPLE_USE_SANDBOX:-false}
+      - APPLE_ISSUER_ID=${APPLE_ISSUER_ID:-}
+      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
+      - APPLE_PRIVATE_KEY_PATH=${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}
       # Yandex Cloud CDN credentials (необходимы для транскодирования видео)
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
@@ -241,6 +256,8 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - MAIL_FROM=${MAIL_FROM:-noreply@gafus.ru}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
+    volumes:
+      - ${APPLE_PRIVATE_KEY_HOST_PATH:-/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8}:${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}:ro
     deploy:
       resources:
         limits:
@@ -302,6 +319,9 @@ services:
       - APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID:-}
       - APPLE_APP_ID=${APPLE_APP_ID:-}
       - APPLE_USE_SANDBOX=${APPLE_USE_SANDBOX:-false}
+      - APPLE_ISSUER_ID=${APPLE_ISSUER_ID:-}
+      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
+      - APPLE_PRIVATE_KEY_PATH=${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}
       # База web URL для return_url платежей
       - WEB_APP_URL=${WEB_APP_URL}
       # HLS Video Protection
@@ -325,6 +345,8 @@ services:
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-}
       - YANDEX_TELEMOST_API_BASE_URL=${YANDEX_TELEMOST_API_BASE_URL:-https://cloud-api.yandex.net/v1}
       - YANDEX_TELEMOST_OAUTH_TOKEN=${YANDEX_TELEMOST_OAUTH_TOKEN}
+    volumes:
+      - ${APPLE_PRIVATE_KEY_HOST_PATH:-/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8}:${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]

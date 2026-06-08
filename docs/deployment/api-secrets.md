@@ -83,6 +83,10 @@ api:
 | `APPLE_BUNDLE_ID`      | Bundle ID приложения  | API (IAP verify курсов, iOS) |
 | `APPLE_APP_ID`         | Числовой App Store ID | API (обязателен в prod для verifier) |
 | `APPLE_USE_SANDBOX`    | Sandbox StoreKit      | API (`true`/`1` — песочница) |
+| `APPLE_ISSUER_ID`      | Issuer ID App Store Connect API | Web, API, Worker (Apple subscription sync) |
+| `APPLE_KEY_ID`         | Key ID App Store Connect API | Web, API, Worker (Apple subscription sync) |
+| `APPLE_PRIVATE_KEY_PATH` | Путь к `.p8` внутри контейнера | Web, API, Worker (Apple subscription sync) |
+| `APPLE_PRIVATE_KEY_HOST_PATH` | Путь к `.p8` на сервере для bind mount | Docker compose host only |
 | `WEB_APP_URL`          | Базовый URL web для return_url | API (платежи) |
 | `VK_CLIENT_ID`         | VK ID приложение (mobile auth, vk-link) | Web, API |
 | ~~`NEXT_PUBLIC_CONTACT_*`~~ | ~~Контакты~~ | **Не используются** — страница /contacts теперь статический public/contacts.html |

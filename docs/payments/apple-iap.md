@@ -8,7 +8,7 @@
 
 ## Переменные окружения (без секретов в репозитории)
 
-Секреты Apple (ключи API, `.p8`) в репозиторий **не** кладутся. Для **верификации JWS** на сервере достаточно:
+Секреты Apple (ключи API, `.p8`) в репозиторий **не** кладутся. Для первичной **верификации JWS** на сервере достаточно:
 
 | Переменная | Описание |
 | ---------- | -------- |
@@ -18,7 +18,16 @@
 
 Корневые сертификаты Apple для проверки цепочки подписи поставляются библиотекой `@apple/app-store-server-library` (отдельные файлы в Docker не требуются).
 
-**Issuer ID, Key ID, .p8** из App Store Connect нужны для **App Store Server API** и уведомлений V2 в будущем; для MVP verify по JWS они не обязательны.
+Для полноценной синхронизации подписок через **App Store Server API** также нужны:
+
+| Переменная | Описание |
+| ---------- | -------- |
+| `APPLE_ISSUER_ID` | Issuer ID на странице Users and Access → Integration → API App Store Connect |
+| `APPLE_KEY_ID` | ID созданного API key |
+| `APPLE_PRIVATE_KEY_PATH` | Путь к `.p8` внутри контейнера, например `/run/secrets/apple_app_store_connect_api_key.p8` |
+| `APPLE_PRIVATE_KEY_HOST_PATH` | Путь к `.p8` на production-сервере для docker bind mount, например `/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8` |
+
+На сервере `.p8` кладётся вне репозитория и монтируется read-only в `web`, `api` и `worker`. Альтернатива для локальной разработки — `APPLE_PRIVATE_KEY` с содержимым ключа, где переносы строк можно записать как `\n`.
 
 ## Матрица sandbox / production
 

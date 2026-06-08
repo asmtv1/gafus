@@ -4,11 +4,13 @@ import type { MobileOnboardingTourStepId } from "./tour-steps";
 
 interface MobileOnboardingTourState {
   hasHydrated: boolean;
+  hasLoadedStatus: boolean;
   hasSeenV1: boolean;
   currentStepId: MobileOnboardingTourStepId;
   isActive: boolean;
   isAwaitingRequiredPetCreation: boolean;
   setHasSeenV1: (value: boolean) => void;
+  setHasLoadedStatus: (value: boolean) => void;
   setHasHydrated: (value: boolean) => void;
   startTour: () => void;
   setCurrentStepId: (stepId: MobileOnboardingTourStepId) => void;
@@ -22,11 +24,13 @@ interface MobileOnboardingTourState {
 
 export const useMobileOnboardingTourStore = create<MobileOnboardingTourState>((set) => ({
   hasHydrated: false,
+  hasLoadedStatus: false,
   hasSeenV1: false,
   currentStepId: "start",
   isActive: false,
   isAwaitingRequiredPetCreation: false,
   setHasSeenV1: (value) => set({ hasSeenV1: value }),
+  setHasLoadedStatus: (value) => set({ hasLoadedStatus: value }),
   setHasHydrated: (value) => set({ hasHydrated: value }),
   startTour: () =>
     set({

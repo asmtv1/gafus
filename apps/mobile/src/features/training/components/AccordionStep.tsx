@@ -12,7 +12,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import Animated, { useAnimatedStyle, withTiming, useSharedValue } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 import { useCallback, useEffect, useMemo, useState, memo, useRef } from "react";
 import type { ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -54,6 +58,7 @@ const EXTERNAL_VIDEO_PATTERNS = [
   /vk\.com\/video/,
   /vkvideo\.ru/,
 ];
+
 function isExternalVideoUrl(url: string): boolean {
   return EXTERNAL_VIDEO_PATTERNS.some((p) => p.test(url));
 }
@@ -421,18 +426,6 @@ function AccordionStepComponent({
     restoreTimerFromStorage,
   ]);
 
-  // Анимация высоты контента
-  const heightAnim = useSharedValue(0);
-
-  useEffect(() => {
-    heightAnim.value = withTiming(isOpen ? 1 : 0, { duration: 200 });
-  }, [isOpen, heightAnim]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: heightAnim.value,
-    maxHeight: heightAnim.value * 3000, // чтобы контент не обрезался, скролл внутри
-  }));
-
   const stepTypeLabel = isBreak
     ? "Перерыв"
     : isDiary
@@ -466,9 +459,7 @@ function AccordionStepComponent({
           accessibilityLabel={isOpen ? "Скрыть шаг" : "Подробнее о шаге"}
         >
           {stepSubtitle || stepTypeLabel ? (
-            <Text style={styles.stepTitleLine} numberOfLines={1} ellipsizeMode="tail">
-              {stepSubtitle || stepTypeLabel}
-            </Text>
+            <Text style={styles.stepTitleLine}>{stepSubtitle || stepTypeLabel}</Text>
           ) : null}
           <View style={styles.headerRowExpand}>
             <View style={styles.expandControl}>
@@ -487,13 +478,14 @@ function AccordionStepComponent({
           </View>
         </Pressable>
 
-        {/* Контент (раскрывающийся); pointerEvents: на iOS свёрнутый слой не должен перехватывать тапы */}
-        <Animated.View
-          style={[styles.content, animatedStyle]}
-          pointerEvents={isOpen ? "auto" : "none"}
-        >
+        {/* Контент раскрывается нативным layout: без ручного измерения высоты и магических лимитов. */}
+        <Animated.View layout={LinearTransition.duration(200)} style={styles.content}>
           {isOpen && (
-            <View style={styles.stepContentInner}>
+            <Animated.View
+              entering={FadeIn.duration(120)}
+              exiting={FadeOut.duration(80)}
+              style={styles.stepContentInner}
+            >
               <Divider style={styles.divider} />
 
               {accessGate ? (
@@ -980,7 +972,7 @@ function AccordionStepComponent({
               </View>
                 </>
               )}
-            </View>
+            </Animated.View>
           )}
         </Animated.View>
       </View>

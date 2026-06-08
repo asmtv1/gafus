@@ -14,6 +14,7 @@ import {
   MOBILE_ONBOARDING_TOUR_VERSION,
   type MobileOnboardingTourStepId,
 } from "./tour-steps";
+import { shouldAutoStartMobileOnboardingTour } from "./tour-autostart";
 import { TourOverlay } from "./TourOverlay";
 import { useMobileOnboardingTourStore } from "./tour-store";
 
@@ -62,8 +63,10 @@ function MobileOnboardingTourController() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const {
     hasHydrated,
+    hasLoadedStatus,
     hasSeenV1,
     setHasSeenV1,
+    setHasLoadedStatus,
     currentStepId,
     isActive,
     isAwaitingRequiredPetCreation,
@@ -99,17 +102,20 @@ function MobileOnboardingTourController() {
   useEffect(() => {
     if (!isAuthenticated) {
       closeTour();
+      setHasLoadedStatus(false);
     }
-  }, [closeTour, isAuthenticated]);
+  }, [closeTour, isAuthenticated, setHasLoadedStatus]);
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return;
     let cancelled = false;
+    setHasLoadedStatus(false);
     const loadStatus = async () => {
       const response = await onboardingTourApi.getStatus();
       if (cancelled) return;
       if (response.success) {
         setHasSeenV1(Boolean(response.data?.hasSeenV1));
+        setHasLoadedStatus(true);
         return;
       }
       reportClientError(new Error(response.error ?? "Не удалось загрузить статус экскурсии"), {
@@ -117,22 +123,30 @@ function MobileOnboardingTourController() {
         severity: "warning",
         keys: { operation: "load_status" },
       });
-      setHasSeenV1(false);
     };
     void loadStatus();
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, isAuthenticated, setHasSeenV1]);
+  }, [hasHydrated, isAuthenticated, setHasLoadedStatus, setHasSeenV1]);
 
   useEffect(() => {
-    if (!hasHydrated || !isAuthenticated || hasSeenV1 || isActive) return;
+    if (
+      !shouldAutoStartMobileOnboardingTour({
+        hasLoadedStatus,
+        hasSeenV1,
+        isActive,
+        isAuthenticated,
+      })
+    ) {
+      return;
+    }
     const timer = setTimeout(() => {
       startTour();
       trackTourEvent("mobile_onboarding_started");
     }, TOUR_AUTOSTART_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [hasHydrated, hasSeenV1, isActive, isAuthenticated, startTour]);
+  }, [hasLoadedStatus, hasSeenV1, isActive, isAuthenticated, startTour]);
 
   useEffect(() => {
     if (!isActive || !step) return;

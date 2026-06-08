@@ -7,7 +7,10 @@ import cron from "node-cron";
 import { scheduleReengagementCampaigns } from "@gafus/reengagement";
 import { recordDailyMetrics } from "@gafus/reengagement";
 import { createWorkerLogger } from "@gafus/logger";
-import { reconcileStaleYookassaPendingAppSubscriptions } from "@gafus/core/services/appSubscription";
+import {
+  reconcileAppleAppSubscriptionsFromServer,
+  reconcileStaleYookassaPendingAppSubscriptions,
+} from "@gafus/core/services/appSubscription";
 import { reconcileMissedConsultationReminders } from "@gafus/core/services/consultation";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
@@ -97,6 +100,16 @@ export function startCronJobs(): void {
         await reconcileStaleYookassaPendingAppSubscriptions({ batchSize: 100 });
       } catch (error) {
         logger.error("Ошибка reconciliation pending app subscription", error as Error);
+      }
+
+      logger.info("Запуск Apple app subscription sync");
+      try {
+        const result = await reconcileAppleAppSubscriptionsFromServer({ batchSize: 100 });
+        if (result.synced > 0 || result.failed > 0) {
+          logger.info("Apple app subscription sync завершён", result);
+        }
+      } catch (error) {
+        logger.error("Ошибка Apple app subscription sync", error as Error);
       }
 
       logger.info("Запуск renewals app subscription");

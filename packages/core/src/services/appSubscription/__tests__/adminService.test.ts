@@ -163,8 +163,9 @@ describe("getAppSubscriptionAdminDashboard", () => {
       {
         subscriptionId: "cancel-at-end",
         userId: "u2",
-        amount: { toString: () => "199.00" },
+        amount: null,
         currency: "RUB",
+        applePriceMilliunits: 199000,
         kind: "INITIAL",
         succeededAt: new Date("2026-05-12T10:00:30.000Z"),
         createdAt: new Date("2026-05-12T09:59:00.000Z"),
@@ -208,6 +209,10 @@ describe("getAppSubscriptionAdminDashboard", () => {
       isActiveNow: false,
       attention: "not_renewed",
       totalPaidRub: 200,
+    });
+    expect(result.rows.find((row) => row.id === "cancel-at-end")).toMatchObject({
+      totalPaidRub: 199,
+      paymentsCount: 1,
     });
     expect(result.rows.find((row) => row.id === "past-due")).toMatchObject({
       isActiveNow: false,

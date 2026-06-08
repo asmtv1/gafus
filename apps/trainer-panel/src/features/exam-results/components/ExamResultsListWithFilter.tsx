@@ -15,6 +15,7 @@ import {
 import { ExamResultsList } from "./ExamResultsList";
 import type { ExamResultWithDetails } from "../lib/getExamResults";
 import { useRouter, useSearchParams } from "next/navigation";
+import { buildExamResultsFilterUrl } from "../lib/examResultsFilterUrl";
 
 interface ExamResultsListWithFilterProps {
   initialExamResults: ExamResultWithDetails[];
@@ -59,13 +60,13 @@ export function ExamResultsListWithFilter({
 
     // Обновляем URL, если предпочтение отличается от начального значения
     if (shouldHide !== initialHideCompleted) {
-      const params = new URLSearchParams(searchParams.toString());
-      if (shouldHide) {
-        params.set("hideCompleted", "true");
-      } else {
-        params.delete("hideCompleted");
+      const nextUrl = buildExamResultsFilterUrl({
+        currentSearch: searchParams.toString(),
+        hideCompleted: shouldHide,
+      });
+      if (nextUrl) {
+        router.replace(nextUrl, { scroll: false });
       }
-      router.replace(`?${params.toString()}`, { scroll: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -75,13 +76,13 @@ export function ExamResultsListWithFilter({
     setHideCompleted(newValue);
     localStorage.setItem("examResults_hideCompleted", String(newValue));
 
-    const params = new URLSearchParams(searchParams.toString());
-    if (newValue) {
-      params.set("hideCompleted", "true");
-    } else {
-      params.delete("hideCompleted");
+    const nextUrl = buildExamResultsFilterUrl({
+      currentSearch: searchParams.toString(),
+      hideCompleted: newValue,
+    });
+    if (nextUrl) {
+      router.replace(nextUrl, { scroll: false });
     }
-    router.replace(`?${params.toString()}`, { scroll: false });
   };
 
   const handleSortChange = (

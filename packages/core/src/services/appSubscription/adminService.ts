@@ -52,6 +52,7 @@ type PaymentLike = {
   userId: string;
   amount: { toString(): string } | number | string | null;
   currency: string | null;
+  applePriceMilliunits?: number | null;
   succeededAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,16 @@ function moneyToNumber(value: PaymentLike["amount"]): number {
   if (value == null) return 0;
   const numberValue = typeof value === "number" ? value : Number(value.toString());
   return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function appleMilliunitsToNumber(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return 0;
+  return Number((value / 1000).toFixed(3));
+}
+
+function paymentAmount(payment: PaymentLike): number {
+  const amount = moneyToNumber(payment.amount);
+  return amount > 0 ? amount : appleMilliunitsToNumber(payment.applePriceMilliunits);
 }
 
 function paymentDate(payment: PaymentLike): Date {
@@ -134,6 +145,7 @@ export async function getAppSubscriptionAdminDashboard(
         userId: true,
         amount: true,
         currency: true,
+        applePriceMilliunits: true,
         kind: true,
         succeededAt: true,
         createdAt: true,
@@ -159,7 +171,7 @@ export async function getAppSubscriptionAdminDashboard(
 
   for (const payment of succeededPayments as PaymentLike[]) {
     if (payment.currency == null || payment.currency === "RUB") {
-      totalRevenueRub += moneyToNumber(payment.amount);
+      totalRevenueRub += paymentAmount(payment);
     }
   }
 
@@ -174,7 +186,7 @@ export async function getAppSubscriptionAdminDashboard(
     const isChurned = isNotRenewed(subscription, payments, now);
     const totalPaidRub = payments.reduce((sum, payment) => {
       if (payment.currency != null && payment.currency !== "RUB") return sum;
-      return sum + moneyToNumber(payment.amount);
+      return sum + paymentAmount(payment);
     }, 0);
 
     if (isActiveNow) activeNow += 1;

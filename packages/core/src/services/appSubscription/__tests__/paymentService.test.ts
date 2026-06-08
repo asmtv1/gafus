@@ -15,6 +15,7 @@ const mockTrialFindUnique = vi.fn();
 const mockTrialUpsert = vi.fn();
 const mockTransaction = vi.fn();
 const mockUserFindUnique = vi.fn();
+const mockGetAllSubscriptionStatuses = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -58,13 +59,26 @@ vi.mock("@gafus/logger", () => ({
 }));
 
 const verifyAndDecodeTransaction = vi.fn();
+const verifyAndDecodeRenewalInfo = vi.fn();
+const verifyAndDecodeNotification = vi.fn();
 
 vi.mock("@apple/app-store-server-library", () => ({
   Environment: { SANDBOX: "SANDBOX", PRODUCTION: "PRODUCTION" },
+  Status: {
+    ACTIVE: 1,
+    EXPIRED: 2,
+    BILLING_RETRY: 3,
+    BILLING_GRACE_PERIOD: 4,
+    REVOKED: 5,
+  },
   Type: { AUTO_RENEWABLE_SUBSCRIPTION: "Auto-Renewable Subscription" },
+  AppStoreServerAPIClient: class {
+    getAllSubscriptionStatuses = mockGetAllSubscriptionStatuses;
+  },
   SignedDataVerifier: class {
     verifyAndDecodeTransaction = verifyAndDecodeTransaction;
-    verifyAndDecodeNotification = vi.fn();
+    verifyAndDecodeRenewalInfo = verifyAndDecodeRenewalInfo;
+    verifyAndDecodeNotification = verifyAndDecodeNotification;
   },
 }));
 
@@ -80,6 +94,7 @@ describe("app subscription payment service", () => {
     mockEventFindFirst.mockResolvedValue(null);
     mockEventUpdate.mockResolvedValue({});
     mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
+    mockPaymentFindUnique.mockResolvedValue(null);
     mockPaymentUpdate.mockResolvedValue({});
     mockSubscriptionFindFirst.mockResolvedValue(null);
     mockSubscriptionFindMany.mockResolvedValue([]);
@@ -94,11 +109,18 @@ describe("app subscription payment service", () => {
     mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         $executeRawUnsafe: vi.fn().mockResolvedValue(0),
-        appSubscriptionPayment: { create: mockPaymentCreate, update: mockPaymentUpdate },
+        appSubscriptionPayment: {
+          create: mockPaymentCreate,
+          findUnique: mockPaymentFindUnique,
+          update: mockPaymentUpdate,
+        },
         appSubscription: {
           create: mockSubscriptionCreate,
           findFirst: mockSubscriptionFindFirst,
           update: mockSubscriptionUpdate,
+        },
+        appSubscriptionEvent: {
+          create: mockEventCreate,
         },
         appSubscriptionTrial: {
           upsert: mockTrialUpsert,
@@ -704,6 +726,259 @@ describe("app subscription payment service", () => {
         }),
       }),
     );
+  });
+
+  it("records Apple subscription price as the transaction amount", async () => {
+    const { verifyAppleAppSubscription } = await import("../paymentService");
+    mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
+    verifyAndDecodeTransaction.mockResolvedValue({
+      type: "Auto-Renewable Subscription",
+      transactionId: "tx-priced",
+      originalTransactionId: "orig-priced",
+      productId: "premium-week",
+      appAccountToken: "account-token-1",
+      expiresDate: Date.parse("2026-06-17T10:00:00.000Z"),
+      purchaseDate: Date.parse("2026-06-10T10:00:00.000Z"),
+      price: 199000,
+      currency: "RUB",
+    });
+
+    const result = await verifyAppleAppSubscription({
+      userId: "user-1",
+      signedTransactionInfo: "signed-priced",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(mockPaymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          appleTransactionId: "tx-priced",
+          amount: 199,
+          currency: "RUB",
+          applePriceMilliunits: 199000,
+        }),
+      }),
+    );
+  });
+
+  it("syncs Apple subscription status and records a renewal from App Store Server API", async () => {
+    const { syncAppleAppSubscriptionFromServer } = await import("../paymentService");
+    vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
+    vi.stubEnv("APPLE_KEY_ID", "key-id");
+    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      provider: "APPLE",
+      appleOriginalTransactionId: "orig-sync",
+    });
+    mockGetAllSubscriptionStatuses.mockResolvedValue({
+      data: [
+        {
+          subscriptionGroupIdentifier: "group-1",
+          lastTransactions: [
+            {
+              status: 1,
+              originalTransactionId: "orig-sync",
+              signedTransactionInfo: "signed-renewal-tx",
+              signedRenewalInfo: "signed-renewal-info",
+            },
+          ],
+        },
+      ],
+    });
+    verifyAndDecodeTransaction.mockResolvedValue({
+      type: "Auto-Renewable Subscription",
+      transactionId: "tx-renewal",
+      originalTransactionId: "orig-sync",
+      productId: "premium-week",
+      expiresDate: Date.parse("2026-06-24T10:00:00.000Z"),
+      purchaseDate: Date.parse("2026-06-17T10:00:00.000Z"),
+      price: 199000,
+      currency: "RUB",
+      storefront: "RUS",
+      environment: "Sandbox",
+      webOrderLineItemId: "web-order-1",
+    });
+    verifyAndDecodeRenewalInfo.mockResolvedValue({
+      originalTransactionId: "orig-sync",
+      productId: "premium-week",
+      autoRenewStatus: 1,
+      renewalDate: Date.parse("2026-06-24T10:00:00.000Z"),
+      renewalPrice: 199000,
+      currency: "RUB",
+    });
+
+    const result = await syncAppleAppSubscriptionFromServer({
+      originalTransactionId: "orig-sync",
+    });
+
+    expect(result).toEqual({ success: true, status: "ACTIVE", userId: "user-1" });
+    expect(mockGetAllSubscriptionStatuses).toHaveBeenCalledWith("orig-sync");
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-1" },
+      data: expect.objectContaining({
+        status: "ACTIVE",
+        currentPeriodStart: new Date("2026-06-17T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-06-24T10:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        appleProductId: "premium-week",
+      }),
+    });
+    expect(mockPaymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "RENEWAL",
+          status: "SUCCEEDED",
+          amount: 199,
+          currency: "RUB",
+          appleTransactionId: "tx-renewal",
+          appleOriginalTransactionId: "orig-sync",
+        }),
+      }),
+    );
+  });
+
+  it("syncs Apple subscription from a renewal-only server notification", async () => {
+    const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
+    vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
+    vi.stubEnv("APPLE_KEY_ID", "key-id");
+    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    verifyAndDecodeNotification.mockResolvedValue({
+      notificationType: "DID_RENEW",
+      notificationUUID: "notification-1",
+      data: {
+        signedRenewalInfo: "signed-renewal-info-only",
+      },
+    });
+    verifyAndDecodeRenewalInfo.mockResolvedValue({
+      originalTransactionId: "orig-notification",
+      productId: "premium-week",
+      autoRenewStatus: 1,
+      renewalDate: Date.parse("2026-06-24T10:00:00.000Z"),
+    });
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-1",
+      userId: "user-1",
+      provider: "APPLE",
+      appleOriginalTransactionId: "orig-notification",
+    });
+    mockGetAllSubscriptionStatuses.mockResolvedValue({
+      data: [
+        {
+          lastTransactions: [
+            {
+              status: 1,
+              originalTransactionId: "orig-notification",
+              signedTransactionInfo: "signed-notification-tx",
+              signedRenewalInfo: "signed-renewal-info-only",
+            },
+          ],
+        },
+      ],
+    });
+    verifyAndDecodeTransaction.mockResolvedValue({
+      type: "Auto-Renewable Subscription",
+      transactionId: "tx-notification",
+      originalTransactionId: "orig-notification",
+      productId: "premium-week",
+      purchaseDate: Date.parse("2026-06-17T10:00:00.000Z"),
+      expiresDate: Date.parse("2026-06-24T10:00:00.000Z"),
+      price: 199000,
+      currency: "RUB",
+    });
+
+    const result = await handleAppleAppSubscriptionNotification({
+      signedPayload: "signed-notification-payload",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(mockGetAllSubscriptionStatuses).toHaveBeenCalledWith("orig-notification");
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "sub-1" },
+        data: expect.objectContaining({ status: "ACTIVE" }),
+      }),
+    );
+  });
+
+  it("reconciles active Apple subscriptions from the server in batches", async () => {
+    const { reconcileAppleAppSubscriptionsFromServer } = await import("../paymentService");
+    vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
+    vi.stubEnv("APPLE_KEY_ID", "key-id");
+    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    mockSubscriptionFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        appleOriginalTransactionId: "orig-batch-1",
+      },
+      {
+        id: "sub-2",
+        userId: "user-2",
+        appleOriginalTransactionId: "orig-batch-2",
+      },
+    ]);
+    mockSubscriptionFindFirst
+      .mockResolvedValueOnce({
+        id: "sub-1",
+        userId: "user-1",
+        appleProductId: "premium-week",
+      })
+      .mockResolvedValueOnce({
+        id: "sub-2",
+        userId: "user-2",
+        appleProductId: "premium-week",
+      });
+    mockGetAllSubscriptionStatuses.mockImplementation(async (originalTransactionId: string) => ({
+      data: [
+        {
+          lastTransactions: [
+            {
+              status: 1,
+              originalTransactionId,
+              signedTransactionInfo: `signed-tx:${originalTransactionId}`,
+              signedRenewalInfo: `signed-renewal:${originalTransactionId}`,
+            },
+          ],
+        },
+      ],
+    }));
+    verifyAndDecodeTransaction.mockImplementation(async (signed: string) => {
+      const originalTransactionId = signed.split(":")[1] ?? "orig-batch-1";
+      return {
+        type: "Auto-Renewable Subscription",
+        transactionId: `tx-${originalTransactionId}`,
+        originalTransactionId,
+        productId: "premium-week",
+        purchaseDate: Date.parse("2026-06-17T10:00:00.000Z"),
+        expiresDate: Date.parse("2026-06-24T10:00:00.000Z"),
+        price: 199000,
+        currency: "RUB",
+      };
+    });
+    verifyAndDecodeRenewalInfo.mockImplementation(async (signed: string) => ({
+      originalTransactionId: signed.split(":")[1] ?? "orig-batch-1",
+      productId: "premium-week",
+      currency: "RUB",
+      autoRenewStatus: 1,
+    }));
+
+    const result = await reconcileAppleAppSubscriptionsFromServer({ batchSize: 2 });
+
+    expect(result).toEqual({ processed: 2, synced: 2, failed: 0, skipped: 0 });
+    expect(mockSubscriptionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          provider: "APPLE",
+          appleOriginalTransactionId: { not: null },
+          status: { in: ["ACTIVE", "PAST_DUE", "PENDING"] },
+        }),
+        take: 2,
+      }),
+    );
+    expect(mockGetAllSubscriptionStatuses).toHaveBeenCalledWith("orig-batch-1");
+    expect(mockGetAllSubscriptionStatuses).toHaveBeenCalledWith("orig-batch-2");
   });
 
   it("does not treat an already recorded inactive Apple transaction as verified", async () => {

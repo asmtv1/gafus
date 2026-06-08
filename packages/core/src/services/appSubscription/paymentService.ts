@@ -1,10 +1,15 @@
-import { createHash } from "node:crypto";
-
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { Environment, SignedDataVerifier, Type } from "@apple/app-store-server-library";
+import {
+  AppStoreServerAPIClient,
+  Environment,
+  SignedDataVerifier,
+  Status as AppleSubscriptionStatus,
+  Type,
+} from "@apple/app-store-server-library";
 
 import { getAppSubscriptionAccess } from "./accessService";
 import {
@@ -23,6 +28,8 @@ const APPLE_ROOT_CA_G3_DER_BASE64 =
 
 let appleVerifierSingleton: SignedDataVerifier | null = null;
 let appleVerifierConfigKey: string | null = null;
+let appleServerApiClientSingleton: AppStoreServerAPIClient | null = null;
+let appleServerApiClientConfigKey: string | null = null;
 
 class YookassaHttpError extends Error {
   constructor(
@@ -77,11 +84,124 @@ function getAppleVerifier():
   return appleVerifierSingleton;
 }
 
+function getAppleEnvironment():
+  | { ok: true; bundleId: string; environment: Environment; appAppleId?: number }
+  | { ok: false; code: string; message: string } {
+  const bundleId = process.env.APPLE_BUNDLE_ID?.trim();
+  if (!bundleId) {
+    return { ok: false, code: "CONFIG_APPLE_IAP", message: "APPLE_BUNDLE_ID не задан" };
+  }
+  const useSandbox = parseEnvBoolean(process.env.APPLE_USE_SANDBOX);
+  const environment = useSandbox ? Environment.SANDBOX : Environment.PRODUCTION;
+
+  let appAppleId: number | undefined;
+  const appIdRaw = process.env.APPLE_APP_ID?.trim();
+  if (appIdRaw) {
+    const n = Number.parseInt(appIdRaw, 10);
+    if (!Number.isFinite(n) || n <= 0) {
+      return { ok: false, code: "CONFIG_APPLE_IAP", message: "Некорректный APPLE_APP_ID" };
+    }
+    appAppleId = n;
+  } else if (environment === Environment.PRODUCTION) {
+    return { ok: false, code: "CONFIG_APPLE_IAP", message: "Для production требуется APPLE_APP_ID" };
+  }
+
+  return { ok: true, bundleId, environment, appAppleId };
+}
+
+function getApplePrivateKey():
+  | { ok: true; privateKey: string; sourceKey: string }
+  | { ok: false; code: string; message: string } {
+  const inlineKey = process.env.APPLE_PRIVATE_KEY?.trim();
+  if (inlineKey) {
+    return {
+      ok: true,
+      privateKey: inlineKey.replace(/\\n/g, "\n"),
+      sourceKey: `inline:${inlineKey.length}`,
+    };
+  }
+
+  const privateKeyPath = process.env.APPLE_PRIVATE_KEY_PATH?.trim();
+  if (!privateKeyPath) {
+    return {
+      ok: false,
+      code: "CONFIG_APPLE_SERVER_API",
+      message: "APPLE_PRIVATE_KEY или APPLE_PRIVATE_KEY_PATH не задан",
+    };
+  }
+
+  try {
+    return {
+      ok: true,
+      privateKey: readFileSync(privateKeyPath, "utf8"),
+      sourceKey: `path:${privateKeyPath}`,
+    };
+  } catch {
+    return {
+      ok: false,
+      code: "CONFIG_APPLE_SERVER_API",
+      message: "Не удалось прочитать APPLE_PRIVATE_KEY_PATH",
+    };
+  }
+}
+
+function getAppleServerApiClient():
+  | AppStoreServerAPIClient
+  | { ok: false; code: string; message: string } {
+  const env = getAppleEnvironment();
+  if (!env.ok) return env;
+
+  const issuerId = process.env.APPLE_ISSUER_ID?.trim();
+  const keyId = process.env.APPLE_KEY_ID?.trim();
+  if (!issuerId || !keyId) {
+    return {
+      ok: false,
+      code: "CONFIG_APPLE_SERVER_API",
+      message: "APPLE_ISSUER_ID или APPLE_KEY_ID не задан",
+    };
+  }
+
+  const privateKey = getApplePrivateKey();
+  if (!privateKey.ok) return privateKey;
+
+  const configKey = [
+    env.bundleId,
+    env.environment,
+    issuerId,
+    keyId,
+    privateKey.sourceKey,
+  ].join("|");
+  if (appleServerApiClientSingleton && appleServerApiClientConfigKey === configKey) {
+    return appleServerApiClientSingleton;
+  }
+
+  appleServerApiClientSingleton = new AppStoreServerAPIClient(
+    privateKey.privateKey,
+    keyId,
+    issuerId,
+    env.bundleId,
+    env.environment,
+  );
+  appleServerApiClientConfigKey = configKey;
+  return appleServerApiClientSingleton;
+}
+
 function isAutoRenewableType(type: unknown): boolean {
   return (
     type === Type.AUTO_RENEWABLE_SUBSCRIPTION ||
     type === "Auto-Renewable Subscription"
   );
+}
+
+function appleMilliunitsToAmount(price: unknown): number | null {
+  if (typeof price !== "number" || !Number.isFinite(price) || price < 0) return null;
+  return Number((price / 1000).toFixed(3));
+}
+
+function msToDate(value: unknown): Date | null {
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return new Date(n);
 }
 
 function isPrismaUniqueViolation(error: unknown): boolean {
@@ -1076,7 +1196,7 @@ export async function verifyAppleAppSubscription(_params: {
         provider: "APPLE",
         kind: "INITIAL",
         status: nextStatus === "ACTIVE" ? "SUCCEEDED" : "CANCELED",
-        amount: null,
+        amount: appleMilliunitsToAmount(payload.price),
         currency: payload.currency ?? null,
         periodStart,
         periodEnd,
@@ -1103,6 +1223,325 @@ export async function verifyAppleAppSubscription(_params: {
   }
 
   return { success: true as const };
+}
+
+type AppleServerSyncStatus =
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "EXPIRED"
+  | "REVOKED";
+
+type AppleLastTransactionLike = {
+  status?: number;
+  originalTransactionId?: string;
+  signedTransactionInfo?: string;
+  signedRenewalInfo?: string;
+};
+
+type DecodedAppleTransactionLike = {
+  type?: unknown;
+  transactionId?: string;
+  originalTransactionId?: string;
+  productId?: string;
+  purchaseDate?: number;
+  expiresDate?: number;
+  revocationDate?: number;
+  price?: number;
+  currency?: string;
+  storefront?: string;
+  environment?: string;
+  webOrderLineItemId?: string | number;
+};
+
+type DecodedAppleRenewalLike = {
+  originalTransactionId?: string;
+  productId?: string;
+  autoRenewStatus?: number;
+  expirationIntent?: number;
+  isInBillingRetryPeriod?: boolean;
+  gracePeriodExpiresDate?: number;
+  renewalDate?: number;
+  renewalPrice?: number;
+  currency?: string;
+};
+
+function mapAppleServerStatus(params: {
+  appleStatus: number | undefined;
+  transaction: DecodedAppleTransactionLike;
+  now: Date;
+}): AppleServerSyncStatus {
+  const revokedAt = msToDate(params.transaction.revocationDate);
+  if (revokedAt || params.appleStatus === AppleSubscriptionStatus.REVOKED) return "REVOKED";
+  if (params.appleStatus === AppleSubscriptionStatus.BILLING_RETRY) return "PAST_DUE";
+  if (params.appleStatus === AppleSubscriptionStatus.EXPIRED) return "EXPIRED";
+  if (
+    params.appleStatus === AppleSubscriptionStatus.ACTIVE ||
+    params.appleStatus === AppleSubscriptionStatus.BILLING_GRACE_PERIOD
+  ) {
+    return "ACTIVE";
+  }
+
+  const periodEnd = msToDate(params.transaction.expiresDate);
+  return periodEnd && periodEnd > params.now ? "ACTIVE" : "EXPIRED";
+}
+
+function applePaymentStatus(status: AppleServerSyncStatus): "SUCCEEDED" | "CANCELED" | "FAILED" | "REFUNDED" {
+  if (status === "ACTIVE") return "SUCCEEDED";
+  if (status === "PAST_DUE") return "FAILED";
+  if (status === "REVOKED") return "REFUNDED";
+  return "CANCELED";
+}
+
+async function decodeAppleLastTransaction(params: {
+  verifier: SignedDataVerifier;
+  item: AppleLastTransactionLike;
+}): Promise<{
+  transaction: DecodedAppleTransactionLike;
+  renewal: DecodedAppleRenewalLike | null;
+}> {
+  if (!params.item.signedTransactionInfo) {
+    throw new Error("Apple status item has no signedTransactionInfo");
+  }
+
+  const transaction = await params.verifier.verifyAndDecodeTransaction(params.item.signedTransactionInfo);
+  const renewal = params.item.signedRenewalInfo
+    ? await params.verifier.verifyAndDecodeRenewalInfo(params.item.signedRenewalInfo)
+    : null;
+
+  return {
+    transaction: transaction as DecodedAppleTransactionLike,
+    renewal: renewal as DecodedAppleRenewalLike | null,
+  };
+}
+
+export async function syncAppleAppSubscriptionFromServer(params: {
+  originalTransactionId: string;
+  now?: Date;
+}) {
+  const originalTransactionId = params.originalTransactionId.trim();
+  if (!originalTransactionId) {
+    return {
+      success: false as const,
+      code: "APPLE_SYNC_INPUT_REQUIRED",
+      error: "Требуется originalTransactionId",
+    };
+  }
+
+  const client = getAppleServerApiClient();
+  if (!(client instanceof AppStoreServerAPIClient)) {
+    return { success: false as const, code: client.code, error: client.message };
+  }
+
+  const verifierOrErr = getAppleVerifier();
+  if (!(verifierOrErr instanceof SignedDataVerifier)) {
+    return { success: false as const, code: verifierOrErr.code, error: verifierOrErr.message };
+  }
+
+  const subscription = await prisma.appSubscription.findFirst({
+    where: {
+      provider: "APPLE",
+      appleOriginalTransactionId: originalTransactionId,
+    },
+    select: {
+      id: true,
+      userId: true,
+      appleProductId: true,
+    },
+  });
+  if (!subscription) {
+    return {
+      success: false as const,
+      code: "APPLE_RESTORE_NOT_FOUND",
+      error: "Подписка не найдена",
+    };
+  }
+
+  const response = await client.getAllSubscriptionStatuses(originalTransactionId);
+  const lastTransactions = (response.data ?? []).flatMap(
+    (group) => group.lastTransactions ?? [],
+  ) as AppleLastTransactionLike[];
+  const exactItem =
+    lastTransactions.find((item) => item.originalTransactionId === originalTransactionId) ??
+    lastTransactions[0];
+  if (!exactItem) {
+    await prisma.appSubscription.update({
+      where: { id: subscription.id },
+      data: { status: "EXPIRED" },
+    });
+    return { success: true as const, status: "EXPIRED" as const, userId: subscription.userId };
+  }
+
+  const { transaction, renewal } = await decodeAppleLastTransaction({
+    verifier: verifierOrErr,
+    item: exactItem,
+  });
+  const txOriginalTransactionId = transaction.originalTransactionId?.trim();
+  if (txOriginalTransactionId && txOriginalTransactionId !== originalTransactionId) {
+    return {
+      success: false as const,
+      code: "APPLE_TRANSACTION_CONFLICT",
+      error: "Ответ Apple относится к другой подписке",
+    };
+  }
+  if (!isAutoRenewableType(transaction.type)) {
+    return {
+      success: false as const,
+      code: "APPLE_INVALID_PRODUCT_TYPE",
+      error: "Недопустимый тип покупки в App Store",
+    };
+  }
+
+  const transactionId = transaction.transactionId?.trim();
+  const productId = transaction.productId?.trim() ?? renewal?.productId?.trim() ?? subscription.appleProductId;
+  if (!transactionId || !productId) {
+    return {
+      success: false as const,
+      code: "APPLE_VERIFY_FAILED",
+      error: "Некорректный payload Apple",
+    };
+  }
+
+  const periodStart = msToDate(transaction.purchaseDate) ?? new Date();
+  const periodEnd = msToDate(transaction.expiresDate) ?? msToDate(renewal?.renewalDate);
+  const status = mapAppleServerStatus({
+    appleStatus: exactItem.status,
+    transaction,
+    now: params.now ?? new Date(),
+  });
+  const paymentStatus = applePaymentStatus(status);
+  const priceMilliunits =
+    typeof transaction.price === "number"
+      ? transaction.price
+      : typeof renewal?.renewalPrice === "number"
+        ? renewal.renewalPrice
+        : null;
+  const currency = transaction.currency ?? renewal?.currency ?? null;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.appSubscription.update({
+      where: { id: subscription.id },
+      data: {
+        status,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        cancelAtPeriodEnd: renewal?.autoRenewStatus === 0,
+        ...(status === "REVOKED" || status === "EXPIRED" ? { canceledAt: new Date() } : {}),
+        appleOriginalTransactionId: originalTransactionId,
+        appleProductId: productId,
+      },
+    });
+
+    const existingPayment = await tx.appSubscriptionPayment.findUnique({
+      where: { appleTransactionId: transactionId },
+      select: { id: true },
+    });
+    if (!existingPayment) {
+      await tx.appSubscriptionPayment.create({
+        data: {
+          subscriptionId: subscription.id,
+          userId: subscription.userId,
+          provider: "APPLE",
+          kind: "RENEWAL",
+          status: paymentStatus,
+          amount: appleMilliunitsToAmount(priceMilliunits),
+          currency,
+          periodStart,
+          periodEnd,
+          idempotenceKey: `apple:${transactionId}`,
+          appleTransactionId: transactionId,
+          appleOriginalTransactionId: originalTransactionId,
+          applePriceMilliunits: priceMilliunits,
+          appleStorefront: transaction.storefront ?? null,
+          appleEnvironment: transaction.environment ?? null,
+          appleWebOrderLineItemId:
+            transaction.webOrderLineItemId != null ? String(transaction.webOrderLineItemId) : null,
+          succeededAt: paymentStatus === "SUCCEEDED" ? new Date() : null,
+        },
+      });
+    }
+
+    await tx.appSubscriptionEvent.create({
+      data: {
+        subscriptionId: subscription.id,
+        userId: subscription.userId,
+        source: "APPLE",
+        eventType: `SERVER_SYNC:${status}`,
+        idempotencyKey: `apple-sync:${transactionId}`,
+        processingStatus: "PROCESSED",
+        metadata: {
+          originalTransactionId,
+          transactionId,
+          productId,
+          appleStatus: exactItem.status ?? null,
+          autoRenewStatus: renewal?.autoRenewStatus ?? null,
+          expirationIntent: renewal?.expirationIntent ?? null,
+          isInBillingRetryPeriod: renewal?.isInBillingRetryPeriod ?? null,
+          gracePeriodExpiresDate: renewal?.gracePeriodExpiresDate ?? null,
+          renewalDate: renewal?.renewalDate ?? null,
+          renewalPrice: renewal?.renewalPrice ?? null,
+          currency,
+        },
+        processedAt: new Date(),
+      },
+    }).catch((error) => {
+      if (isPrismaUniqueViolation(error)) return undefined;
+      throw error;
+    });
+  });
+
+  return { success: true as const, status, userId: subscription.userId };
+}
+
+export async function reconcileAppleAppSubscriptionsFromServer(params?: {
+  batchSize?: number;
+}) {
+  const batchSize = Math.max(1, Math.min(params?.batchSize ?? 100, 500));
+  const rows = await prisma.appSubscription.findMany({
+    where: {
+      provider: "APPLE",
+      appleOriginalTransactionId: { not: null },
+      status: { in: ["ACTIVE", "PAST_DUE", "PENDING"] },
+    },
+    orderBy: [{ updatedAt: "asc" }],
+    take: batchSize,
+    select: {
+      id: true,
+      userId: true,
+      appleOriginalTransactionId: true,
+    },
+  });
+
+  let synced = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    if (!row.appleOriginalTransactionId) {
+      skipped += 1;
+      continue;
+    }
+
+    try {
+      const result = await syncAppleAppSubscriptionFromServer({
+        originalTransactionId: row.appleOriginalTransactionId,
+      });
+      if (result.success) {
+        synced += 1;
+      } else if (result.code === "CONFIG_APPLE_SERVER_API") {
+        skipped += 1;
+      } else {
+        failed += 1;
+      }
+    } catch (error) {
+      failed += 1;
+      logger.error("Apple app subscription reconciliation failed", error as Error, {
+        subscriptionId: row.id,
+        userId: row.userId,
+      });
+    }
+  }
+
+  return { processed: rows.length, synced, failed, skipped };
 }
 
 export async function restoreAppleAppSubscription(_params: {
@@ -1466,8 +1905,8 @@ export async function handleAppleAppSubscriptionNotification(params: {
   const eventType = decoded.notificationType ?? "UNKNOWN";
   const subtype = decoded.subtype ?? null;
   const notificationUUID = decoded.notificationUUID ?? null;
-  const signedTransactionInfo =
-    decoded.data?.signedTransactionInfo ?? decoded.data?.signedRenewalInfo ?? null;
+  const signedTransactionInfo = decoded.data?.signedTransactionInfo ?? null;
+  const signedRenewalInfo = decoded.data?.signedRenewalInfo ?? null;
 
   if (notificationUUID) {
     try {
@@ -1493,26 +1932,33 @@ export async function handleAppleAppSubscriptionNotification(params: {
     }
   }
 
+  let originalTransactionId: string | null = null;
   if (signedTransactionInfo) {
-    // userId unknown from notification alone; transaction JWS carries appAccountToken/originalTx.
-    // In v1, try to find user by original transaction id after decoding transaction.
     const tx = await verifierOrErr.verifyAndDecodeTransaction(signedTransactionInfo);
-    const originalTransactionId = tx.originalTransactionId?.trim();
-    const candidate = originalTransactionId
-      ? await prisma.appSubscription.findFirst({
-          where: {
-            provider: "APPLE",
-            appleOriginalTransactionId: originalTransactionId,
-          },
-          select: { userId: true },
-        })
-      : null;
+    originalTransactionId = tx.originalTransactionId?.trim() || null;
+  }
+  if (!originalTransactionId && signedRenewalInfo) {
+    const renewal = await verifierOrErr.verifyAndDecodeRenewalInfo(signedRenewalInfo);
+    originalTransactionId = renewal.originalTransactionId?.trim() || null;
+  }
 
-    if (candidate?.userId) {
-      await verifyAppleAppSubscription({
-        userId: candidate.userId,
-        signedTransactionInfo,
+  if (originalTransactionId) {
+    const syncResult = await syncAppleAppSubscriptionFromServer({ originalTransactionId });
+    if (!syncResult.success && signedTransactionInfo) {
+      const candidate = await prisma.appSubscription.findFirst({
+        where: {
+          provider: "APPLE",
+          appleOriginalTransactionId: originalTransactionId,
+        },
+        select: { userId: true },
       });
+
+      if (candidate?.userId) {
+        await verifyAppleAppSubscription({
+          userId: candidate.userId,
+          signedTransactionInfo,
+        });
+      }
     }
   }
 
