@@ -36,6 +36,19 @@ export interface AppSubscriptionAdminDashboardRow {
   totalPaidRub: number;
   paymentMethod: string | null;
   appleProductId: string | null;
+  apple: {
+    productId: string | null;
+    originalTransactionId: string | null;
+    transactionId: string | null;
+    webOrderLineItemId: string | null;
+    storefront: string | null;
+    environment: string | null;
+    currency: string | null;
+    price: number | null;
+    priceMilliunits: number | null;
+    lastServerSyncAt: string | null;
+    lastServerSyncStatus: string | null;
+  } | null;
   manualReason: string | null;
   attention: AppSubscriptionAdminAttention;
   createdAt: string;
@@ -53,9 +66,21 @@ type PaymentLike = {
   amount: { toString(): string } | number | string | null;
   currency: string | null;
   applePriceMilliunits?: number | null;
+  appleTransactionId?: string | null;
+  appleOriginalTransactionId?: string | null;
+  appleStorefront?: string | null;
+  appleEnvironment?: string | null;
+  appleWebOrderLineItemId?: string | null;
   succeededAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type AppleSyncEventLike = {
+  subscriptionId: string | null;
+  eventType: string;
+  processedAt: Date | null;
+  createdAt: Date;
 };
 
 function toIso(value: Date | null | undefined): string | null {
@@ -108,7 +133,7 @@ function isNotRenewed(row: {
 export async function getAppSubscriptionAdminDashboard(
   now = new Date(),
 ): Promise<AppSubscriptionAdminDashboard> {
-  const [subscriptions, succeededPayments] = await Promise.all([
+  const [subscriptions, succeededPayments, appleSyncEvents] = await Promise.all([
     prisma.appSubscription.findMany({
       orderBy: [{ updatedAt: "desc" }],
       select: {
@@ -122,6 +147,7 @@ export async function getAppSubscriptionAdminDashboard(
         canceledAt: true,
         yookassaPaymentMethodLast4: true,
         yookassaPaymentMethodTitle: true,
+        appleOriginalTransactionId: true,
         appleProductId: true,
         manualReason: true,
         createdAt: true,
@@ -146,10 +172,28 @@ export async function getAppSubscriptionAdminDashboard(
         amount: true,
         currency: true,
         applePriceMilliunits: true,
+        appleTransactionId: true,
+        appleOriginalTransactionId: true,
+        appleStorefront: true,
+        appleEnvironment: true,
+        appleWebOrderLineItemId: true,
         kind: true,
         succeededAt: true,
         createdAt: true,
         updatedAt: true,
+      },
+    }),
+    prisma.appSubscriptionEvent.findMany({
+      where: {
+        source: "APPLE",
+        eventType: { startsWith: "SERVER_SYNC:" },
+      },
+      orderBy: [{ processedAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        subscriptionId: true,
+        eventType: true,
+        processedAt: true,
+        createdAt: true,
       },
     }),
   ]);
@@ -160,6 +204,14 @@ export async function getAppSubscriptionAdminDashboard(
     const existing = paymentsBySubscriptionId.get(payment.subscriptionId) ?? [];
     existing.push(payment);
     paymentsBySubscriptionId.set(payment.subscriptionId, existing);
+  }
+
+  const latestAppleSyncEventBySubscriptionId = new Map<string, AppleSyncEventLike>();
+  for (const event of appleSyncEvents as AppleSyncEventLike[]) {
+    if (!event.subscriptionId || latestAppleSyncEventBySubscriptionId.has(event.subscriptionId)) {
+      continue;
+    }
+    latestAppleSyncEventBySubscriptionId.set(event.subscriptionId, event);
   }
 
   let activeNow = 0;
@@ -182,6 +234,10 @@ export async function getAppSubscriptionAdminDashboard(
     );
     const firstPayment = sortedPayments[0] ?? null;
     const lastPayment = sortedPayments[sortedPayments.length - 1] ?? null;
+    const lastApplePayment = [...sortedPayments]
+      .reverse()
+      .find((payment) => payment.appleTransactionId || payment.appleOriginalTransactionId || payment.applePriceMilliunits != null) ?? null;
+    const latestAppleSyncEvent = latestAppleSyncEventBySubscriptionId.get(subscription.id) ?? null;
     const isActiveNow = isSubscriptionActiveNow(subscription, now);
     const isChurned = isNotRenewed(subscription, payments, now);
     const totalPaidRub = payments.reduce((sum, payment) => {
@@ -233,6 +289,25 @@ export async function getAppSubscriptionAdminDashboard(
         subscription.yookassaPaymentMethodTitle ??
         (subscription.yookassaPaymentMethodLast4 ? `Карта *${subscription.yookassaPaymentMethodLast4}` : null),
       appleProductId: subscription.appleProductId,
+      apple:
+        subscription.provider === "APPLE"
+          ? {
+              productId: subscription.appleProductId,
+              originalTransactionId:
+                subscription.appleOriginalTransactionId ?? lastApplePayment?.appleOriginalTransactionId ?? null,
+              transactionId: lastApplePayment?.appleTransactionId ?? null,
+              webOrderLineItemId: lastApplePayment?.appleWebOrderLineItemId ?? null,
+              storefront: lastApplePayment?.appleStorefront ?? null,
+              environment: lastApplePayment?.appleEnvironment ?? null,
+              currency: lastApplePayment?.currency ?? null,
+              price: lastApplePayment ? paymentAmount(lastApplePayment) : null,
+              priceMilliunits: lastApplePayment?.applePriceMilliunits ?? null,
+              lastServerSyncAt: latestAppleSyncEvent
+                ? toIso(latestAppleSyncEvent.processedAt ?? latestAppleSyncEvent.createdAt)
+                : null,
+              lastServerSyncStatus: latestAppleSyncEvent?.eventType.replace(/^SERVER_SYNC:/, "") ?? null,
+            }
+          : null,
       manualReason: subscription.manualReason,
       attention,
       createdAt: subscription.createdAt.toISOString(),

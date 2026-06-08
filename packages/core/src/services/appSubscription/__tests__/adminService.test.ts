@@ -4,6 +4,7 @@ import { getAppSubscriptionAdminDashboard } from "../adminService";
 
 const mockSubscriptionFindMany = vi.fn();
 const mockPaymentFindMany = vi.fn();
+const mockEventFindMany = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -12,6 +13,9 @@ vi.mock("@gafus/prisma", () => ({
     },
     appSubscriptionPayment: {
       findMany: (...args: unknown[]) => mockPaymentFindMany(...args),
+    },
+    appSubscriptionEvent: {
+      findMany: (...args: unknown[]) => mockEventFindMany(...args),
     },
   },
 }));
@@ -34,6 +38,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         canceledAt: null,
         yookassaPaymentMethodLast4: "4444",
         yookassaPaymentMethodTitle: "МИР *4444",
+        appleOriginalTransactionId: null,
         appleProductId: null,
         manualReason: null,
         createdAt: new Date("2026-05-10T09:50:00.000Z"),
@@ -57,6 +62,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         canceledAt: new Date("2026-05-13T10:00:00.000Z"),
         yookassaPaymentMethodLast4: null,
         yookassaPaymentMethodTitle: null,
+        appleOriginalTransactionId: "orig-cancel",
         appleProductId: "premium-week",
         manualReason: null,
         createdAt: new Date("2026-05-12T09:50:00.000Z"),
@@ -80,6 +86,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         canceledAt: null,
         yookassaPaymentMethodLast4: "5555",
         yookassaPaymentMethodTitle: "Visa *5555",
+        appleOriginalTransactionId: null,
         appleProductId: null,
         manualReason: null,
         createdAt: new Date("2026-05-01T09:50:00.000Z"),
@@ -103,6 +110,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         canceledAt: null,
         yookassaPaymentMethodLast4: "6666",
         yookassaPaymentMethodTitle: "Mastercard *6666",
+        appleOriginalTransactionId: null,
         appleProductId: null,
         manualReason: null,
         createdAt: new Date("2026-05-10T09:50:00.000Z"),
@@ -126,6 +134,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         canceledAt: null,
         yookassaPaymentMethodLast4: null,
         yookassaPaymentMethodTitle: null,
+        appleOriginalTransactionId: null,
         appleProductId: null,
         manualReason: "Компенсация",
         createdAt: new Date("2026-05-11T09:50:00.000Z"),
@@ -146,6 +155,12 @@ describe("getAppSubscriptionAdminDashboard", () => {
         amount: { toString: () => "200.00" },
         currency: "RUB",
         kind: "INITIAL",
+        applePriceMilliunits: null,
+        appleTransactionId: null,
+        appleOriginalTransactionId: null,
+        appleStorefront: null,
+        appleEnvironment: null,
+        appleWebOrderLineItemId: null,
         succeededAt: new Date("2026-05-10T10:00:30.000Z"),
         createdAt: new Date("2026-05-10T09:59:00.000Z"),
         updatedAt: new Date("2026-05-10T10:00:30.000Z"),
@@ -156,6 +171,12 @@ describe("getAppSubscriptionAdminDashboard", () => {
         amount: { toString: () => "200.00" },
         currency: "RUB",
         kind: "RENEWAL",
+        applePriceMilliunits: null,
+        appleTransactionId: null,
+        appleOriginalTransactionId: null,
+        appleStorefront: null,
+        appleEnvironment: null,
+        appleWebOrderLineItemId: null,
         succeededAt: new Date("2026-05-17T10:00:30.000Z"),
         createdAt: new Date("2026-05-17T09:59:00.000Z"),
         updatedAt: new Date("2026-05-17T10:00:30.000Z"),
@@ -166,6 +187,11 @@ describe("getAppSubscriptionAdminDashboard", () => {
         amount: null,
         currency: "RUB",
         applePriceMilliunits: 199000,
+        appleTransactionId: "tx-cancel",
+        appleOriginalTransactionId: "orig-cancel",
+        appleStorefront: "USA",
+        appleEnvironment: "Production",
+        appleWebOrderLineItemId: "web-order-cancel",
         kind: "INITIAL",
         succeededAt: new Date("2026-05-12T10:00:30.000Z"),
         createdAt: new Date("2026-05-12T09:59:00.000Z"),
@@ -177,9 +203,23 @@ describe("getAppSubscriptionAdminDashboard", () => {
         amount: { toString: () => "200.00" },
         currency: "RUB",
         kind: "INITIAL",
+        applePriceMilliunits: null,
+        appleTransactionId: null,
+        appleOriginalTransactionId: null,
+        appleStorefront: null,
+        appleEnvironment: null,
+        appleWebOrderLineItemId: null,
         succeededAt: new Date("2026-05-01T10:00:30.000Z"),
         createdAt: new Date("2026-05-01T09:59:00.000Z"),
         updatedAt: new Date("2026-05-01T10:00:30.000Z"),
+      },
+    ]);
+    mockEventFindMany.mockResolvedValue([
+      {
+        subscriptionId: "cancel-at-end",
+        eventType: "SERVER_SYNC:ACTIVE",
+        processedAt: new Date("2026-05-13T10:10:00.000Z"),
+        createdAt: new Date("2026-05-13T10:10:01.000Z"),
       },
     ]);
 
@@ -213,6 +253,19 @@ describe("getAppSubscriptionAdminDashboard", () => {
     expect(result.rows.find((row) => row.id === "cancel-at-end")).toMatchObject({
       totalPaidRub: 199,
       paymentsCount: 1,
+      apple: {
+        productId: "premium-week",
+        originalTransactionId: "orig-cancel",
+        transactionId: "tx-cancel",
+        webOrderLineItemId: "web-order-cancel",
+        storefront: "USA",
+        environment: "Production",
+        currency: "RUB",
+        price: 199,
+        priceMilliunits: 199000,
+        lastServerSyncAt: "2026-05-13T10:10:00.000Z",
+        lastServerSyncStatus: "ACTIVE",
+      },
     });
     expect(result.rows.find((row) => row.id === "past-due")).toMatchObject({
       isActiveNow: false,

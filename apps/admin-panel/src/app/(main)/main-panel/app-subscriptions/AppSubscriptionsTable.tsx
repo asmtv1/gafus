@@ -95,6 +95,48 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function formatApplePrice(row: AppSubscriptionDashboardRow) {
+  const apple = row.apple;
+  if (!apple) return null;
+  if (apple.price != null && apple.price > 0 && apple.currency) {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: apple.currency,
+      maximumFractionDigits: 2,
+    }).format(apple.price);
+  }
+  return "Apple не передал цену";
+}
+
+function AppleDetails({ row }: { row: AppSubscriptionDashboardRow }) {
+  const apple = row.apple;
+  if (!apple) {
+    return null;
+  }
+
+  const lines = [
+    apple.productId,
+    `Цена: ${formatApplePrice(row)}`,
+    apple.lastServerSyncStatus
+      ? `Apple sync: ${apple.lastServerSyncStatus}${apple.lastServerSyncAt ? `, ${formatDate(apple.lastServerSyncAt)}` : ""}`
+      : "Apple sync: не запускался",
+    apple.environment || apple.storefront ? [apple.environment, apple.storefront].filter(Boolean).join(" · ") : null,
+    apple.transactionId ? `tx ${apple.transactionId}` : null,
+    apple.originalTransactionId ? `orig ${apple.originalTransactionId}` : null,
+    apple.webOrderLineItemId ? `web order ${apple.webOrderLineItemId}` : null,
+  ].filter(Boolean);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, maxWidth: 240 }}>
+      {lines.map((line) => (
+        <Typography key={line} variant="caption" color="text.secondary" display="block" sx={{ wordBreak: "break-word" }}>
+          {line}
+        </Typography>
+      ))}
+    </Box>
+  );
+}
+
 function getStatusColor(row: AppSubscriptionDashboardRow): "success" | "warning" | "error" | "default" {
   if (row.attention === "past_due") return "error";
   if (row.attention === "not_renewed") return "default";
@@ -279,9 +321,13 @@ export default function AppSubscriptionsTable({
                   </TableCell>
                   <TableCell>{row.cancelAtPeriodEnd ? "Отключено" : row.provider === "YOOKASSA" ? "Включено" : "—"}</TableCell>
                   <TableCell>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {row.paymentMethod ?? row.appleProductId ?? row.manualReason ?? "—"}
-                    </Typography>
+                    {row.provider === "APPLE" ? (
+                      <AppleDetails row={row} />
+                    ) : (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {row.paymentMethod ?? row.manualReason ?? "—"}
+                      </Typography>
+                    )}
                     <Link href={`/main-panel/users?search=${encodeURIComponent(row.user.username)}`}>
                       <Button size="small" sx={{ mt: 0.75 }}>
                         Открыть
@@ -318,6 +364,7 @@ export default function AppSubscriptionsTable({
               {row.attention ? (
                 <Chip size="small" variant="outlined" label={attentionLabels[row.attention]} sx={{ mt: 1 }} />
               ) : null}
+              {row.provider === "APPLE" ? <AppleDetails row={row} /> : null}
             </Paper>
           ))}
         </Box>
