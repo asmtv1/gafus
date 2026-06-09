@@ -799,7 +799,7 @@ model AppSubscription {
   yookassaPaymentMethodLast4   String? @db.VarChar(4)
   yookassaPaymentMethodTitle   String?
   renewalReminderSentForPeriodEnd DateTime?
-  appleOriginalTransactionId  String? @unique
+  appleOriginalTransactionId  String?
   appleProductId              String?
 
   manualGrantedById String?
@@ -817,6 +817,7 @@ model AppSubscription {
   @@index([provider, status, currentPeriodEnd])
   @@index([provider, status, pendingExpiresAt])
   @@index([provider, status, cancelAtPeriodEnd, currentPeriodEnd])
+  @@index([appleOriginalTransactionId])
 }
 
 model AppSubscriptionTrial {

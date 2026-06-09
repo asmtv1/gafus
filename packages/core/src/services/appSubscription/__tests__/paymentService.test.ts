@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockEventCreate = vi.fn();
 const mockEventFindFirst = vi.fn();
 const mockEventUpdate = vi.fn();
+const mockPaymentFindFirst = vi.fn();
 const mockPaymentFindUnique = vi.fn();
 const mockPaymentUpdate = vi.fn();
 const mockPaymentCreate = vi.fn();
@@ -26,6 +27,7 @@ vi.mock("@gafus/prisma", () => ({
     },
     appSubscriptionPayment: {
       create: (...args: unknown[]) => mockPaymentCreate(...args),
+      findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
       findUnique: (...args: unknown[]) => mockPaymentFindUnique(...args),
       update: (...args: unknown[]) => mockPaymentUpdate(...args),
     },
@@ -94,6 +96,7 @@ describe("app subscription payment service", () => {
     mockEventFindFirst.mockResolvedValue(null);
     mockEventUpdate.mockResolvedValue({});
     mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
+    mockPaymentFindFirst.mockResolvedValue(null);
     mockPaymentFindUnique.mockResolvedValue(null);
     mockPaymentUpdate.mockResolvedValue({});
     mockSubscriptionFindFirst.mockResolvedValue(null);
@@ -111,6 +114,7 @@ describe("app subscription payment service", () => {
         $executeRawUnsafe: vi.fn().mockResolvedValue(0),
         appSubscriptionPayment: {
           create: mockPaymentCreate,
+          findFirst: mockPaymentFindFirst,
           findUnique: mockPaymentFindUnique,
           update: mockPaymentUpdate,
         },
@@ -761,6 +765,101 @@ describe("app subscription payment service", () => {
     );
   });
 
+  it("creates a separate Apple subscription for the verifying user when the original transaction was used by another account", async () => {
+    const { verifyAppleAppSubscription } = await import("../paymentService");
+    mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "new-account-token" });
+    mockSubscriptionFindFirst.mockImplementation(async (args: { where?: Record<string, unknown> }) => {
+      expect(args.where).toMatchObject({
+        userId: "new-user",
+        provider: "APPLE",
+      });
+      return null;
+    });
+    mockSubscriptionCreate.mockResolvedValue({ id: "sub-new-user" });
+    verifyAndDecodeTransaction.mockResolvedValue({
+      type: "Auto-Renewable Subscription",
+      transactionId: "tx-renewed-on-new-account",
+      originalTransactionId: "orig-existing",
+      productId: "premium-week",
+      appAccountToken: "new-account-token",
+      expiresDate: Date.parse("2026-06-17T10:00:00.000Z"),
+      purchaseDate: Date.parse("2026-06-10T10:00:00.000Z"),
+      price: 1990,
+      currency: "USD",
+    });
+
+    const result = await verifyAppleAppSubscription({
+      userId: "new-user",
+      signedTransactionInfo: "signed-renewal",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(mockSubscriptionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "new-user",
+          provider: "APPLE",
+          status: "ACTIVE",
+          appleOriginalTransactionId: "orig-existing",
+          appleProductId: "premium-week",
+        }),
+      }),
+    );
+    expect(mockSubscriptionUpdate).not.toHaveBeenCalled();
+    expect(mockPaymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subscriptionId: "sub-new-user",
+          userId: "new-user",
+          appleTransactionId: "tx-renewed-on-new-account",
+          appleOriginalTransactionId: "orig-existing",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a zero-price Apple trial when the original transaction already used a trial on another account", async () => {
+    const { verifyAppleAppSubscription } = await import("../paymentService");
+    mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "new-account-token" });
+    mockPaymentFindFirst.mockResolvedValue({ id: "trial-pay-old", userId: "old-user" });
+    verifyAndDecodeTransaction.mockResolvedValue({
+      type: "Auto-Renewable Subscription",
+      transactionId: "tx-second-free-trial",
+      originalTransactionId: "orig-existing",
+      productId: "premium-week",
+      appAccountToken: "new-account-token",
+      expiresDate: Date.parse("2026-06-13T10:00:00.000Z"),
+      purchaseDate: Date.parse("2026-06-10T10:00:00.000Z"),
+      price: 0,
+      currency: "USD",
+    });
+
+    const result = await verifyAppleAppSubscription({
+      userId: "new-user",
+      signedTransactionInfo: "signed-second-free-trial",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      code: "APPLE_TRIAL_ALREADY_USED",
+      error: "Пробный период Apple уже использован",
+    });
+    expect(mockPaymentFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          provider: "APPLE",
+          appleOriginalTransactionId: "orig-existing",
+          applePriceMilliunits: 0,
+          status: "SUCCEEDED",
+          userId: { not: "new-user" },
+        }),
+      }),
+    );
+    expect(mockSubscriptionCreate).not.toHaveBeenCalled();
+    expect(mockSubscriptionUpdate).not.toHaveBeenCalled();
+    expect(mockPaymentCreate).not.toHaveBeenCalled();
+  });
+
   it("syncs Apple subscription status and records a renewal from App Store Server API", async () => {
     const { syncAppleAppSubscriptionFromServer } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
@@ -900,6 +999,64 @@ describe("app subscription payment service", () => {
         data: expect.objectContaining({ status: "ACTIVE" }),
       }),
     );
+  });
+
+  it("uses appAccountToken from Apple notification transactions to verify the correct user", async () => {
+    const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
+    vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
+    vi.stubEnv("APPLE_KEY_ID", "key-id");
+    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    mockUserFindUnique.mockImplementation(async (args: { where?: Record<string, unknown> }) => {
+      if (args.where?.appleAppAccountToken === "account-token-1") {
+        return { id: "user-token" };
+      }
+      if (args.where?.id === "user-token") {
+        return { appleAppAccountToken: "account-token-1" };
+      }
+      return null;
+    });
+    mockSubscriptionFindFirst.mockResolvedValue(null);
+    mockSubscriptionCreate.mockResolvedValue({ id: "sub-token" });
+    mockGetAllSubscriptionStatuses.mockResolvedValue({ data: [] });
+    verifyAndDecodeNotification.mockResolvedValue({
+      notificationType: "DID_RENEW",
+      notificationUUID: "notification-token",
+      data: {
+        signedTransactionInfo: "signed-notification-token",
+      },
+    });
+    verifyAndDecodeTransaction.mockResolvedValue({
+      type: "Auto-Renewable Subscription",
+      transactionId: "tx-token",
+      originalTransactionId: "orig-token",
+      productId: "premium-week",
+      appAccountToken: "account-token-1",
+      purchaseDate: Date.parse("2026-06-17T10:00:00.000Z"),
+      expiresDate: Date.parse("2026-06-24T10:00:00.000Z"),
+      price: 1990,
+      currency: "USD",
+    });
+
+    const result = await handleAppleAppSubscriptionNotification({
+      signedPayload: "signed-notification-payload",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(mockUserFindUnique).toHaveBeenCalledWith({
+      where: { appleAppAccountToken: "account-token-1" },
+      select: { id: true },
+    });
+    expect(mockPaymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subscriptionId: "sub-token",
+          userId: "user-token",
+          appleTransactionId: "tx-token",
+          appleOriginalTransactionId: "orig-token",
+        }),
+      }),
+    );
+    expect(mockGetAllSubscriptionStatuses).not.toHaveBeenCalled();
   });
 
   it("reconciles active Apple subscriptions from the server in batches", async () => {

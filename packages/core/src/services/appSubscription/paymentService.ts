@@ -1118,6 +1118,8 @@ export async function verifyAppleAppSubscription(_params: {
     ? new Date(expiresDateMs)
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const isRevoked = Number.isFinite(revocationDateMs) && revocationDateMs > 0;
+  const applePriceMilliunits =
+    typeof payload.price === "number" ? Number(payload.price) : null;
 
   const existingPayment = await prisma.appSubscriptionPayment.findUnique({
     where: { appleTransactionId: transactionId },
@@ -1141,18 +1143,38 @@ export async function verifyAppleAppSubscription(_params: {
     };
   }
 
+  if (applePriceMilliunits === 0) {
+    const existingTrialPayment = await prisma.appSubscriptionPayment.findFirst({
+      where: {
+        provider: "APPLE",
+        appleOriginalTransactionId: originalTransactionId,
+        applePriceMilliunits: 0,
+        status: "SUCCEEDED",
+        userId: { not: _params.userId },
+      },
+      select: { id: true, userId: true },
+    });
+    if (existingTrialPayment) {
+      return {
+        success: false as const,
+        code: "APPLE_TRIAL_ALREADY_USED",
+        error: "Пробный период Apple уже использован",
+      };
+    }
+  }
+
   const existingSub = await prisma.appSubscription.findFirst({
     where: {
+      userId: _params.userId,
+      provider: "APPLE",
       OR: [
         { appleOriginalTransactionId: originalTransactionId },
         {
-          userId: _params.userId,
-          provider: "APPLE",
           status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
         },
       ],
     },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
 
   const nextStatus =
@@ -1196,15 +1218,14 @@ export async function verifyAppleAppSubscription(_params: {
         provider: "APPLE",
         kind: "INITIAL",
         status: nextStatus === "ACTIVE" ? "SUCCEEDED" : "CANCELED",
-        amount: appleMilliunitsToAmount(payload.price),
+        amount: appleMilliunitsToAmount(applePriceMilliunits),
         currency: payload.currency ?? null,
         periodStart,
         periodEnd,
         idempotenceKey: `apple:${transactionId}`,
         appleTransactionId: transactionId,
         appleOriginalTransactionId: originalTransactionId,
-        applePriceMilliunits:
-          typeof payload.price === "number" ? Number(payload.price) : null,
+        applePriceMilliunits,
         appleStorefront: payload.storefront ?? null,
         appleEnvironment: payload.environment ?? null,
         appleWebOrderLineItemId:
@@ -1316,6 +1337,7 @@ async function decodeAppleLastTransaction(params: {
 
 export async function syncAppleAppSubscriptionFromServer(params: {
   originalTransactionId: string;
+  subscriptionId?: string;
   now?: Date;
 }) {
   const originalTransactionId = params.originalTransactionId.trim();
@@ -1338,10 +1360,16 @@ export async function syncAppleAppSubscriptionFromServer(params: {
   }
 
   const subscription = await prisma.appSubscription.findFirst({
-    where: {
-      provider: "APPLE",
-      appleOriginalTransactionId: originalTransactionId,
-    },
+    where: params.subscriptionId
+      ? {
+          id: params.subscriptionId,
+          provider: "APPLE",
+          appleOriginalTransactionId: originalTransactionId,
+        }
+      : {
+          provider: "APPLE",
+          appleOriginalTransactionId: originalTransactionId,
+        },
     select: {
       id: true,
       userId: true,
@@ -1524,6 +1552,7 @@ export async function reconcileAppleAppSubscriptionsFromServer(params?: {
     try {
       const result = await syncAppleAppSubscriptionFromServer({
         originalTransactionId: row.appleOriginalTransactionId,
+        subscriptionId: row.id,
       });
       if (result.success) {
         synced += 1;
@@ -1933,13 +1962,32 @@ export async function handleAppleAppSubscriptionNotification(params: {
   }
 
   let originalTransactionId: string | null = null;
+  let signedTransactionAppAccountToken: string | null = null;
   if (signedTransactionInfo) {
     const tx = await verifierOrErr.verifyAndDecodeTransaction(signedTransactionInfo);
     originalTransactionId = tx.originalTransactionId?.trim() || null;
+    signedTransactionAppAccountToken =
+      typeof (tx as { appAccountToken?: unknown }).appAccountToken === "string"
+        ? ((tx as { appAccountToken?: string }).appAccountToken ?? "").trim() || null
+        : null;
   }
   if (!originalTransactionId && signedRenewalInfo) {
     const renewal = await verifierOrErr.verifyAndDecodeRenewalInfo(signedRenewalInfo);
     originalTransactionId = renewal.originalTransactionId?.trim() || null;
+  }
+
+  if (signedTransactionInfo && signedTransactionAppAccountToken) {
+    const user = await prisma.user.findUnique({
+      where: { appleAppAccountToken: signedTransactionAppAccountToken },
+      select: { id: true },
+    });
+    if (user?.id) {
+      await verifyAppleAppSubscription({
+        userId: user.id,
+        signedTransactionInfo,
+      });
+      return { success: true as const };
+    }
   }
 
   if (originalTransactionId) {

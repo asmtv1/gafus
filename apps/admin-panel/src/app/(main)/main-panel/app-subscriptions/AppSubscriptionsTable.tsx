@@ -114,25 +114,78 @@ function AppleDetails({ row }: { row: AppSubscriptionDashboardRow }) {
     return null;
   }
 
-  const lines = [
-    apple.productId,
-    `Цена: ${formatApplePrice(row)}`,
-    apple.lastServerSyncStatus
-      ? `Apple sync: ${apple.lastServerSyncStatus}${apple.lastServerSyncAt ? `, ${formatDate(apple.lastServerSyncAt)}` : ""}`
-      : "Apple sync: не запускался",
-    apple.environment || apple.storefront ? [apple.environment, apple.storefront].filter(Boolean).join(" · ") : null,
-    apple.transactionId ? `tx ${apple.transactionId}` : null,
-    apple.originalTransactionId ? `orig ${apple.originalTransactionId}` : null,
-    apple.webOrderLineItemId ? `web order ${apple.webOrderLineItemId}` : null,
-  ].filter(Boolean);
+  const syncText = apple.lastServerSyncStatus
+    ? `${apple.lastServerSyncStatus}${apple.lastServerSyncAt ? `, ${formatDate(apple.lastServerSyncAt)}` : ""}`
+    : "не запускался";
+  const contextText = [apple.environment, apple.storefront].filter(Boolean).join(" · ");
+  const idLines = [
+    apple.transactionId ? ["tx", apple.transactionId] : null,
+    apple.originalTransactionId ? ["orig", apple.originalTransactionId] : null,
+    apple.webOrderLineItemId ? ["web order", apple.webOrderLineItemId] : null,
+  ].filter((line): line is [string, string] => Boolean(line));
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, maxWidth: 240 }}>
-      {lines.map((line) => (
-        <Typography key={line} variant="caption" color="text.secondary" display="block" sx={{ wordBreak: "break-word" }}>
-          {line}
-        </Typography>
-      ))}
+    <Box sx={{ maxWidth: 260, minWidth: 190 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        display="block"
+        title={apple.productId ?? undefined}
+        sx={{
+          maxWidth: 240,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {apple.productId ?? "Apple product не указан"}
+      </Typography>
+      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center", mt: 0.5 }}>
+        <Chip size="small" variant="outlined" label={formatApplePrice(row)} />
+        {contextText ? <Chip size="small" variant="outlined" label={contextText} /> : null}
+      </Box>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5, whiteSpace: "nowrap" }}>
+        Sync: {syncText}
+      </Typography>
+      {idLines.length > 0 ? (
+        <Box
+          component="details"
+          sx={{
+            mt: 0.25,
+            "& summary": {
+              cursor: "pointer",
+              color: "primary.main",
+              display: "inline-flex",
+              fontSize: "0.75rem",
+              lineHeight: 1.5,
+              listStyle: "none",
+              userSelect: "none",
+            },
+            "& summary::-webkit-details-marker": { display: "none" },
+          }}
+        >
+          <Box component="summary">ID</Box>
+          <Box sx={{ mt: 0.25 }}>
+            {idLines.map(([label, value]) => (
+              <Typography
+                key={label}
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                title={value}
+                sx={{
+                  maxWidth: 240,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}: {value}
+              </Typography>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
     </Box>
   );
 }
