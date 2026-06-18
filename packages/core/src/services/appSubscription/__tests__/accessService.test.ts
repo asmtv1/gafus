@@ -48,6 +48,7 @@ describe("getAppSubscriptionAccess", () => {
       nextChargeAt: null,
       yookassaTrialAvailable: true,
       yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: null,
     });
   });
 
@@ -91,6 +92,7 @@ describe("getAppSubscriptionAccess", () => {
       nextChargeAt: "2026-05-20T10:00:00.000Z",
       yookassaTrialAvailable: true,
       yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: null,
     });
   });
 
@@ -138,6 +140,7 @@ describe("getAppSubscriptionAccess", () => {
       nextChargeAt: "2026-05-29T10:00:00.000Z",
       yookassaTrialAvailable: false,
       yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: null,
     });
   });
 
@@ -149,6 +152,7 @@ describe("getAppSubscriptionAccess", () => {
       provider: "YOOKASSA",
       startedAt: new Date("2026-05-26T10:00:00.000Z"),
       endedAt: new Date("2026-05-29T10:00:00.000Z"),
+      trialUnavailableReason: "CARD_FINGERPRINT_REUSED",
     });
 
     const result = await getAppSubscriptionAccess("u1", new Date("2026-05-30T10:00:00.000Z"));
@@ -157,6 +161,7 @@ describe("getAppSubscriptionAccess", () => {
       hasActiveSubscription: false,
       yookassaTrialAvailable: false,
       yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED",
     });
   });
 });

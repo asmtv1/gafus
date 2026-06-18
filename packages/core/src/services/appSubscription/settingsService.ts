@@ -37,5 +37,6 @@ export async function getAppSubscriptionOffer(userId: string): Promise<AppSubscr
     iosRuCardPaymentEnabled,
     yookassaTrialAvailable: yookassaTrial.available,
     yookassaTrialDays: yookassaTrial.trialDays,
+    yookassaTrialUnavailableReason: yookassaTrial.unavailableReason,
   };
 }

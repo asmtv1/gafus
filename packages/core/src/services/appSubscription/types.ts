@@ -1,5 +1,7 @@
 export type AppSubscriptionProvider = "YOOKASSA" | "APPLE" | "MANUAL";
 
+export type YookassaTrialUnavailableReason = "CARD_FINGERPRINT_REUSED";
+
 export type AppSubscriptionStatusCode =
   | "ACTIVE"
   | "PENDING"
@@ -26,6 +28,7 @@ export type AppSubscriptionStatusDto = {
   nextChargeAt: string | null;
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: 3;
+  yookassaTrialUnavailableReason: YookassaTrialUnavailableReason | null;
 };
 
 export type AppSubscriptionOfferDto = {
@@ -37,4 +40,5 @@ export type AppSubscriptionOfferDto = {
   iosRuCardPaymentEnabled: boolean;
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: 3;
+  yookassaTrialUnavailableReason: YookassaTrialUnavailableReason | null;
 };

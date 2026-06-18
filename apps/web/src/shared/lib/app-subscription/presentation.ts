@@ -1,12 +1,14 @@
-type TrialPresentationSource = {
-  yookassaTrialAvailable?: boolean | null;
-  yookassaTrialDays?: number | null;
-} | null | undefined;
+type TrialPresentationSource =
+  | {
+      yookassaTrialAvailable?: boolean | null;
+      yookassaTrialDays?: number | null;
+      yookassaTrialUnavailableReason?: string | null;
+    }
+  | null
+  | undefined;
 
 function getTrialDays(source: TrialPresentationSource): number {
-  return source?.yookassaTrialDays && source.yookassaTrialDays > 0
-    ? source.yookassaTrialDays
-    : 3;
+  return source?.yookassaTrialDays && source.yookassaTrialDays > 0 ? source.yookassaTrialDays : 3;
 }
 
 function isTrialAvailable(source: TrialPresentationSource): boolean {
@@ -36,4 +38,11 @@ export function getYookassaLegalText(source: TrialPresentationSource, priceText:
 
 export function getYookassaReturnSuccessTitle(source: TrialPresentationSource): string {
   return isTrialAvailable(source) ? "Пробный период подключён" : "Premium подключён";
+}
+
+export function getYookassaTrialUnavailableText(source: TrialPresentationSource): string | null {
+  if (source?.yookassaTrialUnavailableReason === "CARD_FINGERPRINT_REUSED") {
+    return "На эту карту пробный период уже использован. Premium можно подключить через обычную оплату.";
+  }
+  return null;
 }

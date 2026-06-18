@@ -10,7 +10,15 @@ export type AppSubscriptionStatusDto = {
   trialEndsAt: string | null;
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
-  status: "ACTIVE" | "PENDING" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "REFUNDED" | "REVOKED" | null;
+  status:
+    | "ACTIVE"
+    | "PENDING"
+    | "PAST_DUE"
+    | "CANCELED"
+    | "EXPIRED"
+    | "REFUNDED"
+    | "REVOKED"
+    | null;
   cancelAtPeriodEnd: boolean;
   hasSavedPaymentMethod: boolean;
   paymentMethodLast4: string | null;
@@ -18,6 +26,7 @@ export type AppSubscriptionStatusDto = {
   nextChargeAt: string | null;
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: 3;
+  yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
 export type AppSubscriptionOfferDto = {
@@ -29,6 +38,7 @@ export type AppSubscriptionOfferDto = {
   iosRuCardPaymentEnabled: boolean;
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: 3;
+  yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
 export const appSubscriptionApi = {
@@ -38,7 +48,9 @@ export const appSubscriptionApi = {
   getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
     return apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
   },
-  async startYookassa(): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
+  async startYookassa(): Promise<
+    ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>
+  > {
     if (isDev) console.log("[appSubscriptionApi] startYookassa request");
     const result = await apiClient<{ confirmationUrl: string; localSubscriptionId: string }>(
       "/api/v1/app-subscription/yookassa/start",

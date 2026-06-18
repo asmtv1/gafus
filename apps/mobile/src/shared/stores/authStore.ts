@@ -52,6 +52,15 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions;
 
+function isTransientAuthCheckError(response: { code?: string; error?: string }): boolean {
+  return (
+    response.code === "NETWORK_ERROR" ||
+    response.code === "REQUEST_TIMEOUT" ||
+    response.code === "AUTH_REFRESH_UNAVAILABLE" ||
+    response.error === "Нет подключения к интернету"
+  );
+}
+
 /**
  * Store для управления аутентификацией
  * Токены хранятся в SecureStore, данные пользователя в AsyncStorage
@@ -278,8 +287,7 @@ export const useAuthStore = create<AuthStore>()(
 
           const response = await authApi.getProfile();
           const persistedUser = useAuthStore.getState().user;
-          const isNetworkError =
-            response.code === "NETWORK_ERROR" || response.error === "Нет подключения к интернету";
+          const isTransientError = isTransientAuthCheckError(response);
 
           if (response.success && response.data) {
             const userData = response.data;
@@ -302,7 +310,7 @@ export const useAuthStore = create<AuthStore>()(
             set({ user: userData, isAuthenticated: true, isLoading: false, pendingVkPhone: false });
             identifyUser(userData.id);
             if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
-          } else if (isNetworkError && persistedUser) {
+          } else if (isTransientError && persistedUser) {
             if (__DEV__) {
               console.log("[authStore] checkAuth: offline fallback with persisted user", {
                 id: persistedUser.id,
@@ -315,6 +323,12 @@ export const useAuthStore = create<AuthStore>()(
               pendingVkPhone: false,
             });
             identifyUser(persistedUser.id);
+          } else if (isTransientError) {
+            set({
+              isLoading: false,
+              isAuthenticated: false,
+              pendingVkPhone: false,
+            });
           } else {
             if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
             await SecureStore.deleteItemAsync("auth_token");

@@ -23,10 +23,19 @@ export interface ApiResponse<T> {
 
 // Флаг для предотвращения параллельных refresh запросов
 let isRefreshing = false;
-let refreshPromise: Promise<boolean> | null = null;
+let refreshPromise: Promise<RefreshAccessTokenResult> | null = null;
 
 type SafeJsonOk = { ok: true; value: unknown };
 type SafeJsonErr = { ok: false; error: string; preview?: string };
+type RefreshAccessTokenFailureCode =
+  | "NO_REFRESH_TOKEN"
+  | "REFRESH_REJECTED"
+  | "NETWORK_ERROR"
+  | "REQUEST_TIMEOUT"
+  | "AUTH_REFRESH_UNAVAILABLE";
+type RefreshAccessTokenResult =
+  | { success: true }
+  | { success: false; code: RefreshAccessTokenFailureCode };
 const API_REQUEST_TIMEOUT_MS = NETWORK_TIMEOUTS.request;
 
 /**
@@ -117,10 +126,53 @@ function getAbortTimeoutError(): ApiResponse<never> {
   };
 }
 
+function getNetworkError(): ApiResponse<never> {
+  return {
+    success: false,
+    error: "Нет подключения к интернету",
+    code: "NETWORK_ERROR",
+  };
+}
+
+function isNetworkRequestError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error instanceof TypeError) return true;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("network request failed") ||
+    message.includes("internet connection") ||
+    message.includes("network connection") ||
+    message.includes("offline")
+  );
+}
+
+function getRefreshFailureResponse(
+  result: Exclude<RefreshAccessTokenResult, { success: true }>,
+): ApiResponse<never> {
+  if (result.code === "REQUEST_TIMEOUT") {
+    return getAbortTimeoutError();
+  }
+  if (result.code === "NETWORK_ERROR") {
+    return getNetworkError();
+  }
+  if (result.code === "AUTH_REFRESH_UNAVAILABLE") {
+    return {
+      success: false,
+      error: "Сервер авторизации временно недоступен. Попробуйте позже.",
+      code: "AUTH_REFRESH_UNAVAILABLE",
+    };
+  }
+  return {
+    success: false,
+    error: "Сессия истекла",
+    code: "SESSION_EXPIRED",
+  };
+}
+
 /**
  * Обновляет access token используя refresh token
  */
-async function refreshAccessToken(): Promise<boolean> {
+async function refreshAccessToken(): Promise<RefreshAccessTokenResult> {
   // Если уже идёт refresh — ждём его результат
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
@@ -130,7 +182,7 @@ async function refreshAccessToken(): Promise<boolean> {
   refreshPromise = (async () => {
     try {
       const refreshToken = await SecureStore.getItemAsync("refresh_token");
-      if (!refreshToken) return false;
+      if (!refreshToken) return { success: false, code: "NO_REFRESH_TOKEN" };
 
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/auth/refresh`, {
         method: "POST",
@@ -139,23 +191,32 @@ async function refreshAccessToken(): Promise<boolean> {
       });
 
       if (!response.ok) {
-        // Refresh failed — очищаем токены
-        await SecureStore.deleteItemAsync("auth_token");
-        await SecureStore.deleteItemAsync("refresh_token");
-        return false;
+        if (response.status === 400 || response.status === 401 || response.status === 403) {
+          // Refresh rejected by API — this is a real expired/invalid session.
+          await SecureStore.deleteItemAsync("auth_token");
+          await SecureStore.deleteItemAsync("refresh_token");
+          return { success: false, code: "REFRESH_REJECTED" };
+        }
+        return { success: false, code: "AUTH_REFRESH_UNAVAILABLE" };
       }
 
       const result = await response.json();
       if (result.success && result.data) {
         await SecureStore.setItemAsync("auth_token", result.data.accessToken);
         await SecureStore.setItemAsync("refresh_token", result.data.refreshToken);
-        return true;
+        return { success: true };
       }
 
-      return false;
+      return { success: false, code: "AUTH_REFRESH_UNAVAILABLE" };
     } catch (error) {
       reportClientError(error, { issueKey: "RefreshToken" });
-      return false;
+      if (isAbortError(error)) {
+        return { success: false, code: "REQUEST_TIMEOUT" };
+      }
+      if (isNetworkRequestError(error)) {
+        return { success: false, code: "NETWORK_ERROR" };
+      }
+      return { success: false, code: "AUTH_REFRESH_UNAVAILABLE" };
     } finally {
       isRefreshing = false;
       refreshPromise = null;
@@ -203,17 +264,12 @@ export async function apiClient<T>(
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
+      const refreshResult = await refreshAccessToken();
+      if (refreshResult.success) {
         // Повторяем запрос с новым токеном
         return apiClient(endpoint, options);
       }
-      // Refresh не удался — возвращаем ошибку (UI должен редиректить на login)
-      return {
-        success: false,
-        error: "Сессия истекла",
-        code: "SESSION_EXPIRED",
-      };
+      return getRefreshFailureResponse(refreshResult);
     }
 
     const parsed = await safeParseResponseJson(response);
@@ -272,12 +328,8 @@ export async function apiClient<T>(
       return getAbortTimeoutError();
     }
     // Обработка сетевых ошибок
-    if (error instanceof TypeError && error.message === "Network request failed") {
-      return {
-        success: false,
-        error: "Нет подключения к интернету",
-        code: "NETWORK_ERROR",
-      };
+    if (isNetworkRequestError(error)) {
+      return getNetworkError();
     }
 
     return {
@@ -315,15 +367,11 @@ export async function apiClientMultipart<T>(
   try {
     let response = await doFetch();
     if (response.status === 401) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
+      const refreshResult = await refreshAccessToken();
+      if (refreshResult.success) {
         response = await doFetch();
       } else {
-        return {
-          success: false,
-          error: "Сессия истекла",
-          code: "SESSION_EXPIRED",
-        };
+        return getRefreshFailureResponse(refreshResult);
       }
     }
 
@@ -359,12 +407,8 @@ export async function apiClientMultipart<T>(
     if (isAbortError(error)) {
       return getAbortTimeoutError();
     }
-    if (error instanceof TypeError && error.message === "Network request failed") {
-      return {
-        success: false,
-        error: "Нет подключения к интернету",
-        code: "NETWORK_ERROR",
-      };
+    if (isNetworkRequestError(error)) {
+      return getNetworkError();
     }
     return {
       success: false,

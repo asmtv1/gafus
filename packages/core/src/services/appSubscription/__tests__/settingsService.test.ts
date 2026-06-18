@@ -44,6 +44,7 @@ describe("getAppSubscriptionOffer", () => {
       yookassaPriceRub: 200,
       yookassaTrialAvailable: true,
       yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: null,
     });
   });
 
@@ -52,6 +53,7 @@ describe("getAppSubscriptionOffer", () => {
       id: "trial-1",
       userId: "user-1",
       provider: "YOOKASSA",
+      trialUnavailableReason: "CARD_FINGERPRINT_REUSED",
     });
 
     const result = await getAppSubscriptionOffer("user-1");
@@ -59,6 +61,7 @@ describe("getAppSubscriptionOffer", () => {
     expect(result).toMatchObject({
       yookassaTrialAvailable: false,
       yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED",
     });
   });
 });

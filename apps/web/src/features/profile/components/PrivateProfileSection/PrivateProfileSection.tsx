@@ -27,6 +27,7 @@ type AppSubscriptionStatusDto = {
   nextChargeAt: string | null;
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: 3;
+  yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
 function formatMskDateTime(dateIso: string | null): string {

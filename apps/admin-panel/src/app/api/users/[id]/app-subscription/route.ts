@@ -6,6 +6,7 @@ import {
   adminClearManualGrant,
   adminGrantLifetime,
   adminGrantPaidUntil,
+  cancelYookassaAppSubscription,
   getUserAppSubscriptionAdminSummary,
 } from "@gafus/core/services/appSubscription";
 import { createAdminPanelLogger } from "@gafus/logger";
@@ -27,6 +28,9 @@ const bodySchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("clear"),
+  }),
+  z.object({
+    action: z.literal("cancel_yookassa_renewal"),
   }),
 ]);
 
@@ -55,7 +59,10 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   }
 }
 
-export const POST = withCSRFProtection(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+export const POST = withCSRFProtection(async (
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) => {
   try {
     const session = await getSessionUser();
     if (!session?.user?.id) {
@@ -88,8 +95,10 @@ export const POST = withCSRFProtection(async (request: NextRequest, context: { p
         adminUserId: session.user.id,
         reason: parsed.data.reason,
       });
-    } else {
+    } else if (parsed.data.action === "clear") {
       await adminClearManualGrant({ userId: id, adminUserId: session.user.id });
+    } else {
+      await cancelYookassaAppSubscription(id);
     }
 
     return NextResponse.json({ success: true });

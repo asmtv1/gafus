@@ -27,6 +27,12 @@ export function AppSubscriptionGrantCard({ userId, actorRole }: AppSubscriptionG
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
+  const canCancelYookassaRenewal =
+    actorRole === "ADMIN" &&
+    summary?.provider === "YOOKASSA" &&
+    summary.status === "ACTIVE" &&
+    !summary.isLifetime &&
+    !summary.cancelAtPeriodEnd;
 
   useEffect(() => {
     if (!csrfToken && !csrfLoading) {
@@ -92,6 +98,11 @@ export function AppSubscriptionGrantCard({ userId, actorRole }: AppSubscriptionG
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Lifetime: {summary?.isLifetime ? "да" : "нет"}; activeUntil: {summary?.activeUntil ?? "-"}
         </Typography>
+        {summary?.provider === "YOOKASSA" ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Автопродление: {summary.cancelAtPeriodEnd ? "отменено" : "включено"}
+          </Typography>
+        ) : null}
 
         {actorRole === "ADMIN" ? (
           <>
@@ -139,6 +150,16 @@ export function AppSubscriptionGrantCard({ userId, actorRole }: AppSubscriptionG
               >
                 Снять ручной доступ
               </Button>
+              {canCancelYookassaRenewal ? (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  disabled={isPending || csrfLoading || !csrfToken}
+                  onClick={() => postAction({ action: "cancel_yookassa_renewal" })}
+                >
+                  Отменить продление
+                </Button>
+              ) : null}
             </Box>
           </>
         ) : (

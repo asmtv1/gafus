@@ -12,6 +12,7 @@ import {
   getYookassaPriceNote,
   getYookassaPrimaryCta,
   getYookassaReturnSuccessTitle,
+  getYookassaTrialUnavailableText,
 } from "@/shared/lib/app-subscription/presentation";
 import styles from "./app-subscription-paywall.module.css";
 
@@ -20,6 +21,7 @@ type AppSubscriptionOffer = {
   yookassaPriceRub: number;
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: number;
+  yookassaTrialUnavailableReason?: string | null;
 };
 
 type WebRewardedPlatform = "WEB_DESKTOP" | "WEB_TOUCH";
@@ -92,7 +94,9 @@ export function AppSubscriptionPaywall({
   const [error, setError] = useState<string | null>(null);
   const [priceText, setPriceText] = useState("200 ₽/неделю");
   const [offer, setOffer] = useState<AppSubscriptionOffer | null>(null);
-  const [returnState, setReturnState] = useState<"idle" | "checking" | "success" | "pending">("idle");
+  const [returnState, setReturnState] = useState<
+    "idle" | "checking" | "success" | "pending" | "trial-unavailable"
+  >("idle");
   const [rewardedStatus, setRewardedStatus] = useState<RewardedCreditsStatus | null>(null);
   const [rewardedLoading, setRewardedLoading] = useState(false);
   const [rewardedMessage, setRewardedMessage] = useState<string | null>(null);
@@ -174,6 +178,23 @@ export function AppSubscriptionPaywall({
             redirectTimer = setTimeout(() => {
               router.replace("/courses");
             }, 2000);
+            return;
+          }
+          if (
+            !cancelled &&
+            response.ok &&
+            json?.data?.yookassaTrialUnavailableReason === "CARD_FINGERPRINT_REUSED"
+          ) {
+            setOffer((current) =>
+              current
+                ? {
+                    ...current,
+                    yookassaTrialAvailable: false,
+                    yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED",
+                  }
+                : current,
+            );
+            setReturnState("trial-unavailable");
             return;
           }
         } catch {
@@ -317,6 +338,7 @@ export function AppSubscriptionPaywall({
   const rewardedUnavailableText = rewardedStatus
     ? getRewardedUnavailableText(rewardedStatus.canWatchAdReason)
     : "";
+  const yookassaTrialUnavailableText = getYookassaTrialUnavailableText(offer);
 
   return (
     <section className={`${styles.page} ${mode === "embedded" ? styles.embedded : ""}`}>
@@ -325,9 +347,7 @@ export function AppSubscriptionPaywall({
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
             <h1 className={styles.returnTitle}>{getYookassaReturnSuccessTitle(offer)}</h1>
-            <p className={styles.returnText}>
-              Premium активен. Сейчас откроем список курсов.
-            </p>
+            <p className={styles.returnText}>Premium активен. Сейчас откроем список курсов.</p>
           </div>
         ) : returnState === "checking" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
@@ -345,106 +365,134 @@ export function AppSubscriptionPaywall({
               Мы не получили подтверждение от ЮKassa. Обновите страницу через несколько секунд.
             </p>
           </div>
-        ) : (
-        <div className={styles.card}>
-          {onClose ? (
-            <IconButton
-              className={styles.closeButton}
-              type="button"
-              onClick={onClose}
-              aria-label="Закрыть"
-            >
-              <CloseIcon />
-            </IconButton>
-          ) : null}
-          <div className={styles.hero}>
-            <div>
-              <p className={styles.kicker}>Gafus Premium</p>
-              <h1 className={styles.title}>Подписка, которая экономит время и деньги</h1>
-              <p className={styles.subtitle}>
-                Откройте весь практический контент и поддержку специалистов в одном тарифе.
-              </p>
-            </div>
-            <div className={styles.priceCard}>
-              <p className={styles.priceLabel}>Текущий тариф</p>
-              <p className={styles.price}>{priceText}</p>
-              <p className={styles.priceNote}>{getYookassaPriceNote(offer)}</p>
-            </div>
-          </div>
-
-          <div className={styles.valueGrid} aria-label="Что входит в подписку">
-            <article className={styles.valueItem}>
-              <h2>Курсы и экзамены</h2>
-              <p>Полный доступ к обучению, тренировкам и проверке прогресса без ограничений.</p>
-            </article>
-            <article className={styles.valueItem}>
-              <h2>Консультации с кинологом</h2>
-              <p>Запись к специалисту для разбора поведения и персональных рекомендаций.</p>
-            </article>
-            <article className={styles.valueItem}>
-              <h2>Статьи и офлайн</h2>
-              <p>База материалов под рукой даже без интернета, чтобы учиться в удобном ритме.</p>
-            </article>
-            <article className={styles.valueItem}>
-              <h2>Профилактика и документы</h2>
-              <p>Все данные о питомце в одном месте, с доступом к функциям без лимитов.</p>
-            </article>
-          </div>
-
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onClick={onStart}
-            disabled={loading || csrfLoading}
-          >
-            {loading || csrfLoading ? "Переход в ЮKassa..." : getYookassaPrimaryCta(offer)}
-          </button>
-          <p className={styles.legalText}>
-            Нажимая кнопку, вы принимаете{" "}
-            <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
-              Оферту
-            </a>
-            : {getYookassaLegalText(offer, priceText)}
-          </p>
-          <p className={styles.assurance}>
-            Безопасная привязка карты через ЮKassa • Чек придёт после первого списания
-          </p>
-
-          {showRewardedBlock ? (
-            <div className={styles.rewardedBlock}>
-              <div>
-                <p className={styles.rewardedTitle}>Доступ за просмотр рекламы</p>
-                <p className={styles.rewardedText}>
-                  Посмотрите рекламу и получите{" "}
-                  {rewardedStatus.nextGrantCredits ||
-                    rewardedStatus.wallet.creditsPerReward} кредитов.
-                  Их можно потратить на открытие статей, шагов в курсе или запись к кинологу.
-                </p>
-                <p className={styles.rewardedBalance}>
-                  Баланс: {rewardedStatus.wallet.balance}/{rewardedStatus.wallet.maxBalance}.
-                </p>
-                {rewardedUnavailableText ? (
-                  <p className={styles.rewardedHint}>{rewardedUnavailableText}</p>
-                ) : null}
-                {rewardedMessage ? <p className={styles.rewardedHint}>{rewardedMessage}</p> : null}
-              </div>
-              <button
-                className={styles.rewardedButton}
-                type="button"
-                onClick={onWatchRewardedAd}
-                disabled={rewardedLoading || !rewardedStatus.canWatchAd || csrfLoading}
-              >
-                {rewardedLoading ? "Открываем рекламу..." : "Получить кредиты за рекламу"}
-              </button>
-            </div>
-          ) : null}
-
-          {error ? (
-            <p className={styles.errorText} role="alert">
-              {error}
+        ) : returnState === "trial-unavailable" ? (
+          <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
+            <p className={styles.kicker}>Gafus Premium</p>
+            <h1 className={styles.returnTitle}>Пробный период недоступен</h1>
+            <p className={styles.returnText}>
+              {yookassaTrialUnavailableText ??
+                "На эту карту пробный период уже использован. Premium можно подключить через обычную оплату."}
             </p>
-          ) : null}
-        </div>
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={onStart}
+              disabled={loading || csrfLoading}
+            >
+              {loading || csrfLoading ? "Переход в ЮKassa..." : "Оплатить Premium"}
+            </button>
+            {error ? (
+              <p className={styles.errorText} role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className={styles.card}>
+            {onClose ? (
+              <IconButton
+                className={styles.closeButton}
+                type="button"
+                onClick={onClose}
+                aria-label="Закрыть"
+              >
+                <CloseIcon />
+              </IconButton>
+            ) : null}
+            <div className={styles.hero}>
+              <div>
+                <p className={styles.kicker}>Gafus Premium</p>
+                <h1 className={styles.title}>Подписка, которая экономит время и деньги</h1>
+                <p className={styles.subtitle}>
+                  Откройте весь практический контент и поддержку специалистов в одном тарифе.
+                </p>
+              </div>
+              <div className={styles.priceCard}>
+                <p className={styles.priceLabel}>Текущий тариф</p>
+                <p className={styles.price}>{priceText}</p>
+                <p className={styles.priceNote}>{getYookassaPriceNote(offer)}</p>
+              </div>
+            </div>
+
+            {yookassaTrialUnavailableText ? (
+              <p className={styles.errorText}>{yookassaTrialUnavailableText}</p>
+            ) : null}
+
+            <div className={styles.valueGrid} aria-label="Что входит в подписку">
+              <article className={styles.valueItem}>
+                <h2>Курсы и экзамены</h2>
+                <p>Полный доступ к обучению, тренировкам и проверке прогресса без ограничений.</p>
+              </article>
+              <article className={styles.valueItem}>
+                <h2>Консультации с кинологом</h2>
+                <p>Запись к специалисту для разбора поведения и персональных рекомендаций.</p>
+              </article>
+              <article className={styles.valueItem}>
+                <h2>Статьи и офлайн</h2>
+                <p>База материалов под рукой даже без интернета, чтобы учиться в удобном ритме.</p>
+              </article>
+              <article className={styles.valueItem}>
+                <h2>Профилактика и документы</h2>
+                <p>Все данные о питомце в одном месте, с доступом к функциям без лимитов.</p>
+              </article>
+            </div>
+
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={onStart}
+              disabled={loading || csrfLoading}
+            >
+              {loading || csrfLoading ? "Переход в ЮKassa..." : getYookassaPrimaryCta(offer)}
+            </button>
+            <p className={styles.legalText}>
+              Нажимая кнопку, вы принимаете{" "}
+              <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
+                Оферту
+              </a>
+              : {getYookassaLegalText(offer, priceText)}
+            </p>
+            <p className={styles.assurance}>
+              Безопасная привязка карты через ЮKassa • Чек придёт после первого списания
+            </p>
+
+            {showRewardedBlock ? (
+              <div className={styles.rewardedBlock}>
+                <div>
+                  <p className={styles.rewardedTitle}>Доступ за просмотр рекламы</p>
+                  <p className={styles.rewardedText}>
+                    Посмотрите рекламу и получите{" "}
+                    {rewardedStatus.nextGrantCredits || rewardedStatus.wallet.creditsPerReward}{" "}
+                    кредитов. Их можно потратить на открытие статей, шагов в курсе или запись к
+                    кинологу.
+                  </p>
+                  <p className={styles.rewardedBalance}>
+                    Баланс: {rewardedStatus.wallet.balance}/{rewardedStatus.wallet.maxBalance}.
+                  </p>
+                  {rewardedUnavailableText ? (
+                    <p className={styles.rewardedHint}>{rewardedUnavailableText}</p>
+                  ) : null}
+                  {rewardedMessage ? (
+                    <p className={styles.rewardedHint}>{rewardedMessage}</p>
+                  ) : null}
+                </div>
+                <button
+                  className={styles.rewardedButton}
+                  type="button"
+                  onClick={onWatchRewardedAd}
+                  disabled={rewardedLoading || !rewardedStatus.canWatchAd || csrfLoading}
+                >
+                  {rewardedLoading ? "Открываем рекламу..." : "Получить кредиты за рекламу"}
+                </button>
+              </div>
+            ) : null}
+
+            {error ? (
+              <p className={styles.errorText} role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
         )}
       </div>
     </section>

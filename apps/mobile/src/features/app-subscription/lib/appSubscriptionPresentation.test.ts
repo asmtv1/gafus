@@ -5,6 +5,7 @@ import {
   getYookassaPaymentCaption,
   getYookassaPricePillText,
   getYookassaPrimaryCta,
+  getYookassaTrialUnavailableText,
 } from "./appSubscriptionPresentation";
 
 describe("app subscription presentation", () => {
@@ -28,5 +29,18 @@ describe("app subscription presentation", () => {
       "Списание произойдёт при оформлении подписки. Карту можно отвязать в профиле.",
     );
     expect(getYookassaLegalSuffix({ offer })).not.toContain("бесплат");
+    expect(getYookassaTrialUnavailableText({ offer })).toBeNull();
+  });
+
+  it("explains card fingerprint trial reuse", () => {
+    const offer = {
+      yookassaTrialAvailable: false,
+      yookassaTrialDays: 3,
+      yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED",
+    };
+
+    expect(getYookassaTrialUnavailableText({ offer })).toContain(
+      "На эту карту пробный период уже использован",
+    );
   });
 });

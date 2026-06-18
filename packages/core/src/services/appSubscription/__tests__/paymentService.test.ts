@@ -12,6 +12,7 @@ const mockSubscriptionFindMany = vi.fn();
 const mockSubscriptionCreate = vi.fn();
 const mockSubscriptionUpdate = vi.fn();
 const mockSettingsFindUnique = vi.fn();
+const mockTrialFindFirst = vi.fn();
 const mockTrialFindUnique = vi.fn();
 const mockTrialUpsert = vi.fn();
 const mockTransaction = vi.fn();
@@ -41,6 +42,7 @@ vi.mock("@gafus/prisma", () => ({
       findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
     },
     appSubscriptionTrial: {
+      findFirst: (...args: unknown[]) => mockTrialFindFirst(...args),
       findUnique: (...args: unknown[]) => mockTrialFindUnique(...args),
       upsert: (...args: unknown[]) => mockTrialUpsert(...args),
     },
@@ -103,6 +105,7 @@ describe("app subscription payment service", () => {
     mockSubscriptionFindMany.mockResolvedValue([]);
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
     mockSubscriptionUpdate.mockResolvedValue({});
+    mockTrialFindFirst.mockResolvedValue(null);
     mockTrialFindUnique.mockResolvedValue(null);
     mockTrialUpsert.mockResolvedValue({ id: "trial-1" });
     mockSettingsFindUnique.mockResolvedValue({
@@ -127,6 +130,7 @@ describe("app subscription payment service", () => {
           create: mockEventCreate,
         },
         appSubscriptionTrial: {
+          findFirst: mockTrialFindFirst,
           upsert: mockTrialUpsert,
         },
       }),
@@ -143,13 +147,16 @@ describe("app subscription payment service", () => {
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+        }),
       }),
-    }));
+    );
 
     const result = await startYookassaAppSubscriptionPayment({
       userId: "user-1",
@@ -214,22 +221,33 @@ describe("app subscription payment service", () => {
     });
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "active",
-        saved: true,
-        type: "bank_card",
-        card: { last4: "4444" },
-        title: "Bank card *4444",
-        metadata: {
-          kind: "app_subscription_payment_method",
-          subscriptionId: "sub-1",
-          userId: "user-1",
-        },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "active",
+          saved: true,
+          type: "bank_card",
+          card: {
+            first6: "555555",
+            last4: "4444",
+            expiry_month: "07",
+            expiry_year: "2028",
+            card_type: "Mir",
+            issuer_country: "RU",
+            issuer_name: "Sberbank",
+          },
+          title: "Bank card *4444",
+          metadata: {
+            kind: "app_subscription_payment_method",
+            subscriptionId: "sub-1",
+            userId: "user-1",
+          },
+        }),
       }),
-    }));
+    );
 
     await handleYookassaAppSubscriptionWebhook({
       event: "payment_method.active",
@@ -262,6 +280,94 @@ describe("app subscription payment service", () => {
           subscriptionId: "sub-1",
           startedAt: new Date("2026-05-26T10:00:00.000Z"),
           endedAt: new Date("2026-05-29T10:00:00.000Z"),
+          paymentMethodFingerprintHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          trialUnavailableReason: null,
+        }),
+      }),
+    );
+  });
+
+  it("does not activate a YooKassa trial when another account already used the same card fingerprint", async () => {
+    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-2",
+      userId: "user-2",
+      status: "PENDING",
+      yookassaPaymentMethodId: "pm-2",
+    });
+    mockTrialFindUnique.mockResolvedValue(null);
+    mockTrialUpsert.mockResolvedValue({ id: "trial-blocked" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-2",
+          status: "active",
+          saved: true,
+          type: "bank_card",
+          card: {
+            first6: "555555",
+            last4: "4444",
+            expiry_month: "07",
+            expiry_year: "2028",
+            card_type: "Mir",
+            issuer_country: "RU",
+            issuer_name: "Sberbank",
+          },
+          title: "Bank card *4444",
+          metadata: {
+            kind: "app_subscription_payment_method",
+            subscriptionId: "sub-2",
+            userId: "user-2",
+          },
+        }),
+      }),
+    );
+    const usedFingerprintHash = "a".repeat(64);
+    mockTrialFindFirst.mockResolvedValueOnce({
+      id: "trial-1",
+      userId: "user-1",
+      paymentMethodFingerprintHash: usedFingerprintHash,
+    });
+
+    await handleYookassaAppSubscriptionWebhook({
+      event: "payment_method.active",
+      yookassaPaymentId: "pm-2",
+      paymentMethodId: "pm-2",
+      metadata: {
+        kind: "app_subscription_payment_method",
+        subscriptionId: "sub-2",
+        userId: "user-2",
+      },
+    });
+
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-2" },
+      data: expect.objectContaining({
+        status: "CANCELED",
+        pendingExpiresAt: null,
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: "4444",
+        yookassaPaymentMethodTitle: "Bank card *4444",
+      }),
+    });
+    expect(mockSubscriptionUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "ACTIVE" }) }),
+    );
+    expect(mockTrialUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_provider: { userId: "user-2", provider: "YOOKASSA" } },
+        create: expect.objectContaining({
+          userId: "user-2",
+          provider: "YOOKASSA",
+          subscriptionId: "sub-2",
+          startedAt: new Date("2026-05-26T10:00:00.000Z"),
+          endedAt: new Date("2026-05-26T10:00:00.000Z"),
+          paymentMethodFingerprintHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          trialUnavailableReason: "CARD_FINGERPRINT_REUSED",
         }),
       }),
     );
@@ -279,13 +385,16 @@ describe("app subscription payment service", () => {
     mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "payment-1",
-        confirmation: { confirmation_url: "https://yookassa.test/pay" },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "payment-1",
+          confirmation: { confirmation_url: "https://yookassa.test/pay" },
+        }),
       }),
-    }));
+    );
 
     const result = await startYookassaAppSubscriptionPayment({
       userId: "user-1",
@@ -355,13 +464,16 @@ describe("app subscription payment service", () => {
         },
       }),
     );
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-locked",
-        confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-locked",
+          confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+        }),
       }),
-    }));
+    );
 
     const result = await startYookassaAppSubscriptionPayment({
       userId: "user-1",
@@ -372,7 +484,9 @@ describe("app subscription payment service", () => {
 
     expect(result).toMatchObject({ success: true, localSubscriptionId: "sub-locked" });
     expect(mockTransaction).toHaveBeenCalled();
-    expect(txExecuteRawUnsafe).toHaveBeenCalledWith(expect.stringContaining("pg_advisory_xact_lock"));
+    expect(txExecuteRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining("pg_advisory_xact_lock"),
+    );
     expect(txSubscriptionFindFirst).toHaveBeenCalled();
     expect(txSubscriptionCreate).toHaveBeenCalled();
   });
@@ -402,13 +516,16 @@ describe("app subscription payment service", () => {
     );
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-new",
-        confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-new",
+          confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+        }),
       }),
-    }));
+    );
 
     const result = await startYookassaAppSubscriptionPayment({
       userId: "user-1",
@@ -448,22 +565,25 @@ describe("app subscription payment service", () => {
     });
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-27T10:00:00.000Z"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "active",
-        saved: true,
-        type: "bank_card",
-        card: { last4: "0408" },
-        title: "Bank card *0408",
-        metadata: {
-          kind: "app_subscription_payment_method",
-          subscriptionId: "sub-1",
-          userId: "user-1",
-        },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "active",
+          saved: true,
+          type: "bank_card",
+          card: { last4: "0408" },
+          title: "Bank card *0408",
+          metadata: {
+            kind: "app_subscription_payment_method",
+            subscriptionId: "sub-1",
+            userId: "user-1",
+          },
+        }),
       }),
-    }));
+    );
 
     const result = await reconcilePendingYookassaAppSubscription({
       userId: "user-1",
@@ -508,15 +628,18 @@ describe("app subscription payment service", () => {
       isLifetime: false,
       yookassaPaymentMethodId: "pm-1",
     });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "pending",
-        saved: false,
-        type: "bank_card",
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "pending",
+          saved: false,
+          type: "bank_card",
+        }),
       }),
-    }));
+    );
 
     const result = await reconcilePendingYookassaAppSubscription({
       userId: "user-1",
@@ -550,11 +673,14 @@ describe("app subscription payment service", () => {
       isLifetime: false,
       yookassaPaymentMethodId: "pm-1",
     });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      text: async () => "temporary outage",
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => "temporary outage",
+      }),
+    );
 
     const result = await reconcilePendingYookassaAppSubscription({
       userId: "user-1",
@@ -579,22 +705,25 @@ describe("app subscription payment service", () => {
     });
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "active",
-        saved: true,
-        type: "bank_card",
-        card: { last4: "4444" },
-        title: "Bank card *4444",
-        metadata: {
-          kind: "app_subscription_payment_method",
-          subscriptionId: "sub-1",
-          userId: "user-1",
-        },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "active",
+          saved: true,
+          type: "bank_card",
+          card: { last4: "4444" },
+          title: "Bank card *4444",
+          metadata: {
+            kind: "app_subscription_payment_method",
+            subscriptionId: "sub-1",
+            userId: "user-1",
+          },
+        }),
       }),
-    }));
+    );
 
     await handleYookassaAppSubscriptionWebhook({
       event: "payment_method.active",
@@ -625,26 +754,31 @@ describe("app subscription payment service", () => {
       currentPeriodEnd: null,
       yookassaPaymentMethodId: "pm-1",
     });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "active",
-        saved: true,
-        type: "bank_card",
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "active",
+          saved: true,
+          type: "bank_card",
+        }),
       }),
-    }));
+    );
 
-    await expect(handleYookassaAppSubscriptionWebhook({
-      event: "payment_method.active",
-      yookassaPaymentId: "pm-1",
-      paymentMethodId: "pm-1",
-      metadata: {
-        kind: "app_subscription_payment_method",
-        subscriptionId: "sub-1",
-        userId: "user-1",
-      },
-    })).rejects.toThrow("YooKassa payment method metadata is missing");
+    await expect(
+      handleYookassaAppSubscriptionWebhook({
+        event: "payment_method.active",
+        yookassaPaymentId: "pm-1",
+        paymentMethodId: "pm-1",
+        metadata: {
+          kind: "app_subscription_payment_method",
+          subscriptionId: "sub-1",
+          userId: "user-1",
+        },
+      }),
+    ).rejects.toThrow("YooKassa payment method metadata is missing");
     expect(mockSubscriptionUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "ACTIVE" }) }),
     );
@@ -768,13 +902,15 @@ describe("app subscription payment service", () => {
   it("creates a separate Apple subscription for the verifying user when the original transaction was used by another account", async () => {
     const { verifyAppleAppSubscription } = await import("../paymentService");
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "new-account-token" });
-    mockSubscriptionFindFirst.mockImplementation(async (args: { where?: Record<string, unknown> }) => {
-      expect(args.where).toMatchObject({
-        userId: "new-user",
-        provider: "APPLE",
-      });
-      return null;
-    });
+    mockSubscriptionFindFirst.mockImplementation(
+      async (args: { where?: Record<string, unknown> }) => {
+        expect(args.where).toMatchObject({
+          userId: "new-user",
+          provider: "APPLE",
+        });
+        return null;
+      },
+    );
     mockSubscriptionCreate.mockResolvedValue({ id: "sub-new-user" });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
@@ -864,7 +1000,10 @@ describe("app subscription payment service", () => {
     const { syncAppleAppSubscriptionFromServer } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
-    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    vi.stubEnv(
+      "APPLE_PRIVATE_KEY",
+      "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----",
+    );
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -942,7 +1081,10 @@ describe("app subscription payment service", () => {
     const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
-    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    vi.stubEnv(
+      "APPLE_PRIVATE_KEY",
+      "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----",
+    );
     verifyAndDecodeNotification.mockResolvedValue({
       notificationType: "DID_RENEW",
       notificationUUID: "notification-1",
@@ -1005,7 +1147,10 @@ describe("app subscription payment service", () => {
     const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
-    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    vi.stubEnv(
+      "APPLE_PRIVATE_KEY",
+      "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----",
+    );
     mockUserFindUnique.mockImplementation(async (args: { where?: Record<string, unknown> }) => {
       if (args.where?.appleAppAccountToken === "account-token-1") {
         return { id: "user-token" };
@@ -1063,7 +1208,10 @@ describe("app subscription payment service", () => {
     const { reconcileAppleAppSubscriptionsFromServer } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
-    vi.stubEnv("APPLE_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----");
+    vi.stubEnv(
+      "APPLE_PRIVATE_KEY",
+      "-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----",
+    );
     mockSubscriptionFindMany.mockResolvedValue([
       {
         id: "sub-1",
@@ -1141,7 +1289,11 @@ describe("app subscription payment service", () => {
   it("does not treat an already recorded inactive Apple transaction as verified", async () => {
     const { verifyAppleAppSubscription } = await import("../paymentService");
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
-    mockPaymentFindUnique.mockResolvedValue({ id: "pay-expired", userId: "user-1", status: "CANCELED" });
+    mockPaymentFindUnique.mockResolvedValue({
+      id: "pay-expired",
+      userId: "user-1",
+      status: "CANCELED",
+    });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
       transactionId: "tx-expired",
@@ -1179,22 +1331,25 @@ describe("app subscription payment service", () => {
         yookassaPaymentMethodId: "pm-1",
       },
     ]);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "active",
-        saved: true,
-        type: "bank_card",
-        card: { last4: "0408" },
-        title: "Bank card *0408",
-        metadata: {
-          kind: "app_subscription_payment_method",
-          subscriptionId: "sub-1",
-          userId: "user-1",
-        },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "active",
+          saved: true,
+          type: "bank_card",
+          card: { last4: "0408" },
+          title: "Bank card *0408",
+          metadata: {
+            kind: "app_subscription_payment_method",
+            subscriptionId: "sub-1",
+            userId: "user-1",
+          },
+        }),
       }),
-    }));
+    );
 
     const result = await reconcileStaleYookassaPendingAppSubscriptions({
       now: new Date("2026-05-30T10:00:00.000Z"),
@@ -1241,15 +1396,18 @@ describe("app subscription payment service", () => {
         yookassaPaymentMethodId: "pm-1",
       },
     ]);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "pm-1",
-        status: "pending",
-        saved: false,
-        type: "bank_card",
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-1",
+          status: "pending",
+          saved: false,
+          type: "bank_card",
+        }),
       }),
-    }));
+    );
 
     const result = await reconcileStaleYookassaPendingAppSubscriptions({
       now: new Date("2026-05-30T10:00:00.000Z"),
@@ -1284,11 +1442,14 @@ describe("app subscription payment service", () => {
         yookassaPaymentMethodId: "pm-1",
       },
     ]);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      text: async () => "temporary outage",
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => "temporary outage",
+      }),
+    );
 
     const result = await reconcileStaleYookassaPendingAppSubscriptions({
       now: new Date("2026-05-30T10:00:00.000Z"),
@@ -1314,11 +1475,14 @@ describe("app subscription payment service", () => {
         yookassaPaymentMethodId: "pm-missing",
       },
     ]);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-      text: async () => "not found",
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => "not found",
+      }),
+    );
 
     const result = await reconcileStaleYookassaPendingAppSubscriptions({
       now: new Date("2026-05-30T10:00:00.000Z"),
@@ -1342,39 +1506,44 @@ describe("app subscription payment service", () => {
   it("does not activate YooKassa subscription when provider payment is not succeeded", async () => {
     const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
     mockPaymentFindUnique.mockResolvedValue({
-        id: "local-pay-1",
-        userId: "user-1",
-        subscriptionId: null,
-        status: "PENDING",
-        amount: 200,
+      id: "local-pay-1",
+      userId: "user-1",
+      subscriptionId: null,
+      status: "PENDING",
+      amount: 200,
       currency: "RUB",
       subscription: null,
     });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: "yk-pay-1",
-        status: "pending",
-        paid: false,
-        amount: { value: "200.00", currency: "RUB" },
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yk-pay-1",
+          status: "pending",
+          paid: false,
+          amount: { value: "200.00", currency: "RUB" },
+          metadata: {
+            kind: "app_subscription",
+            localPaymentId: "local-pay-1",
+            userId: "user-1",
+          },
+        }),
+      }),
+    );
+
+    await expect(
+      handleYookassaAppSubscriptionWebhook({
+        event: "payment.succeeded",
+        yookassaPaymentId: "yk-pay-1",
+        amount: "200.00",
         metadata: {
           kind: "app_subscription",
           localPaymentId: "local-pay-1",
           userId: "user-1",
         },
       }),
-    }));
-
-    await expect(handleYookassaAppSubscriptionWebhook({
-      event: "payment.succeeded",
-      yookassaPaymentId: "yk-pay-1",
-      amount: "200.00",
-      metadata: {
-        kind: "app_subscription",
-        localPaymentId: "local-pay-1",
-        userId: "user-1",
-      },
-    })).rejects.toThrow(/not confirmed/i);
+    ).rejects.toThrow(/not confirmed/i);
 
     expect(mockSubscriptionCreate).not.toHaveBeenCalled();
     expect(mockPaymentUpdate).not.toHaveBeenCalledWith(

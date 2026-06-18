@@ -833,12 +833,15 @@ model AppSubscriptionTrial {
 
   startedAt DateTime
   endedAt   DateTime
+  paymentMethodFingerprintHash String?  @db.VarChar(64)
+  trialUnavailableReason       String?  @db.VarChar(64)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, provider])
   @@index([provider, startedAt])
+  @@index([provider, paymentMethodFingerprintHash])
   @@index([subscriptionId])
 }
 

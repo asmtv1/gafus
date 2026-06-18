@@ -45,6 +45,7 @@ export async function getAppSubscriptionAccess(
       nextChargeAt: null,
       yookassaTrialAvailable: yookassaTrial.available,
       yookassaTrialDays: yookassaTrial.trialDays,
+      yookassaTrialUnavailableReason: yookassaTrial.unavailableReason,
     };
   }
 
@@ -75,12 +76,12 @@ export async function getAppSubscriptionAccess(
     paidAt: isTrial
       ? null
       : lastSucceededPayment?.succeededAt
-      ? lastSucceededPayment.succeededAt.toISOString()
-      : lastSucceededPayment?.updatedAt
-        ? lastSucceededPayment.updatedAt.toISOString()
-      : active.createdAt
-        ? active.createdAt.toISOString()
-        : null,
+        ? lastSucceededPayment.succeededAt.toISOString()
+        : lastSucceededPayment?.updatedAt
+          ? lastSucceededPayment.updatedAt.toISOString()
+          : active.createdAt
+            ? active.createdAt.toISOString()
+            : null,
     activeUntil: active.currentPeriodEnd ? active.currentPeriodEnd.toISOString() : null,
     isTrial,
     trialEndsAt: isTrial && active.currentPeriodEnd ? active.currentPeriodEnd.toISOString() : null,
@@ -94,5 +95,6 @@ export async function getAppSubscriptionAccess(
     nextChargeAt,
     yookassaTrialAvailable: isTrial ? false : yookassaTrial.available,
     yookassaTrialDays: yookassaTrial.trialDays,
+    yookassaTrialUnavailableReason: isTrial ? null : yookassaTrial.unavailableReason,
   };
 }

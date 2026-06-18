@@ -20,10 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Text } from "react-native-paper";
 import { appSubscriptionApi, type AppSubscriptionOfferDto } from "../api/appSubscriptionApi";
-import {
-  rewardedAdsApi,
-  showYandexRewardedAd,
-} from "@/features/rewarded-ads";
+import { rewardedAdsApi, showYandexRewardedAd } from "@/features/rewarded-ads";
 import { reportClientError } from "@/shared/lib/tracer";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import {
@@ -31,6 +28,7 @@ import {
   getYookassaPaymentCaption,
   getYookassaPricePillText,
   getYookassaPrimaryCta,
+  getYookassaTrialUnavailableText,
 } from "../lib/appSubscriptionPresentation";
 import {
   getRewardedAccessSummary,
@@ -70,15 +68,21 @@ function extractDisplayPrice(product: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-async function pollActiveSubscription() {
+async function pollActiveSubscription(): Promise<"active" | "trial-unavailable" | "pending"> {
   for (let attempt = 0; attempt < STATUS_POLL_ATTEMPTS; attempt += 1) {
     const status = await appSubscriptionApi.getStatus();
     if (status.success && status.data?.hasActiveSubscription) {
-      return true;
+      return "active";
+    }
+    if (
+      status.success &&
+      status.data?.yookassaTrialUnavailableReason === "CARD_FINGERPRINT_REUSED"
+    ) {
+      return "trial-unavailable";
     }
     await sleep(STATUS_POLL_DELAY_MS);
   }
-  return false;
+  return "pending";
 }
 
 export function AppSubscriptionPaywall() {
@@ -106,7 +110,12 @@ export function AppSubscriptionPaywall() {
   });
   const offer = offerQuery.data?.success ? offerQuery.data.data : null;
   const rewardedStatusQuery = useQuery({
-    queryKey: ["rewarded-ads", "status", rewardedTarget?.targetType ?? null, rewardedTarget?.targetId ?? null],
+    queryKey: [
+      "rewarded-ads",
+      "status",
+      rewardedTarget?.targetType ?? null,
+      rewardedTarget?.targetId ?? null,
+    ],
     queryFn: () => rewardedAdsApi.getStatus(rewardedTarget ?? undefined),
     staleTime: 30_000,
   });
@@ -149,6 +158,9 @@ export function AppSubscriptionPaywall() {
     ? getYookassaPaymentCaption({ offer: effectiveOffer })
     : "Списание и управление подпиской выполняются через App Store.";
   const yookassaPrimaryCta = getYookassaPrimaryCta({ offer: effectiveOffer });
+  const yookassaTrialUnavailableText = getYookassaTrialUnavailableText({
+    offer: effectiveOffer,
+  });
   const useCompactLayout = height < 760 || width < 380;
   const headline = useMemo(
     () =>
@@ -208,18 +220,24 @@ export function AppSubscriptionPaywall() {
     }
 
     setPendingMessage("Проверяем привязку карты в ЮKassa...");
-    const isActive = await pollActiveSubscription();
+    const subscriptionResult = await pollActiveSubscription();
     if (isDev) {
       console.log("[AppSubscriptionPaywall] handleYookassaPay poll result", {
         localSubscriptionId: result.localSubscriptionId,
-        isActive,
+        subscriptionResult,
       });
     }
     setIsPaying(false);
     await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
     await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
-    if (isActive) {
+    if (subscriptionResult === "active") {
       await finishSuccessfulPayment();
+      return;
+    }
+    if (subscriptionResult === "trial-unavailable") {
+      setPendingMessage(
+        "На эту карту пробный период уже использован. Premium можно подключить через обычную оплату.",
+      );
       return;
     }
     setPendingMessage("Привязка карты ещё подтверждается. Обычно это занимает несколько секунд.");
@@ -404,6 +422,9 @@ export function AppSubscriptionPaywall() {
             {iosRuCardHint ? <Text style={styles.priceCaption}>{iosRuCardHint}</Text> : null}
           </View>
 
+          {yookassaTrialUnavailableText ? (
+            <Text style={styles.pendingText}>{yookassaTrialUnavailableText}</Text>
+          ) : null}
           {pendingMessage ? <Text style={styles.pendingText}>{pendingMessage}</Text> : null}
 
           {canUseApple ? (
@@ -429,9 +450,7 @@ export function AppSubscriptionPaywall() {
               disabled={isPaying || offerQuery.isLoading}
             >
               {isPaying && !canUseApple ? <ActivityIndicator color="#ECE5D2" /> : null}
-              <Text
-                style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}
-              >
+              <Text style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}>
                 {isPaying ? "Оформляем..." : yookassaPrimaryCta}
               </Text>
               {!isPaying && canUseApple ? (
@@ -442,11 +461,7 @@ export function AppSubscriptionPaywall() {
 
           <View style={styles.rewardedBox}>
             <View style={styles.rewardedHeader}>
-              <MaterialCommunityIcons
-                name="play-circle-outline"
-                size={22}
-                color={COLORS.primary}
-              />
+              <MaterialCommunityIcons name="play-circle-outline" size={22} color={COLORS.primary} />
               <Text style={styles.rewardedTitle}>Открыть за просмотр рекламы</Text>
             </View>
             <Text style={styles.rewardedText}>{getRewardedEarnText(rewardedStatus)}</Text>
@@ -463,9 +478,7 @@ export function AppSubscriptionPaywall() {
             {rewardedUnavailableText ? (
               <Text style={styles.rewardedUnavailable}>{rewardedUnavailableText}</Text>
             ) : null}
-            {rewardedMessage ? (
-              <Text style={styles.rewardedMessage}>{rewardedMessage}</Text>
-            ) : null}
+            {rewardedMessage ? <Text style={styles.rewardedMessage}>{rewardedMessage}</Text> : null}
             <Pressable
               style={[
                 styles.rewardedButton,
@@ -506,8 +519,8 @@ export function AppSubscriptionPaywall() {
               onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}
             >
               Оферту
-            </Text>
-            {" "}и{" "}
+            </Text>{" "}
+            и{" "}
             <Text
               style={styles.legalLink}
               onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}
@@ -516,9 +529,7 @@ export function AppSubscriptionPaywall() {
             </Text>
             . Подписка продлевается автоматически. При оплате через App Store списание идет через
             Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID
-            {canUseYookassa
-              ? getYookassaLegalSuffix({ offer: effectiveOffer })
-              : "."}
+            {canUseYookassa ? getYookassaLegalSuffix({ offer: effectiveOffer }) : "."}
           </Text>
 
           {offerQuery.isLoading ? (

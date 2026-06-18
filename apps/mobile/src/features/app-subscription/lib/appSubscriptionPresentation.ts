@@ -1,12 +1,14 @@
-type TrialPresentationSource = {
-  yookassaTrialAvailable?: boolean | null;
-  yookassaTrialDays?: number | null;
-} | null | undefined;
+type TrialPresentationSource =
+  | {
+      yookassaTrialAvailable?: boolean | null;
+      yookassaTrialDays?: number | null;
+      yookassaTrialUnavailableReason?: string | null;
+    }
+  | null
+  | undefined;
 
 function getTrialDays(source: TrialPresentationSource): number {
-  return source?.yookassaTrialDays && source.yookassaTrialDays > 0
-    ? source.yookassaTrialDays
-    : 3;
+  return source?.yookassaTrialDays && source.yookassaTrialDays > 0 ? source.yookassaTrialDays : 3;
 }
 
 function isTrialAvailable(source: TrialPresentationSource): boolean {
@@ -41,4 +43,13 @@ export function getYookassaLegalSuffix(params: { offer: TrialPresentationSource 
     return "; при оплате картой РФ способ оплаты сохраняется в ЮKassa.";
   }
   return `; при оплате картой РФ способ оплаты сохраняется в ЮKassa, первые ${getTrialDays(params.offer)} дня бесплатны.`;
+}
+
+export function getYookassaTrialUnavailableText(params: {
+  offer: TrialPresentationSource;
+}): string | null {
+  if (params.offer?.yookassaTrialUnavailableReason === "CARD_FINGERPRINT_REUSED") {
+    return "На эту карту пробный период уже использован. Premium можно подключить через обычную оплату.";
+  }
+  return null;
 }
