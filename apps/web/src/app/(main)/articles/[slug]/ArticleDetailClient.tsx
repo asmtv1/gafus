@@ -19,7 +19,7 @@ import { trackEvent } from "@gafus/analytics";
 import type { ArticleDetailDto } from "@gafus/types";
 import { usePathname } from "next/navigation";
 
-import { AppSubscriptionPaywall } from "@/features/app-subscription/components/AppSubscriptionPaywall";
+import { AppSubscriptionPaywall } from "@/features/app-subscription";
 import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
 
 import styles from "./ArticleDetailClient.module.css";

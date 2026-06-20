@@ -71,7 +71,7 @@
 - Web Push VAPID.
 - Expo Push.
 - RuStore Push.
-- SMTP/Postfix transactional email.
+- Yandex 360 SMTP transactional email via `@gafus/mailer`.
 - Yandex Telemost for consultations where configured.
 - Yandex Metrica/AppMetrica analytics.
 - PostHog web analytics adapter exists in `@gafus/analytics`.

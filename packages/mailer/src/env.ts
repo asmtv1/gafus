@@ -8,7 +8,7 @@ export interface MailerEnv {
   smtpSecure: boolean;
   smtpUser?: string;
   smtpPass?: string;
-  /** Адрес From (email), домен должен входить в ALLOWED_SENDER_DOMAINS у Postfix */
+  /** Адрес From (email), домен должен быть разрешён в SMTP-провайдере */
   mailFrom: string;
   /** Имя отправителя в заголовке From (опционально) */
   mailFromName?: string;
@@ -20,7 +20,7 @@ function parsePort(raw: string | undefined, fallback: number): number {
 }
 
 /**
- * Читает переменные окружения для nodemailer → Postfix (или внешний SMTP).
+ * Читает переменные окружения для nodemailer и совместимого SMTP.
  */
 export function mailerEnvFromProcess(): MailerEnv {
   return {

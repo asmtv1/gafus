@@ -14,7 +14,7 @@ describe("isMailerConfigured", () => {
     ).toBe(false);
     expect(
       isMailerConfigured({
-        smtpHost: "postfix",
+        smtpHost: "smtp.yandex.ru",
         smtpPort: 587,
         smtpSecure: false,
         mailFrom: "",
@@ -25,10 +25,10 @@ describe("isMailerConfigured", () => {
   it("true при хосте и mailFrom", () => {
     expect(
       isMailerConfigured({
-        smtpHost: "postfix",
-        smtpPort: 587,
-        smtpSecure: false,
-        mailFrom: "noreply@gafus.ru",
+        smtpHost: "smtp.yandex.ru",
+        smtpPort: 465,
+        smtpSecure: true,
+        mailFrom: "api@gafus.ru",
       }),
     ).toBe(true);
   });

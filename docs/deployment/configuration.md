@@ -240,20 +240,22 @@ LOCAL_UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp
 
 ## 📧 Уведомления
 
-### Email настройки (если используется)
+### Email настройки
+
+Production-почта отправляется через Яндекс 360 SMTP от имени `Гафус <api@gafus.ru>`. GitHub Secrets должны содержать `SMTP_USER=api@gafus.ru` и `SMTP_PASS=<пароль приложения Яндекс 360>`; пароль основного аккаунта не используется.
 
 ```env
-# SMTP настройки
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-
-# Отправка писем
-EMAIL_FROM=noreply@gafus.ru
-EMAIL_REPLY_TO=support@gafus.ru
+# SMTP / Яндекс 360
+SMTP_HOST=smtp.yandex.ru
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=api@gafus.ru
+SMTP_PASS=<yandex-app-password>
+MAIL_FROM=api@gafus.ru
+MAIL_FROM_NAME=Гафус
 ```
+
+Для DNS домена `gafus.ru` production path использует MX `mx.yandex.net.`, DKIM `mail._domainkey` из Яндекс 360 и SPF `v=spf1 include:_spf.yandex.net ~all`. Старые Postfix/OpenDKIM и SMTP.BZ записи не нужны для отправки production-писем.
 
 ### Push уведомления
 

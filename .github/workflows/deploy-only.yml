@@ -176,14 +176,14 @@ jobs:
               echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
               echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
               echo ""
-              echo "# SMTP / postfix (GitHub Variables)"
-              echo "SMTP_HOST=${{ vars.SMTP_HOST || 'postfix' }}"
-              echo "SMTP_PORT=${{ vars.SMTP_PORT || '587' }}"
-              echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'false' }}"
-              echo "MAIL_FROM=${{ vars.MAIL_FROM || 'noreply@gafus.ru' }}"
+              echo "# SMTP / Yandex 360"
+              echo "SMTP_HOST=${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
+              echo "SMTP_PORT=${{ vars.SMTP_PORT || '465' }}"
+              echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'true' }}"
+              echo "SMTP_USER=${{ secrets.SMTP_USER }}"
+              echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
+              echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
               echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
-              echo "MAIL_ALLOWED_SENDER_DOMAINS=${{ vars.MAIL_ALLOWED_SENDER_DOMAINS || 'gafus.ru' }}"
-              echo "POSTFIX_MYHOSTNAME=${{ vars.POSTFIX_MYHOSTNAME || 'mail.gafus.ru' }}"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file
@@ -235,7 +235,7 @@ jobs:
 
             # Start core services first, then apply migrations before app containers.
             echo "🚀 Starting core services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis postfix
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis
 
             # Wait for core services to be ready
             sleep 15

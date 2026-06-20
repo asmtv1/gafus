@@ -31,8 +31,8 @@ export function createMailerTransporter(env: MailerEnv = mailerEnvFromProcess())
 
   const hasAuth = Boolean(env.smtpUser && env.smtpPass);
   const port = env.smtpPort;
-  // Внутренний Postfix (Docker): без auth, SMTP_SECURE=false — без STARTTLS, иначе Node падает на self-signed.
-  // Внешний SMTP с логином — оставляем обычное поведение nodemailer (STARTTLS при поддержке сервером).
+  // SMTP без auth и secure=false считаем локальным/dev relay и не поднимаем STARTTLS принудительно.
+  // SMTP с логином (production Яндекс 360) оставляет обычное поведение nodemailer.
   const ignoreTLS = !env.smtpSecure && !hasAuth;
 
   return nodemailer.createTransport({

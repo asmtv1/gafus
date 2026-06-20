@@ -441,19 +441,51 @@ jobs:
                 echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
                 echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
                 echo ""
-                echo "# SMTP / postfix (GitHub Variables)"
-                echo "SMTP_HOST=${{ vars.SMTP_HOST || 'postfix' }}"
-                echo "SMTP_PORT=${{ vars.SMTP_PORT || '587' }}"
-                echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'false' }}"
-                echo "MAIL_FROM=${{ vars.MAIL_FROM || 'noreply@gafus.ru' }}"
+                echo "# SMTP / Yandex 360"
+                echo "SMTP_HOST=${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
+                echo "SMTP_PORT=${{ vars.SMTP_PORT || '465' }}"
+                echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'true' }}"
+                echo "SMTP_USER=${{ secrets.SMTP_USER }}"
+                echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
+                echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
                 echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
-                echo "MAIL_ALLOWED_SENDER_DOMAINS=${{ vars.MAIL_ALLOWED_SENDER_DOMAINS || 'gafus.ru' }}"
-                echo "POSTFIX_MYHOSTNAME=${{ vars.POSTFIX_MYHOSTNAME || 'mail.gafus.ru' }}"
               } > ci-cd/docker/.env
               chmod 600 ci-cd/docker/.env
               echo "✅ .env file created"
             else
               echo "✅ .env file exists"
+
+              ensure_env_var() {
+                key="$1"
+                value="$2"
+                tmp_file="$(mktemp)"
+                awk -v key="$key" -v value="$value" '
+                  BEGIN { replaced = 0 }
+                  $0 ~ "^" key "=" {
+                    print key "=" value
+                    replaced = 1
+                    next
+                  }
+                  { print }
+                  END {
+                    if (replaced == 0) {
+                      print key "=" value
+                    }
+                  }
+                ' ci-cd/docker/.env > "$tmp_file"
+                mv "$tmp_file" ci-cd/docker/.env
+              }
+
+              echo "🔄 Updating SMTP / Yandex 360 env in existing .env file..."
+              ensure_env_var "SMTP_HOST" "${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
+              ensure_env_var "SMTP_PORT" "${{ vars.SMTP_PORT || '465' }}"
+              ensure_env_var "SMTP_SECURE" "${{ vars.SMTP_SECURE || 'true' }}"
+              ensure_env_var "SMTP_USER" "${{ secrets.SMTP_USER }}"
+              ensure_env_var "SMTP_PASS" "${{ secrets.SMTP_PASS }}"
+              ensure_env_var "MAIL_FROM" "${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
+              ensure_env_var "MAIL_FROM_NAME" "${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
+              chmod 600 ci-cd/docker/.env
+
               # Обновляем VIDEO_ACCESS_SECRET, если его нет или он пустой
               VIDEO_SECRET="${{ secrets.VIDEO_ACCESS_SECRET }}"
               if ! grep -q "^VIDEO_ACCESS_SECRET=" ci-cd/docker/.env || grep -q "^VIDEO_ACCESS_SECRET=$" ci-cd/docker/.env; then

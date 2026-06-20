@@ -1639,35 +1639,42 @@ export async function syncAppleAppSubscriptionFromServer(params: {
       });
     }
 
-    await tx.appSubscriptionEvent
-      .create({
-        data: {
-          subscriptionId: subscription.id,
-          userId: subscription.userId,
-          source: "APPLE",
-          eventType: `SERVER_SYNC:${status}`,
-          idempotencyKey: `apple-sync:${transactionId}`,
-          processingStatus: "PROCESSED",
-          metadata: {
-            originalTransactionId,
-            transactionId,
-            productId,
-            appleStatus: exactItem.status ?? null,
-            autoRenewStatus: renewal?.autoRenewStatus ?? null,
-            expirationIntent: renewal?.expirationIntent ?? null,
-            isInBillingRetryPeriod: renewal?.isInBillingRetryPeriod ?? null,
-            gracePeriodExpiresDate: renewal?.gracePeriodExpiresDate ?? null,
-            renewalDate: renewal?.renewalDate ?? null,
-            renewalPrice: renewal?.renewalPrice ?? null,
-            currency,
+    const syncEventIdempotencyKey = `apple-sync:${transactionId}`;
+    const existingSyncEvent = await tx.appSubscriptionEvent.findUnique({
+      where: { idempotencyKey: syncEventIdempotencyKey },
+      select: { id: true },
+    });
+    if (!existingSyncEvent) {
+      await tx.appSubscriptionEvent
+        .create({
+          data: {
+            subscriptionId: subscription.id,
+            userId: subscription.userId,
+            source: "APPLE",
+            eventType: `SERVER_SYNC:${status}`,
+            idempotencyKey: syncEventIdempotencyKey,
+            processingStatus: "PROCESSED",
+            metadata: {
+              originalTransactionId,
+              transactionId,
+              productId,
+              appleStatus: exactItem.status ?? null,
+              autoRenewStatus: renewal?.autoRenewStatus ?? null,
+              expirationIntent: renewal?.expirationIntent ?? null,
+              isInBillingRetryPeriod: renewal?.isInBillingRetryPeriod ?? null,
+              gracePeriodExpiresDate: renewal?.gracePeriodExpiresDate ?? null,
+              renewalDate: renewal?.renewalDate ?? null,
+              renewalPrice: renewal?.renewalPrice ?? null,
+              currency,
+            },
+            processedAt: new Date(),
           },
-          processedAt: new Date(),
-        },
-      })
-      .catch((error) => {
-        if (isPrismaUniqueViolation(error)) return undefined;
-        throw error;
-      });
+        })
+        .catch((error) => {
+          if (isPrismaUniqueViolation(error)) return undefined;
+          throw error;
+        });
+    }
   });
 
   return { success: true as const, status, userId: subscription.userId };
