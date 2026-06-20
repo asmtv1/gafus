@@ -86,6 +86,11 @@ vi.mock("@apple/app-store-server-library", () => ({
   },
 }));
 
+const freezeAppleActiveSubscriptionTime = () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-12T10:00:00.000Z"));
+};
+
 describe("app subscription payment service", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -867,6 +872,7 @@ describe("app subscription payment service", () => {
   });
 
   it("records Apple subscription price as the transaction amount", async () => {
+    freezeAppleActiveSubscriptionTime();
     const { verifyAppleAppSubscription } = await import("../paymentService");
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     verifyAndDecodeTransaction.mockResolvedValue({
@@ -900,6 +906,7 @@ describe("app subscription payment service", () => {
   });
 
   it("creates a separate Apple subscription for the verifying user when the original transaction was used by another account", async () => {
+    freezeAppleActiveSubscriptionTime();
     const { verifyAppleAppSubscription } = await import("../paymentService");
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "new-account-token" });
     mockSubscriptionFindFirst.mockImplementation(
@@ -997,6 +1004,7 @@ describe("app subscription payment service", () => {
   });
 
   it("syncs Apple subscription status and records a renewal from App Store Server API", async () => {
+    freezeAppleActiveSubscriptionTime();
     const { syncAppleAppSubscriptionFromServer } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
@@ -1078,6 +1086,7 @@ describe("app subscription payment service", () => {
   });
 
   it("syncs Apple subscription from a renewal-only server notification", async () => {
+    freezeAppleActiveSubscriptionTime();
     const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
@@ -1144,6 +1153,7 @@ describe("app subscription payment service", () => {
   });
 
   it("uses appAccountToken from Apple notification transactions to verify the correct user", async () => {
+    freezeAppleActiveSubscriptionTime();
     const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
@@ -1205,6 +1215,7 @@ describe("app subscription payment service", () => {
   });
 
   it("reconciles active Apple subscriptions from the server in batches", async () => {
+    freezeAppleActiveSubscriptionTime();
     const { reconcileAppleAppSubscriptionsFromServer } = await import("../paymentService");
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");

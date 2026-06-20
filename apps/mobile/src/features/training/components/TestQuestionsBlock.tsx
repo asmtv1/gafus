@@ -8,7 +8,7 @@ import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { canRetakeRejectedExam } from "../lib/examRetake";
 
-const PASS_THRESHOLD_PERCENT = 70;
+const TEST_PASS_THRESHOLD_RATIO = 0.5;
 
 export interface ChecklistQuestion {
   id: string;
@@ -77,7 +77,6 @@ export function TestQuestionsBlock({
     setIsSubmitting(true);
     setSubmitError(null);
     const overallScore = Math.round((score.correct / score.total) * 100);
-    const isPassed = overallScore >= PASS_THRESHOLD_PERCENT;
 
     const res = await examApi.submit({
       userStepId,
@@ -86,12 +85,12 @@ export function TestQuestionsBlock({
       testScore: score.correct,
       testMaxScore: score.total,
       overallScore,
-      isPassed,
     });
     setIsSubmitting(false);
 
     if (res.success) {
       void hapticFeedback.success();
+      setExamResult(null);
       setIsSubmitted(true);
       setShowResults(true);
       onComplete?.(answers);
@@ -124,10 +123,12 @@ export function TestQuestionsBlock({
   };
 
   const score = getScore();
-  const isReviewed = examResult?.reviewedAt != null;
-  const isPassed = examResult?.isPassed === true;
+  const autoIsPassed =
+    score.total > 0 ? score.correct / score.total > TEST_PASS_THRESHOLD_RATIO : null;
+  const isPassed = examResult?.isPassed ?? autoIsPassed;
+  const hasAutoResult = isSubmitted && isPassed !== null;
   const hasComment = Boolean(examResult?.trainerComment?.trim());
-  const canRetake = canRetakeRejectedExam(examResult);
+  const canRetake = canRetakeRejectedExam(examResult) || (isSubmitted && isPassed === false);
   const allAnswered = checklist.length > 0 && Object.keys(answers).length === checklist.length;
   const canSubmit = !isSubmitted && allAnswered && !isSubmitting;
 
@@ -144,13 +145,7 @@ export function TestQuestionsBlock({
     <View style={styles.container}>
       <Text style={styles.title}>Тестовые вопросы</Text>
 
-      {isSubmitted && !isReviewed && (
-        <View style={[styles.alert, styles.alertInfo]}>
-          <Text style={styles.alertText}>Ваши ответы сохранены. Ожидайте проверки тренером.</Text>
-        </View>
-      )}
-
-      {isReviewed && (
+      {hasAutoResult && (
         <View style={[styles.alert, isPassed ? styles.alertSuccess : styles.alertError]}>
           <MaterialCommunityIcons
             name={isPassed ? "check-circle" : "alert-circle"}
@@ -158,7 +153,12 @@ export function TestQuestionsBlock({
             color={isPassed ? COLORS.success : COLORS.error}
           />
           <Text style={[styles.alertText, styles.alertTitle]}>
-            {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
+            {isPassed ? "Тест сдан" : "Тест не сдан"}
+          </Text>
+          <Text style={styles.alertComment}>
+            {isPassed
+              ? "Правильных ответов больше 50%. Зачёт поставлен автоматически."
+              : "Правильных ответов 50% или меньше. Можно пройти тест заново."}
           </Text>
           {hasComment && examResult?.trainerComment && (
             <Text style={styles.alertComment}>{examResult.trainerComment}</Text>

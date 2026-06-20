@@ -153,6 +153,115 @@ describe("examService daily course support", () => {
     expect(result).toEqual({ success: true, examResultId: "exam-1" });
   });
 
+  it("auto-passes a test-only exam above 50 percent using the server score", async () => {
+    mocks.userStepFindFirst.mockResolvedValue({
+      id: "user-step-1",
+      stepOnDay: {
+        step: {
+          id: "step-1",
+          type: "EXAMINATION",
+          hasTestQuestions: true,
+          requiresVideoReport: false,
+          requiresWrittenFeedback: false,
+          checklist: [
+            { id: "q1", correctAnswer: 0 },
+            { id: "q2", correctAnswer: 1 },
+            { id: "q3", correctAnswer: 1 },
+          ],
+        },
+      },
+    });
+    mocks.examResultUpsert.mockResolvedValue({ id: "exam-1" });
+    mocks.userStepUpdate.mockResolvedValue({ id: "user-step-1" });
+
+    const result = await submitExamResult("user-1", {
+      userStepId: "user-step-1",
+      stepId: "step-1",
+      testAnswers: { q1: 0, q2: 1, q3: 0 },
+      testScore: 3,
+      testMaxScore: 3,
+      overallScore: 0,
+      isPassed: false,
+    });
+
+    expect(mocks.examResultUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          testScore: 2,
+          testMaxScore: 3,
+          overallScore: 67,
+          isPassed: true,
+          reviewedAt: null,
+          reviewedById: null,
+        }),
+        create: expect.objectContaining({
+          overallScore: 67,
+          isPassed: true,
+        }),
+      }),
+    );
+    expect(mocks.userStepUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "user-step-1" },
+        data: { status: "COMPLETED" },
+      }),
+    );
+    expect(result).toEqual({ success: true, examResultId: "exam-1" });
+  });
+
+  it("auto-fails a test-only exam at exactly 50 percent and leaves it retakeable", async () => {
+    mocks.userStepFindFirst.mockResolvedValue({
+      id: "user-step-1",
+      stepOnDay: {
+        step: {
+          id: "step-1",
+          type: "EXAMINATION",
+          hasTestQuestions: true,
+          requiresVideoReport: false,
+          requiresWrittenFeedback: false,
+          checklist: [
+            { id: "q1", correctAnswer: 0 },
+            { id: "q2", correctAnswer: 1 },
+          ],
+        },
+      },
+    });
+    mocks.examResultUpsert.mockResolvedValue({ id: "exam-1" });
+    mocks.userStepUpdate.mockResolvedValue({ id: "user-step-1" });
+
+    const result = await submitExamResult("user-1", {
+      userStepId: "user-step-1",
+      stepId: "step-1",
+      testAnswers: { q1: 0, q2: 0 },
+      testScore: 1,
+      testMaxScore: 2,
+      overallScore: 100,
+      isPassed: true,
+    });
+
+    expect(mocks.examResultUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          overallScore: 50,
+          isPassed: false,
+          reviewedAt: null,
+          reviewedById: null,
+        }),
+        create: expect.objectContaining({
+          overallScore: 50,
+          isPassed: false,
+        }),
+      }),
+    );
+    expect(mocks.userStepUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "user-step-1" },
+        data: { status: "IN_PROGRESS" },
+      }),
+    );
+    expect(result).toEqual({ success: true, examResultId: "exam-1" });
+  });
+
   it("reviews a daily course exam result", async () => {
     mocks.userStepFindUnique.mockResolvedValue(null);
     mocks.dailyCourseUserStepFindUnique.mockResolvedValue({

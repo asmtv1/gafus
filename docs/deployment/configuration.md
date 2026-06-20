@@ -27,7 +27,7 @@ ENABLE_CONSOLE_LOGS=true
 NEXT_PUBLIC_TRACER_APP_TOKEN=
 TRACER_APP_TOKEN=              # для серверных приложений (fallback: NEXT_PUBLIC_TRACER_APP_TOKEN)
 TRACER_SERVER_ENABLED=        # "true" — включить отправку серверных ошибок в dev
-NEXT_PUBLIC_APP_VERSION=1.5.3
+NEXT_PUBLIC_APP_VERSION=1.5.4
 NEXT_PUBLIC_ENABLE_TRACER=true
 
 # Безопасность (менее строгие настройки)
@@ -54,7 +54,7 @@ ENABLE_CONSOLE_LOGS=true
 
 # Tracer
 NEXT_PUBLIC_TRACER_APP_TOKEN=
-NEXT_PUBLIC_APP_VERSION=1.5.3
+NEXT_PUBLIC_APP_VERSION=1.5.4
 NEXT_PUBLIC_ENABLE_TRACER=true
 
 # Безопасность
@@ -83,7 +83,7 @@ ENABLE_CONSOLE_LOGS=false
 NEXT_PUBLIC_TRACER_APP_TOKEN=your-tracer-app-token
 TRACER_APP_TOKEN=your-tracer-app-token   # для серверных приложений (worker, api и др.)
 TRACER_SERVER_ENABLED=                   # в prod не нужен (по умолчанию включено)
-NEXT_PUBLIC_APP_VERSION=1.5.3
+NEXT_PUBLIC_APP_VERSION=1.5.4
 NEXT_PUBLIC_ENABLE_TRACER=true
 
 # Безопасность (строгие настройки)
@@ -285,7 +285,7 @@ LOG_ENABLE_COLORS=false  # только для development
 
 # Tracer (клиентские ошибки)
 NEXT_PUBLIC_TRACER_APP_TOKEN=
-NEXT_PUBLIC_APP_VERSION=1.5.3
+NEXT_PUBLIC_APP_VERSION=1.5.4
 NEXT_PUBLIC_ENABLE_TRACER=false
 ERROR_SAMPLE_RATE=1.0  # процент ошибок для отправки (0.0-1.0)
 

@@ -2,18 +2,19 @@
 
 import "next-auth";
 import "next-auth/jwt";
+import type { AuthUser as GafusAuthUser } from "@gafus/types";
 
 // Реэкспортируем типы из централизованного пакета
 export type { AuthUser } from "@gafus/types";
 
 declare module "next-auth" {
   interface Session {
-    user: import("@gafus/types").AuthUser;
+    user: GafusAuthUser;
   }
 
-  interface User extends import("@gafus/types").AuthUser {}
+  interface User extends GafusAuthUser {}
 }
 
 declare module "next-auth/jwt" {
-  interface JWT extends import("@gafus/types").AuthUser {}
+  interface JWT extends GafusAuthUser {}
 }

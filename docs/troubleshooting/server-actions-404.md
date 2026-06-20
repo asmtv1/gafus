@@ -175,7 +175,7 @@ pnpm dev
 
    ```json
    {
-     "version": "1.5.3",
+     "version": "1.5.4",
      "scripts": {
        "build": "next build"
      }

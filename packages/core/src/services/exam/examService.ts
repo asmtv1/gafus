@@ -188,6 +188,83 @@ function parseExamTestAnswers(value: unknown): Record<string, number> | null {
   }
 }
 
+type ExamStepForGrading = {
+  hasTestQuestions?: boolean | null;
+  requiresVideoReport?: boolean | null;
+  requiresWrittenFeedback?: boolean | null;
+  checklist?: unknown;
+};
+
+type ChecklistQuestionForGrading = {
+  id: string;
+  correctAnswer: number;
+};
+
+type AutoTestGrade = {
+  testScore: number;
+  testMaxScore: number;
+  overallScore: number;
+  isPassed: boolean;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseChecklistQuestions(value: unknown): ChecklistQuestionForGrading[] | null {
+  if (!value) return null;
+
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch (error) {
+      logger.error("Ошибка парсинга checklist экзамена", error as Error);
+      return null;
+    }
+  }
+
+  if (!Array.isArray(parsed)) return null;
+
+  const questions = parsed.filter((question): question is ChecklistQuestionForGrading => {
+    if (!isRecord(question)) return false;
+    return typeof question.id === "string" && typeof question.correctAnswer === "number";
+  });
+
+  return questions.length > 0 ? questions : null;
+}
+
+function isTestQuestionsOnlyStep(step: ExamStepForGrading): boolean {
+  return (
+    step.hasTestQuestions === true &&
+    step.requiresVideoReport !== true &&
+    step.requiresWrittenFeedback !== true
+  );
+}
+
+function calculateAutoTestGrade(
+  step: ExamStepForGrading,
+  answers: Record<string, number> | undefined,
+): AutoTestGrade | null {
+  if (!isTestQuestionsOnlyStep(step) || !answers) return null;
+
+  const checklist = parseChecklistQuestions(step.checklist);
+  if (!checklist) return null;
+
+  const testScore = checklist.reduce((score, question) => {
+    return answers[question.id] === question.correctAnswer ? score + 1 : score;
+  }, 0);
+  const testMaxScore = checklist.length;
+  const ratio = testScore / testMaxScore;
+
+  return {
+    testScore,
+    testMaxScore,
+    overallScore: Math.round(ratio * 100),
+    isPassed: ratio > 0.5,
+  };
+}
+
 /**
  * Получает результат экзамена для конкретного userStepId
  */
@@ -436,6 +513,13 @@ export async function submitExamResult(
       );
     }
 
+    const autoTestGrade = calculateAutoTestGrade(step, data.testAnswers);
+    const testScore = autoTestGrade?.testScore ?? data.testScore;
+    const testMaxScore = autoTestGrade?.testMaxScore ?? data.testMaxScore;
+    const overallScore = autoTestGrade?.overallScore ?? data.overallScore;
+    const isPassed = autoTestGrade?.isPassed ?? data.isPassed;
+    const nextStepStatus = autoTestGrade?.isPassed === true ? "COMPLETED" : "IN_PROGRESS";
+
     // Создаем или обновляем результат экзамена
     const updateData: Partial<{
       testAnswers: string;
@@ -457,11 +541,11 @@ export async function submitExamResult(
     if (data.testAnswers !== undefined) {
       updateData.testAnswers = JSON.stringify(data.testAnswers);
     }
-    if (data.testScore !== undefined) {
-      updateData.testScore = data.testScore;
+    if (testScore !== undefined) {
+      updateData.testScore = testScore;
     }
-    if (data.testMaxScore !== undefined) {
-      updateData.testMaxScore = data.testMaxScore;
+    if (testMaxScore !== undefined) {
+      updateData.testMaxScore = testMaxScore;
     }
     if (data.videoReportUrl !== undefined) {
       updateData.videoReportUrl = data.videoReportUrl;
@@ -469,11 +553,11 @@ export async function submitExamResult(
     if (data.writtenFeedback !== undefined) {
       updateData.writtenFeedback = data.writtenFeedback;
     }
-    if (data.overallScore !== undefined) {
-      updateData.overallScore = data.overallScore;
+    if (overallScore !== undefined) {
+      updateData.overallScore = overallScore;
     }
-    if (data.isPassed !== undefined) {
-      updateData.isPassed = data.isPassed;
+    if (isPassed !== undefined) {
+      updateData.isPassed = isPassed;
     }
 
     // Сбрасываем результат проверки тренером при повторной отправке
@@ -490,13 +574,13 @@ export async function submitExamResult(
         userStepId: userStep ? data.userStepId : undefined,
         dailyCourseUserStepId: dailyCourseUserStep ? data.userStepId : undefined,
         stepId: data.stepId,
-        testAnswers: data.testAnswers ? JSON.stringify(data.testAnswers) : undefined,
-        testScore: data.testScore || null,
-        testMaxScore: data.testMaxScore || null,
-        videoReportUrl: data.videoReportUrl || null,
-        writtenFeedback: data.writtenFeedback || null,
-        overallScore: data.overallScore || null,
-        isPassed: data.isPassed || null,
+        testAnswers: data.testAnswers !== undefined ? JSON.stringify(data.testAnswers) : undefined,
+        testScore: testScore ?? null,
+        testMaxScore: testMaxScore ?? null,
+        videoReportUrl: data.videoReportUrl ?? null,
+        writtenFeedback: data.writtenFeedback ?? null,
+        overallScore: overallScore ?? null,
+        isPassed: isPassed ?? null,
       },
     });
 
@@ -506,7 +590,7 @@ export async function submitExamResult(
           id: data.userStepId,
         },
         data: {
-          status: "IN_PROGRESS",
+          status: nextStepStatus,
         },
       });
     } else {
@@ -515,13 +599,35 @@ export async function submitExamResult(
           id: data.userStepId,
         },
         data: {
-          status: "IN_PROGRESS",
+          status: nextStepStatus,
         },
       });
-      await prisma.dailyCourseUserTraining.update({
-        where: { id: dailyCourseUserStep!.dailyCourseUserTrainingId },
-        data: { status: "IN_PROGRESS" },
-      });
+      if (autoTestGrade?.isPassed === true) {
+        const dailySteps = await prisma.dailyCourseUserStep.findMany({
+          where: { dailyCourseUserTrainingId: dailyCourseUserStep!.dailyCourseUserTrainingId },
+          select: { id: true, status: true },
+        });
+        const statuses = dailySteps.map((step) =>
+          step.id === data.userStepId ? "COMPLETED" : step.status,
+        );
+        const correctedStatus = calculateDayStatusFromStatuses(statuses);
+        const nextCurrentStepIndex =
+          correctedStatus === "COMPLETED"
+            ? dailySteps.length - 1
+            : statuses.findIndex((status) => status !== "COMPLETED");
+        await prisma.dailyCourseUserTraining.update({
+          where: { id: dailyCourseUserStep!.dailyCourseUserTrainingId },
+          data: {
+            status: correctedStatus as PrismaTrainingStatus,
+            currentStepIndex: nextCurrentStepIndex < 0 ? 0 : nextCurrentStepIndex,
+          },
+        });
+      } else {
+        await prisma.dailyCourseUserTraining.update({
+          where: { id: dailyCourseUserStep!.dailyCourseUserTrainingId },
+          data: { status: "IN_PROGRESS" },
+        });
+      }
     }
 
     return { success: true, examResultId: examResult.id };
@@ -606,6 +712,9 @@ export async function reviewExamResult(
 
       if (!dailyCourseUserStep.examResult) {
         return { success: false, error: "Результат экзамена не найден" };
+      }
+      if (isTestQuestionsOnlyStep(dailyCourseUserStep.bundleStep.step)) {
+        return { success: false, error: "Тестовые вопросы проверяются автоматически" };
       }
       const examResultId = dailyCourseUserStep.examResult.id;
 
@@ -716,6 +825,9 @@ export async function reviewExamResult(
     if (!userStep.examResult) {
       return { success: false, error: "Результат экзамена не найден" };
     }
+    if (isTestQuestionsOnlyStep(userStep.stepOnDay.step)) {
+      return { success: false, error: "Тестовые вопросы проверяются автоматически" };
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.userStep.update({
@@ -814,6 +926,15 @@ export async function getPendingExamResults(
     where: {
       userStep: {
         status: "IN_PROGRESS",
+        stepOnDay: {
+          step: {
+            NOT: {
+              hasTestQuestions: true,
+              requiresVideoReport: false,
+              requiresWrittenFeedback: false,
+            },
+          },
+        },
         userTraining: {
           dayOnCourse: {
             course: {
@@ -900,6 +1021,15 @@ export async function getPendingExamCount(trainerId: string, isAdmin: boolean): 
       where: {
         userStep: {
           status: "IN_PROGRESS",
+          stepOnDay: {
+            step: {
+              NOT: {
+                hasTestQuestions: true,
+                requiresVideoReport: false,
+                requiresWrittenFeedback: false,
+              },
+            },
+          },
           userTraining: {
             dayOnCourse: {
               course: {
@@ -914,6 +1044,15 @@ export async function getPendingExamCount(trainerId: string, isAdmin: boolean): 
       where: {
         dailyCourseUserStep: {
           status: "IN_PROGRESS",
+          bundleStep: {
+            step: {
+              NOT: {
+                hasTestQuestions: true,
+                requiresVideoReport: false,
+                requiresWrittenFeedback: false,
+              },
+            },
+          },
           dailyCourseUserTraining: {
             schedule: {
               bundle: {

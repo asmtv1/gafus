@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.5.3",
+    "version": "1.5.4",
     "orientation": "portrait",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -75,6 +75,7 @@
       ],
       "./plugins/withAndroidTabletSupport",
       "./plugins/withMinSdkFromGradleProps",
+      "./plugins/withIosAppMetrica516Compatibility",
       "expo-router",
       "expo-secure-store",
       [

@@ -42,6 +42,10 @@
         "VK_MOBILE_REDIRECT_URI": "gafus://auth/vk",
         "EXPO_PUBLIC_YM_MOBILE_ENABLED": "true"
       }
+    },
+    "production-local": {
+      "extends": "production",
+      "autoIncrement": false
     }
   },
   "submit": {

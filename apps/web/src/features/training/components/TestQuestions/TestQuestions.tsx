@@ -19,6 +19,8 @@ import { getExamResult } from "@/shared/lib/actions/getExamResult";
 
 import type { ChecklistQuestion } from "@gafus/types";
 
+const TEST_PASS_THRESHOLD_RATIO = 0.5;
+
 interface TestQuestionsProps {
   checklist: ChecklistQuestion[];
   userStepId: string;
@@ -79,7 +81,6 @@ export function TestQuestions({
     try {
       const score = getScore();
       const overallScore = Math.round((score.correct / score.total) * 100);
-      const isPassed = overallScore >= 70; // 70% для прохождения
 
       await submitExamResult({
         userStepId,
@@ -88,9 +89,9 @@ export function TestQuestions({
         testScore: score.correct,
         testMaxScore: score.total,
         overallScore,
-        isPassed,
       });
 
+      setExamResult(null);
       setIsSubmitted(true);
       setShowResults(true);
       onComplete(answers);
@@ -107,6 +108,7 @@ export function TestQuestions({
     setIsSubmitted(false);
     setShowResults(false);
     setSubmitError(null);
+    setExamResult(null);
     onReset();
   };
 
@@ -121,6 +123,8 @@ export function TestQuestions({
   };
 
   const score = getScore();
+  const autoIsPassed =
+    score.total > 0 ? score.correct / score.total > TEST_PASS_THRESHOLD_RATIO : null;
 
   // Показываем индикатор загрузки
   if (isLoading) {
@@ -146,8 +150,9 @@ export function TestQuestions({
     return examResult.reviewedBy.profile?.fullName || examResult.reviewedBy.username || null;
   };
 
-  const isReviewed = examResult?.reviewedAt !== null;
-  const isPassed = examResult?.isPassed === true;
+  const isReviewed = examResult?.reviewedAt != null;
+  const isPassed = examResult?.isPassed ?? autoIsPassed;
+  const hasAutoResult = isSubmitted && isPassed !== null;
   const hasComment = examResult?.trainerComment && examResult.trainerComment.trim().length > 0;
 
   return (
@@ -156,23 +161,22 @@ export function TestQuestions({
         Тестовые вопросы
       </Typography>
 
-      {isSubmitted && !isReviewed && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Ваши ответы сохранены. Ожидайте проверки тренером.
-        </Alert>
-      )}
-
-      {isReviewed && (
+      {hasAutoResult && (
         <Alert severity={isPassed ? "success" : "error"} sx={{ mb: 2 }}>
           <Typography variant="subtitle2" gutterBottom>
-            {isPassed ? "Экзамен зачтён" : "Экзамен не зачтён"}
+            {isPassed ? "Тест сдан" : "Тест не сдан"}
+          </Typography>
+          <Typography variant="body2">
+            {isPassed
+              ? "Правильных ответов больше 50%. Зачёт поставлен автоматически."
+              : "Правильных ответов 50% или меньше. Можно пройти тест заново."}
           </Typography>
           {hasComment && examResult && (
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
               {examResult.trainerComment}
             </Typography>
           )}
-          {examResult && (examResult.reviewedAt || getTrainerName()) && (
+          {isReviewed && examResult && (examResult.reviewedAt || getTrainerName()) && (
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
               {[
                 examResult.reviewedAt && `Проверено: ${formatDateTime(examResult.reviewedAt)}`,

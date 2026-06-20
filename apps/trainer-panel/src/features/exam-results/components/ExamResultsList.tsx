@@ -42,6 +42,15 @@ interface TabPanelProps {
   value: number;
 }
 
+function isAutoGradedTestResult(result: ExamResultWithDetails) {
+  const step = result.userStep.stepOnDay.step;
+  return (
+    step.hasTestQuestions === true &&
+    step.requiresVideoReport !== true &&
+    step.requiresWrittenFeedback !== true
+  );
+}
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
@@ -203,8 +212,13 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
 
   const getStatusChip = (result: ExamResultWithDetails) => {
     const status = result.userStep.status;
+    const isAutoGradedTest = isAutoGradedTestResult(result);
     const hasTrainerReview = Boolean(result.reviewedAt);
     const isRejected = hasTrainerReview && result.isPassed === false;
+
+    if (isAutoGradedTest && result.isPassed === false) {
+      return <Chip label="Не сдан" color="error" size="small" />;
+    }
 
     if (status === "COMPLETED") {
       return <Chip label="Сдан" color="success" size="small" />;
@@ -232,6 +246,7 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
         const user = result.userStep.userTraining.user;
         const course = result.userStep.userTraining.dayOnCourse.course;
         const day = result.userStep.userTraining.dayOnCourse.day;
+        const isAutoGradedTest = isAutoGradedTestResult(result);
 
         return (
           <Accordion
@@ -568,7 +583,7 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                   </Alert>
                 )}
 
-                {result.userStep.status === "IN_PROGRESS" && (
+                {result.userStep.status === "IN_PROGRESS" && !isAutoGradedTest && (
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <TextField
                       label="Комментарий для ученика"
@@ -631,6 +646,29 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                   </Box>
                 )}
 
+                {result.userStep.status === "IN_PROGRESS" && isAutoGradedTest && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 2,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      Проверено автоматически по тестовым вопросам • Отправлено:{" "}
+                      {formatDateTime(result.createdAt)}
+                    </Typography>
+                    <Chip
+                      icon={<CancelIcon />}
+                      label={result.isPassed === false ? "Не сдан" : "Сдан"}
+                      color={result.isPassed === false ? "error" : "success"}
+                      variant="outlined"
+                    />
+                  </Box>
+                )}
+
                 {result.userStep.status === "COMPLETED" && (
                   <Box
                     sx={{
@@ -646,7 +684,7 @@ export function ExamResultsList({ examResults }: ExamResultsListProps) {
                     </Typography>
                     <Chip
                       icon={<CheckCircleIcon />}
-                      label="Зачтено"
+                      label={isAutoGradedTest ? "Сдан" : "Зачтено"}
                       color="success"
                       variant="outlined"
                     />

@@ -4,5 +4,5 @@ type ExamRetakeState = {
 } | null;
 
 export function canRetakeRejectedExam(exam: ExamRetakeState): boolean {
-  return exam?.reviewedAt != null && exam.isPassed === false;
+  return exam?.isPassed === false;
 }
