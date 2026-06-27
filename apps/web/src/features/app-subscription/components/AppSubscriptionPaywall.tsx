@@ -137,7 +137,8 @@ export function AppSubscriptionPaywall({
   const [rewardedStatus, setRewardedStatus] = useState<RewardedCreditsStatus | null>(null);
   const [rewardedLoading, setRewardedLoading] = useState(false);
   const [rewardedMessage, setRewardedMessage] = useState<string | null>(null);
-  const isPaidReturn = searchParams.get("paid") === "1" || searchParams.get("trial") === "1";
+  const isTrialReturn = searchParams.get("trial") === "1";
+  const isPaidReturn = searchParams.get("paid") === "1" || isTrialReturn;
 
   const loadRewardedStatus = useCallback(async () => {
     try {
@@ -303,7 +304,7 @@ export function AppSubscriptionPaywall({
         body: JSON.stringify({ planCode: selectedPlan.code }),
       });
       if (!response.ok) {
-        throw new Error("Не удалось создать платеж");
+        throw new Error("Не удалось открыть ЮKassa");
       }
       const data = await response.json();
       const url = data?.data?.confirmationUrl;
@@ -311,13 +312,13 @@ export function AppSubscriptionPaywall({
         window.location.href = url;
         return;
       }
-      throw new Error("Ссылка на оплату не получена");
+      throw new Error("Ссылка ЮKassa не получена");
     } catch (e) {
       reportClientError(e, {
         issueKey: "AppSubscriptionPaywall",
         keys: { operation: "start_yookassa_subscription" },
       });
-      setError(e instanceof Error ? e.message : "Ошибка оплаты. Попробуйте позже.");
+      setError(e instanceof Error ? e.message : "Ошибка ЮKassa. Попробуйте позже.");
     } finally {
       setLoading(false);
     }
@@ -414,13 +415,17 @@ export function AppSubscriptionPaywall({
         {returnState === "success" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>{getYookassaReturnSuccessTitle(offer)}</h1>
+            <h1 className={styles.returnTitle}>
+              {isTrialReturn ? "Пробный период активирован" : getYookassaReturnSuccessTitle(offer)}
+            </h1>
             <p className={styles.returnText}>Premium активен. Сейчас откроем список курсов.</p>
           </div>
         ) : returnState === "checking" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Проверяем оплату</h1>
+            <h1 className={styles.returnTitle}>
+              {isTrialReturn ? "Проверяем способ оплаты" : "Проверяем оплату"}
+            </h1>
             <p className={styles.returnText}>
               Обычно это занимает несколько секунд после возврата из ЮKassa.
             </p>
@@ -428,7 +433,9 @@ export function AppSubscriptionPaywall({
         ) : returnState === "pending" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Оплата ещё подтверждается</h1>
+            <h1 className={styles.returnTitle}>
+              {isTrialReturn ? "Способ оплаты ещё подтверждается" : "Оплата ещё подтверждается"}
+            </h1>
             <p className={styles.returnText}>
               Мы не получили подтверждение от ЮKassa. Обновите страницу через несколько секунд.
             </p>
@@ -571,7 +578,9 @@ export function AppSubscriptionPaywall({
               : {getYookassaLegalText(offer, selectedPriceText)}
             </p>
             <p className={styles.assurance}>
-              Безопасная оплата через ЮKassa • Способ оплаты сохранится для автопродления
+              {offer?.yookassaTrialAvailable
+                ? "Безопасное сохранение через ЮKassa • Без списания до конца пробного периода"
+                : "Безопасная оплата через ЮKassa • Способ оплаты сохранится для автопродления"}
             </p>
 
             {showRewardedBlock ? (

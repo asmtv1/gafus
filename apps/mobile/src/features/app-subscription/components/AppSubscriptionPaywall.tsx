@@ -182,6 +182,7 @@ export function AppSubscriptionPaywall() {
   const yookassaTrialUnavailableText = getYookassaTrialUnavailableText({
     offer: effectiveOffer,
   });
+  const isYookassaTrialStart = effectiveOffer?.yookassaTrialAvailable === true;
   const useCompactLayout = height < 760 || width < 380;
   const headline = useMemo(
     () =>
@@ -236,11 +237,16 @@ export function AppSubscriptionPaywall() {
         await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
         return;
       }
-      Alert.alert("Оплата не началась", result.message);
+      Alert.alert(
+        isYookassaTrialStart ? "Способ оплаты не сохранён" : "Оплата не началась",
+        result.message,
+      );
       return;
     }
 
-    setPendingMessage("Проверяем оплату в ЮKassa...");
+    setPendingMessage(
+      isYookassaTrialStart ? "Проверяем способ оплаты в ЮKassa..." : "Проверяем оплату в ЮKassa...",
+    );
     const subscriptionResult = await pollActiveSubscription();
     if (isDev) {
       console.log("[AppSubscriptionPaywall] handleYookassaPay poll result", {
@@ -261,7 +267,11 @@ export function AppSubscriptionPaywall() {
       );
       return;
     }
-    setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
+    setPendingMessage(
+      isYookassaTrialStart
+        ? "Способ оплаты ещё подтверждается. Обычно это занимает несколько секунд."
+        : "Оплата ещё подтверждается. Обычно это занимает несколько секунд.",
+    );
   };
 
   const handleWatchRewardedAd = async () => {

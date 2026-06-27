@@ -19,6 +19,7 @@ type AppSubscriptionStatusDto = {
   trialEndsAt: string | null;
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
+  planCode: "WEEKLY" | "MONTHLY" | null;
   status:
     | "ACTIVE"
     | "PENDING"
@@ -128,7 +129,7 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
           "Content-Type": "application/json",
           "x-csrf-token": csrfToken,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ planCode: status?.planCode ?? "WEEKLY" }),
       });
       const json = await response.json();
       if (!response.ok || !json?.success) {
@@ -164,15 +165,15 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
       });
       const json = await response.json();
       if (!response.ok || !json?.success) {
-        throw new Error(json?.error ?? "Не удалось создать платеж");
+        throw new Error(json?.error ?? "Не удалось сохранить способ оплаты");
       }
       const confirmationUrl = json?.data?.confirmationUrl;
       if (typeof confirmationUrl !== "string" || confirmationUrl.length === 0) {
-        throw new Error("Ссылка на оплату не получена");
+        throw new Error("Ссылка ЮKassa не получена");
       }
       window.location.href = confirmationUrl;
     } catch (e) {
-      setDetachMessage(e instanceof Error ? e.message : "Ошибка при оплате");
+      setDetachMessage(e instanceof Error ? e.message : "Ошибка сохранения способа оплаты");
     } finally {
       setBindLoading(false);
     }

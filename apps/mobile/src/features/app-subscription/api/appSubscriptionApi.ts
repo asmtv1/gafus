@@ -10,6 +10,7 @@ export type AppSubscriptionStatusDto = {
   trialEndsAt: string | null;
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
+  planCode: AppSubscriptionPlanCode | null;
   status:
     | "ACTIVE"
     | "PENDING"

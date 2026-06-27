@@ -12,8 +12,20 @@ import {
 } from "./presentation";
 
 describe("web app subscription presentation", () => {
-  it("uses paid YooKassa copy even when legacy trial flag is available", () => {
+  it("shows the three-day trial before the selected YooKassa tariff", () => {
     const offer = { yookassaTrialAvailable: true, yookassaTrialDays: 3 };
+
+    expect(getYookassaPrimaryCta(offer)).toBe("Начать бесплатно");
+    expect(getYookassaPriceNote(offer)).toBe("Первые 3 дня бесплатно");
+    expect(getYookassaReturnSuccessTitle(offer)).toBe("Пробный период активирован");
+    expect(getYookassaLegalText(offer, "1 100 ₽/месяц")).toContain(
+      "первое списание произойдёт через 3 дня",
+    );
+    expect(getYookassaLegalText(offer, "1 100 ₽/месяц")).toContain("бесплат");
+  });
+
+  it("uses paid copy after the YooKassa trial has already been used", () => {
+    const offer = { yookassaTrialAvailable: false, yookassaTrialDays: 3 };
 
     expect(getYookassaPrimaryCta(offer)).toBe("Оформить подписку");
     expect(getYookassaPriceNote(offer)).toBe("Автопродление по тарифу");
@@ -21,7 +33,6 @@ describe("web app subscription presentation", () => {
     expect(getYookassaLegalText(offer, "1 100 ₽/месяц")).toContain(
       "списание произойдёт при оформлении подписки",
     );
-    expect(getYookassaLegalText(offer, "1 100 ₽/месяц")).not.toContain("бесплат");
   });
 
   it("selects monthly by default when both plans are enabled", () => {

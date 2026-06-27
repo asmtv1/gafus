@@ -15,20 +15,33 @@ export type AppSubscriptionPlanPresentation = {
   enabled?: boolean | null;
 };
 
-export function getYookassaPrimaryCta(_source: TrialPresentationSource): string {
-  return "Оформить подписку";
+function getTrialDays(source: TrialPresentationSource): number {
+  return source?.yookassaTrialDays && source.yookassaTrialDays > 0 ? source.yookassaTrialDays : 3;
 }
 
-export function getYookassaPriceNote(_source: TrialPresentationSource): string {
-  return "Автопродление по тарифу";
+function isTrialAvailable(source: TrialPresentationSource): boolean {
+  return source?.yookassaTrialAvailable === true;
 }
 
-export function getYookassaLegalText(_source: TrialPresentationSource, priceText: string): string {
-  return `списание произойдёт при оформлении подписки, затем подписка продлевается автоматически по тарифу ${priceText}. Автопродление можно отключить в профиле.`;
+export function getYookassaPrimaryCta(source: TrialPresentationSource): string {
+  return isTrialAvailable(source) ? "Начать бесплатно" : "Оформить подписку";
 }
 
-export function getYookassaReturnSuccessTitle(_source: TrialPresentationSource): string {
-  return "Premium подключён";
+export function getYookassaPriceNote(source: TrialPresentationSource): string {
+  return isTrialAvailable(source)
+    ? `Первые ${getTrialDays(source)} дня бесплатно`
+    : "Автопродление по тарифу";
+}
+
+export function getYookassaLegalText(source: TrialPresentationSource, priceText: string): string {
+  if (!isTrialAvailable(source)) {
+    return `списание произойдёт при оформлении подписки, затем подписка продлевается автоматически по тарифу ${priceText}. Автопродление можно отключить в профиле.`;
+  }
+  return `способ оплаты сохраняется сейчас без списания, первые ${getTrialDays(source)} дня бесплатны, первое списание произойдёт через ${getTrialDays(source)} дня по тарифу ${priceText}. Автопродление можно отключить в профиле до первого списания.`;
+}
+
+export function getYookassaReturnSuccessTitle(source: TrialPresentationSource): string {
+  return isTrialAvailable(source) ? "Пробный период активирован" : "Premium подключён";
 }
 
 export function getYookassaTrialUnavailableText(source: TrialPresentationSource): string | null {

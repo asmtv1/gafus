@@ -21,6 +21,7 @@ import {
 } from "./plans";
 import {
   findYookassaTrialByPaymentMethodFingerprintHash,
+  getYookassaTrialAvailability,
   recordYookassaTrialUnavailable,
   recordYookassaTrialStarted,
   YOOKASSA_TRIAL_UNAVAILABLE_CARD_FINGERPRINT_REUSED,
@@ -604,6 +605,104 @@ async function activateYookassaPaymentMethodSubscription(params: {
   });
 }
 
+async function startYookassaAppSubscriptionTrialBinding(params: {
+  userId: string;
+  origin: string;
+  shopId: string;
+  secretKey: string;
+  subscriptionId: string;
+  amountRub: number;
+  currency: string;
+  intervalDays: number;
+  planCode: AppSubscriptionPlanCode;
+  now: Date;
+}): Promise<
+  | { success: true; localSubscriptionId: string; confirmationUrl: string }
+  | { success: false; error: string }
+> {
+  const returnUrl = `${params.origin.replace(/\/$/, "")}/subscription?trial=1`;
+  const body = {
+    confirmation: { type: "redirect" as const, return_url: returnUrl },
+    description:
+      `Пробный период Gafus Premium ${YOOKASSA_TRIAL_DAYS} дня, далее ` +
+      `${params.amountRub.toFixed(2)} ${params.currency}/${params.intervalDays} дн.`,
+    metadata: {
+      kind: "app_subscription_payment_method",
+      userId: params.userId,
+      subscriptionId: params.subscriptionId,
+      planCode: params.planCode,
+    },
+  };
+
+  const auth = Buffer.from(`${params.shopId}:${params.secretKey}`).toString("base64");
+  let response: Response;
+  try {
+    response = await fetch(YOOKASSA_PAYMENT_METHODS_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+        "Idempotence-Key": `appsub-pm:${randomUUID()}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    logger.error("YooKassa payment method request failed (app subscription)", error as Error);
+    await prisma.appSubscription
+      .update({
+        where: { id: params.subscriptionId },
+        data: { status: "CANCELED" },
+      })
+      .catch(() => undefined);
+    return { success: false, error: "Ошибка соединения с платёжной системой" };
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    logger.error(
+      "YooKassa rejected app subscription payment method request",
+      new Error(`${response.status}: ${text}`),
+    );
+    await prisma.appSubscription
+      .update({
+        where: { id: params.subscriptionId },
+        data: { status: "CANCELED" },
+      })
+      .catch(() => undefined);
+    return { success: false, error: "Платёжная система отклонила запрос" };
+  }
+
+  const data = (await response.json()) as {
+    id?: string;
+    confirmation?: { confirmation_url?: string };
+  };
+  const paymentMethodId = data.id ?? null;
+  const confirmationUrl = data.confirmation?.confirmation_url ?? null;
+  if (!paymentMethodId || !confirmationUrl) {
+    logger.error(
+      "YooKassa payment method response has no id/confirmation_url",
+      new Error(JSON.stringify(data)),
+    );
+    await prisma.appSubscription
+      .update({
+        where: { id: params.subscriptionId },
+        data: { status: "CANCELED" },
+      })
+      .catch(() => undefined);
+    return { success: false, error: "Неверный ответ платёжной системы" };
+  }
+
+  await prisma.appSubscription.update({
+    where: { id: params.subscriptionId },
+    data: {
+      yookassaPaymentMethodId: paymentMethodId,
+      pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+    },
+  });
+
+  return { success: true, localSubscriptionId: params.subscriptionId, confirmationUrl };
+}
+
 async function startInitialYookassaAppSubscriptionPayment(params: {
   userId: string;
   origin: string;
@@ -776,7 +875,13 @@ async function findOrCreateYookassaSetupSubscription(params: {
         status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
       },
       orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
-      select: { id: true, status: true, yookassaPaymentMethodId: true },
+      select: {
+        id: true,
+        status: true,
+        isLifetime: true,
+        currentPeriodEnd: true,
+        yookassaPaymentMethodId: true,
+      },
     });
 
     if (existingSubscription) {
@@ -790,7 +895,13 @@ async function findOrCreateYookassaSetupSubscription(params: {
             yookassaPaymentMethodLast4: null,
             yookassaPaymentMethodTitle: null,
           },
-          select: { id: true, status: true, yookassaPaymentMethodId: true },
+          select: {
+            id: true,
+            status: true,
+            isLifetime: true,
+            currentPeriodEnd: true,
+            yookassaPaymentMethodId: true,
+          },
         });
       }
       return existingSubscription;
@@ -804,7 +915,13 @@ async function findOrCreateYookassaSetupSubscription(params: {
         planCode: params.planCode,
         pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
       },
-      select: { id: true, status: true, yookassaPaymentMethodId: true },
+      select: {
+        id: true,
+        status: true,
+        isLifetime: true,
+        currentPeriodEnd: true,
+        yookassaPaymentMethodId: true,
+      },
     });
   });
 }
@@ -875,6 +992,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
   }
 
   const now = new Date();
+  const yookassaTrial = await getYookassaTrialAvailability(params.userId);
   const subscription = await findOrCreateYookassaSetupSubscription({
     userId: params.userId,
     planCode,
@@ -885,6 +1003,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
     subscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     hasPaymentMethod: Boolean(subscription.yookassaPaymentMethodId),
+    trialAvailable: yookassaTrial.available,
   });
 
   if (subscription.status !== "PENDING" && subscription.yookassaPaymentMethodId) {
@@ -895,7 +1014,31 @@ export async function startYookassaAppSubscriptionPayment(params: {
     return { success: false, error: "Способ оплаты уже привязан к подписке" };
   }
 
-  console.log("[app-subscription-payment-service] starting initial YooKassa saved payment", {
+  const hasCurrentAccess =
+    subscription.status === "ACTIVE" &&
+    (subscription.isLifetime === true ||
+      (subscription.currentPeriodEnd instanceof Date && subscription.currentPeriodEnd > now));
+
+  if (yookassaTrial.available || hasCurrentAccess) {
+    console.log("[app-subscription-payment-service] starting zero-amount YooKassa binding", {
+      userId: params.userId,
+      subscriptionId: subscription.id,
+    });
+    return startYookassaAppSubscriptionTrialBinding({
+      userId: params.userId,
+      origin: params.origin,
+      shopId: params.shopId,
+      secretKey: params.secretKey,
+      subscriptionId: subscription.id,
+      amountRub,
+      currency,
+      intervalDays,
+      planCode,
+      now,
+    });
+  }
+
+  console.log("[app-subscription-payment-service] trial unavailable, starting paid checkout", {
     userId: params.userId,
     subscriptionId: subscription.id,
   });

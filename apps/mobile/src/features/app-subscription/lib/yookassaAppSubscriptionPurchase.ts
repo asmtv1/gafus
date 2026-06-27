@@ -26,7 +26,7 @@ export async function yookassaAppSubscriptionPurchase(
         localSubscriptionId: localSubscriptionId ?? null,
       });
     }
-    return { ok: false, message: result.error ?? "Не удалось начать оплату." };
+    return { ok: false, message: result.error ?? "Не удалось открыть ЮKassa." };
   }
 
   if (isDev) {
@@ -47,7 +47,7 @@ export async function yookassaAppSubscriptionPurchase(
   if (browserResult.type === "cancel" || browserResult.type === "dismiss") {
     return {
       ok: false,
-      message: "Оплата не завершена.",
+      message: "Операция в ЮKassa не завершена.",
       userCancelled: true,
     };
   }

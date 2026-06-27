@@ -54,7 +54,7 @@ describe("yookassaAppSubscriptionPurchase", () => {
 
     expect(result).toEqual({
       ok: false,
-      message: "Оплата не завершена.",
+      message: "Операция в ЮKassa не завершена.",
       userCancelled: true,
     });
   });
