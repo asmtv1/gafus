@@ -40,6 +40,7 @@ console.warn("🚀 Запускаем приложения...\n");
 const apps = [
   { name: "Web App", filter: "@gafus/web", port: 3002, type: "next" },
   { name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next" },
+  { name: "API", filter: "@gafus/api", port: 3005, type: "node" },
   { name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next" },
   { name: "Bull Board", filter: "@gafus/bull-board", port: 3004, type: "node" },
   { name: "Worker", filter: "@gafus/worker", port: null, type: "worker", delay: 5000, watch: true },
@@ -124,10 +125,12 @@ apps.forEach((app) => {
   }
 
   // Для trainer-panel: NEXT_PUBLIC_SITE_URL = URL web, чтобы revalidate инвалидировал локальный кэш
-  const extraEnv =
-    app.filter === "@gafus/trainer-panel" && !process.env.NEXT_PUBLIC_SITE_URL
+  const extraEnv = {
+    ...(app.filter === "@gafus/trainer-panel" && !process.env.NEXT_PUBLIC_SITE_URL
       ? { NEXT_PUBLIC_SITE_URL: "http://localhost:3002" }
-      : {};
+      : {}),
+    ...(app.filter === "@gafus/api" ? { API_PORT: String(app.port) } : {}),
+  };
   const childEnv = { ...process.env, ...extraEnv };
 
   let child;
@@ -177,6 +180,7 @@ setTimeout(() => {
   console.warn("\n🌐 Доступные приложения:");
   console.warn("  Web App: http://localhost:3002");
   console.warn("  Trainer Panel: http://localhost:3001");
+  console.warn("  API: http://localhost:3005");
   console.warn("  Admin Panel: http://localhost:3006");
   console.warn("  Bull Board: http://localhost:3004");
   console.warn("  Telegram Bot: работает на порту 3003");

@@ -25,6 +25,10 @@ const restoreAppleSchema = z.object({
   signedTransactionInfo: z.string().min(1).optional(),
 });
 
+const startYookassaSchema = z.object({
+  planCode: z.enum(["WEEKLY", "MONTHLY"]),
+});
+
 type AppleAppSubscriptionResult =
   | { success: true }
   | { success: false; code: string; error: string };
@@ -91,6 +95,15 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, 500);
     }
 
+    const body = await c.req.json().catch(() => null);
+    const parsed = startYookassaSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json(
+        { success: false, error: "Выберите тариф подписки", code: "VALIDATION_ERROR" },
+        400,
+      );
+    }
+
     const originRaw =
       process.env.WEB_APP_URL ??
       process.env.NEXT_PUBLIC_WEB_APP_URL ??
@@ -98,7 +111,10 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       process.env.NEXTAUTH_URL;
     if (!originRaw) {
       console.log("[api app-subscription/yookassa/start] web origin missing", { userId: user.id });
-      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
+      return c.json(
+        { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" },
+        500,
+      );
     }
     const originUrl = new URL(originRaw);
     if (!["http:", "https:"].includes(originUrl.protocol)) {
@@ -106,7 +122,10 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
         userId: user.id,
         origin: originRaw,
       });
-      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
+      return c.json(
+        { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" },
+        500,
+      );
     }
     console.log("[api app-subscription/yookassa/start] starting payment", {
       userId: user.id,
@@ -117,6 +136,7 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       origin: originUrl.origin,
       shopId,
       secretKey,
+      planCode: parsed.data.planCode,
     });
     console.log("[api app-subscription/yookassa/start] payment service result", {
       userId: user.id,
@@ -171,18 +191,14 @@ appSubscriptionRoutes.post("/apple/verify", zValidator("json", verifyAppleSchema
   }
 });
 
-appSubscriptionRoutes.post(
-  "/apple/restore",
-  zValidator("json", restoreAppleSchema),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const body = c.req.valid("json");
-      const data = await restoreAppleAppSubscription({ userId: user.id, ...body });
-      return jsonAppleResult(c, data);
-    } catch (error) {
-      logger.error("POST /apple/restore error", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
-    }
-  },
-);
+appSubscriptionRoutes.post("/apple/restore", zValidator("json", restoreAppleSchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const body = c.req.valid("json");
+    const data = await restoreAppleAppSubscription({ userId: user.id, ...body });
+    return jsonAppleResult(c, data);
+  } catch (error) {
+    logger.error("POST /apple/restore error", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+  }
+});

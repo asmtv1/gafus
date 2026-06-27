@@ -19,7 +19,15 @@ type AppSubscriptionStatusDto = {
   trialEndsAt: string | null;
   isLifetime: boolean;
   provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
-  status: "ACTIVE" | "PENDING" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "REFUNDED" | "REVOKED" | null;
+  status:
+    | "ACTIVE"
+    | "PENDING"
+    | "PAST_DUE"
+    | "CANCELED"
+    | "EXPIRED"
+    | "REFUNDED"
+    | "REVOKED"
+    | null;
   cancelAtPeriodEnd: boolean;
   hasSavedPaymentMethod: boolean;
   paymentMethodLast4: string | null;
@@ -128,9 +136,9 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
       }
       setStatus(json.data as AppSubscriptionStatusDto);
       setDetachChecked(false);
-      setDetachMessage("Карта отвязана, автопродление отключено.");
+      setDetachMessage("Способ оплаты отвязан, автопродление отключено.");
     } catch (e) {
-      setDetachMessage(e instanceof Error ? e.message : "Ошибка при отвязке карты");
+      setDetachMessage(e instanceof Error ? e.message : "Ошибка при отвязке способа оплаты");
     } finally {
       setDetachLoading(false);
     }
@@ -164,7 +172,7 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
       }
       window.location.href = confirmationUrl;
     } catch (e) {
-      setDetachMessage(e instanceof Error ? e.message : "Ошибка при привязке карты");
+      setDetachMessage(e instanceof Error ? e.message : "Ошибка при оплате");
     } finally {
       setBindLoading(false);
     }
@@ -201,23 +209,29 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
               <div>
                 <dt>Следующее списание</dt>
                 <dd>
-                  {nextChargeDate ? formatMskDateTime(nextChargeDate) : status.cancelAtPeriodEnd ? "Отключено" : "—"}
+                  {nextChargeDate
+                    ? formatMskDateTime(nextChargeDate)
+                    : status.cancelAtPeriodEnd
+                      ? "Отключено"
+                      : "—"}
                 </dd>
               </div>
               <div>
-                <dt>Карта оплаты</dt>
+                <dt>Способ оплаты</dt>
                 <dd>
                   {status.paymentMethodLast4
                     ? `•••• ${status.paymentMethodLast4}`
-                    : status.paymentMethodTitle ?? "—"}
+                    : (status.paymentMethodTitle ?? "—")}
                 </dd>
               </div>
             </dl>
 
-            {status.hasActiveSubscription && status.provider === "YOOKASSA" && !status.hasSavedPaymentMethod ? (
+            {status.hasActiveSubscription &&
+            status.provider === "YOOKASSA" &&
+            !status.hasSavedPaymentMethod ? (
               <p className={styles.subscriptionText}>
-                Чтобы снова включить автопродление, привяжите карту. Если у вас уже был пробный период,
-                следующее списание произойдёт по дате подписки.
+                Чтобы снова включить автопродление, сохраните способ оплаты через ЮKassa. Следующее
+                списание произойдёт по дате подписки.
               </p>
             ) : null}
 
@@ -228,7 +242,7 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
                 disabled={bindLoading || csrfLoading}
                 onClick={handleBindCard}
               >
-                {bindLoading ? "Переход в ЮKassa..." : "Привязать карту"}
+                {bindLoading ? "Переход в ЮKassa..." : "Сохранить способ оплаты"}
               </button>
             ) : null}
 
@@ -241,7 +255,7 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
                     onChange={(event) => setDetachChecked(event.target.checked)}
                   />
                   <span>
-                    Подтверждаю отвязку карты и отключение автоплатежей по подписке.
+                    Подтверждаю отвязку способа оплаты и отключение автоплатежей по подписке.
                   </span>
                 </label>
 
@@ -251,7 +265,7 @@ export default function PrivateProfileSection({ user: _user }: PrivateProfileSec
                   disabled={!detachChecked || detachLoading || csrfLoading}
                   onClick={handleDetachCard}
                 >
-                  {detachLoading ? "Удаляем карту..." : "Удалить карту"}
+                  {detachLoading ? "Удаляем..." : "Удалить способ оплаты"}
                 </button>
               </div>
             ) : null}

@@ -5,6 +5,7 @@ import {
   getAppFeatureFlagEnabled,
 } from "../appFeatureFlags";
 import { ensureAppleAppAccountToken } from "./appleAccountTokenService";
+import { getEnabledAppSubscriptionPlanConfigs } from "./plans";
 import { getYookassaTrialAvailability } from "./trialService";
 import type { AppSubscriptionOfferDto } from "./types";
 
@@ -14,10 +15,15 @@ export async function getAppSubscriptionOffer(userId: string): Promise<AppSubscr
   const settings = await prisma.appSubscriptionSettings.findUnique({
     where: { key: SETTINGS_KEY },
     select: {
+      weeklyEnabled: true,
+      monthlyEnabled: true,
       yookassaWeeklyPriceRub: true,
+      yookassaMonthlyPriceRub: true,
       currency: true,
-      intervalDays: true,
-      appleProductId: true,
+      weeklyIntervalDays: true,
+      monthlyIntervalDays: true,
+      weeklyAppleProductId: true,
+      monthlyAppleProductId: true,
     },
   });
 
@@ -29,10 +35,7 @@ export async function getAppSubscriptionOffer(userId: string): Promise<AppSubscr
   );
 
   return {
-    intervalDays: 7,
-    currency: "RUB",
-    yookassaPriceRub: Number(settings?.yookassaWeeklyPriceRub ?? 200),
-    appleProductId: settings?.appleProductId ?? null,
+    plans: getEnabledAppSubscriptionPlanConfigs(settings),
     appleAppAccountToken: appAccountToken,
     iosRuCardPaymentEnabled,
     yookassaTrialAvailable: yookassaTrial.available,

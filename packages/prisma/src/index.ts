@@ -60,6 +60,7 @@ export {
   AppSubscriptionEventSource,
   AppSubscriptionPaymentKind,
   AppSubscriptionPaymentStatus,
+  AppSubscriptionPlanCode,
   AppSubscriptionProvider,
   AppSubscriptionStatus,
   RewardedAdSessionStatus,

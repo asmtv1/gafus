@@ -29,10 +29,15 @@ describe("getAppSubscriptionOffer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSettingsFindUnique.mockResolvedValue({
+      weeklyEnabled: true,
+      monthlyEnabled: true,
       yookassaWeeklyPriceRub: 200,
+      yookassaMonthlyPriceRub: 1100,
       currency: "RUB",
-      intervalDays: 7,
-      appleProductId: "premium-week",
+      weeklyIntervalDays: 7,
+      monthlyIntervalDays: 30,
+      weeklyAppleProductId: "premium-week",
+      monthlyAppleProductId: "premium-month",
     });
     mockTrialFindUnique.mockResolvedValue(null);
   });
@@ -41,11 +46,50 @@ describe("getAppSubscriptionOffer", () => {
     const result = await getAppSubscriptionOffer("user-1");
 
     expect(result).toMatchObject({
-      yookassaPriceRub: 200,
+      plans: [
+        {
+          code: "WEEKLY",
+          title: "Недельный",
+          intervalDays: 7,
+          yookassaPriceRub: 200,
+          appleProductId: "premium-week",
+        },
+        {
+          code: "MONTHLY",
+          title: "Месячный",
+          intervalDays: 30,
+          yookassaPriceRub: 1100,
+          appleProductId: "premium-month",
+        },
+      ],
       yookassaTrialAvailable: true,
       yookassaTrialDays: 3,
       yookassaTrialUnavailableReason: null,
     });
+  });
+
+  it("filters disabled plans from the public offer", async () => {
+    mockSettingsFindUnique.mockResolvedValue({
+      weeklyEnabled: false,
+      monthlyEnabled: true,
+      yookassaWeeklyPriceRub: 200,
+      yookassaMonthlyPriceRub: 1100,
+      currency: "RUB",
+      weeklyIntervalDays: 7,
+      monthlyIntervalDays: 30,
+      weeklyAppleProductId: "premium-week",
+      monthlyAppleProductId: "premium-month",
+    });
+
+    const result = await getAppSubscriptionOffer("user-1");
+
+    expect(result.plans).toEqual([
+      expect.objectContaining({
+        code: "MONTHLY",
+        enabled: true,
+        yookassaPriceRub: 1100,
+      }),
+    ]);
   });
 
   it("marks YooKassa trial unavailable after it has been used", async () => {

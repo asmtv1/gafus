@@ -1,6 +1,10 @@
 import { prisma } from "@gafus/prisma";
 
-export type AppSubscriptionAdminAttention = "not_renewed" | "past_due" | "cancel_at_period_end" | null;
+export type AppSubscriptionAdminAttention =
+  | "not_renewed"
+  | "past_due"
+  | "cancel_at_period_end"
+  | null;
 
 export interface AppSubscriptionAdminDashboardMetrics {
   totalSubscriptions: number;
@@ -15,6 +19,7 @@ export interface AppSubscriptionAdminDashboardMetrics {
 
 export interface AppSubscriptionAdminDashboardRow {
   id: string;
+  planCode: "WEEKLY" | "MONTHLY";
   user: {
     id: string;
     username: string;
@@ -107,26 +112,35 @@ function paymentDate(payment: PaymentLike): Date {
   return payment.succeededAt ?? payment.updatedAt ?? payment.createdAt;
 }
 
-function isSubscriptionActiveNow(row: {
-  status: string;
-  isLifetime: boolean;
-  currentPeriodEnd: Date | null;
-}, now: Date): boolean {
+function isSubscriptionActiveNow(
+  row: {
+    status: string;
+    isLifetime: boolean;
+    currentPeriodEnd: Date | null;
+  },
+  now: Date,
+): boolean {
   if (row.status !== "ACTIVE") return false;
   if (row.isLifetime) return true;
   return row.currentPeriodEnd ? row.currentPeriodEnd > now : false;
 }
 
-function isNotRenewed(row: {
-  status: string;
-  isLifetime: boolean;
-  currentPeriodEnd: Date | null;
-}, payments: PaymentLike[], now: Date): boolean {
+function isNotRenewed(
+  row: {
+    status: string;
+    isLifetime: boolean;
+    currentPeriodEnd: Date | null;
+  },
+  payments: PaymentLike[],
+  now: Date,
+): boolean {
   if (payments.length === 0) return false;
   if (isSubscriptionActiveNow(row, now)) return false;
   return (
     ["EXPIRED", "CANCELED", "REFUNDED", "REVOKED"].includes(row.status) ||
-    (row.status === "ACTIVE" && !row.isLifetime && Boolean(row.currentPeriodEnd && row.currentPeriodEnd <= now))
+    (row.status === "ACTIVE" &&
+      !row.isLifetime &&
+      Boolean(row.currentPeriodEnd && row.currentPeriodEnd <= now))
   );
 }
 
@@ -140,6 +154,7 @@ export async function getAppSubscriptionAdminDashboard(
         id: true,
         provider: true,
         status: true,
+        planCode: true,
         isLifetime: true,
         currentPeriodStart: true,
         currentPeriodEnd: true,
@@ -234,9 +249,15 @@ export async function getAppSubscriptionAdminDashboard(
     );
     const firstPayment = sortedPayments[0] ?? null;
     const lastPayment = sortedPayments[sortedPayments.length - 1] ?? null;
-    const lastApplePayment = [...sortedPayments]
-      .reverse()
-      .find((payment) => payment.appleTransactionId || payment.appleOriginalTransactionId || payment.applePriceMilliunits != null) ?? null;
+    const lastApplePayment =
+      [...sortedPayments]
+        .reverse()
+        .find(
+          (payment) =>
+            payment.appleTransactionId ||
+            payment.appleOriginalTransactionId ||
+            payment.applePriceMilliunits != null,
+        ) ?? null;
     const latestAppleSyncEvent = latestAppleSyncEventBySubscriptionId.get(subscription.id) ?? null;
     const isActiveNow = isSubscriptionActiveNow(subscription, now);
     const isChurned = isNotRenewed(subscription, payments, now);
@@ -256,16 +277,17 @@ export async function getAppSubscriptionAdminDashboard(
         ? "past_due"
         : isChurned
           ? "not_renewed"
-        : subscription.cancelAtPeriodEnd && isActiveNow
-          ? "cancel_at_period_end"
-        : null;
+          : subscription.cancelAtPeriodEnd && isActiveNow
+            ? "cancel_at_period_end"
+            : null;
     const boughtAt =
       firstPayment != null
         ? paymentDate(firstPayment)
-        : subscription.currentPeriodStart ?? subscription.createdAt ?? null;
+        : (subscription.currentPeriodStart ?? subscription.createdAt ?? null);
 
     return {
       id: subscription.id,
+      planCode: subscription.planCode,
       user: {
         id: subscription.user.id,
         username: subscription.user.username,
@@ -287,14 +309,18 @@ export async function getAppSubscriptionAdminDashboard(
       totalPaidRub,
       paymentMethod:
         subscription.yookassaPaymentMethodTitle ??
-        (subscription.yookassaPaymentMethodLast4 ? `Карта *${subscription.yookassaPaymentMethodLast4}` : null),
+        (subscription.yookassaPaymentMethodLast4
+          ? `Карта *${subscription.yookassaPaymentMethodLast4}`
+          : null),
       appleProductId: subscription.appleProductId,
       apple:
         subscription.provider === "APPLE"
           ? {
               productId: subscription.appleProductId,
               originalTransactionId:
-                subscription.appleOriginalTransactionId ?? lastApplePayment?.appleOriginalTransactionId ?? null,
+                subscription.appleOriginalTransactionId ??
+                lastApplePayment?.appleOriginalTransactionId ??
+                null,
               transactionId: lastApplePayment?.appleTransactionId ?? null,
               webOrderLineItemId: lastApplePayment?.appleWebOrderLineItemId ?? null,
               storefront: lastApplePayment?.appleStorefront ?? null,
@@ -305,7 +331,8 @@ export async function getAppSubscriptionAdminDashboard(
               lastServerSyncAt: latestAppleSyncEvent
                 ? toIso(latestAppleSyncEvent.processedAt ?? latestAppleSyncEvent.createdAt)
                 : null,
-              lastServerSyncStatus: latestAppleSyncEvent?.eventType.replace(/^SERVER_SYNC:/, "") ?? null,
+              lastServerSyncStatus:
+                latestAppleSyncEvent?.eventType.replace(/^SERVER_SYNC:/, "") ?? null,
             }
           : null,
       manualReason: subscription.manualReason,
@@ -337,23 +364,40 @@ export async function getDefaultAppSubscriptionSettings() {
 }
 
 export async function updateDefaultAppSubscriptionSettings(params: {
+  weeklyEnabled: boolean;
+  monthlyEnabled: boolean;
   yookassaWeeklyPriceRub: number;
-  appleProductId: string | null;
+  yookassaMonthlyPriceRub: number;
+  weeklyIntervalDays: number;
+  monthlyIntervalDays: number;
+  weeklyAppleProductId: string | null;
+  monthlyAppleProductId: string | null;
   actorId: string;
 }) {
   return prisma.appSubscriptionSettings.upsert({
     where: { key: "default" },
     create: {
       key: "default",
+      weeklyEnabled: params.weeklyEnabled,
+      monthlyEnabled: params.monthlyEnabled,
       yookassaWeeklyPriceRub: params.yookassaWeeklyPriceRub,
+      yookassaMonthlyPriceRub: params.yookassaMonthlyPriceRub,
       currency: "RUB",
-      intervalDays: 7,
-      appleProductId: params.appleProductId,
+      weeklyIntervalDays: params.weeklyIntervalDays,
+      monthlyIntervalDays: params.monthlyIntervalDays,
+      weeklyAppleProductId: params.weeklyAppleProductId,
+      monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },
     update: {
+      weeklyEnabled: params.weeklyEnabled,
+      monthlyEnabled: params.monthlyEnabled,
       yookassaWeeklyPriceRub: params.yookassaWeeklyPriceRub,
-      appleProductId: params.appleProductId,
+      yookassaMonthlyPriceRub: params.yookassaMonthlyPriceRub,
+      weeklyIntervalDays: params.weeklyIntervalDays,
+      monthlyIntervalDays: params.monthlyIntervalDays,
+      weeklyAppleProductId: params.weeklyAppleProductId,
+      monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },
   });

@@ -19,7 +19,11 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Text } from "react-native-paper";
-import { appSubscriptionApi, type AppSubscriptionOfferDto } from "../api/appSubscriptionApi";
+import {
+  appSubscriptionApi,
+  type AppSubscriptionOfferDto,
+  type AppSubscriptionPlanCode,
+} from "../api/appSubscriptionApi";
 import { rewardedAdsApi, showYandexRewardedAd } from "@/features/rewarded-ads";
 import { reportClientError } from "@/shared/lib/tracer";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
@@ -28,7 +32,10 @@ import {
   getYookassaPaymentCaption,
   getYookassaPricePillText,
   getYookassaPrimaryCta,
+  getYookassaTrialLeadText,
   getYookassaTrialUnavailableText,
+  formatAppSubscriptionPlanPrice,
+  selectDefaultAppSubscriptionPlan,
 } from "../lib/appSubscriptionPresentation";
 import {
   getRewardedAccessSummary,
@@ -55,11 +62,6 @@ const BENEFITS = [
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function formatPrice(price?: number | null) {
-  if (!price) return "—";
-  return `${price.toLocaleString("ru-RU")} ₽/неделю`;
 }
 
 function extractDisplayPrice(product: unknown): string | null {
@@ -101,6 +103,7 @@ export function AppSubscriptionPaywall() {
   const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
     null,
   );
+  const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
   const autoUnlockAttemptKeyRef = useRef<string | null>(null);
 
   const offerQuery = useQuery({
@@ -134,11 +137,28 @@ export function AppSubscriptionPaywall() {
   }, [offer]);
 
   const effectiveOffer = offer ?? lastSuccessfulOffer;
-  const yookassaPriceText = formatPrice(effectiveOffer?.yookassaPriceRub);
+  const enabledPlans = useMemo(
+    () => (effectiveOffer?.plans ?? []).filter((plan) => plan.enabled !== false),
+    [effectiveOffer],
+  );
+  const defaultPlan = useMemo(() => selectDefaultAppSubscriptionPlan(enabledPlans), [enabledPlans]);
+  useEffect(() => {
+    if (enabledPlans.length === 0) {
+      setSelectedPlanCode(null);
+      return;
+    }
+    const selectedStillExists = enabledPlans.some((plan) => plan.code === selectedPlanCode);
+    if (!selectedStillExists) {
+      setSelectedPlanCode(defaultPlan?.code ?? null);
+    }
+  }, [defaultPlan, enabledPlans, selectedPlanCode]);
+  const selectedPlan = enabledPlans.find((plan) => plan.code === selectedPlanCode) ?? defaultPlan;
+  const yookassaPriceText = formatAppSubscriptionPlanPrice(selectedPlan);
   const isIos = Platform.OS === "ios";
-  const canUseApple = isIos ? Boolean(effectiveOffer?.appleProductId) : false;
-  const canUseYookassa = isIos ? Boolean(effectiveOffer?.iosRuCardPaymentEnabled) : true;
-  const appleProductId = effectiveOffer?.appleProductId ?? null;
+  const canUseApple = isIos ? Boolean(selectedPlan?.appleProductId) : false;
+  const canUseYookassa =
+    Boolean(selectedPlan) && (isIos ? Boolean(effectiveOffer?.iosRuCardPaymentEnabled) : true);
+  const appleProductId = selectedPlan?.appleProductId ?? null;
   const applePriceQuery = useQuery({
     queryKey: ["app-subscription", "apple-price", appleProductId],
     enabled: isIos && Boolean(appleProductId),
@@ -152,12 +172,13 @@ export function AppSubscriptionPaywall() {
   });
   const price = isIos ? (applePriceQuery.data ?? yookassaPriceText) : yookassaPriceText;
   const iosRuCardHint =
-    isIos && canUseYookassa ? `При оплате картой РФ: ${yookassaPriceText}.` : null;
+    isIos && canUseYookassa ? `При оплате через ЮKassa: ${yookassaPriceText}.` : null;
   const yookassaPricePillText = getYookassaPricePillText({ offer: effectiveOffer });
   const yookassaPaymentCaption = canUseYookassa
     ? getYookassaPaymentCaption({ offer: effectiveOffer })
     : "Списание и управление подпиской выполняются через App Store.";
   const yookassaPrimaryCta = getYookassaPrimaryCta({ offer: effectiveOffer });
+  const yookassaTrialLeadText = getYookassaTrialLeadText({ offer: effectiveOffer });
   const yookassaTrialUnavailableText = getYookassaTrialUnavailableText({
     offer: effectiveOffer,
   });
@@ -182,11 +203,11 @@ export function AppSubscriptionPaywall() {
   };
 
   const handleApplePay = async () => {
-    if (!effectiveOffer?.appleProductId || isPaying) return;
+    if (!selectedPlan?.appleProductId || isPaying) return;
     setIsPaying(true);
     setPendingMessage(null);
-    const result = await runAppleAppSubscriptionPurchase(effectiveOffer.appleProductId, {
-      appAccountToken: effectiveOffer.appleAppAccountToken,
+    const result = await runAppleAppSubscriptionPurchase(selectedPlan.appleProductId, {
+      appAccountToken: effectiveOffer?.appleAppAccountToken ?? null,
     });
     setIsPaying(false);
     if (result.ok) {
@@ -199,11 +220,11 @@ export function AppSubscriptionPaywall() {
   };
 
   const handleYookassaPay = async () => {
-    if (isPaying) return;
+    if (isPaying || !selectedPlan) return;
     if (isDev) console.log("[AppSubscriptionPaywall] handleYookassaPay start");
     setIsPaying(true);
     setPendingMessage(null);
-    const result = await yookassaAppSubscriptionPurchase();
+    const result = await yookassaAppSubscriptionPurchase(selectedPlan.code);
     if (isDev) {
       console.log("[AppSubscriptionPaywall] handleYookassaPay purchase result", result);
     }
@@ -215,11 +236,11 @@ export function AppSubscriptionPaywall() {
         await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
         return;
       }
-      Alert.alert("Привязка карты не началась", result.message);
+      Alert.alert("Оплата не началась", result.message);
       return;
     }
 
-    setPendingMessage("Проверяем привязку карты в ЮKassa...");
+    setPendingMessage("Проверяем оплату в ЮKassa...");
     const subscriptionResult = await pollActiveSubscription();
     if (isDev) {
       console.log("[AppSubscriptionPaywall] handleYookassaPay poll result", {
@@ -236,11 +257,11 @@ export function AppSubscriptionPaywall() {
     }
     if (subscriptionResult === "trial-unavailable") {
       setPendingMessage(
-        "На эту карту пробный период уже использован. Premium можно подключить через обычную оплату.",
+        "С этим способом оплаты пробный период уже использован. Premium можно подключить через обычную оплату.",
       );
       return;
     }
-    setPendingMessage("Привязка карты ещё подтверждается. Обычно это занимает несколько секунд.");
+    setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
   const handleWatchRewardedAd = async () => {
@@ -409,7 +430,57 @@ export function AppSubscriptionPaywall() {
               : "Получите полный доступ к тренировкам, экзаменам, документам питомца и помощи кинолога."}
           </Text>
 
+          {enabledPlans.length > 1 ? (
+            <View style={styles.planSelector}>
+              {enabledPlans.map((plan) => {
+                const selected = selectedPlan?.code === plan.code;
+                return (
+                  <Pressable
+                    key={plan.code}
+                    style={[styles.planOption, selected && styles.planOptionSelected]}
+                    onPress={() => setSelectedPlanCode(plan.code)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[styles.planOptionTitle, selected && styles.planOptionTitleSelected]}
+                    >
+                      {plan.title}
+                    </Text>
+                    <Text
+                      style={[styles.planOptionPrice, selected && styles.planOptionPriceSelected]}
+                    >
+                      {formatAppSubscriptionPlanPrice(plan)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
+          {effectiveOffer && enabledPlans.length === 0 ? (
+            <Text style={styles.pendingText}>Подписка сейчас недоступна.</Text>
+          ) : null}
+
           <View style={[styles.priceBox, useCompactLayout && styles.priceBoxCompact]}>
+            <View style={styles.priceBenefitsBadge}>
+              <Text style={styles.priceBenefitsBadgeText}>Вам станут доступны</Text>
+            </View>
+            <View style={[styles.priceBenefits, useCompactLayout && styles.priceBenefitsCompact]}>
+              {BENEFITS.map((benefit) => (
+                <View key={benefit} style={styles.priceBenefitRow}>
+                  <View style={styles.priceBenefitIcon}>
+                    <MaterialCommunityIcons name="check" size={14} color="#636128" />
+                  </View>
+                  <Text style={styles.priceBenefitText}>{benefit}</Text>
+                </View>
+              ))}
+            </View>
+            {yookassaTrialLeadText ? (
+              <View style={styles.trialLeadBadge}>
+                <Text style={styles.trialLeadText}>{yookassaTrialLeadText}</Text>
+              </View>
+            ) : null}
             <View style={styles.priceHeader}>
               <Text style={[styles.price, useCompactLayout && styles.priceCompact]}>{price}</Text>
               {yookassaPricePillText ? (
@@ -431,7 +502,7 @@ export function AppSubscriptionPaywall() {
             <Pressable
               style={[styles.primaryButton, isPaying && styles.disabledButton]}
               onPress={handleApplePay}
-              disabled={isPaying || offerQuery.isLoading}
+              disabled={isPaying || offerQuery.isLoading || !selectedPlan}
             >
               {isPaying ? <ActivityIndicator color="#ECE5D2" /> : null}
               <Text style={styles.primaryButtonText}>
@@ -447,14 +518,14 @@ export function AppSubscriptionPaywall() {
                 isPaying && styles.disabledButton,
               ]}
               onPress={handleYookassaPay}
-              disabled={isPaying || offerQuery.isLoading}
+              disabled={isPaying || offerQuery.isLoading || !selectedPlan}
             >
               {isPaying && !canUseApple ? <ActivityIndicator color="#ECE5D2" /> : null}
               <Text style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}>
                 {isPaying ? "Оформляем..." : yookassaPrimaryCta}
               </Text>
               {!isPaying && canUseApple ? (
-                <Text style={styles.secondaryPayButtonHint}>(только для карт РФ)</Text>
+                <Text style={styles.secondaryPayButtonHint}>(через ЮKassa)</Text>
               ) : null}
             </Pressable>
           ) : null}
@@ -492,17 +563,6 @@ export function AppSubscriptionPaywall() {
                 {isRewardedLoading ? "Открываем рекламу..." : "Посмотреть рекламу"}
               </Text>
             </Pressable>
-          </View>
-
-          <View style={[styles.benefits, useCompactLayout && styles.benefitsCompact]}>
-            {BENEFITS.map((benefit) => (
-              <View key={benefit} style={styles.benefitRow}>
-                <View style={styles.benefitIcon}>
-                  <MaterialCommunityIcons name="check" size={15} color="#F6F0DF" />
-                </View>
-                <Text style={styles.benefitText}>{benefit}</Text>
-              </View>
-            ))}
           </View>
 
           <Text style={styles.legalText}>
@@ -621,6 +681,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  planSelector: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  planOption: {
+    flex: 1,
+    minHeight: 74,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(99, 97, 40, 0.28)",
+    backgroundColor: "#FFF9EA",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: "center",
+  },
+  planOptionSelected: {
+    borderColor: "#636128",
+    backgroundColor: "#E8F1DD",
+  },
+  planOptionTitle: {
+    fontFamily: FONTS.montserratBold,
+    color: "#352E2E",
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  planOptionTitleSelected: {
+    color: "#636128",
+  },
+  planOptionPrice: {
+    marginTop: 4,
+    fontFamily: FONTS.montserrat,
+    color: "#5F5750",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  planOptionPriceSelected: {
+    color: "#636128",
+  },
   accessSummary: {
     borderRadius: 16,
     borderWidth: 1.5,
@@ -655,9 +753,64 @@ const styles = StyleSheet.create({
     backgroundColor: "#636128",
     paddingHorizontal: 16,
     paddingVertical: 15,
+    gap: 12,
   },
   priceBoxCompact: {
     paddingVertical: 13,
+    gap: 10,
+  },
+  priceBenefits: {
+    gap: 8,
+    paddingBottom: 2,
+  },
+  priceBenefitsBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 14,
+    backgroundColor: "rgba(246, 240, 223, 0.16)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  priceBenefitsBadgeText: {
+    fontFamily: FONTS.montserratBold,
+    color: "#F6F0DF",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  priceBenefitsCompact: {
+    gap: 7,
+  },
+  priceBenefitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  priceBenefitIcon: {
+    width: 21,
+    height: 21,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F6F0DF",
+  },
+  priceBenefitText: {
+    flex: 1,
+    fontFamily: FONTS.montserratMedium,
+    color: "#F6F0DF",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  trialLeadText: {
+    fontFamily: FONTS.montserratBold,
+    color: "#636128",
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  trialLeadBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 14,
+    backgroundColor: "#F6F0DF",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   priceHeader: {
     flexDirection: "row",
@@ -752,35 +905,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserratBold,
     color: "#636128",
     fontSize: 14,
-  },
-  benefits: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(99, 97, 40, 0.18)",
-    paddingTop: 4,
-    gap: 8,
-  },
-  benefitsCompact: {
-    gap: 7,
-  },
-  benefitRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  benefitIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#636128",
-  },
-  benefitText: {
-    flex: 1,
-    fontFamily: FONTS.montserrat,
-    color: "#352E2E",
-    fontSize: 14,
-    lineHeight: 20,
   },
   pendingText: {
     borderRadius: 14,

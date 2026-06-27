@@ -6,6 +6,7 @@ import {
   incrementRenewalAttemptTotal,
   incrementRenewalFailedTotal,
 } from "./app-subscription-metrics";
+import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
@@ -30,7 +31,9 @@ function isPrismaUniqueViolation(error: unknown): boolean {
 
 function getNextAttemptAt(now: Date, attemptCount: number): Date {
   const delayMinutes =
-    RETRY_BACKOFF_MINUTES[Math.min(Math.max(attemptCount - 1, 0), RETRY_BACKOFF_MINUTES.length - 1)];
+    RETRY_BACKOFF_MINUTES[
+      Math.min(Math.max(attemptCount - 1, 0), RETRY_BACKOFF_MINUTES.length - 1)
+    ];
   return new Date(now.getTime() + delayMinutes * 60 * 1000);
 }
 
@@ -40,7 +43,10 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
   const shopId = process.env.YOOKASSA_SHOP_ID;
   const secretKey = process.env.YOOKASSA_SECRET_KEY;
   if (!shopId || !secretKey) {
-    logger.error("Renewal batch skipped: YooKassa credentials are missing", new Error("YOOKASSA env missing"));
+    logger.error(
+      "Renewal batch skipped: YooKassa credentials are missing",
+      new Error("YOOKASSA env missing"),
+    );
     return { processed: 0, skipped: 0, lockAcquired: false as const };
   }
 
@@ -93,15 +99,18 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
 
     const settings = await (prisma as any).appSubscriptionSettings.findUnique({
       where: { key: "default" },
-      select: { yookassaWeeklyPriceRub: true, currency: true, intervalDays: true },
+      select: {
+        weeklyEnabled: true,
+        monthlyEnabled: true,
+        yookassaWeeklyPriceRub: true,
+        yookassaMonthlyPriceRub: true,
+        currency: true,
+        weeklyIntervalDays: true,
+        monthlyIntervalDays: true,
+        weeklyAppleProductId: true,
+        monthlyAppleProductId: true,
+      },
     });
-    const amountRub = Number(settings?.yookassaWeeklyPriceRub ?? 200);
-    const currency = (settings?.currency ?? "RUB") as string;
-    const intervalDays = Number(settings?.intervalDays ?? 7);
-    if (!Number.isFinite(amountRub) || amountRub <= 0 || !Number.isFinite(intervalDays) || intervalDays <= 0) {
-      logger.error("Renewal batch skipped: invalid subscription settings", new Error("Invalid app subscription settings"));
-      return { processed: 0, skipped: rows.length, lockAcquired: true as const };
-    }
 
     let processed = 0;
     let skipped = 0;
@@ -112,13 +121,35 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         continue;
       }
 
+      const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
+      const amountRub = plan.yookassaPriceRub;
+      const currency = plan.currency;
+      const intervalDays = plan.intervalDays;
+      if (
+        !Number.isFinite(amountRub) ||
+        amountRub <= 0 ||
+        !Number.isFinite(intervalDays) ||
+        intervalDays <= 0
+      ) {
+        logger.error(
+          "Renewal skipped: invalid subscription plan settings",
+          new Error("Invalid app subscription plan settings"),
+          { subscriptionId: row.id, planCode: row.planCode },
+        );
+        skipped += 1;
+        continue;
+      }
+
       const idempotenceKey = buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd);
       incrementRenewalAttemptTotal(1);
 
       try {
         const periodStart = row.currentPeriodEnd;
-        const periodEnd = new Date(row.currentPeriodEnd.getTime() + intervalDays * 24 * 60 * 60 * 1000);
-        const paymentKind = Array.isArray(row.payments) && row.payments.length === 0 ? "INITIAL" : "RENEWAL";
+        const periodEnd = new Date(
+          row.currentPeriodEnd.getTime() + intervalDays * 24 * 60 * 60 * 1000,
+        );
+        const paymentKind =
+          Array.isArray(row.payments) && row.payments.length === 0 ? "INITIAL" : "RENEWAL";
         const existingPayment = await (prisma as any).appSubscriptionPayment.findFirst({
           where: { idempotenceKey },
           select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
@@ -134,6 +165,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 provider: "YOOKASSA",
                 kind: paymentKind,
                 status: "PENDING",
+                planCode: plan.code,
                 amount: amountRub,
                 currency,
                 periodStart,
@@ -210,6 +242,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 localPaymentId: payment.id,
                 userId: row.userId,
                 subscriptionId: row.id,
+                planCode: plan.code,
                 renewal: paymentKind === "RENEWAL" ? "true" : "false",
               },
             }),
@@ -285,6 +318,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               where: { id: payment.id },
               data: {
                 status: "SUCCEEDED",
+                planCode: plan.code,
                 yookassaPaymentId: data.id,
                 amount: data.amount?.value ? Number(data.amount.value) : amountRub,
                 currency,
@@ -297,6 +331,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               where: { id: row.id },
               data: {
                 status: "ACTIVE",
+                planCode: plan.code,
                 currentPeriodStart: periodStart,
                 currentPeriodEnd: periodEnd,
                 yookassaPaymentMethodId: data.payment_method?.id ?? row.yookassaPaymentMethodId,
@@ -320,8 +355,6 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
     logger.info("Renewal batch processed", { processed, skipped, batchSize });
     return { processed, skipped, lockAcquired: true as const };
   } finally {
-    await (prisma as any).$queryRawUnsafe(
-      `SELECT pg_advisory_unlock(${RENEWALS_LOCK_KEY})`,
-    );
+    await (prisma as any).$queryRawUnsafe(`SELECT pg_advisory_unlock(${RENEWALS_LOCK_KEY})`);
   }
 }

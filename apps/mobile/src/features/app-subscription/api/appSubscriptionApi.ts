@@ -29,11 +29,21 @@ export type AppSubscriptionStatusDto = {
   yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
-export type AppSubscriptionOfferDto = {
-  intervalDays: 7;
+export type AppSubscriptionPlanCode = "WEEKLY" | "MONTHLY";
+
+export type AppSubscriptionPlanOfferDto = {
+  code: AppSubscriptionPlanCode;
+  label: string;
+  title: string;
+  intervalDays: number;
   currency: "RUB";
   yookassaPriceRub: number;
+  enabled: boolean;
   appleProductId: string | null;
+};
+
+export type AppSubscriptionOfferDto = {
+  plans: AppSubscriptionPlanOfferDto[];
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
   yookassaTrialAvailable: boolean;
@@ -48,13 +58,13 @@ export const appSubscriptionApi = {
   getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
     return apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
   },
-  async startYookassa(): Promise<
-    ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>
-  > {
-    if (isDev) console.log("[appSubscriptionApi] startYookassa request");
+  async startYookassa(
+    planCode: AppSubscriptionPlanCode,
+  ): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
+    if (isDev) console.log("[appSubscriptionApi] startYookassa request", { planCode });
     const result = await apiClient<{ confirmationUrl: string; localSubscriptionId: string }>(
       "/api/v1/app-subscription/yookassa/start",
-      { method: "POST", body: {} },
+      { method: "POST", body: { planCode } },
     );
     if (isDev) {
       console.log("[appSubscriptionApi] startYookassa response", {

@@ -45,15 +45,22 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       }),
     );
     mockSettingsFindUnique.mockResolvedValue({
+      weeklyEnabled: true,
+      monthlyEnabled: true,
       yookassaWeeklyPriceRub: 200,
+      yookassaMonthlyPriceRub: 1100,
       currency: "RUB",
-      intervalDays: 7,
+      weeklyIntervalDays: 7,
+      monthlyIntervalDays: 30,
     });
     mockPaymentFindFirst.mockResolvedValue(null);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: "yk-pay-1", status: "pending" }),
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: "yk-pay-1", status: "pending" }),
+      }),
+    );
   });
 
   it("creates pending renewal payments for due subscriptions", async () => {
@@ -102,6 +109,72 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
         data: expect.objectContaining({ kind: "INITIAL" }),
       }),
     );
+  });
+
+  it("renews monthly subscriptions for 30 days even when monthly is disabled for new purchases", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T10:00:00.000Z"));
+    mockSettingsFindUnique.mockResolvedValue({
+      weeklyEnabled: true,
+      monthlyEnabled: false,
+      yookassaWeeklyPriceRub: 200,
+      yookassaMonthlyPriceRub: 1100,
+      currency: "RUB",
+      weeklyIntervalDays: 7,
+      monthlyIntervalDays: 30,
+    });
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-month",
+        userId: "user-1",
+        planCode: "MONTHLY",
+        currentPeriodStart: new Date("2026-05-01T10:00:00.000Z"),
+        currentPeriodEnd: new Date("2026-06-01T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-month",
+        payments: [{ id: "previous-payment" }],
+      },
+    ]);
+    mockCreate.mockResolvedValue({ id: "pay-month" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: "yk-pay-month", status: "pending" }),
+      }),
+    );
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.processed).toBe(1);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subscriptionId: "sub-month",
+          kind: "RENEWAL",
+          amount: 1100,
+          planCode: "MONTHLY",
+          periodStart: new Date("2026-06-01T10:00:00.000Z"),
+          periodEnd: new Date("2026-07-01T10:00:00.000Z"),
+        }),
+      }),
+    );
+    const renewalBody = JSON.parse(
+      (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
+    );
+    expect(renewalBody).toMatchObject({
+      amount: { value: "1100.00", currency: "RUB" },
+      metadata: {
+        kind: "app_subscription",
+        localPaymentId: "pay-month",
+        userId: "user-1",
+        subscriptionId: "sub-month",
+        planCode: "MONTHLY",
+        renewal: "true",
+      },
+    });
   });
 
   it("skips batch when advisory lock is not acquired", async () => {

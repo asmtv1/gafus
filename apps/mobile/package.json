@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -15,7 +15,7 @@
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "update:ota:preview": "eas update --channel preview",
-    "update:ota:production": "eas update --channel production",
+    "update:ota:production": "eas update --channel production --environment production",
     "web": "expo start --web"
   },
   "dependencies": {

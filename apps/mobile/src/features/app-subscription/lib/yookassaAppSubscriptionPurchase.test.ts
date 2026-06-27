@@ -31,13 +31,13 @@ describe("yookassaAppSubscriptionPurchase", () => {
       },
     });
 
-    const result = await yookassaAppSubscriptionPurchase();
+    const result = await yookassaAppSubscriptionPurchase("MONTHLY");
 
     expect(result).toEqual({ ok: true, localSubscriptionId: "sub-1" });
-    expect(openBrowserAsyncMock).toHaveBeenCalledWith(
-      "https://yookassa.test/confirm",
-      { presentationStyle: "fullScreen" },
-    );
+    expect(startYookassaMock).toHaveBeenCalledWith("MONTHLY");
+    expect(openBrowserAsyncMock).toHaveBeenCalledWith("https://yookassa.test/confirm", {
+      presentationStyle: "fullScreen",
+    });
   });
 
   it("does not report purchase success when the YooKassa page is dismissed", async () => {
@@ -50,11 +50,11 @@ describe("yookassaAppSubscriptionPurchase", () => {
     });
     openBrowserAsyncMock.mockResolvedValueOnce({ type: "dismiss" });
 
-    const result = await yookassaAppSubscriptionPurchase();
+    const result = await yookassaAppSubscriptionPurchase("WEEKLY");
 
     expect(result).toEqual({
       ok: false,
-      message: "Привязка карты не завершена.",
+      message: "Оплата не завершена.",
       userCancelled: true,
     });
   });

@@ -7,6 +7,7 @@ const path = require("path");
 const appsToCheck = [
   { name: "@gafus/web", path: "apps/web/.next", type: "next" },
   { name: "@gafus/trainer-panel", path: "apps/trainer-panel/.next", type: "next" },
+  { name: "@gafus/api", path: "apps/api/dist", type: "dist" },
   { name: "@gafus/bull-board", path: "apps/bull-board/dist", type: "dist" },
 
   { name: "@gafus/webpush", path: "packages/webpush/dist", type: "dist" },
@@ -70,5 +71,6 @@ console.log("\n📋 Команды для сборки:");
 console.log("  pnpm build:all          # Сборка всех приложений");
 console.log("  pnpm --filter @gafus/web build        # Сборка только web");
 console.log("  pnpm --filter @gafus/trainer-panel build  # Сборка только trainer-panel");
+console.log("  pnpm --filter @gafus/api build        # Сборка только API");
 
 process.exit(allBuilt ? 0 : 1);

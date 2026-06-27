@@ -9,6 +9,7 @@
 - `id`, `userId`, `courseId`, `amountRub`, `currency`, `provider` (YOOKASSA | APPLE), `yookassaPaymentId`, `appleTransactionId` (для IAP), `confirmationUrl`, `status` (PENDING, SUCCEEDED, CANCELED, REFUNDED), `createdAt`, `updatedAt`
 
 Логирование согласия с Офертой при создании платежа — см. [oferta-compliance.md](./oferta-compliance.md).
+
 - Частичный уникальный индекс: один PENDING на пару (userId, courseId) — защита от двойного клика «Оплатить».
 
 ## Flow оплаты
@@ -68,6 +69,7 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 5. Mobile закрывает `WebView` после детекции return URL и проверяет доступ к курсу через refetch.
 
 Важно:
+
 - успех оплаты в UI показывается только после подтверждённого доступа (а не только по URL `paid=1`);
 - `YOOKASSA_SHOP_ID` и `YOOKASSA_SECRET_KEY` остаются только на сервере;
 - в варианте A мобильный SDK-ключ ЮKassa не используется.
@@ -98,13 +100,18 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 - [Whitelist IP для webhook](https://yookassa.ru/developers/using-api/webhooks#ip)
 - [Тестирование](https://yookassa.ru/developers/payment-acceptance/testing-and-going-live/testing)
 
-## Gafus Premium: пробный период через ЮKassa
+## Gafus Premium через ЮKassa
 
-Подписка Gafus Premium на ЮKassa стартует через привязку карты на нулевую сумму:
+Подписка Gafus Premium на ЮKassa стартует через обычный платёж на стороне ЮKassa с сохранением
+выбранного способа оплаты для автопродления:
 
 1. `POST /api/v1/app-subscription/yookassa/start` создаёт `AppSubscription` в статусе `PENDING`.
-2. Сервер создаёт способ оплаты в ЮKassa через `POST /v3/payment_methods` с `type: bank_card` и `confirmation.redirect`.
-3. После `payment_method.active` webhook проверяет способ оплаты через ЮKassa, сохраняет `payment_methods.id` и открывает Premium на 3 дня.
-4. Первое списание выполняет worker после окончания trial через обычный платёж с `payment_method_id`.
+2. Сервер создаёт платёж в ЮKassa через `POST /v3/payments` с `capture: true`,
+   `save_payment_method: true` и `confirmation.redirect`.
+3. ЮKassa показывает пользователю подключенные в магазине способы оплаты, которые поддерживают
+   сохранение для автоплатежей.
+4. После `payment.succeeded` webhook проверяет платёж через ЮKassa, сохраняет `payment_method.id`
+   и открывает Premium на оплаченный период.
+5. Следующие списания выполняет worker через обычный автоплатёж с `payment_method_id`.
 
-В боевом магазине автоплатежи с нулевой привязкой должны быть подключены у менеджера ЮKassa.
+В боевом магазине автоплатежи и нужные способы оплаты должны быть подключены у менеджера ЮKassa.

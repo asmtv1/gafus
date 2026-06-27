@@ -6,10 +6,7 @@ import CacheManagement from "@/features/admin/components/CacheManagement";
 import { AppSubscriptionSettingsCard } from "@/features/admin/components/AppSubscriptionSettingsCard";
 import { RewardedAdsSettingsCard } from "@/features/admin/components/RewardedAdsSettingsCard";
 import StorageManagement from "@/features/admin/components/StorageManagement";
-import {
-  getStorageStats,
-  type StorageStats,
-} from "@/features/admin/lib/getStorageStats";
+import { getStorageStats, type StorageStats } from "@/features/admin/lib/getStorageStats";
 import { getAppSubscriptionSettingsAction } from "@/shared/lib/actions/appSubscriptionAdminActions";
 import { getRewardedAdSettingsAction } from "@/shared/lib/actions/rewardedAdsAdminActions";
 import PageLayout from "@/shared/components/PageLayout";
@@ -48,8 +45,14 @@ export default async function AdminPage() {
 
         <AppSubscriptionSettingsCard
           actorRole={session.user.role}
+          initialWeeklyEnabled={appSubscriptionSettings.weeklyEnabled}
+          initialMonthlyEnabled={appSubscriptionSettings.monthlyEnabled}
           initialYookassaWeeklyPriceRub={appSubscriptionSettings.yookassaWeeklyPriceRub}
-          initialAppleProductId={appSubscriptionSettings.appleProductId}
+          initialYookassaMonthlyPriceRub={appSubscriptionSettings.yookassaMonthlyPriceRub}
+          initialWeeklyIntervalDays={appSubscriptionSettings.weeklyIntervalDays}
+          initialMonthlyIntervalDays={appSubscriptionSettings.monthlyIntervalDays}
+          initialWeeklyAppleProductId={appSubscriptionSettings.weeklyAppleProductId}
+          initialMonthlyAppleProductId={appSubscriptionSettings.monthlyAppleProductId}
         />
 
         <RewardedAdsSettingsCard

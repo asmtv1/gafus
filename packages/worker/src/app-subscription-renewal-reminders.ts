@@ -2,6 +2,7 @@ import { sendTransactionalMail } from "@gafus/mailer";
 import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
 import { sendImmediatePushNotification } from "@gafus/webpush";
+import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
 
 const logger = createWorkerLogger("app-subscription-renewal-reminders");
 const LOOKAHEAD_MS = 2 * 60 * 60 * 1000;
@@ -25,18 +26,25 @@ function renewalText(amountRub: number, chargeAt: Date): string {
   return `Через 2 часа будет продлена подписка Gafus Premium. С карты будет списано ${amountRub} ₽. Время списания: ${formatMskDateTime(chargeAt)}.`;
 }
 
-export async function sendYookassaAppSubscriptionRenewalReminders(params?: {
-  batchSize?: number;
-}) {
+export async function sendYookassaAppSubscriptionRenewalReminders(params?: { batchSize?: number }) {
   const batchSize = params?.batchSize ?? 100;
   const now = new Date();
   const chargeBefore = new Date(now.getTime() + LOOKAHEAD_MS);
 
   const settings = await (prisma as any).appSubscriptionSettings.findUnique({
     where: { key: "default" },
-    select: { yookassaWeeklyPriceRub: true },
+    select: {
+      weeklyEnabled: true,
+      monthlyEnabled: true,
+      yookassaWeeklyPriceRub: true,
+      yookassaMonthlyPriceRub: true,
+      currency: true,
+      weeklyIntervalDays: true,
+      monthlyIntervalDays: true,
+      weeklyAppleProductId: true,
+      monthlyAppleProductId: true,
+    },
   });
-  const amountRub = Number(settings?.yookassaWeeklyPriceRub ?? 200);
 
   const rows = await (prisma as any).appSubscription.findMany({
     where: {
@@ -66,11 +74,16 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: {
   let errors = 0;
 
   for (const row of rows) {
-    if (!row.currentPeriodEnd || sameInstant(row.renewalReminderSentForPeriodEnd, row.currentPeriodEnd)) {
+    if (
+      !row.currentPeriodEnd ||
+      sameInstant(row.renewalReminderSentForPeriodEnd, row.currentPeriodEnd)
+    ) {
       skipped += 1;
       continue;
     }
 
+    const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
+    const amountRub = plan.yookassaPriceRub;
     const message = renewalText(amountRub, row.currentPeriodEnd);
     const subject = "Скоро продление подписки Gafus Premium";
 

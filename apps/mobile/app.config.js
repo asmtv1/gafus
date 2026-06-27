@@ -12,7 +12,21 @@ load(path.resolve(__dirname, "../.."), { force: true });
 
 const vkClientIdAndroid = process.env.VK_CLIENT_ID_ANDROID ?? "";
 const vkClientIdIos = process.env.VK_CLIENT_ID_IOS ?? "";
+const productionApiBaseUrl = "https://api.gafus.ru";
 const yandexSkAdNetworkIdentifiers = ["zq492l623r.skadnetwork"];
+
+function assertProductionApiBaseUrl() {
+  if (process.env.APP_ENV !== "production") return;
+
+  const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? productionApiBaseUrl;
+  if (apiBaseUrl !== productionApiBaseUrl) {
+    throw new Error(
+      `Production mobile builds must use ${productionApiBaseUrl}; got ${apiBaseUrl}`
+    );
+  }
+}
+
+assertProductionApiBaseUrl();
 
 function withYandexSkAdNetworkItems(infoPlist = {}) {
   const existingItems = Array.isArray(infoPlist.SKAdNetworkItems)
@@ -78,7 +92,7 @@ module.exports = ({ config }) => ({
   ],
   extra: {
     ...config.extra,
-    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.5.4",
+    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.5.5",
     enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
     tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
     tracerAppTokenIos: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_IOS,

@@ -1,9 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { z } from "zod";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
 import { authOptions } from "@gafus/auth";
 import { startYookassaAppSubscriptionPayment } from "@gafus/core/services/appSubscription";
+
+const startYookassaSchema = z.object({
+  planCode: z.enum(["WEEKLY", "MONTHLY"]),
+});
 
 function getOrigin(request: NextRequest): string {
   const configured =
@@ -30,7 +35,10 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
   });
   if (!session?.user?.id) {
     console.log("[app-subscription/yookassa/start] unauthorized");
-    return NextResponse.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Не авторизован", code: "UNAUTHORIZED" },
+      { status: 401 },
+    );
   }
 
   const shopId = process.env.YOOKASSA_SHOP_ID;
@@ -41,7 +49,19 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
       hasShopId: Boolean(shopId),
       hasSecretKey: Boolean(secretKey),
     });
-    return NextResponse.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Платежи недоступны", code: "CONFIG" },
+      { status: 500 },
+    );
+  }
+
+  const body = await request.json().catch(() => null);
+  const parsed = startYookassaSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, error: "Выберите тариф подписки", code: "VALIDATION_ERROR" },
+      { status: 400 },
+    );
   }
 
   let data: Awaited<ReturnType<typeof startYookassaAppSubscriptionPayment>>;
@@ -56,10 +76,14 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
       origin,
       shopId,
       secretKey,
+      planCode: parsed.data.planCode,
     });
   } catch (error) {
     console.error("[app-subscription/yookassa/start] start failed before payment response", error);
-    return NextResponse.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_ORIGIN" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_ORIGIN" },
+      { status: 500 },
+    );
   }
   console.log("[app-subscription/yookassa/start] payment service result", {
     userId: session.user.id,
@@ -69,7 +93,10 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     localSubscriptionId: data.success ? data.localSubscriptionId : null,
   });
   if (!data.success) {
-    return NextResponse.json({ success: false, error: data.error, code: "PAYMENT_ERROR" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: data.error, code: "PAYMENT_ERROR" },
+      { status: 400 },
+    );
   }
 
   return NextResponse.json({ success: true, data });

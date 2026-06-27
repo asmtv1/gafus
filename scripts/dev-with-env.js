@@ -16,6 +16,7 @@ console.warn("🚀 Запуск dev режима с переменными ок�
 const apps = [
   { name: "Web App", filter: "@gafus/web", port: 3002, type: "next-dev" },
   { name: "Trainer Panel", filter: "@gafus/trainer-panel", port: 3001, type: "next-dev" },
+  { name: "API", filter: "@gafus/api", port: 3005, type: "api-dev" },
   //{ name: "Admin Panel", filter: "@gafus/admin-panel", port: 3006, type: "next-dev" },
   //{ name: "Push Worker", filter: "@gafus/worker", port: null, type: "worker" },
 ];
@@ -46,6 +47,15 @@ apps.forEach((app) => {
     const childEnv = createChildEnv(envVars, {
       PORT: String(app.port),
       ...extraEnv,
+    });
+
+    child = spawn("pnpm", ["--filter", app.filter, "dev"], {
+      stdio: "pipe",
+      env: childEnv,
+    });
+  } else if (app.type === "api-dev") {
+    const childEnv = createChildEnv(envVars, {
+      API_PORT: String(app.port),
     });
 
     child = spawn("pnpm", ["--filter", app.filter, "dev"], {
@@ -103,6 +113,7 @@ setTimeout(() => {
   console.warn("\n🌐 Доступные приложения:");
   console.warn("  Web App: http://web.gafus.localhost:3002");
   console.warn("  Trainer Panel: http://trainer.gafus.localhost:3001");
+  console.warn("  API: http://localhost:3005");
   console.warn("  Admin Panel: http://admin.gafus.localhost:3006");
   console.warn("  Push Worker: обрабатывает уведомления");
   console.warn("\n💡 Для остановки нажмите Ctrl+C");

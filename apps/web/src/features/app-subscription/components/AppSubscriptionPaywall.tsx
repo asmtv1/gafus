@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
@@ -13,12 +13,27 @@ import {
   getYookassaPrimaryCta,
   getYookassaReturnSuccessTitle,
   getYookassaTrialUnavailableText,
+  formatAppSubscriptionPlanPrice,
+  getAppSubscriptionPlanComparisonText,
+  getAppSubscriptionPlanPeriodText,
+  selectDefaultAppSubscriptionPlan,
 } from "@/shared/lib/app-subscription/presentation";
 import styles from "./app-subscription-paywall.module.css";
 
-type AppSubscriptionOffer = {
+type AppSubscriptionPlanCode = "WEEKLY" | "MONTHLY";
+
+type AppSubscriptionPlanOffer = {
+  code: AppSubscriptionPlanCode;
+  label: string;
+  title: string;
   intervalDays: number;
   yookassaPriceRub: number;
+  enabled: boolean;
+  appleProductId: string | null;
+};
+
+type AppSubscriptionOffer = {
+  plans: AppSubscriptionPlanOffer[];
   yookassaTrialAvailable: boolean;
   yookassaTrialDays: number;
   yookassaTrialUnavailableReason?: string | null;
@@ -62,6 +77,27 @@ type AppSubscriptionPaywallProps = {
   onRewardedGrant?: () => Promise<void> | void;
 };
 
+const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
+  {
+    code: "WEEKLY",
+    label: "weekly",
+    title: "Недельный",
+    intervalDays: 7,
+    yookassaPriceRub: 200,
+    enabled: true,
+    appleProductId: null,
+  },
+  {
+    code: "MONTHLY",
+    label: "monthly",
+    title: "Месячный",
+    intervalDays: 30,
+    yookassaPriceRub: 1100,
+    enabled: true,
+    appleProductId: null,
+  },
+];
+
 function getWebRewardedPlatform(): WebRewardedPlatform {
   if (typeof window === "undefined") return "WEB_DESKTOP";
   return window.matchMedia("(pointer: coarse)").matches ? "WEB_TOUCH" : "WEB_DESKTOP";
@@ -92,8 +128,9 @@ export function AppSubscriptionPaywall({
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [priceText, setPriceText] = useState("200 ₽/неделю");
+  const [priceText, setPriceText] = useState("1 100 ₽/месяц");
   const [offer, setOffer] = useState<AppSubscriptionOffer | null>(null);
+  const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
   const [returnState, setReturnState] = useState<
     "idle" | "checking" | "success" | "pending" | "trial-unavailable"
   >("idle");
@@ -133,10 +170,11 @@ export function AppSubscriptionPaywall({
         if (response?.data) {
           setOffer(response.data as AppSubscriptionOffer);
         }
-        const price = Number(response?.data?.yookassaPriceRub);
-        const interval = Number(response?.data?.intervalDays);
-        if (Number.isFinite(price) && Number.isFinite(interval) && price > 0 && interval > 0) {
-          setPriceText(`${price} ₽/${interval === 7 ? "неделю" : `${interval} дн.`}`);
+        const plans = Array.isArray(response?.data?.plans) ? response.data.plans : [];
+        const defaultPlan = selectDefaultAppSubscriptionPlan(plans);
+        if (defaultPlan) {
+          setSelectedPlanCode(defaultPlan.code);
+          setPriceText(formatAppSubscriptionPlanPrice(defaultPlan));
         }
       } catch {
         // keep fallback price text
@@ -155,6 +193,32 @@ export function AppSubscriptionPaywall({
     await fetchToken();
     return useCSRFStore.getState().token;
   }, [csrfToken, fetchToken]);
+
+  const enabledPlans = useMemo(
+    () =>
+      (offer?.plans ?? FALLBACK_APP_SUBSCRIPTION_PLANS).filter((plan) => plan.enabled !== false),
+    [offer],
+  );
+  const defaultPlan = useMemo(() => selectDefaultAppSubscriptionPlan(enabledPlans), [enabledPlans]);
+  const selectedPlan = enabledPlans.find((plan) => plan.code === selectedPlanCode) ?? defaultPlan;
+  const selectedPriceText = selectedPlan ? formatAppSubscriptionPlanPrice(selectedPlan) : priceText;
+
+  useEffect(() => {
+    if (enabledPlans.length === 0) {
+      setSelectedPlanCode(null);
+      return;
+    }
+    const selectedStillExists = enabledPlans.some((plan) => plan.code === selectedPlanCode);
+    if (!selectedStillExists) {
+      setSelectedPlanCode(defaultPlan?.code ?? null);
+    }
+  }, [defaultPlan, enabledPlans, selectedPlanCode]);
+
+  useEffect(() => {
+    if (selectedPlan) {
+      setPriceText(formatAppSubscriptionPlanPrice(selectedPlan));
+    }
+  }, [selectedPlan]);
 
   useEffect(() => {
     if (!isPaidReturn) return;
@@ -217,6 +281,10 @@ export function AppSubscriptionPaywall({
   }, [isPaidReturn, router]);
 
   const onStart = async () => {
+    if (!selectedPlan) {
+      setError("Подписка сейчас недоступна.");
+      return;
+    }
     if (!csrfToken) {
       setError("Не удалось получить CSRF токен. Обновите страницу и попробуйте снова.");
       return;
@@ -232,7 +300,7 @@ export function AppSubscriptionPaywall({
           "Content-Type": "application/json",
           "x-csrf-token": csrfToken,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ planCode: selectedPlan.code }),
       });
       if (!response.ok) {
         throw new Error("Не удалось создать платеж");
@@ -352,7 +420,7 @@ export function AppSubscriptionPaywall({
         ) : returnState === "checking" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Проверяем привязку карты</h1>
+            <h1 className={styles.returnTitle}>Проверяем оплату</h1>
             <p className={styles.returnText}>
               Обычно это занимает несколько секунд после возврата из ЮKassa.
             </p>
@@ -360,7 +428,7 @@ export function AppSubscriptionPaywall({
         ) : returnState === "pending" ? (
           <div className={`${styles.card} ${styles.returnCard}`} role="status" aria-live="polite">
             <p className={styles.kicker}>Gafus Premium</p>
-            <h1 className={styles.returnTitle}>Привязка ещё подтверждается</h1>
+            <h1 className={styles.returnTitle}>Оплата ещё подтверждается</h1>
             <p className={styles.returnText}>
               Мы не получили подтверждение от ЮKassa. Обновите страницу через несколько секунд.
             </p>
@@ -371,13 +439,13 @@ export function AppSubscriptionPaywall({
             <h1 className={styles.returnTitle}>Пробный период недоступен</h1>
             <p className={styles.returnText}>
               {yookassaTrialUnavailableText ??
-                "На эту карту пробный период уже использован. Premium можно подключить через обычную оплату."}
+                "С этим способом оплаты пробный период уже использован. Premium можно подключить через обычную оплату."}
             </p>
             <button
               className={styles.primaryButton}
               type="button"
               onClick={onStart}
-              disabled={loading || csrfLoading}
+              disabled={loading || csrfLoading || !selectedPlan}
             >
               {loading || csrfLoading ? "Переход в ЮKassa..." : "Оплатить Premium"}
             </button>
@@ -408,14 +476,64 @@ export function AppSubscriptionPaywall({
                 </p>
               </div>
               <div className={styles.priceCard}>
-                <p className={styles.priceLabel}>Текущий тариф</p>
-                <p className={styles.price}>{priceText}</p>
+                <p className={styles.priceLabel}>Выбранный тариф</p>
+                <p className={styles.price}>{selectedPriceText}</p>
                 <p className={styles.priceNote}>{getYookassaPriceNote(offer)}</p>
               </div>
             </div>
 
             {yookassaTrialUnavailableText ? (
               <p className={styles.errorText}>{yookassaTrialUnavailableText}</p>
+            ) : null}
+
+            {enabledPlans.length > 1 ? (
+              <div className={styles.planSection}>
+                <div className={styles.planSectionHeader}>
+                  <p className={styles.planSectionKicker}>Период оплаты</p>
+                  <h2 className={styles.planSectionTitle}>Выберите тариф</h2>
+                  <p className={styles.planSectionText}>
+                    Наполнение Premium одинаковое. Отличаются только цена и период списания.
+                  </p>
+                </div>
+                <div className={styles.planGrid} role="radiogroup" aria-label="Тарифы подписки">
+                  {enabledPlans.map((plan) => {
+                    const selected = selectedPlan?.code === plan.code;
+                    return (
+                      <button
+                        key={plan.code}
+                        className={`${styles.planButton} ${selected ? styles.planButtonSelected : ""}`}
+                        type="button"
+                        onClick={() => setSelectedPlanCode(plan.code)}
+                        role="radio"
+                        aria-checked={selected}
+                      >
+                        <span className={styles.planTopLine}>
+                          <span className={styles.radioMark} aria-hidden="true">
+                            <span className={styles.radioDot} />
+                          </span>
+                          <span className={styles.planBadge}>
+                            {plan.code === "MONTHLY" ? "30 дней" : "7 дней"}
+                          </span>
+                        </span>
+                        <span className={styles.planTitle}>{plan.title}</span>
+                        <span className={styles.planPrice}>
+                          {formatAppSubscriptionPlanPrice(plan)}
+                        </span>
+                        <span className={styles.planPeriod}>
+                          {getAppSubscriptionPlanPeriodText(plan)}
+                        </span>
+                        <span className={styles.planComparison}>
+                          {getAppSubscriptionPlanComparisonText(plan)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {offer && enabledPlans.length === 0 ? (
+              <p className={styles.errorText}>Подписка сейчас недоступна.</p>
             ) : null}
 
             <div className={styles.valueGrid} aria-label="Что входит в подписку">
@@ -441,7 +559,7 @@ export function AppSubscriptionPaywall({
               className={styles.primaryButton}
               type="button"
               onClick={onStart}
-              disabled={loading || csrfLoading}
+              disabled={loading || csrfLoading || !selectedPlan}
             >
               {loading || csrfLoading ? "Переход в ЮKassa..." : getYookassaPrimaryCta(offer)}
             </button>
@@ -450,10 +568,10 @@ export function AppSubscriptionPaywall({
               <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
                 Оферту
               </a>
-              : {getYookassaLegalText(offer, priceText)}
+              : {getYookassaLegalText(offer, selectedPriceText)}
             </p>
             <p className={styles.assurance}>
-              Безопасная привязка карты через ЮKassa • Чек придёт после первого списания
+              Безопасная оплата через ЮKassa • Способ оплаты сохранится для автопродления
             </p>
 
             {showRewardedBlock ? (

@@ -26,8 +26,7 @@
   max-width: 860px;
   border: 1px solid rgba(99, 97, 40, 0.35);
   border-radius: 24px;
-  background:
-    linear-gradient(146deg, rgba(255, 249, 234, 0.97), rgba(245, 239, 220, 0.94));
+  background: linear-gradient(146deg, rgba(255, 249, 234, 0.97), rgba(245, 239, 220, 0.94));
   box-shadow:
     0 20px 44px rgba(53, 46, 46, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
@@ -123,6 +122,177 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.planSection {
+  margin-top: 24px;
+  border: 1px solid rgba(99, 97, 40, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.92);
+  padding: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.planSectionHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 6px 18px;
+  align-items: end;
+}
+
+.planSectionKicker {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #626124;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.planSectionTitle {
+  margin: 0;
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(22px, 2.1vw, 28px);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.planSectionText {
+  margin: 0;
+  color: rgba(53, 46, 46, 0.78);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.planGrid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.planButton {
+  min-height: 178px;
+  border: 2px solid rgba(99, 97, 40, 0.2);
+  border-radius: 12px;
+  background: #fffdf8;
+  color: #352e2e;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  min-width: 0;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.planButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(98, 97, 36, 0.52);
+  box-shadow: 0 10px 22px rgba(53, 46, 46, 0.08);
+}
+
+.planButtonSelected {
+  border-color: #2f6c69;
+  background: linear-gradient(160deg, #f4fbf7 0%, #fffaf0 100%);
+  box-shadow:
+    0 12px 26px rgba(47, 108, 105, 0.16),
+    inset 0 0 0 1px rgba(47, 108, 105, 0.08);
+}
+
+.planTopLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.radioMark {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(99, 97, 40, 0.36);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: #fffdf8;
+}
+
+.radioDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.planButtonSelected .radioMark {
+  border-color: #2f6c69;
+}
+
+.planButtonSelected .radioDot {
+  background: #2f6c69;
+}
+
+.planBadge {
+  border-radius: 999px;
+  background: rgba(47, 108, 105, 0.1);
+  color: #2f6c69;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.planTitle,
+.planPrice,
+.planPeriod,
+.planComparison {
+  display: block;
+  min-width: 0;
+}
+
+.planTitle {
+  margin-top: 18px;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.planPrice {
+  margin-top: 8px;
+  color: #352e2e;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.planPeriod {
+  margin-top: 10px;
+  color: rgba(53, 46, 46, 0.72);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.planComparison {
+  margin-top: 4px;
+  color: rgba(53, 46, 46, 0.62);
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .valueItem {
@@ -315,6 +485,23 @@
 
   .valueGrid {
     grid-template-columns: 1fr;
+  }
+
+  .planGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .planSection {
+    padding: 14px;
+  }
+
+  .planSectionHeader {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .planButton {
+    min-height: 158px;
   }
 
   .valueItem h2 {

@@ -1,3 +1,5 @@
+import type { AppSubscriptionPlanCode } from "./plans";
+
 export type AppSubscriptionProvider = "YOOKASSA" | "APPLE" | "MANUAL";
 
 export type YookassaTrialUnavailableReason = "CARD_FINGERPRINT_REUSED";
@@ -31,11 +33,19 @@ export type AppSubscriptionStatusDto = {
   yookassaTrialUnavailableReason: YookassaTrialUnavailableReason | null;
 };
 
-export type AppSubscriptionOfferDto = {
-  intervalDays: 7;
+export type AppSubscriptionPlanOfferDto = {
+  code: AppSubscriptionPlanCode;
+  label: string;
+  title: string;
+  intervalDays: number;
   currency: "RUB";
   yookassaPriceRub: number;
+  enabled: boolean;
   appleProductId: string | null;
+};
+
+export type AppSubscriptionOfferDto = {
+  plans: AppSubscriptionPlanOfferDto[];
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
   yookassaTrialAvailable: boolean;

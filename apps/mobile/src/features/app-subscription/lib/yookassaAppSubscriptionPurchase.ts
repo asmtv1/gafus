@@ -1,6 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 
 import { appSubscriptionApi } from "../api/appSubscriptionApi";
+import type { AppSubscriptionPlanCode } from "../api/appSubscriptionApi";
 
 const isDev = typeof __DEV__ !== "undefined" && __DEV__;
 
@@ -8,11 +9,11 @@ export type YookassaAppSubscriptionPurchaseResult =
   | { ok: true; localSubscriptionId: string }
   | { ok: false; message: string; userCancelled?: boolean };
 
-export async function yookassaAppSubscriptionPurchase(): Promise<
-  YookassaAppSubscriptionPurchaseResult
-> {
-  if (isDev) console.log("[yookassaAppSubscriptionPurchase] start");
-  const result = await appSubscriptionApi.startYookassa();
+export async function yookassaAppSubscriptionPurchase(
+  planCode: AppSubscriptionPlanCode,
+): Promise<YookassaAppSubscriptionPurchaseResult> {
+  if (isDev) console.log("[yookassaAppSubscriptionPurchase] start", { planCode });
+  const result = await appSubscriptionApi.startYookassa(planCode);
   const confirmationUrl = result.data?.confirmationUrl;
   const localSubscriptionId = result.data?.localSubscriptionId;
   if (!result.success || !confirmationUrl || !localSubscriptionId) {
@@ -25,7 +26,7 @@ export async function yookassaAppSubscriptionPurchase(): Promise<
         localSubscriptionId: localSubscriptionId ?? null,
       });
     }
-    return { ok: false, message: result.error ?? "Не удалось начать привязку карты." };
+    return { ok: false, message: result.error ?? "Не удалось начать оплату." };
   }
 
   if (isDev) {
@@ -46,7 +47,7 @@ export async function yookassaAppSubscriptionPurchase(): Promise<
   if (browserResult.type === "cancel" || browserResult.type === "dismiss") {
     return {
       ok: false,
-      message: "Привязка карты не завершена.",
+      message: "Оплата не завершена.",
       userCancelled: true,
     };
   }

@@ -1,7 +1,7 @@
 // API Configuration
 // Production: https://api.gafus.ru (standalone API service)
-// Development: http://api.gafus.localhost (через nginx) или http://localhost:3001 (прямо)
-export const API_BASE_URL = "https://api.gafus.ru"; // Production API
+// Expo Go on a real device: use the Mac LAN IP, not localhost, for example http://192.168.1.25:3001
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.gafus.ru";
 
 // Cache durations (в миллисекундах)
 export const CACHE_DURATIONS = {

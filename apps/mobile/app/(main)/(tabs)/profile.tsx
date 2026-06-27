@@ -79,18 +79,18 @@ function MobileAppSubscriptionCard() {
     mutationFn: () => appSubscriptionApi.cancelYookassa(),
     onSuccess: async (result) => {
       if (!result.success) {
-        Alert.alert("Не удалось удалить карту", result.error ?? "Попробуйте позже.");
+        Alert.alert("Не удалось удалить способ оплаты", result.error ?? "Попробуйте позже.");
         return;
       }
       setUnlinkConfirmed(false);
       await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
-      Alert.alert("Карта удалена", "Автопродление подписки отключено.");
+      Alert.alert("Способ оплаты удалён", "Автопродление подписки отключено.");
     },
   });
 
   const handleUnlink = () => {
     if (!unlinkConfirmed) {
-      Alert.alert("Подтвердите действие", "Поставьте чек-бокс, чтобы удалить карту.");
+      Alert.alert("Подтвердите действие", "Поставьте чек-бокс, чтобы удалить способ оплаты.");
       return;
     }
     cancelMutation.mutate();
@@ -168,7 +168,7 @@ function MobileAppSubscriptionCard() {
       </View>
 
       <View style={styles.subscriptionInfoCell}>
-        <Text style={styles.subscriptionLabel}>Карта оплаты</Text>
+        <Text style={styles.subscriptionLabel}>Способ оплаты</Text>
         <Text style={styles.subscriptionValue}>
           {status?.paymentMethodLast4 ? `•••• ${status.paymentMethodLast4}` : "—"}
         </Text>
@@ -192,7 +192,7 @@ function MobileAppSubscriptionCard() {
               ) : null}
             </View>
             <Text style={styles.subscriptionCheckText}>
-              Подтверждаю отвязку карты и отключение автоплатежей по подписке.
+              Подтверждаю отвязку способа оплаты и отключение автоплатежей по подписке.
             </Text>
           </Pressable>
           <Pressable
@@ -204,13 +204,13 @@ function MobileAppSubscriptionCard() {
             disabled={!unlinkConfirmed || cancelMutation.isPending}
           >
             <Text style={styles.subscriptionDangerButtonText}>
-              {cancelMutation.isPending ? "Удаляем..." : "Удалить карту"}
+              {cancelMutation.isPending ? "Удаляем..." : "Удалить способ оплаты"}
             </Text>
           </Pressable>
         </>
       ) : (
         <Text style={styles.subscriptionMuted}>
-          Автопродление включится после привязки карты.
+          Автопродление включится после сохранения способа оплаты.
         </Text>
       )}
     </View>

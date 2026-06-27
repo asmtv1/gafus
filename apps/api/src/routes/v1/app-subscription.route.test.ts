@@ -57,6 +57,57 @@ function createAuthenticatedTestApp() {
 describe("app subscription route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.WEB_APP_URL;
+    delete process.env.NEXT_PUBLIC_WEB_APP_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.NEXTAUTH_URL;
+    delete process.env.YOOKASSA_SHOP_ID;
+    delete process.env.YOOKASSA_SECRET_KEY;
+  });
+
+  it("requires a planCode when starting YooKassa payment", async () => {
+    const app = createAuthenticatedTestApp();
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+
+    const response = await app.request(
+      jsonRequest("/api/v1/app-subscription/yookassa/start", "POST", {}),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      code: "VALIDATION_ERROR",
+    });
+    expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
+  });
+
+  it("passes selected planCode to YooKassa payment start", async () => {
+    const app = createAuthenticatedTestApp();
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    startYookassaAppSubscriptionPaymentMock.mockResolvedValueOnce({
+      success: true,
+      confirmationUrl: "https://pay.test",
+      localSubscriptionId: "sub-1",
+    });
+
+    const response = await app.request(
+      jsonRequest("/api/v1/app-subscription/yookassa/start", "POST", {
+        planCode: "MONTHLY",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(startYookassaAppSubscriptionPaymentMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      origin: "https://gafus.ru",
+      shopId: "shop",
+      secretKey: "secret",
+      planCode: "MONTHLY",
+    });
   });
 
   it("maps Apple verification domain failures to an HTTP failure envelope", async () => {

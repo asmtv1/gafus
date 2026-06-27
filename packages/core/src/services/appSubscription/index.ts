@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./plans";
 export * from "./errors";
 export * from "./accessService";
 export * from "./settingsService";
