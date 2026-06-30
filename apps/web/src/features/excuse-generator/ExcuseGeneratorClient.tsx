@@ -154,7 +154,6 @@ export function ExcuseGeneratorClient() {
         <div className={styles.resultColumn}>
           <div className={styles.sectionHeader}>
             <span>Готовый текст</span>
-            {result ? <strong>{result.plausibility}%</strong> : <strong>AI</strong>}
           </div>
 
           {error ? <div className={styles.errorBox}>{error}</div> : null}
@@ -173,7 +172,10 @@ export function ExcuseGeneratorClient() {
                       />
                     </div>
                   </div>
-                  <div className={styles.toneBadge}>{result.tone}</div>
+                  <div className={styles.toneGroup}>
+                    <span>Тон сообщения</span>
+                    <div className={styles.toneBadge}>{result.tone}</div>
+                  </div>
                 </div>
               </>
             ) : (

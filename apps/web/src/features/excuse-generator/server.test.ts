@@ -92,6 +92,7 @@ describe("excuse generator server helpers", () => {
     expect(payload.model).toBe("meta-llama/llama-3.3-70b-instruct");
     expect(payload.response_format).toEqual({ type: "json_object" });
     expect(payload.messages[1]?.content).toContain("опоздал на работу");
+    expect(payload.messages[1]?.content).toContain("реальный человек в мессенджере");
   });
 
   it("throws a configuration error when the shared key is missing", async () => {

@@ -317,6 +317,19 @@
   text-align: center;
 }
 
+.toneGroup {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.toneGroup span {
+  color: #61706a;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .emptyState {
   align-items: center;
   color: #64736d;
@@ -376,6 +389,10 @@
 
   .toneBadge {
     max-width: none;
+  }
+
+  .toneGroup {
+    justify-items: start;
   }
 }
 
