@@ -30,6 +30,10 @@ import {
 import { userApi } from "@/shared/lib/api/user";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError } from "@/shared/lib/tracer";
+import {
+  canSendMobileTracerSelfTest,
+  sendMobileTracerSelfTest,
+} from "@/shared/lib/tracer/mobileTracerSelfTest";
 import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
@@ -473,6 +477,7 @@ export default function ProfileScreen() {
   const hasThisDevicePushOnServer = pushDeviceStatus?.hasThisDeviceSubscription === true;
   const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
   const trainerCourses = trainerProfileData?.data?.courses ?? [];
+  const canShowTracerSelfTest = canSendMobileTracerSelfTest(user);
 
   const roleColor = getRoleColor(user?.role);
 
@@ -509,6 +514,12 @@ export default function ProfileScreen() {
   const handleRepeatOnboardingTour = () => {
     trackProfileClick("mobile-onboarding-repeat");
     startOnboardingTour();
+  };
+
+  const handleTracerSelfTest = () => {
+    trackProfileClick("mobile-tracer-self-test");
+    sendMobileTracerSelfTest(reportClientError);
+    Alert.alert("AppTracer", "Тестовая JS-ошибка отправлена.");
   };
 
   const age = profile?.birthDate ? getAge(profile.birthDate) : null;
@@ -803,6 +814,17 @@ export default function ProfileScreen() {
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
           </Pressable>
+
+          {canShowTracerSelfTest ? (
+            <Pressable style={styles.remindersCard} onPress={handleTracerSelfTest}>
+              <MaterialCommunityIcons name="bug-check-outline" size={22} color={COLORS.primary} />
+              <View style={styles.remindersCardContent}>
+                <Text style={styles.remindersCardTitle}>Проверить AppTracer</Text>
+                <Text style={styles.remindersCardSubtitle}>Отправить тестовую JS-ошибку</Text>
+              </View>
+              <MaterialCommunityIcons name="send-outline" size={20} color={COLORS.primary} />
+            </Pressable>
+          ) : null}
 
           {user?.role === "USER" && (
             <View style={styles.notesCard}>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -106,6 +106,22 @@ export function AppSubscriptionPaywall() {
   const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
   const autoUnlockAttemptKeyRef = useRef<string | null>(null);
 
+  const refreshEntitlementQueries = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ["app-subscription"] }),
+      queryClient.invalidateQueries({ queryKey: ["trainingDay"] }),
+      queryClient.invalidateQueries({ queryKey: ["trainingDays"] }),
+      queryClient.invalidateQueries({ queryKey: ["dailyCourse"] }),
+      queryClient.invalidateQueries({ queryKey: ["rewarded-ads"] }),
+    ]);
+  }, [queryClient]);
+
+  const statusQuery = useQuery({
+    queryKey: STATUS_QUERY_KEY,
+    queryFn: () => appSubscriptionApi.getStatus(),
+    staleTime: 0,
+  });
   const offerQuery = useQuery({
     queryKey: OFFER_QUERY_KEY,
     queryFn: () => appSubscriptionApi.getOffer(),
@@ -196,9 +212,17 @@ export function AppSubscriptionPaywall() {
     ? `${rewardedTarget.targetType}:${rewardedTarget.targetId}`
     : null;
 
+  useEffect(() => {
+    if (!statusQuery.data?.success || !statusQuery.data.data?.hasActiveSubscription) return;
+
+    void (async () => {
+      await refreshEntitlementQueries();
+      close();
+    })();
+  }, [close, refreshEntitlementQueries, statusQuery.data]);
+
   const finishSuccessfulPayment = async () => {
-    await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
-    await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
+    await refreshEntitlementQueries();
     close();
     Alert.alert("Premium подключён", "Premium уже активен на вашем аккаунте.");
   };
@@ -230,13 +254,19 @@ export function AppSubscriptionPaywall() {
       console.log("[AppSubscriptionPaywall] handleYookassaPay purchase result", result);
     }
     if (!result.ok) {
-      setIsPaying(false);
       if (result.userCancelled) {
+        setPendingMessage("Проверяем статус оплаты в ЮKassa...");
+        const subscriptionResult = await pollActiveSubscription();
+        setIsPaying(false);
+        await refreshEntitlementQueries();
+        if (subscriptionResult === "active") {
+          await finishSuccessfulPayment();
+          return;
+        }
         setPendingMessage(result.message);
-        await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
-        await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
         return;
       }
+      setIsPaying(false);
       Alert.alert(
         isYookassaTrialStart ? "Способ оплаты не сохранён" : "Оплата не началась",
         result.message,
@@ -255,8 +285,7 @@ export function AppSubscriptionPaywall() {
       });
     }
     setIsPaying(false);
-    await queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY });
-    await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
+    await refreshEntitlementQueries();
     if (subscriptionResult === "active") {
       await finishSuccessfulPayment();
       return;

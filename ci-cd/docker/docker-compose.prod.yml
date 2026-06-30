@@ -74,6 +74,8 @@ services:
       # ЮKassa (платные курсы, API route в web)
       - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
       - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      # OpenRouter AI API (публичный генератор отмазок)
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # Реквизиты для страницы контактов
       - NEXT_PUBLIC_CONTACT_EMAIL=${NEXT_PUBLIC_CONTACT_EMAIL}
       - NEXT_PUBLIC_CONTACT_PHONE=${NEXT_PUBLIC_CONTACT_PHONE}

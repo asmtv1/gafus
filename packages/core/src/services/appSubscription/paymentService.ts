@@ -234,6 +234,7 @@ type YooKassaPaymentObject = {
   metadata?: Record<string, string | undefined>;
   payment_method?: {
     id?: string;
+    type?: string;
     title?: string;
     card?: { last4?: string };
   };
@@ -259,6 +260,20 @@ type YooKassaPaymentMethodObject = {
   metadata?: Record<string, string | undefined>;
   confirmation?: { confirmation_url?: string };
 };
+
+function getYookassaPaymentMethodDisplayTitle(params: {
+  type?: string | null;
+  title?: string | null;
+  last4?: string | null;
+}): string | null {
+  if (params.type?.trim().toLowerCase() === "sbp") {
+    return "СБП";
+  }
+  const title = params.title?.trim();
+  if (title) return title;
+  const last4 = params.last4?.trim();
+  return last4 ? `Карта *${last4}` : null;
+}
 
 function normalizeFingerprintPart(
   value: string | undefined,
@@ -528,6 +543,11 @@ async function activateYookassaPaymentMethodSubscription(params: {
     providerPaymentMethod: params.providerPaymentMethod,
     fallbackSecret: params.fingerprintSecret,
   });
+  const paymentMethodDisplayTitle = getYookassaPaymentMethodDisplayTitle({
+    type: params.providerPaymentMethod.type,
+    title: params.providerPaymentMethod.title,
+    last4: params.providerPaymentMethod.card?.last4,
+  });
 
   return prisma.$transaction(async (tx) => {
     if (!hasCurrentAccess && paymentMethodFingerprintHash) {
@@ -550,8 +570,8 @@ async function activateYookassaPaymentMethodSubscription(params: {
             ...(params.providerPaymentMethod.card?.last4
               ? { yookassaPaymentMethodLast4: params.providerPaymentMethod.card.last4 }
               : {}),
-            ...(params.providerPaymentMethod.title
-              ? { yookassaPaymentMethodTitle: params.providerPaymentMethod.title }
+            ...(paymentMethodDisplayTitle
+              ? { yookassaPaymentMethodTitle: paymentMethodDisplayTitle }
               : {}),
             renewalReminderSentForPeriodEnd: null,
           },
@@ -583,8 +603,8 @@ async function activateYookassaPaymentMethodSubscription(params: {
         ...(params.providerPaymentMethod.card?.last4
           ? { yookassaPaymentMethodLast4: params.providerPaymentMethod.card.last4 }
           : {}),
-        ...(params.providerPaymentMethod.title
-          ? { yookassaPaymentMethodTitle: params.providerPaymentMethod.title }
+        ...(paymentMethodDisplayTitle
+          ? { yookassaPaymentMethodTitle: paymentMethodDisplayTitle }
           : {}),
         renewalReminderSentForPeriodEnd: null,
       },
@@ -2091,8 +2111,11 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       const providerPaymentMethodId = providerPayment.payment_method?.id ?? params.paymentMethodId;
       const providerPaymentMethodLast4 =
         providerPayment.payment_method?.card?.last4 ?? params.paymentMethodLast4;
-      const providerPaymentMethodTitle =
-        providerPayment.payment_method?.title ?? params.paymentMethodTitle;
+      const providerPaymentMethodTitle = getYookassaPaymentMethodDisplayTitle({
+        type: providerPayment.payment_method?.type,
+        title: providerPayment.payment_method?.title ?? params.paymentMethodTitle,
+        last4: providerPaymentMethodLast4,
+      });
       const now = new Date();
       let periodStart = payment.periodStart;
       let periodEnd = payment.periodEnd;

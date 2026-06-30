@@ -467,6 +467,7 @@ describe("app subscription payment service", () => {
         currentPeriodEnd: new Date("2026-05-29T10:00:00.000Z"),
         pendingExpiresAt: null,
         yookassaPaymentMethodId: "pm-sbp",
+        yookassaPaymentMethodTitle: "СБП",
       }),
     });
     expect(mockTrialUpsert).toHaveBeenCalledWith(

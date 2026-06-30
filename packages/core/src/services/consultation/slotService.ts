@@ -8,6 +8,7 @@ import type { ConsultationSlotDto } from "./types";
 
 const logger = createWebLogger("core-consultation-slots");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Литеральные значения Prisma enum. Не использовать рантайм-экспорты
@@ -42,6 +43,35 @@ async function mskDayOffKeySetByCynologistId(cynologistId: string): Promise<Set<
     select: { date: true },
   });
   return new Set(rows.map((r) => consultationMskDayKey(r.date)));
+}
+
+async function ensureSlotHorizonCoversRequest(params: {
+  cynologistId: string;
+  slotHorizonDays: number;
+  requestedToUtc: Date;
+}): Promise<void> {
+  const { cynologistId, slotHorizonDays, requestedToUtc } = params;
+  const latestSlot = await prisma.consultationSlot.findFirst({
+    where: { cynologistId },
+    select: { startAt: true },
+    orderBy: { startAt: "desc" },
+  });
+
+  if (latestSlot?.startAt && latestSlot.startAt >= requestedToUtc) {
+    return;
+  }
+
+  const workingRules = await prisma.consultationAvailabilityRule.count({
+    where: { cynologistId, isWorkingDay: true },
+  });
+  if (workingRules === 0) {
+    return;
+  }
+
+  const from = new Date();
+  const horizonTo = new Date(from.getTime() + slotHorizonDays * MS_PER_DAY);
+  const to = new Date(Math.max(horizonTo.getTime(), requestedToUtc.getTime()));
+  await rebuildSlotsForCynologist(cynologistId, from, to);
 }
 
 /** Luxon weekday 1..7 (Пн..Вс) → JS 0..6 (Вс..Сб). */
@@ -262,12 +292,19 @@ export async function getAvailableSlots(
     select: {
       id: true,
       bookingLeadTimeMin: true,
+      slotHorizonDays: true,
     },
   });
 
   if (!cyn) {
     throw new ConsultationNotFoundError("Кинолог");
   }
+
+  await ensureSlotHorizonCoversRequest({
+    cynologistId: cyn.id,
+    slotHorizonDays: cyn.slotHorizonDays,
+    requestedToUtc: toUtc,
+  });
 
   const leadMs = cyn.bookingLeadTimeMin * 60 * 1000;
   const minByLead = new Date(Date.now() + leadMs);
@@ -318,12 +355,18 @@ export async function getTrainerEditableSlotsImpl(
 ): Promise<ConsultationSlotDto[]> {
   const cyn = await prisma.consultationCynologist.findUnique({
     where: { userId: trainerUserId },
-    select: { id: true },
+    select: { id: true, slotHorizonDays: true },
   });
 
   if (!cyn) {
     throw new ConsultationNotFoundError("Кинолог");
   }
+
+  await ensureSlotHorizonCoversRequest({
+    cynologistId: cyn.id,
+    slotHorizonDays: cyn.slotHorizonDays,
+    requestedToUtc: toUtc,
+  });
 
   const dayOffMsk = await mskDayOffKeySetByCynologistId(cyn.id);
 
@@ -358,12 +401,18 @@ export async function getCalendarSlots(
 ): Promise<ConsultationSlotDto[]> {
   const cyn = await prisma.consultationCynologist.findUnique({
     where: { userId: cynologistUserId },
-    select: { id: true, bookingLeadTimeMin: true },
+    select: { id: true, bookingLeadTimeMin: true, slotHorizonDays: true },
   });
 
   if (!cyn) {
     throw new ConsultationNotFoundError("Кинолог");
   }
+
+  await ensureSlotHorizonCoversRequest({
+    cynologistId: cyn.id,
+    slotHorizonDays: cyn.slotHorizonDays,
+    requestedToUtc: toUtc,
+  });
 
   const leadMs = cyn.bookingLeadTimeMin * 60 * 1000;
   const minByLead = new Date(Date.now() + leadMs);
