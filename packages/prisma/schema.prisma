@@ -1789,7 +1789,7 @@ model ConsultationCynologist {
   timezone           String   @default("Europe/Moscow")
   bookingLeadTimeMin Int      @default(60)
   slotHorizonDays    Int      @default(60)
-  confirmationSlaMin Int      @default(120)
+  confirmationSlaMin Int      @default(1440)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

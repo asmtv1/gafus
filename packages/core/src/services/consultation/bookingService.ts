@@ -37,6 +37,7 @@ import { getAppSubscriptionAccess } from "../appSubscription";
 
 const logger = createWebLogger("core-consultation-booking");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
+const DEFAULT_CONFIRMATION_SLA_MIN = 24 * 60;
 
 function isConsultationSlotActiveUniqueViolation(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
@@ -207,12 +208,12 @@ async function scheduleSlaJob(bookingId: string, runAt: Date): Promise<void> {
   );
 }
 
-function getConfirmationDeadlineEndOfDayMsk(now = DateTime.utc()): Date {
-  return now
-    .setZone(CONSULTATION_TIMEZONE)
-    .endOf("day")
-    .toUTC()
-    .toJSDate();
+function getConfirmationDeadlineAt(slaMinutes?: number | null, now = new Date()): Date {
+  const minutes =
+    typeof slaMinutes === "number" && Number.isFinite(slaMinutes) && slaMinutes > 0
+      ? slaMinutes
+      : DEFAULT_CONFIRMATION_SLA_MIN;
+  return new Date(now.getTime() + minutes * 60 * 1000);
 }
 
 export async function toBookingDto(bookingId: string): Promise<ConsultationBookingDto | null> {
@@ -341,7 +342,7 @@ export async function bookSlot(
         throw new ConsultationForbiddenError("Запись день в день недоступна");
       }
 
-      const deadline = getConfirmationDeadlineEndOfDayMsk();
+      const deadline = getConfirmationDeadlineAt(slot.cynologist.confirmationSlaMin);
 
       let booking;
       try {
@@ -762,6 +763,9 @@ export async function processBookingSlaTimeout(bookingId: string): Promise<void>
     return;
   }
   if (b.status !== ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION) {
+    return;
+  }
+  if (b.confirmationDeadlineAt.getTime() > Date.now()) {
     return;
   }
 

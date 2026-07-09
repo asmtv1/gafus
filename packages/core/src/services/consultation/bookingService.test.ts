@@ -142,6 +142,7 @@ describe("processBookingSlaTimeout", () => {
       id: "b1",
       status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
       slotId: "s1",
+      confirmationDeadlineAt: new Date(Date.now() - 60 * 1000),
       slot: { id: "s1" },
     });
     const { processBookingSlaTimeout } = await import("./bookingService");
@@ -149,6 +150,20 @@ describe("processBookingSlaTimeout", () => {
     expect(txBookingUpdate).toHaveBeenCalled();
     expect(txSlotUpdate).toHaveBeenCalled();
     expect(enqueueConsultationEmail).toHaveBeenCalled();
+  });
+
+  it("не отменяет бронь, если SLA job сработал раньше confirmationDeadlineAt", async () => {
+    prismaFindUniqueBooking.mockResolvedValue({
+      id: "b-early",
+      status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+      slotId: "s1",
+      confirmationDeadlineAt: new Date(Date.now() + 60 * 60 * 1000),
+      slot: { id: "s1" },
+    });
+    const { processBookingSlaTimeout } = await import("./bookingService");
+    await processBookingSlaTimeout("b-early");
+    expect(prismaTransaction).not.toHaveBeenCalled();
+    expect(enqueueConsultationEmail).not.toHaveBeenCalled();
   });
 });
 
@@ -526,6 +541,96 @@ describe("bookSlot", () => {
     await expect(
       bookSlot("c1", { slotId: "slot1", idempotencyKey: "k-p2002", ...bookBodyBase }),
     ).rejects.toBeInstanceOf(ConsultationSlotTakenError);
+  });
+
+  it("ставит дедлайн подтверждения через 24 часа после создания брони", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-08T20:20:24.951Z"));
+
+    try {
+      idemFindUnique.mockResolvedValue(null);
+      txUpdateMany.mockResolvedValue({ count: 1 });
+      txFindUnique.mockResolvedValue({
+        id: "slot1",
+        startAt: new Date("2026-07-11T09:30:00.000Z"),
+        endAt: new Date("2026-07-11T10:00:00.000Z"),
+        cynologistId: "cy1",
+        cynologist: {
+          bookingLeadTimeMin: 0,
+          confirmationSlaMin: 1440,
+        },
+      });
+      txCreateBooking.mockResolvedValue({ id: "booking-24h" });
+      createTelemostConference.mockResolvedValue({
+        id: "telemost-1",
+        joinUrl: "https://telemost.test/join",
+        watchUrl: null,
+      });
+      prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
+        const tx = {
+          consultationSlot: {
+            updateMany: txUpdateMany,
+            findUnique: txFindUnique,
+          },
+          consultationBooking: { create: txCreateBooking },
+        };
+        return cb(tx);
+      });
+      prismaFindUniqueBooking
+        .mockResolvedValueOnce({
+          id: "booking-24h",
+          cynologist: { userId: "trainer-1" },
+        })
+        .mockResolvedValueOnce({
+          id: "booking-24h",
+          status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+          slot: {
+            id: "slot1",
+            startAt: new Date("2026-07-11T09:30:00.000Z"),
+            endAt: new Date("2026-07-11T10:00:00.000Z"),
+            status: ConsultationSlotStatus.BOOKED,
+          },
+          cynologist: {
+            userId: "trainer-1",
+            user: { profile: { fullName: "Кинолог Тест" } },
+          },
+          client: { username: "user1" },
+          clientOwnerName: bookBodyBase.clientOwnerName,
+          clientPhone: bookBodyBase.clientPhone,
+          petName: bookBodyBase.petName,
+          petGender: ConsultationPetGender.MALE,
+          petAge: bookBodyBase.petAge,
+          petBreed: bookBodyBase.petBreed,
+          clientProblem: bookBodyBase.clientProblem,
+          clientSelfHelpAttempt: bookBodyBase.clientSelfHelpAttempt,
+          cancelReason: null,
+          telemostJoinUrl: "https://telemost.test/join",
+          telemostWatchUrl: null,
+          confirmationDeadlineAt: new Date("2026-07-09T20:20:24.951Z"),
+          createdAt: new Date("2026-07-08T20:20:24.951Z"),
+        });
+
+      const { bookSlot } = await import("./bookingService");
+      await bookSlot("c1", { slotId: "slot1", idempotencyKey: "k-24h", ...bookBodyBase });
+
+      expect(txCreateBooking).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            confirmationDeadlineAt: new Date("2026-07-09T20:20:24.951Z"),
+          }),
+        }),
+      );
+      expect(queueAdd).toHaveBeenCalledWith(
+        "sla-timeout",
+        { bookingId: "booking-24h" },
+        expect.objectContaining({
+          jobId: "sla:booking-24h",
+          delay: 24 * 60 * 60 * 1000,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("при ошибке Телемоста откатывает бронь и слот", async () => {
