@@ -642,6 +642,8 @@ async function startYookassaAppSubscriptionTrialBinding(params: {
 > {
   const returnUrl = `${params.origin.replace(/\/$/, "")}/subscription?trial=1`;
   const body = {
+    // Подписка оформляется только через СБП: не даём странице ЮKassa показывать другие методы.
+    type: "sbp" as const,
     confirmation: { type: "redirect" as const, return_url: returnUrl },
     description:
       `Пробный период Gafus Premium ${YOOKASSA_TRIAL_DAYS} дня, далее ` +
@@ -766,6 +768,8 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
     amount: { value: params.amountRub.toFixed(2), currency: params.currency },
     capture: true,
     save_payment_method: true,
+    // Сохраняем именно счёт СБП для последующих рекуррентных списаний.
+    payment_method_data: { type: "sbp" as const },
     confirmation: { type: "redirect" as const, return_url: returnUrl },
     description:
       `Подписка Gafus Premium ${params.amountRub.toFixed(2)} ` +

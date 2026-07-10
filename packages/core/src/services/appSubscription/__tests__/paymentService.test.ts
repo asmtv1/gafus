@@ -259,6 +259,7 @@ describe("app subscription payment service", () => {
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
     );
     expect(paymentMethodRequestBody).toEqual({
+      type: "sbp",
       confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?trial=1" },
       description: "Пробный период Gafus Premium 3 дня, далее 200.00 RUB/7 дн.",
       metadata: {
@@ -330,6 +331,7 @@ describe("app subscription payment service", () => {
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
     );
     expect(paymentMethodRequestBody).toEqual({
+      type: "sbp",
       confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?trial=1" },
       description: "Пробный период Gafus Premium 3 дня, далее 1100.00 RUB/30 дн.",
       metadata: {
@@ -614,6 +616,7 @@ describe("app subscription payment service", () => {
           amount: { value: "200.00", currency: "RUB" },
           capture: true,
           save_payment_method: true,
+          payment_method_data: { type: "sbp" },
           confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?paid=1" },
           description: "Подписка Gafus Premium 200.00 RUB/7 дн.",
           metadata: {
@@ -705,6 +708,7 @@ describe("app subscription payment service", () => {
     );
     expect(paymentRequestBody).toMatchObject({
       amount: { value: "1100.00", currency: "RUB" },
+      payment_method_data: { type: "sbp" },
       description: "Подписка Gafus Premium 1100.00 RUB/30 дн.",
       metadata: {
         kind: "app_subscription",
