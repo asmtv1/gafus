@@ -12,6 +12,7 @@ interface ApiClientOptions {
   headers?: Record<string, string>;
   skipAuth?: boolean;
   suppressSubscriptionPaywall?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ApiResponse<T> {
@@ -104,7 +105,7 @@ async function safeParseResponseJson(response: Response): Promise<SafeJsonOk | S
 async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
-  timeoutMs = API_REQUEST_TIMEOUT_MS,
+  timeoutMs: number = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -239,6 +240,7 @@ export async function apiClient<T>(
     headers = {},
     skipAuth = false,
     suppressSubscriptionPaywall = false,
+    timeoutMs = API_REQUEST_TIMEOUT_MS,
   } = options;
 
   const token = skipAuth ? null : await SecureStore.getItemAsync("auth_token");
@@ -260,7 +262,7 @@ export async function apiClient<T>(
   }
 
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, config);
+    const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, config, timeoutMs);
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth) {

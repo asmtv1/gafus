@@ -11,6 +11,21 @@ export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_en
 /** Включает server-side блокировку платных действий без подписки. */
 export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
 
+const CURRENT_MOBILE_VERSION = "1.5.5";
+const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
+const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
+const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+
+function getConfiguredVersion(value: string | undefined): string {
+  const version = value?.trim();
+  return version && SEMANTIC_VERSION_PATTERN.test(version) ? version : CURRENT_MOBILE_VERSION;
+}
+
+function getConfiguredStoreUrl(value: string | undefined, fallback: string): string {
+  const url = value?.trim();
+  return url?.startsWith("https://") ? url : fallback;
+}
+
 /**
  * Читает булев флаг. Если записи нет — defaultEnabled.
  */
@@ -45,6 +60,14 @@ export async function getMobileAppPublicConfig(): Promise<{
   appSubscriptionGatingEnabled: boolean;
   iosRuCardPaymentEnabled: boolean;
   iosRuCardPaymentHintEnabled: boolean;
+  minimumSupportedVersion: {
+    ios: string;
+    android: string;
+  };
+  storeUrl: {
+    ios: string;
+    android: string;
+  };
 }> {
   const vkLoginEnabledOnIos = await getAppFeatureFlagEnabled(
     APP_FEATURE_MOBILE_VK_LOGIN_IOS,
@@ -72,5 +95,16 @@ export async function getMobileAppPublicConfig(): Promise<{
     appSubscriptionGatingEnabled,
     iosRuCardPaymentEnabled,
     iosRuCardPaymentHintEnabled,
+    minimumSupportedVersion: {
+      ios: getConfiguredVersion(process.env.MOBILE_IOS_MIN_VERSION),
+      android: getConfiguredVersion(process.env.MOBILE_ANDROID_MIN_VERSION),
+    },
+    storeUrl: {
+      ios: getConfiguredStoreUrl(process.env.MOBILE_IOS_STORE_URL, DEFAULT_IOS_STORE_URL),
+      android: getConfiguredStoreUrl(
+        process.env.MOBILE_ANDROID_STORE_URL,
+        DEFAULT_ANDROID_STORE_URL,
+      ),
+    },
   };
 }

@@ -18,7 +18,7 @@ import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
 import { AnalyticsNavigationListener } from "@/shared/components/AnalyticsNavigationListener";
 import { getOrCreateMobileAnalyticsId } from "@/shared/lib/analytics-id";
 import { installGlobalJsErrorHandler, reportClientError } from "@/shared/lib/tracer";
-import { ErrorBoundary, OfflineIndicator } from "@/shared/components";
+import { ErrorBoundary, OfflineIndicator, RequiredAppUpdateGate } from "@/shared/components";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
@@ -114,19 +114,21 @@ export default function RootLayout() {
         <ErrorBoundary>
           <QueryProvider>
             <ThemeProvider>
-              <AuthProvider>
-                <View style={styles.container}>
-                  <AnalyticsNavigationListener />
-                  <OfflineIndicator />
-                  <SyncProgressOnReconnect />
-                  <SyncPreventionOnReconnect />
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(main)" />
-                  </Stack>
-                </View>
-                <StatusBar style="auto" />
-              </AuthProvider>
+              <RequiredAppUpdateGate>
+                <AuthProvider>
+                  <View style={styles.container}>
+                    <AnalyticsNavigationListener />
+                    <OfflineIndicator />
+                    <SyncProgressOnReconnect />
+                    <SyncPreventionOnReconnect />
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="(auth)" />
+                      <Stack.Screen name="(main)" />
+                    </Stack>
+                  </View>
+                  <StatusBar style="auto" />
+                </AuthProvider>
+              </RequiredAppUpdateGate>
             </ThemeProvider>
           </QueryProvider>
         </ErrorBoundary>

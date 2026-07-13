@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const flags = vi.hoisted(() => new Map<string, boolean>());
 
@@ -41,6 +41,10 @@ describe("app feature flags", () => {
     flags.clear();
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("uses separate keys for the iOS RU card hint and paywall button", () => {
     expect(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT).toBe(
       "mobile_ios_ru_card_payment_hint",
@@ -64,6 +68,11 @@ describe("app feature flags", () => {
       appSubscriptionGatingEnabled: false,
       iosRuCardPaymentEnabled: false,
       iosRuCardPaymentHintEnabled: true,
+      minimumSupportedVersion: { ios: "1.5.5", android: "1.5.5" },
+      storeUrl: {
+        ios: "https://apps.apple.com/ru/app/gafus/id6760964612",
+        android: "https://www.rustore.ru/catalog/app/ru.gafus.app",
+      },
     });
   });
 
@@ -71,6 +80,34 @@ describe("app feature flags", () => {
     await expect(getMobileAppPublicConfig()).resolves.toMatchObject({
       appSubscriptionPaywallEnabled: true,
       appSubscriptionGatingEnabled: true,
+    });
+  });
+
+  it("returns validated runtime version policy overrides", async () => {
+    vi.stubEnv("MOBILE_IOS_MIN_VERSION", "2.0.0");
+    vi.stubEnv("MOBILE_ANDROID_MIN_VERSION", "2.1.0");
+    vi.stubEnv("MOBILE_IOS_STORE_URL", "https://apps.apple.com/app/id1");
+    vi.stubEnv("MOBILE_ANDROID_STORE_URL", "https://www.rustore.ru/catalog/app/test");
+
+    await expect(getMobileAppPublicConfig()).resolves.toMatchObject({
+      minimumSupportedVersion: { ios: "2.0.0", android: "2.1.0" },
+      storeUrl: {
+        ios: "https://apps.apple.com/app/id1",
+        android: "https://www.rustore.ru/catalog/app/test",
+      },
+    });
+  });
+
+  it("falls back to safe defaults for invalid version policy values", async () => {
+    vi.stubEnv("MOBILE_IOS_MIN_VERSION", "latest");
+    vi.stubEnv("MOBILE_ANDROID_MIN_VERSION", "1.5");
+    vi.stubEnv("MOBILE_IOS_STORE_URL", "javascript:alert(1)");
+
+    await expect(getMobileAppPublicConfig()).resolves.toMatchObject({
+      minimumSupportedVersion: { ios: "1.5.5", android: "1.5.5" },
+      storeUrl: {
+        ios: "https://apps.apple.com/ru/app/gafus/id6760964612",
+      },
     });
   });
 });

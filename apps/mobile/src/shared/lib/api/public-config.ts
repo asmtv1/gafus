@@ -6,6 +6,14 @@ export interface MobileAppPublicConfig {
   appSubscriptionGatingEnabled: boolean;
   iosRuCardPaymentEnabled: boolean;
   iosRuCardPaymentHintEnabled: boolean;
+  minimumSupportedVersion?: {
+    ios?: string;
+    android?: string;
+  };
+  storeUrl?: {
+    ios?: string;
+    android?: string;
+  };
 }
 
 /**
@@ -14,5 +22,8 @@ export interface MobileAppPublicConfig {
 export async function fetchMobileAppPublicConfig(): Promise<
   ApiResponse<MobileAppPublicConfig>
 > {
-  return apiClient<MobileAppPublicConfig>("/api/v1/public/mobile-app", { skipAuth: true });
+  return apiClient<MobileAppPublicConfig>("/api/v1/public/mobile-app", {
+    skipAuth: true,
+    timeoutMs: 5_000,
+  });
 }

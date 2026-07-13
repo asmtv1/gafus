@@ -36,7 +36,9 @@ export async function POST(request: Request) {
       name,
       mimeType,
       size: contentLength,
-      stream: Readable.fromWeb(request.body),
+      // Next.js exposes a Web Stream type that is structurally incompatible
+      // with Node's declaration despite being compatible at runtime.
+      stream: Readable.fromWeb(request.body as ReadableStream),
     });
     const status = result.status ?? (result.success ? 201 : 500);
 
