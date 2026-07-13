@@ -186,14 +186,20 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
         xhrRefsRef.current.delete(index);
 
         try {
-          const response = JSON.parse(xhr.responseText ?? "{}") as UploadResponse;
+          const responseText = xhr.responseText?.trim();
+          const response = responseText ? (JSON.parse(responseText) as UploadResponse) : undefined;
 
           if (xhr.status < 200 || xhr.status >= 300) {
-            throw new Error(response?.error || "Сервер отклонил загрузку");
+            throw new Error(
+              response?.error ||
+                (xhr.status === 408
+                  ? "Загрузка прервана по тайм-ауту. Попробуйте ещё раз."
+                  : "Сервер отклонил загрузку"),
+            );
           }
 
-          if (!response.success || !response.video) {
-            throw new Error(response.error || "Не удалось загрузить видео");
+          if (!response?.success || !response.video) {
+            throw new Error(response?.error || "Не удалось загрузить видео");
           }
 
           onUploaded(response.video);
