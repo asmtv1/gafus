@@ -96,7 +96,9 @@ export async function GET(
     const { stream, contentLength, contentType } = await streamFileFromCDN(fullSegmentPath);
 
     // Возвращаем сегмент через streaming
-    return new NextResponse(stream, {
+    // CDN helper returns Node's Web Stream type; NextResponse expects the DOM one.
+    // They are runtime-compatible, but their TypeScript declarations diverge.
+    return new NextResponse(stream as unknown as BodyInit, {
       status: 200,
       headers: {
         "Content-Type": contentType || "video/mp2t",
