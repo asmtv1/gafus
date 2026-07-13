@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
@@ -116,15 +116,10 @@ export async function GET(
         // Генерируем signed URL для сегмента
         const segmentPath = line.trim();
 
-        // P2 Security: Генерируем короткоживущий токен для каждого сегмента (TTL 5 min)
-        const segmentToken = videoAccessService.generateToken({
-          videoId,
-          userId: session.user.id,
-          ttlMinutes: 5, // Короткий TTL для segments
-        });
-
         // Создаём абсолютный URL для прокси-эндпоинта сегмента
-        const segmentUrl = `${baseUrl}/api/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${segmentToken}`;
+        // Используем токен манифеста: отдельные 5-минутные токены ломали длинные видео.
+        // Право доступа всё равно проверяется в БД при каждом запросе сегмента.
+        const segmentUrl = `${baseUrl}/api/video/${videoId}/segment?path=${encodeURIComponent(segmentPath)}&token=${token}`;
 
         return segmentUrl;
       }

@@ -408,7 +408,7 @@ model TrainerVideo {
   relativePath        String
   originalName        String
   mimeType            String
-  fileSize            Int
+  fileSize            BigInt
   durationSec         Int?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @default(now()) @updatedAt

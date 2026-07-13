@@ -12,7 +12,8 @@ const nextConfig: NextConfig = {
       workerThreads: true,
     }),
     serverActions: {
-      bodySizeLimit: "600mb", // Лимит для Server Actions (для загрузки видео до 500 МБ)
+      // Видео идёт через отдельный потоковый Route Handler, а не через Server Action.
+      bodySizeLimit: "600mb",
     },
   },
   eslint: {
@@ -23,7 +24,13 @@ const nextConfig: NextConfig = {
   },
 
   // Внешние пакеты для server components
-  serverExternalPackages: ["@aws-sdk/client-s3", "bcrypt", "@gafus/prisma", "@prisma/client", "bullmq"],
+  serverExternalPackages: [
+    "@aws-sdk/client-s3",
+    "bcrypt",
+    "@gafus/prisma",
+    "@prisma/client",
+    "bullmq",
+  ],
 
   // Транспиляция workspace пакетов
   transpilePackages: [
@@ -62,7 +69,7 @@ const nextConfig: NextConfig = {
     // При необходимости можно отключить этот трюк, удалив плагин.
     // Он не влияет на прод, т.к. prod собирается в standalone.
     // Аналогичный трюк используется в @gafus/web.
-     
+
     (config.plugins = config.plugins || []).push({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apply: (compiler: any) => {

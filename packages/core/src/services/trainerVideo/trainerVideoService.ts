@@ -6,7 +6,7 @@
 import { prisma } from "@gafus/prisma";
 import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { createWebLogger } from "@gafus/logger";
-import { getVideoAccessService } from "@gafus/video-access";
+import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
 import type { ActionResult } from "@gafus/types";
 import type { TrainerVideoDto } from "@gafus/types";
 import type { TranscodingStatus } from "@gafus/prisma";
@@ -66,12 +66,13 @@ export async function registerTrainerVideo(
   input: RegisterTrainerVideoInput,
 ): Promise<ActionResult & { data?: TrainerVideoDto }> {
   try {
-    const { id, durationSec = null, ...rest } = input;
+    const { id, durationSec = null, fileSize, ...rest } = input;
 
     const video = await prisma.trainerVideo.create({
       data: {
         ...(id ? { id } : {}),
         ...rest,
+        fileSize: BigInt(fileSize),
         durationSec,
       },
       include: {
@@ -91,7 +92,7 @@ export async function registerTrainerVideo(
       originalName: video.originalName,
       displayName: video.displayName,
       mimeType: video.mimeType,
-      fileSize: video.fileSize,
+      fileSize: Number(video.fileSize),
       durationSec: video.durationSec,
       hlsManifestPath: video.hlsManifestPath,
       thumbnailPath: video.thumbnailPath,
@@ -123,6 +124,20 @@ export async function registerTrainerVideo(
     logger.error("Ошибка регистрации видео", error, { input: input.trainerId });
     return { success: false, error: error.message };
   }
+}
+
+/** Помечает зарегистрированное видео ошибкой, если задача не попала в очередь обработки. */
+export async function markTrainerVideoTranscodingFailed(
+  videoId: string,
+  errorMessage: string,
+): Promise<void> {
+  await prisma.trainerVideo.update({
+    where: { id: videoId },
+    data: {
+      transcodingStatus: "FAILED",
+      transcodingError: errorMessage,
+    },
+  });
 }
 
 /**
@@ -226,9 +241,7 @@ export async function deleteTrainerVideoRecord(
       handlePrismaError(err, "Видео");
     } catch (serviceError) {
       const msg =
-        serviceError instanceof ServiceError
-          ? serviceError.message
-          : "Не удалось удалить видео";
+        serviceError instanceof ServiceError ? serviceError.message : "Не удалось удалить видео";
       return { success: false, error: msg };
     }
     const error = toError(err);
@@ -316,7 +329,7 @@ export async function getTrainerVideos(
     originalName: video.originalName,
     displayName: video.displayName,
     mimeType: video.mimeType,
-    fileSize: video.fileSize,
+    fileSize: Number(video.fileSize),
     durationSec: video.durationSec,
     hlsManifestPath: video.hlsManifestPath,
     thumbnailPath: video.thumbnailPath,
@@ -340,7 +353,7 @@ export async function getTrainerVideos(
 export function getSignedVideoToken(
   videoId: string,
   userId: string,
-  ttlMinutes: number = 120,
+  ttlMinutes: number = VIDEO_PLAYBACK_TOKEN_TTL_MINUTES,
 ): string {
   const videoAccessService = getVideoAccessService();
   return videoAccessService.generateToken({
@@ -389,9 +402,7 @@ export async function getMultipleVideoStatuses(
       handlePrismaError(err, "Видео");
     } catch (serviceError) {
       const msg =
-        serviceError instanceof ServiceError
-          ? serviceError.message
-          : "Не удалось получить статусы";
+        serviceError instanceof ServiceError ? serviceError.message : "Не удалось получить статусы";
       return { success: false, error: msg };
     }
     const error = toError(err);
@@ -450,9 +461,7 @@ export async function getVideoMetadataByUrl(
 /**
  * Получает videoId, hlsManifestPath, thumbnailPath для скачивания HLS.
  */
-export async function getVideoIdAndPathsFromUrl(
-  videoUrl: string,
-): Promise<{
+export async function getVideoIdAndPathsFromUrl(videoUrl: string): Promise<{
   success: boolean;
   videoId?: string;
   hlsManifestPath?: string;
@@ -474,7 +483,10 @@ export async function getVideoIdAndPathsFromUrl(
       return { success: false, error: "Видео не найдено" };
     }
     if (video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
-      logger.warn("Видео ещё не транскодировано", { videoId, transcodingStatus: video.transcodingStatus });
+      logger.warn("Видео ещё не транскодировано", {
+        videoId,
+        transcodingStatus: video.transcodingStatus,
+      });
       return { success: false, error: "Видео ещё обрабатывается" };
     }
     return {

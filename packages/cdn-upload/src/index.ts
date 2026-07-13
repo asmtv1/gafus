@@ -4,16 +4,12 @@ export {
   deleteFileFromCDN,
   deleteFolderFromCDN,
   downloadFileFromCDN,
+  uploadReadableStreamToCDN,
   streamFileFromCDN,
   uploadBufferToCDN,
   uploadFileToCDN,
 } from "./uploadToCDN";
-export {
-  extractVideoIdFromCdnUrl,
-  getCDNUrl,
-  getRelativePathFromCDNUrl,
-  isCDNUrl,
-} from "./utils";
+export { extractVideoIdFromCdnUrl, getCDNUrl, getRelativePathFromCDNUrl, isCDNUrl } from "./utils";
 export {
   getUserAvatarPath,
   getPetDocumentPath,

@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { getVideoAccessService } from "@gafus/video-access";
+import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("getSignedVideoUrl");
@@ -18,22 +18,20 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      logger.error(
-        "Нет сессии пользователя",
-        new Error("getSignedVideoUrl: no session"),
-        { videoId },
-      );
+      logger.error("Нет сессии пользователя", new Error("getSignedVideoUrl: no session"), {
+        videoId,
+      });
       return null;
     }
 
     logger.info("Получаем videoAccessService для videoId", { videoId });
     const videoAccessService = getVideoAccessService();
 
-    // Генерируем токен на 2 часа (достаточно для просмотра видео)
+    // Один токен используется манифестом и всеми сегментами в рамках просмотра.
     const token = videoAccessService.generateToken({
       videoId,
       userId: session.user.id,
-      ttlMinutes: 120,
+      ttlMinutes: VIDEO_PLAYBACK_TOKEN_TTL_MINUTES,
     });
 
     // Получаем host из заголовков запроса для формирования правильного URL

@@ -10,17 +10,6 @@ import { reportClientError } from "@/shared/lib/tracer";
 const CONCURRENCY = 3;
 const SEGMENT_RETRIES = 2;
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 8192;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-}
-
 export interface DownloadHLSProgress {
   current: number;
   total: number;
@@ -95,13 +84,12 @@ export async function downloadHLSForOffline(
     for (let attempt = 0; attempt <= SEGMENT_RETRIES; attempt++) {
       if (signal?.aborted) throw new Error("aborted");
       try {
-        const resp = await fetch(segmentUrl, { signal });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const buf = await resp.arrayBuffer();
-        const base64 = arrayBufferToBase64(buf);
-        await FileSystem.writeAsStringAsync(filePath, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+        // Нативная загрузка пишет сегмент сразу на диск и не держит его в JS heap.
+        const result = await FileSystem.downloadAsync(segmentUrl, filePath);
+        if (result.status < 200 || result.status >= 300) {
+          await FileSystem.deleteAsync(filePath, { idempotent: true });
+          throw new Error(`HTTP ${result.status}`);
+        }
         return;
       } catch (e) {
         reportClientError(e instanceof Error ? e : new Error(String(e)), {
@@ -163,8 +151,5 @@ export async function downloadHLSForOffline(
     if (fileName) return fileName;
     return line;
   });
-  await FileSystem.writeAsStringAsync(
-    `${videoDirUri}manifest.m3u8`,
-    modifiedLines.join("\n"),
-  );
+  await FileSystem.writeAsStringAsync(`${videoDirUri}manifest.m3u8`, modifiedLines.join("\n"));
 }

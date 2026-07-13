@@ -1,23 +1,39 @@
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 import { exec } from "child_process";
+import { createWriteStream } from "fs";
+import { Readable } from "stream";
+import type { ReadableStream as NodeReadableStream } from "stream/web";
+import { pipeline } from "stream/promises";
 import { promisify } from "util";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
-import { downloadFileFromCDN, uploadBufferToCDN, deleteFileFromCDN } from "@gafus/cdn-upload";
+import { deleteFileFromCDN, streamFileFromCDN, uploadBufferToCDN } from "@gafus/cdn-upload";
 import type { VideoTranscodingJobData, VideoTranscodingResult } from "@gafus/types";
 
 const execAsync = promisify(exec);
 const logger = createWorkerLogger("video-transcoding-worker");
+const TEMP_FREE_SPACE_RESERVE_BYTES = 1024 * 1024 * 1024;
+const AUDIO_BITRATE = 128_000;
+const MIN_VIDEO_BITRATE = 300_000;
+const MAX_720P_VIDEO_BITRATE = 3_000_000;
+const MAX_1080P_VIDEO_BITRATE = 5_000_000;
+const OUTPUT_SIZE_SAFETY_MULTIPLIER = 1.3;
+
+interface VideoMetadata {
+  height: number;
+  durationSec: number;
+  bitrate: number;
+}
 
 /**
  * Worker для транскодирования видео в HLS формат
  * - Скачивает оригинальное видео из Object Storage
- * - Определяет разрешение через ffprobe
- * - Транскодирует в HLS с сохранением оригинального разрешения
+ * - Определяет параметры видео через ffprobe
+ * - Транскодирует в HLS до 1080p с ограниченным битрейтом
  * - Загружает HLS файлы обратно в Object Storage
  * - Обновляет БД
  * - Удаляет оригинальное видео для экономии места
@@ -86,18 +102,38 @@ class VideoTranscodingWorker {
 
       // 2. Скачиваем оригинальное видео из Object Storage
       logger.info(`⬇️ Скачиваем видео из CDN: ${originalPath}`);
-      const videoBuffer = await downloadFileFromCDN(originalPath);
-      await fs.writeFile(inputPath, videoBuffer);
-      logger.info(`✅ Видео скачано, размер: ${videoBuffer.length} байт`);
+      const source = await streamFileFromCDN(originalPath);
 
-      // 3. Определяем разрешение видео через ffprobe
-      const height = await this.getVideoHeight(inputPath);
-      logger.info(`📏 Разрешение видео: высота ${height}px`);
+      try {
+        await this.ensureEnoughTempSpace(source.contentLength);
+      } catch (error) {
+        await source.stream.cancel().catch(() => undefined);
+        throw error;
+      }
+
+      await pipeline(
+        Readable.fromWeb(source.stream as NodeReadableStream),
+        createWriteStream(inputPath, { flags: "wx" }),
+      );
+      logger.info(`✅ Видео потоково скачано, размер: ${source.contentLength} байт`);
+
+      // 3. Определяем параметры видео через ffprobe
+      const metadata = await this.getVideoMetadata(inputPath);
+      logger.info("📏 Параметры исходного видео", { ...metadata });
 
       // 4. Транскодируем в HLS
-      const targetHeight = height; // Сохраняем оригинальное разрешение
-      logger.info(`🎞️ Транскодируем в HLS с оригинальным разрешением (${targetHeight}p)...`);
-      await this.transcodeToHLS(inputPath, hlsDir, targetHeight);
+      const cappedHeight = Math.min(metadata.height, 1080);
+      const targetHeight = Math.max(2, cappedHeight - (cappedHeight % 2));
+      const bitrateCap = targetHeight <= 720 ? MAX_720P_VIDEO_BITRATE : MAX_1080P_VIDEO_BITRATE;
+      const sourceVideoBitrate = Math.max(metadata.bitrate - AUDIO_BITRATE, MIN_VIDEO_BITRATE);
+      const targetVideoBitrate = Math.min(sourceVideoBitrate, bitrateCap);
+
+      await this.ensureEnoughOutputSpace(metadata.durationSec, targetVideoBitrate);
+      logger.info("🎞️ Транскодируем в ограниченный HLS-профиль", {
+        targetHeight,
+        targetVideoBitrate,
+      });
+      await this.transcodeToHLS(inputPath, hlsDir, targetHeight, targetVideoBitrate);
 
       // 4.1. Генерируем thumbnail из первого кадра
       logger.info("🖼️ Генерируем thumbnail...");
@@ -116,6 +152,9 @@ class VideoTranscodingWorker {
         // Продолжаем без thumbnail
       }
 
+      // Исходник больше не нужен локально: освобождаем гигабайты до выгрузки HLS.
+      await fs.rm(inputPath, { force: true });
+
       // 5. Загружаем все HLS файлы в Object Storage
       logger.info("⬆️ Загружаем HLS файлы в CDN...");
       const hlsTotalSize = await this.uploadHLSFiles(hlsDir, hlsBasePath);
@@ -130,7 +169,8 @@ class VideoTranscodingWorker {
           transcodingStatus: "COMPLETED",
           transcodedAt: new Date(),
           transcodingError: null,
-          fileSize: hlsTotalSize, // Обновляем размер на размер HLS файлов
+          durationSec: Math.round(metadata.durationSec),
+          fileSize: BigInt(hlsTotalSize), // Обновляем размер на размер HLS файлов
         },
       });
 
@@ -172,32 +212,98 @@ class VideoTranscodingWorker {
       // Очищаем временные файлы даже при ошибке
       await this.cleanupTempFiles(videoDir);
 
-      return {
-        success: false,
-        error: (error as Error).message,
-      };
+      // BullMQ должен увидеть ошибку, иначе attempts/backoff никогда не сработают.
+      throw error;
     }
   }
 
   /**
-   * Определяет высоту видео через ffprobe
+   * Защищает host/overlay от заполнения исходником.
+   * Место под HLS рассчитывается точнее после ffprobe.
    */
-  private async getVideoHeight(inputPath: string): Promise<number> {
+  private async ensureEnoughTempSpace(inputSizeBytes: number): Promise<void> {
+    const stats = await fs.statfs(this.tmpDir);
+    const availableBytes = stats.bavail * stats.bsize;
+    const requiredBytes = inputSizeBytes + TEMP_FREE_SPACE_RESERVE_BYTES;
+
+    logger.info("Проверка места для транскодирования", {
+      inputSizeBytes,
+      availableBytes,
+      requiredBytes,
+    });
+
+    if (availableBytes < requiredBytes) {
+      throw new Error(
+        `Недостаточно временного места для видео: требуется ${requiredBytes} байт, доступно ${availableBytes} байт`,
+      );
+    }
+  }
+
+  /**
+   * Определяет длительность, высоту и общий битрейт видео через ffprobe.
+   */
+  private async getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
     try {
       const { stdout } = await execAsync(
-        `ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "${inputPath}"`,
+        `ffprobe -v error -select_streams v:0 -show_entries stream=height -show_entries format=duration,bit_rate -of json "${inputPath}"`,
       );
 
-      const height = parseInt(stdout.trim(), 10);
+      const probe = JSON.parse(stdout) as {
+        streams?: { height?: number }[];
+        format?: { duration?: string; bit_rate?: string };
+      };
+      const height = Number(probe.streams?.[0]?.height);
+      const durationSec = Number(probe.format?.duration);
+      const reportedBitrate = Number(probe.format?.bit_rate);
+      const inputStats = await fs.stat(inputPath);
+      const bitrate =
+        Number.isFinite(reportedBitrate) && reportedBitrate > 0
+          ? reportedBitrate
+          : (inputStats.size * 8) / durationSec;
 
-      if (isNaN(height) || height <= 0) {
-        throw new Error(`Некорректное разрешение видео: ${stdout}`);
+      if (
+        !Number.isFinite(height) ||
+        height <= 0 ||
+        !Number.isFinite(durationSec) ||
+        durationSec <= 0 ||
+        !Number.isFinite(bitrate) ||
+        bitrate <= 0
+      ) {
+        throw new Error(`Некорректные параметры видео: ${stdout}`);
       }
 
-      return height;
+      return { height, durationSec, bitrate };
     } catch (error) {
-      logger.error("Ошибка определения разрешения видео", error as Error);
-      throw new Error(`Не удалось определить разрешение видео: ${(error as Error).message}`);
+      logger.error("Ошибка определения параметров видео", error as Error);
+      throw new Error(`Не удалось определить параметры видео: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * После скачивания уточняет требование к месту по длительности и целевому битрейту.
+   * Оригинал уже находится на диске, поэтому здесь резервируется место только под HLS-выход.
+   */
+  private async ensureEnoughOutputSpace(
+    durationSec: number,
+    targetVideoBitrate: number,
+  ): Promise<void> {
+    const stats = await fs.statfs(this.tmpDir);
+    const availableBytes = stats.bavail * stats.bsize;
+    const estimatedOutputBytes = Math.ceil(
+      (((targetVideoBitrate + AUDIO_BITRATE) * durationSec) / 8) * OUTPUT_SIZE_SAFETY_MULTIPLIER,
+    );
+    const requiredBytes = estimatedOutputBytes + TEMP_FREE_SPACE_RESERVE_BYTES;
+
+    logger.info("Проверка места для HLS-выхода", {
+      availableBytes,
+      estimatedOutputBytes,
+      requiredBytes,
+    });
+
+    if (availableBytes < requiredBytes) {
+      throw new Error(
+        `Недостаточно временного места для HLS: требуется ${requiredBytes} байт, доступно ${availableBytes} байт`,
+      );
     }
   }
 
@@ -205,19 +311,24 @@ class VideoTranscodingWorker {
    * Транскодирует видео в HLS формат
    * @param inputPath - Путь к исходному видео
    * @param outputDir - Директория для HLS файлов
-   * @param targetHeight - Целевая высота (оригинальное разрешение)
+   * @param targetHeight - Целевая высота, не более 1080p
+   * @param targetVideoBitrate - Целевой видеобитрейт в битах в секунду
    */
   private async transcodeToHLS(
     inputPath: string,
     outputDir: string,
     targetHeight: number,
+    targetVideoBitrate: number,
   ): Promise<void> {
     const playlistPath = path.join(outputDir, "playlist.m3u8");
     const segmentPattern = path.join(outputDir, "segment-%03d.ts");
 
-    // Всегда используем оригинальное разрешение (без scale фильтра)
-    // Ограничиваем до 2 потоков и снижаем приоритет, чтобы не блокировать другие задачи
-    const ffmpegCommand = `nice -n 10 ionice -c 3 ffmpeg -threads 2 -i "${inputPath}" -c:v libx264 -c:a aac -hls_time 6 -hls_playlist_type vod -hls_segment_filename "${segmentPattern}" -hls_list_size 0 "${playlistPath}"`;
+    const maxRate = Math.ceil(targetVideoBitrate * 1.2);
+    const bufferSize = targetVideoBitrate * 2;
+
+    // Низкий приоритет и ограничение потоков защищают остальные сервисы на общем host.
+    // Ограниченный профиль также удерживает каждый шестисекундный HLS-сегмент небольшим.
+    const ffmpegCommand = `nice -n 10 ionice -c 3 ffmpeg -nostdin -hide_banner -loglevel error -threads 2 -i "${inputPath}" -vf "scale=-2:${targetHeight}" -c:v libx264 -preset veryfast -pix_fmt yuv420p -b:v ${targetVideoBitrate} -maxrate ${maxRate} -bufsize ${bufferSize} -force_key_frames "expr:gte(t,n_forced*6)" -sc_threshold 0 -c:a aac -b:a ${AUDIO_BITRATE} -hls_time 6 -hls_playlist_type vod -hls_segment_filename "${segmentPattern}" -hls_list_size 0 "${playlistPath}"`;
 
     logger.info(`🔧 Выполняем FFmpeg команду: ${ffmpegCommand}`);
 
@@ -260,6 +371,7 @@ class VideoTranscodingWorker {
       const relativePath = `${basePath}/${file}`;
 
       await uploadBufferToCDN(fileBuffer, relativePath, contentType);
+      await fs.rm(filePath, { force: true });
 
       logger.info(`✅ Загружен: ${file} (${fileBuffer.length} байт)`);
     }

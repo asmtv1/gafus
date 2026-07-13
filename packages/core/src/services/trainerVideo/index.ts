@@ -1,5 +1,6 @@
 export {
   registerTrainerVideo,
+  markTrainerVideoTranscodingFailed,
   getDeletePayload,
   deleteTrainerVideoRecord,
   updateTrainerVideoName,

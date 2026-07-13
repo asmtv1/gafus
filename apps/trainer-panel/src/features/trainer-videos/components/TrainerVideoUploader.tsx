@@ -8,6 +8,7 @@ import SendIcon from "@mui/icons-material/Send";
 import { Alert, Box, Button, LinearProgress, Stack, Typography } from "@mui/material";
 
 import { formatFileSize } from "../lib/format";
+import { MAX_TRAINER_VIDEO_SIZE_BYTES, MAX_TRAINER_VIDEO_SIZE_LABEL } from "../lib/uploadLimits";
 import type { TrainerVideoViewModel } from "../types";
 
 interface TrainerVideoUploaderProps {
@@ -29,7 +30,6 @@ interface FileUploadState {
 
 const ACCEPTED_TYPES = "video/mp4,video/webm,video/quicktime";
 const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
-const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500MB
 const MAX_FILES = 5;
 
 export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploaderProps) {
@@ -70,8 +70,8 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
     filesArray.forEach((file) => {
       if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) {
         errors.push(`${file.name}: неподдерживаемый формат`);
-      } else if (file.size > MAX_FILE_SIZE_BYTES) {
-        errors.push(`${file.name}: превышен лимит 500 МБ`);
+      } else if (file.size > MAX_TRAINER_VIDEO_SIZE_BYTES) {
+        errors.push(`${file.name}: превышен лимит ${MAX_TRAINER_VIDEO_SIZE_LABEL}`);
       } else {
         valid.push(file);
       }
@@ -159,14 +159,13 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
   // Загрузка одного файла
   const uploadSingleFile = (file: File, index: number): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append("video", file);
-
       const xhr = new XMLHttpRequest();
       xhrRefsRef.current.set(index, xhr);
 
       xhr.open("POST", "/main-panel/my-videos/upload");
       xhr.withCredentials = true;
+      xhr.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
+      xhr.setRequestHeader("Content-Type", file.type);
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -213,7 +212,7 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
         reject(new Error("Сеть недоступна"));
       };
 
-      xhr.send(formData);
+      xhr.send(file);
     });
   };
 
@@ -304,8 +303,8 @@ export default function TrainerVideoUploader({ onUploaded }: TrainerVideoUploade
         Загрузка видео
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Поддерживаемые форматы: MP4, WebM, MOV. Максимальный размер — 500 МБ. До {MAX_FILES} файлов
-        за раз.
+        Поддерживаемые форматы: MP4, WebM, MOV. Максимальный размер — {MAX_TRAINER_VIDEO_SIZE_LABEL}
+        . До {MAX_FILES} файлов за раз.
       </Typography>
 
       <input

@@ -96,18 +96,12 @@ describe("GET /api/video/[videoId]/manifest", () => {
     downloadFileFromCDNMock.mockResolvedValueOnce(
       Buffer.from("#EXTM3U\n#EXTINF:5,\nsegment-1.ts\n", "utf-8"),
     );
-    generateTokenMock.mockReturnValueOnce("segment-token");
-
     const response = await GET(request("manifest-token"), params);
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toContain(
-      "https://gafus.test/api/video/video-1/segment?path=segment-1.ts&token=segment-token",
+      "https://gafus.test/api/video/video-1/segment?path=segment-1.ts&token=manifest-token",
     );
-    expect(generateTokenMock).toHaveBeenCalledWith({
-      ttlMinutes: 5,
-      userId: "user-1",
-      videoId: "video-1",
-    });
+    expect(generateTokenMock).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -91,9 +91,7 @@ export async function GET(
     // Поддержка Range обязательна для мобильных (iOS/Android), иначе HLS вечно грузится
     const rangeHeader = request.headers.get("range");
     const validRange =
-      rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",")
-        ? rangeHeader
-        : undefined;
+      rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",") ? rangeHeader : undefined;
 
     const { stream, contentLength, contentType, contentRange, isPartialContent } =
       await streamFileFromCDN(fullSegmentPath, validRange);
@@ -107,8 +105,7 @@ export async function GET(
       "https://www.gafus.ru",
     ].filter((url): url is string => Boolean(url));
 
-    const corsOrigin =
-      origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+    const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
 
     const headers: Record<string, string> = {
       "Content-Type": contentType || "video/mp2t",
@@ -123,7 +120,7 @@ export async function GET(
       headers["Content-Range"] = contentRange;
     }
 
-    return new NextResponse(stream, {
+    return new NextResponse(stream as unknown as BodyInit, {
       status: isPartialContent ? 206 : 200,
       headers,
     });

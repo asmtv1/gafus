@@ -1,6 +1,10 @@
 import jwt from "jsonwebtoken";
 import { createHash, randomBytes } from "crypto";
 
+// Достаточно даже для очень длинного урока и офлайн-скачивания.
+// Доступ всё равно перепроверяется в БД при каждом запросе сегмента.
+export const VIDEO_PLAYBACK_TOKEN_TTL_MINUTES = 12 * 60;
+
 /**
  * Данные токена доступа к видео
  */
@@ -59,8 +63,7 @@ export class VideoAccessService {
     // Предупреждение в staging/test
     if (nodeEnv === "staging" || nodeEnv === "test") {
       console.warn(
-        "⚠️  Using random VIDEO_ACCESS_SECRET. " +
-          "All tokens will be invalidated on restart!",
+        "⚠️  Using random VIDEO_ACCESS_SECRET. " + "All tokens will be invalidated on restart!",
       );
     }
 

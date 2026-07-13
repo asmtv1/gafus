@@ -35,8 +35,12 @@ import {
   resumeStepNotification,
 } from "@gafus/core/services/notifications";
 import { createWebLogger } from "@gafus/logger";
-import { downloadFileFromCDN, extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
-import { getVideoAccessService } from "@gafus/video-access";
+import {
+  downloadFileFromCDN,
+  extractVideoIdFromCdnUrl,
+  streamFileFromCDN,
+} from "@gafus/cdn-upload";
+import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
 
 const logger = createWebLogger("api-training");
 
@@ -817,7 +821,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
         const token = videoAccessService.generateToken({
           videoId,
           userId: user.id,
-          ttlMinutes: 120,
+          ttlMinutes: VIDEO_PLAYBACK_TOKEN_TTL_MINUTES,
         });
 
         const apiUrl =
@@ -1070,21 +1074,26 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
     const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
     const fullSegmentPath = `${baseDir}/${safeSegmentPath}`;
 
-    // Скачиваем сегмент из Object Storage
-    const segmentBuffer = await downloadFileFromCDN(fullSegmentPath);
+    // Не буферизуем HLS-сегмент в RAM API: это важно для 4K и нескольких зрителей.
+    const rangeHeader = c.req.header("range");
+    const validRange =
+      rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",") ? rangeHeader : undefined;
+    const { stream, contentLength, contentType, contentRange, isPartialContent } =
+      await streamFileFromCDN(fullSegmentPath, validRange);
 
-    // Определяем Content-Type на основе расширения файла
-    let contentType = "application/octet-stream";
-    if (safeSegmentPath.endsWith(".ts")) {
-      contentType = "video/mp2t";
-    } else if (safeSegmentPath.endsWith(".m3u8")) {
-      contentType = "application/vnd.apple.mpegurl";
+    const responseHeaders: Record<string, string> = {
+      "Content-Type": contentType || "application/octet-stream",
+      "Content-Length": contentLength.toString(),
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Accept-Ranges": "bytes",
+    };
+    if (contentRange) {
+      responseHeaders["Content-Range"] = contentRange;
     }
 
-    // Возвращаем сегмент (Uint8Array для совместимости с типом Hono c.body)
-    return c.body(new Uint8Array(segmentBuffer), 200, {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=31536000", // 1 год для сегментов
+    return new Response(stream as unknown as BodyInit, {
+      status: isPartialContent ? 206 : 200,
+      headers: responseHeaders,
     });
   } catch (error) {
     logger.error("[training/video/:videoId/segment] Ошибка получения сегмента", error as Error, {

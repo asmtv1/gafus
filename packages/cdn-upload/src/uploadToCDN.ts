@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { Readable } from "stream";
+import type { ReadableStream } from "stream/web";
 
 const logger = createTrainerPanelLogger("cdn-upload");
 
@@ -59,29 +60,26 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
     const bucketName = "gafus-media";
     const key = `uploads/${relativePath}`;
 
-    // Конвертируем File в Buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
     logger.info(`🔄 Загружаем файл в CDN: ${relativePath}`);
 
-    // Создаем команду для загрузки
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-      Body: buffer,
-      ContentType: file.type,
-      ContentLength: file.size,
-      // Настройки кэширования
-      CacheControl: "public, max-age=31536000", // 1 год
-      Metadata: {
-        "original-name": sanitizeFileName(file.name),
-        "upload-timestamp": Date.now().toString(),
-      },
-    });
-
-    // Выполняем загрузку с retry логикой
-    await uploadWithRetry(command, 3);
+    // Не преобразуем File в Buffer: для видео до 3 ГБ это привело бы к OOM.
+    // Новый stream и команда создаются на каждую повторную попытку, потому что поток одноразовый.
+    await uploadWithRetry(
+      () =>
+        new PutObjectCommand({
+          Bucket: bucketName,
+          Key: key,
+          Body: Readable.fromWeb(file.stream() as ReadableStream),
+          ContentType: file.type,
+          ContentLength: file.size,
+          CacheControl: "public, max-age=31536000", // 1 год
+          Metadata: {
+            "original-name": sanitizeFileName(file.name),
+            "upload-timestamp": Date.now().toString(),
+          },
+        }),
+      3,
+    );
 
     logger.info(`✅ Файл загружен в CDN: ${relativePath}`);
 
@@ -92,13 +90,58 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
   }
 }
 
+/**
+ * Потоковая загрузка для больших файлов. Поток нельзя безопасно повторить после ошибки,
+ * поэтому повторную попытку должен инициировать клиент.
+ */
+export async function uploadReadableStreamToCDN(
+  stream: Readable,
+  relativePath: string,
+  contentType: string,
+  contentLength: number,
+  originalName: string,
+): Promise<string> {
+  checkCredentials();
+
+  const bucketName = "gafus-media";
+  const key = `uploads/${relativePath}`;
+
+  try {
+    logger.info(`🔄 Потоковая загрузка файла в CDN: ${relativePath}`);
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: stream,
+        ContentType: contentType,
+        ContentLength: contentLength,
+        CacheControl: "public, max-age=31536000",
+        Metadata: {
+          "original-name": sanitizeFileName(originalName),
+          "upload-timestamp": Date.now().toString(),
+        },
+      }),
+    );
+
+    logger.info(`✅ Файл потоково загружен в CDN: ${relativePath}`);
+    return `https://storage.yandexcloud.net/gafus-media/uploads/${relativePath}`;
+  } catch (error) {
+    logger.error("Ошибка потоковой загрузки в CDN", toLogError(error), { relativePath });
+    throw error;
+  }
+}
+
 // Функция для повторных попыток загрузки
-async function uploadWithRetry(command: PutObjectCommand, maxRetries: number): Promise<void> {
+async function uploadWithRetry(
+  createCommand: () => PutObjectCommand,
+  maxRetries: number,
+): Promise<void> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await s3Client.send(command);
+      await s3Client.send(createCommand());
       return; // Успешно загружено
     } catch (error) {
       lastError = error as Error;
@@ -419,7 +462,7 @@ export async function uploadBufferToCDN(
       CacheControl: "public, max-age=31536000", // 1 год
     });
 
-    await uploadWithRetry(command, 3);
+    await uploadWithRetry(() => command, 3);
 
     logger.info(`✅ Buffer загружен в CDN: ${key}`);
 

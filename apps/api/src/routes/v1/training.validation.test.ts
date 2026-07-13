@@ -14,6 +14,7 @@ const {
   getTrainingDayWithMonetizedStepsMock,
   requirePremiumOrRewardedAccessForVideoUrlMock,
   requireCourseStepPremiumOrRewardedUnlockMock,
+  streamFileFromCDNMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
   unlockCourseStepRewardedTargetMock,
@@ -29,6 +30,7 @@ const {
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
   requirePremiumOrRewardedAccessForVideoUrlMock: vi.fn(),
   requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
+  streamFileFromCDNMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
   unlockCourseStepRewardedTargetMock: vi.fn(),
@@ -91,9 +93,11 @@ vi.mock("@gafus/core/services/video", () => ({
 vi.mock("@gafus/cdn-upload", () => ({
   downloadFileFromCDN: downloadFileFromCDNMock,
   extractVideoIdFromCdnUrl: extractVideoIdFromCdnUrlMock,
+  streamFileFromCDN: streamFileFromCDNMock,
 }));
 
 vi.mock("@gafus/video-access", () => ({
+  VIDEO_PLAYBACK_TOKEN_TTL_MINUTES: 720,
   getVideoAccessService: vi.fn(() => ({
     generateToken: generateTokenMock,
     verifyToken: verifyTokenMock,
@@ -154,6 +158,17 @@ describe("training route validation", () => {
     });
     checkVideoAccessMock.mockResolvedValue(true);
     downloadFileFromCDNMock.mockResolvedValue(Buffer.from("segment"));
+    streamFileFromCDNMock.mockResolvedValue({
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("segment"));
+          controller.close();
+        },
+      }),
+      contentLength: 7,
+      contentType: "video/mp2t",
+      isPartialContent: false,
+    });
   });
 
   it("accepts UUID course ids for paid courses when completing practice steps", async () => {
@@ -187,7 +202,8 @@ describe("training route validation", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        videoUrl: "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
+        videoUrl:
+          "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
       }),
     });
 
@@ -203,7 +219,8 @@ describe("training route validation", () => {
     expect(requirePremiumOrRewardedAccessForVideoUrlMock).toHaveBeenCalledWith({
       userId: "cmhf79vic0000qr4m219z780r",
       platform: "ANDROID",
-      videoUrl: "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
+      videoUrl:
+        "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
     });
     expect(generateTokenMock).not.toHaveBeenCalled();
   });
@@ -220,6 +237,24 @@ describe("training route validation", () => {
       success: false,
       code: "INVALID_SEGMENT_PATH",
     });
+    expect(downloadFileFromCDNMock).not.toHaveBeenCalled();
+    expect(streamFileFromCDNMock).not.toHaveBeenCalled();
+  });
+
+  it("streams valid HLS segments instead of buffering them in API memory", async () => {
+    const app = createTestApp();
+
+    const response = await app.request(
+      "/api/v1/training/video/video-1/segment?path=segment-001.ts&token=signed-token",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe("segment");
+    expect(response.headers.get("content-length")).toBe("7");
+    expect(streamFileFromCDNMock).toHaveBeenCalledWith(
+      "trainers/trainer-1/videocourses/video-1/hls/segment-001.ts",
+      undefined,
+    );
     expect(downloadFileFromCDNMock).not.toHaveBeenCalled();
   });
 });

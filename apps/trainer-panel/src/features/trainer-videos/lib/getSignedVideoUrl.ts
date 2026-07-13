@@ -30,18 +30,16 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
       return null;
     }
 
-    const token = getSignedVideoToken(videoId, session.user.id, 120);
+    const token = getSignedVideoToken(videoId, session.user.id);
 
     const headersList = await headers();
     const host = headersList.get("host");
     const protocol =
-      headersList.get("x-forwarded-proto") ||
-      (host?.includes("localhost") ? "http" : "https");
+      headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
 
-    const baseUrl =
-      host
-        ? `${protocol}://${host}`
-        : process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || "http://localhost:3001";
+    const baseUrl = host
+      ? `${protocol}://${host}`
+      : process.env.NEXT_PUBLIC_TRAINER_PANEL_URL || "http://localhost:3001";
 
     return `${baseUrl}/api/video/${videoId}/manifest?token=${token}`;
   } catch {
