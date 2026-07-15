@@ -1,6 +1,6 @@
 {
   "name": "@gafus/ui-components",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

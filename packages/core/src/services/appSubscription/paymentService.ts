@@ -21,7 +21,6 @@ import {
 } from "./plans";
 import {
   findYookassaTrialByPaymentMethodFingerprintHash,
-  getYookassaTrialAvailability,
   recordYookassaTrialUnavailable,
   recordYookassaTrialStarted,
   YOOKASSA_TRIAL_UNAVAILABLE_CARD_FINGERPRINT_REUSED,
@@ -1018,6 +1017,9 @@ export async function startYookassaAppSubscriptionPayment(params: {
   if (!planCode) {
     return { success: false, error: "Неизвестный тариф подписки" };
   }
+  if (planCode !== "MONTHLY") {
+    return { success: false, error: "Недельный тариф больше недоступен" };
+  }
   const selectedPlan = getAppSubscriptionPlanConfig(settings, planCode);
   if (!selectedPlan.enabled) {
     return { success: false, error: "Тариф подписки недоступен" };
@@ -1049,7 +1051,6 @@ export async function startYookassaAppSubscriptionPayment(params: {
   }
 
   const now = new Date();
-  const yookassaTrial = await getYookassaTrialAvailability(params.userId);
   const subscription = await findOrCreateYookassaSetupSubscription({
     userId: params.userId,
     planCode,
@@ -1060,7 +1061,6 @@ export async function startYookassaAppSubscriptionPayment(params: {
     subscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     hasPaymentMethod: Boolean(subscription.yookassaPaymentMethodId),
-    trialAvailable: yookassaTrial.available,
   });
 
   if (subscription.status !== "PENDING" && subscription.yookassaPaymentMethodId) {
@@ -1076,8 +1076,8 @@ export async function startYookassaAppSubscriptionPayment(params: {
     (subscription.isLifetime === true ||
       (subscription.currentPeriodEnd instanceof Date && subscription.currentPeriodEnd > now));
 
-  if (yookassaTrial.available || hasCurrentAccess) {
-    console.log("[app-subscription-payment-service] starting zero-amount YooKassa binding", {
+  if (hasCurrentAccess) {
+    console.log("[app-subscription-payment-service] restoring YooKassa autopay binding", {
       userId: params.userId,
       subscriptionId: subscription.id,
     });
@@ -1095,7 +1095,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
     });
   }
 
-  console.log("[app-subscription-payment-service] trial unavailable, starting paid checkout", {
+  console.log("[app-subscription-payment-service] starting paid checkout", {
     userId: params.userId,
     subscriptionId: subscription.id,
   });
@@ -1758,7 +1758,7 @@ export async function syncAppleAppSubscriptionFromServer(params: {
         ? renewal.renewalPrice
         : null;
   const currency = transaction.currency ?? renewal?.currency ?? null;
-  const planCode = normalizeAppSubscriptionPlanCode(subscription.planCode) ?? "WEEKLY";
+  const planCode = normalizeAppSubscriptionPlanCode(subscription.planCode) ?? "MONTHLY";
 
   await prisma.$transaction(async (tx) => {
     await tx.appSubscription.update({
@@ -2173,7 +2173,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         });
         const fallbackPlan =
           findAppSubscriptionPlanConfig(settings, payment.planCode) ??
-          getAppSubscriptionPlanConfig(settings, "WEEKLY");
+          getAppSubscriptionPlanConfig(settings, "MONTHLY");
         const currentPeriodEnd = payment.subscription?.currentPeriodEnd;
         periodStart = currentPeriodEnd && currentPeriodEnd > now ? currentPeriodEnd : now;
         periodEnd = new Date(

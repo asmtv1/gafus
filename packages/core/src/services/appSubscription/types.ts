@@ -29,8 +29,11 @@ export type AppSubscriptionStatusDto = {
   paymentMethodLast4: string | null;
   paymentMethodTitle: string | null;
   nextChargeAt: string | null;
+  /** @deprecated Kept for older app clients; new trials are disabled. */
   yookassaTrialAvailable: boolean;
-  yookassaTrialDays: 3;
+  /** @deprecated Kept for older app clients; new trials are disabled. */
+  yookassaTrialDays: number;
+  /** @deprecated Kept for older app clients; new trials are disabled. */
   yookassaTrialUnavailableReason: YookassaTrialUnavailableReason | null;
 };
 
@@ -49,7 +52,4 @@ export type AppSubscriptionOfferDto = {
   plans: AppSubscriptionPlanOfferDto[];
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
-  yookassaTrialAvailable: boolean;
-  yookassaTrialDays: 3;
-  yookassaTrialUnavailableReason: YookassaTrialUnavailableReason | null;
 };

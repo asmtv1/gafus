@@ -48,7 +48,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       weeklyEnabled: true,
       monthlyEnabled: true,
       yookassaWeeklyPriceRub: 200,
-      yookassaMonthlyPriceRub: 1100,
+      yookassaMonthlyPriceRub: 2500,
       currency: "RUB",
       weeklyIntervalDays: 7,
       monthlyIntervalDays: 30,
@@ -121,7 +121,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       weeklyEnabled: true,
       monthlyEnabled: false,
       yookassaWeeklyPriceRub: 200,
-      yookassaMonthlyPriceRub: 1100,
+      yookassaMonthlyPriceRub: 2500,
       currency: "RUB",
       weeklyIntervalDays: 7,
       monthlyIntervalDays: 30,
@@ -154,7 +154,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
         data: expect.objectContaining({
           subscriptionId: "sub-month",
           kind: "RENEWAL",
-          amount: 1100,
+          amount: 2500,
           planCode: "MONTHLY",
           periodStart: new Date("2026-06-01T10:00:00.000Z"),
           periodEnd: new Date("2026-07-01T10:00:00.000Z"),
@@ -165,7 +165,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
     );
     expect(renewalBody).toMatchObject({
-      amount: { value: "1100.00", currency: "RUB" },
+      amount: { value: "2500.00", currency: "RUB" },
       metadata: {
         kind: "app_subscription",
         localPaymentId: "pay-month",

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.5.6",
+    "version": "1.6.0",
     "orientation": "portrait",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -25,7 +25,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "associatedDomains": ["applinks:gafus.ru"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -39,7 +39,7 @@
         "backgroundColor": "#dad3c1"
       },
       "package": "ru.gafus.app",
-      "versionCode": 7,
+      "versionCode": 8,
       "intentFilters": [
         {
           "action": "VIEW",

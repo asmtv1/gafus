@@ -11,7 +11,7 @@ export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_en
 /** Включает server-side блокировку платных действий без подписки. */
 export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
 
-const CURRENT_MOBILE_VERSION = "1.5.6";
+const CURRENT_MOBILE_VERSION = "1.6.0";
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;

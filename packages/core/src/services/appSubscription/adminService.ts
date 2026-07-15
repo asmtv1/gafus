@@ -364,13 +364,9 @@ export async function getDefaultAppSubscriptionSettings() {
 }
 
 export async function updateDefaultAppSubscriptionSettings(params: {
-  weeklyEnabled: boolean;
   monthlyEnabled: boolean;
-  yookassaWeeklyPriceRub: number;
   yookassaMonthlyPriceRub: number;
-  weeklyIntervalDays: number;
   monthlyIntervalDays: number;
-  weeklyAppleProductId: string | null;
   monthlyAppleProductId: string | null;
   actorId: string;
 }) {
@@ -378,25 +374,19 @@ export async function updateDefaultAppSubscriptionSettings(params: {
     where: { key: "default" },
     create: {
       key: "default",
-      weeklyEnabled: params.weeklyEnabled,
+      weeklyEnabled: false,
       monthlyEnabled: params.monthlyEnabled,
-      yookassaWeeklyPriceRub: params.yookassaWeeklyPriceRub,
       yookassaMonthlyPriceRub: params.yookassaMonthlyPriceRub,
       currency: "RUB",
-      weeklyIntervalDays: params.weeklyIntervalDays,
       monthlyIntervalDays: params.monthlyIntervalDays,
-      weeklyAppleProductId: params.weeklyAppleProductId,
       monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },
     update: {
-      weeklyEnabled: params.weeklyEnabled,
+      weeklyEnabled: false,
       monthlyEnabled: params.monthlyEnabled,
-      yookassaWeeklyPriceRub: params.yookassaWeeklyPriceRub,
       yookassaMonthlyPriceRub: params.yookassaMonthlyPriceRub,
-      weeklyIntervalDays: params.weeklyIntervalDays,
       monthlyIntervalDays: params.monthlyIntervalDays,
-      weeklyAppleProductId: params.weeklyAppleProductId,
       monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },

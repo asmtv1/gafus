@@ -37,7 +37,7 @@ export function getWorkerAppSubscriptionPlan(
       code,
       intervalDays: numberOrDefault(settings?.monthlyIntervalDays, 30),
       currency: "RUB",
-      yookassaPriceRub: numberOrDefault(settings?.yookassaMonthlyPriceRub, 1100),
+      yookassaPriceRub: numberOrDefault(settings?.yookassaMonthlyPriceRub, 2500),
     };
   }
 

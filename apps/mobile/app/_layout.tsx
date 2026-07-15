@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
+import { usePreventScreenCapture } from "expo-screen-capture";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -39,6 +40,8 @@ SplashScreen.preventAutoHideAsync();
  * Загружает шрифты: Montserrat (Google Fonts) и Moscow2024 (локальный)
  */
 export default function RootLayout() {
+  usePreventScreenCapture("gafus-global-screen-protection");
+
   const authLoading = useAuthStore((s) => s.isLoading);
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const [fontsLoaded, fontError] = useFonts({

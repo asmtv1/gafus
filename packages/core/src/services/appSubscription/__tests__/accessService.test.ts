@@ -47,8 +47,8 @@ describe("getAppSubscriptionAccess", () => {
       paymentMethodLast4: null,
       paymentMethodTitle: null,
       nextChargeAt: null,
-      yookassaTrialAvailable: true,
-      yookassaTrialDays: 3,
+      yookassaTrialAvailable: false,
+      yookassaTrialDays: 0,
       yookassaTrialUnavailableReason: null,
     });
   });
@@ -93,8 +93,8 @@ describe("getAppSubscriptionAccess", () => {
       paymentMethodLast4: "4444",
       paymentMethodTitle: "Bank card *4444",
       nextChargeAt: "2026-05-20T10:00:00.000Z",
-      yookassaTrialAvailable: true,
-      yookassaTrialDays: 3,
+      yookassaTrialAvailable: false,
+      yookassaTrialDays: 0,
       yookassaTrialUnavailableReason: null,
     });
   });
@@ -144,12 +144,12 @@ describe("getAppSubscriptionAccess", () => {
       trialEndsAt: "2026-05-29T10:00:00.000Z",
       nextChargeAt: "2026-05-29T10:00:00.000Z",
       yookassaTrialAvailable: false,
-      yookassaTrialDays: 3,
+      yookassaTrialDays: 0,
       yookassaTrialUnavailableReason: null,
     });
   });
 
-  it("returns unavailable YooKassa trial after the user has used it", async () => {
+  it("does not advertise a new trial after the user has used a historical one", async () => {
     mockFindMany.mockResolvedValue([]);
     mockTrialFindUnique.mockResolvedValue({
       id: "trial-1",
@@ -165,8 +165,8 @@ describe("getAppSubscriptionAccess", () => {
     expect(result).toMatchObject({
       hasActiveSubscription: false,
       yookassaTrialAvailable: false,
-      yookassaTrialDays: 3,
-      yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED",
+      yookassaTrialDays: 0,
+      yookassaTrialUnavailableReason: null,
     });
   });
 });

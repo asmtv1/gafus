@@ -110,6 +110,20 @@ describe("app subscription route contracts", () => {
     });
   });
 
+  it("rejects the removed weekly plan", async () => {
+    const app = createAuthenticatedTestApp();
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+
+    const response = await app.request(
+      jsonRequest("/api/v1/app-subscription/yookassa/start", "POST", { planCode: "WEEKLY" }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
+  });
+
   it("maps Apple verification domain failures to an HTTP failure envelope", async () => {
     const app = createAuthenticatedTestApp();
     verifyAppleAppSubscriptionMock.mockResolvedValueOnce({

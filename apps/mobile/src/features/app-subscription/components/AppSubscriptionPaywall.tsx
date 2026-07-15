@@ -30,10 +30,7 @@ import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import {
   getYookassaLegalSuffix,
   getYookassaPaymentCaption,
-  getYookassaPricePillText,
   getYookassaPrimaryCta,
-  getYookassaTrialLeadText,
-  getYookassaTrialUnavailableText,
   formatAppSubscriptionPlanPrice,
   selectDefaultAppSubscriptionPlan,
 } from "../lib/appSubscriptionPresentation";
@@ -70,17 +67,11 @@ function extractDisplayPrice(product: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-async function pollActiveSubscription(): Promise<"active" | "trial-unavailable" | "pending"> {
+async function pollActiveSubscription(): Promise<"active" | "pending"> {
   for (let attempt = 0; attempt < STATUS_POLL_ATTEMPTS; attempt += 1) {
     const status = await appSubscriptionApi.getStatus();
     if (status.success && status.data?.hasActiveSubscription) {
       return "active";
-    }
-    if (
-      status.success &&
-      status.data?.yookassaTrialUnavailableReason === "CARD_FINGERPRINT_REUSED"
-    ) {
-      return "trial-unavailable";
     }
     await sleep(STATUS_POLL_DELAY_MS);
   }
@@ -189,16 +180,10 @@ export function AppSubscriptionPaywall() {
   const price = isIos ? (applePriceQuery.data ?? yookassaPriceText) : yookassaPriceText;
   const iosRuCardHint =
     isIos && canUseYookassa ? `При оплате через ЮKassa: ${yookassaPriceText}.` : null;
-  const yookassaPricePillText = getYookassaPricePillText({ offer: effectiveOffer });
   const yookassaPaymentCaption = canUseYookassa
-    ? getYookassaPaymentCaption({ offer: effectiveOffer })
+    ? getYookassaPaymentCaption()
     : "Списание и управление подпиской выполняются через App Store.";
-  const yookassaPrimaryCta = getYookassaPrimaryCta({ offer: effectiveOffer });
-  const yookassaTrialLeadText = getYookassaTrialLeadText({ offer: effectiveOffer });
-  const yookassaTrialUnavailableText = getYookassaTrialUnavailableText({
-    offer: effectiveOffer,
-  });
-  const isYookassaTrialStart = effectiveOffer?.yookassaTrialAvailable === true;
+  const yookassaPrimaryCta = getYookassaPrimaryCta();
   const useCompactLayout = height < 760 || width < 380;
   const headline = useMemo(
     () =>
@@ -267,16 +252,11 @@ export function AppSubscriptionPaywall() {
         return;
       }
       setIsPaying(false);
-      Alert.alert(
-        isYookassaTrialStart ? "Способ оплаты не сохранён" : "Оплата не началась",
-        result.message,
-      );
+      Alert.alert("Оплата не началась", result.message);
       return;
     }
 
-    setPendingMessage(
-      isYookassaTrialStart ? "Проверяем способ оплаты в ЮKassa..." : "Проверяем оплату в ЮKassa...",
-    );
+    setPendingMessage("Проверяем оплату в ЮKassa...");
     const subscriptionResult = await pollActiveSubscription();
     if (isDev) {
       console.log("[AppSubscriptionPaywall] handleYookassaPay poll result", {
@@ -290,17 +270,7 @@ export function AppSubscriptionPaywall() {
       await finishSuccessfulPayment();
       return;
     }
-    if (subscriptionResult === "trial-unavailable") {
-      setPendingMessage(
-        "С этим способом оплаты пробный период уже использован. Premium можно подключить через обычную оплату.",
-      );
-      return;
-    }
-    setPendingMessage(
-      isYookassaTrialStart
-        ? "Способ оплаты ещё подтверждается. Обычно это занимает несколько секунд."
-        : "Оплата ещё подтверждается. Обычно это занимает несколько секунд.",
-    );
+    setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
   const handleWatchRewardedAd = async () => {
@@ -515,26 +485,13 @@ export function AppSubscriptionPaywall() {
                 </View>
               ))}
             </View>
-            {yookassaTrialLeadText ? (
-              <View style={styles.trialLeadBadge}>
-                <Text style={styles.trialLeadText}>{yookassaTrialLeadText}</Text>
-              </View>
-            ) : null}
             <View style={styles.priceHeader}>
               <Text style={[styles.price, useCompactLayout && styles.priceCompact]}>{price}</Text>
-              {yookassaPricePillText ? (
-                <View style={styles.pricePill}>
-                  <Text style={styles.pricePillText}>{yookassaPricePillText}</Text>
-                </View>
-              ) : null}
             </View>
             <Text style={styles.priceCaption}>{yookassaPaymentCaption}</Text>
             {iosRuCardHint ? <Text style={styles.priceCaption}>{iosRuCardHint}</Text> : null}
           </View>
 
-          {yookassaTrialUnavailableText ? (
-            <Text style={styles.pendingText}>{yookassaTrialUnavailableText}</Text>
-          ) : null}
           {pendingMessage ? <Text style={styles.pendingText}>{pendingMessage}</Text> : null}
 
           {canUseApple ? (
@@ -628,7 +585,7 @@ export function AppSubscriptionPaywall() {
             </Text>
             . Подписка продлевается автоматически. При оплате через App Store списание идет через
             Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID
-            {canUseYookassa ? getYookassaLegalSuffix({ offer: effectiveOffer }) : "."}
+            {canUseYookassa ? getYookassaLegalSuffix() : "."}
           </Text>
 
           {offerQuery.isLoading ? (

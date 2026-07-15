@@ -4,7 +4,7 @@
  * Предыдущие тексты — apps/web/public/legal/archive/ (см. docs/legal/document-versions.md).
  */
 export const DOCUMENT_VERSIONS = {
-  oferta: "2026-05-13",
+  oferta: "2026-07-16",
   policy: "2026-05-13",
   personal: "2026-05-13",
   personalDistribution: "2026-05-13",

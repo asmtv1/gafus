@@ -204,7 +204,7 @@ describe("app subscription payment service", () => {
     expect(mockSubscriptionCreate).not.toHaveBeenCalled();
   });
 
-  it("starts a zero-amount YooKassa binding without forcing a payment method", async () => {
+  it("rejects the removed weekly YooKassa plan in the core service", async () => {
     const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
     mockSettingsFindUnique.mockResolvedValue({
       yookassaWeeklyPriceRub: 200,
@@ -234,52 +234,12 @@ describe("app subscription payment service", () => {
       planCode: "WEEKLY",
     });
 
-    expect(result).toEqual({
-      success: true,
-      localSubscriptionId: "sub-1",
-      confirmationUrl: "https://yookassa.test/confirm",
-    });
-    expect(mockSubscriptionFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          provider: "YOOKASSA",
-          status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
-          userId: "user-1",
-        }),
-      }),
-    );
-    expect(fetch).toHaveBeenCalledWith(
-      "https://api.yookassa.ru/v3/payment_methods",
-      expect.objectContaining({
-        method: "POST",
-        body: expect.any(String),
-      }),
-    );
-    const paymentMethodRequestBody = JSON.parse(
-      (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
-    );
-    expect(paymentMethodRequestBody).toEqual({
-      type: "sbp",
-      confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?trial=1" },
-      description: "Пробный период Gafus Premium 3 дня, далее 200.00 RUB/7 дн.",
-      metadata: {
-        kind: "app_subscription_payment_method",
-        userId: "user-1",
-        subscriptionId: "sub-1",
-        planCode: "WEEKLY",
-      },
-    });
+    expect(result).toEqual({ success: false, error: "Недельный тариф больше недоступен" });
+    expect(fetch).not.toHaveBeenCalled();
     expect(mockPaymentCreate).not.toHaveBeenCalled();
-    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-1" },
-      data: {
-        yookassaPaymentMethodId: "pm-1",
-        pendingExpiresAt: new Date("2026-05-26T11:00:00.000Z"),
-      },
-    });
   });
 
-  it("stores the monthly plan while starting a zero-amount YooKassa binding", async () => {
+  it("starts the monthly plan as an immediate YooKassa payment", async () => {
     const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
@@ -327,21 +287,22 @@ describe("app subscription payment service", () => {
         }),
       }),
     );
-    const paymentMethodRequestBody = JSON.parse(
+    const paymentRequestBody = JSON.parse(
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
     );
-    expect(paymentMethodRequestBody).toEqual({
-      type: "sbp",
-      confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?trial=1" },
-      description: "Пробный период Gafus Premium 3 дня, далее 1100.00 RUB/30 дн.",
-      metadata: {
-        kind: "app_subscription_payment_method",
-        userId: "user-1",
-        subscriptionId: "sub-month",
+    expect(paymentRequestBody).toMatchObject({
+      amount: { value: "1100.00", currency: "RUB" },
+      capture: true,
+      save_payment_method: true,
+      payment_method_data: { type: "sbp" },
+      confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?paid=1" },
+      metadata: expect.objectContaining({
+        kind: "app_subscription",
         planCode: "MONTHLY",
-      },
+        initial: "true",
+      }),
     });
-    expect(mockPaymentCreate).not.toHaveBeenCalled();
+    expect(mockPaymentCreate).toHaveBeenCalled();
   });
 
   it("restarts an expired active YooKassa subscription instead of reporting its old card as saved", async () => {
@@ -378,7 +339,7 @@ describe("app subscription payment service", () => {
       origin: "https://gafus.ru",
       shopId: "shop-id",
       secretKey: "secret-key",
-      planCode: "WEEKLY",
+      planCode: "MONTHLY",
     });
 
     expect(result).toEqual({
@@ -390,7 +351,7 @@ describe("app subscription payment service", () => {
       where: { id: "sub-expired" },
       data: {
         status: "PENDING",
-        planCode: "WEEKLY",
+        planCode: "MONTHLY",
         currentPeriodStart: null,
         currentPeriodEnd: null,
         pendingExpiresAt: new Date("2026-05-26T11:00:00.000Z"),
@@ -664,7 +625,7 @@ describe("app subscription payment service", () => {
       origin: "https://gafus.ru",
       shopId: "shop-id",
       secretKey: "secret-key",
-      planCode: "WEEKLY",
+      planCode: "MONTHLY",
     });
 
     expect(result).toEqual({
@@ -680,18 +641,18 @@ describe("app subscription payment service", () => {
           "Idempotence-Key": expect.stringMatching(/^appsub-init:[0-9a-f-]{36}$/),
         }),
         body: JSON.stringify({
-          amount: { value: "200.00", currency: "RUB" },
+          amount: { value: "2500.00", currency: "RUB" },
           capture: true,
           save_payment_method: true,
           payment_method_data: { type: "sbp" },
           confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?paid=1" },
-          description: "Подписка Gafus Premium 200.00 RUB/7 дн.",
+          description: "Подписка Gafus Premium 2500.00 RUB/30 дн.",
           metadata: {
             kind: "app_subscription",
             localPaymentId: "pay-1",
             userId: "user-1",
             subscriptionId: "sub-2",
-            planCode: "WEEKLY",
+            planCode: "MONTHLY",
             initial: "true",
           },
         }),
@@ -705,11 +666,11 @@ describe("app subscription payment service", () => {
           provider: "YOOKASSA",
           kind: "INITIAL",
           status: "PENDING",
-          amount: 200,
+          amount: 2500,
           currency: "RUB",
-          planCode: "WEEKLY",
+          planCode: "MONTHLY",
           periodStart: new Date("2026-05-30T10:00:00.000Z"),
-          periodEnd: new Date("2026-06-06T10:00:00.000Z"),
+          periodEnd: new Date("2026-06-29T10:00:00.000Z"),
           idempotenceKey: expect.stringMatching(/^appsub-init:[0-9a-f-]{36}$/),
         }),
       }),
@@ -946,7 +907,7 @@ describe("app subscription payment service", () => {
       origin: "https://gafus.ru",
       shopId: "shop-id",
       secretKey: "secret-key",
-      planCode: "WEEKLY",
+      planCode: "MONTHLY",
     });
 
     expect(result).toMatchObject({ success: true, localSubscriptionId: "sub-locked" });
@@ -999,7 +960,7 @@ describe("app subscription payment service", () => {
       origin: "https://gafus.ru",
       shopId: "shop-id",
       secretKey: "secret-key",
-      planCode: "WEEKLY",
+      planCode: "MONTHLY",
     });
 
     expect(result).toEqual({
@@ -1011,7 +972,7 @@ describe("app subscription payment service", () => {
     expect(txSubscriptionUpdate).toHaveBeenCalledWith({
       where: { id: "sub-pending" },
       data: {
-        planCode: "WEEKLY",
+        planCode: "MONTHLY",
         pendingExpiresAt: new Date("2026-05-30T11:00:00.000Z"),
         yookassaPaymentMethodId: null,
         yookassaPaymentMethodLast4: null,

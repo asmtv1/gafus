@@ -26,7 +26,7 @@ const restoreAppleSchema = z.object({
 });
 
 const startYookassaSchema = z.object({
-  planCode: z.enum(["WEEKLY", "MONTHLY"]),
+  planCode: z.literal("MONTHLY"),
 });
 
 type AppleAppSubscriptionResult =

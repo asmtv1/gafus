@@ -25,12 +25,14 @@ export type AppSubscriptionStatusDto = {
   paymentMethodLast4: string | null;
   paymentMethodTitle: string | null;
   nextChargeAt: string | null;
+  /** @deprecated New trials are disabled; retained for older API compatibility. */
   yookassaTrialAvailable: boolean;
-  yookassaTrialDays: 3;
+  yookassaTrialDays: number;
+  /** @deprecated New trials are disabled; retained for older API compatibility. */
   yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
-export type AppSubscriptionPlanCode = "WEEKLY" | "MONTHLY";
+export type AppSubscriptionPlanCode = "MONTHLY";
 
 export type AppSubscriptionPlanOfferDto = {
   code: AppSubscriptionPlanCode;
@@ -47,9 +49,6 @@ export type AppSubscriptionOfferDto = {
   plans: AppSubscriptionPlanOfferDto[];
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
-  yookassaTrialAvailable: boolean;
-  yookassaTrialDays: 3;
-  yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
 export const appSubscriptionApi = {

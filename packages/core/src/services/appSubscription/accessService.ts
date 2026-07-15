@@ -1,15 +1,12 @@
 import { prisma } from "@gafus/prisma";
 
 import type { AppSubscriptionStatusDto } from "./types";
-import { getYookassaTrialAvailability } from "./trialService";
-
 const ACTIVE_CANDIDATE_STATUSES = ["ACTIVE", "PENDING", "PAST_DUE"] as const;
 
 export async function getAppSubscriptionAccess(
   userId: string,
   now = new Date(),
 ): Promise<AppSubscriptionStatusDto> {
-  const yookassaTrial = await getYookassaTrialAvailability(userId);
   const rows = await prisma.appSubscription.findMany({
     where: {
       userId,
@@ -44,9 +41,9 @@ export async function getAppSubscriptionAccess(
       paymentMethodLast4: null,
       paymentMethodTitle: null,
       nextChargeAt: null,
-      yookassaTrialAvailable: yookassaTrial.available,
-      yookassaTrialDays: yookassaTrial.trialDays,
-      yookassaTrialUnavailableReason: yookassaTrial.unavailableReason,
+      yookassaTrialAvailable: false,
+      yookassaTrialDays: 0,
+      yookassaTrialUnavailableReason: null,
     };
   }
 
@@ -95,8 +92,8 @@ export async function getAppSubscriptionAccess(
     paymentMethodLast4: active.yookassaPaymentMethodLast4 ?? null,
     paymentMethodTitle: active.yookassaPaymentMethodTitle ?? null,
     nextChargeAt,
-    yookassaTrialAvailable: isTrial ? false : yookassaTrial.available,
-    yookassaTrialDays: yookassaTrial.trialDays,
-    yookassaTrialUnavailableReason: isTrial ? null : yookassaTrial.unavailableReason,
+    yookassaTrialAvailable: false,
+    yookassaTrialDays: 0,
+    yookassaTrialUnavailableReason: null,
   };
 }

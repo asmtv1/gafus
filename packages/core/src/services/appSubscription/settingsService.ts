@@ -6,7 +6,6 @@ import {
 } from "../appFeatureFlags";
 import { ensureAppleAppAccountToken } from "./appleAccountTokenService";
 import { getEnabledAppSubscriptionPlanConfigs } from "./plans";
-import { getYookassaTrialAvailability } from "./trialService";
 import type { AppSubscriptionOfferDto } from "./types";
 
 const SETTINGS_KEY = "default";
@@ -28,7 +27,6 @@ export async function getAppSubscriptionOffer(userId: string): Promise<AppSubscr
   });
 
   const appAccountToken = await ensureAppleAppAccountToken(userId);
-  const yookassaTrial = await getYookassaTrialAvailability(userId);
   const iosRuCardPaymentEnabled = await getAppFeatureFlagEnabled(
     APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
     false,
@@ -38,8 +36,5 @@ export async function getAppSubscriptionOffer(userId: string): Promise<AppSubscr
     plans: getEnabledAppSubscriptionPlanConfigs(settings),
     appleAppAccountToken: appAccountToken,
     iosRuCardPaymentEnabled,
-    yookassaTrialAvailable: yookassaTrial.available,
-    yookassaTrialDays: yookassaTrial.trialDays,
-    yookassaTrialUnavailableReason: yookassaTrial.unavailableReason,
   };
 }

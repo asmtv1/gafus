@@ -7,7 +7,7 @@ import { authOptions } from "@gafus/auth";
 import { startYookassaAppSubscriptionPayment } from "@gafus/core/services/appSubscription";
 
 const startYookassaSchema = z.object({
-  planCode: z.enum(["WEEKLY", "MONTHLY"]),
+  planCode: z.literal("MONTHLY"),
 });
 
 function getOrigin(request: NextRequest): string {

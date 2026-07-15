@@ -45,13 +45,9 @@ export default async function AdminPage() {
 
         <AppSubscriptionSettingsCard
           actorRole={session.user.role}
-          initialWeeklyEnabled={appSubscriptionSettings.weeklyEnabled}
           initialMonthlyEnabled={appSubscriptionSettings.monthlyEnabled}
-          initialYookassaWeeklyPriceRub={appSubscriptionSettings.yookassaWeeklyPriceRub}
           initialYookassaMonthlyPriceRub={appSubscriptionSettings.yookassaMonthlyPriceRub}
-          initialWeeklyIntervalDays={appSubscriptionSettings.weeklyIntervalDays}
           initialMonthlyIntervalDays={appSubscriptionSettings.monthlyIntervalDays}
-          initialWeeklyAppleProductId={appSubscriptionSettings.weeklyAppleProductId}
           initialMonthlyAppleProductId={appSubscriptionSettings.monthlyAppleProductId}
         />
 

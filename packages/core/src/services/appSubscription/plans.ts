@@ -1,4 +1,5 @@
 export const APP_SUBSCRIPTION_PLAN_CODES = ["WEEKLY", "MONTHLY"] as const;
+export const PUBLIC_APP_SUBSCRIPTION_PLAN_CODES = ["MONTHLY"] as const;
 
 export type AppSubscriptionPlanCode = (typeof APP_SUBSCRIPTION_PLAN_CODES)[number];
 
@@ -37,7 +38,7 @@ const PLAN_DEFINITIONS = {
   MONTHLY: {
     label: "Месяц",
     title: "Месячный",
-    fallbackPriceRub: 1100,
+    fallbackPriceRub: 2500,
     fallbackIntervalDays: 30,
   },
 } as const satisfies Record<
@@ -114,7 +115,9 @@ export function getAppSubscriptionPlanConfigs(
 export function getEnabledAppSubscriptionPlanConfigs(
   settings: AppSubscriptionSettingsPlanSource,
 ): AppSubscriptionPlanConfig[] {
-  return getAppSubscriptionPlanConfigs(settings).filter((plan) => plan.enabled);
+  return PUBLIC_APP_SUBSCRIPTION_PLAN_CODES.map((code) =>
+    getAppSubscriptionPlanConfig(settings, code),
+  ).filter((plan) => plan.enabled);
 }
 
 export function findAppSubscriptionPlanConfig(

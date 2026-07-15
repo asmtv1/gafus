@@ -20,7 +20,7 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
 
 import { POST } from "./route";
 
-function request(body: unknown = { planCode: "WEEKLY" }) {
+function request(body: unknown = { planCode: "MONTHLY" }) {
   return new NextRequest("https://gafus.test/api/v1/app-subscription/yookassa/start", {
     headers: {
       authorization: "Bearer test-token",
@@ -78,7 +78,7 @@ describe("POST /api/v1/app-subscription/yookassa/start", () => {
     });
     expect(startPaymentMock).toHaveBeenCalledWith({
       origin: "https://gafus.ru",
-      planCode: "WEEKLY",
+      planCode: "MONTHLY",
       secretKey: "secret",
       shopId: "shop",
       userId: "user-1",
@@ -98,6 +98,18 @@ describe("POST /api/v1/app-subscription/yookassa/start", () => {
       code: "VALIDATION_ERROR",
       success: false,
     });
+    expect(startPaymentMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects the removed weekly plan", async () => {
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+
+    const response = await POST(request({ planCode: "WEEKLY" }));
+
+    expect(response.status).toBe(400);
     expect(startPaymentMock).not.toHaveBeenCalled();
   });
 });
