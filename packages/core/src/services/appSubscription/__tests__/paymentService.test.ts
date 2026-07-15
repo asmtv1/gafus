@@ -344,6 +344,73 @@ describe("app subscription payment service", () => {
     expect(mockPaymentCreate).not.toHaveBeenCalled();
   });
 
+  it("restarts an expired active YooKassa subscription instead of reporting its old card as saved", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockSubscriptionFindFirst.mockResolvedValue({
+      id: "sub-expired",
+      status: "ACTIVE",
+      isLifetime: false,
+      currentPeriodEnd: new Date("2026-05-25T10:00:00.000Z"),
+      yookassaPaymentMethodId: "pm-old",
+    });
+    mockSubscriptionUpdate.mockResolvedValue({
+      id: "sub-expired",
+      status: "PENDING",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-26T10:00:00.000Z"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "pm-new",
+          confirmation: { confirmation_url: "https://yookassa.test/confirm" },
+        }),
+      }),
+    );
+
+    const result = await startYookassaAppSubscriptionPayment({
+      userId: "user-1",
+      origin: "https://gafus.ru",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      planCode: "WEEKLY",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      localSubscriptionId: "sub-expired",
+      confirmationUrl: "https://yookassa.test/confirm",
+    });
+    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
+      where: { id: "sub-expired" },
+      data: {
+        status: "PENDING",
+        planCode: "WEEKLY",
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        pendingExpiresAt: new Date("2026-05-26T11:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+        renewalReminderSentForPeriodEnd: null,
+      },
+      select: {
+        id: true,
+        status: true,
+        isLifetime: true,
+        currentPeriodEnd: true,
+        yookassaPaymentMethodId: true,
+      },
+    });
+  });
+
   it("activates a three day YooKassa trial when payment method becomes active", async () => {
     const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
     mockSubscriptionFindFirst.mockResolvedValue({

@@ -928,6 +928,39 @@ async function findOrCreateYookassaSetupSubscription(params: {
           },
         });
       }
+
+      const hasNoCurrentYookassaAccess =
+        existingSubscription.status === "ACTIVE" &&
+        !existingSubscription.isLifetime &&
+        (!existingSubscription.currentPeriodEnd ||
+          existingSubscription.currentPeriodEnd <= params.now);
+
+      if (hasNoCurrentYookassaAccess) {
+        return tx.appSubscription.update({
+          where: { id: existingSubscription.id },
+          data: {
+            status: "PENDING",
+            planCode: params.planCode,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+            yookassaPaymentMethodId: null,
+            yookassaPaymentMethodLast4: null,
+            yookassaPaymentMethodTitle: null,
+            renewalReminderSentForPeriodEnd: null,
+          },
+          select: {
+            id: true,
+            status: true,
+            isLifetime: true,
+            currentPeriodEnd: true,
+            yookassaPaymentMethodId: true,
+          },
+        });
+      }
+
       return existingSubscription;
     }
 

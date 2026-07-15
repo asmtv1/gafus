@@ -76,6 +76,7 @@
       "./plugins/withAndroidTabletSupport",
       "./plugins/withMinSdkFromGradleProps",
       "./plugins/withIosAppMetrica516Compatibility",
+      "./plugins/withAppTracerNative",
       "expo-router",
       "expo-secure-store",
       [

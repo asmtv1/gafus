@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  canSendMobileTracerSelfTest,
-  sendMobileTracerSelfTest,
-} from "./mobileTracerSelfTest";
+import { canSendMobileTracerSelfTest, sendMobileTracerSelfTest } from "./mobileTracerSelfTest";
 import type { User } from "@/shared/lib/api";
 
 const baseUser: User = {
@@ -24,10 +21,10 @@ describe("mobile tracer self-test", () => {
     expect(canSendMobileTracerSelfTest(null)).toBe(false);
   });
 
-  it("reports a tagged AppTracer self-test error", () => {
-    const reportClientError = vi.fn();
+  it("reports a tagged AppTracer self-test error", async () => {
+    const reportClientError = vi.fn().mockResolvedValue(undefined);
 
-    sendMobileTracerSelfTest(reportClientError);
+    await sendMobileTracerSelfTest(reportClientError);
 
     expect(reportClientError).toHaveBeenCalledOnce();
     const [error, data] = reportClientError.mock.calls[0]!;

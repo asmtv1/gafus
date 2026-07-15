@@ -8,15 +8,19 @@ export interface ClientErrorData {
 
 /** Элемент payload для uploadBatch (формат Tracer SDK) */
 export interface TracerPayloadItem {
-  type: "ERROR" | "FATAL" | "WARNING" | "NOTICE" | "DEBUG";
+  type: "CRASH" | "NON_FATAL";
   format: "JS_STACKTRACE";
-  severity: string;
+  severity: "FATAL" | "ERROR" | "WARNING" | "NOTICE" | "DEBUG";
   uploadBean: {
     environment: string;
     versionName: string;
-    versionCode?: number;
+    versionCode: number;
     deviceId: string;
     sessionUuid: string;
+    osVersion: string;
+    vendor: string;
+    device: string;
+    packageName: string;
     component?: string;
     tags?: string[];
     properties: Record<string, string | number | boolean | undefined>;

@@ -29,7 +29,7 @@ import {
 } from "@/shared/lib/api/profileTabQueries";
 import { userApi } from "@/shared/lib/api/user";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError, reportClientErrorAndWait } from "@/shared/lib/tracer";
 import {
   canSendMobileTracerSelfTest,
   sendMobileTracerSelfTest,
@@ -478,6 +478,7 @@ export default function ProfileScreen() {
   const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
   const trainerCourses = trainerProfileData?.data?.courses ?? [];
   const canShowTracerSelfTest = canSendMobileTracerSelfTest(user);
+  const [tracerSelfTestPending, setTracerSelfTestPending] = useState(false);
 
   const roleColor = getRoleColor(user?.role);
 
@@ -516,10 +517,21 @@ export default function ProfileScreen() {
     startOnboardingTour();
   };
 
-  const handleTracerSelfTest = () => {
+  const handleTracerSelfTest = async () => {
+    if (tracerSelfTestPending) return;
     trackProfileClick("mobile-tracer-self-test");
-    sendMobileTracerSelfTest(reportClientError);
-    Alert.alert("AppTracer", "Тестовая JS-ошибка отправлена.");
+    setTracerSelfTestPending(true);
+    /* eslint-disable @gafus/require-client-catch-tracer -- AppTracer self-test failures cannot be reported through AppTracer without recursion */
+    try {
+      await sendMobileTracerSelfTest(reportClientErrorAndWait);
+      Alert.alert("AppTracer", "Тестовая JS-ошибка принята AppTracer.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Неизвестная ошибка отправки";
+      Alert.alert("AppTracer", `Не удалось отправить тестовую ошибку: ${message}`);
+    } finally {
+      setTracerSelfTestPending(false);
+    }
+    /* eslint-enable @gafus/require-client-catch-tracer */
   };
 
   const age = profile?.birthDate ? getAge(profile.birthDate) : null;
@@ -816,11 +828,17 @@ export default function ProfileScreen() {
           </Pressable>
 
           {canShowTracerSelfTest ? (
-            <Pressable style={styles.remindersCard} onPress={handleTracerSelfTest}>
+            <Pressable
+              style={styles.remindersCard}
+              onPress={handleTracerSelfTest}
+              disabled={tracerSelfTestPending}
+            >
               <MaterialCommunityIcons name="bug-check-outline" size={22} color={COLORS.primary} />
               <View style={styles.remindersCardContent}>
                 <Text style={styles.remindersCardTitle}>Проверить AppTracer</Text>
-                <Text style={styles.remindersCardSubtitle}>Отправить тестовую JS-ошибку</Text>
+                <Text style={styles.remindersCardSubtitle}>
+                  {tracerSelfTestPending ? "Отправка…" : "Отправить тестовую JS-ошибку"}
+                </Text>
               </View>
               <MaterialCommunityIcons name="send-outline" size={20} color={COLORS.primary} />
             </Pressable>
