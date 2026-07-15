@@ -14,9 +14,22 @@ const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
 const MAX_RENEWAL_ATTEMPTS = 5;
 const RETRY_BACKOFF_MINUTES = [10, 30, 120, 360, 1440] as const;
 
-function buildIdempotenceKey(userId: string, subscriptionId: string, periodEnd: Date): string {
+function buildIdempotenceKey(
+  userId: string,
+  subscriptionId: string,
+  periodEnd: Date,
+  attemptCount: number,
+): string {
   return createHash("sha256")
-    .update(["appsub-renewal", userId, subscriptionId, periodEnd.toISOString()].join(":"))
+    .update(
+      [
+        "appsub-renewal",
+        userId,
+        subscriptionId,
+        periodEnd.toISOString(),
+        `attempt:${attemptCount}`,
+      ].join(":"),
+    )
     .digest("hex");
 }
 
@@ -140,7 +153,6 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         continue;
       }
 
-      const idempotenceKey = buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd);
       incrementRenewalAttemptTotal(1);
 
       try {
@@ -151,11 +163,27 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         const paymentKind =
           Array.isArray(row.payments) && row.payments.length === 0 ? "INITIAL" : "RENEWAL";
         const existingPayment = await (prisma as any).appSubscriptionPayment.findFirst({
-          where: { idempotenceKey },
-          select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
+          where: {
+            subscriptionId: row.id,
+            provider: "YOOKASSA",
+            periodStart,
+            periodEnd,
+          },
+          orderBy: [{ attemptCount: "desc" }, { createdAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            attemptCount: true,
+            lastAttemptAt: true,
+            nextAttemptAt: true,
+            idempotenceKey: true,
+          },
         });
         let payment = existingPayment;
         let attemptCountForThisRun = payment?.attemptCount ?? 1;
+        let idempotenceKey =
+          payment?.idempotenceKey ??
+          buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd, attemptCountForThisRun);
         if (!payment) {
           try {
             payment = await (prisma as any).appSubscriptionPayment.create({
@@ -183,14 +211,81 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               throw error;
             }
             payment = await (prisma as any).appSubscriptionPayment.findFirst({
-              where: { idempotenceKey },
-              select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
+              where: {
+                subscriptionId: row.id,
+                provider: "YOOKASSA",
+                periodStart,
+                periodEnd,
+              },
+              orderBy: [{ attemptCount: "desc" }, { createdAt: "desc" }],
+              select: {
+                id: true,
+                status: true,
+                attemptCount: true,
+                lastAttemptAt: true,
+                nextAttemptAt: true,
+                idempotenceKey: true,
+              },
             });
             attemptCountForThisRun = payment?.attemptCount ?? 1;
+            idempotenceKey =
+              payment?.idempotenceKey ??
+              buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd, attemptCountForThisRun);
           }
         } else if (payment.status === "SUCCEEDED") {
           processed += 1;
           continue;
+        } else if (payment.status === "CANCELED") {
+          if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
+            await (prisma as any).appSubscription.update({
+              where: { id: row.id },
+              data: { status: "PAST_DUE" },
+            });
+            skipped += 1;
+            continue;
+          }
+
+          const nextAttemptAt = getNextAttemptAt(
+            payment.lastAttemptAt instanceof Date ? payment.lastAttemptAt : now,
+            payment.attemptCount,
+          );
+          if (nextAttemptAt > now) {
+            skipped += 1;
+            continue;
+          }
+
+          attemptCountForThisRun = payment.attemptCount + 1;
+          idempotenceKey = buildIdempotenceKey(
+            row.userId,
+            row.id,
+            row.currentPeriodEnd,
+            attemptCountForThisRun,
+          );
+          payment = await (prisma as any).appSubscriptionPayment.create({
+            data: {
+              subscriptionId: row.id,
+              userId: row.userId,
+              provider: "YOOKASSA",
+              kind: paymentKind,
+              status: "PENDING",
+              planCode: plan.code,
+              amount: amountRub,
+              currency,
+              periodStart,
+              periodEnd,
+              idempotenceKey,
+              attemptCount: attemptCountForThisRun,
+              lastAttemptAt: now,
+              nextAttemptAt: now,
+            },
+            select: {
+              id: true,
+              status: true,
+              attemptCount: true,
+              lastAttemptAt: true,
+              nextAttemptAt: true,
+            },
+          });
         } else {
           if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
             await (prisma as any).appSubscription.update({
@@ -311,6 +406,15 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
           where: { id: payment.id },
           data: { yookassaPaymentId: data.id },
         });
+
+        if (data.status === "canceled") {
+          await (prisma as any).appSubscriptionPayment.update({
+            where: { id: payment.id },
+            data: { status: "CANCELED", yookassaPaymentId: data.id },
+          });
+          skipped += 1;
+          continue;
+        }
 
         if (data.status === "succeeded") {
           await (prisma as any).$transaction(async (tx: any) => {

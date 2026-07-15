@@ -244,6 +244,115 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     );
   });
 
+  it("creates a new YooKassa payment after a canceled renewal with a new idempotence key", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    mockPaymentFindFirst.mockResolvedValue({
+      id: "canceled-pay-1",
+      status: "CANCELED",
+      attemptCount: 1,
+      lastAttemptAt: new Date("2026-05-30T09:45:00.000Z"),
+      nextAttemptAt: new Date("2026-05-30T09:45:00.000Z"),
+    });
+    mockCreate.mockResolvedValue({
+      id: "retry-pay-2",
+      status: "PENDING",
+      attemptCount: 2,
+      lastAttemptAt: new Date("2026-05-30T10:00:00.000Z"),
+      nextAttemptAt: new Date("2026-05-30T10:00:00.000Z"),
+    });
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.processed).toBe(1);
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          idempotenceKey: expect.any(String),
+          attemptCount: 2,
+        }),
+      }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.yookassa.ru/v3/payments",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotence-Key": expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it("waits for the canceled-payment backoff before creating a new payment", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    mockPaymentFindFirst.mockResolvedValue({
+      id: "canceled-pay-1",
+      status: "CANCELED",
+      attemptCount: 1,
+      lastAttemptAt: new Date("2026-05-30T09:55:00.000Z"),
+      nextAttemptAt: new Date("2026-05-30T09:55:00.000Z"),
+    });
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.skipped).toBe(1);
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("records a canceled YooKassa response even if its webhook is delayed", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-1",
+        userId: "user-1",
+        currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+    mockCreate.mockResolvedValue({ id: "pay-1", status: "PENDING", attemptCount: 1 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: "yk-canceled", status: "canceled" }),
+      }),
+    );
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.skipped).toBe(1);
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "pay-1" },
+      data: { status: "CANCELED", yookassaPaymentId: "yk-canceled" },
+    });
+  });
+
   it("stops retrying a renewal payment after the max attempt count", async () => {
     mockQueryRawUnsafe
       .mockResolvedValueOnce([{ locked: true }])
