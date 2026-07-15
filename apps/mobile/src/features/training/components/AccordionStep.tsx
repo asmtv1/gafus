@@ -41,7 +41,7 @@ import { SurveyBlock } from "./SurveyBlock";
 import type { LocalStepState } from "@/shared/stores";
 import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
-import { useVideoUrl } from "@/shared/hooks";
+import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { WebView } from "react-native-webview";
 import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
@@ -49,19 +49,6 @@ import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-
-const EXTERNAL_VIDEO_PATTERNS = [
-  /youtube\.com/,
-  /youtu\.be/,
-  /rutube\.ru/,
-  /vimeo\.com/,
-  /vk\.com\/video/,
-  /vkvideo\.ru/,
-];
-
-function isExternalVideoUrl(url: string): boolean {
-  return EXTERNAL_VIDEO_PATTERNS.some((p) => p.test(url));
-}
 
 /** Как web StepDiaryBlock: toLocaleDateString("ru-RU"). */
 function formatDiaryEntryDate(iso: string): string {
@@ -253,14 +240,13 @@ function AccordionStepComponent({
     });
     return () => cancelAnimationFrame(id);
   }, [imageViewerOpen, imageViewerIndex, windowWidth]);
-  const [videoRetryKey, setVideoRetryKey] = useState(0);
-  const lastPlaybackUrlRef = useRef<string | null>(null);
-
+  const [videoPlayerRetryKey, setVideoPlayerRetryKey] = useState(0);
   const [userRequestedPlay, setUserRequestedPlay] = useState(false);
   const [diaryContent, setDiaryContent] = useState("");
   const [isSavingDiary, setIsSavingDiary] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
   const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
+  const [isCheckingOfflineVideo, setIsCheckingOfflineVideo] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onCompleteRef = useRef(onComplete);
   const requestOnlineUrl =
@@ -274,30 +260,56 @@ function AccordionStepComponent({
     url: playbackUrl,
     isLoading: isLoadingVideo,
     error: videoError,
-  } = useVideoUrl(requestOnlineUrl ? videoUrl : null);
+    videoId,
+    retry: retryVideo,
+  } = useVideoUrl(requestOnlineUrl && !isOffline ? videoUrl : null);
+  const { initialTimeSec, saveProgress } = useVideoProgress(
+    videoId,
+    Boolean(requestOnlineUrl && !isOffline),
+  );
 
   useEffect(() => {
     if (!requestOnlineUrl || !videoUrl || !courseId) {
       setOfflineVideoUri(null);
+      setIsCheckingOfflineVideo(false);
       return;
     }
-    getOfflineVideoUri(courseId, videoUrl).then((uri) => setOfflineVideoUri(uri));
+    let cancelled = false;
+    setIsCheckingOfflineVideo(true);
+    void getOfflineVideoUri(courseId, videoUrl)
+      .then((uri) => {
+        if (!cancelled) setOfflineVideoUri(uri);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "AccordionStep",
+          keys: { operation: "offline_video_lookup" },
+        });
+        setOfflineVideoUri(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsCheckingOfflineVideo(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [requestOnlineUrl, videoUrl, courseId]);
 
-  const effectivePlaybackUrl = offlineVideoUri ?? playbackUrl ?? lastPlaybackUrlRef.current;
+  const effectivePlaybackUrl = offlineVideoUri ?? playbackUrl;
   const showOfflineStub =
-    requestOnlineUrl && videoUrl && isExternalVideoUrl(videoUrl) && !effectivePlaybackUrl;
+    requestOnlineUrl && isOffline && !isCheckingOfflineVideo && !effectivePlaybackUrl;
+  const handleVideoPlayerRetry = useCallback(() => {
+    if (isOffline && offlineVideoUri) {
+      setVideoPlayerRetryKey((key) => key + 1);
+      return;
+    }
+    retryVideo();
+  }, [isOffline, offlineVideoUri, retryVideo]);
 
   useEffect(() => {
     if (!isOpen) setUserRequestedPlay(false);
   }, [isOpen]);
-
-  useEffect(() => {
-    lastPlaybackUrlRef.current = null;
-  }, [videoUrl]);
-  useEffect(() => {
-    if (playbackUrl) lastPlaybackUrlRef.current = playbackUrl;
-  }, [playbackUrl]);
 
   // Проверяем, активен ли таймер для этого шага
   const hasActiveTimer = isTimerActiveFor(courseId, dayOnCourseId, index);
@@ -787,15 +799,34 @@ function AccordionStepComponent({
                     <View style={styles.videoLoadingContainer}>
                       <Text style={styles.videoLoadingText}>Для просмотра нужен интернет</Text>
                     </View>
-                  ) : isLoadingVideo && !offlineVideoUri ? (
+                  ) : (isLoadingVideo || isCheckingOfflineVideo) && !offlineVideoUri ? (
                     <View style={styles.videoLoadingContainer}>
                       <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                     </View>
-                  ) : videoError && !offlineVideoUri ? null : effectivePlaybackUrl ? (
+                  ) : videoError && !offlineVideoUri ? (
+                    <View style={styles.videoLoadingContainer}>
+                      <Text style={styles.videoLoadingText} selectable>
+                        Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
+                      </Text>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.videoRetryButton,
+                          pressed && styles.videoRetryButtonPressed,
+                        ]}
+                        onPress={retryVideo}
+                        accessibilityRole="button"
+                        accessibilityLabel="Повторить загрузку видео"
+                      >
+                        <Text style={styles.videoRetryText}>Повторить</Text>
+                      </Pressable>
+                    </View>
+                  ) : effectivePlaybackUrl ? (
                     <VideoPlayer
-                      key={`${effectivePlaybackUrl}-${videoRetryKey}`}
+                      key={videoPlayerRetryKey}
                       uri={effectivePlaybackUrl}
-                      onRetry={() => setVideoRetryKey((k) => k + 1)}
+                      initialTimeSec={initialTimeSec}
+                      onSaveProgress={isOffline ? undefined : saveProgress}
+                      onRetry={handleVideoPlayerRetry}
                     />
                   ) : userRequestedPlay ? (
                     <View style={styles.videoLoadingContainer}>
@@ -1416,6 +1447,23 @@ const styles = StyleSheet.create({
   videoLoadingText: {
     fontSize: 14,
     color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+  videoRetryButton: {
+    minHeight: 44,
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+  },
+  videoRetryButtonPressed: {
+    opacity: 0.8,
+  },
+  videoRetryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

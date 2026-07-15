@@ -8,6 +8,25 @@ export interface EmbeddedVideoInfo {
   isHLS?: boolean;
 }
 
+/** Возвращает безопасную позицию resume; почти досмотренное видео начинается сначала. */
+export function getSafeVideoResumePosition(
+  initialTimeSec: number | null | undefined,
+  durationSec: number,
+  nearEndThresholdSec = 5,
+): number | null {
+  if (
+    initialTimeSec == null ||
+    !Number.isFinite(initialTimeSec) ||
+    initialTimeSec <= 0 ||
+    !Number.isFinite(durationSec) ||
+    durationSec <= 0
+  ) {
+    return null;
+  }
+  if (durationSec - initialTimeSec <= nearEndThresholdSec) return 0;
+  return Math.min(initialTimeSec, durationSec);
+}
+
 /**
  * Получает информацию для встраивания видео из различных источников
  * Поддерживает: YouTube, RuTube, VK Video, Vimeo, CDN, offline HLS

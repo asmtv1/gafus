@@ -24,6 +24,7 @@ export { usePrefetchOtherTabsAfterCourses } from "./usePrefetchOtherTabsAfterCou
 export { useOtaAutoApply } from "./useOtaAutoApply";
 export { useSyncProgressOnReconnect } from "./useSyncProgressOnReconnect";
 export { useVideoUrl } from "./useVideoUrl";
+export { useVideoProgress } from "./useVideoProgress";
 export { useVkLink } from "./useVkLink";
 export { useVkLogin } from "./useVkLogin";
 export { useUsernameAvailability } from "./useUsernameAvailability";

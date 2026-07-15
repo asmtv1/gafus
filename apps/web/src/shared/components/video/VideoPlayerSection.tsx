@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { CircularProgress, Alert, Typography } from "@shared/utils/muiImports";
 import { getCDNUrl } from "@gafus/cdn-upload";
 import { CourseVideoPlayer } from "@shared/components/video/CourseVideoPlayer";
@@ -47,6 +47,9 @@ export function VideoPlayerSection({
   const [thumbnailBlobUrl, setThumbnailBlobUrl] = useState<string | null>(null);
   const [initialTimeSec, setInitialTimeSec] = useState<number | undefined>(undefined);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false); // Флаг для ленивой загрузки
+  const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const progressSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   // Получаем статус онлайн/офлайн
   const isOnline = useOfflineStore((state) => state.isOnline);
@@ -66,6 +69,14 @@ export function VideoPlayerSection({
   // Мемоизируем videoId для предотвращения лишних ререндеров
   const videoId = useMemo(() => videoMetadata?.videoId, [videoMetadata?.videoId]);
 
+  useEffect(() => {
+    setSignedUrl(null);
+    setVideoLoadError(null);
+    setShouldLoadVideo(false);
+    setInitialTimeSec(undefined);
+    setRetryAttempt(0);
+  }, [videoUrl]);
+
   // Загружаем thumbnail из IndexedDB для офлайн режима
   useEffect(() => {
     if (!isOfflineVideo || !courseType || !videoUrl) {
@@ -75,8 +86,10 @@ export function VideoPlayerSection({
     }
 
     // Получаем курс из IndexedDB
+    let cancelled = false;
     getOfflineCourseByType(courseType)
       .then((offlineCourse) => {
+        if (cancelled) return null;
         if (!offlineCourse) {
           return null;
         }
@@ -103,6 +116,7 @@ export function VideoPlayerSection({
         if (hlsVideo?.thumbnailPath) {
           const thumbnailBlob = offlineCourse.mediaFiles.images[hlsVideo.thumbnailPath];
           if (thumbnailBlob) {
+            if (cancelled) return null;
             setOfflineThumbnail(thumbnailBlob);
             // Создаём blob URL для thumbnail
             const blobUrl = URL.createObjectURL(thumbnailBlob);
@@ -114,12 +128,16 @@ export function VideoPlayerSection({
         return null;
       })
       .catch((error) => {
+        if (cancelled) return;
         reportClientError(error, {
           severity: "error",
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_thumbnail" },
         });
       });
+    return () => {
+      cancelled = true;
+    };
   }, [isOfflineVideo, courseType, videoUrl, originalVideoUrl, videoId]);
 
   // Очищаем blob URL для thumbnail при размонтировании или изменении
@@ -134,15 +152,21 @@ export function VideoPlayerSection({
   // Загружаем метаданные видео при монтировании (используем originalVideoUrl если videoUrl это blob)
   useEffect(() => {
     if (!urlForMetadata) {
+      setVideoMetadata(null);
+      setIsLoadingMetadata(false);
       return;
     }
 
+    let cancelled = false;
     setIsLoadingMetadata(true);
+    setVideoMetadata(null);
     getVideoMetadata(urlForMetadata)
       .then((metadata) => {
+        if (cancelled) return;
         setVideoMetadata(metadata);
       })
       .catch((error) => {
+        if (cancelled) return;
         reportClientError(error, {
           severity: "error",
           issueKey: "VideoPlayerSection",
@@ -150,15 +174,22 @@ export function VideoPlayerSection({
         });
       })
       .finally(() => {
-        setIsLoadingMetadata(false);
+        if (!cancelled) setIsLoadingMetadata(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [urlForMetadata]);
 
   // Загружаем прогресс просмотра при наличии videoId (универсально: онлайн/офлайн)
   useEffect(() => {
     if (!videoId) {
+      setInitialTimeSec(undefined);
       return;
     }
+
+    let cancelled = false;
+    setInitialTimeSec(undefined);
 
     // Выбираем источник в зависимости от статуса онлайн/офлайн
     const loadProgress = isOnline
@@ -167,17 +198,22 @@ export function VideoPlayerSection({
 
     loadProgress
       .then((progress) => {
+        if (cancelled) return;
         if (progress && progress.lastPositionSec > 0) {
           setInitialTimeSec(progress.lastPositionSec);
         }
       })
       .catch((error) => {
+        if (cancelled) return;
         reportClientError(error, {
           severity: "error",
           issueKey: "VideoPlayerSection",
           keys: { operation: "video_progress_load" },
         });
       });
+    return () => {
+      cancelled = true;
+    };
   }, [videoId, isOnline]);
 
   // Колбэк для сохранения позиции просмотра (универсально: онлайн/офлайн)
@@ -188,17 +224,27 @@ export function VideoPlayerSection({
       }
 
       // Выбираем метод сохранения в зависимости от статуса онлайн/офлайн
-      const savePromise = isOnline
-        ? saveVideoProgress(videoId, positionSec)
-        : saveLocalVideoProgress(videoId, positionSec).then(() => ({ success: true }));
-
-      savePromise.catch((error) => {
-        reportClientError(error, {
-          severity: "error",
-          issueKey: "VideoPlayerSection",
-          keys: { operation: "video_progress_save" },
+      progressSaveQueueRef.current = progressSaveQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const result = isOnline
+            ? await saveVideoProgress(videoId, positionSec)
+            : await saveLocalVideoProgress(videoId, positionSec).then(() => ({ success: true }));
+          if (!result.success) {
+            const errorMessage =
+              "error" in result && typeof result.error === "string"
+                ? result.error
+                : "Не удалось сохранить прогресс видео";
+            throw new Error(errorMessage);
+          }
+        })
+        .catch((error) => {
+          reportClientError(error, {
+            severity: "error",
+            issueKey: "VideoPlayerSection",
+            keys: { operation: "video_progress_save" },
+          });
         });
-      });
     },
     [videoId, isOnline],
   );
@@ -206,23 +252,34 @@ export function VideoPlayerSection({
   // Загружаем signed URL только когда пользователь кликнул на play (для CDN видео)
   useEffect(() => {
     // Пропускаем если нет videoUrl, это офлайн видео, signed URL уже загружен, или пользователь ещё не кликнул
-    if (!videoUrl || isOfflineVideo || signedUrl || !shouldLoadVideo) {
+    if (!videoUrl || isOfflineVideo || !shouldLoadVideo) {
       return;
     }
+
+    let cancelled = false;
+    setSignedUrl(null);
+    setVideoLoadError(null);
 
     async function loadSignedUrl() {
       try {
         const url = await getVideoUrlForPlayback(videoUrl);
 
+        if (cancelled) return;
         if (url) {
           setSignedUrl(url);
         } else {
-          reportClientError(new Error("Failed to get signed URL"), {
+          const error = new Error("Failed to get signed URL");
+          setVideoLoadError(
+            "Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.",
+          );
+          reportClientError(error, {
             issueKey: "VideoPlayerSection",
             keys: { operation: "video_signed_url" },
           });
         }
       } catch (error) {
+        if (cancelled) return;
+        setVideoLoadError("Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.");
         reportClientError(error, {
           severity: "error",
           issueKey: "VideoPlayerSection",
@@ -231,9 +288,18 @@ export function VideoPlayerSection({
       }
     }
 
-    loadSignedUrl();
-  }, [videoUrl, isOfflineVideo, signedUrl, shouldLoadVideo]);
+    void loadSignedUrl();
+    return () => {
+      cancelled = true;
+    };
+  }, [videoUrl, isOfflineVideo, shouldLoadVideo, retryAttempt]);
 
+  const handleRetryVideo = useCallback(() => {
+    setVideoLoadError(null);
+    setSignedUrl(null);
+    setShouldLoadVideo(true);
+    setRetryAttempt((attempt) => attempt + 1);
+  }, []);
 
   // Внешние видео (YouTube/VK) - показываем iframe сразу
   if (videoMetadata?.isExternal || (videoInfo && !videoInfo.isCDN && !videoInfo.isHLS)) {
@@ -347,13 +413,17 @@ export function VideoPlayerSection({
     return (
       <div className={styles.videoContainer}>
         <CourseVideoPlayer
+          key={retryAttempt}
           poster={thumbnailSrc}
           playbackUrl={playbackUrl}
           isLoading={!isOfflineVideo && shouldLoadVideo && !signedUrl}
           onPlayRequest={() => setShouldLoadVideo(true)}
           initialTimeSec={initialTimeSec}
           onSaveProgress={handleSaveProgress}
+          errorMessage={videoLoadError}
+          onRetry={handleRetryVideo}
           onError={(error) => {
+            setVideoLoadError("Не удалось воспроизвести видео. Попробуйте загрузить его заново.");
             reportClientError(error, {
               severity: "error",
               issueKey: "VideoPlayerSection",

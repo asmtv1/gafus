@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
+import { getSafeVideoResumePosition } from "@gafus/core/utils";
+import type HlsType from "hls.js";
 import { CircularProgress } from "@shared/utils/muiImports";
 import { PlayArrowIcon } from "@shared/utils/muiImports";
 
@@ -16,6 +18,8 @@ export interface CourseVideoPlayerProps {
   initialTimeSec?: number;
   onSaveProgress?: (positionSec: number) => void;
   onError?: (error: Error) => void;
+  errorMessage?: string | null;
+  onRetry?: () => void;
   videoClassName?: string;
   wrapperClassName?: string;
 }
@@ -32,16 +36,30 @@ export function CourseVideoPlayer({
   initialTimeSec,
   onSaveProgress,
   onError,
+  errorMessage,
+  onRetry,
   videoClassName,
   wrapperClassName,
 }: CourseVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<InstanceType<typeof import("hls.js").default> | null>(null);
+  const hlsRef = useRef<HlsType | null>(null);
   const lastSaveTimeRef = useRef<number>(0);
+  const lastSavedPositionRef = useRef<number | null>(null);
   const hasAppliedInitialPositionRef = useRef<boolean>(false);
+  const onSaveProgressRef = useRef(onSaveProgress);
+  const onErrorRef = useRef(onError);
+  const hasEndedRef = useRef(false);
 
-  const showOverlay = !playbackUrl || isLoading;
-  const showPlayButton = !playbackUrl && !isLoading;
+  const showOverlay = !errorMessage && (!playbackUrl || isLoading);
+  const showPlayButton = !errorMessage && !playbackUrl && !isLoading;
+
+  useEffect(() => {
+    onSaveProgressRef.current = onSaveProgress;
+  }, [onSaveProgress]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const handleOverlayClick = useCallback(() => {
     if (showPlayButton) {
@@ -68,6 +86,8 @@ export function CourseVideoPlayer({
     }
 
     let isMounted = true;
+    let networkRecoveryAttempted = false;
+    let mediaRecoveryAttempted = false;
 
     import("hls.js")
       .then((HlsModule) => {
@@ -92,15 +112,25 @@ export function CourseVideoPlayer({
           hls.on(Hls.Events.ERROR, (_event: unknown, data: { fatal?: boolean; type?: string }) => {
             if (data.fatal) {
               console.error("[CourseVideoPlayer] Фатальная ошибка HLS:", data);
-              onError?.(new Error(`HLS error: ${data.type ?? "unknown"}`));
               switch (data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
-                  hls.startLoad();
+                  if (!networkRecoveryAttempted) {
+                    networkRecoveryAttempted = true;
+                    hls.startLoad();
+                  } else {
+                    onErrorRef.current?.(new Error("Не удалось загрузить видеопоток"));
+                  }
                   break;
                 case Hls.ErrorTypes.MEDIA_ERROR:
-                  hls.recoverMediaError();
+                  if (!mediaRecoveryAttempted) {
+                    mediaRecoveryAttempted = true;
+                    hls.recoverMediaError();
+                  } else {
+                    onErrorRef.current?.(new Error("Не удалось декодировать видеопоток"));
+                  }
                   break;
                 default:
+                  onErrorRef.current?.(new Error(`HLS error: ${data.type ?? "unknown"}`));
                   break;
               }
             }
@@ -109,7 +139,7 @@ export function CourseVideoPlayer({
           video.src = playbackUrl;
         } else {
           console.error("[CourseVideoPlayer] HLS не поддерживается");
-          onError?.(new Error("HLS not supported"));
+          onErrorRef.current?.(new Error("HLS not supported"));
         }
       })
       .catch((err) => {
@@ -118,7 +148,7 @@ export function CourseVideoPlayer({
           keys: { operation: "load_hls_module" },
         });
         console.error("[CourseVideoPlayer] Ошибка загрузки hls.js:", err);
-        onError?.(err instanceof Error ? err : new Error(String(err)));
+        onErrorRef.current?.(err instanceof Error ? err : new Error(String(err)));
       });
 
     return () => {
@@ -128,58 +158,111 @@ export function CourseVideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [playbackUrl, onError]);
+  }, [playbackUrl]);
 
   // Resume + автоплей после loadedmetadata
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleLoadedMetadata = () => {
+    const applyInitialPosition = () => {
       if (
         initialTimeSec != null &&
         initialTimeSec > 0 &&
         !hasAppliedInitialPositionRef.current &&
-        video.duration
+        video.currentTime <= 2 &&
+        Number.isFinite(video.duration) &&
+        video.duration > 0
       ) {
-        const safePosition = Math.min(initialTimeSec, video.duration);
-        video.currentTime = safePosition;
-        hasAppliedInitialPositionRef.current = true;
+        const safePosition = getSafeVideoResumePosition(initialTimeSec, video.duration);
+        if (safePosition != null) {
+          video.currentTime = safePosition;
+          hasAppliedInitialPositionRef.current = true;
+        }
       }
+    };
+
+    const handleLoadedMetadata = () => {
+      applyInitialPosition();
       video.play().catch((e) => {
-        reportClientError(e, {
-          issueKey: "CourseVideoPlayer",
-          keys: { operation: "video_autoplay" },
-        });
+        // Блокировка autoplay — штатное ограничение браузера, пользователь может нажать play.
         console.warn("[CourseVideoPlayer] Автоплей заблокирован:", e);
       });
     };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      applyInitialPosition();
+    }
     return () => video.removeEventListener("loadedmetadata", handleLoadedMetadata);
   }, [initialTimeSec]);
 
-  // Сохранение прогресса (throttle 5 сек)
+  // Сохранение прогресса: throttle во время просмотра и flush на паузе/уходе.
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !onSaveProgress) return;
+    if (!video) return;
+
+    const saveCurrentPosition = (force = false) => {
+      const saveProgress = onSaveProgressRef.current;
+      if (!saveProgress) return;
+      const position = Math.max(0, Math.floor(video.currentTime || 0));
+      if (position === 0) return;
+      if (!force && position < 5) return;
+      if (lastSavedPositionRef.current === position) return;
+      lastSavedPositionRef.current = position;
+      saveProgress(position);
+    };
 
     const handleTimeUpdate = () => {
       const now = Date.now();
-      const currentTime = video.currentTime || 0;
-      if (currentTime < 5) return;
       if (now - lastSaveTimeRef.current < 5000) return;
       lastSaveTimeRef.current = now;
-      onSaveProgress(Math.floor(currentTime));
+      saveCurrentPosition();
+    };
+    const handlePause = () => {
+      if (!hasEndedRef.current) saveCurrentPosition(true);
+    };
+    const handleEnded = () => {
+      hasEndedRef.current = true;
+      lastSavedPositionRef.current = null;
+      onSaveProgressRef.current?.(0);
+    };
+    const handlePlay = () => {
+      hasEndedRef.current = false;
+    };
+    const handlePageHide = () => {
+      if (!hasEndedRef.current) saveCurrentPosition(true);
     };
 
     video.addEventListener("timeupdate", handleTimeUpdate);
-    return () => video.removeEventListener("timeupdate", handleTimeUpdate);
-  }, [onSaveProgress]);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("ended", handleEnded);
+    video.addEventListener("play", handlePlay);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      if (!hasEndedRef.current) saveCurrentPosition(true);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("play", handlePlay);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [playbackUrl]);
 
   useEffect(() => {
     hasAppliedInitialPositionRef.current = false;
+    lastSavedPositionRef.current = null;
+    hasEndedRef.current = false;
   }, [playbackUrl]);
+
+  const handleNativeVideoError = useCallback(() => {
+    const mediaError = videoRef.current?.error;
+    onErrorRef.current?.(
+      new Error(
+        mediaError?.message || `Video playback error${mediaError ? ` (${mediaError.code})` : ""}`,
+      ),
+    );
+  }, []);
 
   return (
     <div
@@ -193,7 +276,18 @@ export function CourseVideoPlayer({
         preload="none"
         className={`${videoClassName ?? ""} ${styles.video}`.trim()}
         playsInline
+        onError={handleNativeVideoError}
       />
+      {errorMessage && (
+        <div className={styles.errorOverlay} role="alert">
+          <p className={styles.errorText}>{errorMessage}</p>
+          {onRetry && (
+            <button type="button" className={styles.retryButton} onClick={onRetry}>
+              Повторить
+            </button>
+          )}
+        </div>
+      )}
       {showOverlay && (
         <button
           type="button"

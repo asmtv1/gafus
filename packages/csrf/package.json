@@ -1,6 +1,6 @@
 {
   "name": "@gafus/csrf",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "private": true,
   "exports": {
     ".": {

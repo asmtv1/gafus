@@ -3,11 +3,13 @@ import { View, StyleSheet, Pressable } from "react-native";
 import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { VideoSource } from "expo-video";
+import { Image } from "expo-image";
 import { IconButton, Text } from "react-native-paper";
 
 import { COLORS, SPACING } from "@/shared/config";
 import { MascotSpinner } from "@/shared/components/ui";
 import { reportClientError } from "@/shared/lib/tracer";
+import { getSafeVideoResumePosition } from "@gafus/core/utils";
 
 /** Скорости воспроизведения для обучающих видео */
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
@@ -20,6 +22,8 @@ interface VideoPlayerProps {
   onComplete?: () => void;
   onRetry?: () => void;
   autoPlay?: boolean;
+  initialTimeSec?: number;
+  onSaveProgress?: (positionSec: number) => void;
   /** По умолчанию true. При true жесты на обёртке отключены — иначе тап после системной паузы снова вызывает play(). */
   nativeControls?: boolean;
 }
@@ -45,11 +49,13 @@ function getVideoSource(uri: string): VideoSource {
  */
 export function VideoPlayer({
   uri,
-  poster: _poster,
+  poster,
   onComplete,
   onRetry,
   autoPlay = false,
   nativeControls = true,
+  initialTimeSec,
+  onSaveProgress,
 }: VideoPlayerProps) {
   const videoViewRef = useRef<VideoView>(null);
   const [progressBarWidth, setProgressBarWidth] = useState(0);
@@ -57,15 +63,40 @@ export function VideoPlayer({
   const [positionSec, setPositionSec] = useState(0);
   const [durationSec, setDurationSec] = useState(0);
   const [bufferedSec, setBufferedSec] = useState(0);
-  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [speedIndex, setSpeedIndex] = useState(0);
+  const [hasRenderedFirstFrame, setHasRenderedFirstFrame] = useState(false);
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
   const singleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoAreaWidthRef = useRef(0);
+  const currentPositionRef = useRef(0);
+  const lastSavedPositionRef = useRef<number | null>(null);
+  const lastSaveTimeRef = useRef(0);
+  const hasAppliedInitialPositionRef = useRef(false);
+  const onSaveProgressRef = useRef(onSaveProgress);
+  const onCompleteRef = useRef(onComplete);
+  const hasEndedRef = useRef(false);
 
   const source = useMemo(() => getVideoSource(uri), [uri]);
 
-  useEffect(() => setPlaybackError(null), [uri]);
+  useEffect(() => {
+    setHasRenderedFirstFrame(false);
+    setPositionSec(0);
+    setDurationSec(0);
+    setBufferedSec(0);
+    currentPositionRef.current = 0;
+    lastSavedPositionRef.current = null;
+    lastSaveTimeRef.current = 0;
+    hasAppliedInitialPositionRef.current = false;
+    hasEndedRef.current = false;
+  }, [uri]);
+
+  useEffect(() => {
+    onSaveProgressRef.current = onSaveProgress;
+  }, [onSaveProgress]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 1;
@@ -77,24 +108,31 @@ export function VideoPlayer({
   const { status } = useEvent(player, "statusChange", { status: player.status });
   const { isPlaying } = useEvent(player, "playingChange", { isPlaying: player.playing });
 
-  useEventListener(player, "statusChange", (payload: { status?: string; error?: { message?: string } }) => {
-    if (payload.status === "error" && payload.error?.message) {
-      setPlaybackError(payload.error.message);
-      reportClientError(new Error(payload.error.message), {
-        issueKey: "VideoPlayer",
-        keys: { operation: "playback_error", uriPrefix: uri?.slice(0, 120) },
-      });
-    } else {
-      setPlaybackError(null);
-    }
-  });
+  useEventListener(
+    player,
+    "statusChange",
+    (payload: { status?: string; error?: { message?: string } }) => {
+      if (payload.status === "error" && payload.error?.message) {
+        reportClientError(new Error(payload.error.message), {
+          issueKey: "VideoPlayer",
+          keys: { operation: "playback_error" },
+        });
+      }
+    },
+  );
 
   useEventListener(player, "playToEnd", () => {
-    onComplete?.();
+    hasEndedRef.current = true;
+    currentPositionRef.current = 0;
+    lastSavedPositionRef.current = null;
+    onSaveProgressRef.current?.(0);
+    onCompleteRef.current?.();
   });
 
   useEventListener(player, "timeUpdate", (payload: { bufferedPosition?: number }) => {
-    setPositionSec(player.currentTime);
+    const currentTime = Math.max(0, player.currentTime || 0);
+    currentPositionRef.current = currentTime;
+    setPositionSec(currentTime);
     if (player.duration > 0 && durationSec !== player.duration) {
       setDurationSec(player.duration);
     }
@@ -102,10 +140,33 @@ export function VideoPlayer({
     if (typeof buf === "number" && buf >= 0) {
       setBufferedSec(buf);
     }
+    const now = Date.now();
+    const roundedPosition = Math.floor(currentTime);
+    if (
+      roundedPosition >= 5 &&
+      now - lastSaveTimeRef.current >= 5000 &&
+      lastSavedPositionRef.current !== roundedPosition
+    ) {
+      lastSaveTimeRef.current = now;
+      lastSavedPositionRef.current = roundedPosition;
+      onSaveProgressRef.current?.(roundedPosition);
+    }
   });
 
   useEventListener(player, "sourceLoad", (e) => {
     if (e.duration > 0) setDurationSec(e.duration);
+  });
+
+  useEventListener(player, "playingChange", ({ isPlaying: nowPlaying }) => {
+    if (nowPlaying) {
+      hasEndedRef.current = false;
+      return;
+    }
+    const position = Math.max(0, Math.floor(currentPositionRef.current));
+    if (position > 0 && lastSavedPositionRef.current !== position) {
+      lastSavedPositionRef.current = position;
+      onSaveProgressRef.current?.(position);
+    }
   });
 
   const isLoaded = status === "readyToPlay";
@@ -139,8 +200,11 @@ export function VideoPlayer({
       } else {
         await videoViewRef.current?.enterFullscreen();
       }
-    } catch {
-      // игнорируем ошибки fullscreen
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "VideoPlayer",
+        keys: { operation: "fullscreen" },
+      });
     }
   }, [isFullscreen]);
 
@@ -161,14 +225,40 @@ export function VideoPlayer({
   }, [status, player.duration]);
 
   useEffect(() => {
+    if (
+      status !== "readyToPlay" ||
+      initialTimeSec == null ||
+      initialTimeSec <= 0 ||
+      hasAppliedInitialPositionRef.current ||
+      currentPositionRef.current > 2 ||
+      player.duration <= 0
+    ) {
+      return;
+    }
+    const safePosition = getSafeVideoResumePosition(initialTimeSec, player.duration);
+    if (safePosition == null) return;
+    player.currentTime = safePosition;
+    currentPositionRef.current = safePosition;
+    setPositionSec(safePosition);
+    hasAppliedInitialPositionRef.current = true;
+  }, [initialTimeSec, player, status]);
+
+  useEffect(() => {
     player.playbackRate = PLAYBACK_SPEEDS[speedIndex];
   }, [speedIndex, player]);
 
-  useEffect(() => () => {
-    if (singleTapTimeoutRef.current) {
-      clearTimeout(singleTapTimeoutRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (singleTapTimeoutRef.current) {
+        clearTimeout(singleTapTimeoutRef.current);
+      }
+      const position = Math.max(0, Math.floor(currentPositionRef.current));
+      if (!hasEndedRef.current && position > 0 && lastSavedPositionRef.current !== position) {
+        onSaveProgressRef.current?.(position);
+      }
+    },
+    [],
+  );
 
   const cycleSpeed = useCallback(() => {
     setSpeedIndex((i) => (i + 1) % PLAYBACK_SPEEDS.length);
@@ -234,23 +324,31 @@ export function VideoPlayer({
             fullscreenOptions={{ enable: true }}
             onFullscreenEnter={() => setIsFullscreen(true)}
             onFullscreenExit={() => setIsFullscreen(false)}
+            onFirstFrameRender={() => setHasRenderedFirstFrame(true)}
           />
+          {poster && !hasRenderedFirstFrame && !hasError && (
+            <Image
+              source={{ uri: poster }}
+              style={styles.poster}
+              contentFit="contain"
+              accessibilityLabel="Обложка видео"
+              pointerEvents="none"
+            />
+          )}
           {hasError && (
             <View style={styles.errorOverlay}>
-              <Text style={styles.errorText}>
-                Ошибка загрузки видео
-                {playbackError ? `\n${playbackError}` : ""}
+              <Text style={styles.errorText} selectable>
+                Не удалось воспроизвести видео. Проверьте соединение и попробуйте ещё раз.
               </Text>
               {onRetry && (
-                <View style={styles.retryRow}>
-                  <IconButton
-                    icon="refresh"
-                    iconColor="#fff"
-                    size={32}
-                    onPress={onRetry}
-                  />
+                <Pressable
+                  style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+                  onPress={onRetry}
+                  accessibilityRole="button"
+                  accessibilityLabel="Повторить загрузку видео"
+                >
                   <Text style={styles.retryText}>Повторить</Text>
-                </View>
+                </Pressable>
               )}
             </View>
           )}
@@ -259,7 +357,7 @@ export function VideoPlayer({
               <MascotSpinner size="large" />
             </View>
           )}
-          {!isPlaying && !hasError && (
+          {!nativeControls && !isPlaying && !hasError && (
             <View style={styles.playOverlay} pointerEvents="none">
               <IconButton icon="play" iconColor="#fff" size={64} style={styles.centerPlayButton} />
             </View>
@@ -267,46 +365,79 @@ export function VideoPlayer({
         </View>
       </View>
 
-      <View style={styles.controlsPanel}>
-        <View style={styles.progressContainer}>
-          <Pressable style={styles.progressBar} onPress={handleProgressPress}>
-            <View
-              style={styles.progressBarBackground}
-              onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+      {!nativeControls && (
+        <View style={styles.controlsPanel}>
+          <View style={styles.progressContainer}>
+            <Pressable
+              style={styles.progressBar}
+              onPress={handleProgressPress}
+              accessibilityRole="adjustable"
+              accessibilityLabel="Позиция видео"
             >
-              {bufferedProgress > 0 && (
-                <View style={[styles.progressBuffered, { width: `${Math.min(bufferedProgress, 1) * 100}%` }]} />
-              )}
-              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-            </View>
-          </Pressable>
-        </View>
-        <View style={styles.bottomRow}>
-          <Text style={styles.timeText}>
-            {formatTime(positionSec)} / {formatTime(durationSec)}
-          </Text>
-          <View style={styles.controlButtons}>
-            <IconButton icon="rewind-10" iconColor={COLORS.text} size={24} onPress={() => seek(-SEEK_SECONDS)} />
-            <IconButton
-              icon={isPlaying ? "pause" : "play"}
-              iconColor={COLORS.text}
-              size={32}
-              onPress={togglePlay}
-            />
-            <IconButton icon="fast-forward-10" iconColor={COLORS.text} size={24} onPress={() => seek(SEEK_SECONDS)} />
-            <Pressable onPress={cycleSpeed} style={styles.speedButton}>
-              <Text style={styles.speedText}>{PLAYBACK_SPEEDS[speedIndex]}×</Text>
+              <View
+                style={styles.progressBarBackground}
+                onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+              >
+                {bufferedProgress > 0 && (
+                  <View
+                    style={[
+                      styles.progressBuffered,
+                      { width: `${Math.min(bufferedProgress, 1) * 100}%` },
+                    ]}
+                  />
+                )}
+                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+              </View>
             </Pressable>
-            <IconButton
-              icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
-              iconColor={isLoaded ? COLORS.text : COLORS.textSecondary}
-              size={24}
-              onPress={toggleFullscreen}
-              disabled={!isLoaded && !isFullscreen}
-            />
+          </View>
+          <View style={styles.bottomRow}>
+            <Text style={styles.timeText}>
+              {formatTime(positionSec)} / {formatTime(durationSec)}
+            </Text>
+            <View style={styles.controlButtons}>
+              <IconButton
+                icon="rewind-10"
+                iconColor={COLORS.text}
+                size={24}
+                onPress={() => seek(-SEEK_SECONDS)}
+                accessibilityLabel="Назад на 10 секунд"
+              />
+              <IconButton
+                icon={isPlaying ? "pause" : "play"}
+                iconColor={COLORS.text}
+                size={32}
+                onPress={togglePlay}
+                accessibilityLabel={isPlaying ? "Пауза" : "Воспроизвести"}
+              />
+              <IconButton
+                icon="fast-forward-10"
+                iconColor={COLORS.text}
+                size={24}
+                onPress={() => seek(SEEK_SECONDS)}
+                accessibilityLabel="Вперёд на 10 секунд"
+              />
+              <Pressable
+                onPress={cycleSpeed}
+                style={styles.speedButton}
+                accessibilityRole="button"
+                accessibilityLabel={`Скорость воспроизведения ${PLAYBACK_SPEEDS[speedIndex]}`}
+              >
+                <Text style={styles.speedText}>{PLAYBACK_SPEEDS[speedIndex]}×</Text>
+              </Pressable>
+              <IconButton
+                icon={isFullscreen ? "fullscreen-exit" : "fullscreen"}
+                iconColor={isLoaded ? COLORS.text : COLORS.textSecondary}
+                size={24}
+                onPress={toggleFullscreen}
+                disabled={!isLoaded && !isFullscreen}
+                accessibilityLabel={
+                  isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
+                }
+              />
+            </View>
           </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -330,6 +461,10 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  poster: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+  },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
@@ -342,15 +477,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
-  retryRow: {
+  retryButton: {
     marginTop: 12,
-    flexDirection: "row",
+    minHeight: 44,
+    minWidth: 112,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
   },
   retryText: {
     color: "#fff",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  buttonPressed: {
+    opacity: 0.8,
   },
   bufferingOverlay: {
     ...StyleSheet.absoluteFillObject,

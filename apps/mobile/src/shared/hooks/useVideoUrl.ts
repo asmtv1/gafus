@@ -1,16 +1,14 @@
 import { reportClientError } from "@/shared/lib/tracer";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { trainingApi } from "@/shared/lib/api/training";
+import { resolveVideoUrlResponse } from "./videoUrlResponse";
 
 /**
  * Хук для получения URL видео для воспроизведения
  * Обрабатывает HLS видео и внешние видео (YouTube, VK и т.д.)
  * Повторяет логику из web версии
  */
-const CDN_HOSTS = [
-  "gafus-media.storage.yandexcloud.net",
-  "storage.yandexcloud.net/gafus-media",
-];
+const CDN_HOSTS = ["gafus-media.storage.yandexcloud.net", "storage.yandexcloud.net/gafus-media"];
 
 function isCdnUrl(url: string): boolean {
   return CDN_HOSTS.some((h) => url.includes(h));
@@ -20,6 +18,8 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   url: string | null;
   isLoading: boolean;
   error: string | null;
+  videoId: string | null;
+  retry: () => void;
 } {
   const isCDN = useMemo(() => {
     if (!videoUrl) return false;
@@ -27,10 +27,10 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   }, [videoUrl]);
 
   const [url, setUrl] = useState<string | null>(videoUrl && !isCDN ? videoUrl : null);
-  const [isLoading, setIsLoading] = useState(() =>
-    Boolean(videoUrl && isCdnUrl(videoUrl)),
-  );
+  const [isLoading, setIsLoading] = useState(() => Boolean(videoUrl && isCdnUrl(videoUrl)));
   const [error, setError] = useState<string | null>(null);
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
 
@@ -52,13 +52,13 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
       setUrl(null);
       setIsLoading(false);
       setError(null);
+      setVideoId(null);
       return;
     }
 
     const isCDNVideo = isCdnUrl(videoUrl);
     if (__DEV__) {
       console.log("[useVideoUrl] Проверка URL:", {
-        videoUrl: videoUrl.slice(0, 80),
         isCDNVideo,
       });
     }
@@ -70,15 +70,18 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
       setUrl(videoUrl);
       setIsLoading(false);
       setError(null);
+      setVideoId(null);
       return;
     }
 
     const urlForRequest = videoUrl;
+    setUrl(null);
     setIsLoading(true);
     setError(null);
+    setVideoId(null);
 
     if (__DEV__) {
-      console.log("[useVideoUrl] Запрос signed URL для CDN видео:", urlForRequest.slice(0, 80));
+      console.log("[useVideoUrl] Запрос signed URL для CDN видео");
     }
 
     trainingApi
@@ -90,25 +93,23 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
           console.log("[useVideoUrl] Ответ от API:", {
             success: response.success,
             hasUrl: !!response.data?.url,
-            url: response.data?.url?.slice(0, 80),
             error: response.error,
             code: response.code,
           });
         }
 
-        if (response.success && response.data?.url) {
-          setUrl(response.data.url);
-          setError(null);
-        } else if (response.code === "NOT_FOUND" || !response.data?.url) {
-          setUrl(null);
-          setError(null);
+        const result = resolveVideoUrlResponse(response);
+        if (result.url) {
+          setUrl(result.url);
+          setVideoId(result.videoId);
+          setError(result.error);
         } else {
-          const errorMsg = response.error || "Не удалось получить URL видео";
           if (__DEV__) {
-            console.error("[useVideoUrl] Ошибка получения URL:", errorMsg);
+            console.error("[useVideoUrl] Ошибка получения URL:", result.error);
           }
-          setError(errorMsg);
+          setError(result.error);
           setUrl(null);
+          setVideoId(null);
         }
       })
       .catch((err) => {
@@ -120,13 +121,18 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
         const errorMsg = err instanceof Error ? err.message : "Ошибка загрузки видео";
         setUrl(null);
         setError(errorMsg);
+        setVideoId(null);
       })
       .finally(() => {
         if (isActiveRequest()) {
           setIsLoading(false);
         }
       });
-  }, [videoUrl]);
+  }, [videoUrl, retryAttempt]);
 
-  return { url, isLoading, error };
+  const retry = useCallback(() => {
+    setRetryAttempt((attempt) => attempt + 1);
+  }, []);
+
+  return { url, isLoading, error, videoId, retry };
 }

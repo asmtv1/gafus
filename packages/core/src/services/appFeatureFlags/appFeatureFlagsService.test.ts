@@ -68,7 +68,7 @@ describe("app feature flags", () => {
       appSubscriptionGatingEnabled: false,
       iosRuCardPaymentEnabled: false,
       iosRuCardPaymentHintEnabled: true,
-      minimumSupportedVersion: { ios: "1.5.5", android: "1.5.5" },
+      minimumSupportedVersion: { ios: "1.5.6", android: "1.5.6" },
       storeUrl: {
         ios: "https://apps.apple.com/ru/app/gafus/id6760964612",
         android: "https://www.rustore.ru/catalog/app/ru.gafus.app",
@@ -104,7 +104,7 @@ describe("app feature flags", () => {
     vi.stubEnv("MOBILE_IOS_STORE_URL", "javascript:alert(1)");
 
     await expect(getMobileAppPublicConfig()).resolves.toMatchObject({
-      minimumSupportedVersion: { ios: "1.5.5", android: "1.5.5" },
+      minimumSupportedVersion: { ios: "1.5.6", android: "1.5.6" },
       storeUrl: {
         ios: "https://apps.apple.com/ru/app/gafus/id6760964612",
       },

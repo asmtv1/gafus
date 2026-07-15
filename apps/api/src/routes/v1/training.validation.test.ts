@@ -9,11 +9,13 @@ const {
   downloadFileFromCDNMock,
   extractVideoIdFromCdnUrlMock,
   generateTokenMock,
+  getProgressMock,
   getAppFeatureFlagEnabledMock,
   getAppSubscriptionAccessMock,
   getTrainingDayWithMonetizedStepsMock,
   requirePremiumOrRewardedAccessForVideoUrlMock,
   requireCourseStepPremiumOrRewardedUnlockMock,
+  saveProgressMock,
   streamFileFromCDNMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
@@ -25,11 +27,13 @@ const {
   downloadFileFromCDNMock: vi.fn(),
   extractVideoIdFromCdnUrlMock: vi.fn(),
   generateTokenMock: vi.fn(),
+  getProgressMock: vi.fn(),
   getAppFeatureFlagEnabledMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
   requirePremiumOrRewardedAccessForVideoUrlMock: vi.fn(),
   requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
+  saveProgressMock: vi.fn(),
   streamFileFromCDNMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
@@ -87,7 +91,9 @@ vi.mock("@gafus/core/services/notifications", () => ({
 
 vi.mock("@gafus/core/services/video", () => ({
   checkVideoAccess: checkVideoAccessMock,
+  getProgress: getProgressMock,
   getVideoManifestInfo: vi.fn(),
+  saveProgress: saveProgressMock,
 }));
 
 vi.mock("@gafus/cdn-upload", () => ({
@@ -157,6 +163,8 @@ describe("training route validation", () => {
       expiresAt: Date.now() + 60_000,
     });
     checkVideoAccessMock.mockResolvedValue(true);
+    getProgressMock.mockResolvedValue({ lastPositionSec: 42 });
+    saveProgressMock.mockResolvedValue({ success: true });
     downloadFileFromCDNMock.mockResolvedValue(Buffer.from("segment"));
     streamFileFromCDNMock.mockResolvedValue({
       stream: new ReadableStream({
@@ -223,6 +231,66 @@ describe("training route validation", () => {
         "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
     });
     expect(generateTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the video id with a signed URL for progress synchronization", async () => {
+    const app = createTestApp();
+
+    const response = await app.request("/api/v1/training/video/url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoUrl:
+          "https://storage.yandexcloud.net/gafus-media/uploads/trainers/trainer-1/videocourses/video-1/original.mp4",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      success: true,
+      data: { videoId: "video-1", url: expect.stringContaining("manifest.m3u8?token=") },
+    });
+  });
+
+  it("returns progress only after checking access to the video", async () => {
+    const app = createTestApp();
+
+    const response = await app.request("/api/v1/training/video/video-1/progress");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: { lastPositionSec: 42 },
+    });
+    expect(checkVideoAccessMock).toHaveBeenCalledWith({
+      userId: "cmhf79vic0000qr4m219z780r",
+      videoId: "video-1",
+    });
+    expect(getProgressMock).toHaveBeenCalledWith("cmhf79vic0000qr4m219z780r", "video-1");
+  });
+
+  it("saves validated video progress", async () => {
+    const app = createTestApp();
+
+    const response = await app.request("/api/v1/training/video/video-1/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ positionSec: 73 }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
+    expect(saveProgressMock).toHaveBeenCalledWith("cmhf79vic0000qr4m219z780r", "video-1", 73);
+  });
+
+  it("does not expose progress when video access is denied", async () => {
+    checkVideoAccessMock.mockResolvedValue(false);
+    const app = createTestApp();
+
+    const response = await app.request("/api/v1/training/video/video-1/progress");
+
+    expect(response.status).toBe(403);
+    expect(getProgressMock).not.toHaveBeenCalled();
   });
 
   it("rejects absolute HLS segment paths instead of reading arbitrary CDN keys", async () => {

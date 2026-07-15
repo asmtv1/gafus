@@ -47,7 +47,7 @@ export async function getSignedVideoUrl(videoId: string): Promise<string | null>
       : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     const signedUrl = `${baseUrl}/api/video/${videoId}/manifest?token=${token}`;
-    logger.info("Сгенерирован signed URL", { signedUrl });
+    logger.info("Сгенерирован signed URL", { videoId });
     return signedUrl;
   } catch (error) {
     logger.error("Ошибка при генерации signed URL", error as Error);

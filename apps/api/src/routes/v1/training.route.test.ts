@@ -66,7 +66,9 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
 
 vi.mock("@gafus/core/services/video", () => ({
   checkVideoAccess: vi.fn(),
+  getProgress: vi.fn(),
   getVideoManifestInfo: vi.fn(),
+  saveProgress: vi.fn(),
 }));
 
 vi.mock("@gafus/core/services/notifications", () => ({
@@ -151,6 +153,26 @@ describe("training route contracts", () => {
     });
   });
 
+  it("requires auth before reading video progress", async () => {
+    const app = createTestApp();
+
+    const response = await app.request("/api/v1/training/video/video-1/progress");
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      error: "Токен не предоставлен",
+    });
+  });
+
+  it("does not bypass auth when a progress video id contains manifest", async () => {
+    const app = createTestApp();
+
+    const response = await app.request("/api/v1/training/video/manifest/progress");
+
+    expect(response.status).toBe(401);
+  });
+
   it("starts a step, syncs course status, and schedules timeout notification", async () => {
     const app = createAuthenticatedTestApp();
     updateStepAndDayMock.mockResolvedValueOnce({ courseId: "course-1" });
@@ -213,7 +235,9 @@ describe("training route contracts", () => {
     const app = createAuthenticatedTestApp();
     getTrainingDayWithMonetizedStepsMock.mockResolvedValueOnce({
       trainingDayId: "day-1",
-      steps: [{ locked: true, monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" } }],
+      steps: [
+        { locked: true, monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" } },
+      ],
     });
 
     const response = await app.request(

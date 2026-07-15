@@ -30,12 +30,10 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     return;
   }
 
-  // Пропускаем маршруты для HLS видео - они используют токен из query параметра
-  // Путь может быть /api/v1/training/video/... или /training/video/...
-  if (
-    (path.includes("/training/video/") || path.includes("/api/v1/training/video/")) &&
-    (path.includes("/manifest") || path.includes("/segment"))
-  ) {
+  // Пропускаем только точные HLS-маршруты: соседние video endpoints требуют JWT.
+  const isPublicHlsRoute =
+    /^\/(?:api\/v1\/)?training\/video\/[^/]+\/(?:manifest(?:\.m3u8)?|segment)$/.test(path);
+  if (isPublicHlsRoute) {
     await next();
     return;
   }

@@ -275,10 +275,27 @@ export const trainingApi = {
    * Получить signed URL для видео (HLS манифест)
    * Использует POST endpoint /api/v1/training/video/url
    */
-  async getVideoUrl(videoUrl: string): Promise<ApiResponse<{ url: string }>> {
-    return apiClient<{ url: string }>("/api/v1/training/video/url", {
+  async getVideoUrl(videoUrl: string): Promise<ApiResponse<{ url: string; videoId?: string }>> {
+    return apiClient<{ url: string; videoId?: string }>("/api/v1/training/video/url", {
       method: "POST",
       body: { videoUrl },
+      suppressSubscriptionPaywall: true,
+    });
+  },
+
+  async getVideoProgress(
+    videoId: string,
+  ): Promise<ApiResponse<{ lastPositionSec: number } | null>> {
+    return apiClient<{ lastPositionSec: number } | null>(
+      `/api/v1/training/video/${encodeURIComponent(videoId)}/progress`,
+      { suppressSubscriptionPaywall: true },
+    );
+  },
+
+  async saveVideoProgress(videoId: string, positionSec: number): Promise<ApiResponse<void>> {
+    return apiClient<void>(`/api/v1/training/video/${encodeURIComponent(videoId)}/progress`, {
+      method: "POST",
+      body: { positionSec },
       suppressSubscriptionPaywall: true,
     });
   },

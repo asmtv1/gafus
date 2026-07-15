@@ -26,7 +26,12 @@ import {
   requirePremiumOrRewardedAccessForVideoUrl,
   SubscriptionOrCreditsRequiredError,
 } from "@gafus/core/services/rewardedCredits";
-import { checkVideoAccess, getVideoManifestInfo } from "@gafus/core/services/video";
+import {
+  checkVideoAccess,
+  getProgress,
+  getVideoManifestInfo,
+  saveProgress,
+} from "@gafus/core/services/video";
 import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
@@ -832,7 +837,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
           videoId,
           apiUrl,
         });
-        return c.json({ success: true, data: { url: signedUrl } });
+        return c.json({ success: true, data: { url: signedUrl, videoId } });
       } catch (error) {
         logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
           videoId,
@@ -885,6 +890,75 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     );
   }
 });
+
+const videoIdParamSchema = z.object({
+  videoId: z.string().trim().min(1, "videoId обязателен").max(128, "videoId слишком длинный"),
+});
+const videoProgressBodySchema = z.object({
+  positionSec: z
+    .number()
+    .int()
+    .min(0)
+    .max(86400 * 24),
+});
+
+// ==================== GET /training/video/:videoId/progress ====================
+trainingRoutes.get(
+  "/video/:videoId/progress",
+  zValidator("param", videoIdParamSchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const { videoId } = c.req.valid("param");
+      const hasAccess = await checkVideoAccess({ userId: user.id, videoId });
+      if (!hasAccess) {
+        return c.json(
+          { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
+          403,
+        );
+      }
+
+      const progress = await getProgress(user.id, videoId);
+      return c.json({ success: true, data: progress });
+    } catch (error) {
+      logger.error("[training/video/progress] Ошибка получения прогресса", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    }
+  },
+);
+
+// ==================== POST /training/video/:videoId/progress ====================
+trainingRoutes.post(
+  "/video/:videoId/progress",
+  zValidator("param", videoIdParamSchema),
+  zValidator("json", videoProgressBodySchema),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const { videoId } = c.req.valid("param");
+      const { positionSec } = c.req.valid("json");
+      const hasAccess = await checkVideoAccess({ userId: user.id, videoId });
+      if (!hasAccess) {
+        return c.json(
+          { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
+          403,
+        );
+      }
+
+      const result = await saveProgress(user.id, videoId, positionSec);
+      if (!result.success) {
+        return c.json(
+          { success: false, error: result.error ?? "Не удалось сохранить прогресс" },
+          400,
+        );
+      }
+      return c.json({ success: true });
+    } catch (error) {
+      logger.error("[training/video/progress] Ошибка сохранения прогресса", error as Error);
+      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    }
+  },
+);
 
 // ==================== GET /training/video/:videoId/manifest[.m3u8] ====================
 // Получить HLS манифест с подписанными URL для сегментов (для мобильного приложения)

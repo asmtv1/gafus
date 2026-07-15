@@ -3,7 +3,7 @@ import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MarkdownText, VideoPlayer } from "@/shared/components";
-import { useVideoUrl } from "@/shared/hooks";
+import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
 import { COLORS, SPACING } from "@/shared/config";
 
@@ -38,9 +38,14 @@ export function CourseDescription({
 }: CourseDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
-  const { url: playbackUrl, isLoading: isLoadingVideo, error: videoError } = useVideoUrl(
-    videoInfo?.isCDN || videoInfo?.isHLS ? videoUrl ?? null : null,
-  );
+  const {
+    url: playbackUrl,
+    isLoading: isLoadingVideo,
+    error: videoError,
+    videoId,
+    retry: retryVideo,
+  } = useVideoUrl(isExpanded && (videoInfo?.isCDN || videoInfo?.isHLS) ? (videoUrl ?? null) : null);
+  const { initialTimeSec, saveProgress } = useVideoProgress(videoId, isExpanded);
 
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -94,13 +99,35 @@ export function CourseDescription({
                   <Text variant="titleSmall" style={styles.videoTitle}>
                     Видео презентация курса:
                   </Text>
-                  {(videoInfo.isCDN || videoInfo.isHLS) ? (
+                  {videoInfo.isCDN || videoInfo.isHLS ? (
                     isLoadingVideo ? (
                       <View style={styles.videoLoading}>
                         <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
-                    ) : videoError ? null : playbackUrl ? (
-                      <VideoPlayer uri={playbackUrl} />
+                    ) : videoError ? (
+                      <View style={styles.videoError}>
+                        <Text style={styles.videoErrorText} selectable>
+                          Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
+                        </Text>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.videoRetryButton,
+                            pressed && styles.videoLinkPressed,
+                          ]}
+                          onPress={retryVideo}
+                          accessibilityRole="button"
+                          accessibilityLabel="Повторить загрузку видео"
+                        >
+                          <Text style={styles.videoRetryText}>Повторить</Text>
+                        </Pressable>
+                      </View>
+                    ) : playbackUrl ? (
+                      <VideoPlayer
+                        uri={playbackUrl}
+                        initialTimeSec={initialTimeSec}
+                        onSaveProgress={saveProgress}
+                        onRetry={retryVideo}
+                      />
                     ) : null
                   ) : videoInfo.embedUrl ? (
                     <Pressable
@@ -125,11 +152,7 @@ export function CourseDescription({
                       ]}
                       onPress={() => videoUrl && Linking.openURL(videoUrl)}
                     >
-                      <MaterialCommunityIcons
-                        name="open-in-new"
-                        size={24}
-                        color={COLORS.primary}
-                      />
+                      <MaterialCommunityIcons name="open-in-new" size={24} color={COLORS.primary} />
                       <Text style={styles.videoLinkText}>Открыть видео</Text>
                     </Pressable>
                   )}
@@ -306,6 +329,33 @@ const styles = StyleSheet.create({
   videoLoadingText: {
     fontSize: 14,
     color: "#666",
+  },
+  videoError: {
+    aspectRatio: 16 / 9,
+    backgroundColor: "#352E2E",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING.md,
+  },
+  videoErrorText: {
+    color: "#fff",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  videoRetryButton: {
+    minHeight: 44,
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+  },
+  videoRetryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   videoLinkButton: {
     flexDirection: "row",

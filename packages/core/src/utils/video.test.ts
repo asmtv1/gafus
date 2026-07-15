@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { getEmbeddedVideoInfo } from "./video";
+import { getEmbeddedVideoInfo, getSafeVideoResumePosition } from "./video";
+
+describe("getSafeVideoResumePosition", () => {
+  it("restores a valid position", () => {
+    expect(getSafeVideoResumePosition(42, 120)).toBe(42);
+  });
+
+  it("restarts a nearly completed video", () => {
+    expect(getSafeVideoResumePosition(118, 120)).toBe(0);
+  });
+
+  it("ignores missing or invalid metadata", () => {
+    expect(getSafeVideoResumePosition(undefined, 120)).toBeNull();
+    expect(getSafeVideoResumePosition(42, Number.NaN)).toBeNull();
+  });
+});
 
 describe("getEmbeddedVideoInfo", () => {
   it("returns empty for null", () => {
