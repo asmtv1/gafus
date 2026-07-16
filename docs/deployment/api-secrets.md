@@ -65,31 +65,37 @@ api:
 
 ## Список всех необходимых секретов
 
-| Secret                 | Описание              | Требуется для     |
-| ---------------------- | --------------------- | ----------------- |
-| `JWT_SECRET`           | Access token secret   | API service       |
-| `JWT_REFRESH_SECRET`   | Refresh token secret  | API service       |
-| `DATABASE_URL`         | PostgreSQL connection | Все сервисы       |
-| `REDIS_URL`            | Redis connection      | API, Worker       |
-| `NEXTAUTH_SECRET`      | NextAuth secret       | Web apps          |
-| `TELEGRAM_BOT_TOKEN`   | Legacy (заглушки sendTelegram*) | Не обязателен после удаления `apps/telegram-bot`; оставить только если планируется восстановление канала |
-| `VAPID_PUBLIC_KEY`     | Web Push public       | Web apps          |
-| `VAPID_PRIVATE_KEY`    | Web Push private      | Worker            |
-| `YC_ACCESS_KEY_ID`     | Yandex Cloud CDN      | Apps with uploads |
-| `YC_SECRET_ACCESS_KEY` | Yandex Cloud CDN      | Apps with uploads |
-| `VIDEO_ACCESS_SECRET`  | HLS protection        | Apps with video   |
-| `YOOKASSA_SHOP_ID`     | ЮKassa shop id        | Web + API (платежи) |
-| `YOOKASSA_SECRET_KEY`  | ЮKassa secret key     | Web + API (платежи) |
-| `APPLE_BUNDLE_ID`      | Bundle ID приложения  | API (IAP verify курсов, iOS) |
-| `APPLE_APP_ID`         | Числовой App Store ID | API (обязателен в prod для verifier) |
-| `APPLE_USE_SANDBOX`    | Sandbox StoreKit      | API (`true`/`1` — песочница) |
-| `APPLE_ISSUER_ID`      | Issuer ID App Store Connect API | Web, API, Worker (Apple subscription sync) |
-| `APPLE_KEY_ID`         | Key ID App Store Connect API | Web, API, Worker (Apple subscription sync) |
-| `APPLE_PRIVATE_KEY_PATH` | Путь к `.p8` внутри контейнера | Web, API, Worker (Apple subscription sync) |
-| `APPLE_PRIVATE_KEY_HOST_PATH` | Путь к `.p8` на сервере для bind mount | Docker compose host only |
-| `WEB_APP_URL`          | Базовый URL web для return_url | API (платежи) |
-| `VK_CLIENT_ID`         | VK ID приложение (mobile auth, vk-link) | Web, API |
-| ~~`NEXT_PUBLIC_CONTACT_*`~~ | ~~Контакты~~ | **Не используются** — страница /contacts теперь статический public/contacts.html |
+| Secret                                   | Описание                                   | Требуется для                                                                                            |
+| ---------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                             | Access token secret                        | API service                                                                                              |
+| `JWT_REFRESH_SECRET`                     | Refresh token secret                       | API service                                                                                              |
+| `DATABASE_URL`                           | PostgreSQL connection                      | Все сервисы                                                                                              |
+| `REDIS_URL`                              | Redis connection                           | API, Worker                                                                                              |
+| `NEXTAUTH_SECRET`                        | NextAuth secret                            | Web apps                                                                                                 |
+| `TELEGRAM_BOT_TOKEN`                     | Legacy (заглушки sendTelegram\*)           | Не обязателен после удаления `apps/telegram-bot`; оставить только если планируется восстановление канала |
+| `VAPID_PUBLIC_KEY`                       | Web Push public                            | Web apps                                                                                                 |
+| `VAPID_PRIVATE_KEY`                      | Web Push private                           | Worker                                                                                                   |
+| `YC_ACCESS_KEY_ID`                       | Yandex Cloud CDN                           | Apps with uploads                                                                                        |
+| `YC_SECRET_ACCESS_KEY`                   | Yandex Cloud CDN                           | Apps with uploads                                                                                        |
+| `VIDEO_ACCESS_SECRET`                    | HLS protection                             | Apps with video                                                                                          |
+| `YOOKASSA_SHOP_ID`                       | ЮKassa shop id                             | Web + API (платежи)                                                                                      |
+| `YOOKASSA_SECRET_KEY`                    | ЮKassa secret key                          | Web + API (платежи)                                                                                      |
+| `YOOKASSA_MOBILE_SDK_CLIENT_KEY_IOS`     | Клиентский ключ Mobile SDK для iOS         | API (нативная оплата подписки)                                                                           |
+| `YOOKASSA_MOBILE_SDK_SHOP_ID_IOS`        | Shop id отдельного iOS-магазина            | Web + Worker + API                                                                                       |
+| `YOOKASSA_MOBILE_API_SECRET_KEY_IOS`     | API secret key отдельного iOS-магазина     | Web + Worker + API                                                                                       |
+| `YOOKASSA_MOBILE_SDK_CLIENT_KEY_ANDROID` | Клиентский ключ Mobile SDK для Android     | API (нативная оплата подписки)                                                                           |
+| `YOOKASSA_MOBILE_SDK_SHOP_ID_ANDROID`    | Shop id отдельного Android-магазина        | Web + Worker + API                                                                                       |
+| `YOOKASSA_MOBILE_API_SECRET_KEY_ANDROID` | API secret key отдельного Android-магазина | Web + Worker + API                                                                                       |
+| `APPLE_BUNDLE_ID`                        | Bundle ID приложения                       | API (IAP verify курсов, iOS)                                                                             |
+| `APPLE_APP_ID`                           | Числовой App Store ID                      | API (обязателен в prod для verifier)                                                                     |
+| `APPLE_USE_SANDBOX`                      | Sandbox StoreKit                           | API (`true`/`1` — песочница)                                                                             |
+| `APPLE_ISSUER_ID`                        | Issuer ID App Store Connect API            | Web, API, Worker (Apple subscription sync)                                                               |
+| `APPLE_KEY_ID`                           | Key ID App Store Connect API               | Web, API, Worker (Apple subscription sync)                                                               |
+| `APPLE_PRIVATE_KEY_PATH`                 | Путь к `.p8` внутри контейнера             | Web, API, Worker (Apple subscription sync)                                                               |
+| `APPLE_PRIVATE_KEY_HOST_PATH`            | Путь к `.p8` на сервере для bind mount     | Docker compose host only                                                                                 |
+| `WEB_APP_URL`                            | Базовый URL web для return_url             | API (платежи)                                                                                            |
+| `VK_CLIENT_ID`                           | VK ID приложение (mobile auth, vk-link)    | Web, API                                                                                                 |
+| ~~`NEXT_PUBLIC_CONTACT_*`~~              | ~~Контакты~~                               | **Не используются** — страница /contacts теперь статический public/contacts.html                         |
 
 ## Проверка конфигурации
 

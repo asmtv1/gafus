@@ -804,6 +804,7 @@ model AppSubscription {
   yookassaPaymentMethodId         String?   @unique
   yookassaPaymentMethodLast4      String?   @db.VarChar(4)
   yookassaPaymentMethodTitle      String?
+  yookassaCredentialProfile       String?   @db.VarChar(32)
   renewalReminderSentForPeriodEnd DateTime?
   appleOriginalTransactionId      String?
   appleProductId                  String?
@@ -881,10 +882,11 @@ model AppSubscriptionPayment {
   appleEnvironment           String?
   appleWebOrderLineItemId    String?
 
-  confirmationUrl String?
-  failureCode     String?
-  failureReason   String?
-  succeededAt     DateTime?
+  confirmationUrl           String?
+  yookassaCredentialProfile String?   @db.VarChar(32)
+  failureCode               String?
+  failureReason             String?
+  succeededAt               DateTime?
 
   attemptCount  Int       @default(0)
   lastAttemptAt DateTime?

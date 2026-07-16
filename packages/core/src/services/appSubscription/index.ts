@@ -6,4 +6,5 @@ export * from "./settingsService";
 export * from "./trialService";
 export * from "./adminService";
 export * from "./appleAccountTokenService";
+export * from "./yookassaCredentials";
 export * from "./paymentService";

@@ -73,7 +73,7 @@ export function AppSubscriptionSettingsCard({
     <Card>
       <CardHeader
         title="Настройки подписки"
-        subheader="Месячный тариф YooKassa и Apple Product ID"
+        subheader="Месячный тариф: нативный СБП через YooKassa на iOS/Android и отдельный Apple IAP на iOS"
       />
       <CardContent>
         <Stack spacing={3}>
@@ -93,7 +93,7 @@ export function AppSubscriptionSettingsCard({
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
-                label="YooKassa price (RUB)"
+                label="Цена подписки через YooKassa, ₽"
                 type="number"
                 value={monthlyPrice}
                 onChange={(e) => setMonthlyPrice(e.target.value)}

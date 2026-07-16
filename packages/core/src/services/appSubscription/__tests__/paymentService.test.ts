@@ -678,6 +678,122 @@ describe("app subscription payment service", () => {
     expect(mockTrialUpsert).not.toHaveBeenCalled();
   });
 
+  it("creates a mobile SDK payment from an SBP payment token", async () => {
+    const { startYookassaNativeAppSubscriptionPayment } = await import("../paymentService");
+    mockSettingsFindUnique.mockResolvedValue({
+      monthlyEnabled: true,
+      yookassaMonthlyPriceRub: 1100,
+      currency: "RUB",
+      monthlyIntervalDays: 30,
+      monthlyAppleProductId: "premium-month",
+    });
+    mockSubscriptionCreate.mockResolvedValue({
+      id: "sub-native",
+      status: "PENDING",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    mockPaymentCreate.mockResolvedValue({ id: "pay-native" });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T10:00:00.000Z"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yk-native",
+          status: "pending",
+          confirmation: { confirmation_url: "https://qr.nspk.ru/payment" },
+          payment_method: { type: "sbp" },
+        }),
+      }),
+    );
+
+    const result = await startYookassaNativeAppSubscriptionPayment({
+      userId: "user-1",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      planCode: "MONTHLY",
+      paymentToken: "pt-native",
+      credentialProfile: "mobile_android",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      localSubscriptionId: "sub-native",
+      confirmationUrl: "https://qr.nspk.ru/payment",
+    });
+    const requestBody = JSON.parse(
+      (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
+    );
+    expect(requestBody).toEqual({
+      payment_token: "pt-native",
+      amount: { value: "1100.00", currency: "RUB" },
+      capture: true,
+      save_payment_method: true,
+      description: "Подписка Gafus Premium 1100.00 RUB/30 дн.",
+      metadata: {
+        kind: "app_subscription",
+        localPaymentId: "pay-native",
+        userId: "user-1",
+        subscriptionId: "sub-native",
+        planCode: "MONTHLY",
+        initial: "true",
+        checkout: "mobile_sdk",
+        credentialProfile: "mobile_android",
+      },
+    });
+    expect(requestBody).not.toHaveProperty("payment_method_data");
+    expect(requestBody).not.toHaveProperty("confirmation");
+  });
+
+  it("rejects a non-SBP method returned for a mobile SDK token", async () => {
+    const { startYookassaNativeAppSubscriptionPayment } = await import("../paymentService");
+    mockSettingsFindUnique.mockResolvedValue({
+      monthlyEnabled: true,
+      yookassaMonthlyPriceRub: 1100,
+      currency: "RUB",
+      monthlyIntervalDays: 30,
+      monthlyAppleProductId: "premium-month",
+    });
+    mockSubscriptionCreate.mockResolvedValue({
+      id: "sub-native",
+      status: "PENDING",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    mockPaymentCreate.mockResolvedValue({ id: "pay-native" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yk-native",
+          status: "pending",
+          confirmation: { confirmation_url: "https://confirm.test" },
+          payment_method: { type: "bank_card" },
+        }),
+      }),
+    );
+
+    const result = await startYookassaNativeAppSubscriptionPayment({
+      userId: "user-1",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      planCode: "MONTHLY",
+      paymentToken: "pt-native",
+      credentialProfile: "mobile_android",
+    });
+
+    expect(result).toEqual({ success: false, error: "Неверный ответ платёжной системы" });
+    expect(mockPaymentUpdate).toHaveBeenCalledWith({
+      where: { id: "pay-native" },
+      data: expect.objectContaining({ status: "FAILED", failureCode: "BAD_RESPONSE" }),
+    });
+  });
+
   it("starts a paid monthly YooKassa payment with a stored 30 day period", async () => {
     const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
     mockTrialFindUnique.mockResolvedValue({ id: "trial-1" });

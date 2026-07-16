@@ -51,6 +51,17 @@ export type AppSubscriptionOfferDto = {
   iosRuCardPaymentEnabled: boolean;
 };
 
+export type YookassaNativeSdkConfigDto = {
+  clientApplicationKey: string;
+  shopId: string;
+  amount: number;
+  currency: "RUB";
+  title: string;
+  subtitle: string;
+  paymentMethod: "SBP";
+  savePaymentMethod: true;
+};
+
 export const appSubscriptionApi = {
   getStatus(): Promise<ApiResponse<AppSubscriptionStatusDto>> {
     return apiClient<AppSubscriptionStatusDto>("/api/v1/app-subscription/status");
@@ -76,6 +87,18 @@ export const appSubscriptionApi = {
       });
     }
     return result;
+  },
+  getYookassaNativeConfig(): Promise<ApiResponse<YookassaNativeSdkConfigDto>> {
+    return apiClient<YookassaNativeSdkConfigDto>("/api/v1/app-subscription/yookassa/native/config");
+  },
+  completeYookassaNative(body: {
+    planCode: AppSubscriptionPlanCode;
+    paymentToken: string;
+  }): Promise<ApiResponse<{ confirmationUrl: string | null; localSubscriptionId: string }>> {
+    return apiClient("/api/v1/app-subscription/yookassa/native/complete", {
+      method: "POST",
+      body,
+    });
   },
   cancelYookassa(): Promise<ApiResponse<AppSubscriptionStatusDto>> {
     return apiClient("/api/v1/app-subscription/yookassa/cancel", { method: "POST", body: {} });

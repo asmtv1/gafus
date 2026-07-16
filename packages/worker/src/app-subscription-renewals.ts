@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
+import { getYookassaCredentialsForProfile } from "@gafus/core/services/appSubscription";
 import {
   incrementRenewalAttemptTotal,
   incrementRenewalFailedTotal,
@@ -53,15 +54,6 @@ function getNextAttemptAt(now: Date, attemptCount: number): Date {
 export async function processDueYookassaAppSubscriptionRenewals(params?: { batchSize?: number }) {
   const batchSize = params?.batchSize ?? 100;
   const now = new Date();
-  const shopId = process.env.YOOKASSA_SHOP_ID;
-  const secretKey = process.env.YOOKASSA_SECRET_KEY;
-  if (!shopId || !secretKey) {
-    logger.error(
-      "Renewal batch skipped: YooKassa credentials are missing",
-      new Error("YOOKASSA env missing"),
-    );
-    return { processed: 0, skipped: 0, lockAcquired: false as const };
-  }
 
   const lockRows = (await (prisma as any).$queryRawUnsafe(
     `SELECT pg_try_advisory_lock(${RENEWALS_LOCK_KEY}) AS locked`,
@@ -133,6 +125,16 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         skipped += 1;
         continue;
       }
+      const credentials = getYookassaCredentialsForProfile(row.yookassaCredentialProfile);
+      if (!credentials) {
+        logger.error(
+          "Renewal skipped: YooKassa credentials are missing for subscription profile",
+          new Error("YOOKASSA profile env missing"),
+          { subscriptionId: row.id, credentialProfile: row.yookassaCredentialProfile ?? "default" },
+        );
+        skipped += 1;
+        continue;
+      }
 
       const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
       const amountRub = plan.yookassaPriceRub;
@@ -194,6 +196,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 kind: paymentKind,
                 status: "PENDING",
                 planCode: plan.code,
+                yookassaCredentialProfile: row.yookassaCredentialProfile,
                 amount: amountRub,
                 currency,
                 periodStart,
@@ -269,6 +272,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               kind: paymentKind,
               status: "PENDING",
               planCode: plan.code,
+              yookassaCredentialProfile: row.yookassaCredentialProfile,
               amount: amountRub,
               currency,
               periodStart,
@@ -317,7 +321,9 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
           continue;
         }
 
-        const auth = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
+        const auth = Buffer.from(`${credentials.shopId}:${credentials.secretKey}`).toString(
+          "base64",
+        );
         let res: Awaited<ReturnType<typeof fetch>>;
         try {
           res = await fetch(YOOKASSA_API, {
@@ -339,6 +345,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 subscriptionId: row.id,
                 planCode: plan.code,
                 renewal: paymentKind === "RENEWAL" ? "true" : "false",
+                credentialProfile: row.yookassaCredentialProfile ?? "default",
               },
             }),
           });

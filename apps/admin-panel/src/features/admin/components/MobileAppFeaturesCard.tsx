@@ -225,8 +225,8 @@ export function MobileAppFeaturesCard({
               />
             }
             label={flagLabel(
-              "Показывать кнопку «Оплатить картой РФ» на iOS paywall",
-              "Включает отдельную кнопку перехода к оплате российской картой. Доступно только ADMIN.",
+              "Показывать нативную оплату ЮKassa на iOS paywall",
+              "Включает отдельную кнопку оплаты подписки через СБП в нативном SDK ЮKassa. Доступно только ADMIN.",
             )}
             sx={{ alignItems: "flex-start" }}
           />

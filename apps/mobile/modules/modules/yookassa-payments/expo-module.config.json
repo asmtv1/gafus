@@ -1,9 +1,0 @@
-{
-  "platforms": ["apple", "android", "web"],
-  "apple": {
-    "modules": ["GafusYooKassaPaymentsModule"]
-  },
-  "android": {
-    "modules": ["ru.gafus.yookassapayments.GafusYooKassaPaymentsModule"]
-  }
-}

@@ -40,6 +40,7 @@ export interface AppSubscriptionAdminDashboardRow {
   paymentsCount: number;
   totalPaidRub: number;
   paymentMethod: string | null;
+  paymentChannel: string | null;
   appleProductId: string | null;
   apple: {
     productId: string | null;
@@ -112,6 +113,22 @@ function paymentDate(payment: PaymentLike): Date {
   return payment.succeededAt ?? payment.updatedAt ?? payment.createdAt;
 }
 
+function getYookassaPaymentChannel(credentialProfile: string | null | undefined): string {
+  if (credentialProfile === "mobile_ios") return "iOS · нативный SDK";
+  if (credentialProfile === "mobile_android") return "Android · нативный SDK";
+  return "Web · API YooKassa";
+}
+
+function getYookassaPaymentMethodLabel(params: {
+  title?: string | null;
+  last4?: string | null;
+}): string | null {
+  const title = params.title?.trim();
+  if (title) return title;
+  const last4 = params.last4?.trim();
+  return last4 ? `Карта *${last4}` : null;
+}
+
 function isSubscriptionActiveNow(
   row: {
     status: string;
@@ -162,6 +179,7 @@ export async function getAppSubscriptionAdminDashboard(
         canceledAt: true,
         yookassaPaymentMethodLast4: true,
         yookassaPaymentMethodTitle: true,
+        yookassaCredentialProfile: true,
         appleOriginalTransactionId: true,
         appleProductId: true,
         manualReason: true,
@@ -307,11 +325,14 @@ export async function getAppSubscriptionAdminDashboard(
       lastPaymentAt: lastPayment ? toIso(paymentDate(lastPayment)) : null,
       paymentsCount: payments.length,
       totalPaidRub,
-      paymentMethod:
-        subscription.yookassaPaymentMethodTitle ??
-        (subscription.yookassaPaymentMethodLast4
-          ? `Карта *${subscription.yookassaPaymentMethodLast4}`
-          : null),
+      paymentMethod: getYookassaPaymentMethodLabel({
+        title: subscription.yookassaPaymentMethodTitle,
+        last4: subscription.yookassaPaymentMethodLast4,
+      }),
+      paymentChannel:
+        subscription.provider === "YOOKASSA"
+          ? getYookassaPaymentChannel(subscription.yookassaCredentialProfile)
+          : null,
       appleProductId: subscription.appleProductId,
       apple:
         subscription.provider === "APPLE"
@@ -407,6 +428,9 @@ export async function getUserAppSubscriptionAdminSummary(userId: string) {
         isLifetime: true,
         currentPeriodEnd: true,
         cancelAtPeriodEnd: true,
+        yookassaPaymentMethodLast4: true,
+        yookassaPaymentMethodTitle: true,
+        yookassaCredentialProfile: true,
       },
     }),
     prisma.appSubscription.findMany({
@@ -430,6 +454,17 @@ export async function getUserAppSubscriptionAdminSummary(userId: string) {
     isLifetime: Boolean(status?.isLifetime),
     activeUntil: status?.currentPeriodEnd ? status.currentPeriodEnd.toISOString() : null,
     cancelAtPeriodEnd: Boolean(status?.cancelAtPeriodEnd),
+    paymentMethod:
+      status?.provider === "YOOKASSA"
+        ? getYookassaPaymentMethodLabel({
+            title: status.yookassaPaymentMethodTitle,
+            last4: status.yookassaPaymentMethodLast4,
+          })
+        : null,
+    paymentChannel:
+      status?.provider === "YOOKASSA"
+        ? getYookassaPaymentChannel(status.yookassaCredentialProfile)
+        : null,
     manualRecord: rows[0] ?? null,
   };
 }

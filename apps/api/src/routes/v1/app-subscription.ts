@@ -5,12 +5,19 @@ import {
   cancelYookassaAppSubscription,
   getAppSubscriptionAccess,
   getAppSubscriptionOffer,
+  getYookassaCredentialProfileForPlatform,
+  getYookassaCredentialsForProfile,
   reconcilePendingYookassaAppSubscription,
   restoreAppleAppSubscription,
+  startYookassaNativeAppSubscriptionPayment,
   startYookassaAppSubscriptionPayment,
   SubscriptionRequiredError,
   verifyAppleAppSubscription,
 } from "@gafus/core/services/appSubscription";
+import {
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  getAppFeatureFlagEnabled,
+} from "@gafus/core/services/appFeatureFlags";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-app-subscription");
@@ -28,6 +35,38 @@ const restoreAppleSchema = z.object({
 const startYookassaSchema = z.object({
   planCode: z.literal("MONTHLY"),
 });
+
+const nativeYookassaCompleteSchema = z.object({
+  planCode: z.literal("MONTHLY"),
+  paymentToken: z.string().trim().min(1).max(4096),
+});
+
+type MobilePlatform = "ios" | "android";
+
+function getMobilePlatform(c: Context): MobilePlatform | null {
+  const platform = c.req.header("x-client-platform")?.trim().toLowerCase();
+  return platform === "ios" || platform === "android" ? platform : null;
+}
+
+async function isYookassaAllowedForPlatform(platform: MobilePlatform): Promise<boolean> {
+  if (platform === "android") return true;
+  return getAppFeatureFlagEnabled(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT, false);
+}
+
+function getMobileSdkCredentials(
+  platform: MobilePlatform,
+): { ok: true; clientApplicationKey: string; shopId: string; secretKey: string } | { ok: false } {
+  const clientApplicationKey =
+    platform === "ios"
+      ? process.env.YOOKASSA_MOBILE_SDK_CLIENT_KEY_IOS?.trim()
+      : process.env.YOOKASSA_MOBILE_SDK_CLIENT_KEY_ANDROID?.trim();
+  const profile = getYookassaCredentialProfileForPlatform(platform);
+  const credentials = getYookassaCredentialsForProfile(profile);
+  if (!clientApplicationKey || !credentials) {
+    return { ok: false };
+  }
+  return { ok: true, clientApplicationKey, ...credentials };
+}
 
 type AppleAppSubscriptionResult =
   | { success: true }
@@ -80,9 +119,111 @@ appSubscriptionRoutes.get("/offer", async (c) => {
   }
 });
 
+appSubscriptionRoutes.get("/yookassa/native/config", async (c) => {
+  try {
+    const user = c.get("user");
+    const platform = getMobilePlatform(c);
+    if (!platform) {
+      return c.json(
+        { success: false, error: "Неподдерживаемая платформа", code: "PLATFORM_REQUIRED" },
+        400,
+      );
+    }
+    if (!(await isYookassaAllowedForPlatform(platform))) {
+      return c.json(
+        { success: false, error: "Оплата через ЮKassa недоступна", code: "YOOKASSA_DISABLED" },
+        403,
+      );
+    }
+    const credentials = getMobileSdkCredentials(platform);
+    if (!credentials.ok) {
+      return c.json(
+        { success: false, error: "Платежи недоступны", code: "CONFIG_MOBILE_SDK" },
+        500,
+      );
+    }
+    const offer = await getAppSubscriptionOffer(user.id);
+    const plan = offer.plans.find((item) => item.code === "MONTHLY" && item.enabled !== false);
+    if (!plan) {
+      return c.json(
+        { success: false, error: "Тариф подписки недоступен", code: "PLAN_UNAVAILABLE" },
+        400,
+      );
+    }
+    return c.json({
+      success: true,
+      data: {
+        clientApplicationKey: credentials.clientApplicationKey,
+        shopId: credentials.shopId,
+        amount: plan.yookassaPriceRub,
+        currency: plan.currency,
+        title: "Gafus Premium",
+        subtitle: `Подписка на ${plan.intervalDays} дней`,
+        paymentMethod: "SBP" as const,
+        savePaymentMethod: true,
+      },
+    });
+  } catch (error) {
+    logger.error("GET /yookassa/native/config error", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+  }
+});
+
+appSubscriptionRoutes.post("/yookassa/native/complete", async (c) => {
+  try {
+    const user = c.get("user");
+    const platform = getMobilePlatform(c);
+    if (!platform) {
+      return c.json(
+        { success: false, error: "Неподдерживаемая платформа", code: "PLATFORM_REQUIRED" },
+        400,
+      );
+    }
+    if (!(await isYookassaAllowedForPlatform(platform))) {
+      return c.json(
+        { success: false, error: "Оплата через ЮKassa недоступна", code: "YOOKASSA_DISABLED" },
+        403,
+      );
+    }
+    const credentials = getMobileSdkCredentials(platform);
+    if (!credentials.ok) {
+      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, 500);
+    }
+    const parsed = nativeYookassaCompleteSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) {
+      return c.json(
+        { success: false, error: "Некорректные данные оплаты", code: "VALIDATION_ERROR" },
+        400,
+      );
+    }
+    const data = await startYookassaNativeAppSubscriptionPayment({
+      userId: user.id,
+      shopId: credentials.shopId,
+      secretKey: credentials.secretKey,
+      planCode: parsed.data.planCode,
+      paymentToken: parsed.data.paymentToken,
+      credentialProfile: getYookassaCredentialProfileForPlatform(platform),
+    });
+    if (!data.success) {
+      return c.json({ success: false, error: data.error, code: "PAYMENT_ERROR" }, 400);
+    }
+    return c.json({ success: true, data });
+  } catch (error) {
+    logger.error("POST /yookassa/native/complete error", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+  }
+});
+
 appSubscriptionRoutes.post("/yookassa/start", async (c) => {
   try {
     const user = c.get("user");
+    const platform = getMobilePlatform(c);
+    if (platform === "ios" && !(await isYookassaAllowedForPlatform(platform))) {
+      return c.json(
+        { success: false, error: "Оплата через ЮKassa недоступна", code: "YOOKASSA_DISABLED" },
+        403,
+      );
+    }
     console.log("[api app-subscription/yookassa/start] request", { userId: user.id });
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;

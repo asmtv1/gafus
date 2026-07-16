@@ -144,7 +144,12 @@ function AppleDetails({ row }: { row: AppSubscriptionDashboardRow }) {
         <Chip size="small" variant="outlined" label={formatApplePrice(row)} />
         {contextText ? <Chip size="small" variant="outlined" label={contextText} /> : null}
       </Box>
-      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5, whiteSpace: "nowrap" }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        display="block"
+        sx={{ mt: 0.5, whiteSpace: "nowrap" }}
+      >
         Sync: {syncText}
       </Typography>
       {idLines.length > 0 ? (
@@ -190,7 +195,9 @@ function AppleDetails({ row }: { row: AppSubscriptionDashboardRow }) {
   );
 }
 
-function getStatusColor(row: AppSubscriptionDashboardRow): "success" | "warning" | "error" | "default" {
+function getStatusColor(
+  row: AppSubscriptionDashboardRow,
+): "success" | "warning" | "error" | "default" {
   if (row.attention === "past_due") return "error";
   if (row.attention === "not_renewed") return "default";
   if (row.attention === "cancel_at_period_end") return "warning";
@@ -278,13 +285,25 @@ export default function AppSubscriptionsTable({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
+          },
           gap: 2,
         }}
       >
         <MetricCard label="Активные сейчас" value={metrics.activeNow} hint="Включая lifetime" />
-        <MetricCard label="Не продлили" value={metrics.notRenewed} hint="Ранее была успешная оплата" />
-        <MetricCard label="Отменили автопродление" value={metrics.cancelAtPeriodEnd} hint="Доступ ещё действует" />
+        <MetricCard
+          label="Не продлили"
+          value={metrics.notRenewed}
+          hint="Ранее была успешная оплата"
+        />
+        <MetricCard
+          label="Отменили автопродление"
+          value={metrics.cancelAtPeriodEnd}
+          hint="Доступ ещё действует"
+        />
         <MetricCard label="Проблема оплаты" value={metrics.pastDue} hint="Статус PAST_DUE" />
         <MetricCard label="Всего подписок" value={metrics.totalSubscriptions} />
         <MetricCard label="Lifetime" value={metrics.lifetime} />
@@ -329,7 +348,9 @@ export default function AppSubscriptionsTable({
           </Typography>
         </Box>
 
-        <TableContainer sx={{ maxHeight: { xs: "none", md: 680 }, display: { xs: "none", md: "block" } }}>
+        <TableContainer
+          sx={{ maxHeight: { xs: "none", md: 680 }, display: { xs: "none", md: "block" } }}
+        >
           <Table stickyHeader>
             <TableHead>
               <TableRow>
@@ -348,19 +369,48 @@ export default function AppSubscriptionsTable({
               {visibleRows.map((row) => (
                 <TableRow key={row.id} hover>
                   <TableCell>
-                    <Typography variant="subtitle2">{row.user.fullName ?? row.user.username}</Typography>
+                    <Typography variant="subtitle2">
+                      {row.user.fullName ?? row.user.username}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       @{row.user.username}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block">
-                      {[row.user.email, row.user.phone].filter(Boolean).join(" · ") || "Контакты не указаны"}
+                      {[row.user.email, row.user.phone].filter(Boolean).join(" · ") ||
+                        "Контакты не указаны"}
                     </Typography>
                   </TableCell>
-                  <TableCell>{providerLabels[row.provider] ?? row.provider}</TableCell>
                   <TableCell>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, alignItems: "flex-start" }}>
-                      <Chip size="small" color={getStatusColor(row)} label={getAppSubscriptionStatusLabel(row)} />
-                      {row.attention ? <Chip size="small" variant="outlined" label={attentionLabels[row.attention]} /> : null}
+                    <Typography variant="body2">
+                      {providerLabels[row.provider] ?? row.provider}
+                    </Typography>
+                    {row.paymentChannel ? (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {row.paymentChannel}
+                      </Typography>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.75,
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <Chip
+                        size="small"
+                        color={getStatusColor(row)}
+                        label={getAppSubscriptionStatusLabel(row)}
+                      />
+                      {row.attention ? (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={attentionLabels[row.attention]}
+                        />
+                      ) : null}
                     </Box>
                   </TableCell>
                   <TableCell>{formatDate(row.boughtAt)}</TableCell>
@@ -372,16 +422,31 @@ export default function AppSubscriptionsTable({
                       {row.paymentsCount} оплат
                     </Typography>
                   </TableCell>
-                  <TableCell>{row.cancelAtPeriodEnd ? "Отключено" : row.provider === "YOOKASSA" ? "Включено" : "—"}</TableCell>
+                  <TableCell>
+                    {row.cancelAtPeriodEnd
+                      ? "Отключено"
+                      : row.provider === "YOOKASSA"
+                        ? "Включено"
+                        : "—"}
+                  </TableCell>
                   <TableCell>
                     {row.provider === "APPLE" ? (
                       <AppleDetails row={row} />
                     ) : (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {row.paymentMethod ?? row.manualReason ?? "—"}
-                      </Typography>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Способ: {row.paymentMethod ?? "—"}
+                        </Typography>
+                        {row.manualReason ? (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Причина: {row.manualReason}
+                          </Typography>
+                        ) : null}
+                      </Box>
                     )}
-                    <Link href={`/main-panel/users?search=${encodeURIComponent(row.user.username)}`}>
+                    <Link
+                      href={`/main-panel/users?search=${encodeURIComponent(row.user.username)}`}
+                    >
                       <Button size="small" sx={{ mt: 0.75 }}>
                         Открыть
                       </Button>
@@ -393,20 +458,44 @@ export default function AppSubscriptionsTable({
           </Table>
         </TableContainer>
 
-        <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1.5, p: 2, pt: 0 }}>
+        <Box
+          sx={{
+            display: { xs: "flex", md: "none" },
+            flexDirection: "column",
+            gap: 1.5,
+            p: 2,
+            pt: 0,
+          }}
+        >
           {visibleRows.map((row) => (
             <Paper key={row.id} variant="outlined" sx={{ p: 1.5 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  alignItems: "flex-start",
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle2">{row.user.fullName ?? row.user.username}</Typography>
+                  <Typography variant="subtitle2">
+                    {row.user.fullName ?? row.user.username}
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     @{row.user.username}
                   </Typography>
                 </Box>
-                <Chip size="small" color={getStatusColor(row)} label={getAppSubscriptionStatusLabel(row)} />
+                <Chip
+                  size="small"
+                  color={getStatusColor(row)}
+                  label={getAppSubscriptionStatusLabel(row)}
+                />
               </Box>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                {providerLabels[row.provider] ?? row.provider} · купил {formatDate(row.boughtAt)}
+                {[providerLabels[row.provider] ?? row.provider, row.paymentChannel]
+                  .filter(Boolean)
+                  .join(" · ")}{" "}
+                · купил {formatDate(row.boughtAt)}
               </Typography>
               <Typography variant="body2">
                 До: {row.isLifetime ? "навсегда" : formatDate(row.activeUntil)}
@@ -414,8 +503,16 @@ export default function AppSubscriptionsTable({
               <Typography variant="body2">
                 Оплачено: {formatMoney(row.totalPaidRub)} · {row.paymentsCount} оплат
               </Typography>
+              {row.provider !== "APPLE" ? (
+                <Typography variant="body2">Способ оплаты: {row.paymentMethod ?? "—"}</Typography>
+              ) : null}
               {row.attention ? (
-                <Chip size="small" variant="outlined" label={attentionLabels[row.attention]} sx={{ mt: 1 }} />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={attentionLabels[row.attention]}
+                  sx={{ mt: 1 }}
+                />
               ) : null}
               {row.provider === "APPLE" ? <AppleDetails row={row} /> : null}
             </Paper>

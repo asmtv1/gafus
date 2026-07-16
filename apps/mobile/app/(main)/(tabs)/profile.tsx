@@ -13,6 +13,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Card } from "@/shared/components/ui";
 import {
   appSubscriptionApi,
+  formatAppSubscriptionPaymentMethod,
   getYookassaPrimaryCta,
   requestAppSubscriptionPaywall,
   useAppSubscriptionStatus,
@@ -72,7 +73,7 @@ function MobileAppSubscriptionCard() {
   const { data: statusResponse, isLoading, refetch } = useAppSubscriptionStatus();
   const status = statusResponse?.data;
   const isActive = Boolean(status?.hasActiveSubscription);
-  const inactiveCta = getYookassaPrimaryCta({ offer: status });
+  const inactiveCta = getYookassaPrimaryCta();
   const canUnlink =
     isActive &&
     status?.provider === "YOOKASSA" &&
@@ -173,9 +174,7 @@ function MobileAppSubscriptionCard() {
 
       <View style={styles.subscriptionInfoCell}>
         <Text style={styles.subscriptionLabel}>Способ оплаты</Text>
-        <Text style={styles.subscriptionValue}>
-          {status?.paymentMethodLast4 ? `•••• ${status.paymentMethodLast4}` : "—"}
-        </Text>
+        <Text style={styles.subscriptionValue}>{formatAppSubscriptionPaymentMethod(status)}</Text>
       </View>
 
       {canUnlink ? (

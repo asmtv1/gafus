@@ -1,7 +1,7 @@
 /**
  * API: POST /api/v1/payments/webhook — уведомления ЮKassa о статусе платежа
  */
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import {
@@ -10,7 +10,10 @@ import {
   refundPaymentFromWebhook,
   getUserIdByYookassaPaymentId,
 } from "@gafus/core/services/payments";
-import { handleYookassaAppSubscriptionWebhook } from "@gafus/core/services/appSubscription";
+import {
+  getYookassaCredentialsForProfile,
+  handleYookassaAppSubscriptionWebhook,
+} from "@gafus/core/services/appSubscription";
 import { invalidateUserProgressCache } from "@shared/lib/actions/invalidateCoursesCache";
 import { invalidateCoursesCache } from "@shared/server-actions/cache";
 
@@ -31,7 +34,8 @@ function isYooKassaIP(ip: string | null): boolean {
 
 function shouldSkipIpCheck(request: NextRequest): boolean {
   void request;
-  const skipByEnv = process.env.YOOKASSA_SKIP_IP_CHECK === "1" || process.env.YOOKASSA_SKIP_IP_CHECK === "true";
+  const skipByEnv =
+    process.env.YOOKASSA_SKIP_IP_CHECK === "1" || process.env.YOOKASSA_SKIP_IP_CHECK === "true";
   return skipByEnv && process.env.NODE_ENV !== "production";
 }
 
@@ -47,13 +51,15 @@ function verifyWebhookSignature(
   const hash = createHmac("sha256", secretKey).update(body).digest("hex");
   const left = Buffer.from(hash, "hex");
   const right = Buffer.from(signature, "hex");
-  return left.length === right.length && timingSafeEqual(new Uint8Array(left), new Uint8Array(right));
+  return (
+    left.length === right.length && timingSafeEqual(new Uint8Array(left), new Uint8Array(right))
+  );
 }
 
 export async function POST(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null;
-  
+
   if (!shouldSkipIpCheck(request) && !isYooKassaIP(ip)) {
     console.warn("[payments/webhook] IP not in whitelist:", ip);
     return NextResponse.json({}, { status: 403 });
@@ -71,9 +77,17 @@ export async function POST(request: NextRequest) {
   // X-Yookassa-Signature (заголовок часто только у webhook, созданных через API). Если подпись
   // есть — проверяем; если нет — полагаемся на проверку IP выше.
   const signature = request.headers.get("x-yookassa-signature")?.trim() ?? null;
-  const secretKey = process.env.YOOKASSA_SECRET_KEY?.trim();
+  const webhookSecretKeys = [
+    process.env.YOOKASSA_SECRET_KEY,
+    process.env.YOOKASSA_MOBILE_API_SECRET_KEY_IOS,
+    process.env.YOOKASSA_MOBILE_API_SECRET_KEY_ANDROID,
+  ]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
   if (signature) {
-    if (!secretKey || !verifyWebhookSignature(bodyText, signature, secretKey)) {
+    if (
+      !webhookSecretKeys.some((secretKey) => verifyWebhookSignature(bodyText, signature, secretKey))
+    ) {
       console.error("[payments/webhook] Invalid signature");
       return NextResponse.json({}, { status: 403 });
     }
@@ -89,26 +103,30 @@ export async function POST(request: NextRequest) {
 
   const type = (body as { type?: string }).type;
   const event = (body as { event?: string }).event;
-  const obj = (body as {
-    object?: {
-      id?: string;
-      amount?: { value?: string };
-      status?: string;
-      saved?: boolean;
-      card?: { last4?: string };
-      title?: string;
-      payment_method?: {
+  const obj = (
+    body as {
+      object?: {
         id?: string;
-        title?: string;
+        amount?: { value?: string };
+        status?: string;
+        saved?: boolean;
         card?: { last4?: string };
+        title?: string;
+        payment_method?: {
+          id?: string;
+          title?: string;
+          card?: { last4?: string };
+        };
+        metadata?: Record<string, string | undefined>;
       };
-      metadata?: Record<string, string | undefined>;
-    };
-  }).object;
+    }
+  ).object;
   const yookassaPaymentId = obj?.id;
   const amount = obj?.amount?.value;
   const isPaymentMethodEvent = typeof event === "string" && event.startsWith("payment_method.");
-  const paymentMethodId = isPaymentMethodEvent ? (obj?.id ?? null) : (obj?.payment_method?.id ?? null);
+  const paymentMethodId = isPaymentMethodEvent
+    ? (obj?.id ?? null)
+    : (obj?.payment_method?.id ?? null);
   const paymentMethodLast4 = isPaymentMethodEvent
     ? (obj?.card?.last4 ?? null)
     : (obj?.payment_method?.card?.last4 ?? null);
@@ -128,6 +146,10 @@ export async function POST(request: NextRequest) {
   try {
     let userIdToInvalidate: string | null = null;
     if (isAppSubscriptionWebhook) {
+      const credentials = getYookassaCredentialsForProfile(metadata?.credentialProfile);
+      if (!credentials) {
+        throw new Error("YooKassa credentials for app subscription webhook are missing");
+      }
       const result = await handleYookassaAppSubscriptionWebhook({
         event: event ?? "unknown",
         yookassaPaymentId,
@@ -137,8 +159,8 @@ export async function POST(request: NextRequest) {
         paymentMethodTitle,
         metadata,
         payloadHash: createHash("sha256").update(bodyText).digest("hex"),
-        shopId: process.env.YOOKASSA_SHOP_ID,
-        secretKey: process.env.YOOKASSA_SECRET_KEY,
+        shopId: credentials.shopId,
+        secretKey: credentials.secretKey,
       });
       userIdToInvalidate = result.userId;
     } else {

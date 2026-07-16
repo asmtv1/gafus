@@ -4,14 +4,14 @@ import { prisma } from "@gafus/prisma";
 export const APP_FEATURE_MOBILE_VK_LOGIN_IOS = "mobile_vk_login_ios";
 /** Подсказка про оплату картами РФ на iOS в карточках платных курсов. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
-/** Кнопка оплаты картой РФ на iOS paywall. */
+/** Нативная оплата подписки через СБП в SDK ЮKassa на iOS paywall. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment";
 /** Включает автоматический показ paywall подписки в клиентах. */
 export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
 /** Включает server-side блокировку платных действий без подписки. */
 export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
 
-const CURRENT_MOBILE_VERSION = "1.6.0";
+const CURRENT_MOBILE_VERSION = "1.6.1";
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;

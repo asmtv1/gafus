@@ -18,6 +18,19 @@ export function getYookassaLegalSuffix(): string {
   return "; способ оплаты сохраняется в ЮKassa для автопродления.";
 }
 
+export function formatAppSubscriptionPaymentMethod(
+  paymentMethod:
+    | { paymentMethodTitle?: string | null; paymentMethodLast4?: string | null }
+    | null
+    | undefined,
+): string {
+  const title = paymentMethod?.paymentMethodTitle?.trim();
+  if (title) return title;
+
+  const last4 = paymentMethod?.paymentMethodLast4?.trim();
+  return last4 ? `•••• ${last4}` : "—";
+}
+
 export function selectDefaultAppSubscriptionPlan<T extends AppSubscriptionPlanPresentation>(
   plans: readonly T[] | null | undefined,
 ): T | null {

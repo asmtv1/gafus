@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "orientation": "portrait",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -67,6 +67,9 @@
       [
         "expo-build-properties",
         {
+          "ios": {
+            "useFrameworks": "static"
+          },
           "android": {
             "minSdkVersion": 24,
             "extraMavenRepos": ["https://artifactory-external.vkpartner.ru/artifactory/maven"]
@@ -76,6 +79,7 @@
       "./plugins/withAndroidTabletSupport",
       "./plugins/withMinSdkFromGradleProps",
       "./plugins/withIosAppMetrica516Compatibility",
+      "./plugins/withYooKassaPayments",
       "./plugins/withAppTracerNative",
       "expo-router",
       "expo-secure-store",

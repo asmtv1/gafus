@@ -4,7 +4,16 @@ import { useEffect, useState, useTransition } from "react";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 
-import { Alert, Box, Button, Card, CardContent, CardHeader, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 type Summary = {
   hasActiveSubscription: boolean;
@@ -13,6 +22,8 @@ type Summary = {
   isLifetime: boolean;
   activeUntil: string | null;
   cancelAtPeriodEnd: boolean;
+  paymentMethod: string | null;
+  paymentChannel: string | null;
 };
 
 interface AppSubscriptionGrantCardProps {
@@ -93,14 +104,16 @@ export function AppSubscriptionGrantCard({ userId, actorRole }: AppSubscriptionG
       <CardHeader title="Подписка приложения" subheader="Ручное управление доступом" />
       <CardContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Активна: {summary?.hasActiveSubscription ? "да" : "нет"}; provider: {summary?.provider ?? "-"}; status: {summary?.status ?? "-"}
+          Активна: {summary?.hasActiveSubscription ? "да" : "нет"}; источник:{" "}
+          {summary?.paymentChannel ?? summary?.provider ?? "-"}; статус: {summary?.status ?? "-"}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Lifetime: {summary?.isLifetime ? "да" : "нет"}; activeUntil: {summary?.activeUntil ?? "-"}
         </Typography>
         {summary?.provider === "YOOKASSA" ? (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Автопродление: {summary.cancelAtPeriodEnd ? "отменено" : "включено"}
+            Способ оплаты: {summary.paymentMethod ?? "—"}; автопродление:{" "}
+            {summary.cancelAtPeriodEnd ? "отменено" : "включено"}
           </Typography>
         ) : null}
 
@@ -130,7 +143,13 @@ export function AppSubscriptionGrantCard({ userId, actorRole }: AppSubscriptionG
               <Button
                 variant="contained"
                 disabled={isPending || csrfLoading || !csrfToken || !paidUntil}
-                onClick={() => postAction({ action: "paid_until", paidUntil: new Date(paidUntil).toISOString(), reason })}
+                onClick={() =>
+                  postAction({
+                    action: "paid_until",
+                    paidUntil: new Date(paidUntil).toISOString(),
+                    reason,
+                  })
+                }
               >
                 Оплачено до даты
               </Button>

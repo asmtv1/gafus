@@ -15,7 +15,10 @@ interface AppSubscriptionsClientProps {
   dashboard: AppSubscriptionDashboard;
 }
 
-function rowMatchesFilter(row: AppSubscriptionDashboard["rows"][number], filter: AppSubscriptionFilter) {
+function rowMatchesFilter(
+  row: AppSubscriptionDashboard["rows"][number],
+  filter: AppSubscriptionFilter,
+) {
   switch (filter) {
     case "active":
       return row.isActiveNow;
@@ -63,6 +66,7 @@ export default function AppSubscriptionsClient({ dashboard }: AppSubscriptionsCl
           row.status,
           getAppSubscriptionStatusLabel(row),
           row.paymentMethod,
+          row.paymentChannel,
           row.appleProductId,
           row.manualReason,
         ]

@@ -38,6 +38,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         canceledAt: null,
         yookassaPaymentMethodLast4: "4444",
         yookassaPaymentMethodTitle: "МИР *4444",
+        yookassaCredentialProfile: "mobile_android",
         appleOriginalTransactionId: null,
         appleProductId: null,
         manualReason: null,
@@ -243,6 +244,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
       lastPaymentAt: "2026-05-17T10:00:30.000Z",
       totalPaidRub: 400,
       paymentsCount: 2,
+      paymentChannel: "Android · нативный SDK",
       attention: null,
     });
     expect(result.rows.find((row) => row.id === "expired-yoo")).toMatchObject({

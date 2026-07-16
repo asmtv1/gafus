@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatAppSubscriptionPaymentMethod,
   formatAppSubscriptionPlanPrice,
   getYookassaLegalSuffix,
   getYookassaPaymentCaption,
@@ -28,5 +29,11 @@ describe("app subscription presentation", () => {
   it("selects and formats the monthly plan", () => {
     expect(selectDefaultAppSubscriptionPlan([monthlyPlan])).toEqual(monthlyPlan);
     expect(formatAppSubscriptionPlanPrice(monthlyPlan)).toBe("2 500 ₽/месяц");
+  });
+
+  it("shows the YooKassa payment method title before card digits", () => {
+    expect(formatAppSubscriptionPaymentMethod({ paymentMethodTitle: "СБП" })).toBe("СБП");
+    expect(formatAppSubscriptionPaymentMethod({ paymentMethodLast4: "4444" })).toBe("•••• 4444");
+    expect(formatAppSubscriptionPaymentMethod(null)).toBe("—");
   });
 });
