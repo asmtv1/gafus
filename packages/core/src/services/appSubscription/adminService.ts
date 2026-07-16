@@ -308,10 +308,12 @@ export async function getAppSubscriptionAdminDashboard(
       paymentsCount: payments.length,
       totalPaidRub,
       paymentMethod:
-        subscription.yookassaPaymentMethodTitle ??
-        (subscription.yookassaPaymentMethodLast4
-          ? `Карта *${subscription.yookassaPaymentMethodLast4}`
-          : null),
+        subscription.provider === "APPLE"
+          ? "Apple"
+          : (subscription.yookassaPaymentMethodTitle ??
+            (subscription.yookassaPaymentMethodLast4
+              ? `Карта *${subscription.yookassaPaymentMethodLast4}`
+              : null)),
       appleProductId: subscription.appleProductId,
       apple:
         subscription.provider === "APPLE"

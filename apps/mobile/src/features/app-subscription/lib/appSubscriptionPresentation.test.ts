@@ -18,7 +18,7 @@ const monthlyPlan = {
 
 describe("app subscription presentation", () => {
   it("uses immediate-payment copy without a trial", () => {
-    expect(getYookassaPrimaryCta()).toBe("Оформить подписку");
+    expect(getYookassaPrimaryCta()).toBe("Оплатить по СБП");
     expect(getYookassaPaymentCaption()).toBe(
       "Списание произойдёт при оформлении подписки. Способ оплаты сохраняется в ЮKassa для автопродления.",
     );

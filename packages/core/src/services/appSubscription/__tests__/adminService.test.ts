@@ -253,6 +253,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
     expect(result.rows.find((row) => row.id === "cancel-at-end")).toMatchObject({
       totalPaidRub: 199,
       paymentsCount: 1,
+      paymentMethod: "Apple",
       apple: {
         productId: "premium-week",
         originalTransactionId: "orig-cancel",

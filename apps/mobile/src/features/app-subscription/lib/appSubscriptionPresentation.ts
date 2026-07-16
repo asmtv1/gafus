@@ -7,7 +7,7 @@ export type AppSubscriptionPlanPresentation = {
 };
 
 export function getYookassaPrimaryCta(): string {
-  return "Оформить подписку";
+  return "Оплатить по СБП";
 }
 
 export function getYookassaPaymentCaption(): string {

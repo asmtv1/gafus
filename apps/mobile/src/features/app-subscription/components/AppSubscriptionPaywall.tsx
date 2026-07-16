@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { fetchProducts, initConnection } from "expo-iap";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -517,16 +518,22 @@ export function AppSubscriptionPaywall() {
               disabled={isPaying || offerQuery.isLoading || !selectedPlan}
             >
               {isPaying && !canUseApple ? <ActivityIndicator color="#ECE5D2" /> : null}
+              {!isPaying ? (
+                <Image
+                  source={require("../../../../assets/images/sbp-logo.svg")}
+                  style={styles.sbpIcon}
+                  contentFit="contain"
+                  accessible={false}
+                />
+              ) : null}
               <Text style={canUseApple ? styles.secondaryPayButtonText : styles.primaryButtonText}>
                 {isPaying ? "Оформляем..." : yookassaPrimaryCta}
               </Text>
-              {!isPaying && canUseApple ? (
-                <Text style={styles.secondaryPayButtonHint}>(через ЮKassa)</Text>
-              ) : null}
             </Pressable>
           ) : null}
 
-          <View style={styles.rewardedBox}>
+          {rewardedStatus?.settings.platformEnabled && rewardedStatus.settings.paywallCtaEnabled ? (
+            <View style={styles.rewardedBox}>
             <View style={styles.rewardedHeader}>
               <MaterialCommunityIcons name="play-circle-outline" size={22} color={COLORS.primary} />
               <Text style={styles.rewardedTitle}>Открыть за просмотр рекламы</Text>
@@ -559,7 +566,8 @@ export function AppSubscriptionPaywall() {
                 {isRewardedLoading ? "Открываем рекламу..." : "Посмотреть рекламу"}
               </Text>
             </Pressable>
-          </View>
+            </View>
+          ) : null}
 
           <Text style={styles.legalText}>
             Нажимая кнопку оплаты, вы принимаете{" "}
@@ -932,6 +940,8 @@ const styles = StyleSheet.create({
     borderColor: "#636128",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
     paddingHorizontal: SPACING.md,
   },
   secondaryPayButtonText: {
@@ -939,11 +949,9 @@ const styles = StyleSheet.create({
     color: "#636128",
     fontSize: 16,
   },
-  secondaryPayButtonHint: {
-    marginTop: 2,
-    fontFamily: FONTS.montserratMedium,
-    color: "#636128",
-    fontSize: 12,
+  sbpIcon: {
+    width: 20,
+    height: 25,
   },
   disabledButton: {
     opacity: 0.62,

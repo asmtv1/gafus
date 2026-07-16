@@ -174,7 +174,9 @@ function MobileAppSubscriptionCard() {
       <View style={styles.subscriptionInfoCell}>
         <Text style={styles.subscriptionLabel}>Способ оплаты</Text>
         <Text style={styles.subscriptionValue}>
-          {status?.paymentMethodLast4 ? `•••• ${status.paymentMethodLast4}` : "—"}
+          {status?.paymentMethodLast4
+            ? `•••• ${status.paymentMethodLast4}`
+            : (status?.paymentMethodTitle ?? "—")}
         </Text>
       </View>
 

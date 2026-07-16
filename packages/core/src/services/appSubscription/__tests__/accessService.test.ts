@@ -115,6 +115,28 @@ describe("getAppSubscriptionAccess", () => {
     expect(result.hasActiveSubscription).toBe(false);
   });
 
+  it("returns Apple as the payment method for an active Apple subscription", async () => {
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-apple",
+        provider: "APPLE",
+        planCode: "MONTHLY",
+        status: "ACTIVE",
+        isLifetime: false,
+        currentPeriodEnd: new Date("2026-05-20T10:00:00.000Z"),
+        createdAt: new Date("2026-05-13T10:00:00.000Z"),
+        cancelAtPeriodEnd: false,
+        yookassaPaymentMethodId: null,
+        yookassaPaymentMethodLast4: null,
+        yookassaPaymentMethodTitle: null,
+      },
+    ]);
+
+    const result = await getAppSubscriptionAccess("u1", new Date("2026-05-10T10:00:00.000Z"));
+
+    expect(result.paymentMethodTitle).toBe("Apple");
+  });
+
   it("marks active YooKassa access as trial when there is no successful payment yet", async () => {
     mockFindMany.mockResolvedValue([
       {

@@ -90,7 +90,8 @@ export async function getAppSubscriptionAccess(
     cancelAtPeriodEnd: active.cancelAtPeriodEnd,
     hasSavedPaymentMethod,
     paymentMethodLast4: active.yookassaPaymentMethodLast4 ?? null,
-    paymentMethodTitle: active.yookassaPaymentMethodTitle ?? null,
+    paymentMethodTitle:
+      active.provider === "APPLE" ? "Apple" : (active.yookassaPaymentMethodTitle ?? null),
     nextChargeAt,
     yookassaTrialAvailable: false,
     yookassaTrialDays: 0,
