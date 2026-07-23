@@ -583,37 +583,9 @@ jobs:
 
             # Uploads directories are handled by CDN - no local directories needed
 
-            # Infrastructure cleanup - best practice: remove everything and start fresh
-            echo "🧹 Cleaning up infrastructure..."
-
-            # Stop and remove all containers with gafus prefix
-            docker stop $(docker ps -q --filter "name=gafus-*") 2>/dev/null || true
-            docker rm $(docker ps -aq --filter "name=gafus-*") 2>/dev/null || true
-
-            # Remove all gafus containers by name explicitly
-            docker rm -f gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-prisma gafus-postgres gafus-redis gafus-nginx gafus-alloy gafus-node-exporter gafus-postgres-exporter gafus-redis-exporter gafus-blackbox-exporter 2>/dev/null || true
-
-            # Now do the normal compose cleanup
-            docker-compose -f "$COMPOSE_PROD" down --remove-orphans --timeout 30 || true
-            docker system prune -f || true
-            docker image prune -f --all || true
-            docker container prune -f || true
-            docker network prune -f || true
-
-            # Remove any dangling images and containers
-            docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
-            docker rm $(docker ps -aq) 2>/dev/null || true
-
-            # Pull latest images from registry in parallel to speed up deployment
-            echo "📥 Pulling latest Docker images in parallel..."
-
-            # Проверяем авторизацию перед загрузкой
-            echo "🔍 Verifying registry access..."
-            if ! docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-web:latest 2>&1 | head -5; then
-              echo "⚠️ Warning: Failed to pull test image, but continuing..."
-            fi
-
-            # Загружаем образы с детальным логированием ошибок
+            # Download every image before touching running containers. A registry or network
+            # outage must fail the deployment without taking production offline.
+            echo "📥 Pulling latest Docker images..."
             images=(
               "gafus-web"
               "gafus-trainer-panel"
@@ -624,14 +596,26 @@ jobs:
               "gafus-prisma"
             )
 
+            pull_image() {
+              local image="$1"
+              local reference="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$image:latest"
+              for attempt in 1 2 3; do
+                echo "📥 Pulling $image (attempt $attempt/3)..."
+                if timeout 15m docker pull "$reference"; then
+                  echo "✅ Successfully pulled $image"
+                  return 0
+                fi
+                echo "⚠️ Pull of $image failed or timed out; retrying in 20 seconds..."
+                sleep 20
+              done
+              return 1
+            }
+
             pull_failed=0
             for image in "${images[@]}"; do
-              echo "📥 Pulling $image..."
-              if ! docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$image:latest; then
+              if ! pull_image "$image"; then
                 echo "❌ Failed to pull $image"
                 pull_failed=1
-              else
-                echo "✅ Successfully pulled $image"
               fi
             done
 
@@ -643,6 +627,10 @@ jobs:
             fi
 
             # Images are now used directly from registry, no need to retag
+
+            # Remove only stopped, unused resources after all required images are present.
+            docker container prune -f || true
+            docker image prune -f || true
 
             # Infrastructure deployment - best practice: start services in dependency order
             echo "🚀 Starting infrastructure services..."
