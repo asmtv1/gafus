@@ -45,7 +45,7 @@ import { Input } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet, type PetDocument } from "@/shared/lib/api/pets";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -877,7 +877,7 @@ interface PetPreventionSectionProps {
 
 function PetPreventionSection({ pet }: PetPreventionSectionProps) {
   const queryClient = useQueryClient();
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
   const addToQueue = usePreventionSyncStore((state) => state.addToQueue);
   const [showModal, setShowModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PetPreventionEntry | null>(null);

@@ -42,9 +42,13 @@ import type { LocalStepState } from "@/shared/stores";
 import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
 import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { WebView } from "react-native-webview";
-import { getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
+import {
+  getOfflineVideoPosterUri,
+  getOfflineVideoUri,
+} from "@/shared/lib/offline/offlineStorage";
+import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -194,7 +198,7 @@ function AccordionStepComponent({
   const useExpoVideo = Boolean(videoInfo?.isCDN || videoInfo?.isHLS);
   const embedPageUrl = videoInfo && !useExpoVideo && videoInfo.embedUrl ? videoInfo.embedUrl : null;
 
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
 
   const trainerImageUrls = useMemo(() => {
     const raw = stepData?.imageUrls;
@@ -246,6 +250,7 @@ function AccordionStepComponent({
   const [isSavingDiary, setIsSavingDiary] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
   const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
+  const [offlinePosterUri, setOfflinePosterUri] = useState<string | null>(null);
   const [isCheckingOfflineVideo, setIsCheckingOfflineVideo] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onCompleteRef = useRef(onComplete);
@@ -261,24 +266,34 @@ function AccordionStepComponent({
     isLoading: isLoadingVideo,
     error: videoError,
     videoId,
+    posterUrl,
     retry: retryVideo,
   } = useVideoUrl(requestOnlineUrl && !isOffline ? videoUrl : null);
-  const { initialTimeSec, saveProgress } = useVideoProgress(
-    videoId,
-    Boolean(requestOnlineUrl && !isOffline),
-  );
+  const sourceVideoId = getVideoIdFromUrl(videoUrl);
+  const {
+    initialTimeSec,
+    isLoading: isLoadingVideoProgress,
+    saveProgress,
+  } = useVideoProgress(videoId ?? sourceVideoId, Boolean(requestOnlineUrl));
 
   useEffect(() => {
     if (!requestOnlineUrl || !videoUrl || !courseId) {
       setOfflineVideoUri(null);
+      setOfflinePosterUri(null);
       setIsCheckingOfflineVideo(false);
       return;
     }
     let cancelled = false;
     setIsCheckingOfflineVideo(true);
-    void getOfflineVideoUri(courseId, videoUrl)
-      .then((uri) => {
-        if (!cancelled) setOfflineVideoUri(uri);
+    void Promise.all([
+      getOfflineVideoUri(courseId, videoUrl),
+      getOfflineVideoPosterUri(courseId, videoUrl),
+    ])
+      .then(([uri, posterUri]) => {
+        if (!cancelled) {
+          setOfflineVideoUri(uri);
+          setOfflinePosterUri(posterUri);
+        }
       })
       .catch((error) => {
         if (cancelled) return;
@@ -287,6 +302,7 @@ function AccordionStepComponent({
           keys: { operation: "offline_video_lookup" },
         });
         setOfflineVideoUri(null);
+        setOfflinePosterUri(null);
       })
       .finally(() => {
         if (!cancelled) setIsCheckingOfflineVideo(false);
@@ -799,7 +815,8 @@ function AccordionStepComponent({
                     <View style={styles.videoLoadingContainer}>
                       <Text style={styles.videoLoadingText}>Для просмотра нужен интернет</Text>
                     </View>
-                  ) : (isLoadingVideo || isCheckingOfflineVideo) && !offlineVideoUri ? (
+                  ) : isLoadingVideoProgress ||
+                    ((isLoadingVideo || isCheckingOfflineVideo) && !offlineVideoUri) ? (
                     <View style={styles.videoLoadingContainer}>
                       <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                     </View>
@@ -824,8 +841,10 @@ function AccordionStepComponent({
                     <VideoPlayer
                       key={videoPlayerRetryKey}
                       uri={effectivePlaybackUrl}
+                      poster={offlinePosterUri ?? posterUrl ?? undefined}
+                      autoPlay
                       initialTimeSec={initialTimeSec}
-                      onSaveProgress={isOffline ? undefined : saveProgress}
+                      onSaveProgress={saveProgress}
                       onRetry={handleVideoPlayerRetry}
                     />
                   ) : userRequestedPlay ? (

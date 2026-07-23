@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNetworkStatus } from "./useNetworkStatus";
+import { useIsOffline } from "./useNetworkStatus";
 import { reportClientError } from "@/shared/lib/tracer";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 
@@ -10,7 +10,7 @@ import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
  * При 401 показывает «Проверьте авторизацию» и очищает очередь.
  */
 export function usePreventionSyncOnReconnect(): void {
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
   const processQueue = usePreventionSyncStore((s) => s.processQueue);
   const queryClient = useQueryClient();
   const prevOffline = useRef(isOffline);

@@ -11,7 +11,7 @@ export function getYookassaPrimaryCta(): string {
 }
 
 export function getYookassaPaymentCaption(): string {
-  return "Списание произойдёт при оформлении подписки. Способ оплаты сохраняется в ЮKassa для автопродления.";
+  return "Списание произойдёт при оформлении подписки.";
 }
 
 export function getYookassaLegalSuffix(): string {

@@ -13,15 +13,19 @@ import { createWorkerLogger } from "@gafus/logger";
 import { prisma } from "@gafus/prisma";
 import { deleteFileFromCDN, streamFileFromCDN, uploadBufferToCDN } from "@gafus/cdn-upload";
 import type { VideoTranscodingJobData, VideoTranscodingResult } from "@gafus/types";
+import {
+  createHlsMasterPlaylist,
+  createHlsRenditions,
+  type HlsRendition,
+} from "./video-hls-profiles";
 
 const execAsync = promisify(exec);
 const logger = createWorkerLogger("video-transcoding-worker");
 const TEMP_FREE_SPACE_RESERVE_BYTES = 1024 * 1024 * 1024;
 const AUDIO_BITRATE = 128_000;
 const MIN_VIDEO_BITRATE = 300_000;
-const MAX_720P_VIDEO_BITRATE = 3_000_000;
-const MAX_1080P_VIDEO_BITRATE = 5_000_000;
 const OUTPUT_SIZE_SAFETY_MULTIPLIER = 1.3;
+const HLS_UPLOAD_CONCURRENCY = 4;
 
 interface VideoMetadata {
   height: number;
@@ -122,18 +126,14 @@ class VideoTranscodingWorker {
       logger.info("📏 Параметры исходного видео", { ...metadata });
 
       // 4. Транскодируем в HLS
-      const cappedHeight = Math.min(metadata.height, 1080);
-      const targetHeight = Math.max(2, cappedHeight - (cappedHeight % 2));
-      const bitrateCap = targetHeight <= 720 ? MAX_720P_VIDEO_BITRATE : MAX_1080P_VIDEO_BITRATE;
       const sourceVideoBitrate = Math.max(metadata.bitrate - AUDIO_BITRATE, MIN_VIDEO_BITRATE);
-      const targetVideoBitrate = Math.min(sourceVideoBitrate, bitrateCap);
+      const renditions = createHlsRenditions(metadata.height, sourceVideoBitrate);
 
-      await this.ensureEnoughOutputSpace(metadata.durationSec, targetVideoBitrate);
-      logger.info("🎞️ Транскодируем в ограниченный HLS-профиль", {
-        targetHeight,
-        targetVideoBitrate,
+      await this.ensureEnoughOutputSpace(metadata.durationSec, renditions);
+      logger.info("🎞️ Транскодируем в адаптивную HLS-лестницу", {
+        renditions,
       });
-      await this.transcodeToHLS(inputPath, hlsDir, targetHeight, targetVideoBitrate);
+      await this.transcodeToHLS(inputPath, hlsDir, renditions);
 
       // 4.1. Генерируем thumbnail из первого кадра
       logger.info("🖼️ Генерируем thumbnail...");
@@ -160,7 +160,7 @@ class VideoTranscodingWorker {
       const hlsTotalSize = await this.uploadHLSFiles(hlsDir, hlsBasePath);
 
       // 6. Обновляем БД (включая размер HLS файлов)
-      const hlsManifestPath = `${hlsBasePath}/playlist.m3u8`;
+      const hlsManifestPath = `${hlsBasePath}/master.m3u8`;
       await prisma.trainerVideo.update({
         where: { id: videoId },
         data: {
@@ -285,12 +285,15 @@ class VideoTranscodingWorker {
    */
   private async ensureEnoughOutputSpace(
     durationSec: number,
-    targetVideoBitrate: number,
+    renditions: readonly HlsRendition[],
   ): Promise<void> {
     const stats = await fs.statfs(this.tmpDir);
     const availableBytes = stats.bavail * stats.bsize;
     const estimatedOutputBytes = Math.ceil(
-      (((targetVideoBitrate + AUDIO_BITRATE) * durationSec) / 8) * OUTPUT_SIZE_SAFETY_MULTIPLIER,
+      ((renditions.reduce((total, rendition) => total + rendition.videoBitrate + AUDIO_BITRATE, 0) *
+        durationSec) /
+        8) *
+        OUTPUT_SIZE_SAFETY_MULTIPLIER,
     );
     const requiredBytes = estimatedOutputBytes + TEMP_FREE_SPACE_RESERVE_BYTES;
 
@@ -311,24 +314,34 @@ class VideoTranscodingWorker {
    * Транскодирует видео в HLS формат
    * @param inputPath - Путь к исходному видео
    * @param outputDir - Директория для HLS файлов
-   * @param targetHeight - Целевая высота, не более 1080p
-   * @param targetVideoBitrate - Целевой видеобитрейт в битах в секунду
+   * @param renditions - Набор адаптивных профилей без апскейла
    */
   private async transcodeToHLS(
     inputPath: string,
     outputDir: string,
-    targetHeight: number,
-    targetVideoBitrate: number,
+    renditions: readonly HlsRendition[],
   ): Promise<void> {
-    const playlistPath = path.join(outputDir, "playlist.m3u8");
-    const segmentPattern = path.join(outputDir, "segment-%03d.ts");
+    if (renditions.length === 0) throw new Error("Не удалось построить HLS-профили");
 
-    const maxRate = Math.ceil(targetVideoBitrate * 1.2);
-    const bufferSize = targetVideoBitrate * 2;
+    const filterGraph =
+      renditions.length === 1
+        ? `[0:v:0]scale=-2:${renditions[0].height}[v0out]`
+        : `[0:v:0]split=${renditions.length}${renditions.map((_, i) => `[v${i}]`).join("")};${renditions
+            .map((rendition, i) => `[v${i}]scale=-2:${rendition.height}[v${i}out]`)
+            .join(";")}`;
 
-    // Низкий приоритет и ограничение потоков защищают остальные сервисы на общем host.
-    // Ограниченный профиль также удерживает каждый шестисекундный HLS-сегмент небольшим.
-    const ffmpegCommand = `nice -n 10 ionice -c 3 ffmpeg -nostdin -hide_banner -loglevel error -threads 2 -i "${inputPath}" -vf "scale=-2:${targetHeight}" -c:v libx264 -preset veryfast -pix_fmt yuv420p -b:v ${targetVideoBitrate} -maxrate ${maxRate} -bufsize ${bufferSize} -force_key_frames "expr:gte(t,n_forced*6)" -sc_threshold 0 -c:a aac -b:a ${AUDIO_BITRATE} -hls_time 6 -hls_playlist_type vod -hls_segment_filename "${segmentPattern}" -hls_list_size 0 "${playlistPath}"`;
+    const outputArguments = renditions
+      .map((rendition, index) => {
+        const playlistPath = path.join(outputDir, `${rendition.name}.m3u8`);
+        const segmentPattern = path.join(outputDir, `${rendition.name}-segment-%03d.ts`);
+        const maxRate = Math.ceil(rendition.videoBitrate * 1.2);
+        const bufferSize = rendition.videoBitrate * 2;
+        return `-map "[v${index}out]" -map "0:a:0?" -c:v libx264 -threads:v 1 -preset veryfast -pix_fmt yuv420p -b:v ${rendition.videoBitrate} -maxrate ${maxRate} -bufsize ${bufferSize} -force_key_frames "expr:gte(t,n_forced*4)" -sc_threshold 0 -c:a aac -b:a ${AUDIO_BITRATE} -f hls -hls_time 4 -hls_playlist_type vod -hls_flags independent_segments -hls_segment_filename "${segmentPattern}" -hls_list_size 0 "${playlistPath}"`;
+      })
+      .join(" ");
+
+    // Один decode + split экономит I/O; по одному потоку на encoder ограничивает нагрузку общего host.
+    const ffmpegCommand = `nice -n 10 ionice -c 3 ffmpeg -nostdin -hide_banner -loglevel error -threads 2 -i "${inputPath}" -filter_complex "${filterGraph}" ${outputArguments}`;
 
     logger.info(`🔧 Выполняем FFmpeg команду: ${ffmpegCommand}`);
 
@@ -341,6 +354,12 @@ class VideoTranscodingWorker {
       if (stderr) {
         logger.info(`FFmpeg stderr: ${stderr}`);
       }
+
+      await fs.writeFile(
+        path.join(outputDir, "master.m3u8"),
+        createHlsMasterPlaylist(renditions, AUDIO_BITRATE),
+        "utf8",
+      );
 
       logger.success("✅ Транскодирование в HLS завершено");
     } catch (error) {
@@ -359,22 +378,30 @@ class VideoTranscodingWorker {
     logger.info(`📦 Загружаем ${files.length} HLS файлов в CDN...`);
 
     let totalSize = 0;
+    let nextFileIndex = 0;
+    const uploadWorkers = Array.from(
+      { length: Math.min(HLS_UPLOAD_CONCURRENCY, files.length) },
+      async () => {
+        while (nextFileIndex < files.length) {
+          const file = files[nextFileIndex++]!;
+          const filePath = path.join(hlsDir, file);
+          const fileBuffer = await fs.readFile(filePath);
+          totalSize += fileBuffer.length;
 
-    for (const file of files) {
-      const filePath = path.join(hlsDir, file);
-      const fileBuffer = await fs.readFile(filePath);
-      totalSize += fileBuffer.length;
-
-      // Определяем MIME тип
-      const contentType = file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp2t";
-
-      const relativePath = `${basePath}/${file}`;
-
-      await uploadBufferToCDN(fileBuffer, relativePath, contentType);
-      await fs.rm(filePath, { force: true });
-
-      logger.info(`✅ Загружен: ${file} (${fileBuffer.length} байт)`);
-    }
+          const contentType = file.endsWith(".m3u8")
+            ? "application/vnd.apple.mpegurl"
+            : "video/mp2t";
+          await uploadBufferToCDN(fileBuffer, `${basePath}/${file}`, contentType);
+          await fs.rm(filePath, { force: true });
+          logger.info(`✅ Загружен: ${file} (${fileBuffer.length} байт)`);
+        }
+      },
+    );
+    const uploadResults = await Promise.allSettled(uploadWorkers);
+    const failedUpload = uploadResults.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    if (failedUpload) throw failedUpload.reason;
 
     logger.success(
       `✅ Все ${files.length} HLS файлов загружены в CDN, общий размер: ${totalSize} байт`,

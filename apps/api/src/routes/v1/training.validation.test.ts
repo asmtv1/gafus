@@ -10,6 +10,7 @@ const {
   extractVideoIdFromCdnUrlMock,
   generateTokenMock,
   getProgressMock,
+  getSignedDownloadUrlMock,
   getAppFeatureFlagEnabledMock,
   getAppSubscriptionAccessMock,
   getTrainingDayWithMonetizedStepsMock,
@@ -28,6 +29,7 @@ const {
   extractVideoIdFromCdnUrlMock: vi.fn(),
   generateTokenMock: vi.fn(),
   getProgressMock: vi.fn(),
+  getSignedDownloadUrlMock: vi.fn(),
   getAppFeatureFlagEnabledMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
@@ -99,6 +101,7 @@ vi.mock("@gafus/core/services/video", () => ({
 vi.mock("@gafus/cdn-upload", () => ({
   downloadFileFromCDN: downloadFileFromCDNMock,
   extractVideoIdFromCdnUrl: extractVideoIdFromCdnUrlMock,
+  getSignedDownloadUrl: getSignedDownloadUrlMock,
   streamFileFromCDN: streamFileFromCDNMock,
 }));
 
@@ -111,6 +114,7 @@ vi.mock("@gafus/video-access", () => ({
 }));
 
 const { getVideoManifestInfo } = await import("@gafus/core/services/video");
+const { invalidateVideoPlaybackAccessCache } = await import("./training");
 
 function createTestApp() {
   const app = new Hono();
@@ -129,6 +133,7 @@ function createTestApp() {
 describe("training route validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invalidateVideoPlaybackAccessCache();
     process.env.VIDEO_ACCESS_SECRET = "test-video-access-secret-that-is-long-enough";
     checkCourseAccessByIdMock.mockResolvedValue({ hasAccess: true });
     getAppFeatureFlagEnabledMock.mockResolvedValue(false);
@@ -152,6 +157,7 @@ describe("training route validation", () => {
     syncUserCourseStatusFromDaysMock.mockResolvedValue(undefined);
     vi.mocked(getVideoManifestInfo).mockResolvedValue({
       hlsManifestPath: "trainers/trainer-1/videocourses/video-1/hls/playlist.m3u8",
+      thumbnailPath: null,
       transcodingStatus: "COMPLETED",
       trainerId: "trainer-1",
     });
@@ -177,6 +183,9 @@ describe("training route validation", () => {
       contentType: "video/mp2t",
       isPartialContent: false,
     });
+    getSignedDownloadUrlMock.mockImplementation(
+      async (path: string) => `https://storage.example/${path}`,
+    );
   });
 
   it("accepts UUID course ids for paid courses when completing practice steps", async () => {
@@ -234,6 +243,12 @@ describe("training route validation", () => {
   });
 
   it("returns the video id with a signed URL for progress synchronization", async () => {
+    vi.mocked(getVideoManifestInfo).mockResolvedValueOnce({
+      hlsManifestPath: "trainers/trainer-1/videocourses/video-1/hls/master.m3u8",
+      thumbnailPath: "uploads/trainers/trainer-1/videocourses/video-1/hls/thumbnail.jpg",
+      transcodingStatus: "COMPLETED",
+      trainerId: "trainer-1",
+    });
     const app = createTestApp();
 
     const response = await app.request("/api/v1/training/video/url", {
@@ -248,8 +263,33 @@ describe("training route validation", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       success: true,
-      data: { videoId: "video-1", url: expect.stringContaining("manifest.m3u8?token=") },
+      data: {
+        videoId: "video-1",
+        url: expect.stringContaining("manifest.m3u8?token="),
+        posterUrl: expect.stringContaining("thumbnail.jpg"),
+      },
     });
+  });
+
+  it("выдаёт сегменты media playlist прямыми signed URL", async () => {
+    downloadFileFromCDNMock.mockResolvedValueOnce(
+      Buffer.from("#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXTINF:4,\n720p-segment-001.ts\n"),
+    );
+    const app = createTestApp();
+
+    const response = await app.request(
+      "/api/v1/training/video/video-1/manifest.m3u8?token=signed-token",
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain(
+      "https://storage.example/trainers/trainer-1/videocourses/video-1/hls/720p-segment-001.ts",
+    );
+    expect(getSignedDownloadUrlMock).toHaveBeenCalledWith(
+      "trainers/trainer-1/videocourses/video-1/hls/720p-segment-001.ts",
+      43_200,
+    );
+    expect(streamFileFromCDNMock).not.toHaveBeenCalled();
   });
 
   it("returns progress only after checking access to the video", async () => {

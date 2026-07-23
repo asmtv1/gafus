@@ -37,15 +37,11 @@ async function main() {
       key: "default",
       androidEnabled: false,
       iosEnabled: false,
-      webDesktopEnabled: false,
-      webTouchEnabled: false,
-      paywallCtaEnabled: false,
       dailyAdLimit: 1,
       testMode: true,
     },
   });
   console.log("Rewarded ads settings созданы или найдены", {
-    paywallCtaEnabled: false,
     dailyAdLimit: 1,
     testMode: true,
   });

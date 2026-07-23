@@ -47,8 +47,6 @@ export function RewardedAdsSettingsCard({
           ...settings,
           yandexAndroidPlacementId: settings.yandexAndroidPlacementId?.trim() || null,
           yandexIosPlacementId: settings.yandexIosPlacementId?.trim() || null,
-          yandexWebDesktopBlockId: settings.yandexWebDesktopBlockId?.trim() || null,
-          yandexWebTouchBlockId: settings.yandexWebTouchBlockId?.trim() || null,
         });
         if (!result.success) {
           setError(result.error ?? "Не удалось сохранить");
@@ -88,38 +86,8 @@ export function RewardedAdsSettingsCard({
               }
               label="iOS"
             />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={settings.webDesktopEnabled}
-                  onChange={(event) => setBool("webDesktopEnabled")(event.target.checked)}
-                  disabled={!isAdmin || isPending}
-                />
-              }
-              label="Web desktop"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={settings.webTouchEnabled}
-                  onChange={(event) => setBool("webTouchEnabled")(event.target.checked)}
-                  disabled={!isAdmin || isPending}
-                />
-              }
-              label="Web touch"
-            />
           </Stack>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={settings.paywallCtaEnabled}
-                  onChange={(event) => setBool("paywallCtaEnabled")(event.target.checked)}
-                  disabled={!isAdmin || isPending}
-                />
-              }
-              label="Paywall CTA"
-            />
             <FormControlLabel
               control={
                 <Checkbox
@@ -160,18 +128,6 @@ export function RewardedAdsSettingsCard({
             label="Yandex iOS placement ID"
             value={settings.yandexIosPlacementId ?? ""}
             onChange={(event) => setText("yandexIosPlacementId")(event.target.value)}
-            disabled={!isAdmin || isPending}
-          />
-          <TextField
-            label="Yandex web desktop block ID"
-            value={settings.yandexWebDesktopBlockId ?? ""}
-            onChange={(event) => setText("yandexWebDesktopBlockId")(event.target.value)}
-            disabled={!isAdmin || isPending}
-          />
-          <TextField
-            label="Yandex web touch block ID"
-            value={settings.yandexWebTouchBlockId ?? ""}
-            onChange={(event) => setText("yandexWebTouchBlockId")(event.target.value)}
             disabled={!isAdmin || isPending}
           />
           <Button variant="contained" onClick={onSave} disabled={!isAdmin || isPending}>

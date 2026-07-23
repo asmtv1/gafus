@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Snackbar, Switch, Text } from "react-native-paper";
@@ -19,6 +20,12 @@ import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { remindersApi, type Reminder } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
+import {
+  getPushPermissionStatus,
+  markPushPermissionEducationSeen,
+  setupPushNotifications,
+  shouldShowPushPermissionEducation,
+} from "@/shared/lib/utils/notifications";
 
 const DAYS_OF_WEEK = [
   { id: "1", label: "Пн" },
@@ -133,6 +140,8 @@ export default function RemindersScreen() {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [deviceTimeZone, setDeviceTimeZone] = useState(() => getDeviceTimeZone());
+  const [showPushEducation, setShowPushEducation] = useState(false);
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -173,6 +182,13 @@ export default function RemindersScreen() {
       });
       void hapticFeedback.success();
       setSnackbar({ visible: true, message: "Напоминание добавлено" });
+
+      const permissionStatus = await getPushPermissionStatus();
+      if (permissionStatus === "granted") {
+        void setupPushNotifications();
+      } else if (await shouldShowPushPermissionEducation()) {
+        setShowPushEducation(true);
+      }
     },
   });
 
@@ -253,6 +269,36 @@ export default function RemindersScreen() {
     });
   };
 
+  const handleSkipPushEducation = async () => {
+    await markPushPermissionEducationSeen();
+    setShowPushEducation(false);
+    setSnackbar({
+      visible: true,
+      message: "Напоминание сохранено, но уведомления пока выключены",
+    });
+  };
+
+  const handleEnablePush = async () => {
+    if (isEnablingPush) return;
+    setIsEnablingPush(true);
+    await markPushPermissionEducationSeen();
+    try {
+      const ok = await setupPushNotifications();
+      if (ok) {
+        await queryClient.invalidateQueries({ queryKey: ["push-subscription-device-status"] });
+      }
+      setShowPushEducation(false);
+      setSnackbar({
+        visible: true,
+        message: ok
+          ? "Уведомления включены — напомним о тренировке вовремя"
+          : "Не удалось включить уведомления. Это можно сделать позже в профиле",
+      });
+    } finally {
+      setIsEnablingPush(false);
+    }
+  };
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -310,9 +356,7 @@ export default function RemindersScreen() {
                 size={20}
                 color={allDays ? COLORS.onPrimary : COLORS.primary}
               />
-              <Text style={[styles.allDaysText, allDays && styles.allDaysTextActive]}>
-                Все дни
-              </Text>
+              <Text style={[styles.allDaysText, allDays && styles.allDaysTextActive]}>Все дни</Text>
             </Pressable>
 
             <View style={styles.daysRow}>
@@ -331,9 +375,7 @@ export default function RemindersScreen() {
                     accessibilityState={{ checked: selected }}
                     accessibilityLabel={`${day.label}, ${selected ? "выбран" : "не выбран"}`}
                   >
-                    <Text
-                      style={[styles.dayChipText, selected && styles.dayChipTextSelected]}
-                    >
+                    <Text style={[styles.dayChipText, selected && styles.dayChipTextSelected]}>
                       {day.label}
                     </Text>
                   </Pressable>
@@ -372,7 +414,9 @@ export default function RemindersScreen() {
                         eventName: "button_click",
                         platform: "mobile",
                         pathOrScreen: "/reminders",
-                        elementId: enabled ? "training-reminder-enabled" : "training-reminder-disabled",
+                        elementId: enabled
+                          ? "training-reminder-enabled"
+                          : "training-reminder-disabled",
                       });
                       updateMutation.mutate({ id: r.id, enabled });
                     }}
@@ -442,6 +486,45 @@ export default function RemindersScreen() {
         >
           {snackbar.message}
         </Snackbar>
+
+        <Modal
+          visible={showPushEducation}
+          transparent
+          animationType="fade"
+          onRequestClose={() => void handleSkipPushEducation()}
+        >
+          <View style={styles.pushPromptOverlay}>
+            <View style={styles.pushPromptCard} accessibilityViewIsModal>
+              <View style={styles.pushPromptIcon}>
+                <MaterialCommunityIcons name="bell-ring-outline" size={30} color={COLORS.primary} />
+              </View>
+              <Text style={styles.pushPromptTitle}>Напомнить о тренировке?</Text>
+              <Text style={styles.pushPromptText}>
+                Разрешите уведомления, чтобы мы прислали напоминание в выбранное вами время.
+              </Text>
+              <Pressable
+                style={[styles.pushPromptPrimary, isEnablingPush && styles.buttonDisabled]}
+                onPress={() => void handleEnablePush()}
+                disabled={isEnablingPush}
+                accessibilityRole="button"
+                accessibilityLabel="Разрешить уведомления о тренировках"
+              >
+                {isEnablingPush ? <ActivityIndicator color={COLORS.onPrimary} /> : null}
+                <Text style={styles.pushPromptPrimaryText}>
+                  {isEnablingPush ? "Включаем..." : "Разрешить уведомления"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.pushPromptSecondary}
+                onPress={() => void handleSkipPushEducation()}
+                disabled={isEnablingPush}
+                accessibilityRole="button"
+              >
+                <Text style={styles.pushPromptSecondaryText}>Не сейчас</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </>
   );
@@ -451,6 +534,72 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  pushPromptOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    padding: SPACING.lg,
+    backgroundColor: "rgba(25, 22, 20, 0.56)",
+  },
+  pushPromptCard: {
+    alignItems: "center",
+    gap: SPACING.md,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: "#FFF9EA",
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  pushPromptIcon: {
+    width: 58,
+    height: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 29,
+    backgroundColor: "rgba(99, 97, 40, 0.12)",
+  },
+  pushPromptTitle: {
+    fontFamily: FONTS.montserratBold,
+    color: COLORS.text,
+    fontSize: 22,
+    lineHeight: 28,
+    textAlign: "center",
+  },
+  pushPromptText: {
+    fontFamily: FONTS.montserrat,
+    color: COLORS.textSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+  },
+  pushPromptPrimary: {
+    minHeight: 52,
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.primary,
+  },
+  pushPromptPrimaryText: {
+    fontFamily: FONTS.montserratBold,
+    color: COLORS.onPrimary,
+    fontSize: 16,
+  },
+  pushPromptSecondary: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: SPACING.lg,
+  },
+  pushPromptSecondaryText: {
+    fontFamily: FONTS.montserratMedium,
+    color: COLORS.primary,
+    fontSize: 15,
+  },
+  buttonDisabled: {
+    opacity: 0.68,
   },
   backRow: {
     flexDirection: "row",

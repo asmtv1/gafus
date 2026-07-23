@@ -2,8 +2,8 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.6.1",
-    "orientation": "portrait",
+    "version": "1.6.2",
+    "orientation": "default",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -106,7 +106,18 @@
           "photosPermission": "Приложение использует галерею, чтобы вы могли выбрать фото для аватара профиля или фото питомца."
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/montserrat/400Regular/Montserrat_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/montserrat/500Medium/Montserrat_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/montserrat/700Bold/Montserrat_700Bold.ttf",
+            "./assets/fonts/Impact.ttf",
+            "./assets/fonts/MOSCOW2024.otf"
+          ]
+        }
+      ],
       "expo-iap"
     ],
     "experiments": {

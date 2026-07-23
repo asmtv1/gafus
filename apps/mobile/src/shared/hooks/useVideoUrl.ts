@@ -19,6 +19,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   isLoading: boolean;
   error: string | null;
   videoId: string | null;
+  posterUrl: string | null;
   retry: () => void;
 } {
   const isCDN = useMemo(() => {
@@ -30,6 +31,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
   const [isLoading, setIsLoading] = useState(() => Boolean(videoUrl && isCdnUrl(videoUrl)));
   const [error, setError] = useState<string | null>(null);
   const [videoId, setVideoId] = useState<string | null>(null);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
@@ -53,6 +55,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
       setIsLoading(false);
       setError(null);
       setVideoId(null);
+      setPosterUrl(null);
       return;
     }
 
@@ -71,6 +74,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
       setIsLoading(false);
       setError(null);
       setVideoId(null);
+      setPosterUrl(null);
       return;
     }
 
@@ -79,6 +83,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
     setIsLoading(true);
     setError(null);
     setVideoId(null);
+    setPosterUrl(null);
 
     if (__DEV__) {
       console.log("[useVideoUrl] Запрос signed URL для CDN видео");
@@ -102,6 +107,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
         if (result.url) {
           setUrl(result.url);
           setVideoId(result.videoId);
+          setPosterUrl(result.posterUrl);
           setError(result.error);
         } else {
           if (__DEV__) {
@@ -110,6 +116,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
           setError(result.error);
           setUrl(null);
           setVideoId(null);
+          setPosterUrl(null);
         }
       })
       .catch((err) => {
@@ -122,6 +129,7 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
         setUrl(null);
         setError(errorMsg);
         setVideoId(null);
+        setPosterUrl(null);
       })
       .finally(() => {
         if (isActiveRequest()) {
@@ -134,5 +142,5 @@ export function useVideoUrl(videoUrl: string | null | undefined): {
     setRetryAttempt((attempt) => attempt + 1);
   }, []);
 
-  return { url, isLoading, error, videoId, retry };
+  return { url, isLoading, error, videoId, posterUrl, retry };
 }

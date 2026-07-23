@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mailer",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "description": "Отправка транзакционной почты через SMTP (Яндекс 360 в production)",
   "sideEffects": false,

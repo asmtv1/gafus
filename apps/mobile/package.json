@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {

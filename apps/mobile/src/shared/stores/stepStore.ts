@@ -264,7 +264,9 @@ export const useStepStore = create<StepStore>()(
         if (
           current &&
           statusRank(serverStatus) === statusRank(current.status) &&
-          (current.status === "IN_PROGRESS" || current.status === "PAUSED" || current.status === "RESET")
+          (current.status === "IN_PROGRESS" ||
+            current.status === "PAUSED" ||
+            current.status === "RESET")
         ) {
           return;
         }
@@ -321,7 +323,9 @@ export const useStepStore = create<StepStore>()(
           if (
             current &&
             statusRank(status) === statusRank(current.status) &&
-            (current.status === "IN_PROGRESS" || current.status === "PAUSED" || current.status === "RESET")
+            (current.status === "IN_PROGRESS" ||
+              current.status === "PAUSED" ||
+              current.status === "RESET")
           ) {
             continue;
           }
@@ -331,12 +335,12 @@ export const useStepStore = create<StepStore>()(
               ? step.durationSec
               : status === "COMPLETED"
                 ? 0
-                : step.remainingSec ?? current?.timeLeft ?? null;
+                : (step.remainingSec ?? current?.timeLeft ?? null);
 
           updates[key] = {
             status,
             remainingSec: status === "COMPLETED" ? null : step.remainingSec,
-            timeLeft: typeof timeLeft === "number" ? timeLeft : current?.timeLeft ?? null,
+            timeLeft: typeof timeLeft === "number" ? timeLeft : (current?.timeLeft ?? null),
             updatedAt: Date.now(),
           };
         }
@@ -380,6 +384,30 @@ export function useDayStepStates(courseId: string, dayOnCourseId: string) {
       Object.fromEntries(
         Object.entries(state.stepStates).filter(([key]) => key.startsWith(prefix)),
       ),
+    ),
+  );
+}
+
+export function selectDayStepStatuses(
+  stepStates: Record<string, LocalStepState>,
+  courseId: string,
+  dayOnCourseId: string,
+  stepCount: number,
+): (LocalStepState["status"] | null)[] {
+  return Array.from({ length: stepCount }, (_, stepIndex) => {
+    const key = getStepKeyFromCore(courseId, dayOnCourseId, stepIndex);
+    return stepStates[key]?.status ?? null;
+  });
+}
+
+/**
+ * Подписка только на статусы шагов дня. Изменения оставшегося времени не
+ * перерисовывают весь экран, а завершение/сброс сразу обновляют прогресс.
+ */
+export function useDayStepStatuses(courseId: string, dayOnCourseId: string, stepCount: number) {
+  return useStepStore(
+    useShallow((state) =>
+      selectDayStepStatuses(state.stepStates, courseId, dayOnCourseId, stepCount),
     ),
   );
 }

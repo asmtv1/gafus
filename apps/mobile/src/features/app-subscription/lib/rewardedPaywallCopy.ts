@@ -10,7 +10,6 @@ type RewardedCopyStatus = {
   canWatchAdReason?: string;
   settings?: {
     platformEnabled?: boolean;
-    paywallCtaEnabled?: boolean;
   };
   target?: {
     targetType?: string;
@@ -20,13 +19,13 @@ type RewardedCopyStatus = {
   };
 };
 
-export function formatCreditsWord(count: number): string {
+export function formatGafusesWord(count: number): string {
   const mod10 = count % 10;
   const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 14) return "кредитов";
-  if (mod10 === 1) return "кредит";
-  if (mod10 >= 2 && mod10 <= 4) return "кредита";
-  return "кредитов";
+  if (mod100 >= 11 && mod100 <= 14) return "гафусов";
+  if (mod10 === 1) return "гафус";
+  if (mod10 >= 2 && mod10 <= 4) return "гафуса";
+  return "гафусов";
 }
 
 function getRewardedUnavailableText(reason?: string): string {
@@ -34,9 +33,8 @@ function getRewardedUnavailableText(reason?: string): string {
     case "DAILY_LIMIT_REACHED":
       return "Лимит рекламы на сегодня исчерпан. Новая реклама будет доступна завтра.";
     case "BALANCE_FULL":
-      return "Баланс кредитов уже заполнен.";
+      return "Баланс гафусов уже заполнен.";
     case "PLATFORM_DISABLED":
-    case "CTA_DISABLED":
     case "OK":
     default:
       return "";
@@ -47,16 +45,16 @@ export function getRewardedEarnText(status: RewardedCopyStatus | null): string {
   const creditsPerReward = status?.wallet?.creditsPerReward ?? DEFAULT_REWARDED_CREDITS_PER_REWARD;
   const nextGrantCredits = status?.nextGrantCredits ?? creditsPerReward;
   if (nextGrantCredits > 0 && nextGrantCredits < creditsPerReward) {
-    return `За полный просмотр начислим ${nextGrantCredits} ${formatCreditsWord(nextGrantCredits)} — пополним баланс до ${status?.wallet?.maxBalance ?? DEFAULT_REWARDED_CREDITS_PER_REWARD}.`;
+    return `За полный просмотр начислим ${nextGrantCredits} ${formatGafusesWord(nextGrantCredits)} — пополним баланс до ${status?.wallet?.maxBalance ?? DEFAULT_REWARDED_CREDITS_PER_REWARD}.`;
   }
-  return `За полный просмотр начислим ${creditsPerReward} ${formatCreditsWord(creditsPerReward)}.`;
+  return `За полный просмотр начислим ${creditsPerReward} ${formatGafusesWord(creditsPerReward)}.`;
 }
 
 export function getRewardedSpendText(status: RewardedCopyStatus | null): string {
   if (status?.target && !status.target.unlocked) {
-    return `Текущее действие стоит ${status.target.cost} ${formatCreditsWord(status.target.cost)}. Кредиты также можно тратить на статьи, шаги курса и консультации.`;
+    return `Текущее действие стоит ${status.target.cost} ${formatGafusesWord(status.target.cost)}.`;
   }
-  return "Кредиты можно потратить внутри Gafus: 1 кредит открывает статью или шаг курса, 5 кредитов — запись на консультацию.";
+  return "1 гафус открывает шаг курса или статью.";
 }
 
 export function getRewardedStatusMessage(input: {
@@ -73,9 +71,6 @@ export function getRewardedStatusMessage(input: {
   if (!input.status) return "Не удалось загрузить статус рекламы.";
   if (!input.status.settings?.platformEnabled) {
     return "Реклама для этой платформы пока не включена.";
-  }
-  if (!input.status.settings.paywallCtaEnabled) {
-    return "Просмотр рекламы сейчас выключен.";
   }
   return getRewardedUnavailableText(input.status.canWatchAdReason);
 }
@@ -102,14 +97,14 @@ export function getRewardedAccessSummary(status: RewardedCopyStatus | null): {
     return {
       title:
         status.target.targetType === "CONSULTATION_BOOKING"
-          ? "Не хватает кредитов для записи"
-          : "Не хватает кредитов",
-      subtitle: `${targetName} стоит ${cost} ${formatCreditsWord(cost)}. У вас ${balance}, не хватает ${missingCredits}.`,
+          ? "Не хватает гафусов для записи"
+          : "Не хватает гафусов",
+      subtitle: `${targetName} стоит ${cost} ${formatGafusesWord(cost)}. У вас ${balance}, не хватает ${missingCredits}.`,
     };
   }
 
   return {
-    title: `${targetName} доступна за кредиты`,
-    subtitle: `Можно списать ${cost} ${formatCreditsWord(cost)} с вашего баланса.`,
+    title: `${targetName} доступна за гафусы`,
+    subtitle: `Можно списать ${cost} ${formatGafusesWord(cost)} с вашего баланса.`,
   };
 }

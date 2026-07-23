@@ -8,7 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
 import { useCourseStore } from "@/shared/stores";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { coursesApi, type Course } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -21,7 +21,7 @@ import { COLORS, SPACING, FONTS } from "@/shared/config";
  * При офлайне показывается экран «Скачанные курсы».
  */
 export default function FavoritesScreen() {
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
   const { favorites, removeFromFavorites, addToFavorites } = useCourseStore(
     useShallow((s) => ({
       favorites: s.favorites,

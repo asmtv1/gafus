@@ -61,6 +61,23 @@ function isTransientAuthCheckError(response: { code?: string; error?: string }):
   );
 }
 
+let authCheckPromise: Promise<void> | null = null;
+let authSessionGeneration = 0;
+
+async function waitForAuthHydration(): Promise<void> {
+  if (useAuthStore.persist.hasHydrated()) return;
+
+  await new Promise<void>((resolve) => {
+    const finish = () => {
+      unsubscribe();
+      resolve();
+    };
+
+    const unsubscribe = useAuthStore.persist.onFinishHydration(finish);
+    if (useAuthStore.persist.hasHydrated()) finish();
+  });
+}
+
 /**
  * Store для управления аутентификацией
  * Токены хранятся в SecureStore, данные пользователя в AsyncStorage
@@ -239,6 +256,7 @@ export const useAuthStore = create<AuthStore>()(
        * Выход из системы
        */
       logout: async () => {
+        authSessionGeneration += 1;
         try {
           const refreshToken = await SecureStore.getItemAsync("refresh_token");
           if (refreshToken) {
@@ -267,93 +285,123 @@ export const useAuthStore = create<AuthStore>()(
       /**
        * Проверка текущей авторизации при запуске приложения
        */
-      checkAuth: async () => {
-        if (__DEV__) console.log("[authStore] checkAuth start");
-        set({ isLoading: true });
+      checkAuth: () => {
+        if (authCheckPromise) return authCheckPromise;
 
-        try {
-          const token = await SecureStore.getItemAsync("auth_token");
+        const runCheck = async () => {
+          const generation = authSessionGeneration;
+          if (__DEV__) console.log("[authStore] checkAuth start");
+          set({ isLoading: true });
 
-          if (!token) {
-            if (__DEV__) console.log("[authStore] checkAuth: no token");
-            set({
-              isLoading: false,
-              isAuthenticated: false,
-              user: null,
-              pendingVkPhone: false,
-            });
-            return;
-          }
+          try {
+            // Persisted user data is the startup cache. Wait for it before deciding
+            // whether the app can render immediately while validation continues.
+            await waitForAuthHydration();
+            const token = await SecureStore.getItemAsync("auth_token");
 
-          const response = await authApi.getProfile();
-          const persistedUser = useAuthStore.getState().user;
-          const isTransientError = isTransientAuthCheckError(response);
-
-          if (response.success && response.data) {
-            const userData = response.data;
-            if (__DEV__) {
-              console.log("[authStore] checkAuth profile", { id: userData.id });
-            }
-
-            // VK-пользователь с временным phone (vk_xxx) — экран установки телефона
-            if (userData.phone?.startsWith("vk_")) {
+            if (!token) {
+              if (__DEV__) console.log("[authStore] checkAuth: no token");
               set({
-                user: userData,
-                isAuthenticated: false,
                 isLoading: false,
-                pendingVkPhone: true,
+                isAuthenticated: false,
+                user: null,
+                pendingVkPhone: false,
               });
-              if (__DEV__) console.log("[authStore] checkAuth: VK user without phone → pendingVkPhone");
               return;
             }
 
-            set({ user: userData, isAuthenticated: true, isLoading: false, pendingVkPhone: false });
-            identifyUser(userData.id);
-            if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
-          } else if (isTransientError && persistedUser) {
-            if (__DEV__) {
-              console.log("[authStore] checkAuth: offline fallback with persisted user", {
-                id: persistedUser.id,
+            const persistedUser = useAuthStore.getState().user;
+            if (persistedUser) {
+              const pendingVkPhone = persistedUser.phone?.startsWith("vk_") === true;
+              set({
+                user: persistedUser,
+                isAuthenticated: !pendingVkPhone,
+                isLoading: false,
+                pendingVkPhone,
+              });
+              if (!pendingVkPhone) identifyUser(persistedUser.id);
+            }
+
+            // Refresh cached profile in the background. The root UI no longer waits
+            // for this request when a local user is available.
+            const response = await authApi.getProfile();
+            if (generation !== authSessionGeneration) return;
+            const isTransientError = isTransientAuthCheckError(response);
+
+            if (response.success && response.data) {
+              const userData = response.data;
+              if (__DEV__) {
+                console.log("[authStore] checkAuth profile", { id: userData.id });
+              }
+
+              // VK-пользователь с временным phone (vk_xxx) — экран установки телефона
+              if (userData.phone?.startsWith("vk_")) {
+                set({
+                  user: userData,
+                  isAuthenticated: false,
+                  isLoading: false,
+                  pendingVkPhone: true,
+                });
+                if (__DEV__) {
+                  console.log("[authStore] checkAuth: VK user without phone → pendingVkPhone");
+                }
+                return;
+              }
+
+              set({
+                user: userData,
+                isAuthenticated: true,
+                isLoading: false,
+                pendingVkPhone: false,
+              });
+              identifyUser(userData.id);
+              if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
+            } else if (isTransientError && persistedUser) {
+              if (__DEV__) {
+                console.log("[authStore] checkAuth: offline fallback with persisted user", {
+                  id: persistedUser.id,
+                });
+              }
+              // Cache-first state is already active; keep it until connectivity returns.
+            } else if (isTransientError) {
+              set({
+                isLoading: false,
+                isAuthenticated: false,
+                pendingVkPhone: false,
+              });
+            } else {
+              if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
+              await SecureStore.deleteItemAsync("auth_token");
+              await SecureStore.deleteItemAsync("refresh_token");
+              set({
+                isLoading: false,
+                isAuthenticated: false,
+                user: null,
+                pendingVkPhone: false,
               });
             }
-            set({
-              user: persistedUser,
-              isAuthenticated: true,
-              isLoading: false,
-              pendingVkPhone: false,
+          } catch (error) {
+            reportClientError(error, {
+              issueKey: "AuthCheck",
+              userId: useAuthStore.getState().user?.id,
             });
-            identifyUser(persistedUser.id);
-          } else if (isTransientError) {
-            set({
-              isLoading: false,
-              isAuthenticated: false,
-              pendingVkPhone: false,
-            });
-          } else {
-            if (__DEV__) console.log("[authStore] checkAuth: invalid token", response);
-            await SecureStore.deleteItemAsync("auth_token");
-            await SecureStore.deleteItemAsync("refresh_token");
-            set({
-              isLoading: false,
-              isAuthenticated: false,
-              user: null,
-              pendingVkPhone: false,
-            });
+            console.error("Auth check error:", error);
+            set({ isLoading: false });
           }
-        } catch (error) {
-          reportClientError(error, {
-            issueKey: "AuthCheck",
-            userId: useAuthStore.getState().user?.id,
-          });
-          console.error("Auth check error:", error);
-          set({ isLoading: false });
-        }
+        };
+
+        const promise = runCheck().finally(() => {
+          if (authCheckPromise === promise) authCheckPromise = null;
+        });
+        authCheckPromise = promise;
+        return promise;
       },
 
       /**
        * Вызывается когда сессия истекла (refresh не удался)
        */
       handleSessionExpired: () => {
+        authSessionGeneration += 1;
         resetUserStores();
         set({
           user: null,

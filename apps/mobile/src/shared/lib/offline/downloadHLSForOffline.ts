@@ -6,6 +6,7 @@ import * as FileSystem from "expo-file-system/legacy";
 
 import { trainingApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
+import { selectHighestBandwidthVariant } from "./hlsOfflineManifest";
 
 const CONCURRENCY = 3;
 const SEGMENT_RETRIES = 2;
@@ -56,18 +57,28 @@ export async function downloadHLSForOffline(
   if (!res.success || !res.data?.url) {
     throw new Error(res.error || "Не удалось получить URL видео");
   }
-  const manifestUrl = res.data.url;
+  const rootManifestUrl = res.data.url;
 
   const doc = FileSystem.documentDirectory;
   if (!doc) throw new Error("documentDirectory недоступен");
   const videoDirUri = `${doc}offline/${courseType}/videos/${videoId}/`;
   await FileSystem.makeDirectoryAsync(videoDirUri, { intermediates: true });
 
-  const manifestResponse = await fetch(manifestUrl, { signal });
+  const manifestResponse = await fetch(rootManifestUrl, { signal });
   if (!manifestResponse.ok) {
     throw new Error(`Манифест: HTTP ${manifestResponse.status}`);
   }
-  const manifestText = await manifestResponse.text();
+  let manifestUrl = rootManifestUrl;
+  let manifestText = await manifestResponse.text();
+  const selectedVariant = selectHighestBandwidthVariant(manifestText);
+  if (selectedVariant) {
+    manifestUrl = new URL(selectedVariant, rootManifestUrl).toString();
+    const variantResponse = await fetch(manifestUrl, { signal });
+    if (!variantResponse.ok) {
+      throw new Error(`Вариант HLS: HTTP ${variantResponse.status}`);
+    }
+    manifestText = await variantResponse.text();
+  }
   const lines = manifestText.split("\n");
 
   const segmentLines: { line: string; fileName: string }[] = [];
@@ -102,49 +113,27 @@ export async function downloadHLSForOffline(
     throw lastError || new Error("Ошибка загрузки сегмента");
   };
 
-  const queue = [...segmentLines];
-  const running: Promise<void>[] = [];
-
-  const runNext = (): Promise<void> | null => {
-    if (queue.length === 0) return null;
-    const { line, fileName } = queue.shift()!;
-    const fullPath = `${videoDirUri}${fileName}`;
-    const rawLine = line.trim();
-    let segUrl: string;
-    if (rawLine.startsWith("http")) {
-      segUrl = rawLine;
-    } else {
-      const [pathPart, queryPart] = manifestUrl.split("?");
-      const base = pathPart.replace(/\/[^/]*$/, "/");
-      segUrl = base + rawLine + (queryPart ? `?${queryPart}` : "");
-    }
-    const p = downloadOne(segUrl, fullPath).then(
-      () => {
-        completed++;
-        onProgress?.({ current: completed, total, segmentFileName: fileName });
-      },
-      (err) => {
-        reportClientError(err instanceof Error ? err : new Error(String(err)), {
+  let nextSegmentIndex = 0;
+  const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, async () => {
+    while (nextSegmentIndex < segmentLines.length) {
+      const { line, fileName } = segmentLines[nextSegmentIndex++]!;
+      const fullPath = `${videoDirUri}${fileName}`;
+      const segmentUrl = new URL(line.trim(), manifestUrl).toString();
+      try {
+        await downloadOne(segmentUrl, fullPath);
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "DownloadHLSForOffline",
           keys: { operation: "download_segment_rejected" },
         });
+        throw error;
+      } finally {
         completed++;
         onProgress?.({ current: completed, total, segmentFileName: fileName });
-        throw err;
-      },
-    );
-    running.push(p);
-    return p.then(() => {
-      running.splice(running.indexOf(p), 1);
-      return runNext() ?? Promise.resolve();
-    });
-  };
-
-  for (let i = 0; i < CONCURRENCY; i++) {
-    const next = runNext();
-    if (next) running.push(next);
-  }
-  await Promise.all(running);
+      }
+    }
+  });
+  await Promise.all(workers);
 
   const modifiedLines = lines.map((line) => {
     const fileName = getSegmentFileName(line);
@@ -152,4 +141,16 @@ export async function downloadHLSForOffline(
     return line;
   });
   await FileSystem.writeAsStringAsync(`${videoDirUri}manifest.m3u8`, modifiedLines.join("\n"));
+
+  if (res.data.posterUrl) {
+    try {
+      await downloadOne(res.data.posterUrl, `${videoDirUri}poster.jpg`);
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "DownloadHLSForOffline",
+        severity: "warning",
+        keys: { operation: "download_poster" },
+      });
+    }
+  }
 }

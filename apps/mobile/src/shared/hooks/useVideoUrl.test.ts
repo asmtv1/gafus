@@ -7,11 +7,16 @@ describe("resolveVideoUrlResponse", () => {
     expect(
       resolveVideoUrlResponse({
         success: true,
-        data: { url: "https://api.gafus.ru/manifest.m3u8?token=secret", videoId: "video-1" },
+        data: {
+          url: "https://api.gafus.ru/manifest.m3u8?token=secret",
+          videoId: "video-1",
+          posterUrl: "https://storage.example/poster.jpg",
+        },
       }),
     ).toEqual({
       url: "https://api.gafus.ru/manifest.m3u8?token=secret",
       videoId: "video-1",
+      posterUrl: "https://storage.example/poster.jpg",
       error: null,
     });
   });
@@ -26,6 +31,7 @@ describe("resolveVideoUrlResponse", () => {
     ).toEqual({
       url: null,
       videoId: null,
+      posterUrl: null,
       error: "Недостаточно прав для просмотра видео",
     });
   });
@@ -34,6 +40,7 @@ describe("resolveVideoUrlResponse", () => {
     expect(resolveVideoUrlResponse({ success: true })).toEqual({
       url: null,
       videoId: null,
+      posterUrl: null,
       error: "Не удалось получить URL видео",
     });
   });

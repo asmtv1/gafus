@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { getRewardedAccessSummary, getRewardedStatusMessage } from "./rewardedPaywallCopy";
+import {
+  formatGafusesWord,
+  getRewardedAccessSummary,
+  getRewardedStatusMessage,
+} from "./rewardedPaywallCopy";
 
 describe("rewarded paywall copy", () => {
+  it("uses the Gafus currency name with correct Russian word forms", () => {
+    expect(formatGafusesWord(1)).toBe("гафус");
+    expect(formatGafusesWord(2)).toBe("гафуса");
+    expect(formatGafusesWord(5)).toBe("гафусов");
+  });
+
   it("tells the user that a new ad will be available tomorrow after the daily limit", () => {
     expect(
       getRewardedStatusMessage({
@@ -11,14 +21,13 @@ describe("rewarded paywall copy", () => {
           canWatchAdReason: "DAILY_LIMIT_REACHED",
           settings: {
             platformEnabled: true,
-            paywallCtaEnabled: true,
           },
         },
       }),
     ).toBe("Лимит рекламы на сегодня исчерпан. Новая реклама будет доступна завтра.");
   });
 
-  it("explains missing credits for a consultation booking target", () => {
+  it("explains missing gafuses for a consultation booking target", () => {
     expect(
       getRewardedAccessSummary({
         target: {
@@ -32,8 +41,8 @@ describe("rewarded paywall copy", () => {
         },
       }),
     ).toEqual({
-      title: "Не хватает кредитов для записи",
-      subtitle: "Запись к кинологу стоит 5 кредитов. У вас 3, не хватает 2.",
+      title: "Не хватает гафусов для записи",
+      subtitle: "Запись к кинологу стоит 5 гафусов. У вас 3, не хватает 2.",
     });
   });
 });

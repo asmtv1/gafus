@@ -19,19 +19,14 @@ type SettingsRowInput = Omit<Partial<RewardedAdSettingsDto>, "dailyAdLimit"> & {
 const DEFAULT_SETTINGS: RewardedAdSettingsDto = {
   androidEnabled: false,
   iosEnabled: false,
-  webDesktopEnabled: false,
-  webTouchEnabled: false,
-  paywallCtaEnabled: false,
   dailyAdLimit: 1,
   yandexAndroidPlacementId: null,
   yandexIosPlacementId: null,
-  yandexWebDesktopBlockId: null,
-  yandexWebTouchBlockId: null,
   testMode: true,
 };
 
 function normalizePlacementId(value: string | null | undefined): string | null {
-  const normalized = typeof value === "string" ? value.trim() : value ?? null;
+  const normalized = typeof value === "string" ? value.trim() : (value ?? null);
   if (!normalized) {
     return null;
   }
@@ -58,8 +53,6 @@ function mapSettingsRow(row: SettingsRowInput | null | undefined): RewardedAdSet
     dailyAdLimit: normalizeDailyLimit(row?.dailyAdLimit) ?? DEFAULT_SETTINGS.dailyAdLimit,
     yandexAndroidPlacementId: normalizePlacementId(row?.yandexAndroidPlacementId),
     yandexIosPlacementId: normalizePlacementId(row?.yandexIosPlacementId),
-    yandexWebDesktopBlockId: normalizePlacementId(row?.yandexWebDesktopBlockId),
-    yandexWebTouchBlockId: normalizePlacementId(row?.yandexWebTouchBlockId),
   };
 }
 
@@ -70,8 +63,6 @@ function validateEnabledPlatforms(settings: RewardedAdSettingsDto): void {
   const required: [boolean, string | null][] = [
     [settings.androidEnabled, settings.yandexAndroidPlacementId],
     [settings.iosEnabled, settings.yandexIosPlacementId],
-    [settings.webDesktopEnabled, settings.yandexWebDesktopBlockId],
-    [settings.webTouchEnabled, settings.yandexWebTouchBlockId],
   ];
   if (required.some(([enabled, placementId]) => enabled && !placementId)) {
     throw new Error("placement id is required before enabling production rewarded ads");
@@ -102,14 +93,6 @@ export async function updateRewardedAdSettings(
       input.yandexIosPlacementId === undefined
         ? current.yandexIosPlacementId
         : normalizePlacementId(input.yandexIosPlacementId),
-    yandexWebDesktopBlockId:
-      input.yandexWebDesktopBlockId === undefined
-        ? current.yandexWebDesktopBlockId
-        : normalizePlacementId(input.yandexWebDesktopBlockId),
-    yandexWebTouchBlockId:
-      input.yandexWebTouchBlockId === undefined
-        ? current.yandexWebTouchBlockId
-        : normalizePlacementId(input.yandexWebTouchBlockId),
   });
 
   validateEnabledPlatforms(next);
@@ -134,19 +117,13 @@ export async function resolveRewardedPlatformSettings(
   const byPlatform: Record<RewardedPlatform, { enabled: boolean; placementId: string | null }> = {
     ANDROID: {
       enabled: settings.androidEnabled,
-      placementId: settings.yandexAndroidPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
+      placementId:
+        settings.yandexAndroidPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
     },
     IOS: {
       enabled: settings.iosEnabled,
-      placementId: settings.yandexIosPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
-    },
-    WEB_DESKTOP: {
-      enabled: settings.webDesktopEnabled,
-      placementId: settings.yandexWebDesktopBlockId ?? (settings.testMode ? "demo-web-rewarded-desktop" : null),
-    },
-    WEB_TOUCH: {
-      enabled: settings.webTouchEnabled,
-      placementId: settings.yandexWebTouchBlockId ?? (settings.testMode ? "demo-web-rewarded-touch" : null),
+      placementId:
+        settings.yandexIosPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
     },
   };
   const selected = byPlatform[platform];
@@ -154,7 +131,6 @@ export async function resolveRewardedPlatformSettings(
   return {
     platform,
     platformEnabled: selected.enabled,
-    paywallCtaEnabled: settings.paywallCtaEnabled,
     placementId: selected.placementId ?? "",
     dailyAdLimit: settings.dailyAdLimit,
     testMode: settings.testMode,

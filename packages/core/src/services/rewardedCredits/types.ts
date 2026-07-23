@@ -1,6 +1,6 @@
 import type { REWARDED_DAILY_LIMIT_VALUES } from "./constants";
 
-export type RewardedPlatform = "ANDROID" | "IOS" | "WEB_DESKTOP" | "WEB_TOUCH";
+export type RewardedPlatform = "ANDROID" | "IOS";
 export type RewardedProvider = "YANDEX";
 export type RewardedTargetType =
   | "ARTICLE"
@@ -19,21 +19,15 @@ export interface RewardedTargetInput {
 export interface RewardedAdSettingsDto {
   androidEnabled: boolean;
   iosEnabled: boolean;
-  webDesktopEnabled: boolean;
-  webTouchEnabled: boolean;
-  paywallCtaEnabled: boolean;
   dailyAdLimit: RewardedDailyLimit;
   yandexAndroidPlacementId: string | null;
   yandexIosPlacementId: string | null;
-  yandexWebDesktopBlockId: string | null;
-  yandexWebTouchBlockId: string | null;
   testMode: boolean;
 }
 
 export interface RewardedPlatformSettingsDto {
   platform: RewardedPlatform;
   platformEnabled: boolean;
-  paywallCtaEnabled: boolean;
   placementId: string;
   dailyAdLimit: RewardedDailyLimit;
   testMode: boolean;
@@ -55,14 +49,12 @@ export interface RewardedCreditsStatusDto {
   };
   settings: {
     platformEnabled: boolean;
-    paywallCtaEnabled: boolean;
     testMode: boolean;
   };
   canWatchAd: boolean;
   canWatchAdReason:
     | "OK"
     | "PLATFORM_DISABLED"
-    | "CTA_DISABLED"
     | "DAILY_LIMIT_REACHED"
     | "BALANCE_FULL";
   nextGrantCredits: number;

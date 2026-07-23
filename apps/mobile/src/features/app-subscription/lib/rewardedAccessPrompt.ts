@@ -1,9 +1,8 @@
-import { formatCreditsWord } from "./rewardedPaywallCopy";
+import { formatGafusesWord } from "./rewardedPaywallCopy";
 
 type RewardedAccessPromptStatus = {
-  wallet?: {
-    balance: number;
-    maxBalance: number;
+  settings?: {
+    platformEnabled: boolean;
   };
   target?: {
     cost: number;
@@ -15,21 +14,19 @@ type RewardedAccessPromptStatus = {
 export type RewardedAccessPrompt =
   | {
       mode: "loading";
-      balanceText: string;
       primaryText: string;
       subscriptionText: string | null;
     }
   | {
       mode: "direct-credit";
-      balanceText: string;
       primaryText: string;
       subscriptionText: string | null;
     }
   | {
       mode: "standard-paywall";
-      balanceText: string;
       primaryText: string;
       subscriptionText: string | null;
+      showRewardedAction: boolean;
     };
 
 export function getRewardedAccessPrompt(input: {
@@ -37,17 +34,11 @@ export function getRewardedAccessPrompt(input: {
   status: RewardedAccessPromptStatus | null;
 }): RewardedAccessPrompt {
   const cost = input.status?.target?.cost ?? 1;
-  const balance = input.status?.wallet?.balance ?? 0;
-  const maxBalance = input.status?.wallet?.maxBalance ?? 5;
-  const balanceText = input.status
-    ? `У вас ${balance} ${formatCreditsWord(balance)} из ${maxBalance}.`
-    : "Проверяем баланс кредитов.";
 
   if (input.isLoading) {
     return {
       mode: "loading",
-      balanceText,
-      primaryText: "Проверяем кредиты...",
+      primaryText: "",
       subscriptionText: "Оформить подписку",
     };
   }
@@ -55,25 +46,15 @@ export function getRewardedAccessPrompt(input: {
   if (input.status?.target?.canUnlockWithCurrentBalance) {
     return {
       mode: "direct-credit",
-      balanceText,
-      primaryText: `Открыть за ${cost} ${formatCreditsWord(cost)}`,
+      primaryText: `Открыть за ${cost} ${formatGafusesWord(cost)}`,
       subscriptionText: "Оформить подписку",
-    };
-  }
-
-  if (input.status?.wallet?.balance === 0) {
-    return {
-      mode: "standard-paywall",
-      balanceText,
-      primaryText: "Посмотреть рекламу или оформить Premium",
-      subscriptionText: null,
     };
   }
 
   return {
     mode: "standard-paywall",
-    balanceText,
-    primaryText: "Открыть через Premium или рекламу",
+    primaryText: "Открыть за рекламу",
     subscriptionText: "Оформить подписку",
+    showRewardedAction: input.status?.settings?.platformEnabled === true,
   };
 }

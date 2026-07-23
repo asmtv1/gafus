@@ -19,8 +19,8 @@ vi.mock("@/features/app-subscription", () => {
       wallet?: { balance?: number };
       target?: { cost: number; missingCredits?: number };
     }) => ({
-      title: "Не хватает кредитов для записи",
-      subtitle: `Запись к кинологу стоит ${status.target?.cost ?? 5} кредитов. У вас ${status.wallet?.balance ?? 0}, не хватает ${status.target?.missingCredits ?? 0}.`,
+      title: "Не хватает гафусов для записи",
+      subtitle: `Запись к кинологу стоит ${status.target?.cost ?? 5} гафусов. У вас ${status.wallet?.balance ?? 0}, не хватает ${status.target?.missingCredits ?? 0}.`,
     }),
     openAppSubscriptionPaywall: openAppSubscriptionPaywallMock,
   };
@@ -51,7 +51,6 @@ describe("openConsultationAccessPaywall", () => {
         },
         settings: {
           platformEnabled: true,
-          paywallCtaEnabled: true,
           testMode: true,
         },
         canWatchAd: true,
@@ -84,8 +83,8 @@ describe("openConsultationAccessPaywall", () => {
         targetId: "slot:slot-1",
       },
       accessSummary: {
-        title: "Не хватает кредитов для записи",
-        subtitle: "Запись к кинологу стоит 5 кредитов. У вас 3, не хватает 2.",
+        title: "Не хватает гафусов для записи",
+        subtitle: "Запись к кинологу стоит 5 гафусов. У вас 3, не хватает 2.",
       },
       onRewardedGrant,
     });

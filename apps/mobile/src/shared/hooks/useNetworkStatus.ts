@@ -1,52 +1,15 @@
-import { useEffect, useState } from "react";
-import NetInfo from "@react-native-community/netinfo";
-
-type NetInfoState = Parameters<Parameters<typeof NetInfo.addEventListener>[0]>[0];
-
-interface NetworkStatus {
-  isConnected: boolean | null;
-  isInternetReachable: boolean | null;
-  connectionType: string | null;
-  isOffline: boolean;
-}
+import type { NetworkStatus } from "@/shared/lib/network/networkStatus";
+import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
 
 /**
- * Хук для отслеживания состояния сети
+ * Полный снимок состояния сети. Для проверки офлайна используйте
+ * `useIsOffline`, чтобы не подписывать компонент на остальные поля.
  */
 export function useNetworkStatus(): NetworkStatus {
-  const resolveOfflineState = (state: NetInfoState): boolean => {
-    return state.isConnected === false || state.isInternetReachable === false;
-  };
+  return useNetworkStatusStore();
+}
 
-  const [status, setStatus] = useState<NetworkStatus>({
-    isConnected: true,
-    isInternetReachable: true,
-    connectionType: null,
-    isOffline: false,
-  });
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-      setStatus({
-        isConnected: state.isConnected,
-        isInternetReachable: state.isInternetReachable,
-        connectionType: state.type,
-        isOffline: resolveOfflineState(state),
-      });
-    });
-
-    // Получаем начальное состояние
-    NetInfo.fetch().then((state) => {
-      setStatus({
-        isConnected: state.isConnected,
-        isInternetReachable: state.isInternetReachable,
-        connectionType: state.type,
-        isOffline: resolveOfflineState(state),
-      });
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  return status;
+/** Возвращает только офлайн-флаг и не вызывает лишние ререндеры. */
+export function useIsOffline(): boolean {
+  return useNetworkStatusStore((state) => state.isOffline);
 }

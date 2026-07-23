@@ -14,7 +14,7 @@ import {
 } from "@/shared/lib/api/profileTabQueries";
 import { useAuthStore } from "@/shared/stores";
 
-import { useNetworkStatus } from "./useNetworkStatus";
+import { useIsOffline } from "./useNetworkStatus";
 
 const STAGGER_MS = 120;
 
@@ -45,7 +45,7 @@ export function usePrefetchOtherTabsAfterCourses({
   catalogReady,
 }: UsePrefetchOtherTabsAfterCoursesOptions): void {
   const queryClient = useQueryClient();
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);

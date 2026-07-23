@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 // API Configuration
 // Production: https://api.gafus.ru (standalone API service)
 // Expo Go on a real device: use the Mac LAN IP, not localhost, for example http://192.168.1.25:3001
@@ -88,9 +90,10 @@ export const TRAINING_STATUS = {
 // Шрифты (соответствуют веб-версии)
 export const FONTS = {
   // Основной шрифт - Montserrat
-  montserrat: "Montserrat_400Regular",
-  montserratBold: "Montserrat_700Bold",
-  montserratMedium: "Montserrat_500Medium",
+  // iOS использует PostScript names из встроенных font-файлов, Android/web — имена файлов.
+  montserrat: Platform.OS === "ios" ? "Montserrat-Regular" : "Montserrat_400Regular",
+  montserratBold: Platform.OS === "ios" ? "Montserrat-Bold" : "Montserrat_700Bold",
+  montserratMedium: Platform.OS === "ios" ? "Montserrat-Medium" : "Montserrat_500Medium",
 
   // Кастомный шрифт - Moscow2024
   moscow2024: "Moscow2024",

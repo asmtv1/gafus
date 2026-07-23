@@ -6,15 +6,10 @@ import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
 import { usePreventScreenCapture } from "expo-screen-capture";
 import * as SplashScreen from "expo-splash-screen";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Platform, StyleSheet, View } from "react-native";
-import { useFonts } from "expo-font";
-import {
-  Montserrat_400Regular,
-  Montserrat_500Medium,
-  Montserrat_700Bold,
-} from "@expo-google-fonts/montserrat";
 import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
 import { AnalyticsNavigationListener } from "@/shared/components/AnalyticsNavigationListener";
 import { getOrCreateMobileAnalyticsId } from "@/shared/lib/analytics-id";
@@ -25,9 +20,33 @@ import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReco
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
 import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
+import { useAppFonts } from "@/shared/hooks/useAppFonts";
 
 function SyncProgressOnReconnect() {
   useSyncProgressOnReconnect();
+  return null;
+}
+
+function AnalyticsBootstrap() {
+  const authLoading = useAuthStore((state) => state.isLoading);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    const extra = Constants.expoConfig?.extra as
+      | { ymMobileApiKey?: string; ymMobileEnabled?: boolean; analyticsDebug?: boolean }
+      | undefined;
+    void (async () => {
+      const anon = await getOrCreateMobileAnalyticsId();
+      await initAnalyticsMobile({
+        apiKey: extra?.ymMobileApiKey ?? "",
+        devAllowCapture: extra?.ymMobileEnabled === true,
+        anonymousId: anon,
+        debugEnabled: extra?.analyticsDebug === true,
+      });
+    })();
+  }, [authLoading]);
+
   return null;
 }
 
@@ -37,30 +56,31 @@ SplashScreen.preventAutoHideAsync();
 /**
  * Root Layout — точка входа в приложение
  * Настраивает провайдеры и базовую навигацию
- * Загружает шрифты: Montserrat (Google Fonts) и Moscow2024 (локальный)
+ * Использует встроенные в native build шрифты; web загружает их асинхронно.
  */
 export default function RootLayout() {
   usePreventScreenCapture("gafus-global-screen-protection");
 
-  const authLoading = useAuthStore((s) => s.isLoading);
+  useEffect(() => {
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+      (error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          severity: "warning",
+          issueKey: "ScreenOrientation",
+          keys: { operation: "lock_app_portrait" },
+        });
+      },
+    );
+  }, []);
+
   const checkAuth = useAuthStore((s) => s.checkAuth);
-  const [fontsLoaded, fontError] = useFonts({
-    // Google Fonts - Montserrat
-    Montserrat_400Regular,
-    Montserrat_500Medium,
-    Montserrat_700Bold,
-    // Display-шрифт как на web
-    Impact: require("../assets/fonts/Impact.ttf"),
-    // Локальный шрифт - Moscow2024
-    Moscow2024: require("../assets/fonts/MOSCOW2024.otf"),
-  });
+  const { fontsReady, fontError } = useAppFonts();
 
   useEffect(() => {
-    // Скрываем splash screen только когда готовы шрифты и завершена auth-проверка
-    if ((fontsLoaded || fontError) && !authLoading) {
-      SplashScreen.hideAsync();
+    if (fontsReady || fontError) {
+      void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, authLoading]);
+  }, [fontsReady, fontError]);
 
   useEffect(() => {
     void checkAuth();
@@ -79,35 +99,20 @@ export default function RootLayout() {
 
   useOtaAutoApply();
 
-  useEffect(() => {
-    if ((!fontsLoaded && !fontError) || authLoading) {
-      return;
-    }
-    const extra = Constants.expoConfig?.extra as
-      | { ymMobileApiKey?: string; ymMobileEnabled?: boolean; analyticsDebug?: boolean }
-      | undefined;
-    void (async () => {
-      const anon = await getOrCreateMobileAnalyticsId();
-      await initAnalyticsMobile({
-        apiKey: extra?.ymMobileApiKey ?? "",
-        devAllowCapture: extra?.ymMobileEnabled === true,
-        anonymousId: anon,
-        debugEnabled: extra?.analyticsDebug === true,
-      });
-    })();
-  }, [fontsLoaded, fontError, authLoading]);
-
   // DEBUG: лог любых deep link на Android для отладки VK redirect
   useEffect(() => {
     if (!__DEV__ || Platform.OS !== "android") return;
     const sub = Linking.addEventListener("url", (e) => {
-      console.log("[VK_LOGIN] Linking url event received", { url: e.url, urlLength: e.url?.length });
+      console.log("[VK_LOGIN] Linking url event received", {
+        url: e.url,
+        urlLength: e.url?.length,
+      });
     });
     return () => sub.remove();
   }, []);
 
-  // Не рендерим контент до загрузки шрифтов
-  if ((!fontsLoaded && !fontError) || authLoading) {
+  // Native fonts are embedded at build time; this gate only matters on web.
+  if (!fontsReady && !fontError) {
     return null;
   }
 
@@ -121,6 +126,7 @@ export default function RootLayout() {
                 <AuthProvider>
                   <View style={styles.container}>
                     <AnalyticsNavigationListener />
+                    <AnalyticsBootstrap />
                     <OfflineIndicator />
                     <SyncProgressOnReconnect />
                     <SyncPreventionOnReconnect />

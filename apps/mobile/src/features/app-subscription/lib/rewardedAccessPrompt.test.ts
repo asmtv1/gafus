@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { getRewardedAccessPrompt } from "./rewardedAccessPrompt";
 
 describe("getRewardedAccessPrompt", () => {
-  it("offers direct credit unlock when the target can be unlocked with current balance", () => {
+  it("offers direct gafus unlock when the target can be unlocked with current balance", () => {
     expect(
       getRewardedAccessPrompt({
         isLoading: false,
         status: {
-          wallet: { balance: 3, maxBalance: 5 },
+          settings: { platformEnabled: false },
           target: {
             cost: 1,
             unlocked: false,
@@ -18,18 +18,17 @@ describe("getRewardedAccessPrompt", () => {
       }),
     ).toEqual({
       mode: "direct-credit",
-      balanceText: "У вас 3 кредита из 5.",
-      primaryText: "Открыть за 1 кредит",
+      primaryText: "Открыть за 1 гафус",
       subscriptionText: "Оформить подписку",
     });
   });
 
-  it("offers only rewarded ad action when the wallet has no credits", () => {
+  it("separates the subscription action from the free ad alternative", () => {
     expect(
       getRewardedAccessPrompt({
         isLoading: false,
         status: {
-          wallet: { balance: 0, maxBalance: 5 },
+          settings: { platformEnabled: true },
           target: {
             cost: 1,
             unlocked: false,
@@ -39,9 +38,30 @@ describe("getRewardedAccessPrompt", () => {
       }),
     ).toEqual({
       mode: "standard-paywall",
-      balanceText: "У вас 0 кредитов из 5.",
-      primaryText: "Посмотреть рекламу или оформить Premium",
-      subscriptionText: null,
+      primaryText: "Открыть за рекламу",
+      subscriptionText: "Оформить подписку",
+      showRewardedAction: true,
+    });
+  });
+
+  it("hides the rewarded action when ads are disabled for the current platform", () => {
+    expect(
+      getRewardedAccessPrompt({
+        isLoading: false,
+        status: {
+          settings: { platformEnabled: false },
+          target: {
+            cost: 1,
+            unlocked: false,
+            canUnlockWithCurrentBalance: false,
+          },
+        },
+      }),
+    ).toEqual({
+      mode: "standard-paywall",
+      primaryText: "Открыть за рекламу",
+      subscriptionText: "Оформить подписку",
+      showRewardedAction: false,
     });
   });
 });

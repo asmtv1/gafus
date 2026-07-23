@@ -3,7 +3,9 @@ export { useCourseStore } from "./courseStore";
 export { useOfflineStore } from "./offlineStore";
 export { useProgressSyncStore, type QueuedAction } from "./progressSyncStore";
 export {
+  selectDayStepStatuses,
   useDayStepStates,
+  useDayStepStatuses,
   useStepStatesForCourse,
   useStepStore,
   type LocalStepState,

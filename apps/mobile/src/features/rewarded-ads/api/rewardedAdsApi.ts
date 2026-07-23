@@ -23,14 +23,12 @@ export type RewardedCreditsStatusDto = {
   };
   settings: {
     platformEnabled: boolean;
-    paywallCtaEnabled: boolean;
     testMode: boolean;
   };
   canWatchAd: boolean;
   canWatchAdReason:
     | "OK"
     | "PLATFORM_DISABLED"
-    | "CTA_DISABLED"
     | "DAILY_LIMIT_REACHED"
     | "BALANCE_FULL";
   nextGrantCredits: number;

@@ -119,8 +119,6 @@ export async function getRewardedCreditsStatus(input: {
     let canWatchAdReason: RewardedCreditsStatusDto["canWatchAdReason"] = "OK";
     if (!platformSettings.platformEnabled) {
       canWatchAdReason = "PLATFORM_DISABLED";
-    } else if (!platformSettings.paywallCtaEnabled) {
-      canWatchAdReason = "CTA_DISABLED";
     } else if (adsWatchedToday >= platformSettings.dailyAdLimit) {
       canWatchAdReason = "DAILY_LIMIT_REACHED";
     } else if (wallet.balance >= REWARDED_MAX_CREDIT_BALANCE) {
@@ -156,7 +154,6 @@ export async function getRewardedCreditsStatus(input: {
       },
       settings: {
         platformEnabled: platformSettings.platformEnabled,
-        paywallCtaEnabled: platformSettings.paywallCtaEnabled,
         testMode: platformSettings.testMode,
       },
       canWatchAd: canWatchAdReason === "OK",

@@ -90,9 +90,12 @@ vi.mock("@gafus/logger", () => ({
 vi.mock("@gafus/cdn-upload", () => ({
   downloadFileFromCDN: vi.fn(),
   extractVideoIdFromCdnUrl: vi.fn(),
+  getSignedDownloadUrl: vi.fn(),
+  streamFileFromCDN: vi.fn(),
 }));
 
 vi.mock("@gafus/video-access", () => ({
+  VIDEO_PLAYBACK_TOKEN_TTL_MINUTES: 720,
   getVideoAccessService: vi.fn(),
 }));
 

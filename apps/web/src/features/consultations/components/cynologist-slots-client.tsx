@@ -1,20 +1,7 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-  type MouseEvent,
-} from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Typography,
-} from "@mui/material";
+import { useCallback, useEffect, useMemo, useState, useTransition, type MouseEvent } from "react";
+import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { trackEvent } from "@gafus/analytics";
@@ -320,13 +307,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
         </Alert>
       ) : null}
       {paywallOpen ? (
-        <AppSubscriptionPaywall
-          mode="embedded"
-          onRewardedGrant={async () => {
-            setPaywallOpen(false);
-            await loadSlots();
-          }}
-        />
+        <AppSubscriptionPaywall mode="embedded" />
       ) : loading ? (
         <div className={styles.loading}>
           <CircularProgress size={28} />
@@ -366,7 +347,11 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                 <span key={w}>{w}</span>
               ))}
             </div>
-            <div className={styles.calendarGrid} onClick={handleCalendarGridClick} role="presentation">
+            <div
+              className={styles.calendarGrid}
+              onClick={handleCalendarGridClick}
+              role="presentation"
+            >
               {monthCells.map((dayKey, idx) => {
                 if (!dayKey) {
                   return <div key={`empty-${idx}`} className={styles.emptyCell} />;

@@ -19,7 +19,7 @@ export {
   useDailyCourseStartStep,
   useTodayDailyCourse,
 } from "./useDailyCourse";
-export { useNetworkStatus } from "./useNetworkStatus";
+export { useIsOffline, useNetworkStatus } from "./useNetworkStatus";
 export { usePrefetchOtherTabsAfterCourses } from "./usePrefetchOtherTabsAfterCourses";
 export { useOtaAutoApply } from "./useOtaAutoApply";
 export { useSyncProgressOnReconnect } from "./useSyncProgressOnReconnect";

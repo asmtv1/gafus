@@ -8,8 +8,8 @@ import {
   type TodayDailyCourseResponse,
 } from "@/shared/lib/api";
 import type { ApiResponse } from "@/shared/lib/api/client";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { useProgressSyncStore, useStepStore } from "@/shared/stores";
+import { getIsOffline } from "@/shared/stores/networkStatusStore";
 
 export function getMobileMoscowDateKey(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -59,82 +59,77 @@ export function useDailyCourseDay(scheduleId: string) {
 }
 
 export function useDailyCourseStartStep() {
-  const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.startStep>[0]) => {
-      if (isOffline) {
+      if (getIsOffline()) {
         addToQueue({ type: "dailyCourseStartStep", params: variables });
         return { success: true };
       }
       return dailyCourseApi.startStep(variables);
     },
-    [addToQueue, isOffline],
+    [addToQueue],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCoursePauseStep() {
-  const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.pauseStep>[0]) => {
-      if (isOffline) {
+      if (getIsOffline()) {
         addToQueue({ type: "dailyCoursePauseStep", params: variables });
         return { success: true };
       }
       return dailyCourseApi.pauseStep(variables);
     },
-    [addToQueue, isOffline],
+    [addToQueue],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCourseResumeStep() {
-  const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.resumeStep>[0]) => {
-      if (isOffline) {
+      if (getIsOffline()) {
         addToQueue({ type: "dailyCourseResumeStep", params: variables });
         return { success: true };
       }
       return dailyCourseApi.resumeStep(variables);
     },
-    [addToQueue, isOffline],
+    [addToQueue],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCourseResetStep() {
-  const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.resetStep>[0]) => {
-      if (isOffline) {
+      if (getIsOffline()) {
         addToQueue({ type: "dailyCourseResetStep", params: variables });
         return { success: true };
       }
       return dailyCourseApi.resetStep(variables);
     },
-    [addToQueue, isOffline],
+    [addToQueue],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCourseCompleteStep() {
   const queryClient = useQueryClient();
-  const { isOffline } = useNetworkStatus();
   const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.completeStep>[0]) => {
-      if (isOffline) {
+      if (getIsOffline()) {
         addToQueue({ type: "dailyCourseCompleteStep", params: variables });
         return { success: true };
       }
       return dailyCourseApi.completeStep(variables);
     },
-    [addToQueue, isOffline],
+    [addToQueue],
   );
   return useMutation({
     mutationFn,

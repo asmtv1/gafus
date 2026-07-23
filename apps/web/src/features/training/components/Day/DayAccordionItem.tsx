@@ -13,10 +13,9 @@ import { ExpandMoreIcon } from "@shared/utils/muiImports";
 
 import styles from "./Day.module.css";
 
-const AccordionStep = dynamic(
-  () => import("../AccordionStep").then((mod) => mod.AccordionStep),
-  { ssr: false },
-);
+const AccordionStep = dynamic(() => import("../AccordionStep").then((mod) => mod.AccordionStep), {
+  ssr: false,
+});
 
 const STEP_STATUS_CONFIG = {
   NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
@@ -122,7 +121,11 @@ export const DayAccordionItem = memo(function DayAccordionItem({
           } catch (e) {
             reportClientError(e, {
               issueKey: "DayAccordionItem",
-              keys: { step: "markTheoryStepAsCompleted", stepIndex: index, courseId: training.courseId },
+              keys: {
+                step: "markTheoryStepAsCompleted",
+                stepIndex: index,
+                courseId: training.courseId,
+              },
             });
           }
         });
@@ -140,16 +143,6 @@ export const DayAccordionItem = memo(function DayAccordionItem({
     serverActions,
   ]);
 
-  const handleRewardedGrant = useCallback(async () => {
-    if (!serverActions?.unlockStep) return;
-    const result = await serverActions.unlockStep(index);
-    if (result.success) {
-      window.location.reload();
-      return;
-    }
-    throw new Error("Не удалось открыть шаг после начисления кредитов.");
-  }, [index, serverActions]);
-
   return (
     <div key={`${step.id}-${index}`} className={styles.accordionItem}>
       <div
@@ -163,7 +156,13 @@ export const DayAccordionItem = memo(function DayAccordionItem({
               className={`${styles.expandIcon} ${openIndex === index ? styles.expanded : ""}`}
             />
             <span className={styles.expandText}>
-              {isPending ? "Открываем" : step.locked ? "Открыть" : openIndex === index ? "Скрыть" : "Подробнее"}
+              {isPending
+                ? "Открываем"
+                : step.locked
+                  ? "Открыть"
+                  : openIndex === index
+                    ? "Скрыть"
+                    : "Подробнее"}
             </span>
           </div>
           <h3 className={styles.stepTitle}>
@@ -223,11 +222,7 @@ export const DayAccordionItem = memo(function DayAccordionItem({
           aria-label="Доступ к шагу"
         >
           <div className={styles.paywallPanel}>
-            <AppSubscriptionPaywall
-              mode="embedded"
-              onClose={() => setPaywallOpen(false)}
-              onRewardedGrant={handleRewardedGrant}
-            />
+            <AppSubscriptionPaywall mode="embedded" onClose={() => setPaywallOpen(false)} />
           </div>
         </div>
       ) : null}

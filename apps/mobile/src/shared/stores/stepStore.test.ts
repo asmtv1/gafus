@@ -8,7 +8,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-import { useStepStore } from "./stepStore";
+import { selectDayStepStatuses, useStepStore } from "./stepStore";
 
 describe("mobile step store", () => {
   beforeEach(() => {
@@ -60,5 +60,16 @@ describe("mobile step store", () => {
     expect(store.getStepState("course-1", "day-2", 0)).toMatchObject({
       status: "IN_PROGRESS",
     });
+  });
+
+  it("выбирает только статусы шагов текущего дня для живого прогресса", () => {
+    const store = useStepStore.getState();
+    store.startStep("course-1", "day-1", 0, 120);
+    store.completeStep("course-1", "day-1", 1);
+    store.completeStep("course-1", "day-2", 0);
+
+    expect(
+      selectDayStepStatuses(useStepStore.getState().stepStates, "course-1", "day-1", 3),
+    ).toEqual(["IN_PROGRESS", "COMPLETED", null]);
   });
 });

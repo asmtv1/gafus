@@ -20,6 +20,8 @@ function resetStores() {
     isOpen: false,
     reason: null,
     pendingReason: null,
+    contentMode: null,
+    pendingContentMode: null,
     rewardedTarget: null,
     pendingRewardedTarget: null,
     accessSummary: null,
@@ -41,6 +43,7 @@ describe("app subscription paywall deferral", () => {
       isOpen: false,
       reason: null,
       pendingReason: "required",
+      pendingContentMode: "subscription",
     });
   });
 
@@ -53,6 +56,7 @@ describe("app subscription paywall deferral", () => {
       isOpen: true,
       reason: "required",
       pendingReason: null,
+      contentMode: "subscription",
     });
   });
 
@@ -63,6 +67,7 @@ describe("app subscription paywall deferral", () => {
       isOpen: true,
       reason: "required",
       pendingReason: null,
+      contentMode: "subscription",
     });
   });
 
@@ -79,6 +84,7 @@ describe("app subscription paywall deferral", () => {
       isOpen: false,
       reason: null,
       pendingReason: "required",
+      pendingContentMode: "combined",
       rewardedTarget: null,
       pendingRewardedTarget: { targetType: "ARTICLE", targetId: "article-1" },
       onRewardedGrant: null,
@@ -101,6 +107,8 @@ describe("app subscription paywall deferral", () => {
       isOpen: true,
       reason: "required",
       pendingReason: null,
+      contentMode: "combined",
+      pendingContentMode: null,
       rewardedTarget: { targetType: "COURSE_STEP", targetId: "step-1" },
       pendingRewardedTarget: null,
       onRewardedGrant,
@@ -108,12 +116,29 @@ describe("app subscription paywall deferral", () => {
     });
   });
 
+  it("keeps rewarded-only presentation mode when a pending request is flushed", () => {
+    requestAppSubscriptionPaywall({
+      reason: "required",
+      contentMode: "rewarded",
+      rewardedTarget: { targetType: "ARTICLE", targetId: "article-1" },
+    });
+
+    flushDeferredAppSubscriptionPaywall();
+
+    expect(usePaywallStore.getState()).toMatchObject({
+      isOpen: true,
+      contentMode: "rewarded",
+      pendingContentMode: null,
+      rewardedTarget: { targetType: "ARTICLE", targetId: "article-1" },
+    });
+  });
+
   it("moves explicit rewarded access summary from pending request when flushed", () => {
     requestAppSubscriptionPaywall({
       reason: "required",
       accessSummary: {
-        title: "Не хватает кредитов для записи",
-        subtitle: "Запись к кинологу стоит 5 кредитов. У вас 3, не хватает 2.",
+        title: "Не хватает гафусов для записи",
+        subtitle: "Запись к кинологу стоит 5 гафусов. У вас 3, не хватает 2.",
       },
     });
 
@@ -122,8 +147,8 @@ describe("app subscription paywall deferral", () => {
     expect(usePaywallStore.getState()).toMatchObject({
       isOpen: true,
       accessSummary: {
-        title: "Не хватает кредитов для записи",
-        subtitle: "Запись к кинологу стоит 5 кредитов. У вас 3, не хватает 2.",
+        title: "Не хватает гафусов для записи",
+        subtitle: "Запись к кинологу стоит 5 гафусов. У вас 3, не хватает 2.",
       },
       pendingAccessSummary: null,
     });
@@ -143,6 +168,7 @@ describe("app subscription paywall deferral", () => {
     expect(usePaywallStore.getState()).toMatchObject({
       isOpen: false,
       reason: null,
+      contentMode: null,
       rewardedTarget: null,
       accessSummary: null,
       onRewardedGrant: null,

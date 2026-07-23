@@ -86,7 +86,6 @@ vi.mock("./settingsService", () => ({
   resolveRewardedPlatformSettings: vi.fn().mockResolvedValue({
     platform: "ANDROID",
     platformEnabled: true,
-    paywallCtaEnabled: true,
     placementId: "demo-rewarded-yandex",
     dailyAdLimit: 1,
     testMode: true,

@@ -15,7 +15,7 @@ import { MascotSpinner } from "@/shared/components/ui";
 import { COLORS, SPACING } from "@/shared/config";
 import { surveyApi } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { zustandStorage } from "@/shared/stores/storage";
 
 type Answers = Record<string, SurveyAnswerValue>;
@@ -166,7 +166,7 @@ export function SurveyBlock({
   onComplete,
 }: SurveyBlockProps) {
   const queryClient = useQueryClient();
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
   const [answers, setAnswers] = useState<Answers>({});
   const [draftLoaded, setDraftLoaded] = useState(false);
 

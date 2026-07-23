@@ -57,7 +57,7 @@ export async function createRewardedAdSession(input: {
 }): Promise<RewardedAdSessionDto> {
   const now = input.now ?? new Date();
   const platformSettings = await resolveRewardedPlatformSettings(input.platform);
-  if (!platformSettings.platformEnabled || !platformSettings.paywallCtaEnabled) {
+  if (!platformSettings.platformEnabled) {
     throw new RewardedAdsDisabledError();
   }
 

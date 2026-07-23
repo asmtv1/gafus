@@ -24,7 +24,7 @@ describe("GET /mobile-app", () => {
       appSubscriptionGatingEnabled: true,
       iosRuCardPaymentEnabled: false,
       iosRuCardPaymentHintEnabled: false,
-      minimumSupportedVersion: { ios: "1.6.1", android: "1.6.1" },
+      minimumSupportedVersion: { ios: "1.6.2", android: "1.6.2" },
       storeUrl: {
         ios: "https://apps.apple.com/ru/app/gafus/id6760964612",
         android: "https://www.rustore.ru/catalog/app/ru.gafus.app",
@@ -38,7 +38,7 @@ describe("GET /mobile-app", () => {
     await expect(response.json()).resolves.toMatchObject({
       success: true,
       data: {
-      minimumSupportedVersion: { ios: "1.6.1", android: "1.6.1" },
+      minimumSupportedVersion: { ios: "1.6.2", android: "1.6.2" },
       },
     });
   });

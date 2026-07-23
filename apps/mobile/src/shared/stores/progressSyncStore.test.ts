@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { reportClientErrorMock, startStepMock } = vi.hoisted(() => ({
+const { reportClientErrorMock, saveVideoProgressMock, startStepMock } = vi.hoisted(() => ({
   reportClientErrorMock: vi.fn(),
+  saveVideoProgressMock: vi.fn(),
   startStepMock: vi.fn(),
 }));
 
@@ -31,6 +32,7 @@ vi.mock("@/shared/lib/api", () => ({
     pauseStep: vi.fn(),
     resetStep: vi.fn(),
     resumeStep: vi.fn(),
+    saveVideoProgress: saveVideoProgressMock,
     startStep: startStepMock,
   },
 }));
@@ -88,12 +90,54 @@ describe("mobile progress sync store", () => {
     const error = new Error("network");
     startStepMock.mockRejectedValueOnce(error);
 
-    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("ok");
+    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("retry");
 
     expect(reportClientErrorMock).toHaveBeenCalledWith(error, {
       issueKey: "ProgressSync",
       keys: { actionType: "startStep" },
     });
     expect(useProgressSyncStore.getState().queue).toEqual([action]);
+  });
+
+  it("оставляет в очереди только последнюю позицию одного видео", () => {
+    const store = useProgressSyncStore.getState();
+    store.add({
+      type: "saveVideoProgress",
+      params: { videoId: "video-1", positionSec: 10, updatedAt: 1 },
+    });
+    store.add({
+      type: "saveVideoProgress",
+      params: { videoId: "video-1", positionSec: 25, updatedAt: 2 },
+    });
+
+    expect(useProgressSyncStore.getState().queue).toHaveLength(1);
+    expect(useProgressSyncStore.getState().queue[0]).toMatchObject({
+      type: "saveVideoProgress",
+      params: { videoId: "video-1", positionSec: 25, updatedAt: 2 },
+    });
+  });
+
+  it("синхронизирует позицию видео", async () => {
+    useProgressSyncStore.getState().add({
+      type: "saveVideoProgress",
+      params: { videoId: "video-1", positionSec: 25, updatedAt: 2 },
+    });
+    saveVideoProgressMock.mockResolvedValueOnce({ success: true });
+
+    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("ok");
+
+    expect(saveVideoProgressMock).toHaveBeenCalledWith("video-1", 25);
+    expect(useProgressSyncStore.getState().queue).toEqual([]);
+  });
+
+  it("не теряет позицию видео при временной ошибке сервера", async () => {
+    useProgressSyncStore.getState().add({
+      type: "saveVideoProgress",
+      params: { videoId: "video-1", positionSec: 25, updatedAt: 2 },
+    });
+    saveVideoProgressMock.mockResolvedValueOnce({ success: false, error: "server error" });
+
+    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("retry");
+    expect(useProgressSyncStore.getState().queue).toHaveLength(1);
   });
 });

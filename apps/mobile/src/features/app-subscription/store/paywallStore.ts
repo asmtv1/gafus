@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 type PaywallReason = "required" | "onboarding";
+export type PaywallContentMode = "subscription" | "rewarded" | "combined";
 type RewardedTargetType = "ARTICLE" | "COURSE_STEP" | "DAILY_COURSE_STEP" | "CONSULTATION_BOOKING";
 
 export type PaywallRewardedTarget = {
@@ -15,6 +16,7 @@ export type PaywallAccessSummary = {
 
 export type OpenPaywallParams = {
   reason?: PaywallReason;
+  contentMode?: PaywallContentMode;
   rewardedTarget?: PaywallRewardedTarget | null;
   accessSummary?: PaywallAccessSummary | null;
   onRewardedGrant?: (() => Promise<void> | void) | null;
@@ -25,10 +27,16 @@ function normalizeParams(params?: PaywallReason | OpenPaywallParams): OpenPaywal
   return params ?? {};
 }
 
+function resolveContentMode(params: OpenPaywallParams): PaywallContentMode {
+  return params.contentMode ?? (params.rewardedTarget ? "combined" : "subscription");
+}
+
 type PaywallState = {
   isOpen: boolean;
   reason: PaywallReason | null;
   pendingReason: PaywallReason | null;
+  contentMode: PaywallContentMode | null;
+  pendingContentMode: PaywallContentMode | null;
   rewardedTarget: PaywallRewardedTarget | null;
   pendingRewardedTarget: PaywallRewardedTarget | null;
   accessSummary: PaywallAccessSummary | null;
@@ -45,6 +53,8 @@ export const usePaywallStore = create<PaywallState>((set) => ({
   isOpen: false,
   reason: null,
   pendingReason: null,
+  contentMode: null,
+  pendingContentMode: null,
   rewardedTarget: null,
   pendingRewardedTarget: null,
   accessSummary: null,
@@ -57,6 +67,8 @@ export const usePaywallStore = create<PaywallState>((set) => ({
       isOpen: true,
       reason: normalized.reason ?? "required",
       pendingReason: null,
+      contentMode: resolveContentMode(normalized),
+      pendingContentMode: null,
       rewardedTarget: normalized.rewardedTarget ?? null,
       pendingRewardedTarget: null,
       accessSummary: normalized.accessSummary ?? null,
@@ -69,6 +81,7 @@ export const usePaywallStore = create<PaywallState>((set) => ({
     const normalized = normalizeParams(params);
     set({
       pendingReason: normalized.reason ?? "required",
+      pendingContentMode: resolveContentMode(normalized),
       pendingRewardedTarget: normalized.rewardedTarget ?? null,
       pendingAccessSummary: normalized.accessSummary ?? null,
       pendingOnRewardedGrant: normalized.onRewardedGrant ?? null,
@@ -78,6 +91,7 @@ export const usePaywallStore = create<PaywallState>((set) => ({
     set({
       isOpen: false,
       reason: null,
+      contentMode: null,
       rewardedTarget: null,
       accessSummary: null,
       onRewardedGrant: null,
@@ -85,6 +99,7 @@ export const usePaywallStore = create<PaywallState>((set) => ({
   clearPending: () =>
     set({
       pendingReason: null,
+      pendingContentMode: null,
       pendingRewardedTarget: null,
       pendingAccessSummary: null,
       pendingOnRewardedGrant: null,
@@ -106,6 +121,7 @@ export function flushDeferredAppSubscriptionPaywall() {
   if (!state.pendingReason) return;
   state.open({
     reason: state.pendingReason,
+    contentMode: state.pendingContentMode ?? undefined,
     rewardedTarget: state.pendingRewardedTarget,
     accessSummary: state.pendingAccessSummary,
     onRewardedGrant: state.pendingOnRewardedGrant,

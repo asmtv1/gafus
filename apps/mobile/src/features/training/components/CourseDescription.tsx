@@ -43,9 +43,14 @@ export function CourseDescription({
     isLoading: isLoadingVideo,
     error: videoError,
     videoId,
+    posterUrl,
     retry: retryVideo,
   } = useVideoUrl(isExpanded && (videoInfo?.isCDN || videoInfo?.isHLS) ? (videoUrl ?? null) : null);
-  const { initialTimeSec, saveProgress } = useVideoProgress(videoId, isExpanded);
+  const {
+    initialTimeSec,
+    isLoading: isLoadingVideoProgress,
+    saveProgress,
+  } = useVideoProgress(videoId, isExpanded);
 
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -100,7 +105,7 @@ export function CourseDescription({
                     Видео презентация курса:
                   </Text>
                   {videoInfo.isCDN || videoInfo.isHLS ? (
-                    isLoadingVideo ? (
+                    isLoadingVideo || isLoadingVideoProgress ? (
                       <View style={styles.videoLoading}>
                         <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
@@ -124,6 +129,7 @@ export function CourseDescription({
                     ) : playbackUrl ? (
                       <VideoPlayer
                         uri={playbackUrl}
+                        poster={posterUrl ?? undefined}
                         initialTimeSec={initialTimeSec}
                         onSaveProgress={saveProgress}
                         onRetry={retryVideo}

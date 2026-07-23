@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Text, Surface } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -17,7 +17,7 @@ import {
   useDailyCourseStartStep,
 } from "@/shared/hooks/useDailyCourse";
 import { dailyCourseApi, getDailyCourseStoreCourseId } from "@/shared/lib/api";
-import { useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
+import { useDayStepStatuses, useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
@@ -47,6 +47,11 @@ export default function DailyCourseDayScreen() {
   const resetMutation = useDailyCourseResetStep();
   const completeMutation = useDailyCourseCompleteStep();
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+  const localStepStatuses = useDayStepStatuses(
+    courseId,
+    normalizedScheduleId,
+    dayData?.steps.length ?? 0,
+  );
 
   useEffect(() => {
     if (!dayData?.steps) return;
@@ -68,13 +73,12 @@ export default function DailyCourseDayScreen() {
   const progress = useMemo(() => {
     const steps = dayData?.steps ?? [];
     const completed = steps.filter((step, index) => {
-      const local = getStepState(courseId, normalizedScheduleId, index);
-      return (local?.status ?? step.status) === "COMPLETED";
+      return (localStepStatuses[index] ?? step.status) === "COMPLETED";
     }).length;
     const total = steps.length;
     const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { completed, total, percent };
-  }, [courseId, dayData?.steps, getStepState, normalizedScheduleId]);
+  }, [dayData?.steps, localStepStatuses]);
 
   const unlockDailyStepWithRewarded = useCallback(
     async (index: number) => {
@@ -211,20 +215,24 @@ export default function DailyCourseDayScreen() {
             <View style={styles.dayHeaderDivider} />
           </View>
 
-          <Surface style={styles.progressCard} elevation={1}>
+          <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
-              <Text variant="titleMedium">Прогресс</Text>
-              <Text variant="titleMedium" style={styles.progressPercent}>
-                {progress.percent}%
-              </Text>
+              <Text style={styles.progressTitle}>Прогресс</Text>
+              <Text style={styles.progressPercent}>{progress.percent}%</Text>
             </View>
-            <View style={styles.progressBar}>
+            <View
+              style={styles.progressBar}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Прогресс дня"
+              accessibilityValue={{ min: 0, max: 100, now: progress.percent }}
+            >
               <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
             </View>
             <Text style={styles.progressText}>
               Выполнено {progress.completed} из {progress.total} шагов
             </Text>
-          </Surface>
+          </View>
 
           <View style={styles.descriptionDayContainer}>
             <Pressable
@@ -333,10 +341,14 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   progressCard: {
-    padding: SPACING.md,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
+    borderCurve: "continuous",
     marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     backgroundColor: COLORS.cardBackground,
+    boxShadow: "0 2px 8px rgba(53, 46, 46, 0.14)",
   },
   progressHeader: {
     flexDirection: "row",
@@ -344,9 +356,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: SPACING.sm,
   },
+  progressTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "600",
+  },
   progressPercent: {
     color: COLORS.primary,
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   progressBar: {
     height: 8,
@@ -362,7 +383,8 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 20,
   },
   descriptionDayContainer: {
     marginBottom: SPACING.lg,

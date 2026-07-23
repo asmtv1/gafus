@@ -7,10 +7,7 @@ import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { AccessDeniedAlert } from "@/features/training";
 import { getCourseMetadata } from "@gafus/core/services/course";
 import { checkCourseAccessById } from "@gafus/core/services/course";
-import { unlockCourseStepRewardedTarget } from "@gafus/core/services/training";
-import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { revalidatePath } from "next/cache";
 
 import type { Metadata } from "next";
 
@@ -33,10 +30,13 @@ export default async function DayPage(props: {
   }
 
   // Создаем UserTraining при необходимости (только в компоненте страницы)
-  const { training, requiresPersonalization } =
-    await getTrainingDayWithUserSteps(courseType, dayId, {
+  const { training, requiresPersonalization } = await getTrainingDayWithUserSteps(
+    courseType,
+    dayId,
+    {
       createIfMissing: true,
-    });
+    },
+  );
 
   if (requiresPersonalization) {
     redirect(`/trainings/${courseType}?personalize=1`);
@@ -44,16 +44,12 @@ export default async function DayPage(props: {
 
   if (!training) {
     // Платный курс без оплаты — редирект на страницу курса с предложением оплаты (ЮKassa)
-    const [courseMetadata, userId] = await Promise.all([
-      getCourseMetadata(courseType),
-      Promise.resolve(currentUserId),
-    ]);
+    const courseMetadata = await getCourseMetadata(courseType);
     if (courseMetadata?.isPaid && courseMetadata.id) {
-      if (!userId) {
-        // Гость на платном — редирект на список, там покажут оплату
+      if (!currentUserId) {
         redirect(`/trainings/${courseType}`);
       }
-      const { hasAccess } = await checkCourseAccessById(courseMetadata.id, userId);
+      const { hasAccess } = await checkCourseAccessById(courseMetadata.id, currentUserId);
       if (!hasAccess) {
         redirect(`/trainings/${courseType}`);
       }
@@ -61,29 +57,7 @@ export default async function DayPage(props: {
     return <AccessDeniedAlert courseType={courseType} />;
   }
 
-  async function unlockStep(stepIndex: number) {
-    "use server";
-    const userId = await getCurrentUserId();
-    if (!userId) return { success: false };
-    try {
-      await unlockCourseStepRewardedTarget({
-        userId,
-        platform: "WEB_DESKTOP",
-        courseType,
-        dayOnCourseId: dayId,
-        stepIndex,
-      });
-    } catch (error) {
-      if (error instanceof SubscriptionOrCreditsRequiredError) {
-        return { success: false, reason: "PAYWALL" as const };
-      }
-      throw error;
-    }
-    revalidatePath(`/trainings/${courseType}/${dayId}`);
-    return { success: true };
-  }
-
-  return <Day training={training} courseType={courseType} serverActions={{ unlockStep }} />;
+  return <Day training={training} courseType={courseType} />;
 }
 
 // Генерация метаданных (read-only, не создает данные в БД)

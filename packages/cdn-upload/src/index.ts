@@ -4,6 +4,7 @@ export {
   deleteFileFromCDN,
   deleteFolderFromCDN,
   downloadFileFromCDN,
+  getSignedDownloadUrl,
   uploadReadableStreamToCDN,
   streamFileFromCDN,
   uploadBufferToCDN,

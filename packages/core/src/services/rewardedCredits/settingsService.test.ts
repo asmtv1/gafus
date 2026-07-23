@@ -5,14 +5,9 @@ const settingsRow = vi.hoisted(() => ({
     key: string;
     androidEnabled: boolean;
     iosEnabled: boolean;
-    webDesktopEnabled: boolean;
-    webTouchEnabled: boolean;
-    paywallCtaEnabled: boolean;
     dailyAdLimit: number;
     yandexAndroidPlacementId: string | null;
     yandexIosPlacementId: string | null;
-    yandexWebDesktopBlockId: string | null;
-    yandexWebTouchBlockId: string | null;
     testMode: boolean;
   },
 }));
@@ -61,9 +56,6 @@ describe("rewarded ad settings", () => {
     await expect(getRewardedAdSettings()).resolves.toMatchObject({
       androidEnabled: false,
       iosEnabled: false,
-      webDesktopEnabled: false,
-      webTouchEnabled: false,
-      paywallCtaEnabled: false,
       dailyAdLimit: 1,
       testMode: true,
     });
@@ -89,6 +81,26 @@ describe("rewarded ad settings", () => {
       platformEnabled: true,
       placementId: "demo-rewarded-yandex",
       testMode: true,
+    });
+  });
+
+  it("resolves Android and iOS enablement independently", async () => {
+    await updateRewardedAdSettings(
+      {
+        androidEnabled: true,
+        iosEnabled: false,
+        testMode: true,
+      },
+      "admin-1",
+    );
+
+    await expect(resolveRewardedPlatformSettings("ANDROID")).resolves.toMatchObject({
+      platform: "ANDROID",
+      platformEnabled: true,
+    });
+    await expect(resolveRewardedPlatformSettings("IOS")).resolves.toMatchObject({
+      platform: "IOS",
+      platformEnabled: false,
     });
   });
 

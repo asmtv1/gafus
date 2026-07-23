@@ -1,8 +1,59 @@
 import * as Device from "expo-device";
 import { Platform, NativeModules } from "react-native";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { subscriptionsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
+
+const PUSH_PERMISSION_EDUCATION_SEEN_KEY = "gafus:push-permission-education-seen:v1";
+
+export type PushPermissionStatus = "granted" | "denied" | "undetermined" | "unavailable";
+
+export async function getPushPermissionStatus(): Promise<PushPermissionStatus> {
+  if (Constants.appOwnership === "expo" || !Device.isDevice) return "unavailable";
+
+  try {
+    const Notifications = await import("expo-notifications");
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === "granted") return "granted";
+    if (status === "denied") return "denied";
+    return "undetermined";
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      severity: "warning",
+      issueKey: "PushNotifications",
+      keys: { operation: "get_permission_status" },
+    });
+    return "unavailable";
+  }
+}
+
+export async function shouldShowPushPermissionEducation(): Promise<boolean> {
+  const status = await getPushPermissionStatus();
+  if (status !== "undetermined") return false;
+  try {
+    return (await AsyncStorage.getItem(PUSH_PERMISSION_EDUCATION_SEEN_KEY)) !== "1";
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      severity: "warning",
+      issueKey: "PushNotifications",
+      keys: { operation: "read_education_seen" },
+    });
+    return true;
+  }
+}
+
+export async function markPushPermissionEducationSeen(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PUSH_PERMISSION_EDUCATION_SEEN_KEY, "1");
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      severity: "warning",
+      issueKey: "PushNotifications",
+      keys: { operation: "write_education_seen" },
+    });
+  }
+}
 
 /**
  * Регистрация для получения push уведомлений
@@ -49,8 +100,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) {
       reportClientError(new Error("Expo projectId отсутствует в конфиге сборки"), {
         issueKey: "PushNotifications",
@@ -97,7 +147,8 @@ async function tryRegisterRustorePush(): Promise<boolean> {
       const mod = await import("react-native-rustore-push");
       RustorePush = mod.default ?? (mod as { RustorePush?: unknown }).RustorePush;
     }
-    const getToken = (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
+    const getToken =
+      (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
       (RustorePush as { getPushToken?: () => Promise<string> })?.getPushToken;
     if (typeof getToken !== "function") return false;
     const token = await getToken();
@@ -195,10 +246,18 @@ export async function getCurrentDeviceTokens(): Promise<{ expo?: string; rustore
  * На Android без FCM Expo может не выдать токен — тогда достаточно успешного RuStore.
  */
 export async function setupPushNotifications(): Promise<boolean> {
-  const expoToken = await registerForPushNotifications();
-  const expoSaved = expoToken ? await savePushToken(expoToken) : false;
+  try {
+    const expoToken = await registerForPushNotifications();
+    const expoSaved = expoToken ? await savePushToken(expoToken) : false;
 
-  const rustoreSaved = Platform.OS === "android" ? await tryRegisterRustorePush() : false;
+    const rustoreSaved = Platform.OS === "android" ? await tryRegisterRustorePush() : false;
 
-  return expoSaved || rustoreSaved;
+    return expoSaved || rustoreSaved;
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "PushNotifications",
+      keys: { operation: "setup_push" },
+    });
+    return false;
+  }
 }

@@ -43,13 +43,42 @@ import { createWebLogger } from "@gafus/logger";
 import {
   downloadFileFromCDN,
   extractVideoIdFromCdnUrl,
+  getSignedDownloadUrl,
   streamFileFromCDN,
 } from "@gafus/cdn-upload";
 import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
+import { rewriteHlsManifest } from "../../lib/hlsManifest";
 
 const logger = createWebLogger("api-training");
 
 const HLS_SEGMENT_FILE_PATTERN = /^[a-zA-Z0-9._-]+\.(ts|m4s|mp4|m3u8|vtt|aac)$/;
+const PLAYBACK_ACCESS_CACHE_TTL_MS = 60_000;
+const PLAYBACK_ACCESS_DENIED_CACHE_TTL_MS = 10_000;
+const HLS_DIRECT_RESOURCE_TTL_SECONDS = VIDEO_PLAYBACK_TOKEN_TTL_MINUTES * 60;
+
+type VideoPlaybackAccess = {
+  video: Awaited<ReturnType<typeof getVideoManifestInfo>>;
+  hasAccess: boolean;
+};
+
+const playbackAccessCache = new Map<string, { expiresAt: number; value: VideoPlaybackAccess }>();
+const playbackAccessInFlight = new Map<string, Promise<VideoPlaybackAccess>>();
+
+export function invalidateVideoPlaybackAccessCache(userId?: string, videoId?: string): void {
+  if (!userId && !videoId) {
+    playbackAccessCache.clear();
+    playbackAccessInFlight.clear();
+    return;
+  }
+  for (const key of playbackAccessCache.keys()) {
+    const separatorIndex = key.lastIndexOf(":");
+    const cachedUserId = key.slice(0, separatorIndex);
+    const cachedVideoId = key.slice(separatorIndex + 1);
+    if ((!userId || cachedUserId === userId) && (!videoId || cachedVideoId === videoId)) {
+      playbackAccessCache.delete(key);
+    }
+  }
+}
 
 function validateHlsSegmentPath(segmentPath: string): string | null {
   const normalized = segmentPath.trim();
@@ -66,6 +95,59 @@ function validateHlsSegmentPath(segmentPath: string): string | null {
     return null;
   }
   return normalized;
+}
+
+async function getCachedVideoPlaybackAccess(
+  userId: string,
+  videoId: string,
+): Promise<VideoPlaybackAccess> {
+  const key = `${userId}:${videoId}`;
+  const now = Date.now();
+  const cached = playbackAccessCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  const existingRequest = playbackAccessInFlight.get(key);
+  if (existingRequest) return existingRequest;
+
+  const request = (async () => {
+    const video = await getVideoManifestInfo(videoId);
+    const hasAccess = video ? await checkVideoAccess({ userId, videoId }) : false;
+    const value = { video, hasAccess };
+    playbackAccessCache.set(key, {
+      expiresAt:
+        Date.now() +
+        (hasAccess && video?.transcodingStatus === "COMPLETED"
+          ? PLAYBACK_ACCESS_CACHE_TTL_MS
+          : PLAYBACK_ACCESS_DENIED_CACHE_TTL_MS),
+      value,
+    });
+    if (playbackAccessCache.size > 5_000) {
+      const oldestKey = playbackAccessCache.keys().next().value;
+      if (oldestKey) playbackAccessCache.delete(oldestKey);
+    }
+    return value;
+  })().finally(() => playbackAccessInFlight.delete(key));
+
+  playbackAccessInFlight.set(key, request);
+  return request;
+}
+
+async function createProtectedHlsManifest(params: {
+  content: string;
+  baseDir: string;
+  apiUrl: string;
+  videoId: string;
+  token: string;
+}): Promise<string> {
+  const { content, baseDir, apiUrl, videoId, token } = params;
+  return rewriteHlsManifest(content, async (rawPath) => {
+    const safePath = validateHlsSegmentPath(rawPath);
+    if (!safePath) throw new Error(`Недопустимый HLS resource path: ${rawPath}`);
+    if (safePath.endsWith(".m3u8")) {
+      return `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(safePath)}&token=${encodeURIComponent(token)}`;
+    }
+    return getSignedDownloadUrl(`${baseDir}/${safePath}`, HLS_DIRECT_RESOURCE_TTL_SECONDS);
+  });
 }
 
 // Проверяем, что VIDEO_ACCESS_SECRET установлен (только для логирования)
@@ -769,9 +851,9 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
         );
       }
 
-      let video;
+      let playbackAccess: VideoPlaybackAccess;
       try {
-        video = await getVideoManifestInfo(videoId);
+        playbackAccess = await getCachedVideoPlaybackAccess(user.id, videoId);
       } catch (error) {
         logger.error("[training/video/url] Ошибка поиска видео в БД", error as Error, { videoId });
         return c.json(
@@ -779,6 +861,8 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
           500,
         );
       }
+
+      const { video, hasAccess } = playbackAccess;
 
       if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
         logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается", {
@@ -791,7 +875,6 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
         );
       }
 
-      const hasAccess = await checkVideoAccess({ userId: user.id, videoId });
       if (!hasAccess) {
         logger.warn("[training/video/url] Нет доступа к видео", {
           userId: user.id,
@@ -833,11 +916,14 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
           process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
         // .m3u8 в пути нужен для нативных плееров (iOS/Android), иначе возможна ошибка "Operation Stopped"
         const signedUrl = `${apiUrl}/api/v1/training/video/${videoId}/manifest.m3u8?token=${token}`;
+        const posterUrl = video.thumbnailPath
+          ? await getSignedDownloadUrl(video.thumbnailPath, HLS_DIRECT_RESOURCE_TTL_SECONDS)
+          : undefined;
         logger.info("[training/video/url] Сгенерирован signed URL", {
           videoId,
           apiUrl,
         });
-        return c.json({ success: true, data: { url: signedUrl, videoId } });
+        return c.json({ success: true, data: { url: signedUrl, videoId, posterUrl } });
       } catch (error) {
         logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
           videoId,
@@ -910,7 +996,7 @@ trainingRoutes.get(
     try {
       const user = c.get("user");
       const { videoId } = c.req.valid("param");
-      const hasAccess = await checkVideoAccess({ userId: user.id, videoId });
+      const { hasAccess } = await getCachedVideoPlaybackAccess(user.id, videoId);
       if (!hasAccess) {
         return c.json(
           { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
@@ -937,7 +1023,7 @@ trainingRoutes.post(
       const user = c.get("user");
       const { videoId } = c.req.valid("param");
       const { positionSec } = c.req.valid("json");
-      const hasAccess = await checkVideoAccess({ userId: user.id, videoId });
+      const { hasAccess } = await getCachedVideoPlaybackAccess(user.id, videoId);
       if (!hasAccess) {
         return c.json(
           { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
@@ -985,7 +1071,8 @@ async function handleVideoManifest(c: Context) {
       return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
     }
 
-    const video = await getVideoManifestInfo(videoId);
+    const playbackAccess = await getCachedVideoPlaybackAccess(tokenData.userId, videoId);
+    const { video, hasAccess } = playbackAccess;
 
     if (!video) {
       return c.json({ success: false, error: "Видео не найдено" }, 404);
@@ -1006,7 +1093,6 @@ async function handleVideoManifest(c: Context) {
       return c.json({ success: false, error: "HLS манифест не найден" }, 404);
     }
 
-    const hasAccess = await checkVideoAccess({ userId: tokenData.userId, videoId });
     if (!hasAccess) {
       return c.json(
         { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
@@ -1032,32 +1118,19 @@ async function handleVideoManifest(c: Context) {
     // Получаем base URL для формирования абсолютных URL
     const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
 
-    // Парсим манифест и добавляем токены к URL сегментов
-    const segmentBaseUrl = `${apiUrl}/api/v1/training/video/${videoId}/segment`;
-    const lines = manifestContent.split("\n");
-    const modifiedLines = lines.map((line) => {
-      // Строки с URI= (EXT-X-MAP, EXT-X-KEY и т.д.) — перезаписываем путь на прокси
-      const uriMatch = line.match(/URI="([^"]+)"/);
-      if (uriMatch) {
-        const segmentPath = uriMatch[1].trim();
-        const segmentUrl = `${segmentBaseUrl}?path=${encodeURIComponent(segmentPath)}&token=${token}`;
-        return line.replace(uriMatch[0], `URI="${segmentUrl}"`);
-      }
-      // Обычная строка сегмента (не комментарий)
-      if (line.trim() && !line.startsWith("#")) {
-        const segmentPath = line.trim();
-        const segmentUrl = `${segmentBaseUrl}?path=${encodeURIComponent(segmentPath)}&token=${token}`;
-        return segmentUrl;
-      }
-      return line;
+    const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
+    const modifiedManifest = await createProtectedHlsManifest({
+      content: manifestContent,
+      baseDir,
+      apiUrl,
+      videoId,
+      token,
     });
-
-    const modifiedManifest = modifiedLines.join("\n");
 
     logger.info("[training/video/:videoId/manifest] Манифест модифицирован", {
       videoId,
-      originalLines: lines.length,
-      modifiedLines: modifiedLines.length,
+      originalLines: manifestContent.split("\n").length,
+      modifiedLines: modifiedManifest.split("\n").length,
       apiUrl,
     });
 
@@ -1129,13 +1202,13 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       return c.json({ success: false, error: "Недостаточно прав доступа" }, 403);
     }
 
-    const video = await getVideoManifestInfo(videoId);
+    const playbackAccess = await getCachedVideoPlaybackAccess(tokenData.userId, videoId);
+    const { video, hasAccess } = playbackAccess;
 
     if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
       return c.json({ success: false, error: "Видео не найдено или не готово" }, 404);
     }
 
-    const hasAccess = await checkVideoAccess({ userId: tokenData.userId, videoId });
     if (!hasAccess) {
       return c.json(
         { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
@@ -1144,11 +1217,34 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
     }
 
     // Формируем полный путь к сегменту относительно манифеста
-    // segmentPath может быть только именем файла из HLS-манифеста (например, "segment-001.ts")
+    // resource path может быть только именем файла из HLS-манифеста.
     const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
     const fullSegmentPath = `${baseDir}/${safeSegmentPath}`;
 
-    // Не буферизуем HLS-сегмент в RAM API: это важно для 4K и нескольких зрителей.
+    // В ABR master playlist ссылается на media playlist. Его также авторизуем через API,
+    // а тяжёлые сегменты внутри уже выдаём прямыми подписанными URL Object Storage.
+    if (safeSegmentPath.endsWith(".m3u8")) {
+      const playlistBuffer = await downloadFileFromCDN(fullSegmentPath);
+      const apiUrl =
+        process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+      const playlist = await createProtectedHlsManifest({
+        content: playlistBuffer.toString("utf-8"),
+        baseDir,
+        apiUrl,
+        videoId,
+        token,
+      });
+      return new Response(playlist, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/vnd.apple.mpegurl",
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
+    // Fallback для старых уже выданных манифестов. Новые клиенты получают прямые
+    // presigned Object Storage URLs и не гоняют медиатрафик через API.
     const rangeHeader = c.req.header("range");
     const validRange =
       rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",") ? rangeHeader : undefined;

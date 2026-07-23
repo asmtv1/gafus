@@ -6,6 +6,7 @@ import { prisma } from "@gafus/prisma";
 
 export interface VideoManifestInfo {
   hlsManifestPath: string | null;
+  thumbnailPath: string | null;
   transcodingStatus: string;
   trainerId: string;
 }
@@ -13,13 +14,12 @@ export interface VideoManifestInfo {
 /**
  * Получает информацию о видео для manifest/segment (путь к HLS, статус, trainerId).
  */
-export async function getVideoManifestInfo(
-  videoId: string,
-): Promise<VideoManifestInfo | null> {
+export async function getVideoManifestInfo(videoId: string): Promise<VideoManifestInfo | null> {
   const video = await prisma.trainerVideo.findUnique({
     where: { id: videoId },
     select: {
       hlsManifestPath: true,
+      thumbnailPath: true,
       transcodingStatus: true,
       trainerId: true,
     },

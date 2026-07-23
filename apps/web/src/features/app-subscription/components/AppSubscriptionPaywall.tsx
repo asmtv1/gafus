@@ -6,7 +6,6 @@ import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { CloseIcon, IconButton } from "@shared/utils/muiImports";
 import { fetchAppSubscriptionOffer } from "@/shared/lib/app-subscription/client";
-import { renderYandexRewarded } from "@/features/rewarded-ads/yandexRewardedWeb";
 import {
   getYookassaLegalText,
   getYookassaPriceNote,
@@ -35,42 +34,9 @@ type AppSubscriptionOffer = {
   plans: AppSubscriptionPlanOffer[];
 };
 
-type WebRewardedPlatform = "WEB_DESKTOP" | "WEB_TOUCH";
-
-type RewardedCreditsStatus = {
-  wallet: {
-    balance: number;
-    maxBalance: number;
-    creditsPerReward: number;
-  };
-  today: {
-    adsWatchedToday: number;
-    dailyAdLimit: 1 | 2 | 3;
-  };
-  settings: {
-    platformEnabled: boolean;
-    paywallCtaEnabled: boolean;
-  };
-  canWatchAd: boolean;
-  canWatchAdReason:
-    | "OK"
-    | "PLATFORM_DISABLED"
-    | "CTA_DISABLED"
-    | "DAILY_LIMIT_REACHED"
-    | "BALANCE_FULL";
-  nextGrantCredits: number;
-};
-
-type RewardedAdSession = {
-  sessionId: string;
-  requestNonce: string;
-  placementId: string;
-};
-
 type AppSubscriptionPaywallProps = {
   mode?: "page" | "embedded";
   onClose?: () => void;
-  onRewardedGrant?: () => Promise<void> | void;
 };
 
 const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
@@ -85,31 +51,7 @@ const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
   },
 ];
 
-function getWebRewardedPlatform(): WebRewardedPlatform {
-  if (typeof window === "undefined") return "WEB_DESKTOP";
-  return window.matchMedia("(pointer: coarse)").matches ? "WEB_TOUCH" : "WEB_DESKTOP";
-}
-
-function getRewardedUnavailableText(reason: RewardedCreditsStatus["canWatchAdReason"]): string {
-  switch (reason) {
-    case "DAILY_LIMIT_REACHED":
-      return "Лимит рекламы на сегодня исчерпан.";
-    case "BALANCE_FULL":
-      return "Баланс кредитов уже заполнен.";
-    case "PLATFORM_DISABLED":
-    case "CTA_DISABLED":
-      return "";
-    case "OK":
-    default:
-      return "";
-  }
-}
-
-export function AppSubscriptionPaywall({
-  mode = "page",
-  onClose,
-  onRewardedGrant,
-}: AppSubscriptionPaywallProps) {
+export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscriptionPaywallProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
@@ -121,28 +63,7 @@ export function AppSubscriptionPaywall({
   const [returnState, setReturnState] = useState<"idle" | "checking" | "success" | "pending">(
     "idle",
   );
-  const [rewardedStatus, setRewardedStatus] = useState<RewardedCreditsStatus | null>(null);
-  const [rewardedLoading, setRewardedLoading] = useState(false);
-  const [rewardedMessage, setRewardedMessage] = useState<string | null>(null);
   const isPaidReturn = searchParams.get("paid") === "1";
-
-  const loadRewardedStatus = useCallback(async () => {
-    try {
-      const platform = getWebRewardedPlatform();
-      const response = await fetch(`/api/v1/rewarded-ads/status?platform=${platform}`, {
-        method: "GET",
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      if (response.status === 401) return;
-      const json = (await response.json()) as { success?: boolean; data?: RewardedCreditsStatus };
-      if (response.ok && json.success && json.data) {
-        setRewardedStatus(json.data);
-      }
-    } catch {
-      // Rewarded credits are optional on the paywall; keep subscription flow usable.
-    }
-  }, []);
 
   useEffect(() => {
     if (!csrfToken && !csrfLoading) {
@@ -170,10 +91,6 @@ export function AppSubscriptionPaywall({
 
     void loadOffer();
   }, []);
-
-  useEffect(() => {
-    void loadRewardedStatus();
-  }, [loadRewardedStatus]);
 
   const ensureCsrfToken = useCallback(async () => {
     if (csrfToken) return csrfToken;
@@ -293,89 +210,6 @@ export function AppSubscriptionPaywall({
     }
   };
 
-  const postRewardedJson = useCallback(
-    async <T,>(url: string, body: unknown): Promise<T> => {
-      const token = await ensureCsrfToken();
-      if (!token) {
-        throw new Error("Не удалось получить CSRF токен. Обновите страницу и попробуйте снова.");
-      }
-      const response = await fetch(url, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": token,
-        },
-        body: JSON.stringify(body),
-      });
-      const json = (await response.json()) as { success?: boolean; data?: T; error?: string };
-      if (!response.ok || !json.success || !json.data) {
-        throw new Error(json.error ?? "Не удалось выполнить действие");
-      }
-      return json.data;
-    },
-    [ensureCsrfToken],
-  );
-
-  const onWatchRewardedAd = async () => {
-    if (rewardedLoading || !rewardedStatus?.canWatchAd) return;
-    setRewardedLoading(true);
-    setRewardedMessage(null);
-    setError(null);
-    try {
-      const platform = getWebRewardedPlatform();
-      const session = await postRewardedJson<RewardedAdSession>("/api/v1/rewarded-ads/session", {
-        platform,
-      });
-      await postRewardedJson<{ recorded: true }>("/api/v1/rewarded-ads/events", {
-        sessionId: session.sessionId,
-        eventType: "LOADED",
-      });
-      await postRewardedJson<{ recorded: true }>("/api/v1/rewarded-ads/events", {
-        sessionId: session.sessionId,
-        eventType: "SHOWN",
-      });
-      await renderYandexRewarded({
-        blockId: session.placementId,
-        sessionId: session.sessionId,
-        requestNonce: session.requestNonce,
-        onEvent: (eventType) => {
-          void postRewardedJson<{ recorded: true }>("/api/v1/rewarded-ads/events", {
-            sessionId: session.sessionId,
-            eventType,
-          }).catch(() => undefined);
-        },
-        onGrant: async ({ sessionId, requestNonce }) => {
-          await postRewardedJson<{ recorded: true }>("/api/v1/rewarded-ads/events", {
-            sessionId,
-            eventType: "REWARDED",
-          });
-          await postRewardedJson("/api/v1/rewarded-ads/grant", { sessionId, requestNonce });
-          setRewardedMessage(
-            onRewardedGrant
-              ? "Кредиты начислены. Открываем материал."
-              : "Кредиты начислены. Теперь можно открыть платный материал без подписки.",
-          );
-          await loadRewardedStatus();
-          await onRewardedGrant?.();
-        },
-      });
-    } catch (e) {
-      reportClientError(e, {
-        issueKey: "AppSubscriptionPaywall",
-        keys: { operation: "watch_rewarded_ad" },
-      });
-      setRewardedMessage(e instanceof Error ? e.message : "Не удалось показать рекламу.");
-    } finally {
-      setRewardedLoading(false);
-    }
-  };
-
-  const showRewardedBlock =
-    rewardedStatus?.settings.platformEnabled && rewardedStatus.settings.paywallCtaEnabled;
-  const rewardedUnavailableText = rewardedStatus
-    ? getRewardedUnavailableText(rewardedStatus.canWatchAdReason)
-    : "";
   return (
     <section className={`${styles.page} ${mode === "embedded" ? styles.embedded : ""}`}>
       <div className={styles.inner}>
@@ -513,37 +347,6 @@ export function AppSubscriptionPaywall({
             <p className={styles.assurance}>
               Безопасная оплата через ЮKassa • Способ оплаты сохранится для автопродления
             </p>
-
-            {showRewardedBlock ? (
-              <div className={styles.rewardedBlock}>
-                <div>
-                  <p className={styles.rewardedTitle}>Доступ за просмотр рекламы</p>
-                  <p className={styles.rewardedText}>
-                    Посмотрите рекламу и получите{" "}
-                    {rewardedStatus.nextGrantCredits || rewardedStatus.wallet.creditsPerReward}{" "}
-                    кредитов. Их можно потратить на открытие статей, шагов в курсе или запись к
-                    кинологу.
-                  </p>
-                  <p className={styles.rewardedBalance}>
-                    Баланс: {rewardedStatus.wallet.balance}/{rewardedStatus.wallet.maxBalance}.
-                  </p>
-                  {rewardedUnavailableText ? (
-                    <p className={styles.rewardedHint}>{rewardedUnavailableText}</p>
-                  ) : null}
-                  {rewardedMessage ? (
-                    <p className={styles.rewardedHint}>{rewardedMessage}</p>
-                  ) : null}
-                </div>
-                <button
-                  className={styles.rewardedButton}
-                  type="button"
-                  onClick={onWatchRewardedAd}
-                  disabled={rewardedLoading || !rewardedStatus.canWatchAd || csrfLoading}
-                >
-                  {rewardedLoading ? "Открываем рекламу..." : "Получить кредиты за рекламу"}
-                </button>
-              </div>
-            ) : null}
 
             {error ? (
               <p className={styles.errorText} role="alert">

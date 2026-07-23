@@ -188,6 +188,7 @@ export default function ArticleDetailScreen() {
     });
     openAppSubscriptionPaywall({
       reason: "required",
+      contentMode: "rewarded",
       rewardedTarget: { targetType: "ARTICLE", targetId: article.id },
       onRewardedGrant: async () => {
         trackEvent({
@@ -202,7 +203,7 @@ export default function ArticleDetailScreen() {
   }, [article, unlockArticleWithCredits]);
 
   const handleSubscriptionPaywall = useCallback(() => {
-    openAppSubscriptionPaywall({ reason: "required" });
+    openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
   }, []);
 
   const hasMeasuredArticleHtml =
@@ -366,8 +367,8 @@ export default function ArticleDetailScreen() {
                   </>
                 ) : (
                   <RewardedAccessGate
-                    title="Нужен доступ"
-                    subtitle="Статья закрыта. Можно списать кредит, оформить Premium или добрать кредиты через рекламу."
+                    title="Открыть статью"
+                    subtitle="С подпиской будет доступно всё!"
                     prompt={rewardedPrompt}
                     errorText={payError}
                     isBusy={creditUnlockLoading}

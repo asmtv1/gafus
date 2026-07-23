@@ -18,14 +18,13 @@ import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { getMobileMoscowDateKey, useTodayDailyCourse } from "@/shared/hooks/useDailyCourse";
 import { usePrefetchOtherTabsAfterCourses } from "@/shared/hooks/usePrefetchOtherTabsAfterCourses";
-import { coursesApi, subscriptionsApi, type Course } from "@/shared/lib/api";
+import { coursesApi, type Course } from "@/shared/lib/api";
 import type { TodayDailyCourseResponse } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
-import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
 import { CourseCard, CourseSearch, CourseFilters } from "@/features/courses";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { OfflineDownloadedScreen } from "@/features/offline";
@@ -144,7 +143,7 @@ function DailyCourseCard({
  * При офлайне показывается экран «Скачанные курсы».
  */
 export default function CoursesScreen() {
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
   const router = useRouter();
   const queryClient = useQueryClient();
   const courseListRef = useRef<FlashListRef<Course> | null>(null);
@@ -168,9 +167,6 @@ export default function CoursesScreen() {
   const [viewportReady, setViewportReady] = useState(false);
   const [iosRuCardPaymentHintEnabled, setIosRuCardPaymentHintEnabled] = useState(false);
   const [iosConfigLoaded, setIosConfigLoaded] = useState(Platform.OS !== "ios");
-  const pushPromptAskedInSession = useRef(false);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const authLoading = useAuthStore((s) => s.isLoading);
   const username = useAuthStore((s) => s.user?.username ?? null);
   const isTestUser = username?.toLowerCase() === "testuser";
 
@@ -205,43 +201,6 @@ export default function CoursesScreen() {
     await Promise.all([refetch(), refetchDailyCourse()]);
     setRefreshing(false);
   }, [refetch, refetchDailyCourse]);
-
-  useEffect(() => {
-    if (!isAuthenticated || authLoading) return;
-
-    let cancelled = false;
-
-    const ensurePushSubscription = async () => {
-      if (pushPromptAskedInSession.current) return;
-
-      const tokens = await getCurrentDeviceTokens();
-      const endpoints = [tokens.expo, tokens.rustore].filter(
-        (ep): ep is string => typeof ep === "string" && ep.length > 0,
-      );
-      const status = await subscriptionsApi.postPushDeviceStatus(endpoints);
-      if (cancelled || !status.success) return;
-
-      pushPromptAskedInSession.current = true;
-
-      const hadThisDeviceSubscription = !!status.data?.hasThisDeviceSubscription;
-      if (hadThisDeviceSubscription) {
-        return;
-      }
-
-      const ok = await setupPushNotifications();
-      if (!cancelled && !ok) {
-        setSnackbar({
-          visible: true,
-          message: "Не удалось включить push-уведомления",
-        });
-      }
-    };
-
-    void ensurePushSubscription();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, authLoading]);
 
   const allCourses = useMemo(() => data?.data ?? [], [data?.data]);
   const filteredCourses = useMemo(

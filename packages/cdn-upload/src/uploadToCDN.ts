@@ -7,6 +7,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { Readable } from "stream";
 import type { ReadableStream } from "stream/web";
@@ -52,6 +53,28 @@ const s3Client = new S3Client({
     secretAccessKey: YC_SECRET_ACCESS_KEY || "dev-only-fallback",
   },
 });
+
+const MAX_SIGNED_URL_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * Выдаёт временный прямой URL Object Storage. Range не входит в подписанные
+ * заголовки, поэтому системные HLS-плееры могут свободно запрашивать byte ranges.
+ */
+export async function getSignedDownloadUrl(
+  relativePath: string,
+  expiresInSeconds: number,
+): Promise<string> {
+  checkCredentials();
+  const safeTtl = Math.min(MAX_SIGNED_URL_TTL_SECONDS, Math.max(60, expiresInSeconds));
+  return getSignedUrl(
+    s3Client,
+    new GetObjectCommand({
+      Bucket: "gafus-media",
+      Key: toS3Key(relativePath),
+    }),
+    { expiresIn: safeTtl },
+  );
+}
 
 export async function uploadFileToCDN(file: File, relativePath: string): Promise<string> {
   checkCredentials(); // P2 Security: Runtime check

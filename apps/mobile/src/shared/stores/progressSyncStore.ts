@@ -10,7 +10,7 @@ import { zustandStorage } from "./storage";
 
 const MAX_401_BEFORE_STOP = 3;
 
-export type QueuedAction =
+type QueuedActionPayload =
   | { type: "startStep"; params: Parameters<typeof trainingApi.startStep>[0] }
   | { type: "pauseStep"; params: Parameters<typeof trainingApi.pauseStep>[0] }
   | { type: "resumeStep"; params: Parameters<typeof trainingApi.resumeStep>[0] }
@@ -21,7 +21,13 @@ export type QueuedAction =
   | { type: "dailyCoursePauseStep"; params: Parameters<typeof dailyCourseApi.pauseStep>[0] }
   | { type: "dailyCourseResumeStep"; params: Parameters<typeof dailyCourseApi.resumeStep>[0] }
   | { type: "dailyCourseResetStep"; params: Parameters<typeof dailyCourseApi.resetStep>[0] }
-  | { type: "dailyCourseCompleteStep"; params: Parameters<typeof dailyCourseApi.completeStep>[0] };
+  | { type: "dailyCourseCompleteStep"; params: Parameters<typeof dailyCourseApi.completeStep>[0] }
+  | {
+      type: "saveVideoProgress";
+      params: { videoId: string; positionSec: number; updatedAt: number };
+    };
+
+export type QueuedAction = QueuedActionPayload & { queueId?: string };
 
 interface ProgressSyncState {
   queue: QueuedAction[];
@@ -30,7 +36,7 @@ interface ProgressSyncState {
 
 interface ProgressSyncActions {
   add: (action: QueuedAction) => void;
-  processNext: () => Promise<"ok" | "done" | "unauthorized">;
+  processNext: () => Promise<"ok" | "done" | "retry" | "unauthorized">;
   reset401: () => void;
 }
 
@@ -43,7 +49,21 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
       consecutive401: 0,
 
       add: (action) => {
-        set((s) => ({ queue: [...s.queue, action] }));
+        const queuedAction = {
+          ...action,
+          queueId: action.queueId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        } as QueuedAction;
+        set((s) => ({
+          queue: [
+            ...s.queue.filter(
+              (queued) =>
+                action.type !== "saveVideoProgress" ||
+                queued.type !== "saveVideoProgress" ||
+                queued.params.videoId !== action.params.videoId,
+            ),
+            queuedAction,
+          ],
+        }));
       },
 
       reset401: () => set({ consecutive401: 0 }),
@@ -51,7 +71,11 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
       processNext: async () => {
         const { queue } = get();
         if (queue.length === 0) return "done";
-        const [head, ...rest] = queue;
+        const [head] = queue;
+        const removeHead = (stateQueue: QueuedAction[]): QueuedAction[] =>
+          stateQueue.filter((queued) =>
+            head.queueId ? queued.queueId !== head.queueId : queued !== head,
+          );
         let result: { success: boolean; code?: string } = { success: false };
         try {
           switch (head.type) {
@@ -88,28 +112,49 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
             case "dailyCourseCompleteStep":
               result = await dailyCourseApi.completeStep(head.params);
               break;
+            case "saveVideoProgress":
+              result = await trainingApi.saveVideoProgress(
+                head.params.videoId,
+                head.params.positionSec,
+              );
+              break;
           }
         } catch (error) {
           reportClientError(error, {
             issueKey: "ProgressSync",
             keys: { actionType: head.type },
           });
-          return "ok";
+          return "retry";
         }
         const code = (result as { code?: string }).code;
         if (code === "SESSION_EXPIRED" || code === "UNAUTHORIZED") {
           const next401 = get().consecutive401 + 1;
-          set({ queue: rest, consecutive401: next401 });
+          set((state) => ({
+            queue: removeHead(state.queue),
+            consecutive401: next401,
+          }));
           if (next401 >= MAX_401_BEFORE_STOP) return "unauthorized";
           return "ok";
         }
         if (result.success) {
-          set({ queue: rest, consecutive401: 0 });
+          set((state) => ({ queue: removeHead(state.queue), consecutive401: 0 }));
         } else {
+          // Серверная/временная ошибка сохранения видео не должна терять офлайн-прогресс.
+          // Терминальные access/validation ошибки удаляем, остальные ждут следующего reconnect.
+          if (
+            head.type === "saveVideoProgress" &&
+            !["FORBIDDEN", "NOT_FOUND", "VALIDATION_ERROR", "BAD_REQUEST"].includes(code ?? "")
+          ) {
+            return "retry";
+          }
           // 400, 404 и др. — retry бесполезен, удаляем чтобы не зациклиться
-          set({ queue: rest });
+          set((state) => ({ queue: removeHead(state.queue) }));
           if (__DEV__) {
-            console.warn("[progressSyncStore] Action failed, removed from queue:", head.type, result);
+            console.warn(
+              "[progressSyncStore] Action failed, removed from queue:",
+              head.type,
+              result,
+            );
           }
         }
         return "ok";

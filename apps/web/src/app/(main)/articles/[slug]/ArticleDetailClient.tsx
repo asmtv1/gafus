@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -27,42 +26,10 @@ import styles from "./ArticleDetailClient.module.css";
 interface PaidArticleBlockProps {
   article: ArticleDetailDto;
   userId: string | undefined;
-  csrfToken: string | null;
 }
 
-function PaidArticleBlock({
-  article,
-  userId,
-  csrfToken,
-}: PaidArticleBlockProps) {
-  const router = useRouter();
-  const pathname = usePathname() ?? `/articles/${article.slug}`;
+function PaidArticleBlock({ article, userId }: PaidArticleBlockProps) {
   const isGuest = userId === undefined;
-
-  const unlockAfterRewardedGrant = useCallback(async () => {
-    if (!csrfToken || isGuest) {
-      throw new Error("Не авторизован");
-    }
-    trackEvent({
-      eventName: "button_click",
-      platform: "web",
-      pathOrScreen: pathname,
-      elementId: "article-rewarded-unlock",
-    });
-    const res = await fetch(`/api/v1/articles/${encodeURIComponent(article.slug)}/unlock`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        "x-csrf-token": csrfToken,
-      },
-    });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(data.error ?? "Не удалось открыть статью");
-    }
-    router.refresh();
-  }, [article.slug, csrfToken, isGuest, pathname, router]);
 
   if (isGuest) {
     return (
@@ -70,9 +37,7 @@ function PaidArticleBlock({
         <h1>{article.title}</h1>
         <div className={styles.accessDeniedBlock}>
           <h2 className={styles.title}>Нужен доступ</h2>
-          <p className={styles.subtitle}>
-            Войдите, чтобы оформить подписку или открыть материал за просмотр рекламы.
-          </p>
+          <p className={styles.subtitle}>Войдите, чтобы оформить подписку и открыть материал.</p>
           <Link
             href={`/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}`}
             className={styles.btnPrimary}
@@ -95,7 +60,7 @@ function PaidArticleBlock({
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{article.description}</ReactMarkdown>
         </div>
       )}
-      <AppSubscriptionPaywall mode="embedded" onRewardedGrant={unlockAfterRewardedGrant} />
+      <AppSubscriptionPaywall mode="embedded" />
     </main>
   );
 }
@@ -201,13 +166,7 @@ export default function ArticleDetailClient({
   };
 
   if (article.content === null) {
-    return (
-      <PaidArticleBlock
-        article={article}
-        userId={userId}
-        csrfToken={csrfToken}
-      />
-    );
+    return <PaidArticleBlock article={article} userId={userId} />;
   }
 
   return (

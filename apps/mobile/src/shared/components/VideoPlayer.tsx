@@ -1,20 +1,39 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { ActivityIndicator, AppState, Modal, View, StyleSheet, Pressable } from "react-native";
 import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import type { VideoSource } from "expo-video";
 import { Image } from "expo-image";
+import { useNavigation } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { IconButton, Text } from "react-native-paper";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
 import { reportClientError } from "@/shared/lib/tracer";
+import {
+  canLoadHlsQualityVariants,
+  parseHlsQualityVariants,
+  type HlsQualityVariant,
+} from "@/shared/lib/hlsQuality";
+import {
+  activateVideoPlayer,
+  pauseVideoPlayerSafely,
+  releaseVideoPlayer,
+} from "@/shared/lib/videoPlaybackCoordinator";
 import { getSafeVideoResumePosition } from "@gafus/core/utils";
 
 /** Скорости воспроизведения для обучающих видео */
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
 const DOUBLE_TAP_DELAY_MS = 400;
 const SEEK_SECONDS = 10;
+const PROGRESS_SAVE_INTERVAL_MS = 15_000;
+const AUTO_QUALITY_ID = "auto";
+
+interface PendingQualitySwitch {
+  targetUri: string;
+  positionSec: number;
+  shouldResume: boolean;
+}
 
 interface VideoPlayerProps {
   uri: string;
@@ -57,6 +76,7 @@ export function VideoPlayer({
   initialTimeSec,
   onSaveProgress,
 }: VideoPlayerProps) {
+  const navigation = useNavigation();
   const videoViewRef = useRef<VideoView>(null);
   const [progressBarWidth, setProgressBarWidth] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -65,6 +85,10 @@ export function VideoPlayer({
   const [bufferedSec, setBufferedSec] = useState(0);
   const [speedIndex, setSpeedIndex] = useState(0);
   const [hasRenderedFirstFrame, setHasRenderedFirstFrame] = useState(false);
+  const [qualityVariants, setQualityVariants] = useState<HlsQualityVariant[]>([]);
+  const [selectedQualityId, setSelectedQualityId] = useState(AUTO_QUALITY_ID);
+  const [isQualityMenuVisible, setIsQualityMenuVisible] = useState(false);
+  const [isQualitySwitching, setIsQualitySwitching] = useState(false);
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
   const singleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoAreaWidthRef = useRef(0);
@@ -72,11 +96,42 @@ export function VideoPlayer({
   const lastSavedPositionRef = useRef<number | null>(null);
   const lastSaveTimeRef = useRef(0);
   const hasAppliedInitialPositionRef = useRef(false);
+  const hasAutoPlayedRef = useRef(false);
   const onSaveProgressRef = useRef(onSaveProgress);
   const onCompleteRef = useRef(onComplete);
   const hasEndedRef = useRef(false);
+  const isFullscreenRef = useRef(false);
+  const pendingQualitySwitchRef = useRef<PendingQualitySwitch | null>(null);
 
   const source = useMemo(() => getVideoSource(uri), [uri]);
+
+  useEffect(() => {
+    if (!canLoadHlsQualityVariants(uri)) return;
+
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(uri, {
+          signal: controller.signal,
+          headers: { Accept: "application/vnd.apple.mpegurl" },
+        });
+        if (!response.ok) throw new Error(`Не удалось загрузить HLS manifest: ${response.status}`);
+
+        const manifest = await response.text();
+        const variants = parseHlsQualityVariants(manifest, uri);
+        if (!controller.signal.aborted) setQualityVariants(variants);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          severity: "warning",
+          issueKey: "VideoPlayer",
+          keys: { operation: "load_quality_variants" },
+        });
+      }
+    })();
+
+    return () => controller.abort();
+  }, [uri]);
 
   useEffect(() => {
     setHasRenderedFirstFrame(false);
@@ -87,7 +142,13 @@ export function VideoPlayer({
     lastSavedPositionRef.current = null;
     lastSaveTimeRef.current = 0;
     hasAppliedInitialPositionRef.current = false;
+    hasAutoPlayedRef.current = false;
     hasEndedRef.current = false;
+    pendingQualitySwitchRef.current = null;
+    setQualityVariants([]);
+    setSelectedQualityId(AUTO_QUALITY_ID);
+    setIsQualityMenuVisible(false);
+    setIsQualitySwitching(false);
   }, [uri]);
 
   useEffect(() => {
@@ -101,8 +162,7 @@ export function VideoPlayer({
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 1;
     p.playbackRate = PLAYBACK_SPEEDS[0];
-    if (autoPlay) p.play();
-    else p.pause();
+    p.pause();
   });
 
   const { status } = useEvent(player, "statusChange", { status: player.status });
@@ -113,6 +173,8 @@ export function VideoPlayer({
     "statusChange",
     (payload: { status?: string; error?: { message?: string } }) => {
       if (payload.status === "error" && payload.error?.message) {
+        pendingQualitySwitchRef.current = null;
+        setIsQualitySwitching(false);
         reportClientError(new Error(payload.error.message), {
           issueKey: "VideoPlayer",
           keys: { operation: "playback_error" },
@@ -132,19 +194,21 @@ export function VideoPlayer({
   useEventListener(player, "timeUpdate", (payload: { bufferedPosition?: number }) => {
     const currentTime = Math.max(0, player.currentTime || 0);
     currentPositionRef.current = currentTime;
-    setPositionSec(currentTime);
-    if (player.duration > 0 && durationSec !== player.duration) {
-      setDurationSec(player.duration);
-    }
-    const buf = payload?.bufferedPosition ?? player.bufferedPosition;
-    if (typeof buf === "number" && buf >= 0) {
-      setBufferedSec(buf);
+    if (!nativeControls) {
+      setPositionSec(currentTime);
+      if (player.duration > 0 && durationSec !== player.duration) {
+        setDurationSec(player.duration);
+      }
+      const buf = payload?.bufferedPosition ?? player.bufferedPosition;
+      if (typeof buf === "number" && buf >= 0) {
+        setBufferedSec(buf);
+      }
     }
     const now = Date.now();
     const roundedPosition = Math.floor(currentTime);
     if (
       roundedPosition >= 5 &&
-      now - lastSaveTimeRef.current >= 5000 &&
+      now - lastSaveTimeRef.current >= PROGRESS_SAVE_INTERVAL_MS &&
       lastSavedPositionRef.current !== roundedPosition
     ) {
       lastSaveTimeRef.current = now;
@@ -154,14 +218,34 @@ export function VideoPlayer({
   });
 
   useEventListener(player, "sourceLoad", (e) => {
-    if (e.duration > 0) setDurationSec(e.duration);
+    if (!nativeControls && e.duration > 0) setDurationSec(e.duration);
+
+    const pendingSwitch = pendingQualitySwitchRef.current;
+    if (!pendingSwitch) return;
+    const loadedUri =
+      typeof e.videoSource === "string"
+        ? e.videoSource
+        : typeof e.videoSource === "object" && e.videoSource !== null
+          ? (e.videoSource.uri ?? null)
+          : null;
+    if (loadedUri !== pendingSwitch.targetUri) return;
+
+    pendingQualitySwitchRef.current = null;
+    const maxPosition = e.duration > 0 ? Math.max(0, e.duration - 0.25) : pendingSwitch.positionSec;
+    const resumePosition = Math.min(pendingSwitch.positionSec, maxPosition);
+    player.currentTime = resumePosition;
+    currentPositionRef.current = resumePosition;
+    if (pendingSwitch.shouldResume) player.play();
+    setIsQualitySwitching(false);
   });
 
   useEventListener(player, "playingChange", ({ isPlaying: nowPlaying }) => {
     if (nowPlaying) {
       hasEndedRef.current = false;
+      activateVideoPlayer(player);
       return;
     }
+    releaseVideoPlayer(player);
     const position = Math.max(0, Math.floor(currentPositionRef.current));
     if (position > 0 && lastSavedPositionRef.current !== position) {
       lastSavedPositionRef.current = position;
@@ -171,7 +255,6 @@ export function VideoPlayer({
 
   const isLoaded = status === "readyToPlay";
   const hasError = status === "error";
-  const isBuffering = status === "loading";
   const progress = durationSec > 0 ? positionSec / durationSec : 0;
 
   const formatTime = useCallback((sec: number): string => {
@@ -208,6 +291,42 @@ export function VideoPlayer({
     }
   }, [isFullscreen]);
 
+  const handleFullscreenEnter = useCallback(() => {
+    isFullscreenRef.current = true;
+    setIsFullscreen(true);
+  }, []);
+
+  const handleFullscreenExit = useCallback(() => {
+    isFullscreenRef.current = false;
+    setIsFullscreen(false);
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+      (error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          severity: "warning",
+          issueKey: "VideoPlayer",
+          keys: { operation: "restore_portrait" },
+        });
+      },
+    );
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (isFullscreenRef.current) {
+        void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+          (error) => {
+            reportClientError(error instanceof Error ? error : new Error(String(error)), {
+              severity: "warning",
+              issueKey: "VideoPlayer",
+              keys: { operation: "restore_portrait_on_unmount" },
+            });
+          },
+        );
+      }
+    },
+    [],
+  );
+
   const handleProgressPress = useCallback(
     (e: { nativeEvent: { locationX: number } }) => {
       if (!isLoaded || durationSec <= 0 || progressBarWidth <= 0) return;
@@ -220,9 +339,9 @@ export function VideoPlayer({
 
   useEffect(() => {
     if (status === "readyToPlay" && player.duration > 0) {
-      setDurationSec(player.duration);
+      if (!nativeControls) setDurationSec(player.duration);
     }
-  }, [status, player.duration]);
+  }, [nativeControls, player, status]);
 
   useEffect(() => {
     if (
@@ -236,12 +355,44 @@ export function VideoPlayer({
       return;
     }
     const safePosition = getSafeVideoResumePosition(initialTimeSec, player.duration);
-    if (safePosition == null) return;
-    player.currentTime = safePosition;
-    currentPositionRef.current = safePosition;
-    setPositionSec(safePosition);
+    if (safePosition != null) {
+      player.currentTime = safePosition;
+      currentPositionRef.current = safePosition;
+      if (!nativeControls) setPositionSec(safePosition);
+    }
     hasAppliedInitialPositionRef.current = true;
-  }, [initialTimeSec, player, status]);
+  }, [initialTimeSec, nativeControls, player, status]);
+
+  useEffect(() => {
+    if (
+      !autoPlay ||
+      status !== "readyToPlay" ||
+      hasAutoPlayedRef.current ||
+      (initialTimeSec != null && initialTimeSec > 0 && !hasAppliedInitialPositionRef.current)
+    ) {
+      return;
+    }
+    hasAutoPlayedRef.current = true;
+    player.play();
+  }, [autoPlay, initialTimeSec, player, status]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("blur", () => {
+      pauseVideoPlayerSafely(player);
+      releaseVideoPlayer(player);
+    });
+    return unsubscribe;
+  }, [navigation, player]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") {
+        pauseVideoPlayerSafely(player);
+        releaseVideoPlayer(player);
+      }
+    });
+    return () => subscription.remove();
+  }, [player]);
 
   useEffect(() => {
     player.playbackRate = PLAYBACK_SPEEDS[speedIndex];
@@ -252,17 +403,59 @@ export function VideoPlayer({
       if (singleTapTimeoutRef.current) {
         clearTimeout(singleTapTimeoutRef.current);
       }
+      releaseVideoPlayer(player);
       const position = Math.max(0, Math.floor(currentPositionRef.current));
       if (!hasEndedRef.current && position > 0 && lastSavedPositionRef.current !== position) {
         onSaveProgressRef.current?.(position);
       }
     },
-    [],
+    [player],
   );
 
   const cycleSpeed = useCallback(() => {
     setSpeedIndex((i) => (i + 1) % PLAYBACK_SPEEDS.length);
   }, []);
+
+  const selectedQualityLabel = useMemo(
+    () =>
+      selectedQualityId === AUTO_QUALITY_ID
+        ? "Авто"
+        : (qualityVariants.find((variant) => variant.id === selectedQualityId)?.label ?? "Авто"),
+    [qualityVariants, selectedQualityId],
+  );
+
+  const selectQuality = useCallback(
+    async (qualityId: string) => {
+      setIsQualityMenuVisible(false);
+      if (qualityId === selectedQualityId || isQualitySwitching) return;
+
+      const variant = qualityVariants.find((item) => item.id === qualityId);
+      if (qualityId !== AUTO_QUALITY_ID && !variant) return;
+
+      const previousQualityId = selectedQualityId;
+      const targetUri = variant?.uri ?? uri;
+      pendingQualitySwitchRef.current = {
+        targetUri,
+        positionSec: Math.max(0, player.currentTime || currentPositionRef.current),
+        shouldResume: player.playing,
+      };
+      setSelectedQualityId(qualityId);
+      setIsQualitySwitching(true);
+
+      try {
+        await player.replaceAsync(getVideoSource(targetUri));
+      } catch (error) {
+        pendingQualitySwitchRef.current = null;
+        setSelectedQualityId(previousQualityId);
+        setIsQualitySwitching(false);
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "VideoPlayer",
+          keys: { operation: "switch_quality", quality: qualityId },
+        });
+      }
+    },
+    [isQualitySwitching, player, qualityVariants, selectedQualityId, uri],
+  );
 
   /** Только при nativeControls=false: двойной тап seek / тап по паузе play — иначе конфликт с системными контролами. */
   const handleVideoTouchEnd = useCallback(
@@ -321,9 +514,9 @@ export function VideoPlayer({
             style={styles.video}
             contentFit="contain"
             nativeControls={nativeControls}
-            fullscreenOptions={{ enable: true }}
-            onFullscreenEnter={() => setIsFullscreen(true)}
-            onFullscreenExit={() => setIsFullscreen(false)}
+            fullscreenOptions={{ enable: true, orientation: "default" }}
+            onFullscreenEnter={handleFullscreenEnter}
+            onFullscreenExit={handleFullscreenExit}
             onFirstFrameRender={() => setHasRenderedFirstFrame(true)}
           />
           {poster && !hasRenderedFirstFrame && !hasError && (
@@ -350,11 +543,6 @@ export function VideoPlayer({
                   <Text style={styles.retryText}>Повторить</Text>
                 </Pressable>
               )}
-            </View>
-          )}
-          {isBuffering && !hasError && (
-            <View style={styles.bufferingOverlay}>
-              <MascotSpinner size="large" />
             </View>
           )}
           {!nativeControls && !isPlaying && !hasError && (
@@ -438,6 +626,76 @@ export function VideoPlayer({
           </View>
         </View>
       )}
+
+      {qualityVariants.length > 1 && (
+        <View style={styles.qualitySelectorRow}>
+          <Text style={styles.qualitySelectorTitle}>Качество видео</Text>
+          <Pressable
+            onPress={() => setIsQualityMenuVisible(true)}
+            disabled={isQualitySwitching}
+            style={({ pressed }) => [
+              styles.qualitySelectorButton,
+              pressed && styles.buttonPressed,
+              isQualitySwitching && styles.qualitySelectorButtonDisabled,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Выбрать качество видео. Сейчас ${selectedQualityLabel}`}
+          >
+            {isQualitySwitching && <ActivityIndicator size="small" color={COLORS.primary} />}
+            <Text style={styles.qualitySelectorValue}>{selectedQualityLabel}</Text>
+            <Text style={styles.qualitySelectorChevron}>⌄</Text>
+          </Pressable>
+        </View>
+      )}
+
+      <Modal
+        visible={isQualityMenuVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setIsQualityMenuVisible(false)}
+      >
+        <View style={styles.qualityModalRoot}>
+          <Pressable
+            style={styles.qualityModalBackdrop}
+            onPress={() => setIsQualityMenuVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Закрыть выбор качества"
+          />
+          <View style={styles.qualitySheet} accessibilityViewIsModal>
+            <Text style={styles.qualitySheetTitle}>Качество видео</Text>
+            <Text style={styles.qualitySheetHint}>
+              В режиме «Авто» качество меняется под скорость интернета.
+            </Text>
+            <Pressable
+              onPress={() => void selectQuality(AUTO_QUALITY_ID)}
+              style={({ pressed }) => [styles.qualityOption, pressed && styles.buttonPressed]}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selectedQualityId === AUTO_QUALITY_ID }}
+            >
+              <Text style={styles.qualityOptionText}>Авто</Text>
+              {selectedQualityId === AUTO_QUALITY_ID && (
+                <Text style={styles.qualityOptionCheck}>✓</Text>
+              )}
+            </Pressable>
+            {qualityVariants.map((variant) => {
+              const isSelected = selectedQualityId === variant.id;
+              return (
+                <Pressable
+                  key={variant.id}
+                  onPress={() => void selectQuality(variant.id)}
+                  style={({ pressed }) => [styles.qualityOption, pressed && styles.buttonPressed]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: isSelected }}
+                >
+                  <Text style={styles.qualityOptionText}>{variant.label}</Text>
+                  {isSelected && <Text style={styles.qualityOptionCheck}>✓</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -494,12 +752,6 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.8,
-  },
-  bufferingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
   },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -568,5 +820,89 @@ const styles = StyleSheet.create({
   controlButtons: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  qualitySelectorRow: {
+    minHeight: 52,
+    paddingHorizontal: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e0e0e0",
+    backgroundColor: "#fff",
+  },
+  qualitySelectorTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  qualitySelectorButton: {
+    minWidth: 96,
+    minHeight: 40,
+    paddingHorizontal: SPACING.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: SPACING.xs,
+    borderRadius: 10,
+    backgroundColor: "rgba(104, 101, 35, 0.1)",
+  },
+  qualitySelectorButtonDisabled: {
+    opacity: 0.7,
+  },
+  qualitySelectorValue: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  qualitySelectorChevron: {
+    color: COLORS.primary,
+    fontSize: 18,
+    lineHeight: 18,
+    marginTop: -3,
+  },
+  qualityModalRoot: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  qualityModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  qualitySheet: {
+    paddingTop: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: 28,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: "#fff",
+  },
+  qualitySheetTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  qualitySheetHint: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
+    color: COLORS.textSecondary,
+    fontSize: 13,
+  },
+  qualityOption: {
+    minHeight: 52,
+    paddingHorizontal: SPACING.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e0e0e0",
+  },
+  qualityOptionText: {
+    color: COLORS.text,
+    fontSize: 16,
+  },
+  qualityOptionCheck: {
+    color: COLORS.primary,
+    fontSize: 20,
+    fontWeight: "700",
   },
 });

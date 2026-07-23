@@ -159,3 +159,25 @@ export async function getOfflineVideoUri(
   if (!relativePath) return null;
   return buildFileUri(relativePath);
 }
+
+/** Возвращает локальный постер скачанного видео, если он существует. */
+export async function getOfflineVideoPosterUri(
+  courseType: string,
+  videoUrl: string | null | undefined,
+): Promise<string | null> {
+  if (!videoUrl) return null;
+  const videoId = getVideoIdFromUrl(videoUrl);
+  if (!videoId) return null;
+  const posterUri = `${getCourseDirUri(courseType)}videos/${videoId}/poster.jpg`;
+  try {
+    const info = await FileSystem.getInfoAsync(posterUri);
+    return info.exists && !info.isDirectory ? posterUri : null;
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "offlineStorage",
+      severity: "warning",
+      keys: { operation: "getOfflineVideoPosterUri", courseType, videoId },
+    });
+    return null;
+  }
+}

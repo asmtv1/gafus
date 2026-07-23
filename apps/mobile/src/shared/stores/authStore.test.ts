@@ -64,10 +64,11 @@ const persistedUser = {
 };
 
 describe("authStore checkAuth", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.stubGlobal("__DEV__", false);
     vi.clearAllMocks();
     getItemAsyncMock.mockResolvedValue("access-token");
+    await useAuthStore.persist.rehydrate();
     useAuthStore.setState({
       user: persistedUser,
       isLoading: false,
@@ -95,5 +96,46 @@ describe("authStore checkAuth", () => {
     });
     expect(identifyUserMock).toHaveBeenCalledWith("user-1");
     expect(deleteItemAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it("publishes the cached session before profile validation finishes", async () => {
+    let resolveProfile!: (value: { success: true; data: typeof persistedUser }) => void;
+    authApiMock.getProfile.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveProfile = resolve;
+      }),
+    );
+
+    const checkPromise = useAuthStore.getState().checkAuth();
+
+    await vi.waitFor(() => {
+      expect(useAuthStore.getState()).toMatchObject({
+        user: persistedUser,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    });
+
+    resolveProfile({ success: true, data: persistedUser });
+    await checkPromise;
+  });
+
+  it("clears an optimistically restored session when the server rejects it", async () => {
+    authApiMock.getProfile.mockResolvedValueOnce({
+      success: false,
+      error: "Сессия истекла",
+      code: "SESSION_EXPIRED",
+    });
+
+    await useAuthStore.getState().checkAuth();
+
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      pendingVkPhone: false,
+    });
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith("auth_token");
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith("refresh_token");
   });
 });

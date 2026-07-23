@@ -13,15 +13,10 @@ import { getErrorMessage } from "@gafus/core/errors";
 const settingsSchema = z.object({
   androidEnabled: z.boolean(),
   iosEnabled: z.boolean(),
-  webDesktopEnabled: z.boolean(),
-  webTouchEnabled: z.boolean(),
-  paywallCtaEnabled: z.boolean(),
   dailyAdLimit: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   testMode: z.boolean(),
   yandexAndroidPlacementId: z.string().trim().max(256).nullable(),
   yandexIosPlacementId: z.string().trim().max(256).nullable(),
-  yandexWebDesktopBlockId: z.string().trim().max(256).nullable(),
-  yandexWebTouchBlockId: z.string().trim().max(256).nullable(),
 });
 
 export async function getRewardedAdSettingsAction() {

@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { COLORS, SPACING } from "@/shared/config";
 
 /**
@@ -10,7 +10,7 @@ import { COLORS, SPACING } from "@/shared/config";
  * Показывается вверху экрана когда нет подключения
  */
 export function OfflineIndicator() {
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
 
   if (!isOffline) return null;
 

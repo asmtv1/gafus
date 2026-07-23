@@ -8,7 +8,7 @@ import {
   Linking,
   Platform,
 } from "react-native";
-import { Text, Surface, Snackbar, useTheme } from "react-native-paper";
+import { Text, Snackbar } from "react-native-paper";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -27,7 +27,7 @@ import {
   useCompleteTheoryStep,
   useCompletePracticeStep,
 } from "@/shared/hooks";
-import { useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
+import { useDayStepStatuses, useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
@@ -37,7 +37,7 @@ import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import {
   getRewardedAccessPrompt,
   openAppSubscriptionPaywall,
@@ -49,7 +49,6 @@ import { rewardedAdsApi } from "@/features/rewarded-ads";
  * Экран дня тренировки с шагами
  */
 export default function TrainingDayScreen() {
-  const theme = useTheme();
   const { courseType, dayId } = useLocalSearchParams<{
     courseType: string;
     dayId: string;
@@ -70,7 +69,7 @@ export default function TrainingDayScreen() {
   const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
   /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
   const diaryListFetchGenerationRef = useRef(0);
-  const { isOffline } = useNetworkStatus();
+  const isOffline = useIsOffline();
 
   // Загрузка данных дня
   const { data, isLoading, error, refetch, isRefetching } = useTrainingDay(courseType, dayId);
@@ -102,6 +101,7 @@ export default function TrainingDayScreen() {
 
   const dayData = data?.data;
   const courseId = dayData?.courseId ?? courseType;
+  const localStepStatuses = useDayStepStatuses(courseId, dayId, dayData?.steps?.length ?? 0);
 
   const openIndexRaw = useTrainingStore((s) => {
     if (!courseId || !dayId) return null;
@@ -171,7 +171,8 @@ export default function TrainingDayScreen() {
           const status = "status" in step ? step.status : "NOT_STARTED";
           initializeStep(courseId, dayId, index, durationSec, status, {
             serverPaused: status === "PAUSED",
-            serverRemainingSec: "remainingSec" in step ? step.remainingSec ?? undefined : undefined,
+            serverRemainingSec:
+              "remainingSec" in step ? (step.remainingSec ?? undefined) : undefined,
           });
         });
       } catch (err) {
@@ -304,6 +305,7 @@ export default function TrainingDayScreen() {
       if (!target) return;
       openAppSubscriptionPaywall({
         reason: "required",
+        contentMode: "rewarded",
         rewardedTarget: target,
         onRewardedGrant: () => unlockStepWithRewarded(index),
       });
@@ -312,7 +314,7 @@ export default function TrainingDayScreen() {
   );
 
   const handleSubscriptionPaywall = useCallback(() => {
-    openAppSubscriptionPaywall({ reason: "required" });
+    openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
   }, []);
 
   const handleStartStep = useCallback(
@@ -421,12 +423,7 @@ export default function TrainingDayScreen() {
   );
 
   const handleCompleteStep = useCallback(
-    async (
-      stepIndex: number,
-      isTheory: boolean,
-      stepTitle?: string,
-      stepOrder?: number,
-    ) => {
+    async (stepIndex: number, isTheory: boolean, stepTitle?: string, stepOrder?: number) => {
       try {
         stopTimer(courseId, dayId, stepIndex);
         completeStep(courseId, dayId, stepIndex);
@@ -439,10 +436,9 @@ export default function TrainingDayScreen() {
           stepOrder,
         };
 
-        const result =
-          isTheory
-            ? await completeTheoryMutation.mutateAsync(params)
-            : await completePracticeMutation.mutateAsync(params);
+        const result = isTheory
+          ? await completeTheoryMutation.mutateAsync(params)
+          : await completePracticeMutation.mutateAsync(params);
 
         if (!result.success) {
           throw new Error(result.error ?? "Не удалось сохранить прогресс");
@@ -511,8 +507,7 @@ export default function TrainingDayScreen() {
 
     const total = dayData.steps.length;
     const completed = dayData.steps.filter((s, index) => {
-      const localState = getStepState(courseId, dayId, index);
-      return (localState?.status || s.status) === "COMPLETED";
+      return (localStepStatuses[index] ?? s.status) === "COMPLETED";
     }).length;
 
     return {
@@ -520,7 +515,7 @@ export default function TrainingDayScreen() {
       total,
       percent: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  }, [dayData?.steps, courseId, dayId, getStepState]);
+  }, [dayData?.steps, localStepStatuses]);
 
   const pollAccessAfterPayment = useCallback(async () => {
     setIsPaymentChecking(true);
@@ -552,9 +547,7 @@ export default function TrainingDayScreen() {
 
     if (Platform.OS === "ios") {
       const iapResult = await runAppleCourseIapPurchase(
-        dayData?.courseId
-          ? { courseId: dayData.courseId }
-          : { courseType },
+        dayData?.courseId ? { courseId: dayData.courseId } : { courseType },
       );
       if (!iapResult.ok) {
         if (!iapResult.userCancelled) {
@@ -568,9 +561,7 @@ export default function TrainingDayScreen() {
       return;
     }
 
-    const payParams = dayData?.courseId
-      ? { courseId: dayData.courseId }
-      : { courseType };
+    const payParams = dayData?.courseId ? { courseId: dayData.courseId } : { courseType };
     const response = await paymentsApi.createPayment(payParams);
     if (!response.success || !response.data?.confirmationUrl) {
       const messageByCode: Record<string, string> = {
@@ -594,12 +585,7 @@ export default function TrainingDayScreen() {
     hasHandledPaymentReturnRef.current = false;
     setPaymentUrl(response.data.confirmationUrl);
     setIsCreatingPayment(false);
-  }, [
-    courseType,
-    dayData?.courseId,
-    isCreatingPayment,
-    pollAccessAfterPayment,
-  ]);
+  }, [courseType, dayData?.courseId, isCreatingPayment, pollAccessAfterPayment]);
 
   const handleClosePaymentWebView = useCallback(
     async (isReturnUrl: boolean) => {
@@ -821,29 +807,28 @@ export default function TrainingDayScreen() {
             </View>
           )}
 
-          {/* Прогресс дня — цвета из темы (светлая/тёмная) */}
-          <Surface style={styles.progressCard} elevation={1}>
+          {/* Прогресс дня — всегда в фирменной палитре, независимо от темы телефона */}
+          <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
-              <Text variant="titleMedium">Прогресс</Text>
-              <Text variant="titleMedium" style={[styles.progressPercent, { color: theme.colors.primary }]}>
-                {progress.percent}%
-              </Text>
+              <Text style={styles.progressTitle}>Прогресс</Text>
+              <Text style={styles.progressPercent}>{progress.percent}%</Text>
             </View>
-            <View style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progress.percent}%`, backgroundColor: theme.colors.primary },
-                ]}
-              />
+            <View
+              style={styles.progressBar}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Прогресс дня"
+              accessibilityValue={{ min: 0, max: 100, now: progress.percent }}
+            >
+              <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
             </View>
-            <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
+            <Text style={styles.progressText}>
               Выполнено {progress.completed} из {progress.total} шагов
             </Text>
-          </Surface>
+          </View>
 
           {/* Описание дня (как в web) */}
-          {(dayData?.description && dayData.description.trim() !== "") && (
+          {dayData?.description && dayData.description.trim() !== "" && (
             <View style={styles.descriptionDayContainer}>
               <Pressable
                 onPress={() => setIsDescriptionOpen((o) => !o)}
@@ -954,53 +939,53 @@ export default function TrainingDayScreen() {
                       step={step}
                       index={index}
                       stepNumber={exerciseNumber}
-                    isOpen={openIndex === index}
-                    localState={getStepState(courseId, dayId, index)}
-                    courseId={courseId}
-                    dayOnCourseId={dayId}
-                    onToggle={() => handleToggleStep(index)}
-                    onStart={() => {
-                      void handleStartStep(index, durationSec);
-                    }}
-                    onPause={(remainingSec) => {
-                      void handlePauseStep(index, remainingSec);
-                    }}
-                    onResume={() => {
-                      void handleResumeStep(index);
-                    }}
-                    onComplete={() =>
-                      handleCompleteStep(
-                        index,
-                        stepType === "THEORY" || stepType === "DIARY",
-                        stepTitle,
-                        index,
-                      )
-                    }
-                    onReset={(durationSecReset) => {
-                      void handleResetStep(index, durationSecReset);
-                    }}
-                    diaryEntries={diaryEntries}
-                    onSaveDiary={stepType === "DIARY" ? handleSaveDiaryForStep : undefined}
-                    accessGate={
-                      isLockedRewardedStep ? (
-                        <RewardedAccessGate
-                          title="Нужен доступ"
-                          subtitle="Откройте шаг за кредит или оформите Premium."
-                          prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
-                          errorText={openIndex === index ? stepAccessError : null}
-                          isBusy={unlockingStepIndex === index}
-                          onPrimaryPress={() => {
-                            if (rewardedPrompt.mode === "direct-credit") {
-                              void handleDirectStepUnlock(index);
-                            } else {
-                              handleStepRewardedPaywall(index);
-                            }
-                          }}
-                          onSubscriptionPress={handleSubscriptionPaywall}
-                        />
-                      ) : undefined
-                    }
-                  />
+                      isOpen={openIndex === index}
+                      localState={getStepState(courseId, dayId, index)}
+                      courseId={courseId}
+                      dayOnCourseId={dayId}
+                      onToggle={() => handleToggleStep(index)}
+                      onStart={() => {
+                        void handleStartStep(index, durationSec);
+                      }}
+                      onPause={(remainingSec) => {
+                        void handlePauseStep(index, remainingSec);
+                      }}
+                      onResume={() => {
+                        void handleResumeStep(index);
+                      }}
+                      onComplete={() =>
+                        handleCompleteStep(
+                          index,
+                          stepType === "THEORY" || stepType === "DIARY",
+                          stepTitle,
+                          index,
+                        )
+                      }
+                      onReset={(durationSecReset) => {
+                        void handleResetStep(index, durationSecReset);
+                      }}
+                      diaryEntries={diaryEntries}
+                      onSaveDiary={stepType === "DIARY" ? handleSaveDiaryForStep : undefined}
+                      accessGate={
+                        isLockedRewardedStep ? (
+                          <RewardedAccessGate
+                            title="Продолжить обучение"
+                            subtitle="С подпиской будет доступно всё!"
+                            prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
+                            errorText={openIndex === index ? stepAccessError : null}
+                            isBusy={unlockingStepIndex === index}
+                            onPrimaryPress={() => {
+                              if (rewardedPrompt.mode === "direct-credit") {
+                                void handleDirectStepUnlock(index);
+                              } else {
+                                handleStepRewardedPaywall(index);
+                              }
+                            }}
+                            onSubscriptionPress={handleSubscriptionPaywall}
+                          />
+                        ) : undefined
+                      }
+                    />
                   );
                 } catch (error) {
                   reportClientError(error instanceof Error ? error : new Error(String(error)), {
@@ -1108,9 +1093,14 @@ const styles = StyleSheet.create({
     color: COLORS.error,
   },
   progressCard: {
-    padding: SPACING.md,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
+    borderCurve: "continuous",
     marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    backgroundColor: COLORS.cardBackground,
+    boxShadow: "0 2px 8px rgba(53, 46, 46, 0.14)",
   },
   progressHeader: {
     flexDirection: "row",
@@ -1118,21 +1108,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: SPACING.sm,
   },
+  progressTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "600",
+  },
   progressPercent: {
-    fontWeight: "bold",
+    color: COLORS.primary,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   progressBar: {
     height: 8,
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: SPACING.sm,
+    backgroundColor: COLORS.borderLight,
   },
   progressFill: {
     height: "100%",
     borderRadius: 4,
+    backgroundColor: COLORS.primary,
   },
   progressText: {
-    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
   },
   webViewOverlay: {
     ...StyleSheet.absoluteFillObject,

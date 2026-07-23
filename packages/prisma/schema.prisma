@@ -669,16 +669,10 @@ model RewardedAdSettings {
 
   androidEnabled    Boolean @default(false)
   iosEnabled        Boolean @default(false)
-  webDesktopEnabled Boolean @default(false)
-  webTouchEnabled   Boolean @default(false)
-  paywallCtaEnabled Boolean @default(false)
-
   dailyAdLimit Int @default(1)
 
   yandexAndroidPlacementId String?
   yandexIosPlacementId     String?
-  yandexWebDesktopBlockId  String?
-  yandexWebTouchBlockId    String?
 
   testMode Boolean @default(true)
 
@@ -1566,8 +1560,6 @@ enum AppSubscriptionEventProcessingStatus {
 enum RewardedPlatform {
   ANDROID
   IOS
-  WEB_DESKTOP
-  WEB_TOUCH
 }
 
 enum RewardedProvider {

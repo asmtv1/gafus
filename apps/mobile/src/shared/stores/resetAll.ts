@@ -3,6 +3,7 @@
  * Импортировать только из authStore — не создаёт циклических зависимостей.
  */
 import { queryClient } from "@/shared/providers/QueryProvider";
+import { clearLocalVideoProgress } from "@/shared/lib/videoProgressStorage";
 
 import { useCourseStore } from "./courseStore";
 import { useProgressSyncStore } from "./progressSyncStore";
@@ -22,6 +23,7 @@ export function resetUserStores(): void {
   useTrainingStore.getState().reset();
 
   useProgressSyncStore.setState({ queue: [], consecutive401: 0 });
+  void clearLocalVideoProgress();
 
   useTimerStore.setState({ activeTimer: null });
 

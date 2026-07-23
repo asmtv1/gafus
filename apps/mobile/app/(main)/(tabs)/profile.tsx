@@ -13,7 +13,6 @@ import { useShallow } from "zustand/react/shallow";
 import { Card } from "@/shared/components/ui";
 import {
   appSubscriptionApi,
-  getYookassaPrimaryCta,
   requestAppSubscriptionPaywall,
   useAppSubscriptionStatus,
 } from "@/features/app-subscription";
@@ -72,7 +71,6 @@ function MobileAppSubscriptionCard() {
   const { data: statusResponse, isLoading, refetch } = useAppSubscriptionStatus();
   const status = statusResponse?.data;
   const isActive = Boolean(status?.hasActiveSubscription);
-  const inactiveCta = getYookassaPrimaryCta({ offer: status });
   const canUnlink =
     isActive &&
     status?.provider === "YOOKASSA" &&
@@ -125,7 +123,7 @@ function MobileAppSubscriptionCard() {
           style={styles.subscriptionPrimaryButton}
           onPress={() => requestAppSubscriptionPaywall("required")}
         >
-          <Text style={styles.subscriptionPrimaryButtonText}>{inactiveCta}</Text>
+          <Text style={styles.subscriptionPrimaryButtonText}>Оформить подписку</Text>
         </Pressable>
         {statusResponse && !statusResponse.success ? (
           <Pressable style={styles.subscriptionGhostButton} onPress={() => void refetch()}>
