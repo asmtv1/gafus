@@ -1,6 +1,7 @@
 import type { REWARDED_DAILY_LIMIT_VALUES } from "./constants";
 
 export type RewardedPlatform = "ANDROID" | "IOS";
+export type MonetizedAccessPlatform = RewardedPlatform | "WEB_DESKTOP" | "WEB_TOUCH";
 export type RewardedProvider = "YANDEX";
 export type RewardedTargetType =
   | "ARTICLE"

@@ -2,8 +2,8 @@ import { prisma } from "@gafus/prisma";
 
 import { SubscriptionOrCreditsRequiredError } from "./errors";
 import type {
+  MonetizedAccessPlatform,
   PremiumOrRewardedAccessDto,
-  RewardedPlatform,
   RewardedTargetInput,
   RewardedUnlockResultDto,
 } from "./types";
@@ -211,7 +211,7 @@ export async function hasRewardedTargetUnlock(input: {
 
 export async function getPremiumOrRewardedAccess(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   target: RewardedTargetInput;
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto> {
@@ -252,7 +252,7 @@ export async function getPremiumOrRewardedAccess(input: {
 
 export async function requirePremiumOrRewardedUnlock(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   target: RewardedTargetInput;
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto> {
@@ -261,7 +261,7 @@ export async function requirePremiumOrRewardedUnlock(input: {
 
 export async function unlockRewardedTarget(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   target: RewardedTargetInput;
   now?: Date;
 }): Promise<RewardedUnlockResultDto> {
@@ -302,7 +302,7 @@ export async function unlockRewardedTarget(input: {
 
 export async function requirePremiumOrRewardedAccessForUserStep(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   userStepId: string;
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto | null> {
@@ -320,7 +320,7 @@ export async function requirePremiumOrRewardedAccessForUserStep(input: {
 
 export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   videoUrl: string;
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto | null> {
@@ -338,7 +338,7 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
 
 export async function requirePremiumOrRewardedAccessForStepNotification(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   day: number;
   stepIndex: number;
   dayOnCourseId?: string | null;

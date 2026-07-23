@@ -11,7 +11,7 @@ import {
   REWARDED_ARTICLE_COST,
   SubscriptionOrCreditsRequiredError,
   unlockRewardedTarget,
-  type RewardedPlatform,
+  type MonetizedAccessPlatform,
 } from "../rewardedCredits";
 
 const logger = createWebLogger("article-service");
@@ -168,7 +168,7 @@ export async function getArticleBySlug(
 export async function getArticleBySlugForMonetizedAccess(input: {
   slug: string;
   userId?: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
 }): Promise<GetArticleBySlugResult> {
   try {
     const row = await prisma.article.findUnique({
@@ -280,7 +280,7 @@ export async function getArticleBySlugForMonetizedAccess(input: {
 export async function unlockArticleBySlug(input: {
   slug: string;
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
 }) {
   const row = await prisma.article.findUnique({
     where: { slug: input.slug },

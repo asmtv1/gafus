@@ -14,7 +14,7 @@ import {
   requirePremiumOrRewardedUnlock,
   unlockRewardedTarget,
   SubscriptionOrCreditsRequiredError,
-  type RewardedPlatform,
+  type MonetizedAccessPlatform,
   type RewardedTargetInput,
 } from "../rewardedCredits";
 import { estimateDayDurations } from "../../utils/training";
@@ -771,7 +771,7 @@ export async function resolveDailyCourseStepRewardedTarget(input: {
 export async function getDailyCourseDayWithMonetizedSteps(
   userId: string,
   scheduleId: string,
-  options: { platform: RewardedPlatform; createIfMissing?: boolean },
+  options: { platform: MonetizedAccessPlatform; createIfMissing?: boolean },
 ): Promise<DailyCourseDayResponse | null> {
   const day = await getDailyCourseDayWithUserSteps(userId, scheduleId, {
     createIfMissing: options.createIfMissing,
@@ -823,7 +823,7 @@ export async function getDailyCourseDayWithMonetizedSteps(
 
 export async function requireDailyCourseStepPremiumOrRewardedUnlock(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   scheduleId: string;
   stepIndex: number;
 }) {
@@ -839,7 +839,7 @@ export async function requireDailyCourseStepPremiumOrRewardedUnlock(input: {
 
 export async function unlockDailyCourseStepRewardedTarget(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   scheduleId: string;
   stepIndex: number;
 }) {

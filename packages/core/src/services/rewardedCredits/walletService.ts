@@ -54,6 +54,13 @@ async function ensureWallet(client: PrismaTx, userId: string) {
   });
 }
 
+export async function getRewardedCreditBalance(userId: string): Promise<number> {
+  return withUserWalletLock(userId, async (tx) => {
+    const wallet = await applyPendingRefundCredits(tx, userId);
+    return wallet.balance;
+  });
+}
+
 async function applyPendingRefundCredits(client: PrismaTx, userId: string) {
   const wallet = await ensureWallet(client, userId);
   const missing = Math.max(0, REWARDED_MAX_CREDIT_BALANCE - wallet.balance);

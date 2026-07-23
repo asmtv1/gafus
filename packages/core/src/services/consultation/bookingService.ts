@@ -25,11 +25,11 @@ import type { BookSlotResult, ConsultationBookingDto } from "./types";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
 import {
   REWARDED_CONSULTATION_BOOKING_COST,
-  getRewardedCreditsStatus,
+  getRewardedCreditBalance,
   refundRewardedCredits,
   SubscriptionOrCreditsRequiredError,
   unlockRewardedTarget,
-  type RewardedPlatform,
+  type MonetizedAccessPlatform,
   type RewardedTargetInput,
 } from "../rewardedCredits";
 import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
@@ -486,7 +486,7 @@ export async function bookSlot(
 
 export async function bookSlotWithPremiumOrRewardedCredits(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   body: BookSlotInput;
   requestId?: string;
 }): Promise<BookSlotResult> {
@@ -519,7 +519,7 @@ export async function bookSlotWithPremiumOrRewardedCredits(input: {
 
 export async function requireConsultationSlotsPremiumOrRewardedAccess(input: {
   userId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
   now?: Date;
 }): Promise<void> {
   const gatingEnabled = await getAppFeatureFlagEnabled(
@@ -531,12 +531,8 @@ export async function requireConsultationSlotsPremiumOrRewardedAccess(input: {
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
   if (subscription.hasActiveSubscription) return;
 
-  const status = await getRewardedCreditsStatus({
-    userId: input.userId,
-    platform: input.platform,
-    now: input.now,
-  });
-  if (status.wallet.balance >= REWARDED_CONSULTATION_BOOKING_COST) return;
+  const balance = await getRewardedCreditBalance(input.userId);
+  if (balance >= REWARDED_CONSULTATION_BOOKING_COST) return;
 
   throw new SubscriptionOrCreditsRequiredError();
 }

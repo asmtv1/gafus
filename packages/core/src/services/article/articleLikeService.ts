@@ -6,7 +6,7 @@ import { prisma } from "@gafus/prisma";
 import {
   getPremiumOrRewardedAccess,
   REWARDED_ARTICLE_COST,
-  type RewardedPlatform,
+  type MonetizedAccessPlatform,
 } from "../rewardedCredits";
 
 /**
@@ -34,7 +34,7 @@ export async function toggleArticleLike(userId: string, articleId: string): Prom
 export async function toggleArticleLikeWithMonetizedAccess(input: {
   userId: string;
   articleId: string;
-  platform: RewardedPlatform;
+  platform: MonetizedAccessPlatform;
 }): Promise<boolean> {
   const article = await prisma.article.findUnique({
     where: { id: input.articleId },
