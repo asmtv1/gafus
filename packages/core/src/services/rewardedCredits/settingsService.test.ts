@@ -30,6 +30,7 @@ const prismaMocks = vi.hoisted(() => ({
     },
   ),
 }));
+const getMobileFeatureFlagEnabledMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -38,6 +39,11 @@ vi.mock("@gafus/prisma", () => ({
       upsert: prismaMocks.upsert,
     },
   },
+}));
+
+vi.mock("../appFeatureFlags", () => ({
+  APP_FEATURE_MOBILE_REWARDED_ADS_IOS: "mobile_rewarded_ads_ios",
+  getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
 }));
 
 import {
@@ -50,6 +56,7 @@ describe("rewarded ad settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     settingsRow.value = null;
+    getMobileFeatureFlagEnabledMock.mockResolvedValue(false);
   });
 
   it("returns disabled default settings when no database row exists", async () => {
@@ -102,6 +109,35 @@ describe("rewarded ad settings", () => {
       platform: "IOS",
       platformEnabled: false,
     });
+  });
+
+  it("uses the versioned iOS flag when client context is available", async () => {
+    settingsRow.value = {
+      key: "default",
+      androidEnabled: true,
+      iosEnabled: true,
+      dailyAdLimit: 1,
+      yandexAndroidPlacementId: "android-id",
+      yandexIosPlacementId: "ios-id",
+      testMode: false,
+    };
+    getMobileFeatureFlagEnabledMock.mockResolvedValueOnce(false);
+
+    await expect(
+      resolveRewardedPlatformSettings("IOS", {
+        platform: "ios",
+        version: "1.6.3",
+      }),
+    ).resolves.toMatchObject({
+      platform: "IOS",
+      platformEnabled: false,
+    });
+    expect(getMobileFeatureFlagEnabledMock).toHaveBeenCalledWith(
+      "mobile_rewarded_ads_ios",
+      { platform: "ios", version: "1.6.3" },
+      true,
+      false,
+    );
   });
 
   it("requires a placement id before enabling a production platform", async () => {

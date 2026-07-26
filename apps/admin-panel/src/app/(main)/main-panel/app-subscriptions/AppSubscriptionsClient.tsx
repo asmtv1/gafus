@@ -15,22 +15,17 @@ interface AppSubscriptionsClientProps {
   dashboard: AppSubscriptionDashboard;
 }
 
-function rowMatchesFilter(row: AppSubscriptionDashboard["rows"][number], filter: AppSubscriptionFilter) {
+function rowMatchesFilter(
+  row: AppSubscriptionDashboard["rows"][number],
+  filter: AppSubscriptionFilter,
+) {
   switch (filter) {
     case "active":
       return row.isActiveNow;
     case "not_renewed":
       return row.attention === "not_renewed";
-    case "cancel_at_period_end":
-      return row.attention === "cancel_at_period_end";
     case "past_due":
       return row.attention === "past_due";
-    case "yookassa":
-      return row.provider === "YOOKASSA";
-    case "apple":
-      return row.provider === "APPLE";
-    case "manual":
-      return row.provider === "MANUAL";
     case "all":
     default:
       return true;
@@ -122,10 +117,11 @@ export default function AppSubscriptionsClient({ dashboard }: AppSubscriptionsCl
   return (
     <PageLayout
       title="Подписки Gafus Premium"
-      subtitle="Кто купил подписку, когда заканчивается доступ, кто отменил продление и кто не продлил"
+      subtitle="Что происходит с подписками сегодня и у кого сейчас есть доступ"
     >
       <AppSubscriptionsTable
         metrics={dashboard.metrics}
+        todayNotPaid={dashboard.todayNotPaid}
         rows={rows}
         totalRows={dashboard.rows.length}
         filter={filter}

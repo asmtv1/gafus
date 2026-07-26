@@ -1,5 +1,10 @@
 import { prisma } from "@gafus/prisma";
 
+import {
+  APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+  getMobileFeatureFlagEnabled,
+  type ClientAppContext,
+} from "../appFeatureFlags";
 import { REWARDED_DAILY_LIMIT_VALUES } from "./constants";
 import type {
   RewardedAdSettingsDto,
@@ -112,8 +117,18 @@ export async function updateRewardedAdSettings(
 
 export async function resolveRewardedPlatformSettings(
   platform: RewardedPlatform,
+  clientContext?: ClientAppContext,
 ): Promise<RewardedPlatformSettingsDto> {
   const settings = await getRewardedAdSettings();
+  const iosEnabled =
+    platform === "IOS" && clientContext
+      ? await getMobileFeatureFlagEnabled(
+          APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+          clientContext,
+          settings.iosEnabled,
+          false,
+        )
+      : settings.iosEnabled;
   const byPlatform: Record<RewardedPlatform, { enabled: boolean; placementId: string | null }> = {
     ANDROID: {
       enabled: settings.androidEnabled,
@@ -121,7 +136,7 @@ export async function resolveRewardedPlatformSettings(
         settings.yandexAndroidPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
     },
     IOS: {
-      enabled: settings.iosEnabled,
+      enabled: iosEnabled,
       placementId:
         settings.yandexIosPlacementId ?? (settings.testMode ? "demo-rewarded-yandex" : null),
     },

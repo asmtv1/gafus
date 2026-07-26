@@ -38,7 +38,7 @@ import {
 } from "@/shared/utils/courseFilters";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/shared/config";
-import { fetchMobileAppPublicConfig } from "@/shared/lib/api/public-config";
+import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 
 const LOGO_PREFETCH_LIMIT = 12;
 /** Первые карточки (карточка высокая — не завышать, иначе FlashList может не смонтировать все ячейки). */
@@ -165,33 +165,17 @@ export default function CoursesScreen() {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [viewportReady, setViewportReady] = useState(false);
-  const [iosRuCardPaymentHintEnabled, setIosRuCardPaymentHintEnabled] = useState(false);
-  const [iosConfigLoaded, setIosConfigLoaded] = useState(Platform.OS !== "ios");
+  const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
   const username = useAuthStore((s) => s.user?.username ?? null);
   const isTestUser = username?.toLowerCase() === "testuser";
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
   const { data: dailyCourseData, refetch: refetchDailyCourse } = useTodayDailyCourse();
 
-  useEffect(() => {
-    if (Platform.OS !== "ios") return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetchMobileAppPublicConfig();
-        if (!cancelled && res.success && res.data) {
-          setIosRuCardPaymentHintEnabled(res.data.iosRuCardPaymentHintEnabled);
-        }
-      } finally {
-        if (!cancelled) {
-          setIosConfigLoaded(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const iosRuCardPaymentHintEnabled = Boolean(
+    publicConfigResponse?.data?.iosRuCardPaymentHintEnabled,
+  );
+  const iosConfigLoaded = Platform.OS !== "ios" || publicConfigFetched;
 
   const catalogReady = !isLoading && !error;
   usePrefetchOtherTabsAfterCourses({ catalogReady });

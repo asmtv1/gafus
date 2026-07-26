@@ -18,6 +18,10 @@ vi.mock("expo-secure-store", () => ({
   setItemAsync: setItemAsyncMock,
 }));
 
+vi.mock("expo-application", () => ({
+  nativeApplicationVersion: "1.6.3",
+}));
+
 vi.mock("react-native", () => ({
   Platform: { OS: "ios" },
 }));
@@ -65,5 +69,15 @@ describe("apiClient auth refresh", () => {
       code: "REQUEST_TIMEOUT",
     });
     expect(deleteItemAsyncMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.test/api/v1/user/profile",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Client-Platform": "ios",
+          "X-Client-Version": "1.6.3",
+        }),
+      }),
+    );
   });
 });

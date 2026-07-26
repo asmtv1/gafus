@@ -6,6 +6,8 @@ export interface MobileAppPublicConfig {
   appSubscriptionGatingEnabled: boolean;
   iosRuCardPaymentEnabled: boolean;
   iosRuCardPaymentHintEnabled: boolean;
+  resolvedFeatureProfile?: "RELEASED" | "REVIEW";
+  resolvedClientVersion?: string | null;
   minimumSupportedVersion?: {
     ios?: string;
     android?: string;
@@ -19,9 +21,7 @@ export interface MobileAppPublicConfig {
 /**
  * Публичные настройки мобильного клиента (без JWT).
  */
-export async function fetchMobileAppPublicConfig(): Promise<
-  ApiResponse<MobileAppPublicConfig>
-> {
+export async function fetchMobileAppPublicConfig(): Promise<ApiResponse<MobileAppPublicConfig>> {
   return apiClient<MobileAppPublicConfig>("/api/v1/public/mobile-app", {
     skipAuth: true,
     timeoutMs: 5_000,

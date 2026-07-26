@@ -50,7 +50,7 @@ describe("yookassaAppSubscriptionPurchase", () => {
     });
     openBrowserAsyncMock.mockResolvedValueOnce({ type: "dismiss" });
 
-    const result = await yookassaAppSubscriptionPurchase("WEEKLY");
+    const result = await yookassaAppSubscriptionPurchase("MONTHLY");
 
     expect(result).toEqual({
       ok: false,

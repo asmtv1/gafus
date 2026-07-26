@@ -1,4 +1,7 @@
 import { prisma } from "@gafus/prisma";
+import { DateTime } from "luxon";
+
+const APP_SUBSCRIPTION_DASHBOARD_TIMEZONE = "Europe/Moscow";
 
 export type AppSubscriptionAdminAttention =
   | "not_renewed"
@@ -15,6 +18,24 @@ export interface AppSubscriptionAdminDashboardMetrics {
   lifetime: number;
   totalSucceededPayments: number;
   totalRevenueRub: number;
+  todayCheckoutStarted: number;
+  todayCheckoutPaid: number;
+  todayCheckoutNotPaid: number;
+}
+
+export interface AppSubscriptionAdminCheckoutAttempt {
+  id: string;
+  user: {
+    id: string;
+    username: string;
+    email: string | null;
+    phone: string | null;
+    fullName: string | null;
+  };
+  attemptedAt: string;
+  attemptsCount: number;
+  amountRub: number;
+  status: "PENDING" | "CANCELED" | "FAILED";
 }
 
 export interface AppSubscriptionAdminDashboardRow {
@@ -62,6 +83,7 @@ export interface AppSubscriptionAdminDashboardRow {
 
 export interface AppSubscriptionAdminDashboard {
   metrics: AppSubscriptionAdminDashboardMetrics;
+  todayNotPaid: AppSubscriptionAdminCheckoutAttempt[];
   rows: AppSubscriptionAdminDashboardRow[];
 }
 
@@ -86,6 +108,21 @@ type AppleSyncEventLike = {
   eventType: string;
   processedAt: Date | null;
   createdAt: Date;
+};
+
+type CheckoutAttemptLike = {
+  id: string;
+  userId: string;
+  status: "PENDING" | "SUCCEEDED" | "CANCELED" | "FAILED" | "REFUNDED";
+  amount: { toString(): string } | number | string | null;
+  createdAt: Date;
+  user: {
+    id: string;
+    username: string;
+    email: string | null;
+    phone: string | null;
+    profile: { fullName: string | null } | null;
+  };
 };
 
 function toIso(value: Date | null | undefined): string | null {
@@ -147,71 +184,150 @@ function isNotRenewed(
 export async function getAppSubscriptionAdminDashboard(
   now = new Date(),
 ): Promise<AppSubscriptionAdminDashboard> {
-  const [subscriptions, succeededPayments, appleSyncEvents] = await Promise.all([
-    prisma.appSubscription.findMany({
-      orderBy: [{ updatedAt: "desc" }],
-      select: {
-        id: true,
-        provider: true,
-        status: true,
-        planCode: true,
-        isLifetime: true,
-        currentPeriodStart: true,
-        currentPeriodEnd: true,
-        cancelAtPeriodEnd: true,
-        canceledAt: true,
-        yookassaPaymentMethodLast4: true,
-        yookassaPaymentMethodTitle: true,
-        appleOriginalTransactionId: true,
-        appleProductId: true,
-        manualReason: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            phone: true,
-            profile: { select: { fullName: true } },
+  const todayStart = DateTime.fromJSDate(now, { zone: "utc" })
+    .setZone(APP_SUBSCRIPTION_DASHBOARD_TIMEZONE)
+    .startOf("day")
+    .toUTC()
+    .toJSDate();
+  const tomorrowStart = DateTime.fromJSDate(now, { zone: "utc" })
+    .setZone(APP_SUBSCRIPTION_DASHBOARD_TIMEZONE)
+    .plus({ days: 1 })
+    .startOf("day")
+    .toUTC()
+    .toJSDate();
+
+  const [subscriptions, succeededPayments, todayInitialPayments, appleSyncEvents] =
+    await Promise.all([
+      prisma.appSubscription.findMany({
+        orderBy: [{ updatedAt: "desc" }],
+        select: {
+          id: true,
+          provider: true,
+          status: true,
+          planCode: true,
+          isLifetime: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          cancelAtPeriodEnd: true,
+          canceledAt: true,
+          yookassaPaymentMethodLast4: true,
+          yookassaPaymentMethodTitle: true,
+          appleOriginalTransactionId: true,
+          appleProductId: true,
+          manualReason: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              phone: true,
+              profile: { select: { fullName: true } },
+            },
           },
         },
+      }),
+      prisma.appSubscriptionPayment.findMany({
+        where: { status: "SUCCEEDED" },
+        orderBy: [{ succeededAt: "desc" }, { updatedAt: "desc" }],
+        select: {
+          subscriptionId: true,
+          userId: true,
+          amount: true,
+          currency: true,
+          applePriceMilliunits: true,
+          appleTransactionId: true,
+          appleOriginalTransactionId: true,
+          appleStorefront: true,
+          appleEnvironment: true,
+          appleWebOrderLineItemId: true,
+          kind: true,
+          succeededAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.appSubscriptionPayment.findMany({
+        where: {
+          provider: "YOOKASSA",
+          kind: "INITIAL",
+          createdAt: { gte: todayStart, lt: tomorrowStart },
+        },
+        orderBy: [{ createdAt: "desc" }],
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          amount: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              phone: true,
+              profile: { select: { fullName: true } },
+            },
+          },
+        },
+      }),
+      prisma.appSubscriptionEvent.findMany({
+        where: {
+          source: "APPLE",
+          eventType: { startsWith: "SERVER_SYNC:" },
+        },
+        orderBy: [{ processedAt: "desc" }, { createdAt: "desc" }],
+        select: {
+          subscriptionId: true,
+          eventType: true,
+          processedAt: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+  const checkoutAttemptsByUserId = new Map<string, CheckoutAttemptLike[]>();
+  for (const attempt of todayInitialPayments as CheckoutAttemptLike[]) {
+    const existing = checkoutAttemptsByUserId.get(attempt.userId) ?? [];
+    existing.push(attempt);
+    checkoutAttemptsByUserId.set(attempt.userId, existing);
+  }
+
+  let todayCheckoutPaid = 0;
+  const todayNotPaid: AppSubscriptionAdminCheckoutAttempt[] = [];
+  for (const attempts of checkoutAttemptsByUserId.values()) {
+    if (
+      attempts.some((attempt) => attempt.status === "SUCCEEDED" || attempt.status === "REFUNDED")
+    ) {
+      todayCheckoutPaid += 1;
+      continue;
+    }
+
+    const latestAttempt = attempts[0];
+    if (
+      !latestAttempt ||
+      latestAttempt.status === "SUCCEEDED" ||
+      latestAttempt.status === "REFUNDED"
+    ) {
+      continue;
+    }
+
+    todayNotPaid.push({
+      id: latestAttempt.id,
+      user: {
+        id: latestAttempt.user.id,
+        username: latestAttempt.user.username,
+        email: latestAttempt.user.email,
+        phone: latestAttempt.user.phone,
+        fullName: latestAttempt.user.profile?.fullName ?? null,
       },
-    }),
-    prisma.appSubscriptionPayment.findMany({
-      where: { status: "SUCCEEDED" },
-      orderBy: [{ succeededAt: "desc" }, { updatedAt: "desc" }],
-      select: {
-        subscriptionId: true,
-        userId: true,
-        amount: true,
-        currency: true,
-        applePriceMilliunits: true,
-        appleTransactionId: true,
-        appleOriginalTransactionId: true,
-        appleStorefront: true,
-        appleEnvironment: true,
-        appleWebOrderLineItemId: true,
-        kind: true,
-        succeededAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }),
-    prisma.appSubscriptionEvent.findMany({
-      where: {
-        source: "APPLE",
-        eventType: { startsWith: "SERVER_SYNC:" },
-      },
-      orderBy: [{ processedAt: "desc" }, { createdAt: "desc" }],
-      select: {
-        subscriptionId: true,
-        eventType: true,
-        processedAt: true,
-        createdAt: true,
-      },
-    }),
-  ]);
+      attemptedAt: latestAttempt.createdAt.toISOString(),
+      attemptsCount: attempts.length,
+      amountRub: moneyToNumber(latestAttempt.amount),
+      status: latestAttempt.status,
+    });
+  }
 
   const paymentsBySubscriptionId = new Map<string, PaymentLike[]>();
   for (const payment of succeededPayments as PaymentLike[]) {
@@ -354,7 +470,11 @@ export async function getAppSubscriptionAdminDashboard(
       lifetime,
       totalSucceededPayments: (succeededPayments as PaymentLike[]).length,
       totalRevenueRub,
+      todayCheckoutStarted: checkoutAttemptsByUserId.size,
+      todayCheckoutPaid,
+      todayCheckoutNotPaid: todayNotPaid.length,
     },
+    todayNotPaid,
     rows,
   };
 }

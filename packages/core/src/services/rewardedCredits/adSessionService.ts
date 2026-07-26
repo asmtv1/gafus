@@ -1,10 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { Prisma, RewardedAdSessionStatus, prisma } from "@gafus/prisma";
+import {
+  prisma,
+  type Prisma,
+  type RewardedAdSessionStatus,
+} from "@gafus/prisma";
 
 import { REWARDED_AD_SESSION_TTL_MINUTES } from "./constants";
 import { RewardedAdSessionError, RewardedAdsDisabledError } from "./errors";
 import { resolveRewardedPlatformSettings } from "./settingsService";
+import type { ClientAppContext } from "../appFeatureFlags";
 import type {
   RewardedAdLifecycleEvent,
   RewardedAdSessionDto,
@@ -53,10 +58,14 @@ export async function createRewardedAdSession(input: {
   userId: string;
   platform: RewardedPlatform;
   target?: RewardedTargetInput;
+  clientContext?: ClientAppContext;
   now?: Date;
 }): Promise<RewardedAdSessionDto> {
   const now = input.now ?? new Date();
-  const platformSettings = await resolveRewardedPlatformSettings(input.platform);
+  const platformSettings = await resolveRewardedPlatformSettings(
+    input.platform,
+    input.clientContext,
+  );
   if (!platformSettings.platformEnabled) {
     throw new RewardedAdsDisabledError();
   }
@@ -65,6 +74,7 @@ export async function createRewardedAdSession(input: {
     userId: input.userId,
     platform: input.platform,
     target: input.target,
+    clientContext: input.clientContext,
     now,
   });
   if (!status.canWatchAd) {

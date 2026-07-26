@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getServerSessionMock, setAppFeatureFlagEnabledMock } = vi.hoisted(() => ({
-  getServerSessionMock: vi.fn(),
-  setAppFeatureFlagEnabledMock: vi.fn(),
-}));
+const {
+  getServerSessionMock,
+  updateMobileReleaseControlMock,
+  MobileReleaseControlConflictErrorMock,
+} = vi.hoisted(() => {
+  class ConflictError extends Error {
+    readonly code = "STALE_CONFIG";
+  }
+  return {
+    getServerSessionMock: vi.fn(),
+    updateMobileReleaseControlMock: vi.fn(),
+    MobileReleaseControlConflictErrorMock: ConflictError,
+  };
+});
 
 vi.mock("next-auth", () => ({
   getServerSession: getServerSessionMock,
@@ -14,12 +24,8 @@ vi.mock("@gafus/auth", () => ({
 }));
 
 vi.mock("@gafus/core/services/appFeatureFlags", () => ({
-  APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating",
-  APP_FEATURE_APP_SUBSCRIPTION_PAYWALL: "app_subscription_paywall",
-  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "mobile_ios_ru_card_payment",
-  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT: "mobile_ios_ru_card_payment_hint",
-  APP_FEATURE_MOBILE_VK_LOGIN_IOS: "mobile_vk_login_ios",
-  setAppFeatureFlagEnabled: setAppFeatureFlagEnabledMock,
+  MobileReleaseControlConflictError: MobileReleaseControlConflictErrorMock,
+  updateMobileReleaseControl: updateMobileReleaseControlMock,
 }));
 
 vi.mock("@gafus/core/errors", () => ({
@@ -34,59 +40,100 @@ vi.mock("@gafus/logger", () => ({
   }),
 }));
 
-import {
-  setAppSubscriptionGatingEnabledAction,
-  setMobileVkLoginOnIosAction,
-} from "./mobileAppFeatureFlagsActions";
+import { updateMobileReleaseControlAction } from "./mobileAppFeatureFlagsActions";
 
-describe("admin mobile app feature flag actions", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+const validPayload = {
+  revision: 1,
+  iosReviewVersion: "1.6.3",
+  released: {
+    vkLogin: true,
+    iosRuCardPayment: true,
+    iosRuCardPaymentHint: true,
+    rewardedAds: true,
+  },
+  review: {
+    vkLogin: false,
+    iosRuCardPayment: false,
+    iosRuCardPaymentHint: false,
+    rewardedAds: false,
+  },
+  global: {
+    appSubscriptionPaywall: true,
+    appSubscriptionGating: true,
+  },
+  rewardedAds: {
+    androidEnabled: true,
+    dailyAdLimit: 2,
+    yandexAndroidPlacementId: "android-id",
+    yandexIosPlacementId: "ios-id",
+    testMode: false,
+  },
+};
+
+describe("admin mobile release control action", () => {
+  beforeEach(() => vi.clearAllMocks());
 
   it("rejects unauthenticated users", async () => {
     getServerSessionMock.mockResolvedValueOnce(null);
-
-    await expect(setMobileVkLoginOnIosAction(true)).resolves.toEqual({
+    await expect(updateMobileReleaseControlAction(validPayload)).resolves.toEqual({
       success: false,
       error: "Не авторизован",
     });
-    expect(setAppFeatureFlagEnabledMock).not.toHaveBeenCalled();
+    expect(updateMobileReleaseControlMock).not.toHaveBeenCalled();
   });
 
-  it("rejects users without the required role", async () => {
+  it("keeps moderators read-only", async () => {
     getServerSessionMock.mockResolvedValueOnce({
-      user: { id: "user-1", role: "USER" },
+      user: { id: "moderator-1", role: "MODERATOR" },
     });
-
-    await expect(setMobileVkLoginOnIosAction(true)).resolves.toEqual({
+    await expect(updateMobileReleaseControlAction(validPayload)).resolves.toEqual({
       success: false,
-      error: "Недостаточно прав для изменения настроек",
+      error: "Изменять релизные настройки может только ADMIN",
     });
-    expect(setAppFeatureFlagEnabledMock).not.toHaveBeenCalled();
+    expect(updateMobileReleaseControlMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid enabled values before mutating flags", async () => {
+  it("rejects a non-semantic review version", async () => {
     getServerSessionMock.mockResolvedValueOnce({
       user: { id: "admin-1", role: "ADMIN" },
     });
-
-    await expect(setMobileVkLoginOnIosAction("yes")).resolves.toEqual({
-      success: false,
-      error: "Некорректное значение",
+    const result = await updateMobileReleaseControlAction({
+      ...validPayload,
+      iosReviewVersion: "latest",
     });
-    expect(setAppFeatureFlagEnabledMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: false,
+      code: "VALIDATION_ERROR",
+    });
+    expect(updateMobileReleaseControlMock).not.toHaveBeenCalled();
   });
 
-  it("allows admins to update app subscription gating", async () => {
+  it("allows admins to atomically update the complete configuration", async () => {
     getServerSessionMock.mockResolvedValueOnce({
       user: { id: "admin-1", role: "ADMIN" },
     });
-    setAppFeatureFlagEnabledMock.mockResolvedValueOnce(undefined);
-
-    await expect(setAppSubscriptionGatingEnabledAction(true)).resolves.toEqual({
-      success: true,
+    updateMobileReleaseControlMock.mockResolvedValueOnce({
+      ...validPayload,
+      revision: 2,
+      updatedAt: "2026-07-26T12:00:00.000Z",
+      updatedBy: { id: "admin-1", username: "admin" },
     });
-    expect(setAppFeatureFlagEnabledMock).toHaveBeenCalledWith("app_subscription_gating", true);
+    const result = await updateMobileReleaseControlAction(validPayload);
+    expect(result).toMatchObject({ success: true, data: { revision: 2 } });
+    expect(updateMobileReleaseControlMock).toHaveBeenCalledWith(validPayload, "admin-1");
+  });
+
+  it("returns a stable stale-config code", async () => {
+    getServerSessionMock.mockResolvedValueOnce({
+      user: { id: "admin-1", role: "ADMIN" },
+    });
+    updateMobileReleaseControlMock.mockRejectedValueOnce(
+      new MobileReleaseControlConflictErrorMock("stale"),
+    );
+    await expect(updateMobileReleaseControlAction(validPayload)).resolves.toEqual({
+      success: false,
+      error: "stale",
+      code: "STALE_CONFIG",
+    });
   });
 });

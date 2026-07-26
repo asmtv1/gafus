@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Alert, Pressable, Linking } from "react-native";
+import { View, StyleSheet, ScrollView, Alert, Pressable, Linking, Platform } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
 import { subscriptionsApi } from "@/shared/lib/api";
+import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import {
   pushSubscriptionDeviceStatusQueryOptions,
   studentNotesQueryOptions,
@@ -295,6 +296,7 @@ export default function ProfileScreen() {
 
   // Загрузка данных профиля
   const { data: profileData } = useQuery(userProfileQueryOptions);
+  const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
 
   /** После смены email на web стор мог остаться со старым user — подтягиваем GET /profile */
   useFocusEffect(
@@ -459,6 +461,10 @@ export default function ProfileScreen() {
   const displayEmail = profileUser?.email?.trim() || user?.email?.trim() || "";
   const hasAppPassword = profileData?.data?.hasAppPassword ?? user?.hasAppPassword ?? false;
   const hasVkLinked = profileData?.data?.hasVkLinked ?? false;
+  const canLinkVk =
+    Platform.OS !== "ios"
+      ? true
+      : publicConfigFetched && Boolean(publicConfigResponse?.data?.vkLoginEnabledOnIos);
 
   const { handleVkLink, isVkLinkLoading } = useVkLink({
     onSuccess: () => {
@@ -889,7 +895,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {!hasVkLinked ? (
+        {!hasVkLinked && canLinkVk ? (
           <Pressable
             style={({ pressed }) => [
               styles.passwordButton,
@@ -903,12 +909,12 @@ export default function ProfileScreen() {
               {isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
             </Text>
           </Pressable>
-        ) : (
+        ) : hasVkLinked ? (
           <View style={styles.vkLinkedBadge}>
             <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
             <Text style={styles.vkLinkedBadgeText}>VK подключён</Text>
           </View>
-        )}
+        ) : null}
 
         {hasAppPassword ? (
           <Pressable

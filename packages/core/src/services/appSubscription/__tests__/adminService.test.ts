@@ -148,7 +148,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         },
       },
     ]);
-    mockPaymentFindMany.mockResolvedValue([
+    mockPaymentFindMany.mockResolvedValueOnce([
       {
         subscriptionId: "active-yoo",
         userId: "u1",
@@ -214,6 +214,7 @@ describe("getAppSubscriptionAdminDashboard", () => {
         updatedAt: new Date("2026-05-01T10:00:30.000Z"),
       },
     ]);
+    mockPaymentFindMany.mockResolvedValueOnce([]);
     mockEventFindMany.mockResolvedValue([
       {
         subscriptionId: "cancel-at-end",
@@ -234,7 +235,11 @@ describe("getAppSubscriptionAdminDashboard", () => {
       lifetime: 1,
       totalSucceededPayments: 4,
       totalRevenueRub: 799,
+      todayCheckoutStarted: 0,
+      todayCheckoutPaid: 0,
+      todayCheckoutNotPaid: 0,
     });
+    expect(result.todayNotPaid).toEqual([]);
     expect(result.rows).toHaveLength(5);
     expect(result.rows[0]).toMatchObject({
       id: "active-yoo",
@@ -279,5 +284,85 @@ describe("getAppSubscriptionAdminDashboard", () => {
       isLifetime: true,
       attention: null,
     });
+  });
+
+  it("shows unique people who started checkout today in Moscow time but did not pay", async () => {
+    mockSubscriptionFindMany.mockResolvedValue([]);
+    mockPaymentFindMany.mockResolvedValueOnce([]);
+    mockPaymentFindMany.mockResolvedValueOnce([
+      {
+        id: "attempt-latest",
+        userId: "u1",
+        status: "PENDING",
+        amount: { toString: () => "399.00" },
+        createdAt: new Date("2026-05-17T10:30:00.000Z"),
+        user: {
+          id: "u1",
+          username: "waiting",
+          email: "waiting@example.com",
+          phone: null,
+          profile: { fullName: "Ждёт оплаты" },
+        },
+      },
+      {
+        id: "attempt-earlier",
+        userId: "u1",
+        status: "CANCELED",
+        amount: { toString: () => "399.00" },
+        createdAt: new Date("2026-05-17T09:30:00.000Z"),
+        user: {
+          id: "u1",
+          username: "waiting",
+          email: "waiting@example.com",
+          phone: null,
+          profile: { fullName: "Ждёт оплаты" },
+        },
+      },
+      {
+        id: "paid",
+        userId: "u2",
+        status: "SUCCEEDED",
+        amount: { toString: () => "399.00" },
+        createdAt: new Date("2026-05-17T08:00:00.000Z"),
+        user: {
+          id: "u2",
+          username: "paid",
+          email: null,
+          phone: null,
+          profile: null,
+        },
+      },
+    ]);
+    mockEventFindMany.mockResolvedValue([]);
+
+    const result = await getAppSubscriptionAdminDashboard(new Date("2026-05-17T12:00:00.000Z"));
+
+    expect(mockPaymentFindMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          provider: "YOOKASSA",
+          kind: "INITIAL",
+          createdAt: {
+            gte: new Date("2026-05-16T21:00:00.000Z"),
+            lt: new Date("2026-05-17T21:00:00.000Z"),
+          },
+        }),
+      }),
+    );
+    expect(result.metrics).toMatchObject({
+      todayCheckoutStarted: 2,
+      todayCheckoutPaid: 1,
+      todayCheckoutNotPaid: 1,
+    });
+    expect(result.todayNotPaid).toEqual([
+      expect.objectContaining({
+        id: "attempt-latest",
+        attemptsCount: 2,
+        amountRub: 399,
+        status: "PENDING",
+        user: expect.objectContaining({ username: "waiting" }),
+      }),
+    ]);
   });
 });

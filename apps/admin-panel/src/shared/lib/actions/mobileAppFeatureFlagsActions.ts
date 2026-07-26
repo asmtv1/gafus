@@ -5,167 +5,80 @@ import { z } from "zod";
 
 import { authOptions } from "@gafus/auth";
 import {
-  APP_FEATURE_APP_SUBSCRIPTION_GATING,
-  APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
-  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
-  APP_FEATURE_MOBILE_VK_LOGIN_IOS,
-  setAppFeatureFlagEnabled,
+  MobileReleaseControlConflictError,
+  updateMobileReleaseControl,
+  type MobileReleaseControlDto,
 } from "@gafus/core/services/appFeatureFlags";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 
-const logger = createWebLogger("admin-mobile-app-flags");
+const logger = createWebLogger("admin-mobile-release-control");
+const semverSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+\.\d+\.\d+$/, "Версия должна быть в формате 1.6.3")
+  .nullable();
+const featureValuesSchema = z.object({
+  vkLogin: z.boolean(),
+  iosRuCardPayment: z.boolean(),
+  iosRuCardPaymentHint: z.boolean(),
+  rewardedAds: z.boolean(),
+});
+const releaseControlSchema = z.object({
+  revision: z.number().int().positive(),
+  iosReviewVersion: semverSchema,
+  released: featureValuesSchema,
+  review: featureValuesSchema,
+  global: z.object({
+    appSubscriptionPaywall: z.boolean(),
+    appSubscriptionGating: z.boolean(),
+  }),
+  rewardedAds: z.object({
+    androidEnabled: z.boolean(),
+    dailyAdLimit: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    yandexAndroidPlacementId: z.string().trim().max(256).nullable(),
+    yandexIosPlacementId: z.string().trim().max(256).nullable(),
+    testMode: z.boolean(),
+  }),
+});
 
-const enabledSchema = z.boolean();
+export type UpdateMobileReleaseControlActionResult =
+  | { success: true; data: MobileReleaseControlDto }
+  | { success: false; error: string; code?: "STALE_CONFIG" | "VALIDATION_ERROR" };
 
-/**
- * Включает или отключает кнопку «Продолжить через VK» на iOS в мобильном приложении.
- */
-export async function setMobileVkLoginOnIosAction(
-  enabled: unknown,
-): Promise<{ success: boolean; error?: string }> {
+export async function updateMobileReleaseControlAction(
+  payload: unknown,
+): Promise<UpdateMobileReleaseControlActionResult> {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return { success: false, error: "Не авторизован" };
     }
-    if (!session.user.role || !["ADMIN", "MODERATOR"].includes(session.user.role)) {
-      return { success: false, error: "Недостаточно прав для изменения настроек" };
+    if (session.user.role !== "ADMIN") {
+      return { success: false, error: "Изменять релизные настройки может только ADMIN" };
     }
 
-    const parsed = enabledSchema.safeParse(enabled);
+    const parsed = releaseControlSchema.safeParse(payload);
     if (!parsed.success) {
-      return { success: false, error: "Некорректное значение" };
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? "Некорректные настройки",
+        code: "VALIDATION_ERROR",
+      };
     }
 
-    await setAppFeatureFlagEnabled(APP_FEATURE_MOBILE_VK_LOGIN_IOS, parsed.data);
-    logger.success("mobile_vk_login_ios updated", {
-      enabled: parsed.data,
+    const data = await updateMobileReleaseControl(parsed.data, session.user.id);
+    logger.success("mobile release control updated", {
       actorId: session.user.id,
+      revision: data.revision,
+      iosReviewVersion: data.iosReviewVersion,
     });
-    return { success: true };
+    return { success: true, data };
   } catch (error) {
-    logger.error("setMobileVkLoginOnIosAction failed", error as Error);
-    return { success: false, error: getErrorMessage(error, "Неизвестная ошибка") };
-  }
-}
-
-/**
- * Включает или отключает подсказку об оплате картами РФ на сайте для iOS в платных курсах.
- */
-export async function setMobileIosRuCardPaymentHintAction(
-  enabled: unknown,
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return { success: false, error: "Не авторизован" };
+    if (error instanceof MobileReleaseControlConflictError) {
+      return { success: false, error: error.message, code: "STALE_CONFIG" };
     }
-    if (!session.user.role || !["ADMIN", "MODERATOR"].includes(session.user.role)) {
-      return { success: false, error: "Недостаточно прав для изменения настроек" };
-    }
-
-    const parsed = enabledSchema.safeParse(enabled);
-    if (!parsed.success) {
-      return { success: false, error: "Некорректное значение" };
-    }
-
-    await setAppFeatureFlagEnabled(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT, parsed.data);
-    logger.success("mobile_ios_ru_card_payment_hint updated", {
-      enabled: parsed.data,
-      actorId: session.user.id,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("setMobileIosRuCardPaymentHintAction failed", error as Error);
-    return { success: false, error: getErrorMessage(error, "Неизвестная ошибка") };
-  }
-}
-
-export async function setAppSubscriptionPaywallEnabledAction(
-  enabled: unknown,
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return { success: false, error: "Не авторизован" };
-    }
-    if (!session.user.role || session.user.role !== "ADMIN") {
-      return { success: false, error: "Недостаточно прав для изменения настроек" };
-    }
-
-    const parsed = enabledSchema.safeParse(enabled);
-    if (!parsed.success) {
-      return { success: false, error: "Некорректное значение" };
-    }
-
-    await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, parsed.data);
-    logger.success("app_subscription_paywall_enabled updated", {
-      enabled: parsed.data,
-      actorId: session.user.id,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("setAppSubscriptionPaywallEnabledAction failed", error as Error);
-    return { success: false, error: getErrorMessage(error, "Неизвестная ошибка") };
-  }
-}
-
-export async function setAppSubscriptionGatingEnabledAction(
-  enabled: unknown,
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return { success: false, error: "Не авторизован" };
-    }
-    if (!session.user.role || session.user.role !== "ADMIN") {
-      return { success: false, error: "Недостаточно прав для изменения настроек" };
-    }
-
-    const parsed = enabledSchema.safeParse(enabled);
-    if (!parsed.success) {
-      return { success: false, error: "Некорректное значение" };
-    }
-
-    await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, parsed.data);
-    logger.success("app_subscription_gating_enabled updated", {
-      enabled: parsed.data,
-      actorId: session.user.id,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("setAppSubscriptionGatingEnabledAction failed", error as Error);
-    return { success: false, error: getErrorMessage(error, "Неизвестная ошибка") };
-  }
-}
-
-export async function setMobileIosRuCardPaymentEnabledAction(
-  enabled: unknown,
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return { success: false, error: "Не авторизован" };
-    }
-    if (!session.user.role || session.user.role !== "ADMIN") {
-      return { success: false, error: "Недостаточно прав для изменения настроек" };
-    }
-
-    const parsed = enabledSchema.safeParse(enabled);
-    if (!parsed.success) {
-      return { success: false, error: "Некорректное значение" };
-    }
-
-    await setAppFeatureFlagEnabled(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT, parsed.data);
-    logger.success("mobile_ios_ru_card_payment updated", {
-      enabled: parsed.data,
-      actorId: session.user.id,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error("setMobileIosRuCardPaymentEnabledAction failed", error as Error);
+    logger.error("updateMobileReleaseControlAction failed", error as Error);
     return { success: false, error: getErrorMessage(error, "Неизвестная ошибка") };
   }
 }

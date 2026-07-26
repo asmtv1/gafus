@@ -20,7 +20,10 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   recordRewardedAdEvent: recordRewardedAdEventMock,
   REWARDED_CONSULTATION_BOOKING_COST: 5,
   RewardedAdSessionError: class RewardedAdSessionError extends Error {
-    constructor(public code: string, message: string) {
+    constructor(
+      public code: string,
+      message: string,
+    ) {
       super(message);
     }
   },
@@ -68,6 +71,7 @@ describe("rewarded ads routes", () => {
       userId: "user-1",
       platform: "ANDROID",
       target: undefined,
+      clientContext: { platform: "unknown", version: null },
     });
     await expect(response.json()).resolves.toEqual({
       success: true,
@@ -92,6 +96,7 @@ describe("rewarded ads routes", () => {
         targetId: "user-1:booking-1",
         cost: 5,
       },
+      clientContext: { platform: "unknown", version: null },
     });
   });
 
@@ -117,6 +122,7 @@ describe("rewarded ads routes", () => {
       userId: "user-1",
       platform: "ANDROID",
       target: undefined,
+      clientContext: { platform: "unknown", version: null },
     });
 
     const grantResponse = await app.request(

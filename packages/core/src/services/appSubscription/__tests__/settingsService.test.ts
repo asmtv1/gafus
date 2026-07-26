@@ -17,7 +17,7 @@ vi.mock("../appleAccountTokenService", () => ({
 
 vi.mock("../../appFeatureFlags", () => ({
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "mobile_ios_ru_card_payment_enabled",
-  getAppFeatureFlagEnabled: vi.fn().mockResolvedValue(true),
+  getMobileFeatureFlagEnabled: vi.fn().mockResolvedValue(true),
 }));
 
 describe("getAppSubscriptionOffer", () => {

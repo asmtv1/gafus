@@ -5,6 +5,7 @@ import { Hono } from "hono";
 
 import { getMobileAppPublicConfig } from "@gafus/core/services/appFeatureFlags";
 import { createWebLogger } from "@gafus/logger";
+import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-public-mobile");
 
@@ -12,7 +13,8 @@ export const publicMobileRoutes = new Hono();
 
 publicMobileRoutes.get("/mobile-app", async (c) => {
   try {
-    const data = await getMobileAppPublicConfig();
+    const data = await getMobileAppPublicConfig(getClientAppContext(c));
+    c.header("Vary", "X-Client-Platform, X-Client-Version");
     return c.json(
       { success: true, data },
       {

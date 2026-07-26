@@ -43,8 +43,13 @@ import {
   linkConsentLogsToUser,
   markConsentLogsFailed,
 } from "@gafus/core/services/consent";
+import {
+  APP_FEATURE_MOBILE_VK_LOGIN_IOS,
+  getMobileFeatureFlagEnabled,
+} from "@gafus/core/services/appFeatureFlags";
 import { createWebLogger } from "@gafus/logger";
 import { RegistrationChannel } from "@gafus/prisma";
+import { getClientAppContext } from "../../lib/client-app-context.js";
 import { authMiddleware } from "../../middleware/auth.js";
 
 const logger = createWebLogger("api-auth");
@@ -92,11 +97,21 @@ const emailChangeConfirmSchema = z.object({
 });
 
 const usernameChangeSchema = z.object({
-  newUsername: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
+  newUsername: z
+    .string()
+    .trim()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
 });
 
 const usernameAvailableQuerySchema = z.object({
-  username: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
+  username: z
+    .string()
+    .trim()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _"),
 });
 
 const vkIdSchema = z.object({
@@ -221,9 +236,7 @@ authRoutes.post(
         return c.json(
           {
             success: false,
-            error: isConflict
-              ? REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE
-              : result.error,
+            error: isConflict ? REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE : result.error,
           },
           isConflict ? 409 : 400,
         );
@@ -478,11 +491,28 @@ authRoutes.post(
   zValidator("json", vkIdSchema),
   async (c) => {
     try {
+      const clientContext = getClientAppContext(c);
+      if (
+        clientContext.platform === "ios" &&
+        !(await getMobileFeatureFlagEnabled(
+          APP_FEATURE_MOBILE_VK_LOGIN_IOS,
+          clientContext,
+          false,
+          false,
+        ))
+      ) {
+        return c.json(
+          {
+            success: false,
+            error: "Вход через VK недоступен в этой версии",
+            code: "FEATURE_DISABLED",
+          },
+          403,
+        );
+      }
       const { code, code_verifier, device_id, state, platform } = c.req.valid("json");
       const ip =
-        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-        c.req.header("x-real-ip") ??
-        "";
+        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
 
       const clientId =
         platform === "ios"
@@ -575,17 +605,12 @@ authRoutes.post(
     try {
       const { vkConsentToken, consentPayload } = c.req.valid("json");
       const ip =
-        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-        c.req.header("x-real-ip") ??
-        "";
+        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
       const userAgent = c.req.header("user-agent");
 
       const vkUser = await consumeVkIdOneTimeUser(vkConsentToken);
       if (!vkUser) {
-        return c.json(
-          { success: false, error: "Ссылка устарела. Повторите вход через VK." },
-          400,
-        );
+        return c.json({ success: false, error: "Ссылка устарела. Повторите вход через VK." }, 400);
       }
 
       const user = await getAuthUserById(vkUser.userId);
@@ -680,6 +705,25 @@ authRoutes.post(
   zValidator("json", vkIdSchema),
   async (c) => {
     try {
+      const clientContext = getClientAppContext(c);
+      if (
+        clientContext.platform === "ios" &&
+        !(await getMobileFeatureFlagEnabled(
+          APP_FEATURE_MOBILE_VK_LOGIN_IOS,
+          clientContext,
+          false,
+          false,
+        ))
+      ) {
+        return c.json(
+          {
+            success: false,
+            error: "Подключение VK недоступно в этой версии",
+            code: "FEATURE_DISABLED",
+          },
+          403,
+        );
+      }
       const { code, code_verifier, device_id, state, platform } = c.req.valid("json");
       const user = c.get("user");
 
@@ -736,7 +780,10 @@ authRoutes.post(
         "Пароль уже установлен, используйте смену пароля",
       ];
       return c.json(
-        { success: false, error: safeMessages.includes(msg) ? msg : "Не удалось установить пароль" },
+        {
+          success: false,
+          error: safeMessages.includes(msg) ? msg : "Не удалось установить пароль",
+        },
         400,
       );
     }

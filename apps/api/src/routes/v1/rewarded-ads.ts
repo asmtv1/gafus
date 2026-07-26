@@ -14,6 +14,7 @@ import {
   type RewardedTargetInput,
 } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
+import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-rewarded-ads");
 export const rewardedAdsRoutes = new Hono();
@@ -120,6 +121,7 @@ rewardedAdsRoutes.get("/status", zValidator("query", statusQuerySchema), async (
       userId: user.id,
       platform: query.platform,
       target: targetFrom(query),
+      clientContext: getClientAppContext(c),
     });
     return c.json({ success: true, data });
   } catch (error) {
@@ -136,6 +138,7 @@ rewardedAdsRoutes.post("/session", zValidator("json", sessionSchema), async (c) 
       userId: user.id,
       platform: body.platform,
       target: targetFrom(body),
+      clientContext: getClientAppContext(c),
     });
     return c.json({ success: true, data });
   } catch (error) {

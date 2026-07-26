@@ -11,7 +11,12 @@ import {
   SubscriptionRequiredError,
   verifyAppleAppSubscription,
 } from "@gafus/core/services/appSubscription";
+import {
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  getMobileFeatureFlagEnabled,
+} from "@gafus/core/services/appFeatureFlags";
 import { createWebLogger } from "@gafus/logger";
+import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-app-subscription");
 export const appSubscriptionRoutes = new Hono();
@@ -72,7 +77,7 @@ appSubscriptionRoutes.get("/status", async (c) => {
 appSubscriptionRoutes.get("/offer", async (c) => {
   try {
     const user = c.get("user");
-    const data = await getAppSubscriptionOffer(user.id);
+    const data = await getAppSubscriptionOffer(user.id, getClientAppContext(c));
     return c.json({ success: true, data });
   } catch (error) {
     logger.error("GET /offer error", error as Error);
@@ -83,6 +88,25 @@ appSubscriptionRoutes.get("/offer", async (c) => {
 appSubscriptionRoutes.post("/yookassa/start", async (c) => {
   try {
     const user = c.get("user");
+    const clientContext = getClientAppContext(c);
+    if (
+      clientContext.platform === "ios" &&
+      !(await getMobileFeatureFlagEnabled(
+        APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+        clientContext,
+        false,
+        false,
+      ))
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: "Оплата российской картой недоступна в этой версии",
+          code: "FEATURE_DISABLED",
+        },
+        403,
+      );
+    }
     console.log("[api app-subscription/yookassa/start] request", { userId: user.id });
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;

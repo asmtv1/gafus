@@ -2,14 +2,9 @@ import { authOptions } from "@gafus/auth";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
-import { MobileAppFeaturesCard } from "@/features/admin/components/MobileAppFeaturesCard";
-import {
-  getAppSubscriptionGatingFlag,
-  getAppSubscriptionPaywallFlag,
-  getMobileIosRuCardPaymentFlag,
-  getMobileIosRuCardPaymentHintFlag,
-  getMobileVkLoginIosFlag,
-} from "@/features/admin/lib/getMobileVkLoginIosFlag";
+import { getMobileReleaseControl } from "@gafus/core/services/appFeatureFlags";
+
+import { MobileReleaseControl } from "@/features/admin/components/MobileReleaseControl";
 import PageLayout from "@/shared/components/PageLayout";
 
 export default async function FeatureFlagsPage() {
@@ -19,33 +14,14 @@ export default async function FeatureFlagsPage() {
     redirect("/main-panel");
   }
 
-  const [
-    vkLoginOnIos,
-    iosRuCardPaymentHintEnabled,
-    iosRuCardPaymentEnabled,
-    appSubscriptionPaywallEnabled,
-    appSubscriptionGatingEnabled,
-  ] = await Promise.all([
-    getMobileVkLoginIosFlag(),
-    getMobileIosRuCardPaymentHintFlag(),
-    getMobileIosRuCardPaymentFlag(),
-    getAppSubscriptionPaywallFlag(),
-    getAppSubscriptionGatingFlag(),
-  ]);
+  const config = await getMobileReleaseControl();
 
   return (
     <PageLayout
-      title="Фича флаги"
-      subtitle="Управление включением функций в мобильном приложении и подписочной логике"
+      title="Управление мобильным релизом"
+      subtitle="Профили функций для опубликованных и находящихся на ревью версий iOS"
     >
-      <MobileAppFeaturesCard
-        actorRole={session.user.role}
-        initialVkLoginOnIos={vkLoginOnIos}
-        initialIosRuCardPaymentHintEnabled={iosRuCardPaymentHintEnabled}
-        initialIosRuCardPaymentEnabled={iosRuCardPaymentEnabled}
-        initialAppSubscriptionPaywallEnabled={appSubscriptionPaywallEnabled}
-        initialAppSubscriptionGatingEnabled={appSubscriptionGatingEnabled}
-      />
+      <MobileReleaseControl actorRole={session.user.role} initialConfig={config} />
     </PageLayout>
   );
 }

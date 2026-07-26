@@ -286,85 +286,86 @@ model DailyCourseUserStep {
 }
 
 model User {
-  id                             String                           @id @default(cuid())
-  username                       String                           @unique
-  email                          String?                          @unique
-  phone                          String?                          @unique
-  appleAppAccountToken           String?                          @unique @db.VarChar(36)
-  password                       String
-  passwordSetAt                  DateTime?
-  onboardingTourCompletedAt      DateTime?
-  telegramId                     String?                          @unique
-  role                           UserRole                         @default(USER)
-  registrationChannel            RegistrationChannel              @default(UNKNOWN)
-  passwordResetRequestedAt       DateTime?
-  accountDeletionRequestedAt     DateTime?
-  createdAt                      DateTime                         @default(now())
-  updatedAt                      DateTime                         @default(now())
-  accounts                       Account[]
-  sessions                       Session[]
-  authoredCourses                Course[]
-  courseAccesses                 CourseAccess[]
-  courseReviews                  CourseReview[]
-  diaryEntries                   DiaryEntry[]
-  diplomas                       Diploma[]
-  reviewedExamResults            ExamResult[]                     @relation("ExamResultReviewedBy")
-  surveyResponses                SurveyResponse[]
-  favoriteCourses                FavoriteCourse[]
-  passwordResetTokens            PasswordResetToken[]
-  accountDeletionTokens          AccountDeletionToken[]
-  payments                       Payment[]
-  pets                           Pet[]
-  petDocuments                   PetDocument[]
-  emailChangeTokens              EmailChangeToken[]
-  pushSubscriptions              PushSubscription[]
-  reengagementCampaigns          ReengagementCampaign[]
-  reengagementSettings           ReengagementSettings?
-  refreshTokens                  RefreshToken[]
-  reminders                      Reminder[]
-  createdSteps                   Step[]
-  stepNotifications              StepNotification[]
-  createdStepTemplates           StepTemplate[]
-  trainerAIChats                 TrainerAIChat[]
-  trainerAIConfig                TrainerAIConfig?
-  trainerNotes                   TrainerNote[]                    @relation("TrainerNotes")
-  studentNotes                   TrainerNoteStudent[]             @relation("StudentNotes")
-  trainerVideos                  TrainerVideo[]
-  trainings                      Training[]
-  trainingAccesses               TrainingAccess[]
-  createdDays                    TrainingDay[]
-  dailyCourseBundles             DailyCourseBundle[]
-  userCourses                    UserCourse[]
-  profile                        UserProfile?
-  userTrainings                  UserTraining[]
-  userVideoProgresses            UserVideoProgress[]
-  consentLogs                    ConsentLog[]
-  ofertaAcceptances              OfertaAcceptance[]
-  petPreventionEntries           PetPreventionEntry[]
-  authoredArticles               Article[]                        @relation("authoredArticles")
-  articleLikes                   ArticleLike[]
-  articleAccesses                ArticleAccess[]
-  articlePayments                ArticlePayment[]
-  articleViews                   ArticleViewer[]
+  id                              String                           @id @default(cuid())
+  username                        String                           @unique
+  email                           String?                          @unique
+  phone                           String?                          @unique
+  appleAppAccountToken            String?                          @unique @db.VarChar(36)
+  password                        String
+  passwordSetAt                   DateTime?
+  onboardingTourCompletedAt       DateTime?
+  telegramId                      String?                          @unique
+  role                            UserRole                         @default(USER)
+  registrationChannel             RegistrationChannel              @default(UNKNOWN)
+  passwordResetRequestedAt        DateTime?
+  accountDeletionRequestedAt      DateTime?
+  createdAt                       DateTime                         @default(now())
+  updatedAt                       DateTime                         @default(now())
+  accounts                        Account[]
+  sessions                        Session[]
+  authoredCourses                 Course[]
+  courseAccesses                  CourseAccess[]
+  courseReviews                   CourseReview[]
+  diaryEntries                    DiaryEntry[]
+  diplomas                        Diploma[]
+  reviewedExamResults             ExamResult[]                     @relation("ExamResultReviewedBy")
+  surveyResponses                 SurveyResponse[]
+  favoriteCourses                 FavoriteCourse[]
+  passwordResetTokens             PasswordResetToken[]
+  accountDeletionTokens           AccountDeletionToken[]
+  payments                        Payment[]
+  pets                            Pet[]
+  petDocuments                    PetDocument[]
+  emailChangeTokens               EmailChangeToken[]
+  pushSubscriptions               PushSubscription[]
+  reengagementCampaigns           ReengagementCampaign[]
+  reengagementSettings            ReengagementSettings?
+  refreshTokens                   RefreshToken[]
+  reminders                       Reminder[]
+  createdSteps                    Step[]
+  stepNotifications               StepNotification[]
+  createdStepTemplates            StepTemplate[]
+  trainerAIChats                  TrainerAIChat[]
+  trainerAIConfig                 TrainerAIConfig?
+  trainerNotes                    TrainerNote[]                    @relation("TrainerNotes")
+  studentNotes                    TrainerNoteStudent[]             @relation("StudentNotes")
+  trainerVideos                   TrainerVideo[]
+  trainings                       Training[]
+  trainingAccesses                TrainingAccess[]
+  createdDays                     TrainingDay[]
+  dailyCourseBundles              DailyCourseBundle[]
+  userCourses                     UserCourse[]
+  profile                         UserProfile?
+  userTrainings                   UserTraining[]
+  userVideoProgresses             UserVideoProgress[]
+  consentLogs                     ConsentLog[]
+  ofertaAcceptances               OfertaAcceptance[]
+  petPreventionEntries            PetPreventionEntry[]
+  authoredArticles                Article[]                        @relation("authoredArticles")
+  articleLikes                    ArticleLike[]
+  articleAccesses                 ArticleAccess[]
+  articlePayments                 ArticlePayment[]
+  articleViews                    ArticleViewer[]
   /// Профиль кинолога для консультаций (один к одному с пользователем-тренером)
-  consultationCynologist         ConsultationCynologist?
+  consultationCynologist          ConsultationCynologist?
   /// Бронирования консультаций как клиент
-  consultationBookingsAsClient   ConsultationBooking[]
+  consultationBookingsAsClient    ConsultationBooking[]
   /// Идемпотентность POST /book (ключ + клиент)
-  consultationBookingIdempotency ConsultationBookingIdempotency[]
-  createdDailyCourseSchedules    DailyCourseSchedule[]            @relation("DailyCourseSchedulesCreatedBy")
-  dailyCourseUserTrainings       DailyCourseUserTraining[]
-  appSubscriptions               AppSubscription[]                @relation("AppSubscriptionUser")
-  appSubscriptionPayments        AppSubscriptionPayment[]         @relation("AppSubscriptionPaymentUser")
-  appSubscriptionEvents          AppSubscriptionEvent[]           @relation("AppSubscriptionEventUser")
-  appSubscriptionTrials          AppSubscriptionTrial[]           @relation("AppSubscriptionTrialUser")
-  manualAppSubscriptionGrants    AppSubscription[]                @relation("ManualAppSubscriptionGrantedBy")
-  updatedAppSubscriptionSettings AppSubscriptionSettings[]        @relation("AppSubscriptionSettingsUpdatedBy")
-  adminAppSubscriptionEvents     AppSubscriptionEvent[]           @relation("AppSubscriptionEventActor")
-  rewardedCreditWallet           RewardedCreditWallet?
-  rewardedAdSessions             RewardedAdSession[]
-  rewardedCreditTransactions     RewardedCreditTransaction[]
-  updatedRewardedAdSettings      RewardedAdSettings[]
+  consultationBookingIdempotency  ConsultationBookingIdempotency[]
+  createdDailyCourseSchedules     DailyCourseSchedule[]            @relation("DailyCourseSchedulesCreatedBy")
+  dailyCourseUserTrainings        DailyCourseUserTraining[]
+  appSubscriptions                AppSubscription[]                @relation("AppSubscriptionUser")
+  appSubscriptionPayments         AppSubscriptionPayment[]         @relation("AppSubscriptionPaymentUser")
+  appSubscriptionEvents           AppSubscriptionEvent[]           @relation("AppSubscriptionEventUser")
+  appSubscriptionTrials           AppSubscriptionTrial[]           @relation("AppSubscriptionTrialUser")
+  manualAppSubscriptionGrants     AppSubscription[]                @relation("ManualAppSubscriptionGrantedBy")
+  updatedAppSubscriptionSettings  AppSubscriptionSettings[]        @relation("AppSubscriptionSettingsUpdatedBy")
+  adminAppSubscriptionEvents      AppSubscriptionEvent[]           @relation("AppSubscriptionEventActor")
+  rewardedCreditWallet            RewardedCreditWallet?
+  rewardedAdSessions              RewardedAdSession[]
+  rewardedCreditTransactions      RewardedCreditTransaction[]
+  updatedRewardedAdSettings       RewardedAdSettings[]
+  updatedMobileAppReleasePolicies MobileAppReleasePolicy[]         @relation("MobileAppReleasePolicyUpdatedBy")
 }
 
 enum ConsentType {
@@ -667,9 +668,9 @@ model AppSubscriptionSettings {
 model RewardedAdSettings {
   key String @id @default("default") @db.VarChar(32)
 
-  androidEnabled    Boolean @default(false)
-  iosEnabled        Boolean @default(false)
-  dailyAdLimit Int @default(1)
+  androidEnabled Boolean @default(false)
+  iosEnabled     Boolean @default(false)
+  dailyAdLimit   Int     @default(1)
 
   yandexAndroidPlacementId String?
   yandexIosPlacementId     String?
@@ -1716,9 +1717,21 @@ model ArticlePayment {
 
 /// Публичные флаги клиентов (мобильное приложение и т.д.). Ключ — стабильный идентификатор.
 model AppFeatureFlag {
-  key       String   @id @db.VarChar(64)
-  enabled   Boolean  @default(false)
-  updatedAt DateTime @updatedAt
+  key           String   @id @db.VarChar(64)
+  enabled       Boolean  @default(false)
+  reviewEnabled Boolean?
+  updatedAt     DateTime @updatedAt
+}
+
+/// Управляет точной iOS-версией, которая должна получать review-профиль фича-флагов.
+model MobileAppReleasePolicy {
+  key              String   @id @default("default") @db.VarChar(32)
+  iosReviewVersion String?  @db.VarChar(32)
+  revision         Int      @default(1)
+  updatedById      String?
+  updatedBy        User?    @relation("MobileAppReleasePolicyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 // --- Консультации с кинологом (web + mobile) ---

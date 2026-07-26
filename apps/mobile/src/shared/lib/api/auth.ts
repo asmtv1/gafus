@@ -3,6 +3,7 @@ import { API_BASE_URL } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 
 import { apiClient, type ApiResponse } from "./client";
+import { getMobileClientHeaders } from "./client-context";
 
 export interface User {
   id: string;
@@ -59,7 +60,7 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({ username, password }),
       });
 
@@ -130,7 +131,7 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({
           name,
           email,
@@ -147,7 +148,11 @@ export const authApi = {
           const contentType = response.headers.get("content-type");
           if (contentType?.includes("application/json")) {
             errorData = await response.json();
-            if (__DEV__) console.log("[authApi] register error response", { status: response.status, errorData });
+            if (__DEV__)
+              console.log("[authApi] register error response", {
+                status: response.status,
+                errorData,
+              });
           }
         } catch {
           reportClientError(new Error("register_error_response_parse"), {
@@ -191,7 +196,7 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({ refreshToken }),
       });
 
@@ -217,7 +222,7 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/password-reset-request`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({ email }),
       });
 
@@ -291,7 +296,7 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify(params),
       });
 
@@ -357,7 +362,7 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk-consent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({ vkConsentToken, consentPayload }),
       });
 
@@ -431,14 +436,11 @@ export const authApi = {
   /**
    * Сброс пароля по токену из письма
    */
-  resetPasswordByToken: async (
-    token: string,
-    password: string,
-  ): Promise<ApiResponse<void>> => {
+  resetPasswordByToken: async (token: string, password: string): Promise<ApiResponse<void>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({ token, password }),
       });
 

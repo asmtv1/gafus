@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Snackbar, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 import { Button } from "@/shared/components/ui";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { useLayout, useVkLogin } from "@/shared/hooks";
-import { fetchMobileAppPublicConfig } from "@/shared/lib/api/public-config";
+import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 
 /**
  * Welcome страница (Landing) - точное соответствие веб-версии
@@ -17,33 +17,16 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const layout = useLayout();
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-  const [iosVkAllowed, setIosVkAllowed] = useState(false);
-  const [iosVkConfigLoaded, setIosVkConfigLoaded] = useState(false);
+  const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
   const { handleVkLogin, isVkLoading } = useVkLogin({
     onError: (msg) => setSnackbar({ visible: true, message: msg }),
   });
 
-  useEffect(() => {
-    if (Platform.OS !== "ios") return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetchMobileAppPublicConfig();
-        if (!cancelled && res.success && res.data) {
-          setIosVkAllowed(res.data.vkLoginEnabledOnIos);
-        }
-      } finally {
-        if (!cancelled) setIosVkConfigLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Только iOS: кнопка VK зависит от флага с бэка. Android, web и остальные — всегда показываем VK.
   const showVkButton =
-    Platform.OS !== "ios" ? true : iosVkConfigLoaded && iosVkAllowed;
+    Platform.OS !== "ios"
+      ? true
+      : publicConfigFetched && Boolean(publicConfigResponse?.data?.vkLoginEnabledOnIos);
 
   const imgW = layout.contentWidth(SPACING.md * 4);
   const titleSize = layout.moderateScale(110, 0.4);
@@ -54,23 +37,17 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       {/* Шапка с лапкой */}
       <View style={styles.pawContainer}>
-        <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>
-          учимся
-        </Text>
+        <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>учимся</Text>
         <Image
           source={require("../../assets/images/paw.png")}
           style={[styles.paw, { width: pawW, height: pawH }]}
           contentFit="contain"
         />
-        <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>
-          вместе
-        </Text>
+        <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>вместе</Text>
       </View>
 
       {/* Заголовок */}
-      <Text style={[styles.title, { fontSize: Math.min(titleSize, 110) }]}>
-        Гафус!
-      </Text>
+      <Text style={[styles.title, { fontSize: Math.min(titleSize, 110) }]}>Гафус!</Text>
 
       {/* Приветственная иллюстрация */}
       <Image

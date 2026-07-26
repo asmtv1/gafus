@@ -9,6 +9,7 @@ const {
   restoreAppleAppSubscriptionMock,
   startYookassaAppSubscriptionPaymentMock,
   verifyAppleAppSubscriptionMock,
+  getMobileFeatureFlagEnabledMock,
 } = vi.hoisted(() => ({
   cancelYookassaAppSubscriptionMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
@@ -17,6 +18,7 @@ const {
   restoreAppleAppSubscriptionMock: vi.fn(),
   startYookassaAppSubscriptionPaymentMock: vi.fn(),
   verifyAppleAppSubscriptionMock: vi.fn(),
+  getMobileFeatureFlagEnabledMock: vi.fn(),
 }));
 
 vi.mock("@gafus/core/services/appSubscription", () => ({
@@ -31,6 +33,11 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
     status = 402 as const;
   },
   verifyAppleAppSubscription: verifyAppleAppSubscriptionMock,
+}));
+
+vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "mobile_ios_ru_card_payment",
+  getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -57,12 +64,31 @@ function createAuthenticatedTestApp() {
 describe("app subscription route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMobileFeatureFlagEnabledMock.mockResolvedValue(true);
     delete process.env.WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
     delete process.env.NEXTAUTH_URL;
     delete process.env.YOOKASSA_SHOP_ID;
     delete process.env.YOOKASSA_SECRET_KEY;
+  });
+
+  it("blocks YooKassa start for a disabled iOS review profile", async () => {
+    const app = createAuthenticatedTestApp();
+    getMobileFeatureFlagEnabledMock.mockResolvedValueOnce(false);
+    const response = await app.request(
+      jsonRequest(
+        "/api/v1/app-subscription/yookassa/start",
+        "POST",
+        { planCode: "MONTHLY" },
+        { "x-client-platform": "ios", "x-client-version": "1.6.3" },
+      ),
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "FEATURE_DISABLED",
+    });
+    expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
   });
 
   it("requires a planCode when starting YooKassa payment", async () => {

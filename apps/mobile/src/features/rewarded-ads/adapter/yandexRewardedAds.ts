@@ -10,6 +10,8 @@ import YandexMobileAdsModule from "yandex-mobile-ads/src/YandexMobileAdsModule";
 import { RewardedAdLoader } from "yandex-mobile-ads/src/rewarded/RewardedAdLoader";
 
 let initialized = false;
+const SHOW_CALLBACK_TIMEOUT_MS = 8_000;
+const LOAD_TIMEOUT_MS = 15_000;
 
 function logRewardedDebug(message: string, details?: Record<string, unknown>) {
   console.log(`[rewarded-ads:yandex] ${message}`, details ?? {});
@@ -119,14 +121,27 @@ export async function showYandexRewardedAd(
     placementId: session.placementId,
   });
   const adRequest = new AdRequestConfiguration({ adUnitId: session.placementId });
-  const ad = await loader.loadAd(adRequest).catch((error) => {
-    logRewardedDebug("rewarded ad load failed", {
-      sessionId: session.sessionId,
-      placementId: session.placementId,
-      error: formatError(error),
+  let loadTimeout: ReturnType<typeof setTimeout> | null = null;
+  const adLoadPromise = loader.loadAd(adRequest);
+  const ad = await Promise.race([
+    adLoadPromise,
+    new Promise<never>((_, reject) => {
+      loadTimeout = setTimeout(() => {
+        reject(new Error("Реклама не загрузилась. Попробуйте ещё раз."));
+      }, LOAD_TIMEOUT_MS);
+    }),
+  ])
+    .finally(() => {
+      if (loadTimeout) clearTimeout(loadTimeout);
+    })
+    .catch((error) => {
+      logRewardedDebug("rewarded ad load failed", {
+        sessionId: session.sessionId,
+        placementId: session.placementId,
+        error: formatError(error),
+      });
+      return recordFailedAndRethrow("REWARDED_AD_LOAD_FAILED", error);
     });
-    return recordFailedAndRethrow("REWARDED_AD_LOAD_FAILED", error);
-  });
   logRewardedDebug("rewarded ad loaded", {
     sessionId: session.sessionId,
     hasAd: Boolean(ad),
@@ -136,12 +151,19 @@ export async function showYandexRewardedAd(
   let resolveGrant: (result: ApiResponse<RewardedGrantResultDto> | null) => void;
   let rejectGrant: (error: Error) => void;
   let shownRecordPromise: Promise<ApiResponse<void>> | null = null;
+  let lifecycleCallbackTimeout: ReturnType<typeof setTimeout> | null = null;
   const grantPromise = new Promise<ApiResponse<RewardedGrantResultDto> | null>(
     (resolve, reject) => {
       resolveGrant = resolve;
       rejectGrant = reject;
     },
   );
+  const clearLifecycleCallbackTimeout = () => {
+    if (lifecycleCallbackTimeout) {
+      clearTimeout(lifecycleCallbackTimeout);
+      lifecycleCallbackTimeout = null;
+    }
+  };
   const recordShownOnce = () => {
     logRewardedDebug("recording SHOWN", { sessionId: session.sessionId });
     shownRecordPromise ??= rewardedAdsApi.recordEvent({
@@ -152,10 +174,12 @@ export async function showYandexRewardedAd(
   };
 
   ad.onAdShown = () => {
+    clearLifecycleCallbackTimeout();
     logRewardedDebug("callback onAdShown", { sessionId: session.sessionId });
     void recordShownOnce();
   };
   ad.onAdDismissed = () => {
+    clearLifecycleCallbackTimeout();
     logRewardedDebug("callback onAdDismissed", {
       sessionId: session.sessionId,
       granted,
@@ -168,6 +192,7 @@ export async function showYandexRewardedAd(
     }
   };
   ad.onAdFailedToShow = (error) => {
+    clearLifecycleCallbackTimeout();
     logRewardedDebug("callback onAdFailedToShow", {
       sessionId: session.sessionId,
       error,
@@ -179,6 +204,7 @@ export async function showYandexRewardedAd(
     }
   };
   ad.onRewarded = (reward) => {
+    clearLifecycleCallbackTimeout();
     logRewardedDebug("callback onRewarded", {
       sessionId: session.sessionId,
       granted,
@@ -226,6 +252,17 @@ export async function showYandexRewardedAd(
   logRewardedDebug("recording LOADED", { sessionId: session.sessionId });
   await rewardedAdsApi.recordEvent({ sessionId: session.sessionId, eventType: "LOADED" });
   logRewardedDebug("showing rewarded ad", { sessionId: session.sessionId });
+  lifecycleCallbackTimeout = setTimeout(() => {
+    if (finished) return;
+    const error = new Error("Реклама не открылась. Попробуйте ещё раз.");
+    logRewardedDebug("rewarded ad show timed out waiting for callbacks", {
+      sessionId: session.sessionId,
+      timeoutMs: SHOW_CALLBACK_TIMEOUT_MS,
+    });
+    void recordFailedOnce("REWARDED_AD_SHOW_TIMEOUT", error);
+    finished = true;
+    rejectGrant(error);
+  }, SHOW_CALLBACK_TIMEOUT_MS);
   void ad
     .show()
     .then(() => {

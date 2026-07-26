@@ -1,4 +1,4 @@
-import { Prisma, prisma } from "@gafus/prisma";
+import { prisma, type Prisma } from "@gafus/prisma";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 import {
@@ -8,6 +8,7 @@ import {
 } from "./constants";
 import { RewardedBalanceFullError, RewardedCreditsRequiredError } from "./errors";
 import { resolveRewardedPlatformSettings } from "./settingsService";
+import type { ClientAppContext } from "../appFeatureFlags";
 import type {
   RewardedCreditsStatusDto,
   RewardedGrantResultDto,
@@ -36,12 +37,12 @@ function nextMskReset(now: Date): { start: Date; end: Date } {
   };
 }
 
-async function withUserWalletLock<T>(
-  userId: string,
-  fn: (tx: PrismaTx) => Promise<T>,
-): Promise<T> {
+async function withUserWalletLock<T>(userId: string, fn: (tx: PrismaTx) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe?.("SELECT pg_advisory_xact_lock(hashtext($1))", `rewarded:${userId}`);
+    await tx.$executeRawUnsafe?.(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      `rewarded:${userId}`,
+    );
     return fn(tx as PrismaTx);
   });
 }
@@ -111,12 +112,16 @@ export async function getRewardedCreditsStatus(input: {
   userId: string;
   platform: RewardedPlatform;
   target?: RewardedTargetInput;
+  clientContext?: ClientAppContext;
   now?: Date;
 }): Promise<RewardedCreditsStatusDto> {
   const now = input.now ?? new Date();
   return withUserWalletLock(input.userId, async (tx) => {
     const wallet = await applyPendingRefundCredits(tx, input.userId);
-    const platformSettings = await resolveRewardedPlatformSettings(input.platform);
+    const platformSettings = await resolveRewardedPlatformSettings(
+      input.platform,
+      input.clientContext,
+    );
     const adsWatchedToday = await getAdsWatchedToday(tx, input.userId, now);
     const nextGrantCredits = Math.min(
       REWARDED_CREDITS_PER_REWARD,

@@ -35,10 +35,15 @@ describe("GET /mobile-app", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("public, max-age=60");
+    expect(response.headers.get("vary")).toBe("X-Client-Platform, X-Client-Version");
+    expect(getMobileAppPublicConfig).toHaveBeenCalledWith({
+      platform: "unknown",
+      version: null,
+    });
     await expect(response.json()).resolves.toMatchObject({
       success: true,
       data: {
-      minimumSupportedVersion: { ios: "1.6.2", android: "1.6.2" },
+        minimumSupportedVersion: { ios: "1.6.2", android: "1.6.2" },
       },
     });
   });

@@ -23,25 +23,21 @@ import {
   Typography,
   UnfoldMoreIcon,
 } from "@/utils/muiImports";
-import type { AppSubscriptionDashboardRow } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
+import type {
+  AppSubscriptionDashboard,
+  AppSubscriptionDashboardRow,
+} from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
 import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
 import type { AppSubscriptionAdminDashboardMetrics } from "@gafus/core/services/appSubscription";
 
-export type AppSubscriptionFilter =
-  | "all"
-  | "active"
-  | "not_renewed"
-  | "cancel_at_period_end"
-  | "past_due"
-  | "yookassa"
-  | "apple"
-  | "manual";
+export type AppSubscriptionFilter = "all" | "active" | "not_renewed" | "past_due";
 
 type SortField = "boughtAt" | "activeUntil" | "lastPaymentAt" | "totalPaidRub" | "status" | "user";
 type SortDirection = "asc" | "desc";
 
 interface AppSubscriptionsTableProps {
   metrics: AppSubscriptionAdminDashboardMetrics;
+  todayNotPaid: AppSubscriptionDashboard["todayNotPaid"];
   rows: AppSubscriptionDashboardRow[];
   totalRows: number;
   filter: AppSubscriptionFilter;
@@ -63,11 +59,7 @@ const filterLabels: { value: AppSubscriptionFilter; label: string }[] = [
   { value: "all", label: "Все" },
   { value: "active", label: "Активные" },
   { value: "not_renewed", label: "Не продлили" },
-  { value: "cancel_at_period_end", label: "Отменили автопродление" },
   { value: "past_due", label: "Проблема оплаты" },
-  { value: "yookassa", label: "YooKassa" },
-  { value: "apple", label: "Apple" },
-  { value: "manual", label: "Manual" },
 ];
 
 const attentionLabels: Record<Exclude<AppSubscriptionDashboardRow["attention"], null>, string> = {
@@ -84,6 +76,16 @@ function formatDate(value: string | null) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatMoscowDate(value: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
   }).format(new Date(value));
 }
 
@@ -144,7 +146,12 @@ function AppleDetails({ row }: { row: AppSubscriptionDashboardRow }) {
         <Chip size="small" variant="outlined" label={formatApplePrice(row)} />
         {contextText ? <Chip size="small" variant="outlined" label={contextText} /> : null}
       </Box>
-      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5, whiteSpace: "nowrap" }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        display="block"
+        sx={{ mt: 0.5, whiteSpace: "nowrap" }}
+      >
         Sync: {syncText}
       </Typography>
       {idLines.length > 0 ? (
@@ -190,7 +197,9 @@ function AppleDetails({ row }: { row: AppSubscriptionDashboardRow }) {
   );
 }
 
-function getStatusColor(row: AppSubscriptionDashboardRow): "success" | "warning" | "error" | "default" {
+function getStatusColor(
+  row: AppSubscriptionDashboardRow,
+): "success" | "warning" | "error" | "default" {
   if (row.attention === "past_due") return "error";
   if (row.attention === "not_renewed") return "default";
   if (row.attention === "cancel_at_period_end") return "warning";
@@ -224,8 +233,113 @@ function MetricCard({
   );
 }
 
+const checkoutStatusLabels: Record<
+  AppSubscriptionDashboard["todayNotPaid"][number]["status"],
+  string
+> = {
+  PENDING: "Ожидает оплаты",
+  CANCELED: "Отменена",
+  FAILED: "Ошибка оплаты",
+};
+
+function TodayCheckoutSummary({
+  metrics,
+  attempts,
+}: {
+  metrics: AppSubscriptionAdminDashboardMetrics;
+  attempts: AppSubscriptionDashboard["todayNotPaid"];
+}) {
+  return (
+    <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" fontWeight={700}>
+          Сегодня
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Оформление через YooKassa по московскому времени
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+            gap: 1,
+            mt: 2,
+          }}
+        >
+          <MetricCard label="Начали оформление" value={metrics.todayCheckoutStarted} hint="Людей" />
+          <MetricCard label="Оплатили" value={metrics.todayCheckoutPaid} hint="Людей" />
+          <MetricCard label="Пока не оплатили" value={metrics.todayCheckoutNotPaid} hint="Людей" />
+        </Box>
+      </Box>
+
+      <Box sx={{ borderTop: 1, borderColor: "divider" }}>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ px: 2, pt: 2 }}>
+          Кто пока не оплатил
+        </Typography>
+        {attempts.length === 0 ? (
+          <Typography color="text.secondary" sx={{ px: 2, py: 1.5 }}>
+            Сегодня таких пользователей нет.
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
+            {attempts.map((attempt) => {
+              const contacts = [attempt.user.email, attempt.user.phone].filter(Boolean).join(" · ");
+
+              return (
+                <Box
+                  key={attempt.id}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", md: "minmax(220px, 1fr) auto auto auto" },
+                    alignItems: { xs: "flex-start", md: "center" },
+                    gap: { xs: 0.75, md: 2 },
+                    px: 2,
+                    py: 1.5,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Box>
+                    <Typography variant="subtitle2">
+                      {attempt.user.fullName ?? attempt.user.username}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      @{attempt.user.username}
+                      {contacts ? ` · ${contacts}` : ""}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2">
+                    {formatMoscowDate(attempt.attemptedAt)}
+                    {attempt.attemptsCount > 1 ? ` · попыток: ${attempt.attemptsCount}` : ""}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={checkoutStatusLabels[attempt.status]}
+                  />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {formatMoney(attempt.amountRub)}
+                    </Typography>
+                    <Link
+                      href={`/main-panel/users?search=${encodeURIComponent(attempt.user.username)}`}
+                    >
+                      <Button size="small">Открыть</Button>
+                    </Link>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </Box>
+    </Paper>
+  );
+}
+
 export default function AppSubscriptionsTable({
   metrics,
+  todayNotPaid,
   rows,
   totalRows,
   filter,
@@ -275,21 +389,31 @@ export default function AppSubscriptionsTable({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <TodayCheckoutSummary metrics={metrics} attempts={todayNotPaid} />
+
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
+          },
           gap: 2,
         }}
       >
-        <MetricCard label="Активные сейчас" value={metrics.activeNow} hint="Включая lifetime" />
-        <MetricCard label="Не продлили" value={metrics.notRenewed} hint="Ранее была успешная оплата" />
-        <MetricCard label="Отменили автопродление" value={metrics.cancelAtPeriodEnd} hint="Доступ ещё действует" />
-        <MetricCard label="Проблема оплаты" value={metrics.pastDue} hint="Статус PAST_DUE" />
-        <MetricCard label="Всего подписок" value={metrics.totalSubscriptions} />
-        <MetricCard label="Lifetime" value={metrics.lifetime} />
-        <MetricCard label="Успешных оплат" value={metrics.totalSucceededPayments} />
-        <MetricCard label="Выручка" value={formatMoney(metrics.totalRevenueRub)} />
+        <MetricCard
+          label="Активные подписки"
+          value={metrics.activeNow}
+          hint="Есть доступ прямо сейчас"
+        />
+        <MetricCard
+          label="Не продлили"
+          value={metrics.notRenewed}
+          hint="Ранее была успешная оплата"
+        />
+        <MetricCard label="Проблема оплаты" value={metrics.pastDue} hint="Требуют внимания" />
+        <MetricCard label="Выручка за всё время" value={formatMoney(metrics.totalRevenueRub)} />
       </Box>
 
       <Paper sx={{ width: "100%", overflow: "hidden" }}>
@@ -297,7 +421,7 @@ export default function AppSubscriptionsTable({
           <TextField
             fullWidth
             variant="outlined"
-            placeholder="Поиск по пользователю, email, телефону, статусу, провайдеру..."
+            placeholder="Найти пользователя по имени, email или телефону"
             value={searchQuery}
             onChange={(event) => {
               onSearchChange(event.target.value);
@@ -329,18 +453,17 @@ export default function AppSubscriptionsTable({
           </Typography>
         </Box>
 
-        <TableContainer sx={{ maxHeight: { xs: "none", md: 680 }, display: { xs: "none", md: "block" } }}>
+        <TableContainer
+          sx={{ maxHeight: { xs: "none", md: 680 }, display: { xs: "none", md: "block" } }}
+        >
           <Table stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell>{sortableHeader("user", "Пользователь")}</TableCell>
-                <TableCell>Провайдер</TableCell>
                 <TableCell>{sortableHeader("status", "Статус")}</TableCell>
-                <TableCell>{sortableHeader("boughtAt", "Купил")}</TableCell>
+                <TableCell>{sortableHeader("boughtAt", "Начало")}</TableCell>
                 <TableCell>{sortableHeader("activeUntil", "Заканчивается")}</TableCell>
-                <TableCell>{sortableHeader("lastPaymentAt", "Последняя оплата")}</TableCell>
                 <TableCell>{sortableHeader("totalPaidRub", "Оплачено")}</TableCell>
-                <TableCell>Автопродление</TableCell>
                 <TableCell>Детали</TableCell>
               </TableRow>
             </TableHead>
@@ -348,31 +471,54 @@ export default function AppSubscriptionsTable({
               {visibleRows.map((row) => (
                 <TableRow key={row.id} hover>
                   <TableCell>
-                    <Typography variant="subtitle2">{row.user.fullName ?? row.user.username}</Typography>
+                    <Typography variant="subtitle2">
+                      {row.user.fullName ?? row.user.username}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       @{row.user.username}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block">
-                      {[row.user.email, row.user.phone].filter(Boolean).join(" · ") || "Контакты не указаны"}
+                      {[row.user.email, row.user.phone].filter(Boolean).join(" · ") ||
+                        "Контакты не указаны"}
                     </Typography>
                   </TableCell>
-                  <TableCell>{providerLabels[row.provider] ?? row.provider}</TableCell>
                   <TableCell>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, alignItems: "flex-start" }}>
-                      <Chip size="small" color={getStatusColor(row)} label={getAppSubscriptionStatusLabel(row)} />
-                      {row.attention ? <Chip size="small" variant="outlined" label={attentionLabels[row.attention]} /> : null}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.75,
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <Chip
+                        size="small"
+                        color={getStatusColor(row)}
+                        label={getAppSubscriptionStatusLabel(row)}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {providerLabels[row.provider] ?? row.provider}
+                      </Typography>
+                      {row.attention ? (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={attentionLabels[row.attention]}
+                        />
+                      ) : null}
                     </Box>
                   </TableCell>
                   <TableCell>{formatDate(row.boughtAt)}</TableCell>
                   <TableCell>{row.isLifetime ? "Навсегда" : formatDate(row.activeUntil)}</TableCell>
-                  <TableCell>{formatDate(row.lastPaymentAt)}</TableCell>
                   <TableCell>
                     <Typography variant="body2">{formatMoney(row.totalPaidRub)}</Typography>
                     <Typography variant="caption" color="text.secondary">
                       {row.paymentsCount} оплат
                     </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Последняя: {formatDate(row.lastPaymentAt)}
+                    </Typography>
                   </TableCell>
-                  <TableCell>{row.cancelAtPeriodEnd ? "Отключено" : row.provider === "YOOKASSA" ? "Включено" : "—"}</TableCell>
                   <TableCell>
                     {row.provider === "APPLE" ? (
                       <AppleDetails row={row} />
@@ -381,7 +527,9 @@ export default function AppSubscriptionsTable({
                         {row.paymentMethod ?? row.manualReason ?? "—"}
                       </Typography>
                     )}
-                    <Link href={`/main-panel/users?search=${encodeURIComponent(row.user.username)}`}>
+                    <Link
+                      href={`/main-panel/users?search=${encodeURIComponent(row.user.username)}`}
+                    >
                       <Button size="small" sx={{ mt: 0.75 }}>
                         Открыть
                       </Button>
@@ -393,17 +541,38 @@ export default function AppSubscriptionsTable({
           </Table>
         </TableContainer>
 
-        <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1.5, p: 2, pt: 0 }}>
+        <Box
+          sx={{
+            display: { xs: "flex", md: "none" },
+            flexDirection: "column",
+            gap: 1.5,
+            p: 2,
+            pt: 0,
+          }}
+        >
           {visibleRows.map((row) => (
             <Paper key={row.id} variant="outlined" sx={{ p: 1.5 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  alignItems: "flex-start",
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle2">{row.user.fullName ?? row.user.username}</Typography>
+                  <Typography variant="subtitle2">
+                    {row.user.fullName ?? row.user.username}
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     @{row.user.username}
                   </Typography>
                 </Box>
-                <Chip size="small" color={getStatusColor(row)} label={getAppSubscriptionStatusLabel(row)} />
+                <Chip
+                  size="small"
+                  color={getStatusColor(row)}
+                  label={getAppSubscriptionStatusLabel(row)}
+                />
               </Box>
               <Typography variant="body2" sx={{ mt: 1 }}>
                 {providerLabels[row.provider] ?? row.provider} · купил {formatDate(row.boughtAt)}
@@ -415,7 +584,12 @@ export default function AppSubscriptionsTable({
                 Оплачено: {formatMoney(row.totalPaidRub)} · {row.paymentsCount} оплат
               </Typography>
               {row.attention ? (
-                <Chip size="small" variant="outlined" label={attentionLabels[row.attention]} sx={{ mt: 1 }} />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={attentionLabels[row.attention]}
+                  sx={{ mt: 1 }}
+                />
               ) : null}
               {row.provider === "APPLE" ? <AppleDetails row={row} /> : null}
             </Paper>

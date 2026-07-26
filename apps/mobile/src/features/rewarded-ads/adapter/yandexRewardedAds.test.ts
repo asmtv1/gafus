@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createLoaderMock, grantMock, initializeMock, loadAdMock, recordEventMock, showMock } =
   vi.hoisted(() => ({
@@ -57,6 +57,7 @@ import { showYandexRewardedAd } from "./yandexRewardedAds";
 describe("showYandexRewardedAd", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     loadedAd = { show: showMock };
     initializeMock.mockResolvedValue(undefined);
     loadAdMock.mockResolvedValue(loadedAd);
@@ -80,6 +81,10 @@ describe("showYandexRewardedAd", () => {
       loadedAd.onAdShown?.();
       loadedAd.onRewarded?.({ amount: 1, type: "credit" });
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("resolves with the grant result after the rewarded callback", async () => {
@@ -184,6 +189,35 @@ describe("showYandexRewardedAd", () => {
     expect(result).toMatchObject({
       success: true,
       data: { grantedCredits: 5, balance: 5 },
+    });
+  });
+
+  it("rejects when iOS show resolves without any lifecycle callbacks", async () => {
+    showMock.mockResolvedValue(undefined);
+
+    const resultPromise = showYandexRewardedAd({
+      sessionId: "session-1",
+      requestNonce: "nonce-1",
+      provider: "YANDEX",
+      placementId: "placement-1",
+      platform: "IOS",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      testMode: true,
+    });
+    const rejectionAssertion = expect(resultPromise).rejects.toThrow(
+      "Реклама не открылась. Попробуйте ещё раз.",
+    );
+
+    await vi.advanceTimersByTimeAsync(8_000);
+
+    await rejectionAssertion;
+    expect(recordEventMock).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      eventType: "FAILED",
+      payload: {
+        code: "REWARDED_AD_SHOW_TIMEOUT",
+        message: "Реклама не открылась. Попробуйте ещё раз.",
+      },
     });
   });
 

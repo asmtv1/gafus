@@ -50,7 +50,7 @@ export default async function MainPanelLayout({ children }: { children: React.Re
         </Link>
         <Link href="/main-panel/feature-flags" className={styles.button}>
           <Flag sx={{ mr: 1.5, fontSize: 20 }} />
-          Фича флаги
+          Мобильный релиз
         </Link>
 
         {/* Push-рассылка и Re-engagement только для админов */}

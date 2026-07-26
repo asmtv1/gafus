@@ -1,10 +1,13 @@
 import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 import { isAbortError } from "./abortError";
-import { notifySubscriptionRequired, shouldNotifySubscriptionRequired } from "./subscriptionRequired";
+import { getMobileClientHeaders } from "./client-context";
+import {
+  notifySubscriptionRequired,
+  shouldNotifySubscriptionRequired,
+} from "./subscriptionRequired";
 
 interface ApiClientOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -187,7 +190,10 @@ async function refreshAccessToken(): Promise<RefreshAccessTokenResult> {
 
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getMobileClientHeaders(),
+        },
         body: JSON.stringify({ refreshToken }),
       });
 
@@ -247,7 +253,7 @@ export async function apiClient<T>(
 
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-Client-Platform": Platform.OS,
+    ...getMobileClientHeaders(),
     ...(token && { Authorization: `Bearer ${token}` }),
     ...headers,
   };
@@ -354,7 +360,7 @@ export async function apiClientMultipart<T>(
   const doFetch = async (): Promise<Response> => {
     const token = await SecureStore.getItemAsync("auth_token");
     const headers: Record<string, string> = {
-      "X-Client-Platform": Platform.OS,
+      ...getMobileClientHeaders(),
     };
     if (token) {
       headers.Authorization = `Bearer ${token}`;

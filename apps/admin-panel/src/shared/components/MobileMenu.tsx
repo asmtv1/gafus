@@ -50,7 +50,7 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
     {
       href: "/main-panel/feature-flags",
       icon: Flag,
-      label: "Фича флаги",
+      label: "Мобильный релиз",
       show: true,
     },
     {
