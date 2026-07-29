@@ -21,6 +21,7 @@ import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnR
 import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
+import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
 
 function SyncProgressOnReconnect() {
   useSyncProgressOnReconnect();
@@ -85,6 +86,12 @@ export default function RootLayout() {
   useEffect(() => {
     void checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    // iOS can initialize automatically when the first ad is loaded, but doing
+    // it during bootstrap keeps the first rewarded-ad request off the UI path.
+    void warmUpYandexMobileAds().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!fontError) return;

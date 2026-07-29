@@ -6,4 +6,4 @@ export {
   type RewardedPlatform,
   type RewardedTargetType,
 } from "./api/rewardedAdsApi";
-export { showYandexRewardedAd } from "./adapter/yandexRewardedAds";
+export { showYandexRewardedAd, warmUpYandexMobileAds } from "./adapter/yandexRewardedAds";

@@ -145,6 +145,43 @@ describe("rewarded ad sessions", () => {
     expect([...state.sessions.values()][0].requestNonceHash).not.toBe(session.requestNonce);
   });
 
+  it("allows a retry when the previous session never reached the shown state", async () => {
+    await createRewardedAdSession({
+      userId: "user-1",
+      platform: "ANDROID",
+      now: new Date("2026-05-31T10:00:00.000Z"),
+    });
+
+    const retry = await createRewardedAdSession({
+      userId: "user-1",
+      platform: "ANDROID",
+      now: new Date("2026-05-31T10:01:00.000Z"),
+    });
+
+    expect(retry.sessionId).toBe("session-2");
+  });
+
+  it("keeps a displayed session exclusive until it completes or expires", async () => {
+    const session = await createRewardedAdSession({
+      userId: "user-1",
+      platform: "ANDROID",
+      now: new Date("2026-05-31T10:00:00.000Z"),
+    });
+    await recordRewardedAdEvent({
+      userId: "user-1",
+      sessionId: session.sessionId,
+      eventType: "SHOWN",
+    });
+
+    await expect(
+      createRewardedAdSession({
+        userId: "user-1",
+        platform: "ANDROID",
+        now: new Date("2026-05-31T10:01:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "REWARDED_SESSION_ALREADY_GRANTED" });
+  });
+
   it("records lifecycle events and moves status forward", async () => {
     const session = await createRewardedAdSession({
       userId: "user-1",

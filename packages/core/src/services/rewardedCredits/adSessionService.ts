@@ -18,7 +18,10 @@ import type {
 } from "./types";
 import { getRewardedCreditsStatus, grantRewardedCreditsToWallet } from "./walletService";
 
-const ACTIVE_SESSION_STATUSES = ["CREATED", "LOADED", "SHOWN", "REWARDED"] as const;
+// Before the ad is actually shown, the client can safely abandon and replace a
+// session (e.g. after an SDK init or load failure). Only a displayed ad or an
+// already received reward must prevent a second concurrent session.
+const BLOCKING_SESSION_STATUSES = ["SHOWN", "REWARDED"] as const;
 const STATUS_ORDER: Record<string, number> = {
   CREATED: 0,
   LOADED: 1,
@@ -85,7 +88,7 @@ export async function createRewardedAdSession(input: {
     where: {
       userId: input.userId,
       platform: input.platform,
-      status: { in: [...ACTIVE_SESSION_STATUSES] },
+      status: { in: [...BLOCKING_SESSION_STATUSES] },
       expiresAt: { gt: now },
       targetType: input.target?.targetType,
       targetId: input.target?.targetId,

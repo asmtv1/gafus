@@ -10,6 +10,7 @@ import YandexMobileAdsModule from "yandex-mobile-ads/src/YandexMobileAdsModule";
 import { RewardedAdLoader } from "yandex-mobile-ads/src/rewarded/RewardedAdLoader";
 
 let initialized = false;
+let initializationPromise: Promise<void> | null = null;
 const SHOW_CALLBACK_TIMEOUT_MS = 8_000;
 const LOAD_TIMEOUT_MS = 15_000;
 
@@ -46,23 +47,36 @@ function getNativeYandexModulesSnapshot() {
   };
 }
 
-async function initializeMobileAds() {
+/**
+ * Starts SDK initialization without making the ad flow depend on its callback.
+ *
+ * On iOS Yandex initializes the SDK automatically before an ad is loaded. The
+ * native `initializeSDK` callback can nevertheless remain pending (for example,
+ * while its network bootstrap is in progress). Waiting for it here made the
+ * paywall spinner wait forever and prevented `RewardedAdLoader` from starting.
+ */
+export function warmUpYandexMobileAds(): Promise<void> {
   if (initialized) {
     logRewardedDebug("MobileAds already initialized", getNativeYandexModulesSnapshot());
-    return;
+    return Promise.resolve();
   }
+  if (initializationPromise) return initializationPromise;
+
   logRewardedDebug("initializing MobileAds", getNativeYandexModulesSnapshot());
-  try {
-    await MobileAds.initialize();
-    initialized = true;
-    logRewardedDebug("MobileAds initialized", getNativeYandexModulesSnapshot());
-  } catch (error) {
-    logRewardedDebug("MobileAds initialize failed", {
-      ...getNativeYandexModulesSnapshot(),
-      error: formatError(error),
+  initializationPromise = Promise.resolve(MobileAds.initialize())
+    .then(() => {
+      initialized = true;
+      logRewardedDebug("MobileAds initialized", getNativeYandexModulesSnapshot());
+    })
+    .catch((error) => {
+      initializationPromise = null;
+      logRewardedDebug("MobileAds initialize failed", {
+        ...getNativeYandexModulesSnapshot(),
+        error: formatError(error),
+      });
+      throw error;
     });
-    throw error;
-  }
+  return initializationPromise;
 }
 
 export async function showYandexRewardedAd(
@@ -101,8 +115,11 @@ export async function showYandexRewardedAd(
     throw error;
   };
 
-  await initializeMobileAds().catch((error) =>
-    recordFailedAndRethrow("REWARDED_AD_INITIALIZE_FAILED", error),
+  // Do not await initialization here. iOS automatically initializes before
+  // loading; see warmUpYandexMobileAds for why the callback is not reliable as
+  // a gate for the user-initiated flow.
+  void warmUpYandexMobileAds().catch((error) =>
+    recordFailedOnce("REWARDED_AD_INITIALIZE_FAILED", error),
   );
   logRewardedDebug("creating rewarded loader", getNativeYandexModulesSnapshot());
   const loader = await RewardedAdLoader.create().catch((error) => {
