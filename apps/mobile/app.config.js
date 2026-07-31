@@ -20,22 +20,16 @@ function assertProductionApiBaseUrl() {
 
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? productionApiBaseUrl;
   if (apiBaseUrl !== productionApiBaseUrl) {
-    throw new Error(
-      `Production mobile builds must use ${productionApiBaseUrl}; got ${apiBaseUrl}`
-    );
+    throw new Error(`Production mobile builds must use ${productionApiBaseUrl}; got ${apiBaseUrl}`);
   }
 }
 
 assertProductionApiBaseUrl();
 
 function withYandexSkAdNetworkItems(infoPlist = {}) {
-  const existingItems = Array.isArray(infoPlist.SKAdNetworkItems)
-    ? infoPlist.SKAdNetworkItems
-    : [];
+  const existingItems = Array.isArray(infoPlist.SKAdNetworkItems) ? infoPlist.SKAdNetworkItems : [];
   const existingIds = new Set(
-    existingItems
-      .map((item) => item?.SKAdNetworkIdentifier)
-      .filter((id) => typeof id === "string")
+    existingItems.map((item) => item?.SKAdNetworkIdentifier).filter((id) => typeof id === "string"),
   );
   const yandexItems = yandexSkAdNetworkIdentifiers
     .filter((id) => !existingIds.has(id))
@@ -92,9 +86,10 @@ module.exports = ({ config }) => ({
   ],
   extra: {
     ...config.extra,
-    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.6.3",
+    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.6.4",
     enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
     tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
+    tracerAppTokenJs: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_JS,
     tracerAppTokenIos: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_IOS,
     tracerAppTokenAndroid: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID,
     vkClientId: process.env.VK_CLIENT_ID ?? "",

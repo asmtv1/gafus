@@ -1,4 +1,5 @@
 import { apiClient, type ApiResponse } from "@/shared/lib/api/client";
+import { getMobileClientHeaders } from "@/shared/lib/api/client-context";
 
 const isDev = typeof __DEV__ !== "undefined" && __DEV__;
 
@@ -55,8 +56,24 @@ export const appSubscriptionApi = {
   getStatus(): Promise<ApiResponse<AppSubscriptionStatusDto>> {
     return apiClient<AppSubscriptionStatusDto>("/api/v1/app-subscription/status");
   },
-  getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
-    return apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
+  async getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
+    if (isDev) {
+      const headers = getMobileClientHeaders();
+      console.log("[appSubscriptionApi] offer request context", {
+        clientPlatform: headers["X-Client-Platform"] ?? null,
+        clientVersion: headers["X-Client-Version"] ?? null,
+      });
+    }
+    const result = await apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
+    if (isDev) {
+      console.log("[appSubscriptionApi] offer response", {
+        success: result.success,
+        iosRuCardPaymentEnabled: result.data?.iosRuCardPaymentEnabled ?? null,
+        error: result.error ?? null,
+        code: result.code ?? null,
+      });
+    }
+    return result;
   },
   async startYookassa(
     planCode: AppSubscriptionPlanCode,

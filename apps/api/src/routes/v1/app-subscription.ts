@@ -77,7 +77,14 @@ appSubscriptionRoutes.get("/status", async (c) => {
 appSubscriptionRoutes.get("/offer", async (c) => {
   try {
     const user = c.get("user");
-    const data = await getAppSubscriptionOffer(user.id, getClientAppContext(c));
+    const clientContext = getClientAppContext(c);
+    const data = await getAppSubscriptionOffer(user.id, clientContext);
+    console.log("[api app-subscription/offer] resolved", {
+      userId: user.id,
+      clientPlatform: clientContext.platform,
+      clientVersion: clientContext.version,
+      iosRuCardPaymentEnabled: data.iosRuCardPaymentEnabled,
+    });
     return c.json({ success: true, data });
   } catch (error) {
     logger.error("GET /offer error", error as Error);

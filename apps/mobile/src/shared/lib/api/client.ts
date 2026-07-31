@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
-import { reportClientError } from "@/shared/lib/tracer";
+import { addTracerBreadcrumb, reportClientError } from "@/shared/lib/tracer";
 import { isAbortError } from "./abortError";
 import { getMobileClientHeaders } from "./client-context";
 import {
@@ -267,8 +267,22 @@ export async function apiClient<T>(
     config.body = JSON.stringify(body);
   }
 
+  const requestStartedAt = Date.now();
+  addTracerBreadcrumb("api", `${method} ${endpoint}`, { method, endpoint });
+
   try {
     const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, config, timeoutMs);
+    addTracerBreadcrumb(
+      "api",
+      `${method} ${endpoint} → ${response.status}`,
+      {
+        method,
+        endpoint,
+        status: response.status,
+        durationMs: Date.now() - requestStartedAt,
+      },
+      response.ok ? "info" : "warning",
+    );
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth) {
@@ -331,6 +345,12 @@ export async function apiClient<T>(
 
     return data as ApiResponse<T>;
   } catch (error) {
+    addTracerBreadcrumb(
+      "api",
+      `${method} ${endpoint} failed`,
+      { method, endpoint, durationMs: Date.now() - requestStartedAt },
+      "error",
+    );
     reportClientError(error, { issueKey: "ApiClient", keys: { endpoint } });
     if (isAbortError(error)) {
       return getAbortTimeoutError();
@@ -356,6 +376,8 @@ export async function apiClientMultipart<T>(
   buildFormData: () => FormData,
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const requestStartedAt = Date.now();
+  addTracerBreadcrumb("api", `POST ${endpoint}`, { method: "POST", endpoint });
 
   const doFetch = async (): Promise<Response> => {
     const token = await SecureStore.getItemAsync("auth_token");
@@ -374,6 +396,17 @@ export async function apiClientMultipart<T>(
 
   try {
     let response = await doFetch();
+    addTracerBreadcrumb(
+      "api",
+      `POST ${endpoint} → ${response.status}`,
+      {
+        method: "POST",
+        endpoint,
+        status: response.status,
+        durationMs: Date.now() - requestStartedAt,
+      },
+      response.ok ? "info" : "warning",
+    );
     if (response.status === 401) {
       const refreshResult = await refreshAccessToken();
       if (refreshResult.success) {
@@ -411,6 +444,12 @@ export async function apiClientMultipart<T>(
 
     return data as ApiResponse<T>;
   } catch (error) {
+    addTracerBreadcrumb(
+      "api",
+      `POST ${endpoint} failed`,
+      { method: "POST", endpoint, durationMs: Date.now() - requestStartedAt },
+      "error",
+    );
     reportClientError(error, { issueKey: "ApiClientMultipart", keys: { endpoint } });
     if (isAbortError(error)) {
       return getAbortTimeoutError();

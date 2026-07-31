@@ -37,6 +37,7 @@ import {
 import {
   formatGafusesWord,
   getRewardedAccessSummary,
+  getRewardedAdErrorMessage,
   getRewardedEarnText,
   getRewardedSpendText,
   getRewardedStatusMessage,
@@ -308,7 +309,7 @@ export function AppSubscriptionPaywall() {
         issueKey: "AppSubscriptionPaywall",
         keys: { operation: "watch_rewarded_ad" },
       });
-      setRewardedMessage(error instanceof Error ? error.message : "Не удалось показать рекламу.");
+      setRewardedMessage(getRewardedAdErrorMessage(error));
     } finally {
       setIsRewardedLoading(false);
     }

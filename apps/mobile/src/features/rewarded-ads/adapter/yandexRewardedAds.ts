@@ -164,7 +164,11 @@ export async function showYandexRewardedAd(
     hasAd: Boolean(ad),
   });
   let granted = false;
+  let dismissed = false;
   let finished = false;
+  let grantSettled = false;
+  let grantResult: ApiResponse<RewardedGrantResultDto> | null = null;
+  let grantError: Error | null = null;
   let resolveGrant: (result: ApiResponse<RewardedGrantResultDto> | null) => void;
   let rejectGrant: (error: Error) => void;
   let shownRecordPromise: Promise<ApiResponse<void>> | null = null;
@@ -189,6 +193,15 @@ export async function showYandexRewardedAd(
     });
     return shownRecordPromise;
   };
+  const finishAfterDismissal = () => {
+    if (finished || !dismissed || !grantSettled) return;
+    finished = true;
+    if (grantError) {
+      rejectGrant(grantError);
+      return;
+    }
+    resolveGrant(grantResult);
+  };
 
   ad.onAdShown = () => {
     clearLifecycleCallbackTimeout();
@@ -202,11 +215,14 @@ export async function showYandexRewardedAd(
       granted,
       finished,
     });
+    dismissed = true;
     void rewardedAdsApi.recordEvent({ sessionId: session.sessionId, eventType: "DISMISSED" });
     if (!finished && !granted) {
       finished = true;
       resolveGrant(null);
+      return;
     }
+    finishAfterDismissal();
   };
   ad.onAdFailedToShow = (error) => {
     clearLifecycleCallbackTimeout();
@@ -221,7 +237,6 @@ export async function showYandexRewardedAd(
     }
   };
   ad.onRewarded = (reward) => {
-    clearLifecycleCallbackTimeout();
     logRewardedDebug("callback onRewarded", {
       sessionId: session.sessionId,
       granted,
@@ -250,19 +265,17 @@ export async function showYandexRewardedAd(
         balance: result.data?.balance,
         error: result.error,
       });
-      if (!finished) {
-        finished = true;
-        resolveGrant(result);
-      }
+      grantResult = result;
+      grantSettled = true;
+      finishAfterDismissal();
     })().catch((error) => {
       logRewardedDebug("rewarded grant flow failed", {
         sessionId: session.sessionId,
         error: formatError(error),
       });
-      if (!finished) {
-        finished = true;
-        rejectGrant(error instanceof Error ? error : new Error(String(error)));
-      }
+      grantError = error instanceof Error ? error : new Error(String(error));
+      grantSettled = true;
+      finishAfterDismissal();
     });
   };
 

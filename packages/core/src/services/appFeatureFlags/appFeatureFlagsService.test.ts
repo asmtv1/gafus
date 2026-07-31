@@ -126,22 +126,22 @@ describe("app feature flags", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("resolves only an exact iOS version to REVIEW", () => {
-    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.3" }, "1.6.3")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.4" }, "1.6.4")).toBe(
       "REVIEW",
     );
-    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.2" }, "1.6.3")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.3" }, "1.6.4")).toBe(
       "RELEASED",
     );
-    expect(resolveMobileFeatureProfile({ platform: "android", version: "1.6.3" }, "1.6.3")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "android", version: "1.6.4" }, "1.6.4")).toBe(
       "RELEASED",
     );
-    expect(resolveMobileFeatureProfile({ platform: "ios", version: null }, "1.6.3")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "ios", version: null }, "1.6.4")).toBe(
       "RELEASED",
     );
   });
 
   it("returns independent released and review mobile values", async () => {
-    state.policy.iosReviewVersion = "1.6.3";
+    state.policy.iosReviewVersion = "1.6.4";
     for (const key of [
       APP_FEATURE_MOBILE_VK_LOGIN_IOS,
       APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
@@ -151,16 +151,16 @@ describe("app feature flags", () => {
     }
 
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.3" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.4" }),
     ).resolves.toMatchObject({
       vkLoginEnabledOnIos: false,
       iosRuCardPaymentEnabled: false,
       iosRuCardPaymentHintEnabled: false,
       resolvedFeatureProfile: "REVIEW",
-      resolvedClientVersion: "1.6.3",
+      resolvedClientVersion: "1.6.4",
     });
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.2" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.3" }),
     ).resolves.toMatchObject({
       vkLoginEnabledOnIos: true,
       iosRuCardPaymentEnabled: true,
@@ -170,11 +170,11 @@ describe("app feature flags", () => {
   });
 
   it("keeps paywall and gating global for the review profile", async () => {
-    state.policy.iosReviewVersion = "1.6.3";
+    state.policy.iosReviewVersion = "1.6.4";
     await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, true);
     await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.3" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.4" }),
     ).resolves.toMatchObject({
       appSubscriptionPaywallEnabled: true,
       appSubscriptionGatingEnabled: false,
@@ -182,9 +182,9 @@ describe("app feature flags", () => {
   });
 
   it("defaults review features to disabled and global safeguards to enabled", async () => {
-    state.policy.iosReviewVersion = "1.6.3";
+    state.policy.iosReviewVersion = "1.6.4";
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.3" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.4" }),
     ).resolves.toMatchObject({
       vkLoginEnabledOnIos: false,
       iosRuCardPaymentEnabled: false,
@@ -198,7 +198,7 @@ describe("app feature flags", () => {
     const result = await updateMobileReleaseControl(
       {
         revision: 1,
-        iosReviewVersion: "1.6.3",
+        iosReviewVersion: "1.6.4",
         released: {
           vkLogin: true,
           iosRuCardPayment: true,
@@ -240,7 +240,7 @@ describe("app feature flags", () => {
       updateMobileReleaseControl(
         {
           revision: 1,
-          iosReviewVersion: "1.6.3",
+          iosReviewVersion: "1.6.4",
           released: {
             vkLogin: true,
             iosRuCardPayment: true,

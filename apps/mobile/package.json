@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -13,9 +13,10 @@
     "lint:fix": "eslint src app --fix",
     "start": "expo start",
     "test": "vitest run --config vitest.config.ts",
+    "tracer:sourcemaps": "eas env:exec production 'node ./scripts/upload-apptracer-sourcemaps.mjs'",
     "typecheck": "tsc --noEmit",
-    "update:ota:preview": "eas update --channel preview",
-    "update:ota:production": "eas update --channel production --environment production",
+    "update:ota:preview": "eas env:exec preview 'node ./scripts/publish-update-with-apptracer.mjs --channel preview --environment preview'",
+    "update:ota:production": "eas env:exec production 'node ./scripts/publish-update-with-apptracer.mjs --channel production --environment production'",
     "web": "expo start --web"
   },
   "dependencies": {
@@ -80,6 +81,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@apptracer/sourcemap": "^1.1.12",
     "@babel/core": "^7.26.0",
     "@types/react": "19.1.17",
     "typescript": "~5.9.3"

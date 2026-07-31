@@ -5,15 +5,19 @@ type RnErrorUtils = {
   setGlobalHandler?: (handler: (error: Error, isFatal?: boolean) => void) => void;
 };
 
+let installed = false;
+
 /**
  * Репортит необработанные JS-ошибки в Tracer, затем вызывает предыдущий handler.
  * Вызывать один раз при старте приложения (например из root layout).
  */
 export function installGlobalJsErrorHandler(): void {
+  if (installed) return;
   const errorUtils = (globalThis as { ErrorUtils?: RnErrorUtils }).ErrorUtils;
   if (!errorUtils?.setGlobalHandler) {
     return;
   }
+  installed = true;
   const previous = errorUtils.getGlobalHandler?.();
   errorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
     reportClientError(error, {

@@ -16,6 +16,10 @@ function getExtra(key: string): string | undefined {
   return typeof v === "string" ? v : undefined;
 }
 
+function getAppVersion(): string {
+  return getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ?? getExtra("appVersion") ?? "1.6.4";
+}
+
 function isEnableFlag(): boolean {
   const fromEnv = env?.EXPO_PUBLIC_ENABLE_TRACER === "true";
   const fromExtra = extra?.enableTracer;
@@ -53,7 +57,23 @@ export function getTracerConfig(): { appToken: string; versionName: string } | n
   if (!isTracerEnabled()) return null;
   const appToken = getAppToken() ?? "";
   if (!appToken) return null;
-  const versionName =
-    getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ?? getExtra("appVersion") ?? "1.6.3";
+  const versionName = getAppVersion();
   return { appToken, versionName };
+}
+
+/** Отдельный JS-проект AppTracer для React Native ошибок обеих платформ. */
+export function getTracerJsConfig(): {
+  appToken: string;
+  appVersion: string;
+  environment: "dev" | "prod";
+} | null {
+  const appToken =
+    getStr("EXPO_PUBLIC_TRACER_APP_TOKEN_JS", "tracerAppTokenJs") ?? getExtra("tracerAppTokenJs");
+  if (!appToken) return null;
+  if (__DEV__ && !isEnableFlag()) return null;
+  return {
+    appToken,
+    appVersion: getAppVersion(),
+    environment: __DEV__ ? "dev" : "prod",
+  };
 }

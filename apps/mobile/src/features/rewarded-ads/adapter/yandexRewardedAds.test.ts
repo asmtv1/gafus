@@ -80,6 +80,7 @@ describe("showYandexRewardedAd", () => {
     showMock.mockImplementation(async () => {
       loadedAd.onAdShown?.();
       loadedAd.onRewarded?.({ amount: 1, type: "credit" });
+      loadedAd.onAdDismissed?.();
     });
   });
 
@@ -87,7 +88,7 @@ describe("showYandexRewardedAd", () => {
     vi.useRealTimers();
   });
 
-  it("resolves with the grant result after the rewarded callback", async () => {
+  it("resolves with the grant result after the rewarded ad is dismissed", async () => {
     const result = await showYandexRewardedAd({
       sessionId: "session-1",
       requestNonce: "nonce-1",
@@ -234,6 +235,7 @@ describe("showYandexRewardedAd", () => {
     showMock.mockImplementation(async () => {
       loadedAd.onAdShown?.();
       loadedAd.onRewarded?.({ amount: 1, type: "credit" });
+      loadedAd.onAdDismissed?.();
     });
 
     const resultPromise = showYandexRewardedAd({

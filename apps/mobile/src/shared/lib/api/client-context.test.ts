@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const applicationState = vi.hoisted(() => ({
-  version: "1.6.3" as string | null,
+  version: "1.6.4" as string | null,
 }));
 
 vi.mock("expo-application", () => ({
@@ -18,13 +18,13 @@ import { getMobileClientHeaders } from "./client-context";
 
 describe("mobile client context headers", () => {
   beforeEach(() => {
-    applicationState.version = "1.6.3";
+    applicationState.version = "1.6.4";
   });
 
   it("sends the native semantic app version", () => {
     expect(getMobileClientHeaders()).toEqual({
       "X-Client-Platform": "ios",
-      "X-Client-Version": "1.6.3",
+      "X-Client-Version": "1.6.4",
     });
   });
 

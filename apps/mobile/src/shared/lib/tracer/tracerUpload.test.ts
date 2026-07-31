@@ -22,6 +22,14 @@ describe("uploadTracerBatch", () => {
 
     await expect(uploadTracerBatch(payload, "app-token")).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://sdk-api.apptracer.ru/api/crash/uploadBatch?crashToken=app-token&compressType=NONE&sdkVersion=2.6.5",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: "[]",
+      }),
+    );
   });
 
   it("throws the AppTracer response message for a rejected batch", async () => {

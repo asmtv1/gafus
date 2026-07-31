@@ -104,6 +104,11 @@ Mobile ходит в standalone Hono API `apps/api` (`/api/v1`). Не испол
 - `EXPO_PUBLIC_TRACER_APP_TOKEN`
 - `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS`
 - `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID`
+- `EXPO_PUBLIC_TRACER_APP_TOKEN_JS`
+- `TRACER_PLUGIN_TOKEN_ANDROID`
+- `TRACER_PLUGIN_TOKEN_IOS`
+- `TRACER_SOURCEMAP_TOKEN_MOBILE` — EAS `sensitive`; OTA-скрипт получает его через
+  `eas env:exec` для загрузки source maps
 - `VK_CLIENT_ID`
 - `VK_CLIENT_ID_IOS`
 - `VK_CLIENT_ID_ANDROID`

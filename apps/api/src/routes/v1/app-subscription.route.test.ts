@@ -81,7 +81,7 @@ describe("app subscription route contracts", () => {
         "/api/v1/app-subscription/yookassa/start",
         "POST",
         { planCode: "MONTHLY" },
-        { "x-client-platform": "ios", "x-client-version": "1.6.3" },
+        { "x-client-platform": "ios", "x-client-version": "1.6.4" },
       ),
     );
     expect(response.status).toBe(403);

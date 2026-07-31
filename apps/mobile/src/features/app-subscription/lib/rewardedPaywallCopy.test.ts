@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatGafusesWord,
+  getRewardedAdErrorMessage,
   getRewardedAccessSummary,
   getRewardedStatusMessage,
 } from "./rewardedPaywallCopy";
@@ -44,5 +45,15 @@ describe("rewarded paywall copy", () => {
       title: "Не хватает гафусов для записи",
       subtitle: "Запись к кинологу стоит 5 гафусов. У вас 3, не хватает 2.",
     });
+  });
+
+  it("hides Yandex no-fill JSON behind a helpful message", () => {
+    expect(
+      getRewardedAdErrorMessage(
+        new Error(
+          '{"description":"Ad request completed successfully, but there are no ads available.","adUnitId":"R-M-19370406-1"}',
+        ),
+      ),
+    ).toBe("Сейчас нет доступной рекламы. Попробуйте позже.");
   });
 });

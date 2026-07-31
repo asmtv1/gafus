@@ -13,8 +13,15 @@ import { Platform, StyleSheet, View } from "react-native";
 import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
 import { AnalyticsNavigationListener } from "@/shared/components/AnalyticsNavigationListener";
 import { getOrCreateMobileAnalyticsId } from "@/shared/lib/analytics-id";
-import { installGlobalJsErrorHandler, reportClientError } from "@/shared/lib/tracer";
+import {
+  initializeMobileJsTracer,
+  installGlobalJsErrorHandler,
+  reportClientError,
+  setTracerNetworkContext,
+  setTracerUser,
+} from "@/shared/lib/tracer";
 import { ErrorBoundary, OfflineIndicator, RequiredAppUpdateGate } from "@/shared/components";
+import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
@@ -22,6 +29,10 @@ import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
 import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
+
+// Initialize before React mounts so startup and provider errors are captured.
+initializeMobileJsTracer();
+installGlobalJsErrorHandler();
 
 function SyncProgressOnReconnect() {
   useSyncProgressOnReconnect();
@@ -47,6 +58,26 @@ function AnalyticsBootstrap() {
       });
     })();
   }, [authLoading]);
+
+  return null;
+}
+
+function TracerRuntimeContext() {
+  const userId = useAuthStore((state) => state.user?.id);
+  const { connectionType, isConnected, isInternetReachable, isOffline } = useNetworkStatus();
+
+  useEffect(() => {
+    setTracerUser(userId);
+  }, [userId]);
+
+  useEffect(() => {
+    setTracerNetworkContext({
+      connectionType,
+      isConnected,
+      isInternetReachable,
+      isOffline,
+    });
+  }, [connectionType, isConnected, isInternetReachable, isOffline]);
 
   return null;
 }
@@ -100,10 +131,6 @@ export default function RootLayout() {
     });
   }, [fontError]);
 
-  useEffect(() => {
-    installGlobalJsErrorHandler();
-  }, []);
-
   useOtaAutoApply();
 
   // DEBUG: лог любых deep link на Android для отладки VK redirect
@@ -134,6 +161,7 @@ export default function RootLayout() {
                   <View style={styles.container}>
                     <AnalyticsNavigationListener />
                     <AnalyticsBootstrap />
+                    <TracerRuntimeContext />
                     <OfflineIndicator />
                     <SyncProgressOnReconnect />
                     <SyncPreventionOnReconnect />

@@ -75,6 +75,30 @@ export function getRewardedStatusMessage(input: {
   return getRewardedUnavailableText(input.status.canWatchAdReason);
 }
 
+/** Converts provider/SDK errors into text suitable for the paywall UI. */
+export function getRewardedAdErrorMessage(error: unknown): string {
+  const rawMessage = error instanceof Error ? error.message : String(error ?? "");
+  let providerMessage = rawMessage;
+
+  try {
+    const parsed = JSON.parse(rawMessage) as { description?: unknown };
+    if (typeof parsed.description === "string") {
+      providerMessage = parsed.description;
+    }
+  } catch {
+    // The error is not provider JSON; use the safe generic message below.
+  }
+
+  const normalized = providerMessage.toLowerCase();
+  if (normalized.includes("no ads available") || normalized.includes("no fill")) {
+    return "Сейчас нет доступной рекламы. Попробуйте позже.";
+  }
+  if (normalized.includes("не загрузилась") || normalized.includes("timed out")) {
+    return "Реклама не загрузилась. Проверьте интернет и попробуйте ещё раз.";
+  }
+  return "Не удалось показать рекламу. Попробуйте ещё раз.";
+}
+
 function getTargetName(targetType?: string): string {
   if (targetType === "CONSULTATION_BOOKING") return "Запись к кинологу";
   if (targetType === "ARTICLE") return "Статья";

@@ -28,7 +28,10 @@ export async function uploadTracerBatch(
   const url = `${TRACER_URL}?crashToken=${encodeURIComponent(appToken)}&compressType=NONE&sdkVersion=${SDK_VERSION}`;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    // AppTracer SDK posts uploadBatch as a raw payload (including when the
+    // payload is not gzip-compressed). application/json may get a 2xx
+    // response but is not processed as a crash batch by the ingestion API.
+    headers: { "Content-Type": "application/octet-stream" },
     body: JSON.stringify(payload),
   });
 

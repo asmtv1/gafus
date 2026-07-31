@@ -1,8 +1,16 @@
 /**
- * Клиентский Tracer (JS): ручной reportClientError, глобальный handler, ErrorBoundary.
- * Не дублирует нативные краши без JS-стека; сбои сети при upload батча не репортятся повторно.
+ * Единый error-reporting facade: JS errors go to the dedicated AppTracer JS
+ * project, native crashes go to the native AppTracer SDK.
  */
 export { installGlobalJsErrorHandler } from "./installGlobalJsErrorHandler";
 export { reportClientError, reportClientErrorAndWait } from "./reportClientError";
 export { isTracerEnabled } from "./tracerConfig";
+export {
+  addTracerBreadcrumb,
+  getMobileJsTracerReleaseInfo,
+  initializeMobileJsTracer,
+  setTracerNetworkContext,
+  setTracerScreen,
+  setTracerUser,
+} from "./mobileJsTracer";
 export type { ClientErrorData } from "./types";

@@ -368,7 +368,7 @@ jobs:
                 echo "NEXTAUTH_URL=https://gafus.ru"
                 echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
                 echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
-                echo "NEXT_PUBLIC_APP_VERSION=1.6.2"
+                echo "NEXT_PUBLIC_APP_VERSION=1.6.4"
                 echo "NEXT_PUBLIC_ENABLE_TRACER=true"
                 echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
                 echo ""

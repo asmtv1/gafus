@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  deleteItemAsyncMock,
-  getItemAsyncMock,
-  reportClientErrorMock,
-  setItemAsyncMock,
-} = vi.hoisted(() => ({
-  deleteItemAsyncMock: vi.fn(),
-  getItemAsyncMock: vi.fn(),
-  reportClientErrorMock: vi.fn(),
-  setItemAsyncMock: vi.fn(),
-}));
+const { deleteItemAsyncMock, getItemAsyncMock, reportClientErrorMock, setItemAsyncMock } =
+  vi.hoisted(() => ({
+    deleteItemAsyncMock: vi.fn(),
+    getItemAsyncMock: vi.fn(),
+    reportClientErrorMock: vi.fn(),
+    setItemAsyncMock: vi.fn(),
+  }));
 
 vi.mock("expo-secure-store", () => ({
   deleteItemAsync: deleteItemAsyncMock,
@@ -19,7 +15,7 @@ vi.mock("expo-secure-store", () => ({
 }));
 
 vi.mock("expo-application", () => ({
-  nativeApplicationVersion: "1.6.3",
+  nativeApplicationVersion: "1.6.4",
 }));
 
 vi.mock("react-native", () => ({
@@ -32,6 +28,7 @@ vi.mock("@/shared/config", () => ({
 }));
 
 vi.mock("@/shared/lib/tracer", () => ({
+  addTracerBreadcrumb: vi.fn(),
   reportClientError: reportClientErrorMock,
 }));
 
@@ -57,7 +54,8 @@ describe("apiClient auth refresh", () => {
   });
 
   it("returns timeout instead of expiring the session when refresh is aborted", async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(makeResponse(401))
       .mockRejectedValueOnce(Object.assign(new Error("Aborted"), { name: "AbortError" }));
     vi.stubGlobal("fetch", fetchMock);
@@ -75,7 +73,7 @@ describe("apiClient auth refresh", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "X-Client-Platform": "ios",
-          "X-Client-Version": "1.6.3",
+          "X-Client-Version": "1.6.4",
         }),
       }),
     );

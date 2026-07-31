@@ -4,6 +4,8 @@ const path = require("path");
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, "../..");
 
+// AppTracer source maps are uploaded after each EAS update by
+// scripts/upload-apptracer-sourcemaps.mjs.
 const config = getDefaultConfig(projectRoot);
 
 // Поддержка монорепозитория (объединяем с дефолтами Expo)
