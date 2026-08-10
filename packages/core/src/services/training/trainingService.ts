@@ -9,9 +9,7 @@ import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
 import {
   getPremiumOrRewardedAccess,
-  REWARDED_STEP_UNLOCK_COST,
   requirePremiumOrRewardedUnlock,
-  unlockRewardedTarget,
   SubscriptionOrCreditsRequiredError,
   type MonetizedAccessPlatform,
   type RewardedTargetInput,
@@ -74,15 +72,10 @@ async function courseAllowsTrainingDetails(
   return Boolean(course && !course.isPaid && !course.isPrivate);
 }
 
-async function shouldApplyRewardedStepAccess(
-  courseType: string | undefined,
-  userId: string | undefined,
-): Promise<boolean> {
+async function shouldApplyRewardedStepAccess(courseType: string | undefined): Promise<boolean> {
   if (!courseType) return true;
   const course = await getCourseRewardedPolicy(courseType);
-  if (!course || course.isPaid) return false;
-  const accessCheck = await checkCourseAccess(courseType, userId);
-  return accessCheck.hasAccess || !course.isPrivate;
+  return Boolean(course && !course.isPaid && !course.isPrivate);
 }
 
 function redactLockedTrainingStep(step: TrainingStep, target: RewardedTargetInput): TrainingStep {
@@ -95,7 +88,6 @@ function redactLockedTrainingStep(step: TrainingStep, target: RewardedTargetInpu
     checklist: null,
     surveySlug: null,
     locked: true,
-    unlockCost: target.cost ?? REWARDED_STEP_UNLOCK_COST,
     monetizationTarget: {
       targetType: "COURSE_STEP",
       targetId: target.targetId,
@@ -444,10 +436,9 @@ export async function getTrainingDays(
           userDisplayName: String(uc!.userDisplayName).trim(),
           userGender: (uc!.userGender === "female" ? "female" : "male") as "male" | "female",
           petName: String(uc!.petName ?? "").trim(),
-          petGender:
-            (uc!.petGender === "female" || uc!.petGender === "male"
-              ? uc!.petGender
-              : null) as "male" | "female" | null,
+          petGender: (uc!.petGender === "female" || uc!.petGender === "male"
+            ? uc!.petGender
+            : null) as "male" | "female" | null,
           petNameGen: uc!.petNameGen?.trim() ?? null,
           petNameDat: uc!.petNameDat?.trim() ?? null,
           petNameAcc: uc!.petNameAcc?.trim() ?? null,
@@ -629,13 +620,13 @@ export async function getTrainingDayWithUserSteps(
     isPersonalized && hasPersonalization
       ? {
           userDisplayName: String(userCourse!.userDisplayName).trim(),
-          userGender:
-            (userCourse!.userGender === "female" ? "female" : "male") as "male" | "female",
+          userGender: (userCourse!.userGender === "female" ? "female" : "male") as
+            | "male"
+            | "female",
           petName: String(userCourse!.petName ?? "").trim(),
-          petGender:
-            (userCourse!.petGender === "female" || userCourse!.petGender === "male"
-              ? userCourse!.petGender
-              : null) as "male" | "female" | null,
+          petGender: (userCourse!.petGender === "female" || userCourse!.petGender === "male"
+            ? userCourse!.petGender
+            : null) as "male" | "female" | null,
           petNameGen: userCourse!.petNameGen?.trim() ?? null,
           petNameDat: userCourse!.petNameDat?.trim() ?? null,
           petNameAcc: userCourse!.petNameAcc?.trim() ?? null,
@@ -685,7 +676,15 @@ export async function getTrainingDayWithUserSteps(
       order: order,
       isPausedOnServer: false,
       remainingSecOnServer: undefined,
-      type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY" | undefined,
+      type: step.type as
+        | "TRAINING"
+        | "EXAMINATION"
+        | "THEORY"
+        | "BREAK"
+        | "PRACTICE"
+        | "DIARY"
+        | "SURVEY"
+        | undefined,
       checklist: step.checklist,
       requiresVideoReport: step.requiresVideoReport,
       requiresWrittenFeedback: step.requiresWrittenFeedback,
@@ -808,7 +807,15 @@ export async function getTrainingDayWithUserSteps(
     order: order,
     isPausedOnServer: pausedByStepId[stepOnDayId] ?? false,
     remainingSecOnServer: remainingByStepId[stepOnDayId] ?? undefined,
-    type: step.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY" | undefined,
+    type: step.type as
+      | "TRAINING"
+      | "EXAMINATION"
+      | "THEORY"
+      | "BREAK"
+      | "PRACTICE"
+      | "DIARY"
+      | "SURVEY"
+      | undefined,
     checklist: Array.isArray(step.checklist)
       ? (step.checklist as unknown as ChecklistQuestion[])
       : null,
@@ -845,7 +852,7 @@ export async function resolveCourseStepRewardedTarget(input: {
   dayOnCourseId: string;
   stepIndex: number;
 }): Promise<RewardedTargetInput | null> {
-  if (!(await shouldApplyRewardedStepAccess(input.courseType, input.userId))) {
+  if (!(await shouldApplyRewardedStepAccess(input.courseType))) {
     throw new Error("COURSE_ACCESS_DENIED");
   }
 
@@ -889,7 +896,6 @@ export async function resolveCourseStepRewardedTarget(input: {
   return {
     targetType: "COURSE_STEP",
     targetId: stepLink.id,
-    cost: REWARDED_STEP_UNLOCK_COST,
   };
 }
 
@@ -904,7 +910,7 @@ export async function getTrainingDayWithMonetizedSteps(
   });
   if (!detail) return null;
   const coursePolicy = await getCourseRewardedPolicy(courseType);
-  if (coursePolicy?.isPaid) {
+  if (coursePolicy?.isPaid || coursePolicy?.isPrivate) {
     return {
       ...detail,
       steps: detail.steps.map((step) => ({ ...step, locked: false })),
@@ -943,7 +949,6 @@ export async function getTrainingDayWithMonetizedSteps(
       return {
         ...step,
         locked: false,
-        unlockCost: target.cost ?? REWARDED_STEP_UNLOCK_COST,
         monetizationTarget: {
           targetType: "COURSE_STEP" as const,
           targetId: target.targetId,
@@ -964,7 +969,7 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
 }) {
   if (input.courseType) {
     const coursePolicy = await getCourseRewardedPolicy(input.courseType);
-    if (coursePolicy?.isPaid) {
+    if (coursePolicy?.isPaid || coursePolicy?.isPrivate) {
       const accessCheck = await checkCourseAccess(input.courseType, input.userId);
       if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
       return null;
@@ -974,47 +979,6 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
   if (!target) return null;
 
   return requirePremiumOrRewardedUnlock({
-    userId: input.userId,
-    platform: input.platform,
-    target,
-  });
-}
-
-export async function unlockCourseStepRewardedTarget(input: {
-  userId: string;
-  platform: MonetizedAccessPlatform;
-  courseType?: string;
-  dayOnCourseId: string;
-  stepIndex: number;
-}) {
-  if (input.courseType) {
-    const coursePolicy = await getCourseRewardedPolicy(input.courseType);
-    if (coursePolicy?.isPaid) {
-      const accessCheck = await checkCourseAccess(input.courseType, input.userId);
-      if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
-      return {
-        targetType: "COURSE_STEP" as const,
-        targetId: input.dayOnCourseId,
-        unlocked: true as const,
-        spentCredits: 0,
-        balance: 0,
-        pendingRefundCredits: 0,
-      };
-    }
-  }
-  const target = await resolveCourseStepRewardedTarget(input);
-  if (!target) {
-    return {
-      targetType: "COURSE_STEP" as const,
-      targetId: input.dayOnCourseId,
-      unlocked: true as const,
-      spentCredits: 0,
-      balance: 0,
-      pendingRefundCredits: 0,
-    };
-  }
-
-  return unlockRewardedTarget({
     userId: input.userId,
     platform: input.platform,
     target,
@@ -1077,9 +1041,7 @@ export async function validateTheoryStepForCompletion(
 /**
  * Возвращает тип курса по dayOnCourseId (для URL в push-уведомлениях).
  */
-export async function getCourseTypeByDayOnCourseId(
-  dayOnCourseId: string,
-): Promise<string | null> {
+export async function getCourseTypeByDayOnCourseId(dayOnCourseId: string): Promise<string | null> {
   const dayOnCourse = await prisma.dayOnCourse.findUnique({
     where: { id: dayOnCourseId },
     select: { course: { select: { type: true } } },

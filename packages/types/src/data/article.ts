@@ -38,7 +38,6 @@ export interface ArticleDetailDto extends ArticleListDto {
     target?: {
       targetType: "ARTICLE";
       targetId: string;
-      cost: number;
     };
   };
 }

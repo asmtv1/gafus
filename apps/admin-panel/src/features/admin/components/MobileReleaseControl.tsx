@@ -24,7 +24,6 @@ import {
   DialogTitle,
   Divider,
   FormControlLabel,
-  MenuItem,
   Stack,
   Switch,
   TextField,
@@ -59,7 +58,7 @@ const FEATURES: {
   {
     key: "rewardedAds",
     title: "Rewarded-реклама",
-    description: "Просмотр рекламы за внутренние кредиты на iOS.",
+    description: "Просмотр рекламы для доступа к материалу на 7 дней на iOS.",
   },
 ];
 
@@ -501,7 +500,7 @@ export function MobileReleaseControl({
           <Box>
             <Typography fontWeight={600}>Расширенные настройки рекламы</Typography>
             <Typography variant="body2" color="text.secondary">
-              Android, тестовый режим, дневной лимит и Yandex placement ID.
+              Android, тестовый режим и Yandex placement ID.
             </Typography>
           </Box>
         </AccordionSummary>
@@ -544,28 +543,6 @@ export function MobileReleaseControl({
                 }
                 label="Тестовый режим"
               />
-              <TextField
-                select
-                label="Дневной лимит"
-                value={draft.rewardedAds.dailyAdLimit}
-                disabled={disabled}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    rewardedAds: {
-                      ...current.rewardedAds,
-                      dailyAdLimit: Number(event.target.value) as 1 | 2 | 3,
-                    },
-                  }))
-                }
-                sx={{ minWidth: 180 }}
-              >
-                {[1, 2, 3].map((value) => (
-                  <MenuItem key={value} value={value}>
-                    {value}
-                  </MenuItem>
-                ))}
-              </TextField>
             </Stack>
             <TextField
               label="Yandex Android placement ID"

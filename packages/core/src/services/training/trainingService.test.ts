@@ -4,7 +4,6 @@ import {
   getTrainingDays,
   getTrainingDayWithMonetizedSteps,
   getTrainingDayWithUserSteps,
-  unlockCourseStepRewardedTarget,
   resolveCourseStepRewardedTarget,
 } from "./trainingService.ts";
 import { checkCourseAccess } from "../course";
@@ -25,7 +24,7 @@ const mockUserCourseUpsert = vi.fn();
 const mockTransaction = vi.fn();
 const mockIsPrismaUniqueConstraintError = vi.fn();
 const mockGetPremiumOrRewardedAccess = vi.fn();
-const mockUnlockRewardedTarget = vi.fn();
+const mockRequirePremiumOrRewardedUnlock = vi.fn();
 
 const txForMissingSteps = {
   userStep: {
@@ -67,7 +66,8 @@ vi.mock("../course", () => ({
 
 vi.mock("../rewardedCredits", () => ({
   getPremiumOrRewardedAccess: (...args: unknown[]) => mockGetPremiumOrRewardedAccess(...args),
-  unlockRewardedTarget: (...args: unknown[]) => mockUnlockRewardedTarget(...args),
+  requirePremiumOrRewardedUnlock: (...args: unknown[]) =>
+    mockRequirePremiumOrRewardedUnlock(...args),
   REWARDED_STEP_UNLOCK_COST: 1,
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
     constructor() {
@@ -305,8 +305,16 @@ describe("getTrainingDays", () => {
             equipment: "",
             showCoursePathExport: false,
             stepLinks: [
-              { id: "sl-1", order: 0, step: { durationSec: null, estimatedDurationSec: null, type: "BREAK" } },
-              { id: "sl-2", order: 1, step: { durationSec: null, estimatedDurationSec: null, type: "DIARY" } },
+              {
+                id: "sl-1",
+                order: 0,
+                step: { durationSec: null, estimatedDurationSec: null, type: "BREAK" },
+              },
+              {
+                id: "sl-2",
+                order: 1,
+                step: { durationSec: null, estimatedDurationSec: null, type: "DIARY" },
+              },
             ],
           },
           userTrainings: [{ status: "NOT_STARTED", steps: [] }],
@@ -480,7 +488,9 @@ describe("getTrainingDays", () => {
 describe("rewarded training step access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (checkCourseAccess as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ hasAccess: true });
+    (checkCourseAccess as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      hasAccess: true,
+    });
     mockDayOnCourseFindMany.mockResolvedValue([{ order: 1, day: { type: "regular" } }]);
     mockDayOnCourseFindFirst.mockResolvedValue({
       id: "doc-1",
@@ -569,7 +579,7 @@ describe("rewarded training step access", () => {
       stepIndex: 0,
     });
 
-    expect(target).toEqual({ targetType: "COURSE_STEP", targetId: "sod-1", cost: 1 });
+    expect(target).toEqual({ targetType: "COURSE_STEP", targetId: "sod-1" });
   });
 
   it("redacts steps in a public course even without CourseAccess", async () => {
@@ -587,22 +597,6 @@ describe("rewarded training step access", () => {
       locked: true,
       monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" },
     });
-  });
-
-  it("does not unlock a step in a paid course through rewarded credits without CourseAccess", async () => {
-    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: false });
-    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
-
-    await expect(
-      unlockCourseStepRewardedTarget({
-        userId: "user-1",
-        platform: "ANDROID",
-        courseType: "course",
-        dayOnCourseId: "doc-1",
-        stepIndex: 0,
-      }),
-    ).rejects.toThrow("COURSE_ACCESS_DENIED");
-    expect(mockUnlockRewardedTarget).not.toHaveBeenCalled();
   });
 
   it("does not redact steps in a paid course when separate CourseAccess exists", async () => {
@@ -624,27 +618,19 @@ describe("rewarded training step access", () => {
     expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
   });
 
-  it("does not spend rewarded credits for a paid course step when separate CourseAccess exists", async () => {
+  it("does not apply rewarded step gating inside a private course with CourseAccess", async () => {
     vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
-    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: false, isPrivate: true });
 
-    const result = await unlockCourseStepRewardedTarget({
-      userId: "user-1",
-      platform: "ANDROID",
-      courseType: "course",
-      dayOnCourseId: "doc-1",
-      stepIndex: 0,
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform: "IOS",
     });
 
-    expect(result).toEqual({
-      targetType: "COURSE_STEP",
-      targetId: "doc-1",
-      unlocked: true,
-      spentCredits: 0,
-      balance: 0,
-      pendingRefundCredits: 0,
+    expect(result?.steps[0]).toMatchObject({
+      locked: false,
+      description: "Secret content",
     });
-    expect(mockUnlockRewardedTarget).not.toHaveBeenCalled();
+    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
   });
 });
 
@@ -692,9 +678,8 @@ describe("getTrainingDayWithUserSteps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
-    mockDayOnCourseFindMany.mockResolvedValue([
-      { order: 1, day: { type: "regular" } },
-    ]);
+    mockCourseFindFirst.mockResolvedValue({ isPaid: false, isPrivate: true });
+    mockDayOnCourseFindMany.mockResolvedValue([{ order: 1, day: { type: "regular" } }]);
   });
 
   it("returns null when access denied", async () => {
@@ -781,9 +766,7 @@ describe("getTrainingDayWithUserSteps", () => {
     });
     mockUserStepFindMany
       .mockRejectedValueOnce(new Error("column not found"))
-      .mockResolvedValueOnce([
-        { id: "us-1", stepOnDayId: "sl-1", status: "IN_PROGRESS" },
-      ]);
+      .mockResolvedValueOnce([{ id: "us-1", stepOnDayId: "sl-1", status: "IN_PROGRESS" }]);
 
     const result = await getTrainingDayWithUserSteps("u1", "main", "doc-1");
 
@@ -795,20 +778,16 @@ describe("getTrainingDayWithUserSteps", () => {
       ...baseFoundDay,
       userTrainings: [{ id: "ut-1", status: "NOT_STARTED", currentStepIndex: 0 }],
     });
-    mockUserStepFindMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          id: "us-1",
-          stepOnDayId: "sl-1",
-          status: "NOT_STARTED",
-          paused: false,
-          remainingSec: null,
-        },
-      ]);
-    mockTransaction.mockRejectedValueOnce(
-      Object.assign(new Error("unique"), { code: "P2002" }),
-    );
+    mockUserStepFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: "us-1",
+        stepOnDayId: "sl-1",
+        status: "NOT_STARTED",
+        paused: false,
+        remainingSec: null,
+      },
+    ]);
+    mockTransaction.mockRejectedValueOnce(Object.assign(new Error("unique"), { code: "P2002" }));
     mockIsPrismaUniqueConstraintError.mockReturnValue(true);
 
     const result = await getTrainingDayWithUserSteps("u1", "main", "doc-1");

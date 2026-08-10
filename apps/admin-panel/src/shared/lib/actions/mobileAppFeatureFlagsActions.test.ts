@@ -63,7 +63,6 @@ const validPayload = {
   },
   rewardedAds: {
     androidEnabled: true,
-    dailyAdLimit: 2,
     yandexAndroidPlacementId: "android-id",
     yandexIosPlacementId: "ios-id",
     testMode: false,

@@ -15,7 +15,7 @@ export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enab
 
 const RELEASE_POLICY_KEY = "default";
 const REWARDED_SETTINGS_KEY = "default";
-const CURRENT_MOBILE_VERSION = "1.6.4";
+const CURRENT_MOBILE_VERSION = "1.6.5";
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
@@ -55,7 +55,6 @@ export type MobileReleaseControlDto = {
   };
   rewardedAds: {
     androidEnabled: boolean;
-    dailyAdLimit: 1 | 2 | 3;
     yandexAndroidPlacementId: string | null;
     yandexIosPlacementId: string | null;
     testMode: boolean;
@@ -113,10 +112,6 @@ function validateRewardedSettings(input: UpdateMobileReleaseControlInput): {
   androidPlacementId: string | null;
   iosPlacementId: string | null;
 } {
-  if (![1, 2, 3].includes(input.rewardedAds.dailyAdLimit)) {
-    throw new Error("Дневной лимит рекламы должен быть 1, 2 или 3");
-  }
-
   const androidPlacementId = normalizePlacementId(input.rewardedAds.yandexAndroidPlacementId);
   const iosPlacementId = normalizePlacementId(input.rewardedAds.yandexIosPlacementId);
   if (!input.rewardedAds.testMode) {
@@ -273,8 +268,6 @@ export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto
     },
     rewardedAds: {
       androidEnabled: rewarded?.androidEnabled ?? false,
-      dailyAdLimit:
-        rewarded?.dailyAdLimit === 2 || rewarded?.dailyAdLimit === 3 ? rewarded.dailyAdLimit : 1,
       yandexAndroidPlacementId: rewarded?.yandexAndroidPlacementId ?? null,
       yandexIosPlacementId: rewarded?.yandexIosPlacementId ?? null,
       testMode: rewarded?.testMode ?? true,
@@ -346,7 +339,6 @@ export async function updateMobileReleaseControl(
           key: REWARDED_SETTINGS_KEY,
           androidEnabled: input.rewardedAds.androidEnabled,
           iosEnabled: input.released.rewardedAds,
-          dailyAdLimit: input.rewardedAds.dailyAdLimit,
           yandexAndroidPlacementId: androidPlacementId,
           yandexIosPlacementId: iosPlacementId,
           testMode: input.rewardedAds.testMode,
@@ -355,7 +347,6 @@ export async function updateMobileReleaseControl(
         update: {
           androidEnabled: input.rewardedAds.androidEnabled,
           iosEnabled: input.released.rewardedAds,
-          dailyAdLimit: input.rewardedAds.dailyAdLimit,
           yandexAndroidPlacementId: androidPlacementId,
           yandexIosPlacementId: iosPlacementId,
           testMode: input.rewardedAds.testMode,

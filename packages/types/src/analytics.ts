@@ -23,11 +23,7 @@ export const ANALYTICS_EVENT_NAMES = {
   rewarded_ad_failed: "rewarded_ad_failed",
   rewarded_ad_dismissed: "rewarded_ad_dismissed",
   rewarded_ad_rewarded: "rewarded_ad_rewarded",
-  rewarded_credits_granted: "rewarded_credits_granted",
-  rewarded_credits_spent: "rewarded_credits_spent",
-  rewarded_credits_refunded: "rewarded_credits_refunded",
-  rewarded_daily_limit_reached: "rewarded_daily_limit_reached",
-  rewarded_target_unlocked: "rewarded_target_unlocked",
+  rewarded_access_granted: "rewarded_access_granted",
   rewarded_to_subscription_started: "rewarded_to_subscription_started",
 } as const;
 
@@ -50,11 +46,7 @@ export type RewardedAnalyticsEventName =
   | "rewarded_ad_failed"
   | "rewarded_ad_dismissed"
   | "rewarded_ad_rewarded"
-  | "rewarded_credits_granted"
-  | "rewarded_credits_spent"
-  | "rewarded_credits_refunded"
-  | "rewarded_daily_limit_reached"
-  | "rewarded_target_unlocked"
+  | "rewarded_access_granted"
   | "rewarded_to_subscription_started";
 
 /** Базовые поля payload после нормализации в @gafus/analytics. */
@@ -111,9 +103,8 @@ export type AnalyticsTrackPayload =
       eventName: RewardedAnalyticsEventName;
       rewardedPlatform?: string;
       targetType?: string;
-      creditsDelta?: number;
-      balance?: number;
-      dailyLimit?: number;
+      targetId?: string;
+      expiresAt?: string;
       reason?: string;
       provider?: string;
     });
@@ -196,9 +187,8 @@ export type AnalyticsTrackEventInput =
       pathOrScreen: string;
       rewardedPlatform?: string;
       targetType?: string;
-      creditsDelta?: number;
-      balance?: number;
-      dailyLimit?: number;
+      targetId?: string;
+      expiresAt?: string;
       reason?: string;
       provider?: string;
       userId?: string;

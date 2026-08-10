@@ -4,7 +4,7 @@ import { SubscriptionOrCreditsRequiredError } from "./errors";
 
 const state = vi.hoisted(() => ({
   hasPremium: false,
-  unlocks: new Set<string>(),
+  unlocks: new Map<string, Date>(),
   userSteps: new Map<
     string,
     {
@@ -34,17 +34,26 @@ const state = vi.hoisted(() => ({
       stepTypes: string[];
     }
   >(),
-  notifications: [] as { userId: string; day: number; stepIndex: number; url: string | null; sent: boolean }[],
+  notifications: [] as {
+    userId: string;
+    day: number;
+    stepIndex: number;
+    url: string | null;
+    sent: boolean;
+  }[],
 }));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
-    rewardedCreditTransaction: {
+    rewardedTargetAccess: {
       findFirst: vi.fn(({ where }) =>
         Promise.resolve(
-          state.unlocks.has(`${where.userId}:${where.targetType}:${where.targetId}`)
-            ? { id: "tx-unlock" }
-            : null,
+          (() => {
+            const expiresAt = state.unlocks.get(
+              `${where.userId}:${where.targetType}:${where.targetId}`,
+            );
+            return expiresAt && expiresAt > where.expiresAt.gt ? { id: "target-access" } : null;
+          })(),
         ),
       ),
     },
@@ -53,8 +62,12 @@ vi.mock("@gafus/prisma", () => ({
         const row =
           [...state.userSteps.values()].find((step) => {
             if (where.id && step.id !== where.id) return false;
-            if (where.userTraining?.userId && step.userId !== where.userTraining.userId) return false;
-            if (where.stepOnDay?.step?.videoUrl && step.videoUrl !== where.stepOnDay.step.videoUrl) {
+            if (where.userTraining?.userId && step.userId !== where.userTraining.userId)
+              return false;
+            if (
+              where.stepOnDay?.step?.videoUrl &&
+              step.videoUrl !== where.stepOnDay.step.videoUrl
+            ) {
               return false;
             }
             return true;
@@ -71,10 +84,16 @@ vi.mock("@gafus/prisma", () => ({
         const row =
           [...state.dailyUserSteps.values()].find((step) => {
             if (where.id && step.id !== where.id) return false;
-            if (where.dailyCourseUserTraining?.userId && step.userId !== where.dailyCourseUserTraining.userId) {
+            if (
+              where.dailyCourseUserTraining?.userId &&
+              step.userId !== where.dailyCourseUserTraining.userId
+            ) {
               return false;
             }
-            if (where.bundleStep?.step?.videoUrl && step.videoUrl !== where.bundleStep.step.videoUrl) {
+            if (
+              where.bundleStep?.step?.videoUrl &&
+              step.videoUrl !== where.bundleStep.step.videoUrl
+            ) {
               return false;
             }
             return true;
@@ -84,9 +103,21 @@ vi.mock("@gafus/prisma", () => ({
           id: row.id,
           bundleStepId: row.bundleStepId,
           dailyCourseUserTraining: { scheduleId: row.scheduleId },
-          bundleStep: { id: row.bundleStepId, step: { type: row.stepType, videoUrl: row.videoUrl } },
+          bundleStep: {
+            id: row.bundleStepId,
+            step: { type: row.stepType, videoUrl: row.videoUrl },
+          },
         });
       }),
+    },
+    dailyCourseBundleStep: {
+      findFirst: vi.fn(({ where }) =>
+        Promise.resolve(
+          [...state.dailyUserSteps.values()].some((step) => step.videoUrl === where.step?.videoUrl)
+            ? { id: "daily-bundle-step" }
+            : null,
+        ),
+      ),
     },
     dayOnCourse: {
       findFirst: vi.fn(({ where }) => {
@@ -129,28 +160,11 @@ vi.mock("../appSubscription", () => ({
   ),
 }));
 
-const spendRewardedCredits = vi.fn(({ userId, target }) => {
-  state.unlocks.add(`${userId}:${target.targetType}:${target.targetId}`);
-  return Promise.resolve({
-    spentCredits: target.cost ?? 1,
-    balance: 4,
-    pendingRefundCredits: 0,
-    skippedDueToPremium: false,
-    replay: false,
-  });
-});
-
-vi.mock("./walletService", () => ({
-  spendRewardedCredits: (...args: unknown[]) => spendRewardedCredits(...args),
-}));
-
 import {
-  buildRewardedSpendIdempotencyKey,
   getPremiumOrRewardedAccess,
   requirePremiumOrRewardedAccessForStepNotification,
   requirePremiumOrRewardedAccessForUserStep,
   requirePremiumOrRewardedAccessForVideoUrl,
-  unlockRewardedTarget,
 } from "./accessService";
 
 describe("premium or rewarded access", () => {
@@ -171,10 +185,9 @@ describe("premium or rewarded access", () => {
       getPremiumOrRewardedAccess({
         userId: "user-1",
         platform: "ANDROID",
-        target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
+        target: { targetType: "ARTICLE", targetId: "article-1" },
       }),
     ).resolves.toMatchObject({ allowed: true, source: "PREMIUM" });
-    expect(spendRewardedCredits).not.toHaveBeenCalled();
   });
 
   it("allows a child endpoint for an already unlocked regular user step", async () => {
@@ -184,13 +197,14 @@ describe("premium or rewarded access", () => {
       stepOnDayId: "step-on-day-1",
       stepType: "EXAMINATION",
     });
-    state.unlocks.add("user-1:COURSE_STEP:step-on-day-1");
+    state.unlocks.set("user-1:COURSE_STEP:step-on-day-1", new Date("2026-08-12T00:00:00Z"));
 
     await expect(
       requirePremiumOrRewardedAccessForUserStep({
         userId: "user-1",
-        platform: "WEB_DESKTOP",
+        platform: "ANDROID",
         userStepId: "user-step-1",
+        now: new Date("2026-08-11T00:00:00Z"),
       }),
     ).resolves.toMatchObject({
       allowed: true,
@@ -199,7 +213,7 @@ describe("premium or rewarded access", () => {
     });
   });
 
-  it("allows a video endpoint for an unlocked daily course user step", async () => {
+  it("allows a video endpoint for a daily course user step without subscription", async () => {
     state.dailyUserSteps.set("daily-user-step-1", {
       id: "daily-user-step-1",
       userId: "user-1",
@@ -208,19 +222,13 @@ describe("premium or rewarded access", () => {
       stepType: "TRAINING",
       videoUrl: "https://storage.yandexcloud.net/gafus-media/video.mp4",
     });
-    state.unlocks.add("user-1:DAILY_COURSE_STEP:schedule-1:bundle-step-1");
-
     await expect(
       requirePremiumOrRewardedAccessForVideoUrl({
         userId: "user-1",
         platform: "WEB_DESKTOP",
         videoUrl: "https://storage.yandexcloud.net/gafus-media/video.mp4",
       }),
-    ).resolves.toMatchObject({
-      allowed: true,
-      source: "REWARDED",
-      target: { targetType: "DAILY_COURSE_STEP", targetId: "schedule-1:bundle-step-1" },
-    });
+    ).resolves.toBeNull();
   });
 
   it("resolves notification access from the existing notification URL", async () => {
@@ -236,14 +244,15 @@ describe("premium or rewarded access", () => {
       url: "/trainings/basic/day-on-course-1",
       sent: false,
     });
-    state.unlocks.add("user-1:COURSE_STEP:step-on-day-1");
+    state.unlocks.set("user-1:COURSE_STEP:step-on-day-1", new Date("2026-08-12T00:00:00Z"));
 
     await expect(
       requirePremiumOrRewardedAccessForStepNotification({
         userId: "user-1",
-        platform: "WEB_DESKTOP",
+        platform: "IOS",
         day: 1,
         stepIndex: 0,
+        now: new Date("2026-08-11T00:00:00Z"),
       }),
     ).resolves.toMatchObject({
       allowed: true,
@@ -253,16 +262,42 @@ describe("premium or rewarded access", () => {
   });
 
   it("allows an already rewarded-unlocked target without spending again", async () => {
-    state.unlocks.add("user-1:ARTICLE:article-1");
+    state.unlocks.set("user-1:ARTICLE:article-1", new Date("2026-08-12T00:00:00Z"));
 
     await expect(
       getPremiumOrRewardedAccess({
         userId: "user-1",
         platform: "ANDROID",
-        target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
+        target: { targetType: "ARTICLE", targetId: "article-1" },
+        now: new Date("2026-08-11T00:00:00Z"),
       }),
     ).resolves.toMatchObject({ allowed: true, source: "REWARDED" });
-    expect(spendRewardedCredits).not.toHaveBeenCalled();
+  });
+
+  it("does not accept rewarded access on web", async () => {
+    state.unlocks.set("user-1:ARTICLE:article-1", new Date("2026-08-12T00:00:00Z"));
+
+    await expect(
+      getPremiumOrRewardedAccess({
+        userId: "user-1",
+        platform: "WEB_DESKTOP",
+        target: { targetType: "ARTICLE", targetId: "article-1" },
+        now: new Date("2026-08-11T00:00:00Z"),
+      }),
+    ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+  });
+
+  it("does not accept an expired rewarded access", async () => {
+    state.unlocks.set("user-1:ARTICLE:article-1", new Date("2026-08-11T00:00:00Z"));
+
+    await expect(
+      getPremiumOrRewardedAccess({
+        userId: "user-1",
+        platform: "IOS",
+        target: { targetType: "ARTICLE", targetId: "article-1" },
+        now: new Date("2026-08-11T00:00:00Z"),
+      }),
+    ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
   });
 
   it("throws subscription-or-credits required when locked and caller does not unlock", async () => {
@@ -270,31 +305,8 @@ describe("premium or rewarded access", () => {
       getPremiumOrRewardedAccess({
         userId: "user-1",
         platform: "ANDROID",
-        target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
+        target: { targetType: "ARTICLE", targetId: "article-1" },
       }),
     ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
-  });
-
-  it("spends once when explicitly unlocking a locked target", async () => {
-    const result = await unlockRewardedTarget({
-      userId: "user-1",
-      platform: "ANDROID",
-      target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
-    });
-
-    expect(result).toMatchObject({
-      targetType: "ARTICLE",
-      targetId: "article-1",
-      unlocked: true,
-      spentCredits: 1,
-    });
-    expect(spendRewardedCredits).toHaveBeenCalledWith(
-      expect.objectContaining({
-        idempotencyKey: buildRewardedSpendIdempotencyKey("user-1", {
-          targetType: "ARTICLE",
-          targetId: "article-1",
-        }),
-      }),
-    );
   });
 });

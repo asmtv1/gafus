@@ -20,7 +20,6 @@ const {
   streamFileFromCDNMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
-  unlockCourseStepRewardedTargetMock,
   verifyTokenMock,
 } = vi.hoisted(() => ({
   checkCourseAccessByIdMock: vi.fn(),
@@ -39,7 +38,6 @@ const {
   streamFileFromCDNMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
-  unlockCourseStepRewardedTargetMock: vi.fn(),
   verifyTokenMock: vi.fn(),
 }));
 
@@ -49,7 +47,6 @@ vi.mock("@gafus/core/services/training", () => ({
   getTrainingDayWithUserSteps: vi.fn(),
   requireCourseStepPremiumOrRewardedUnlock: requireCourseStepPremiumOrRewardedUnlockMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
-  unlockCourseStepRewardedTarget: unlockCourseStepRewardedTargetMock,
   updateStepAndDay: updateStepAndDayMock,
   validateTheoryStepForCompletion: vi.fn(),
 }));
@@ -141,14 +138,6 @@ describe("training route validation", () => {
     getTrainingDayWithMonetizedStepsMock.mockResolvedValue({ trainingDayId: "day-1", steps: [] });
     requirePremiumOrRewardedAccessForVideoUrlMock.mockResolvedValue(null);
     requireCourseStepPremiumOrRewardedUnlockMock.mockResolvedValue(null);
-    unlockCourseStepRewardedTargetMock.mockResolvedValue({
-      targetType: "COURSE_STEP",
-      targetId: "step-on-day-1",
-      unlocked: true,
-      spentCredits: 1,
-      balance: 4,
-      pendingRefundCredits: 0,
-    });
     updateStepAndDayMock.mockResolvedValue({
       courseId: "7b9e6c3a-321f-40de-ada8-11309951b181",
       allCompleted: false,

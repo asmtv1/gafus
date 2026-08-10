@@ -2,286 +2,308 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RewardedAdSessionError } from "./errors";
 
+type Session = {
+  id: string;
+  userId: string;
+  platform: "ANDROID" | "IOS";
+  provider: "YANDEX";
+  placementId: string;
+  status: string;
+  targetType: "ARTICLE" | "COURSE_STEP" | null;
+  targetId: string | null;
+  requestNonceHash: string;
+  expiresAt: Date;
+  rewardedAt: Date | null;
+  grantedAt: Date | null;
+  createdAt: Date;
+};
+type Access = {
+  id: string;
+  userId: string;
+  targetType: "ARTICLE" | "COURSE_STEP";
+  targetId: string;
+  source: "REWARDED_AD" | "LEGACY_GAFUS";
+  platform: "ANDROID" | "IOS" | null;
+  sessionId: string | null;
+  grantedAt: Date;
+  expiresAt: Date;
+};
+
 const state = vi.hoisted(() => ({
-  sessions: new Map<
-    string,
-    {
-      id: string;
-      userId: string;
-      platform: string;
-      provider: string;
-      placementId: string;
-      status: string;
-      targetType: string | null;
-      targetId: string | null;
-      requestNonceHash: string;
-      expiresAt: Date;
-      rewardedAt: Date | null;
-      grantedAt: Date | null;
-      createdAt: Date;
-    }
-  >(),
+  sessions: new Map<string, Session>(),
+  accesses: new Map<string, Access>(),
   events: [] as { sessionId: string; eventType: string; payload?: unknown }[],
 }));
 
-const prismaMocks = vi.hoisted(() => ({
-  findFirst: vi.fn(({ where }) =>
-    Promise.resolve(
-      [...state.sessions.values()].find(
-        (session) =>
-          session.userId === where.userId &&
-          session.platform === where.platform &&
-          where.status.in.includes(session.status) &&
-          session.expiresAt > where.expiresAt.gt &&
-          (where.targetType === undefined || session.targetType === where.targetType) &&
-          (where.targetId === undefined || session.targetId === where.targetId),
-      ) ?? null,
+const prismaMocks = vi.hoisted(() => {
+  const rewardedAdSession = {
+    findFirst: vi.fn(({ where }) =>
+      Promise.resolve(
+        [...state.sessions.values()].find(
+          (session) =>
+            session.userId === where.userId &&
+            session.platform === where.platform &&
+            where.status.in.includes(session.status) &&
+            session.expiresAt > where.expiresAt.gt &&
+            session.targetType === where.targetType &&
+            session.targetId === where.targetId,
+        ) ?? null,
+      ),
     ),
-  ),
-  findUnique: vi.fn(({ where }) => Promise.resolve(state.sessions.get(where.id) ?? null)),
-  create: vi.fn(({ data }) => {
-    const session = {
-      id: `session-${state.sessions.size + 1}`,
-      provider: "YANDEX",
-      status: "CREATED",
-      rewardedAt: null,
-      grantedAt: null,
-      createdAt: new Date("2026-05-31T10:00:00.000Z"),
-      ...data,
-      targetType: data.targetType ?? null,
-      targetId: data.targetId ?? null,
-    };
-    state.sessions.set(session.id, session);
-    return Promise.resolve(session);
-  }),
-  update: vi.fn(({ where, data }) => {
-    const session = state.sessions.get(where.id);
-    if (!session) {
-      throw new Error("missing session");
-    }
-    Object.assign(session, data);
-    return Promise.resolve(session);
-  }),
-  eventCreate: vi.fn(({ data }) => {
-    state.events.push(data);
-    return Promise.resolve({ id: `event-${state.events.length}`, ...data });
-  }),
-}));
-
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    rewardedAdSession: {
-      findFirst: prismaMocks.findFirst,
-      findUnique: prismaMocks.findUnique,
-      create: prismaMocks.create,
-      update: prismaMocks.update,
-    },
+    findUnique: vi.fn(({ where }) => Promise.resolve(state.sessions.get(where.id) ?? null)),
+    create: vi.fn(({ data }) => {
+      const session: Session = {
+        id: `session-${state.sessions.size + 1}`,
+        provider: "YANDEX",
+        status: "CREATED",
+        rewardedAt: null,
+        grantedAt: null,
+        createdAt: new Date("2026-08-05T10:00:00.000Z"),
+        ...data,
+      };
+      state.sessions.set(session.id, session);
+      return Promise.resolve(session);
+    }),
+    update: vi.fn(({ where, data }) => {
+      const session = state.sessions.get(where.id);
+      if (!session) throw new Error("missing session");
+      Object.assign(session, data);
+      return Promise.resolve(session);
+    }),
+  };
+  const rewardedTargetAccess = {
+    findFirst: vi.fn(({ where }) =>
+      Promise.resolve(
+        [...state.accesses.values()]
+          .filter(
+            (access) =>
+              access.userId === where.userId &&
+              access.targetType === where.targetType &&
+              access.targetId === where.targetId &&
+              access.expiresAt > where.expiresAt.gt,
+          )
+          .sort((left, right) => right.expiresAt.getTime() - left.expiresAt.getTime())[0] ?? null,
+      ),
+    ),
+    findUnique: vi.fn(({ where }) =>
+      Promise.resolve(
+        [...state.accesses.values()].find((access) => access.sessionId === where.sessionId) ?? null,
+      ),
+    ),
+    create: vi.fn(({ data }) => {
+      const access: Access = { id: `access-${state.accesses.size + 1}`, ...data };
+      state.accesses.set(access.id, access);
+      return Promise.resolve(access);
+    }),
+  };
+  const client = {
+    rewardedAdSession,
+    rewardedTargetAccess,
     rewardedAdEvent: {
-      create: prismaMocks.eventCreate,
+      create: vi.fn(({ data }) => {
+        state.events.push(data);
+        return Promise.resolve({ id: `event-${state.events.length}`, ...data });
+      }),
     },
-  },
-}));
+    article: { findFirst: vi.fn().mockResolvedValue({ id: "article-1" }) },
+    stepOnDay: { findFirst: vi.fn().mockResolvedValue({ id: "step-1" }) },
+    $executeRawUnsafe: vi.fn().mockResolvedValue(1),
+  };
+  return {
+    ...client,
+    $transaction: vi.fn((callback) => callback(client)),
+  };
+});
 
+vi.mock("@gafus/prisma", () => ({ prisma: prismaMocks }));
 vi.mock("./settingsService", () => ({
   resolveRewardedPlatformSettings: vi.fn().mockResolvedValue({
     platform: "ANDROID",
     platformEnabled: true,
     placementId: "demo-rewarded-yandex",
-    dailyAdLimit: 1,
     testMode: true,
   }),
 }));
 
-const grantRewardedCreditsToWallet = vi.fn().mockResolvedValue({
-  grantedCredits: 5,
-  balance: 5,
-  pendingRefundCredits: 0,
-  maxBalance: 5,
-  adsWatchedToday: 1,
-  dailyAdLimit: 1,
-  canWatchAd: false,
-  replay: false,
-});
-
-vi.mock("./walletService", () => ({
-  getRewardedCreditsStatus: vi.fn().mockResolvedValue({
-    wallet: { balance: 0, pendingRefundCredits: 0, maxBalance: 5, creditsPerReward: 5 },
-    today: { adsWatchedToday: 0, dailyAdLimit: 1, limitResetAt: "2026-06-01T00:00:00.000Z" },
-    canWatchAd: true,
-    canWatchAdReason: "OK",
-    nextGrantCredits: 5,
-  }),
-  grantRewardedCreditsToWallet: (...args: unknown[]) => grantRewardedCreditsToWallet(...args),
-}));
-
 import {
   createRewardedAdSession,
-  grantRewardedCredits,
+  getRewardedAdStatus,
+  grantRewardedTargetAccess,
   recordRewardedAdEvent,
 } from "./adSessionService";
 
-describe("rewarded ad sessions", () => {
+const TARGET = { targetType: "ARTICLE", targetId: "article-1" } as const;
+const START = new Date("2026-08-05T10:00:00.000Z");
+
+async function rewardedSession() {
+  const session = await createRewardedAdSession({
+    userId: "user-1",
+    platform: "ANDROID",
+    target: TARGET,
+    now: START,
+  });
+  await recordRewardedAdEvent({
+    userId: "user-1",
+    sessionId: session.sessionId,
+    eventType: "SHOWN",
+  });
+  await recordRewardedAdEvent({
+    userId: "user-1",
+    sessionId: session.sessionId,
+    eventType: "REWARDED",
+  });
+  return session;
+}
+
+describe("rewarded ad direct target access", () => {
   beforeEach(() => {
     state.sessions.clear();
+    state.accesses.clear();
     state.events.length = 0;
     vi.clearAllMocks();
   });
 
-  it("creates a server-owned session with a one-time raw nonce", async () => {
+  it("returns unlimited availability without wallet or daily-limit data", async () => {
+    await expect(
+      getRewardedAdStatus({
+        userId: "user-1",
+        platform: "ANDROID",
+        target: TARGET,
+        now: START,
+      }),
+    ).resolves.toEqual({
+      settings: { platformEnabled: true, testMode: true },
+      canWatchAd: true,
+      canWatchAdReason: "OK",
+      target: { ...TARGET, unlocked: false, expiresAt: null },
+    });
+  });
+
+  it("creates a targeted server-owned session and keeps shown sessions exclusive", async () => {
     const session = await createRewardedAdSession({
       userId: "user-1",
       platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
-    });
-
-    expect(session).toMatchObject({
-      sessionId: "session-1",
-      provider: "YANDEX",
-      placementId: "demo-rewarded-yandex",
-      platform: "ANDROID",
-      testMode: true,
+      target: TARGET,
+      now: START,
     });
     expect(session.requestNonce).toHaveLength(64);
-    expect([...state.sessions.values()][0].requestNonceHash).not.toBe(session.requestNonce);
-  });
+    expect(state.sessions.get(session.sessionId)?.requestNonceHash).not.toBe(session.requestNonce);
 
-  it("allows a retry when the previous session never reached the shown state", async () => {
-    await createRewardedAdSession({
-      userId: "user-1",
-      platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
-    });
-
-    const retry = await createRewardedAdSession({
-      userId: "user-1",
-      platform: "ANDROID",
-      now: new Date("2026-05-31T10:01:00.000Z"),
-    });
-
-    expect(retry.sessionId).toBe("session-2");
-  });
-
-  it("keeps a displayed session exclusive until it completes or expires", async () => {
-    const session = await createRewardedAdSession({
-      userId: "user-1",
-      platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
-    });
     await recordRewardedAdEvent({
       userId: "user-1",
       sessionId: session.sessionId,
       eventType: "SHOWN",
     });
-
     await expect(
       createRewardedAdSession({
         userId: "user-1",
         platform: "ANDROID",
-        now: new Date("2026-05-31T10:01:00.000Z"),
+        target: TARGET,
+        now: new Date(START.getTime() + 60_000),
       }),
     ).rejects.toMatchObject({ code: "REWARDED_SESSION_ALREADY_GRANTED" });
   });
 
-  it("records lifecycle events and moves status forward", async () => {
-    const session = await createRewardedAdSession({
+  it("only creates course-step sessions for public free courses", async () => {
+    await createRewardedAdSession({
       userId: "user-1",
       platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
+      target: { targetType: "COURSE_STEP", targetId: "step-1" },
+      now: START,
+    });
+    expect(prismaMocks.stepOnDay.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "step-1",
+        day: {
+          dayLinks: {
+            some: { course: { isPaid: false, isPrivate: false } },
+          },
+        },
+      },
+      select: { id: true },
     });
 
-    await recordRewardedAdEvent({
-      userId: "user-1",
-      sessionId: session.sessionId,
-      eventType: "SHOWN",
-      payload: { adapter: "test" },
-    });
-
-    expect(state.events).toEqual([
-      { sessionId: session.sessionId, eventType: "SHOWN", payload: { adapter: "test" } },
-    ]);
-    expect(state.sessions.get(session.sessionId)?.status).toBe("SHOWN");
+    prismaMocks.stepOnDay.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      createRewardedAdSession({
+        userId: "user-1",
+        platform: "ANDROID",
+        target: { targetType: "COURSE_STEP", targetId: "paid-step" },
+        now: START,
+      }),
+    ).rejects.toMatchObject({ code: "REWARDED_TARGET_NOT_FOUND" });
   });
 
-  it("rejects rewarded callbacks before the ad is shown", async () => {
+  it("requires SHOWN before REWARDED", async () => {
     const session = await createRewardedAdSession({
       userId: "user-1",
       platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
+      target: TARGET,
+      now: START,
     });
-
     await expect(
       recordRewardedAdEvent({
         userId: "user-1",
         sessionId: session.sessionId,
         eventType: "REWARDED",
-        payload: { amount: 1 },
       }),
     ).rejects.toMatchObject({ code: "REWARDED_SESSION_INVALID_TRANSITION" });
-    expect(state.events).toEqual([]);
-    expect(state.sessions.get(session.sessionId)?.status).toBe("CREATED");
   });
 
-  it("does not grant before the provider rewarded callback is recorded", async () => {
-    const session = await createRewardedAdSession({
-      userId: "user-1",
-      platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
-    });
-
-    await expect(
-      grantRewardedCredits({
-        userId: "user-1",
-        sessionId: session.sessionId,
-        requestNonce: "wrong",
-        now: new Date("2026-05-31T10:01:00.000Z"),
-      }),
-    ).rejects.toMatchObject({ code: "REWARDED_SESSION_INVALID_NONCE" });
-
-    await expect(
-      grantRewardedCredits({
-        userId: "user-1",
-        sessionId: session.sessionId,
-        requestNonce: session.requestNonce,
-        now: new Date("2026-05-31T10:01:00.000Z"),
-      }),
-    ).rejects.toMatchObject({ code: "REWARDED_SESSION_NOT_REWARDED" });
-
-    await recordRewardedAdEvent({
-      userId: "user-1",
-      sessionId: session.sessionId,
-      eventType: "SHOWN",
-    });
-    await recordRewardedAdEvent({
-      userId: "user-1",
-      sessionId: session.sessionId,
-      eventType: "REWARDED",
-      payload: { amount: 1 },
-    });
-
-    await grantRewardedCredits({
+  it("grants exactly seven days and replays idempotently without extending", async () => {
+    const session = await rewardedSession();
+    const grantAt = new Date("2026-08-05T10:03:00.000Z");
+    const first = await grantRewardedTargetAccess({
       userId: "user-1",
       sessionId: session.sessionId,
       requestNonce: session.requestNonce,
-      now: new Date("2026-05-31T10:01:00.000Z"),
+      now: grantAt,
+    });
+    expect(first).toMatchObject({ ...TARGET, replay: false });
+    expect(first.expiresAt).toBe("2026-08-12T10:03:00.000Z");
+
+    const replay = await grantRewardedTargetAccess({
+      userId: "user-1",
+      sessionId: session.sessionId,
+      requestNonce: session.requestNonce,
+      now: new Date("2026-08-06T10:03:00.000Z"),
+    });
+    expect(replay).toEqual({ ...first, replay: true });
+    expect(state.accesses.size).toBe(1);
+  });
+
+  it("does not allow a new ad while target access is active", async () => {
+    const session = await rewardedSession();
+    await grantRewardedTargetAccess({
+      userId: "user-1",
+      sessionId: session.sessionId,
+      requestNonce: session.requestNonce,
+      now: new Date("2026-08-05T10:03:00.000Z"),
     });
 
-    expect(grantRewardedCreditsToWallet).toHaveBeenCalledTimes(1);
-    expect(state.sessions.get(session.sessionId)?.status).toBe("GRANTED");
+    await expect(
+      createRewardedAdSession({
+        userId: "user-1",
+        platform: "IOS",
+        target: TARGET,
+        now: new Date("2026-08-06T10:03:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "TARGET_ALREADY_ACTIVE" });
   });
 
   it("expires stale sessions before grant", async () => {
     const session = await createRewardedAdSession({
       userId: "user-1",
       platform: "ANDROID",
-      now: new Date("2026-05-31T10:00:00.000Z"),
+      target: TARGET,
+      now: START,
     });
-
     await expect(
-      grantRewardedCredits({
+      grantRewardedTargetAccess({
         userId: "user-1",
         sessionId: session.sessionId,
         requestNonce: session.requestNonce,
-        now: new Date("2026-05-31T10:11:00.000Z"),
+        now: new Date("2026-08-05T10:11:00.000Z"),
       }),
     ).rejects.toBeInstanceOf(RewardedAdSessionError);
     expect(state.sessions.get(session.sessionId)?.status).toBe("EXPIRED");

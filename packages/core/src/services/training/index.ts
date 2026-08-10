@@ -8,7 +8,6 @@ export const {
   getTrainingDayWithUserSteps,
   resolveCourseStepRewardedTarget,
   requireCourseStepPremiumOrRewardedUnlock,
-  unlockCourseStepRewardedTarget,
   syncUserCourseStatusFromDays,
   getCourseTypeByDayOnCourseId,
   getStepInfoByIndex,

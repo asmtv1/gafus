@@ -217,7 +217,6 @@ describe("app feature flags", () => {
         },
         rewardedAds: {
           androidEnabled: true,
-          dailyAdLimit: 2,
           yandexAndroidPlacementId: "android-id",
           yandexIosPlacementId: "ios-id",
           testMode: false,
@@ -259,7 +258,6 @@ describe("app feature flags", () => {
           },
           rewardedAds: {
             androidEnabled: false,
-            dailyAdLimit: 1,
             yandexAndroidPlacementId: null,
             yandexIosPlacementId: null,
             testMode: true,

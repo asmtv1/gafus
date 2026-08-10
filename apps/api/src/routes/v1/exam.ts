@@ -21,12 +21,19 @@ const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
 const stepIdSchema = z
   .string()
   .min(1, "stepId обязателен")
-  .refine((value) => z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success, {
-    message: "stepId должен быть CUID или UUID",
-  });
+  .refine(
+    (value) =>
+      z.string().cuid().safeParse(value).success || z.string().uuid().safeParse(value).success,
+    {
+      message: "stepId должен быть CUID или UUID",
+    },
+  );
 
-function getRewardedPlatform(c: { req: { query(name: string): string | undefined; header(name: string): string | undefined } }): "ANDROID" | "IOS" {
-  const candidate = c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+function getRewardedPlatform(c: {
+  req: { query(name: string): string | undefined; header(name: string): string | undefined };
+}): "ANDROID" | "IOS" {
+  const candidate =
+    c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
   const parsed = rewardedPlatformSchema.safeParse(candidate);
   return parsed.success ? parsed.data : "ANDROID";
 }
@@ -38,11 +45,13 @@ function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
   );
 }
 
-function subscriptionOrCreditsResponse(c: { json: (body: unknown, status: 402) => Response }): Response {
+function subscriptionOrCreditsResponse(c: {
+  json: (body: unknown, status: 402) => Response;
+}): Response {
   return c.json(
     {
       success: false,
-      error: "Для действия нужна подписка или rewarded credits",
+      error: "Для действия нужна подписка или доступ к шагу за просмотр рекламы",
       code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
     },
     402,

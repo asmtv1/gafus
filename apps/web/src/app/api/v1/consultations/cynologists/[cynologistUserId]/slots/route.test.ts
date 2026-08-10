@@ -6,13 +6,13 @@ const {
   getCalendarSlotsMock,
   getCynologistDayOffDatesMock,
   getServerSessionMock,
-  requireConsultationSlotsPremiumOrRewardedAccessMock,
+  requireConsultationSlotsSubscriptionAccessMock,
 } = vi.hoisted(() => ({
   getAvailableSlotsMock: vi.fn(),
   getCalendarSlotsMock: vi.fn(),
   getCynologistDayOffDatesMock: vi.fn(),
   getServerSessionMock: vi.fn(),
-  requireConsultationSlotsPremiumOrRewardedAccessMock: vi.fn(),
+  requireConsultationSlotsSubscriptionAccessMock: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: getServerSessionMock }));
@@ -28,16 +28,15 @@ vi.mock("@gafus/core", () => ({
   getSlotsQuerySchema: {
     parse: (input: { from: string; to: string }) => input,
   },
-  requireConsultationSlotsPremiumOrRewardedAccess:
-    requireConsultationSlotsPremiumOrRewardedAccessMock,
+  requireConsultationSlotsSubscriptionAccess: requireConsultationSlotsSubscriptionAccessMock,
 }));
-vi.mock("@gafus/core/services/rewardedCredits", () => ({
-  SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
-    code = "SUBSCRIPTION_OR_CREDITS_REQUIRED" as const;
+vi.mock("@gafus/core/services/appSubscription", () => ({
+  SubscriptionRequiredError: class SubscriptionRequiredError extends Error {
+    code = "SUBSCRIPTION_REQUIRED" as const;
   },
 }));
 
-import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 import { GET } from "./route";
 
 function request() {
@@ -47,10 +46,10 @@ function request() {
 }
 
 describe("GET /api/v1/consultations/cynologists/[cynologistUserId]/slots", () => {
-  it("returns 402 before exposing slots when subscription/rewarded access is missing", async () => {
+  it("returns 402 before exposing slots when subscription access is missing", async () => {
     getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
-    requireConsultationSlotsPremiumOrRewardedAccessMock.mockRejectedValueOnce(
-      new SubscriptionOrCreditsRequiredError(),
+    requireConsultationSlotsSubscriptionAccessMock.mockRejectedValueOnce(
+      new SubscriptionRequiredError(),
     );
 
     const response = await GET(request(), {
@@ -60,11 +59,10 @@ describe("GET /api/v1/consultations/cynologists/[cynologistUserId]/slots", () =>
     expect(response.status).toBe(402);
     await expect(response.json()).resolves.toMatchObject({
       success: false,
-      code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+      code: "SUBSCRIPTION_REQUIRED",
     });
-    expect(requireConsultationSlotsPremiumOrRewardedAccessMock).toHaveBeenCalledWith({
+    expect(requireConsultationSlotsSubscriptionAccessMock).toHaveBeenCalledWith({
       userId: "user-1",
-      platform: "WEB_DESKTOP",
     });
     expect(getCalendarSlotsMock).not.toHaveBeenCalled();
     expect(getAvailableSlotsMock).not.toHaveBeenCalled();

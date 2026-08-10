@@ -39,7 +39,7 @@ export const POST = withCSRFProtection(async (_request: NextRequest, context: Ro
       return NextResponse.json(
         {
           success: false,
-          error: "Для действия нужна подписка или rewarded credits",
+          error: "Для действия нужна активная подписка",
           code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
         },
         { status: 402 },

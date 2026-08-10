@@ -3,42 +3,23 @@ import { Platform } from "react-native";
 import { apiClient, type ApiResponse } from "@/shared/lib/api/client";
 
 export type RewardedPlatform = "ANDROID" | "IOS";
-export type RewardedTargetType =
-  | "ARTICLE"
-  | "COURSE_STEP"
-  | "DAILY_COURSE_STEP"
-  | "CONSULTATION_BOOKING";
+export type RewardedTargetType = "ARTICLE" | "COURSE_STEP";
 
-export type RewardedCreditsStatusDto = {
-  wallet: {
-    balance: number;
-    pendingRefundCredits: number;
-    maxBalance: number;
-    creditsPerReward: number;
-  };
-  today: {
-    adsWatchedToday: number;
-    dailyAdLimit: 1 | 2 | 3;
-    limitResetAt: string;
-  };
+export type RewardedTarget = {
+  targetType: RewardedTargetType;
+  targetId: string;
+};
+
+export type RewardedAccessStatusDto = {
   settings: {
     platformEnabled: boolean;
     testMode: boolean;
   };
   canWatchAd: boolean;
-  canWatchAdReason:
-    | "OK"
-    | "PLATFORM_DISABLED"
-    | "DAILY_LIMIT_REACHED"
-    | "BALANCE_FULL";
-  nextGrantCredits: number;
-  target?: {
-    targetType: RewardedTargetType;
-    targetId: string;
-    cost: number;
+  canWatchAdReason: "OK" | "PLATFORM_DISABLED" | "TARGET_ALREADY_ACTIVE";
+  target: RewardedTarget & {
     unlocked: boolean;
-    canUnlockWithCurrentBalance: boolean;
-    missingCredits: number;
+    expiresAt: string | null;
   };
 };
 
@@ -53,14 +34,10 @@ export type RewardedAdSessionDto = {
 };
 
 export type RewardedGrantResultDto = {
-  transactionId: string | null;
-  grantedCredits: number;
-  balance: number;
-  pendingRefundCredits: number;
-  maxBalance: number;
-  adsWatchedToday: number;
-  dailyAdLimit: 1 | 2 | 3;
-  canWatchAd: boolean;
+  accessId: string;
+  targetType: RewardedTargetType;
+  targetId: string;
+  expiresAt: string;
   replay: boolean;
 };
 
@@ -69,22 +46,14 @@ function getMobileRewardedPlatform(): RewardedPlatform {
 }
 
 export const rewardedAdsApi = {
-  getStatus(target?: {
-    targetType: RewardedTargetType;
-    targetId: string;
-  }): Promise<ApiResponse<RewardedCreditsStatusDto>> {
+  getStatus(target: RewardedTarget): Promise<ApiResponse<RewardedAccessStatusDto>> {
     const params = new URLSearchParams({ platform: getMobileRewardedPlatform() });
-    if (target) {
-      params.set("targetType", target.targetType);
-      params.set("targetId", target.targetId);
-    }
+    params.set("targetType", target.targetType);
+    params.set("targetId", target.targetId);
     return apiClient(`/api/v1/rewarded-ads/status?${params}`);
   },
 
-  createSession(target?: {
-    targetType: RewardedTargetType;
-    targetId: string;
-  }): Promise<ApiResponse<RewardedAdSessionDto>> {
+  createSession(target: RewardedTarget): Promise<ApiResponse<RewardedAdSessionDto>> {
     return apiClient("/api/v1/rewarded-ads/session", {
       method: "POST",
       body: {

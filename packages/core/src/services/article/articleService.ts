@@ -8,9 +8,7 @@ import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/
 import { createArticleSchema, updateArticleSchema, type CreateArticleSchemaInput } from "./schemas";
 import {
   getPremiumOrRewardedAccess,
-  REWARDED_ARTICLE_COST,
   SubscriptionOrCreditsRequiredError,
-  unlockRewardedTarget,
   type MonetizedAccessPlatform,
 } from "../rewardedCredits";
 
@@ -192,7 +190,6 @@ export async function getArticleBySlugForMonetizedAccess(input: {
     const target = {
       targetType: "ARTICLE" as const,
       targetId: row.id,
-      cost: REWARDED_ARTICLE_COST,
     };
     const hasExistingArticleAccess = filteredAccess.length > 0;
 
@@ -203,7 +200,10 @@ export async function getArticleBySlugForMonetizedAccess(input: {
             ...row,
             articleLikes: filteredLikes,
             access: filteredAccess,
-          } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
+          } as ArticleListRow & {
+            articleLikes: { userId: string }[];
+            access: { userId: string }[];
+          },
           input.userId,
         ),
         hasAccess: hasExistingArticleAccess,
@@ -240,7 +240,10 @@ export async function getArticleBySlugForMonetizedAccess(input: {
             ...row,
             articleLikes: filteredLikes,
             access: [{ userId: input.userId ?? "" }],
-          } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
+          } as ArticleListRow & {
+            articleLikes: { userId: string }[];
+            access: { userId: string }[];
+          },
           input.userId,
         ),
         hasAccess: true,
@@ -275,70 +278,6 @@ export async function getArticleBySlugForMonetizedAccess(input: {
     logger.error("Ошибка getArticleBySlugForMonetizedAccess", error as Error);
     return { success: false, error: "Не удалось загрузить статью" };
   }
-}
-
-export async function unlockArticleBySlug(input: {
-  slug: string;
-  userId: string;
-  platform: MonetizedAccessPlatform;
-}) {
-  const row = await prisma.article.findUnique({
-    where: { slug: input.slug },
-    select: {
-      id: true,
-      visibility: true,
-      access: {
-        where: { userId: input.userId },
-        select: { userId: true },
-      },
-    },
-  });
-  if (!row) {
-    return { success: false as const, error: "Статья не найдена" };
-  }
-  if (row.visibility === "PAID") {
-    if (row.access.length > 0) {
-      return {
-        success: true as const,
-        data: {
-          targetType: "ARTICLE" as const,
-          targetId: row.id,
-          unlocked: true as const,
-          spentCredits: 0,
-          balance: 0,
-          pendingRefundCredits: 0,
-        },
-      };
-    }
-    return {
-      success: false as const,
-      error: "Статья доступна только после отдельной оплаты",
-    };
-  }
-  if (row.access.length > 0) {
-    return {
-      success: true as const,
-      data: {
-        targetType: "ARTICLE" as const,
-        targetId: row.id,
-        unlocked: true as const,
-        spentCredits: 0,
-        balance: 0,
-        pendingRefundCredits: 0,
-      },
-    };
-  }
-
-  const data = await unlockRewardedTarget({
-    userId: input.userId,
-    platform: input.platform,
-    target: {
-      targetType: "ARTICLE",
-      targetId: row.id,
-      cost: REWARDED_ARTICLE_COST,
-    },
-  });
-  return { success: true as const, data };
 }
 
 export type GetArticleForEditResult =

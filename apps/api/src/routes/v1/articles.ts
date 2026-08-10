@@ -10,12 +10,8 @@ import {
   getArticleBySlugForMonetizedAccess,
   toggleArticleLikeWithMonetizedAccess,
   incrementArticleView,
-  unlockArticleBySlug,
 } from "@gafus/core/services/article";
-import {
-  RewardedCreditsRequiredError,
-  SubscriptionOrCreditsRequiredError,
-} from "@gafus/core/services/rewardedCredits";
+import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-articles");
@@ -58,14 +54,11 @@ articlesRoutes.post("/:id/like", zValidator("param", likeParamSchema), async (c)
     });
     return c.json({ success: true, data: { isLiked } });
   } catch (error) {
-    if (
-      error instanceof SubscriptionOrCreditsRequiredError ||
-      error instanceof RewardedCreditsRequiredError
-    ) {
+    if (error instanceof SubscriptionOrCreditsRequiredError) {
       return c.json(
         {
           success: false,
-          error: "Для действия нужна подписка или rewarded credits",
+          error: "Для действия нужна подписка или доступ к статье за просмотр рекламы",
           code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
         },
         402,
@@ -125,35 +118,6 @@ articlesRoutes.get("/:slug", zValidator("param", slugParamSchema), async (c) => 
     return c.json(result);
   } catch (error) {
     logger.error("Error in article detail GET", error as Error);
-    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
-  }
-});
-
-articlesRoutes.post("/:slug/unlock", zValidator("param", slugParamSchema), async (c) => {
-  try {
-    const user = c.get("user");
-    const { slug } = c.req.valid("param");
-    const result = await unlockArticleBySlug({
-      slug,
-      userId: user.id,
-      platform: getArticlePlatform(c),
-    });
-    return c.json(result, result.success ? 200 : 404);
-  } catch (error) {
-    if (
-      error instanceof SubscriptionOrCreditsRequiredError ||
-      error instanceof RewardedCreditsRequiredError
-    ) {
-      return c.json(
-        {
-          success: false,
-          error: "Для действия нужна подписка или rewarded credits",
-          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
-        },
-        402,
-      );
-    }
-    logger.error("Error in article unlock POST", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });

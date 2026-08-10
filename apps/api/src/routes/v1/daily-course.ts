@@ -2,7 +2,7 @@
  * Daily Course Routes
  * Endpoints для курса дня.
  */
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
@@ -11,7 +11,6 @@ import {
   getTodayDailyCourse,
   updateDailyCourseStepAndDay,
 } from "@gafus/core/services/dailyCourse";
-import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-daily-course");
@@ -22,11 +21,8 @@ const noStoreHeaders = {
   "Cache-Control": "private, no-store",
 };
 
-const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
-
 const scheduleQuerySchema = z.object({
   scheduleId: z.string().min(1, "scheduleId обязателен"),
-  platform: rewardedPlatformSchema.optional(),
   createIfMissing: z
     .enum(["true", "false"])
     .optional()
@@ -36,7 +32,6 @@ const scheduleQuerySchema = z.object({
 const stepActionSchema = z.object({
   scheduleId: z.string().min(1, "scheduleId обязателен"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
-  platform: rewardedPlatformSchema.optional(),
 });
 
 const startStepSchema = stepActionSchema.extend({
@@ -49,20 +44,10 @@ const pauseStepSchema = stepActionSchema.extend({
 });
 
 function mapDailyCourseError(error: unknown): {
-  status: 400 | 402 | 404 | 409 | 500;
+  status: 400 | 404 | 409 | 500;
   body: object;
 } {
   const message = error instanceof Error ? error.message : "UNKNOWN";
-  if (isSubscriptionOrCreditsRequiredError(error)) {
-    return {
-      status: 402,
-      body: {
-        success: false,
-        error: "Для действия нужна подписка или rewarded credits",
-        code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
-      },
-    };
-  }
   if (message === "SCHEDULE_NOT_FOUND") {
     return {
       status: 404,
@@ -88,27 +73,6 @@ function mapDailyCourseError(error: unknown): {
     status: 500,
     body: { success: false, error: "Внутренняя ошибка сервера" },
   };
-}
-
-function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
-  return (
-    error instanceof SubscriptionOrCreditsRequiredError ||
-    (error instanceof Error &&
-      (error.name === "SubscriptionOrCreditsRequiredError" ||
-        error.name === "RewardedCreditsRequiredError"))
-  );
-}
-
-function subscriptionOrCreditsResponse(c: Context): Response {
-  return c.json(
-    {
-      success: false,
-      error: "Для действия нужна подписка или rewarded credits",
-      code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
-    },
-    402,
-    noStoreHeaders,
-  );
 }
 
 dailyCourseRoutes.get("/today", async (c) => {
@@ -145,34 +109,6 @@ dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c
   }
 });
 
-dailyCourseRoutes.post("/step/unlock", zValidator("json", stepActionSchema), async (c) => {
-  try {
-    const { scheduleId, stepIndex } = c.req.valid("json");
-    return c.json(
-      {
-        success: true,
-        data: {
-          targetType: "DAILY_COURSE_STEP",
-          targetId: `${scheduleId}:${stepIndex}`,
-          unlocked: true,
-          spentCredits: 0,
-          balance: 0,
-          pendingRefundCredits: 0,
-        },
-      },
-      200,
-      noStoreHeaders,
-    );
-  } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
-    logger.error("Error unlocking daily course step", error as Error);
-    const mapped = mapDailyCourseError(error);
-    return c.json(mapped.body, mapped.status, noStoreHeaders);
-  }
-});
-
 dailyCourseRoutes.post("/step/start", zValidator("json", startStepSchema), async (c) => {
   try {
     const user = c.get("user");
@@ -183,9 +119,6 @@ dailyCourseRoutes.post("/step/start", zValidator("json", startStepSchema), async
     });
     return c.json({ success: true });
   } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
     logger.error("Error starting daily course step", error as Error);
     const mapped = mapDailyCourseError(error);
     return c.json(mapped.body, mapped.status);
@@ -202,9 +135,6 @@ dailyCourseRoutes.post("/step/pause", zValidator("json", pauseStepSchema), async
     });
     return c.json({ success: true });
   } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
     logger.error("Error pausing daily course step", error as Error);
     const mapped = mapDailyCourseError(error);
     return c.json(mapped.body, mapped.status);
@@ -218,9 +148,6 @@ dailyCourseRoutes.post("/step/resume", zValidator("json", stepActionSchema), asy
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "resume" });
     return c.json({ success: true });
   } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
     logger.error("Error resuming daily course step", error as Error);
     const mapped = mapDailyCourseError(error);
     return c.json(mapped.body, mapped.status);
@@ -234,9 +161,6 @@ dailyCourseRoutes.post("/step/reset", zValidator("json", stepActionSchema), asyn
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "reset" });
     return c.json({ success: true });
   } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
     logger.error("Error resetting daily course step", error as Error);
     const mapped = mapDailyCourseError(error);
     return c.json(mapped.body, mapped.status);
@@ -250,9 +174,6 @@ dailyCourseRoutes.post("/step/complete", zValidator("json", stepActionSchema), a
     await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "complete" });
     return c.json({ success: true });
   } catch (error) {
-    if (isSubscriptionOrCreditsRequiredError(error)) {
-      return subscriptionOrCreditsResponse(c);
-    }
     logger.error("Error completing daily course step", error as Error);
     const mapped = mapDailyCourseError(error);
     return c.json(mapped.body, mapped.status);

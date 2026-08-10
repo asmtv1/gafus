@@ -3,22 +3,15 @@ import { describe, expect, it } from "vitest";
 import { getRewardedAccessPrompt } from "./rewardedAccessPrompt";
 
 describe("getRewardedAccessPrompt", () => {
-  it("offers direct gafus unlock when the target can be unlocked with current balance", () => {
+  it("fails closed while status is loading", () => {
     expect(
       getRewardedAccessPrompt({
-        isLoading: false,
-        status: {
-          settings: { platformEnabled: false },
-          target: {
-            cost: 1,
-            unlocked: false,
-            canUnlockWithCurrentBalance: true,
-          },
-        },
+        isLoading: true,
+        status: null,
       }),
     ).toEqual({
-      mode: "direct-credit",
-      primaryText: "Открыть за 1 гафус",
+      mode: "loading",
+      primaryText: "",
       subscriptionText: "Оформить подписку",
     });
   });
@@ -29,11 +22,7 @@ describe("getRewardedAccessPrompt", () => {
         isLoading: false,
         status: {
           settings: { platformEnabled: true },
-          target: {
-            cost: 1,
-            unlocked: false,
-            canUnlockWithCurrentBalance: false,
-          },
+          canWatchAd: true,
         },
       }),
     ).toEqual({
@@ -50,12 +39,22 @@ describe("getRewardedAccessPrompt", () => {
         isLoading: false,
         status: {
           settings: { platformEnabled: false },
-          target: {
-            cost: 1,
-            unlocked: false,
-            canUnlockWithCurrentBalance: false,
-          },
+          canWatchAd: false,
         },
+      }),
+    ).toEqual({
+      mode: "standard-paywall",
+      primaryText: "Открыть за рекламу",
+      subscriptionText: "Оформить подписку",
+      showRewardedAction: false,
+    });
+  });
+
+  it("hides the rewarded action when status failed to load", () => {
+    expect(
+      getRewardedAccessPrompt({
+        isLoading: false,
+        status: null,
       }),
     ).toEqual({
       mode: "standard-paywall",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,8 +25,6 @@ import {
   type AppSubscriptionOfferDto,
   type AppSubscriptionPlanCode,
 } from "../api/appSubscriptionApi";
-import { rewardedAdsApi, showYandexRewardedAd } from "@/features/rewarded-ads";
-import { reportClientError } from "@/shared/lib/tracer";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import {
   getYookassaPaymentCaption,
@@ -34,18 +32,9 @@ import {
   formatAppSubscriptionPlanPrice,
   selectDefaultAppSubscriptionPlan,
 } from "../lib/appSubscriptionPresentation";
-import {
-  formatGafusesWord,
-  getRewardedAccessSummary,
-  getRewardedAdErrorMessage,
-  getRewardedEarnText,
-  getRewardedSpendText,
-  getRewardedStatusMessage,
-} from "../lib/rewardedPaywallCopy";
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
 import { yookassaAppSubscriptionPurchase } from "../lib/yookassaAppSubscriptionPurchase";
 import { usePaywallStore } from "../store/paywallStore";
-import { shouldTriggerRewardedTargetUnlock } from "../lib/rewardedTargetUnlock";
 
 const STATUS_QUERY_KEY = ["app-subscription", "status"] as const;
 const OFFER_QUERY_KEY = ["app-subscription", "offer"] as const;
@@ -84,21 +73,13 @@ export function AppSubscriptionPaywall() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const close = usePaywallStore((s) => s.close);
-  const contentMode = usePaywallStore((s) => s.contentMode) ?? "subscription";
-  const rewardedTarget = usePaywallStore((s) => s.rewardedTarget);
-  const explicitAccessSummary = usePaywallStore((s) => s.accessSummary);
-  const onRewardedGrant = usePaywallStore((s) => s.onRewardedGrant);
   const [isPaying, setIsPaying] = useState(false);
-  const [isRewardedLoading, setIsRewardedLoading] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [rewardedMessage, setRewardedMessage] = useState<string | null>(null);
   const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
     null,
   );
   const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
-  const autoUnlockAttemptKeyRef = useRef<string | null>(null);
-  const showSubscriptionContent = contentMode !== "rewarded";
-  const showRewardedContent = contentMode !== "subscription";
+  const showSubscriptionContent = true;
 
   const refreshEntitlementQueries = useCallback(async () => {
     await Promise.all([
@@ -107,7 +88,6 @@ export function AppSubscriptionPaywall() {
       queryClient.invalidateQueries({ queryKey: ["trainingDay"] }),
       queryClient.invalidateQueries({ queryKey: ["trainingDays"] }),
       queryClient.invalidateQueries({ queryKey: ["dailyCourse"] }),
-      queryClient.invalidateQueries({ queryKey: ["rewarded-ads"] }),
     ]);
   }, [queryClient]);
 
@@ -119,31 +99,9 @@ export function AppSubscriptionPaywall() {
   const offerQuery = useQuery({
     queryKey: OFFER_QUERY_KEY,
     queryFn: () => appSubscriptionApi.getOffer(),
-    enabled: showSubscriptionContent,
     staleTime: 5 * 60_000,
   });
   const offer = offerQuery.data?.success ? offerQuery.data.data : null;
-  const rewardedStatusQuery = useQuery({
-    queryKey: [
-      "rewarded-ads",
-      "status",
-      rewardedTarget?.targetType ?? null,
-      rewardedTarget?.targetId ?? null,
-    ],
-    queryFn: () => rewardedAdsApi.getStatus(rewardedTarget ?? undefined),
-    enabled: showRewardedContent,
-    staleTime: 30_000,
-  });
-  const rewardedStatus =
-    rewardedStatusQuery.data?.success && rewardedStatusQuery.data.data
-      ? rewardedStatusQuery.data.data
-      : null;
-  const rewardedQueryError =
-    rewardedStatusQuery.data && !rewardedStatusQuery.data.success
-      ? rewardedStatusQuery.data.error
-      : rewardedStatusQuery.error instanceof Error
-        ? rewardedStatusQuery.error.message
-        : null;
   useEffect(() => {
     if (offer) setLastSuccessfulOffer(offer);
   }, [offer]);
@@ -174,7 +132,7 @@ export function AppSubscriptionPaywall() {
   const appleProductId = selectedPlan?.appleProductId ?? null;
   const applePriceQuery = useQuery({
     queryKey: ["app-subscription", "apple-price", appleProductId],
-    enabled: showSubscriptionContent && isIos && Boolean(appleProductId),
+    enabled: isIos && Boolean(appleProductId),
     staleTime: 10 * 60_000,
     queryFn: async () => {
       if (!appleProductId) return null;
@@ -193,10 +151,6 @@ export function AppSubscriptionPaywall() {
     : "Списание и управление подпиской выполняются через App Store.";
   const yookassaPrimaryCta = getYookassaPrimaryCta();
   const useCompactLayout = height < 760 || width < 380;
-  const accessSummary = explicitAccessSummary ?? getRewardedAccessSummary(rewardedStatus);
-  const rewardedTargetKey = rewardedTarget
-    ? `${rewardedTarget.targetType}:${rewardedTarget.targetId}`
-    : null;
 
   useEffect(() => {
     if (!statusQuery.data?.success || !statusQuery.data.data?.hasActiveSubscription) return;
@@ -274,122 +228,9 @@ export function AppSubscriptionPaywall() {
     setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
-  const handleWatchRewardedAd = async () => {
-    if (isRewardedLoading || !rewardedStatus?.canWatchAd) return;
-    setIsRewardedLoading(true);
-    setRewardedMessage(null);
-    try {
-      const sessionResponse = await rewardedAdsApi.createSession(rewardedTarget ?? undefined);
-      if (!sessionResponse.success || !sessionResponse.data) {
-        setRewardedMessage(sessionResponse.error ?? "Не удалось подготовить рекламу.");
-        return;
-      }
-      const grantResponse = await showYandexRewardedAd(sessionResponse.data);
-      if (!grantResponse) {
-        setRewardedMessage("Просмотр не завершён. Гафусы начисляются только за полный просмотр.");
-        return;
-      }
-      if (!grantResponse.success) {
-        setRewardedMessage(grantResponse.error ?? "Не удалось начислить гафусы.");
-        return;
-      }
-      setRewardedMessage(
-        onRewardedGrant
-          ? "Гафусы начислены. Открываем материал."
-          : `Начислено гафусов: ${grantResponse.data?.grantedCredits ?? 0}.`,
-      );
-      await queryClient.invalidateQueries({ queryKey: ["rewarded-ads"] });
-      await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
-      await onRewardedGrant?.();
-      if (onRewardedGrant) {
-        close();
-      }
-    } catch (error) {
-      reportClientError(error, {
-        issueKey: "AppSubscriptionPaywall",
-        keys: { operation: "watch_rewarded_ad" },
-      });
-      setRewardedMessage(getRewardedAdErrorMessage(error));
-    } finally {
-      setIsRewardedLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    console.log("[rewarded-unlock] paywall status", {
-      rewardedTarget,
-      rewardedTargetKey,
-      hasUnlockCallback: Boolean(onRewardedGrant),
-      walletBalance: rewardedStatus?.wallet.balance,
-      walletMaxBalance: rewardedStatus?.wallet.maxBalance,
-      canWatchAd: rewardedStatus?.canWatchAd,
-      canWatchAdReason: rewardedStatus?.canWatchAdReason,
-      target: rewardedStatus?.target,
-      alreadyAttemptedForTarget: autoUnlockAttemptKeyRef.current === rewardedTargetKey,
-    });
-
-    if (
-      !shouldTriggerRewardedTargetUnlock({
-        hasUnlockCallback: Boolean(onRewardedGrant),
-        status: rewardedStatus,
-      }) ||
-      !rewardedTargetKey ||
-      autoUnlockAttemptKeyRef.current === rewardedTargetKey
-    ) {
-      return;
-    }
-
-    autoUnlockAttemptKeyRef.current = rewardedTargetKey;
-    console.log("[rewarded-unlock] existing credits unlock attempt started", {
-      rewardedTarget,
-      rewardedTargetKey,
-      target: rewardedStatus?.target,
-      walletBalance: rewardedStatus?.wallet.balance,
-    });
-    setIsRewardedLoading(true);
-    setRewardedMessage("Открываем материал за гафусы.");
-
-    void (async () => {
-      try {
-        await onRewardedGrant?.();
-        console.log("[rewarded-unlock] unlock callback succeeded", {
-          rewardedTarget,
-          rewardedTargetKey,
-        });
-        await queryClient.invalidateQueries({ queryKey: ["rewarded-ads"] });
-        await queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
-        close();
-      } catch (error) {
-        console.log("[rewarded-unlock] unlock callback failed", {
-          rewardedTarget,
-          rewardedTargetKey,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        reportClientError(error, {
-          issueKey: "AppSubscriptionPaywall",
-          keys: { operation: "unlock_rewarded_target_with_existing_credits" },
-        });
-        setRewardedMessage(
-          error instanceof Error ? error.message : "Не удалось открыть материал за гафусы.",
-        );
-      } finally {
-        setIsRewardedLoading(false);
-      }
-    })();
-  }, [close, onRewardedGrant, queryClient, rewardedStatus, rewardedTarget, rewardedTargetKey]);
-
   const openLegalLink = (url: string) => {
     void Linking.openURL(url);
   };
-  const rewardedUnavailableText = getRewardedStatusMessage({
-    isLoading: rewardedStatusQuery.isLoading,
-    error: rewardedQueryError,
-    status: rewardedStatus,
-  });
-  const canWatchRewardedAd = Boolean(rewardedStatus?.canWatchAd);
-  const rewardedFeatureEnabled = Boolean(rewardedStatus?.settings.platformEnabled);
-  const showRewardedSection =
-    showRewardedContent && (contentMode === "rewarded" || rewardedFeatureEnabled);
 
   return (
     <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={close}>
@@ -410,11 +251,7 @@ export function AppSubscriptionPaywall() {
 
           <View style={styles.header}>
             <View style={styles.badge}>
-              <Text
-                style={contentMode === "rewarded" ? styles.rewardedPageTitle : styles.badgeText}
-              >
-                {contentMode === "rewarded" ? "ОТКРЫТЬ БЕСПЛАТНО" : "GAFUS PREMIUM"}
-              </Text>
+              <Text style={styles.badgeText}>GAFUS PREMIUM</Text>
             </View>
           </View>
 
@@ -535,184 +372,6 @@ export function AppSubscriptionPaywall() {
             </View>
           ) : null}
 
-          {showRewardedSection ? (
-            <View style={styles.alternativeSection}>
-              {contentMode === "rewarded" ? (
-                rewardedFeatureEnabled && rewardedStatus ? (
-                  <>
-                    <View
-                      style={[
-                        styles.rewardedOfferBox,
-                        useCompactLayout && styles.rewardedOfferBoxCompact,
-                      ]}
-                    >
-                      <View style={styles.rewardedOfferHeader}>
-                        <View style={styles.rewardedOfferIcon}>
-                          <MaterialCommunityIcons name="play" size={22} color="#636128" />
-                        </View>
-                        <View style={styles.rewardedOfferCopy}>
-                          <Text style={styles.rewardedOfferTitle}>
-                            Получайте гафусы за рекламу
-                          </Text>
-                          <Text style={styles.rewardedOfferSubtitle}>
-                            Смотрите рекламу и открывайте нужные материалы бесплатно
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.gafusRules}>
-                        <View style={styles.gafusRuleRow}>
-                          <View style={styles.gafusRuleAmount}>
-                            <Text style={styles.gafusRuleAmountText}>
-                              +{rewardedStatus.wallet.creditsPerReward}
-                            </Text>
-                          </View>
-                          <Text style={styles.gafusRuleText}>
-                            гафусов за полный просмотр рекламы
-                          </Text>
-                        </View>
-                        <View style={styles.gafusRuleRow}>
-                          <View style={styles.gafusRuleAmount}>
-                            <Text style={styles.gafusRuleAmountText}>−1</Text>
-                          </View>
-                          <Text style={styles.gafusRuleText}>
-                            гафус за открытие шага курса или статьи
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.gafusBalanceCard}>
-                        <Text selectable style={styles.gafusBalanceText}>
-                          Баланс: {rewardedStatus.wallet.balance} из{" "}
-                          {rewardedStatus.wallet.maxBalance}{" "}
-                          {formatGafusesWord(rewardedStatus.wallet.maxBalance)}
-                        </Text>
-                        <Text style={styles.gafusDailyText}>
-                          Сегодня просмотрено: {rewardedStatus.today.adsWatchedToday}/
-                          {rewardedStatus.today.dailyAdLimit}
-                        </Text>
-                      </View>
-
-                      {rewardedUnavailableText ? (
-                        <Text style={styles.rewardedOfferUnavailable}>
-                          {rewardedUnavailableText}
-                        </Text>
-                      ) : null}
-                      {rewardedMessage ? (
-                        <Text style={styles.rewardedOfferMessage}>{rewardedMessage}</Text>
-                      ) : null}
-                    </View>
-                    <Pressable
-                      style={[
-                        styles.rewardedPrimaryButton,
-                        (!canWatchRewardedAd || isRewardedLoading) && styles.disabledButton,
-                      ]}
-                      onPress={() => void handleWatchRewardedAd()}
-                      disabled={!canWatchRewardedAd || isRewardedLoading}
-                    >
-                      {isRewardedLoading ? <ActivityIndicator color="#F6F0DF" /> : null}
-                      {!isRewardedLoading ? (
-                        <MaterialCommunityIcons
-                          name="play-circle-outline"
-                          size={22}
-                          color="#F6F0DF"
-                        />
-                      ) : null}
-                      <Text style={styles.rewardedPrimaryButtonText}>
-                        {isRewardedLoading ? "Открываем рекламу..." : "Посмотреть рекламу"}
-                      </Text>
-                    </Pressable>
-                    <Text style={styles.subscriptionHint}>
-                      Если захотите открыть всё сразу, подписку можно оформить в любой момент.
-                    </Text>
-                  </>
-                ) : (
-                  <View style={styles.rewardedBox}>
-                    <View style={styles.rewardedHeader}>
-                      {rewardedStatusQuery.isLoading ? (
-                        <ActivityIndicator color={COLORS.secondary} />
-                      ) : (
-                        <MaterialCommunityIcons
-                          name="alert-circle-outline"
-                          size={22}
-                          color={COLORS.secondary}
-                        />
-                      )}
-                      <Text style={styles.rewardedTitle}>
-                        {rewardedStatusQuery.isLoading
-                          ? "Готовим бесплатное открытие"
-                          : "Бесплатное открытие недоступно"}
-                      </Text>
-                    </View>
-                    <Text style={styles.rewardedText}>{rewardedUnavailableText}</Text>
-                  </View>
-                )
-              ) : (
-                <>
-                  <View style={styles.alternativeDivider}>
-                    <View style={styles.alternativeLine} />
-                    <Text style={styles.alternativeLabel}>Бесплатная альтернатива</Text>
-                    <View style={styles.alternativeLine} />
-                  </View>
-                  {accessSummary ? (
-                    <View style={styles.accessSummary}>
-                      <View style={styles.accessSummaryHeader}>
-                        <MaterialCommunityIcons
-                          name="ticket-confirmation-outline"
-                          size={22}
-                          color={COLORS.primary}
-                        />
-                        <Text style={styles.accessSummaryTitle}>{accessSummary.title}</Text>
-                      </View>
-                      <Text style={styles.accessSummaryText}>{accessSummary.subtitle}</Text>
-                    </View>
-                  ) : null}
-                  {rewardedStatus ? (
-                    <View style={styles.rewardedBox}>
-                      <View style={styles.rewardedHeader}>
-                        <MaterialCommunityIcons
-                          name="play-circle-outline"
-                          size={22}
-                          color={COLORS.secondary}
-                        />
-                        <Text style={styles.rewardedTitle}>Открыть материал за рекламу</Text>
-                      </View>
-                      <Text style={styles.rewardedText}>{getRewardedEarnText(rewardedStatus)}</Text>
-                      <Text style={styles.rewardedHint}>
-                        {getRewardedSpendText(rewardedStatus)}
-                      </Text>
-                      <Text style={styles.rewardedHint}>
-                        Баланс: {rewardedStatus.wallet.balance} из{" "}
-                        {rewardedStatus.wallet.maxBalance}{" "}
-                        {formatGafusesWord(rewardedStatus.wallet.maxBalance)}. Сегодня просмотрено:{" "}
-                        {rewardedStatus.today.adsWatchedToday}/{rewardedStatus.today.dailyAdLimit}.
-                      </Text>
-                      {rewardedUnavailableText ? (
-                        <Text style={styles.rewardedUnavailable}>{rewardedUnavailableText}</Text>
-                      ) : null}
-                      {rewardedMessage ? (
-                        <Text style={styles.rewardedMessage}>{rewardedMessage}</Text>
-                      ) : null}
-                      <Pressable
-                        style={[
-                          styles.rewardedButton,
-                          (!canWatchRewardedAd || isRewardedLoading) && styles.disabledButton,
-                        ]}
-                        onPress={() => void handleWatchRewardedAd()}
-                        disabled={!canWatchRewardedAd || isRewardedLoading}
-                      >
-                        {isRewardedLoading ? <ActivityIndicator color={COLORS.secondary} /> : null}
-                        <Text style={styles.rewardedButtonText}>
-                          {isRewardedLoading ? "Открываем рекламу..." : "Посмотреть рекламу"}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </View>
-          ) : null}
-
           {showSubscriptionContent ? (
             <Text style={styles.legalText}>
               Нажимая кнопку оплаты, вы принимаете{" "}
@@ -737,8 +396,8 @@ export function AppSubscriptionPaywall() {
                 Политику конфиденциальности
               </Text>
               . Подписка продлевается автоматически. При оплате через App Store списание идет через
-              Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID
-              . Способ оплаты сохраняется для автопродления.
+              Apple ID, управлять подпиской и отменить автопродление можно в настройках Apple ID .
+              Способ оплаты сохраняется для автопродления.
             </Text>
           ) : null}
 
@@ -806,16 +465,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
-  rewardedPageTitle: {
-    fontFamily: FONTS.impact,
-    color: "#C9A646",
-    fontSize: 28,
-    lineHeight: 32,
-    textAlign: "center",
-    textShadowColor: "rgba(255, 232, 152, 0.75)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
   planSelector: {
     flexDirection: "row",
     gap: 10,
@@ -853,35 +502,6 @@ const styles = StyleSheet.create({
   },
   planOptionPriceSelected: {
     color: "#636128",
-  },
-  accessSummary: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "rgba(99, 97, 40, 0.35)",
-    backgroundColor: "#FFF9EA",
-    padding: 14,
-    gap: 8,
-  },
-  accessSummaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  accessSummaryTitle: {
-    flexShrink: 1,
-    fontFamily: FONTS.impact,
-    color: "#352E2E",
-    fontSize: 22,
-    lineHeight: 26,
-    textAlign: "center",
-  },
-  accessSummaryText: {
-    fontFamily: FONTS.montserratMedium,
-    color: COLORS.primary,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
   },
   priceBox: {
     borderRadius: 18,
@@ -1004,217 +624,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     textAlign: "center",
-  },
-  rewardedOfferBox: {
-    borderRadius: 18,
-    backgroundColor: "#636128",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 14,
-  },
-  rewardedOfferBoxCompact: {
-    paddingVertical: 14,
-    gap: 11,
-  },
-  rewardedOfferHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-  },
-  rewardedOfferIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F6F0DF",
-  },
-  rewardedOfferCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  rewardedOfferTitle: {
-    fontFamily: FONTS.montserratBold,
-    color: "#F6F0DF",
-    fontSize: 19,
-    lineHeight: 24,
-  },
-  rewardedOfferSubtitle: {
-    fontFamily: FONTS.montserrat,
-    color: "#ECE5D2",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  gafusRules: {
-    borderRadius: 16,
-    backgroundColor: "#F6F0DF",
-    padding: 12,
-    gap: 10,
-  },
-  gafusRuleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  gafusRuleAmount: {
-    minWidth: 42,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7DDAF",
-    paddingHorizontal: 8,
-  },
-  gafusRuleAmountText: {
-    fontFamily: FONTS.montserratBold,
-    color: "#636128",
-    fontSize: 14,
-    lineHeight: 19,
-    fontVariant: ["tabular-nums"],
-  },
-  gafusRuleText: {
-    flex: 1,
-    fontFamily: FONTS.montserratBold,
-    color: "#4E4743",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  gafusBalanceCard: {
-    borderRadius: 14,
-    backgroundColor: "rgba(246, 240, 223, 0.12)",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 3,
-  },
-  gafusBalanceText: {
-    fontFamily: FONTS.montserratBold,
-    color: "#F6F0DF",
-    fontSize: 13,
-    lineHeight: 18,
-    fontVariant: ["tabular-nums"],
-  },
-  gafusDailyText: {
-    fontFamily: FONTS.montserrat,
-    color: "#DCD4BE",
-    fontSize: 11,
-    lineHeight: 16,
-    fontVariant: ["tabular-nums"],
-  },
-  rewardedOfferUnavailable: {
-    fontFamily: FONTS.montserratMedium,
-    color: "#FFD9CF",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  rewardedOfferMessage: {
-    fontFamily: FONTS.montserratMedium,
-    color: "#F6F0DF",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  rewardedPrimaryButton: {
-    minHeight: 56,
-    borderRadius: 20,
-    backgroundColor: "#636128",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 9,
-    paddingHorizontal: SPACING.md,
-  },
-  rewardedPrimaryButtonText: {
-    fontFamily: FONTS.impact,
-    color: "#F6F0DF",
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  subscriptionHint: {
-    fontFamily: FONTS.montserrat,
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: "center",
-    paddingHorizontal: 14,
-  },
-  rewardedBox: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(0, 157, 207, 0.36)",
-    backgroundColor: "#F2FAFC",
-    padding: 14,
-    gap: 8,
-  },
-  alternativeSection: {
-    gap: 10,
-    marginTop: 4,
-  },
-  alternativeDivider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  alternativeLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(53, 46, 46, 0.28)",
-  },
-  alternativeLabel: {
-    fontFamily: FONTS.montserratMedium,
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  rewardedHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  rewardedTitle: {
-    flex: 1,
-    fontFamily: FONTS.montserratBold,
-    color: "#352E2E",
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  rewardedText: {
-    fontFamily: FONTS.montserrat,
-    color: "#4E4743",
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  rewardedHint: {
-    fontFamily: FONTS.montserrat,
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  rewardedUnavailable: {
-    fontFamily: FONTS.montserratMedium,
-    color: "#9B2F1C",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  rewardedMessage: {
-    fontFamily: FONTS.montserratMedium,
-    color: COLORS.primary,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  rewardedButton: {
-    minHeight: 46,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.secondary,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: SPACING.md,
-  },
-  rewardedButtonText: {
-    fontFamily: FONTS.montserratBold,
-    color: COLORS.secondary,
-    fontSize: 14,
   },
   pendingText: {
     borderRadius: 14,

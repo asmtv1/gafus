@@ -27,30 +27,28 @@ describe("validate analytics", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("принимает rewarded analytics payload и отклоняет лишний provider payload", () => {
+  it("принимает rewarded access payload и отклоняет лишний provider payload", () => {
     const valid = safeParseTrackPayload({
-      eventName: "rewarded_credits_granted",
+      eventName: "rewarded_access_granted",
       pathOrScreen: "/articles/paid",
       platform: "web",
       sessionId: "s",
       ts: new Date().toISOString(),
       targetType: "ARTICLE",
-      creditsDelta: 5,
-      balance: 5,
-      dailyLimit: 1,
+      targetId: "article-1",
+      expiresAt: "2026-08-12T12:00:00.000Z",
       provider: "YANDEX",
     });
     expect(valid.ok).toBe(true);
 
     const withRawPayload = safeParseTrackPayload({
-      eventName: "rewarded_credits_granted",
+      eventName: "rewarded_access_granted",
       pathOrScreen: "/articles/paid",
       platform: "web",
       sessionId: "s",
       ts: new Date().toISOString(),
       targetType: "ARTICLE",
-      creditsDelta: 5,
-      balance: 5,
+      targetId: "article-1",
       providerPayload: { raw: true },
     });
     expect(withRawPayload.ok).toBe(false);

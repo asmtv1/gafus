@@ -40,7 +40,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
   });
 
   it("does not toggle a locked article without Premium, rewarded unlock, or ArticleAccess", async () => {
-    mockArticleFindUnique.mockResolvedValue({ id: "article-1", access: [] });
+    mockArticleFindUnique.mockResolvedValue({ id: "article-1", visibility: "PUBLIC", access: [] });
     mockGetPremiumOrRewardedAccess.mockRejectedValue(new SubscriptionOrCreditsRequiredError());
 
     await expect(
@@ -58,6 +58,7 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
   it("toggles an article with existing ArticleAccess without Premium/rewarded lookup", async () => {
     mockArticleFindUnique.mockResolvedValue({
       id: "article-1",
+      visibility: "PAID",
       access: [{ userId: "user-1" }],
     });
 
@@ -75,13 +76,13 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
     });
   });
 
-  it("toggles an article with Premium/rewarded access by article id", async () => {
-    mockArticleFindUnique.mockResolvedValue({ id: "article-1", access: [] });
+  it("toggles a public article with Premium access by article id", async () => {
+    mockArticleFindUnique.mockResolvedValue({ id: "article-1", visibility: "PUBLIC", access: [] });
     mockGetPremiumOrRewardedAccess.mockResolvedValue({
       allowed: true,
-      source: "REWARDED",
-      skippedDueToPremium: false,
-      target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
+      source: "PREMIUM",
+      skippedDueToPremium: true,
+      target: { targetType: "ARTICLE", targetId: "article-1" },
     });
 
     await expect(
@@ -95,10 +96,24 @@ describe("toggleArticleLikeWithMonetizedAccess", () => {
     expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalledWith({
       userId: "user-1",
       platform: "WEB_DESKTOP",
-      target: { targetType: "ARTICLE", targetId: "article-1", cost: 1 },
+      target: { targetType: "ARTICLE", targetId: "article-1" },
     });
     expect(mockArticleLikeCreate).toHaveBeenCalledWith({
       data: { userId: "user-1", articleId: "article-1" },
     });
+  });
+
+  it("does not let Premium or rewarded access bypass a PAID article purchase", async () => {
+    mockArticleFindUnique.mockResolvedValue({ id: "article-1", visibility: "PAID", access: [] });
+
+    await expect(
+      toggleArticleLikeWithMonetizedAccess({
+        userId: "user-1",
+        articleId: "article-1",
+        platform: "ANDROID",
+      }),
+    ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
+    expect(mockArticleLikeCreate).not.toHaveBeenCalled();
   });
 });

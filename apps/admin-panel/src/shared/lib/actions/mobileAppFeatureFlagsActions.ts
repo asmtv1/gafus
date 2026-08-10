@@ -35,7 +35,6 @@ const releaseControlSchema = z.object({
   }),
   rewardedAds: z.object({
     androidEnabled: z.boolean(),
-    dailyAdLimit: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     yandexAndroidPlacementId: z.string().trim().max(256).nullable(),
     yandexIosPlacementId: z.string().trim().max(256).nullable(),
     testMode: z.boolean(),

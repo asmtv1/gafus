@@ -252,17 +252,18 @@ export async function showYandexRewardedAd(
         eventType: "REWARDED",
         payload: reward,
       });
-      logRewardedDebug("granting rewarded credits", { sessionId: session.sessionId });
+      logRewardedDebug("granting rewarded access", { sessionId: session.sessionId });
       const result = await rewardedAdsApi.grant({
         sessionId: session.sessionId,
         requestNonce: session.requestNonce,
         providerPayload: reward,
       });
-      logRewardedDebug("rewarded credits grant result", {
+      logRewardedDebug("rewarded access grant result", {
         sessionId: session.sessionId,
         success: result.success,
-        grantedCredits: result.data?.grantedCredits,
-        balance: result.data?.balance,
+        targetType: result.data?.targetType,
+        targetId: result.data?.targetId,
+        expiresAt: result.data?.expiresAt,
         error: result.error,
       });
       grantResult = result;

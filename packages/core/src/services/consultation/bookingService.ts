@@ -18,22 +18,16 @@ import {
 import { DateTime } from "luxon";
 import { createWebLogger } from "@gafus/logger";
 
-import { ConsultationForbiddenError, ConsultationNotFoundError, ConsultationSlotTakenError } from "./errors";
+import {
+  ConsultationForbiddenError,
+  ConsultationNotFoundError,
+  ConsultationSlotTakenError,
+} from "./errors";
 import { enqueueConsultationEmail } from "./notificationService";
 import { createTelemostConference } from "./telemostService";
 import type { BookSlotResult, ConsultationBookingDto } from "./types";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
-import {
-  REWARDED_CONSULTATION_BOOKING_COST,
-  getRewardedCreditBalance,
-  refundRewardedCredits,
-  SubscriptionOrCreditsRequiredError,
-  unlockRewardedTarget,
-  type MonetizedAccessPlatform,
-  type RewardedTargetInput,
-} from "../rewardedCredits";
-import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
-import { getAppSubscriptionAccess } from "../appSubscription";
+import { getAppSubscriptionAccess, SubscriptionRequiredError } from "../appSubscription";
 
 const logger = createWebLogger("core-consultation-booking");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
@@ -75,17 +69,6 @@ const CONSULTATION_REMINDER_JOB_NAMES: Record<ConsultationReminderKind, string> 
 
 const CONSULTATION_RECONCILE_LOOKBACK_MINUTES = 10;
 
-function buildConsultationRewardedTarget(
-  clientId: string,
-  idempotencyKey: string,
-): RewardedTargetInput {
-  return {
-    targetType: "CONSULTATION_BOOKING",
-    targetId: `${clientId}:${idempotencyKey}`,
-    cost: REWARDED_CONSULTATION_BOOKING_COST,
-  };
-}
-
 async function hasLiveConsultationBookingReplay(
   clientId: string,
   idempotencyKey: string,
@@ -95,43 +78,6 @@ async function hasLiveConsultationBookingReplay(
     select: { bookingId: true, responseJson: true, expiresAt: true },
   });
   return Boolean(idem && idem.expiresAt > new Date() && (idem.bookingId || idem.responseJson));
-}
-
-export async function refundConsultationRewardedCreditsForBooking(
-  bookingId: string,
-  reason: string,
-): Promise<void> {
-  const booking = await prisma.consultationBooking.findUnique({
-    where: { id: bookingId },
-    select: { clientId: true },
-  });
-  if (!booking) return;
-
-  const idem = await prisma.consultationBookingIdempotency.findFirst({
-    where: { bookingId, clientId: booking.clientId },
-    select: { key: true },
-  });
-  if (!idem?.key) return;
-  const target = buildConsultationRewardedTarget(booking.clientId, idem.key);
-  const spend = await prisma.rewardedCreditTransaction.findFirst({
-    where: {
-      userId: booking.clientId,
-      type: "SPEND",
-      targetType: target.targetType,
-      targetId: target.targetId,
-    },
-    select: { id: true, amount: true },
-  });
-  if (!spend) return;
-
-  await refundRewardedCredits({
-    userId: booking.clientId,
-    originalSpendId: spend.id,
-    target,
-    amount: spend.amount,
-    reason,
-    idempotencyKey: `rewarded:refund:consultation:${bookingId}:${reason}`,
-  });
 }
 
 /** Напоминания перед стартом; если до окна меньше минуты — не планируем. */
@@ -161,7 +107,11 @@ async function scheduleConsultationReminderIfNeeded(
       removeOnFail: { count: 500 },
     },
   );
-  logger.info("consultation reminder запланирован", { bookingId, kind, runAt: runAt.toISOString() });
+  logger.info("consultation reminder запланирован", {
+    bookingId,
+    kind,
+    runAt: runAt.toISOString(),
+  });
 }
 
 async function scheduleConsultationRemindersIfNeeded(
@@ -297,10 +247,7 @@ export async function bookSlot(
   }
   if (idem?.bookingId && idem.expiresAt > new Date()) {
     const replayDto = await toBookingDto(idem.bookingId);
-    if (
-      replayDto &&
-      replayDto.status !== ConsultationBookingStatus.CANCELLED_BY_SYSTEM
-    ) {
+    if (replayDto && replayDto.status !== ConsultationBookingStatus.CANCELLED_BY_SYSTEM) {
       return { kind: "idempotent_replay", booking: replayDto };
     }
   }
@@ -484,9 +431,8 @@ export async function bookSlot(
   }
 }
 
-export async function bookSlotWithPremiumOrRewardedCredits(input: {
+export async function bookSlotWithSubscription(input: {
   userId: string;
-  platform: MonetizedAccessPlatform;
   body: BookSlotInput;
   requestId?: string;
 }): Promise<BookSlotResult> {
@@ -494,47 +440,22 @@ export async function bookSlotWithPremiumOrRewardedCredits(input: {
     return bookSlot(input.userId, input.body, input.requestId);
   }
 
-  const target = buildConsultationRewardedTarget(input.userId, input.body.idempotencyKey);
-  const unlock = await unlockRewardedTarget({
-    userId: input.userId,
-    platform: input.platform,
-    target,
-  });
-
-  try {
-    return await bookSlot(input.userId, input.body, input.requestId);
-  } catch (error) {
-    if (unlock.spentCredits > 0) {
-      await refundRewardedCredits({
-        userId: input.userId,
-        target,
-        amount: unlock.spentCredits,
-        reason: "BOOKING_FAILED",
-        idempotencyKey: `rewarded:refund:consultation:${input.userId}:${input.body.idempotencyKey}:booking-failed`,
-      });
-    }
-    throw error;
+  const subscription = await getAppSubscriptionAccess(input.userId);
+  if (!subscription.hasActiveSubscription) {
+    throw new SubscriptionRequiredError();
   }
+
+  return bookSlot(input.userId, input.body, input.requestId);
 }
 
-export async function requireConsultationSlotsPremiumOrRewardedAccess(input: {
+export async function requireConsultationSlotsSubscriptionAccess(input: {
   userId: string;
-  platform: MonetizedAccessPlatform;
   now?: Date;
 }): Promise<void> {
-  const gatingEnabled = await getAppFeatureFlagEnabled(
-    APP_FEATURE_APP_SUBSCRIPTION_GATING,
-    true,
-  );
-  if (!gatingEnabled) return;
-
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
   if (subscription.hasActiveSubscription) return;
 
-  const balance = await getRewardedCreditBalance(input.userId);
-  if (balance >= REWARDED_CONSULTATION_BOOKING_COST) return;
-
-  throw new SubscriptionOrCreditsRequiredError();
+  throw new SubscriptionRequiredError();
 }
 
 export async function confirmBookingByTrainer(
@@ -623,12 +544,9 @@ export async function rejectBookingByTrainer(
     bookingId,
     ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_TRAINER,
   );
-  await refundConsultationRewardedCreditsForBooking(bookingId, "CANCELLED_BY_TRAINER");
   await tryConsultationPush(
     b.clientId,
-    b.trainerConfirmedAt
-      ? "Встреча отменена кинологом"
-      : "Заявка на консультацию отклонена",
+    b.trainerConfirmedAt ? "Встреча отменена кинологом" : "Заявка на консультацию отклонена",
     b.trainerConfirmedAt
       ? "Кинолог отменил запланированную встречу. Подробности в письме."
       : "Кинолог отклонил заявку. Подробности в письме.",
@@ -653,7 +571,9 @@ export async function completeBookingByTrainer(
     throw new ConsultationForbiddenError();
   }
   if (b.status !== ConsultationBookingStatus.CONFIRMED) {
-    throw new ConsultationForbiddenError("Завершение доступно только для подтверждённой консультации");
+    throw new ConsultationForbiddenError(
+      "Завершение доступно только для подтверждённой консультации",
+    );
   }
 
   await removeConsultationRemindJobSafe(bookingId);
@@ -682,7 +602,9 @@ export async function markBookingNoShowByTrainer(
     throw new ConsultationForbiddenError();
   }
   if (b.status !== ConsultationBookingStatus.CONFIRMED) {
-    throw new ConsultationForbiddenError("Неявку можно выставить только для подтверждённой консультации");
+    throw new ConsultationForbiddenError(
+      "Неявку можно выставить только для подтверждённой консультации",
+    );
   }
 
   await removeConsultationRemindJobSafe(bookingId);
@@ -737,7 +659,6 @@ export async function cancelBookingByUser(clientId: string, bookingId: string): 
     bookingId,
     ConsultationEmailType.TRAINER_BOOKING_CANCELLED_BY_USER,
   );
-  await refundConsultationRewardedCreditsForBooking(bookingId, "CANCELLED_BY_USER");
   await tryConsultationPush(
     b.cynologist.userId,
     wasConfirmed ? "Клиент отменил встречу" : "Клиент отменил заявку",
@@ -779,7 +700,6 @@ export async function processBookingSlaTimeout(bookingId: string): Promise<void>
   });
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_SLA);
-  await refundConsultationRewardedCreditsForBooking(bookingId, "CANCELLED_BY_SLA");
   await tryConsultationPush(
     clientId,
     "Консультация не подтверждена",
@@ -913,10 +833,7 @@ export async function reconcileMissedConsultationReminders(options?: {
 
     const is30mWindow =
       startAtMs >= reminder30mLower.getTime() && startAtMs <= reminder30mUpper.getTime();
-    if (
-      is30mWindow &&
-      !loggedTypes.has(ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M)
-    ) {
+    if (is30mWindow && !loggedTypes.has(ConsultationEmailType.CLIENT_CONSULTATION_REMINDER_30M)) {
       await processConsultationReminder(booking.id, "30m");
       triggered30m += 1;
     }
@@ -1000,7 +917,7 @@ export async function listClientBookings(
 
   return {
     items,
-    nextCursor: hasMore ? slice[take - 1]?.id ?? null : null,
+    nextCursor: hasMore ? (slice[take - 1]?.id ?? null) : null,
   };
 }
 
@@ -1019,10 +936,7 @@ export async function listTrainerBookings(
     }
   }
 
-  const where =
-    actorRole === "ADMIN" || actorRole === "MODERATOR"
-      ? {}
-      : { cynologistId: cyn!.id };
+  const where = actorRole === "ADMIN" || actorRole === "MODERATOR" ? {} : { cynologistId: cyn!.id };
 
   const rows = await prisma.consultationBooking.findMany({
     where,

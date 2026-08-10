@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -87,14 +80,7 @@ export function ConsultationSlotsCalendar({
       const res = await consultationsApi.getSlotsCalendar(cynologistUserId, fromIso, toIso);
       if (!res.success || !res.data) {
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
-          await openConsultationAccessPaywall({
-            targetId: `slots:${cynologistUserId}`,
-            onRewardedGrant: async () => {
-              await queryClient.invalidateQueries({
-                queryKey: ["consultations", "slotsCalendar", cynologistUserId],
-              });
-            },
-          });
+          openConsultationAccessPaywall();
         }
         throw new Error(res.error ?? "Ошибка загрузки слотов");
       }
@@ -120,10 +106,7 @@ export function ConsultationSlotsCalendar({
     [dayOffSet, slots],
   );
 
-  const slotsByDay = useMemo(
-    () => groupConsultationSlotsByMskDay(visibleSlots),
-    [visibleSlots],
-  );
+  const slotsByDay = useMemo(() => groupConsultationSlotsByMskDay(visibleSlots), [visibleSlots]);
 
   const slotsByDayMap = useMemo(() => {
     return new Map(slotsByDay.map((d) => [d.dateKey, d.slots]));
@@ -219,10 +202,7 @@ export function ConsultationSlotsCalendar({
           return;
         }
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
-          await openConsultationAccessPaywall({
-            targetId: `slot:${slot.id}`,
-            onRewardedGrant: () => verifyAndBook(slot),
-          });
+          openConsultationAccessPaywall();
           return;
         }
         if (
@@ -269,9 +249,7 @@ export function ConsultationSlotsCalendar({
       {slotsQuery.isLoading ? (
         <ActivityIndicator color={COLORS.primary} style={styles.loader} />
       ) : null}
-      {slotsQuery.isError ? (
-        <Text style={styles.error}>Не удалось загрузить слоты.</Text>
-      ) : null}
+      {slotsQuery.isError ? <Text style={styles.error}>Не удалось загрузить слоты.</Text> : null}
 
       {!slotsQuery.isLoading && !slotsQuery.isError ? (
         <View style={styles.layout}>
@@ -346,15 +324,9 @@ export function ConsultationSlotsCalendar({
                   >
                     <Text style={styles.dayNumber}>{dayDate.getUTCDate()}</Text>
                     <Text style={styles.dayCount} numberOfLines={1}>
-                      {inRange
-                        ? isDayOff
-                          ? "0 св."
-                          : `${freeCount} св.`
-                        : ""}
+                      {inRange ? (isDayOff ? "0 св." : `${freeCount} св.`) : ""}
                     </Text>
-                    {hasNoFreeSlots && !isDayOff ? (
-                      <View style={styles.noFreeDot} />
-                    ) : null}
+                    {hasNoFreeSlots && !isDayOff ? <View style={styles.noFreeDot} /> : null}
                   </Pressable>
                 );
               })}
@@ -386,7 +358,11 @@ export function ConsultationSlotsCalendar({
                       onPress={() => void verifyAndBook(slot)}
                     >
                       <Text style={[styles.slotBtnText, !isFree && styles.slotBtnTextMuted]}>
-                        {isFree ? (verifyingSlotId === slot.id ? "…" : "Выбрать слот") : "Недоступно"}
+                        {isFree
+                          ? verifyingSlotId === slot.id
+                            ? "…"
+                            : "Выбрать слот"
+                          : "Недоступно"}
                       </Text>
                     </Pressable>
                   </View>

@@ -16,7 +16,7 @@ import {
   adminSetListedCynologists,
   addDayOff,
   addSlotException,
-  bookSlotWithPremiumOrRewardedCredits,
+  bookSlotWithSubscription,
   bookSlotInputSchema,
   cancelBookingBodySchema,
   cancelBookingByUser,
@@ -29,7 +29,7 @@ import {
   getCynologistDayOffDates,
   getSlotsQuerySchema,
   getTrainerAvailability,
-  requireConsultationSlotsPremiumOrRewardedAccess,
+  requireConsultationSlotsSubscriptionAccess,
   listAdminBookings,
   listAllTrainersForAdmin,
   listClientBookings,
@@ -45,10 +45,7 @@ import {
   verifyConsultationSlotFreeForCynologist,
   trainerAvailabilityInputSchema,
 } from "@gafus/core/services/consultation";
-import {
-  RewardedCreditsRequiredError,
-  SubscriptionOrCreditsRequiredError,
-} from "@gafus/core/services/rewardedCredits";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
 
 import { requireRole } from "../../middleware/auth.js";
@@ -68,15 +65,12 @@ async function targetTrainerIdFromRequest(c: Context): Promise<string> {
 }
 
 function handleConsultationError(c: import("hono").Context, error: unknown) {
-  if (
-    error instanceof RewardedCreditsRequiredError ||
-    error instanceof SubscriptionOrCreditsRequiredError
-  ) {
+  if (error instanceof SubscriptionRequiredError) {
     return c.json(
       {
         success: false,
-        error: "Для действия нужна подписка или rewarded credits",
-        code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+        error: error.message,
+        code: "SUBSCRIPTION_REQUIRED",
       },
       402,
     );
@@ -101,11 +95,6 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
   return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
 }
 
-function getMobileRewardedPlatform(c: Context): "ANDROID" | "IOS" {
-  const platform = c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
-  return platform === "IOS" ? "IOS" : "ANDROID";
-}
-
 consultationsRoutes.get("/cynologists", async (c) => {
   try {
     const data = await listListedCynologists();
@@ -119,9 +108,8 @@ consultationsRoutes.get("/cynologists/:cynologistUserId/slots/:slotId/verify", a
   try {
     const user = c.get("user");
     const { cynologistUserId, slotId } = c.req.param();
-    await requireConsultationSlotsPremiumOrRewardedAccess({
+    await requireConsultationSlotsSubscriptionAccess({
       userId: user.id,
-      platform: getMobileRewardedPlatform(c),
     });
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
     return c.json({ success: true });
@@ -163,9 +151,8 @@ consultationsRoutes.post(
       const user = c.get("user");
       const body = c.req.valid("json");
       const requestId = c.req.header("X-Request-Id") ?? undefined;
-      const result = await bookSlotWithPremiumOrRewardedCredits({
+      const result = await bookSlotWithSubscription({
         userId: user.id,
-        platform: getMobileRewardedPlatform(c),
         body,
         requestId,
       });

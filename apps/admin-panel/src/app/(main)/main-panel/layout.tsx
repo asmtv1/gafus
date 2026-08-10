@@ -13,6 +13,7 @@ import {
   CalendarMonth,
   Flag,
   CardMembership,
+  AdsClick,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -64,6 +65,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/reengagement" className={styles.button}>
               <TrendingUp sx={{ mr: 1.5, fontSize: 20 }} />
               Re-engagement
+            </Link>
+            <Link href="/main-panel/rewarded-ads" className={styles.button}>
+              <AdsClick sx={{ mr: 1.5, fontSize: 20 }} />
+              Мониторинг рекламы
             </Link>
           </>
         )}

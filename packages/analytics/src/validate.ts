@@ -20,14 +20,13 @@ const base = z
     ts: z.string(),
     userId: z.string().optional(),
   })
-    .strict();
+  .strict();
 
 const rewardedFields = {
   rewardedPlatform: z.string().optional(),
   targetType: z.string().optional(),
-  creditsDelta: z.number().optional(),
-  balance: z.number().optional(),
-  dailyLimit: z.number().optional(),
+  targetId: z.string().optional(),
+  expiresAt: z.string().datetime().optional(),
   reason: z.string().optional(),
   provider: z.string().optional(),
 };
@@ -139,20 +138,8 @@ const schemas = {
   rewarded_ad_rewarded: base
     .extend({ eventName: z.literal("rewarded_ad_rewarded"), ...rewardedFields })
     .strict(),
-  rewarded_credits_granted: base
-    .extend({ eventName: z.literal("rewarded_credits_granted"), ...rewardedFields })
-    .strict(),
-  rewarded_credits_spent: base
-    .extend({ eventName: z.literal("rewarded_credits_spent"), ...rewardedFields })
-    .strict(),
-  rewarded_credits_refunded: base
-    .extend({ eventName: z.literal("rewarded_credits_refunded"), ...rewardedFields })
-    .strict(),
-  rewarded_daily_limit_reached: base
-    .extend({ eventName: z.literal("rewarded_daily_limit_reached"), ...rewardedFields })
-    .strict(),
-  rewarded_target_unlocked: base
-    .extend({ eventName: z.literal("rewarded_target_unlocked"), ...rewardedFields })
+  rewarded_access_granted: base
+    .extend({ eventName: z.literal("rewarded_access_granted"), ...rewardedFields })
     .strict(),
   rewarded_to_subscription_started: base
     .extend({ eventName: z.literal("rewarded_to_subscription_started"), ...rewardedFields })

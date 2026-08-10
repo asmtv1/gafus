@@ -5,12 +5,9 @@ import type {
   MonetizedAccessPlatform,
   PremiumOrRewardedAccessDto,
   RewardedTargetInput,
-  RewardedUnlockResultDto,
 } from "./types";
 import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
 import { getAppSubscriptionAccess } from "../appSubscription";
-import { spendRewardedCredits } from "./walletService";
-import { REWARDED_STEP_UNLOCK_COST } from "./constants";
 
 const REWARDED_MONETIZED_STEP_TYPES = new Set([
   "TRAINING",
@@ -24,36 +21,21 @@ function isRewardedMonetizedStepType(stepType: string | null | undefined): boole
   return REWARDED_MONETIZED_STEP_TYPES.has(stepType ?? "");
 }
 
-function courseStepTarget(stepOnDayId: string, stepType: string | null | undefined): RewardedTargetInput | null {
+function courseStepTarget(
+  stepOnDayId: string,
+  stepType: string | null | undefined,
+): RewardedTargetInput | null {
   if (!isRewardedMonetizedStepType(stepType)) return null;
   return {
     targetType: "COURSE_STEP",
     targetId: stepOnDayId,
-    cost: REWARDED_STEP_UNLOCK_COST,
   };
 }
 
-function dailyCourseStepTarget(input: {
-  scheduleId: string;
-  bundleStepId: string;
-  stepType: string | null | undefined;
-}): RewardedTargetInput | null {
-  if (!isRewardedMonetizedStepType(input.stepType)) return null;
-  return {
-    targetType: "DAILY_COURSE_STEP",
-    targetId: `${input.scheduleId}:${input.bundleStepId}`,
-    cost: REWARDED_STEP_UNLOCK_COST,
-  };
-}
+type ResolvedTarget = RewardedTargetInput | null | undefined;
 
-async function requirePremiumFallback(input: {
-  userId: string;
-  now?: Date;
-}): Promise<null> {
-  const gatingEnabled = await getAppFeatureFlagEnabled(
-    APP_FEATURE_APP_SUBSCRIPTION_GATING,
-    true,
-  );
+async function requirePremiumFallback(input: { userId: string; now?: Date }): Promise<null> {
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) return null;
 
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
@@ -79,7 +61,7 @@ async function resolveRegularCourseTargetByDayOnCourseAndStep(input: {
   userId: string;
   dayOnCourseId: string;
   stepIndex: number;
-}): Promise<RewardedTargetInput | null> {
+}): Promise<ResolvedTarget> {
   const dayOnCourse = await prisma.dayOnCourse.findFirst({
     where: {
       id: input.dayOnCourseId,
@@ -100,14 +82,14 @@ async function resolveRegularCourseTargetByDayOnCourseAndStep(input: {
     },
   });
   const stepLink = dayOnCourse?.day.stepLinks[input.stepIndex];
-  if (!stepLink) return null;
+  if (!stepLink) return undefined;
   return courseStepTarget(stepLink.id, stepLink.step.type);
 }
 
 async function resolveTargetForUserStep(input: {
   userId: string;
   userStepId: string;
-}): Promise<RewardedTargetInput | null> {
+}): Promise<ResolvedTarget> {
   const userStep = await prisma.userStep.findFirst({
     where: {
       id: input.userStepId,
@@ -137,18 +119,33 @@ async function resolveTargetForUserStep(input: {
       bundleStep: { select: { step: { select: { type: true } } } },
     },
   });
-  if (!dailyStep) return null;
-  return dailyCourseStepTarget({
-    scheduleId: dailyStep.dailyCourseUserTraining.scheduleId,
-    bundleStepId: dailyStep.bundleStepId,
-    stepType: dailyStep.bundleStep.step.type,
-  });
+  // Курс дня полностью бесплатный, включая все дочерние действия шага.
+  if (dailyStep) return null;
+  return undefined;
 }
 
 async function resolveTargetForVideoUrl(input: {
   userId: string;
   videoUrl: string;
-}): Promise<RewardedTargetInput | null> {
+  now?: Date;
+}): Promise<ResolvedTarget> {
+  const dailyStep = await prisma.dailyCourseBundleStep.findFirst({
+    where: {
+      step: { videoUrl: input.videoUrl },
+      bundle: {
+        schedules: {
+          some: {
+            isPublished: true,
+            date: { lte: input.now ?? new Date() },
+          },
+        },
+      },
+    },
+    select: { id: true },
+  });
+  // Курс дня полностью бесплатный, даже до создания пользовательского прогресса.
+  if (dailyStep) return null;
+
   const userStep = await prisma.userStep.findFirst({
     where: {
       userTraining: { userId: input.userId },
@@ -167,46 +164,30 @@ async function resolveTargetForVideoUrl(input: {
     return courseStepTarget(userStep.stepOnDay.id, userStep.stepOnDay.step.type);
   }
 
-  const dailyStep = await prisma.dailyCourseUserStep.findFirst({
-    where: {
-      dailyCourseUserTraining: { userId: input.userId },
-      bundleStep: { step: { videoUrl: input.videoUrl } },
-    },
-    select: {
-      bundleStepId: true,
-      dailyCourseUserTraining: { select: { scheduleId: true } },
-      bundleStep: { select: { step: { select: { type: true } } } },
-    },
-  });
-  if (!dailyStep) return null;
-  return dailyCourseStepTarget({
-    scheduleId: dailyStep.dailyCourseUserTraining.scheduleId,
-    bundleStepId: dailyStep.bundleStepId,
-    stepType: dailyStep.bundleStep.step.type,
-  });
-}
-
-export function buildRewardedSpendIdempotencyKey(
-  userId: string,
-  target: Pick<RewardedTargetInput, "targetType" | "targetId">,
-): string {
-  return `rewarded:spend:${userId}:${target.targetType}:${target.targetId}`;
+  return undefined;
 }
 
 export async function hasRewardedTargetUnlock(input: {
   userId: string;
+  platform: MonetizedAccessPlatform;
   target: RewardedTargetInput;
+  now?: Date;
 }): Promise<boolean> {
-  const transaction = await prisma.rewardedCreditTransaction.findFirst({
+  if (input.platform !== "ANDROID" && input.platform !== "IOS") return false;
+  if (input.target.targetType !== "ARTICLE" && input.target.targetType !== "COURSE_STEP") {
+    return false;
+  }
+
+  const access = await prisma.rewardedTargetAccess.findFirst({
     where: {
       userId: input.userId,
-      type: "SPEND",
       targetType: input.target.targetType,
       targetId: input.target.targetId,
+      expiresAt: { gt: input.now ?? new Date() },
     },
     select: { id: true },
   });
-  return Boolean(transaction);
+  return Boolean(access);
 }
 
 export async function getPremiumOrRewardedAccess(input: {
@@ -215,10 +196,7 @@ export async function getPremiumOrRewardedAccess(input: {
   target: RewardedTargetInput;
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto> {
-  const gatingEnabled = await getAppFeatureFlagEnabled(
-    APP_FEATURE_APP_SUBSCRIPTION_GATING,
-    true,
-  );
+  const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) {
     return {
       allowed: true,
@@ -238,7 +216,14 @@ export async function getPremiumOrRewardedAccess(input: {
     };
   }
 
-  if (await hasRewardedTargetUnlock({ userId: input.userId, target: input.target })) {
+  if (
+    await hasRewardedTargetUnlock({
+      userId: input.userId,
+      platform: input.platform,
+      target: input.target,
+      now: input.now,
+    })
+  ) {
     return {
       allowed: true,
       source: "REWARDED",
@@ -259,47 +244,6 @@ export async function requirePremiumOrRewardedUnlock(input: {
   return getPremiumOrRewardedAccess(input);
 }
 
-export async function unlockRewardedTarget(input: {
-  userId: string;
-  platform: MonetizedAccessPlatform;
-  target: RewardedTargetInput;
-  now?: Date;
-}): Promise<RewardedUnlockResultDto> {
-  try {
-    const access = await getPremiumOrRewardedAccess(input);
-    return {
-      targetType: input.target.targetType,
-      targetId: input.target.targetId,
-      unlocked: true,
-      spentCredits: 0,
-      balance: 0,
-      pendingRefundCredits: 0,
-    };
-  } catch (error) {
-    if (!(error instanceof SubscriptionOrCreditsRequiredError)) {
-      throw error;
-    }
-  }
-
-  const cost = input.target.cost ?? 1;
-  const spend = await spendRewardedCredits({
-    userId: input.userId,
-    target: input.target,
-    amount: cost,
-    idempotencyKey: buildRewardedSpendIdempotencyKey(input.userId, input.target),
-    now: input.now,
-  });
-
-  return {
-    targetType: input.target.targetType,
-    targetId: input.target.targetId,
-    unlocked: true,
-    spentCredits: spend.spentCredits,
-    balance: spend.balance,
-    pendingRefundCredits: spend.pendingRefundCredits,
-  };
-}
-
 export async function requirePremiumOrRewardedAccessForUserStep(input: {
   userId: string;
   platform: MonetizedAccessPlatform;
@@ -307,7 +251,8 @@ export async function requirePremiumOrRewardedAccessForUserStep(input: {
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto | null> {
   const target = await resolveTargetForUserStep(input);
-  if (!target) {
+  if (target === null) return null;
+  if (target === undefined) {
     return requirePremiumFallback(input);
   }
   return requirePremiumOrRewardedUnlock({
@@ -325,7 +270,8 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto | null> {
   const target = await resolveTargetForVideoUrl(input);
-  if (!target) {
+  if (target === null) return null;
+  if (target === undefined) {
     return requirePremiumFallback(input);
   }
   return requirePremiumOrRewardedUnlock({
@@ -369,7 +315,8 @@ export async function requirePremiumOrRewardedAccessForStepNotification(input: {
     dayOnCourseId,
     stepIndex: input.stepIndex,
   });
-  if (!target) {
+  if (target === null) return null;
+  if (target === undefined) {
     return requirePremiumFallback(input);
   }
   return requirePremiumOrRewardedUnlock({

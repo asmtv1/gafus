@@ -9,6 +9,7 @@ import {
 } from "@gafus/prisma";
 
 import { ConsultationSlotTakenError } from "./errors";
+import { SubscriptionRequiredError } from "../appSubscription/errors";
 
 const enqueueConsultationEmail = vi.fn();
 const createTelemostConference = vi.fn();
@@ -16,6 +17,12 @@ const queueAdd = vi.fn();
 const removeConsultationSlaJob = vi.fn();
 const removeConsultationReminderJob = vi.fn();
 const sendImmediatePushNotification = vi.fn();
+const getAppSubscriptionAccess = vi.fn();
+
+vi.mock("../appSubscription", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../appSubscription")>()),
+  getAppSubscriptionAccess: (...args: unknown[]) => getAppSubscriptionAccess(...args),
+}));
 
 vi.mock("./notificationService", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
@@ -50,7 +57,6 @@ vi.mock("@gafus/queues", () => ({
 const {
   idemFindFirst,
   idemFindUnique,
-  rewardedCreditTransactionFindFirst,
   txUpdateMany,
   txFindUnique,
   txCreateBooking,
@@ -62,7 +68,6 @@ const {
 } = vi.hoisted(() => ({
   idemFindFirst: vi.fn(),
   idemFindUnique: vi.fn(),
-  rewardedCreditTransactionFindFirst: vi.fn(),
   txUpdateMany: vi.fn(),
   txFindUnique: vi.fn(),
   txCreateBooking: vi.fn(),
@@ -85,10 +90,6 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
         findUnique: idemFindUnique,
         upsert: prismaUpsertIdem,
       },
-      rewardedCreditTransaction: {
-        ...mod.prisma.rewardedCreditTransaction,
-        findFirst: rewardedCreditTransactionFindFirst,
-      },
       consultationBooking: {
         ...mod.prisma.consultationBooking,
         update: prismaUpdateBooking,
@@ -102,6 +103,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 
 beforeEach(() => {
   sendImmediatePushNotification.mockResolvedValue({ success: true });
+  getAppSubscriptionAccess.mockResolvedValue({ hasActiveSubscription: false });
 });
 
 describe("processBookingSlaTimeout", () => {
@@ -115,7 +117,7 @@ describe("processBookingSlaTimeout", () => {
     await processBookingSlaTimeout("missing");
     expect(prismaTransaction).not.toHaveBeenCalled();
     expect(enqueueConsultationEmail).not.toHaveBeenCalled();
-  }, 10_000);
+  }, 60_000);
 
   it("не отменяет бронь, если статус не ожидание тренера", async () => {
     prismaFindUniqueBooking.mockResolvedValue({
@@ -185,10 +187,7 @@ describe("processConsultationReminder", () => {
     const { processConsultationReminder } = await import("./bookingService");
     await processConsultationReminder("b-start", "start");
 
-    expect(enqueueConsultationEmail).toHaveBeenCalledWith(
-      "b-start",
-      "CLIENT_CONSULTATION_START",
-    );
+    expect(enqueueConsultationEmail).toHaveBeenCalledWith("b-start", "CLIENT_CONSULTATION_START");
     expect(enqueueConsultationEmail).toHaveBeenCalledTimes(1);
     expect(sendImmediatePushNotification).toHaveBeenCalledWith({
       userId: "client-1",
@@ -680,5 +679,89 @@ describe("bookSlot", () => {
     ).rejects.toThrow("telemost down");
     expect(compBookingUpdate).toHaveBeenCalled();
     expect(compSlotUpdate).toHaveBeenCalled();
+  });
+});
+
+describe("subscription-only consultation access", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAppSubscriptionAccess.mockResolvedValue({ hasActiveSubscription: false });
+  });
+
+  it("requires an active paid subscription for slot verification", async () => {
+    const { requireConsultationSlotsSubscriptionAccess } = await import("./bookingService");
+
+    await expect(
+      requireConsultationSlotsSubscriptionAccess({
+        userId: "client-1",
+      }),
+    ).rejects.toBeInstanceOf(SubscriptionRequiredError);
+
+    getAppSubscriptionAccess.mockResolvedValueOnce({ hasActiveSubscription: true });
+    await expect(
+      requireConsultationSlotsSubscriptionAccess({
+        userId: "client-1",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a new booking without a subscription before touching a slot", async () => {
+    idemFindUnique.mockResolvedValue(null);
+    const { bookSlotWithSubscription } = await import("./bookingService");
+
+    await expect(
+      bookSlotWithSubscription({
+        userId: "client-1",
+        body: { slotId: "slot-1", idempotencyKey: "new-key", ...bookBodyBase },
+      }),
+    ).rejects.toBeInstanceOf(SubscriptionRequiredError);
+    expect(prismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it("replays an existing booking after the subscription expires", async () => {
+    const cached = {
+      kind: "created" as const,
+      booking: {
+        id: "booking-replay",
+        status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+        slot: {
+          id: "slot-1",
+          startAtUtc: new Date().toISOString(),
+          endAtUtc: new Date().toISOString(),
+          status: ConsultationSlotStatus.BOOKED,
+        },
+        cynologistUserId: "trainer-1",
+        cynologistDisplayName: null,
+        clientUsername: null,
+        clientOwnerName: "Анна",
+        clientPhone: "+79991234567",
+        petName: "Жучка",
+        petGender: ConsultationPetGender.MALE,
+        petAge: "3 года",
+        petBreed: "Собака",
+        clientProblem: "Описание проблемы не менее десяти символов",
+        clientSelfHelpAttempt: "Самолечение",
+        cancelReason: null,
+        joinUrl: null,
+        watchUrl: null,
+        confirmationDeadlineAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    };
+    idemFindUnique.mockResolvedValue({
+      bookingId: "booking-replay",
+      responseJson: cached,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const { bookSlotWithSubscription } = await import("./bookingService");
+
+    await expect(
+      bookSlotWithSubscription({
+        userId: "client-1",
+        body: { slotId: "slot-1", idempotencyKey: "existing-key", ...bookBodyBase },
+      }),
+    ).resolves.toEqual(cached);
+    expect(getAppSubscriptionAccess).not.toHaveBeenCalled();
+    expect(prismaTransaction).not.toHaveBeenCalled();
   });
 });

@@ -5,7 +5,7 @@ import { prisma } from "@gafus/prisma";
 
 import {
   getPremiumOrRewardedAccess,
-  REWARDED_ARTICLE_COST,
+  SubscriptionOrCreditsRequiredError,
   type MonetizedAccessPlatform,
 } from "../rewardedCredits";
 
@@ -40,6 +40,7 @@ export async function toggleArticleLikeWithMonetizedAccess(input: {
     where: { id: input.articleId },
     select: {
       id: true,
+      visibility: true,
       access: {
         where: { userId: input.userId },
         select: { userId: true },
@@ -51,13 +52,15 @@ export async function toggleArticleLikeWithMonetizedAccess(input: {
   }
 
   if (article.access.length === 0) {
+    if (article.visibility === "PAID") {
+      throw new SubscriptionOrCreditsRequiredError();
+    }
     await getPremiumOrRewardedAccess({
       userId: input.userId,
       platform: input.platform,
       target: {
         targetType: "ARTICLE",
         targetId: article.id,
-        cost: REWARDED_ARTICLE_COST,
       },
     });
   }

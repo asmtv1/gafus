@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 
-const { bookSlotWithPremiumOrRewardedCreditsMock, getServerSessionMock } = vi.hoisted(() => ({
+const { bookSlotWithSubscriptionMock, getServerSessionMock } = vi.hoisted(() => ({
   bookSlotMock: vi.fn(),
-  bookSlotWithPremiumOrRewardedCreditsMock: vi.fn(),
+  bookSlotWithSubscriptionMock: vi.fn(),
   getServerSessionMock: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: getServerSessionMock }));
 vi.mock("@gafus/auth", () => ({ authOptions: {} }));
 vi.mock("@gafus/core", () => ({
-  bookSlotWithPremiumOrRewardedCredits: bookSlotWithPremiumOrRewardedCreditsMock,
+  bookSlotWithSubscription: bookSlotWithSubscriptionMock,
   bookSlotInputSchema: {
     parse: (value: unknown) => {
       const body = value as { slotId?: string };
@@ -19,9 +19,10 @@ vi.mock("@gafus/core", () => ({
     },
   },
 }));
-vi.mock("@gafus/core/services/rewardedCredits", () => ({
-  RewardedCreditsRequiredError: class RewardedCreditsRequiredError extends Error {},
-  SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {},
+vi.mock("@gafus/core/services/appSubscription", () => ({
+  SubscriptionRequiredError: class SubscriptionRequiredError extends Error {
+    code = "SUBSCRIPTION_REQUIRED" as const;
+  },
 }));
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 vi.mock("@/shared/lib/consultation-cache-tags", () => ({
@@ -56,7 +57,7 @@ describe("POST /api/v1/consultations/book", () => {
 
   it("books a slot for an authenticated subscribed user", async () => {
     getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
-    bookSlotWithPremiumOrRewardedCreditsMock.mockResolvedValueOnce({
+    bookSlotWithSubscriptionMock.mockResolvedValueOnce({
       booking: { cynologistUserId: "trainer-1" },
       kind: "created",
     });
@@ -64,9 +65,8 @@ describe("POST /api/v1/consultations/book", () => {
     const response = await POST(request({ slotId: "slot-1" }));
 
     expect(response.status).toBe(201);
-    expect(bookSlotWithPremiumOrRewardedCreditsMock).toHaveBeenCalledWith({
+    expect(bookSlotWithSubscriptionMock).toHaveBeenCalledWith({
       userId: "user-1",
-      platform: "WEB_DESKTOP",
       body: { slotId: "slot-1" },
       requestId: undefined,
     });

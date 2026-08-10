@@ -318,8 +318,8 @@ services:
       - VK_CLIENT_ID_ANDROID=${VK_CLIENT_ID_ANDROID}
       - VK_MOBILE_REDIRECT_URI=${VK_MOBILE_REDIRECT_URI:-gafus://auth/vk}
       # Минимальная версия store-сборки. Поднять после публикации новой версии в сторах.
-      - MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.6.4}
-      - MOBILE_ANDROID_MIN_VERSION=${MOBILE_ANDROID_MIN_VERSION:-1.6.4}
+      - MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.6.5}
+      - MOBILE_ANDROID_MIN_VERSION=${MOBILE_ANDROID_MIN_VERSION:-1.6.5}
       - MOBILE_IOS_STORE_URL=${MOBILE_IOS_STORE_URL:-https://apps.apple.com/ru/app/gafus/id6760964612}
       - MOBILE_ANDROID_STORE_URL=${MOBILE_ANDROID_STORE_URL:-https://www.rustore.ru/catalog/app/ru.gafus.app}
       - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}

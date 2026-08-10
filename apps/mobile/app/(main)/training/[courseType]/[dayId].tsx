@@ -37,13 +37,14 @@ import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
 import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
+import { trackEvent } from "@/shared/lib/analytics";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import {
   getRewardedAccessPrompt,
   openAppSubscriptionPaywall,
   RewardedAccessGate,
 } from "@/features/app-subscription";
-import { rewardedAdsApi } from "@/features/rewarded-ads";
+import { openTargetWithRewardedAd, rewardedAdsApi } from "@/features/rewarded-ads";
 
 /**
  * Экран дня тренировки с шагами
@@ -65,6 +66,7 @@ export default function TrainingDayScreen() {
   const [isExporting, setIsExporting] = useState(false);
   const [unlockingStepIndex, setUnlockingStepIndex] = useState<number | null>(null);
   const [stepAccessError, setStepAccessError] = useState<string | null>(null);
+  const rewardedUnlockInFlightRef = useRef(false);
   const hasHandledPaymentReturnRef = useRef(false);
   const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
   /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
@@ -123,7 +125,7 @@ export default function TrainingDayScreen() {
       activeRewardedTarget?.targetType ?? null,
       activeRewardedTarget?.targetId ?? null,
     ],
-    queryFn: () => rewardedAdsApi.getStatus(activeRewardedTarget ?? undefined),
+    queryFn: () => rewardedAdsApi.getStatus(activeRewardedTarget!),
     enabled: Boolean(activeRewardedTarget),
     staleTime: 30_000,
   });
@@ -132,7 +134,7 @@ export default function TrainingDayScreen() {
       ? rewardedStatusQuery.data.data
       : null;
   const rewardedPrompt = getRewardedAccessPrompt({
-    isLoading: rewardedStatusQuery.isLoading,
+    isLoading: rewardedStatusQuery.isFetching,
     status: rewardedStatus,
   });
   const loadingRewardedPrompt = getRewardedAccessPrompt({
@@ -248,24 +250,54 @@ export default function TrainingDayScreen() {
   }, [courseId, dayData?.steps, dayId, isOffline, refetch]);
 
   // Обработчики
-  const unlockStepWithRewarded = useCallback(
+  const unlockStepWithRewardedAd = useCallback(
     async (index: number) => {
+      if (rewardedUnlockInFlightRef.current) return;
+      const target = dayData?.steps?.[index]?.monetizationTarget;
+      if (!target || target.targetType !== "COURSE_STEP") return;
+
+      rewardedUnlockInFlightRef.current = true;
       setStepAccessError(null);
-      const response = await trainingApi.unlockStep({
-        courseType,
-        dayOnCourseId: dayId,
-        stepIndex: index,
-      });
-      if (!response.success) {
-        const message = response.error ?? "Не удалось открыть шаг";
+      setUnlockingStepIndex(index);
+      try {
+        const result = await openTargetWithRewardedAd(target);
+        if (!result.success) {
+          setStepAccessError(result.message);
+          setSnackbar({ visible: true, message: result.message });
+          return;
+        }
+        if (result.data) {
+          trackEvent({
+            eventName: "rewarded_access_granted",
+            platform: "mobile",
+            pathOrScreen: `/training/${courseType}/${dayId}`,
+            targetType: result.data.targetType,
+            targetId: result.data.targetId,
+            expiresAt: result.data.expiresAt,
+            provider: "YANDEX",
+          });
+        }
+        await Promise.all([refetch(), rewardedStatusQuery.refetch()]);
+        setOpenIndex(courseId, dayId, index);
+      } catch (error) {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "TrainingDay",
+          keys: {
+            operation: "open_step_with_rewarded_ad",
+            dayId,
+            courseId,
+            stepIndex: String(index),
+          },
+        });
+        const message = "Ошибка сервиса Гафус. Попробуйте ещё раз или обратитесь к администрации";
         setStepAccessError(message);
         setSnackbar({ visible: true, message });
-        throw new Error(message);
+      } finally {
+        rewardedUnlockInFlightRef.current = false;
+        setUnlockingStepIndex(null);
       }
-      await refetch();
-      setOpenIndex(courseId, dayId, index);
     },
-    [courseId, courseType, dayId, refetch, setOpenIndex],
+    [courseId, courseType, dayData?.steps, dayId, refetch, rewardedStatusQuery, setOpenIndex],
   );
 
   const handleToggleStep = useCallback(
@@ -279,38 +311,6 @@ export default function TrainingDayScreen() {
       setOpenIndex(courseId, dayId, openIndex === index ? null : index);
     },
     [courseId, dayData?.steps, dayId, openIndex, setOpenIndex],
-  );
-
-  const handleDirectStepUnlock = useCallback(
-    async (index: number) => {
-      if (unlockingStepIndex !== null) return;
-      setUnlockingStepIndex(index);
-      try {
-        await unlockStepWithRewarded(index);
-      } catch (error) {
-        reportClientError(error instanceof Error ? error : new Error(String(error)), {
-          issueKey: "TrainingDay",
-          keys: { operation: "unlock_step_with_credit", dayId, courseId, stepIndex: String(index) },
-        });
-      } finally {
-        setUnlockingStepIndex(null);
-      }
-    },
-    [courseId, dayId, unlockingStepIndex, unlockStepWithRewarded],
-  );
-
-  const handleStepRewardedPaywall = useCallback(
-    (index: number) => {
-      const target = dayData?.steps?.[index]?.monetizationTarget;
-      if (!target) return;
-      openAppSubscriptionPaywall({
-        reason: "required",
-        contentMode: "rewarded",
-        rewardedTarget: target,
-        onRewardedGrant: () => unlockStepWithRewarded(index),
-      });
-    },
-    [dayData?.steps, unlockStepWithRewarded],
   );
 
   const handleSubscriptionPaywall = useCallback(() => {
@@ -974,13 +974,7 @@ export default function TrainingDayScreen() {
                             prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
                             errorText={openIndex === index ? stepAccessError : null}
                             isBusy={unlockingStepIndex === index}
-                            onPrimaryPress={() => {
-                              if (rewardedPrompt.mode === "direct-credit") {
-                                void handleDirectStepUnlock(index);
-                              } else {
-                                handleStepRewardedPaywall(index);
-                              }
-                            }}
+                            onPrimaryPress={() => void unlockStepWithRewardedAd(index)}
                             onSubscriptionPress={handleSubscriptionPaywall}
                           />
                         ) : undefined

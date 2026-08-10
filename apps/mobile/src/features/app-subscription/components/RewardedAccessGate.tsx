@@ -23,7 +23,7 @@ export function RewardedAccessGate({
   onSubscriptionPress: () => void;
 }) {
   const primaryDisabled = isBusy || prompt.mode === "loading";
-  const showSubscriptionFirst = prompt.mode !== "direct-credit" && Boolean(prompt.subscriptionText);
+  const showSubscriptionFirst = Boolean(prompt.subscriptionText);
   const showRewardedButton = prompt.mode === "standard-paywall" && prompt.showRewardedAction;
 
   return (

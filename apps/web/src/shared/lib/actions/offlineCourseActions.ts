@@ -6,6 +6,7 @@ import {
   downloadFullCourse as downloadFullCourseCore,
 } from "@gafus/core/services/offline";
 import { checkCourseAccessById } from "@gafus/core/services/course";
+import { getAppSubscriptionAccess } from "@gafus/core/services/appSubscription";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { trainingTypeSchema } from "../validation/schemas";
@@ -60,6 +61,11 @@ export async function downloadFullCourse(
     const userId = await getCurrentUserId();
     if (!userId) {
       return { success: false, error: "Пользователь не авторизован" };
+    }
+
+    const subscription = await getAppSubscriptionAccess(userId);
+    if (!subscription.hasActiveSubscription) {
+      return { success: false, error: "Скачивание курса доступно по подписке" };
     }
 
     logger.info("Downloading full course", { courseType: safeType, userId });

@@ -2,28 +2,18 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  getDailyCourseDayWithMonetizedStepsMock,
   getDailyCourseDayWithUserStepsMock,
   getTodayDailyCourseMock,
-  requireDailyCourseStepPremiumOrRewardedUnlockMock,
-  unlockDailyCourseStepRewardedTargetMock,
   updateDailyCourseStepAndDayMock,
 } = vi.hoisted(() => ({
-  getDailyCourseDayWithMonetizedStepsMock: vi.fn(),
   getDailyCourseDayWithUserStepsMock: vi.fn(),
   getTodayDailyCourseMock: vi.fn(),
-  requireDailyCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
-  unlockDailyCourseStepRewardedTargetMock: vi.fn(),
   updateDailyCourseStepAndDayMock: vi.fn(),
 }));
 
 vi.mock("@gafus/core/services/dailyCourse", () => ({
-  getDailyCourseDayWithMonetizedSteps: getDailyCourseDayWithMonetizedStepsMock,
   getDailyCourseDayWithUserSteps: getDailyCourseDayWithUserStepsMock,
   getTodayDailyCourse: getTodayDailyCourseMock,
-  requireDailyCourseStepPremiumOrRewardedUnlock:
-    requireDailyCourseStepPremiumOrRewardedUnlockMock,
-  unlockDailyCourseStepRewardedTarget: unlockDailyCourseStepRewardedTargetMock,
   updateDailyCourseStepAndDay: updateDailyCourseStepAndDayMock,
 }));
 
@@ -98,12 +88,6 @@ describe("daily course route contracts", () => {
         },
       ],
     });
-    getDailyCourseDayWithMonetizedStepsMock.mockRejectedValue(
-      Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
-    );
-    requireDailyCourseStepPremiumOrRewardedUnlockMock.mockRejectedValue(
-      Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
-    );
     updateDailyCourseStepAndDayMock.mockResolvedValue({
       allCompleted: false,
       stepJustCompleted: false,
@@ -139,7 +123,6 @@ describe("daily course route contracts", () => {
     expect(getDailyCourseDayWithUserStepsMock).toHaveBeenCalledWith("user-1", "schedule-1", {
       createIfMissing: true,
     });
-    expect(getDailyCourseDayWithMonetizedStepsMock).not.toHaveBeenCalled();
   });
 
   it("starts a daily course step without checking subscription or rewarded unlock", async () => {
@@ -155,7 +138,6 @@ describe("daily course route contracts", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(requireDailyCourseStepPremiumOrRewardedUnlockMock).not.toHaveBeenCalled();
     expect(updateDailyCourseStepAndDayMock).toHaveBeenCalledWith("user-1", "schedule-1", 0, {
       type: "start",
       remainingSec: 60,

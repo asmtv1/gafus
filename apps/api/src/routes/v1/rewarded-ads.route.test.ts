@@ -3,22 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createRewardedAdSessionMock,
-  getRewardedCreditsStatusMock,
-  grantRewardedCreditsMock,
+  getRewardedAdStatusMock,
+  grantRewardedTargetAccessMock,
   recordRewardedAdEventMock,
 } = vi.hoisted(() => ({
   createRewardedAdSessionMock: vi.fn(),
-  getRewardedCreditsStatusMock: vi.fn(),
-  grantRewardedCreditsMock: vi.fn(),
+  getRewardedAdStatusMock: vi.fn(),
+  grantRewardedTargetAccessMock: vi.fn(),
   recordRewardedAdEventMock: vi.fn(),
 }));
 
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
   createRewardedAdSession: createRewardedAdSessionMock,
-  getRewardedCreditsStatus: getRewardedCreditsStatusMock,
-  grantRewardedCredits: grantRewardedCreditsMock,
+  getRewardedAdStatus: getRewardedAdStatusMock,
+  grantRewardedTargetAccess: grantRewardedTargetAccessMock,
   recordRewardedAdEvent: recordRewardedAdEventMock,
-  REWARDED_CONSULTATION_BOOKING_COST: 5,
   RewardedAdSessionError: class RewardedAdSessionError extends Error {
     constructor(
       public code: string,
@@ -30,12 +29,6 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   RewardedAdsDisabledError: class RewardedAdsDisabledError extends Error {
     code = "REWARDED_ADS_DISABLED" as const;
   },
-  RewardedBalanceFullError: class RewardedBalanceFullError extends Error {
-    code = "REWARDED_BALANCE_FULL" as const;
-  },
-  RewardedDailyLimitReachedError: class RewardedDailyLimitReachedError extends Error {
-    code = "REWARDED_DAILY_LIMIT_REACHED" as const;
-  },
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -44,6 +37,12 @@ vi.mock("@gafus/logger", () => ({
 
 import { jsonRequest } from "../../test/route-test-utils";
 import { rewardedAdsRoutes } from "./rewarded-ads";
+
+const MOBILE_HEADERS = {
+  "x-client-platform": "android",
+  "x-client-version": "1.6.5",
+};
+const ARTICLE_TARGET = { targetType: "ARTICLE", targetId: "article-1" } as const;
 
 function createAuthenticatedTestApp() {
   const app = new Hono();
@@ -56,85 +55,95 @@ function createAuthenticatedTestApp() {
 }
 
 describe("rewarded ads routes", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  beforeEach(() => vi.clearAllMocks());
 
-  it("returns mobile rewarded status for the authenticated user", async () => {
+  it("returns direct-access status for a supported mobile client", async () => {
     const app = createAuthenticatedTestApp();
-    getRewardedCreditsStatusMock.mockResolvedValueOnce({ wallet: { balance: 0 } });
-
-    const response = await app.request("/api/v1/rewarded-ads/status?platform=ANDROID");
-
-    expect(response.status).toBe(200);
-    expect(getRewardedCreditsStatusMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      platform: "ANDROID",
-      target: undefined,
-      clientContext: { platform: "unknown", version: null },
-    });
-    await expect(response.json()).resolves.toEqual({
-      success: true,
-      data: { wallet: { balance: 0 } },
-    });
-  });
-
-  it("uses the consultation booking cost for consultation rewarded targets", async () => {
-    const app = createAuthenticatedTestApp();
-    getRewardedCreditsStatusMock.mockResolvedValueOnce({ wallet: { balance: 3 } });
+    getRewardedAdStatusMock.mockResolvedValueOnce({ canWatchAd: true });
 
     const response = await app.request(
-      "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=CONSULTATION_BOOKING&targetId=user-1%3Abooking-1",
+      "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=ARTICLE&targetId=article-1",
+      { headers: MOBILE_HEADERS },
     );
 
     expect(response.status).toBe(200);
-    expect(getRewardedCreditsStatusMock).toHaveBeenCalledWith({
+    expect(getRewardedAdStatusMock).toHaveBeenCalledWith({
       userId: "user-1",
       platform: "ANDROID",
-      target: {
-        targetType: "CONSULTATION_BOOKING",
-        targetId: "user-1:booking-1",
-        cost: 5,
-      },
-      clientContext: { platform: "unknown", version: null },
+      target: ARTICLE_TARGET,
+      clientContext: { platform: "android", version: "1.6.5" },
     });
   });
 
-  it("rejects web platforms on the mobile Hono API", async () => {
+  it("requires a concrete article or regular course step target", async () => {
     const app = createAuthenticatedTestApp();
+    const missingTarget = await app.request("/api/v1/rewarded-ads/status?platform=ANDROID", {
+      headers: MOBILE_HEADERS,
+    });
+    const dailyTarget = await app.request(
+      "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=DAILY_COURSE_STEP&targetId=daily-1",
+      { headers: MOBILE_HEADERS },
+    );
 
-    const response = await app.request("/api/v1/rewarded-ads/status?platform=WEB_DESKTOP");
-
-    expect(response.status).toBe(400);
-    expect(getRewardedCreditsStatusMock).not.toHaveBeenCalled();
+    expect(missingTarget.status).toBe(400);
+    expect(dailyTarget.status).toBe(400);
+    expect(getRewardedAdStatusMock).not.toHaveBeenCalled();
   });
 
-  it("creates a session and grants without accepting client amount", async () => {
+  it("rejects web, mismatched platform and old clients", async () => {
+    const app = createAuthenticatedTestApp();
+    const url =
+      "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=ARTICLE&targetId=article-1";
+    const web = await app.request(url);
+    const mismatched = await app.request(url, {
+      headers: { "x-client-platform": "ios", "x-client-version": "1.6.5" },
+    });
+    const old = await app.request(url, {
+      headers: { "x-client-platform": "android", "x-client-version": "1.6.4" },
+    });
+
+    expect(web.status).toBe(400);
+    expect(mismatched.status).toBe(400);
+    expect(old.status).toBe(426);
+    expect(getRewardedAdStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("creates a targeted session and grants seven-day access", async () => {
     const app = createAuthenticatedTestApp();
     createRewardedAdSessionMock.mockResolvedValueOnce({ sessionId: "s1", requestNonce: "n1" });
-    grantRewardedCreditsMock.mockResolvedValueOnce({ grantedCredits: 5, balance: 5 });
+    grantRewardedTargetAccessMock.mockResolvedValueOnce({
+      accessId: "a1",
+      ...ARTICLE_TARGET,
+      expiresAt: "2026-08-12T12:00:00.000Z",
+      replay: false,
+    });
 
     const sessionResponse = await app.request(
-      jsonRequest("/api/v1/rewarded-ads/session", "POST", { platform: "ANDROID" }),
+      jsonRequest(
+        "/api/v1/rewarded-ads/session",
+        "POST",
+        { platform: "ANDROID", ...ARTICLE_TARGET },
+        MOBILE_HEADERS,
+      ),
     );
     expect(sessionResponse.status).toBe(200);
     expect(createRewardedAdSessionMock).toHaveBeenCalledWith({
       userId: "user-1",
       platform: "ANDROID",
-      target: undefined,
-      clientContext: { platform: "unknown", version: null },
+      target: ARTICLE_TARGET,
+      clientContext: { platform: "android", version: "1.6.5" },
     });
 
     const grantResponse = await app.request(
-      jsonRequest("/api/v1/rewarded-ads/grant", "POST", {
-        sessionId: "s1",
-        requestNonce: "n1",
-        amount: 999,
-      }),
+      jsonRequest(
+        "/api/v1/rewarded-ads/grant",
+        "POST",
+        { sessionId: "s1", requestNonce: "n1", amount: 999 },
+        MOBILE_HEADERS,
+      ),
     );
-
     expect(grantResponse.status).toBe(200);
-    expect(grantRewardedCreditsMock).toHaveBeenCalledWith({
+    expect(grantRewardedTargetAccessMock).toHaveBeenCalledWith({
       userId: "user-1",
       sessionId: "s1",
       requestNonce: "n1",
@@ -142,15 +151,17 @@ describe("rewarded ads routes", () => {
     });
   });
 
-  it("records events without granting credits", async () => {
+  it("records lifecycle events without granting access", async () => {
     const app = createAuthenticatedTestApp();
     recordRewardedAdEventMock.mockResolvedValueOnce(undefined);
 
     const response = await app.request(
-      jsonRequest("/api/v1/rewarded-ads/events", "POST", {
-        sessionId: "s1",
-        eventType: "REWARDED",
-      }),
+      jsonRequest(
+        "/api/v1/rewarded-ads/events",
+        "POST",
+        { sessionId: "s1", eventType: "REWARDED" },
+        MOBILE_HEADERS,
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -160,6 +171,6 @@ describe("rewarded ads routes", () => {
       eventType: "REWARDED",
       payload: undefined,
     });
-    expect(grantRewardedCreditsMock).not.toHaveBeenCalled();
+    expect(grantRewardedTargetAccessMock).not.toHaveBeenCalled();
   });
 });

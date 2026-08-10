@@ -150,15 +150,11 @@ export default function ConsultationBookingConfirmScreen() {
       router.replace("/(main)/(tabs)/consultations?view=mine" as Href);
     },
     onError: (e: unknown) => {
-      const code = typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
+      const code =
+        typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
       const msg = e instanceof Error ? e.message : String(e);
       if (code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
-        void openConsultationAccessPaywall({
-          targetId: `booking:${idemKey}`,
-          onRewardedGrant: async () => {
-            await bookMutation.mutateAsync();
-          },
-        });
+        openConsultationAccessPaywall();
         return;
       }
       if (
@@ -258,7 +254,11 @@ export default function ConsultationBookingConfirmScreen() {
           {serverError ? (
             <View style={styles.serverErrorBanner}>
               <Text style={styles.serverErrorText}>{serverError}</Text>
-              <Pressable onPress={() => setServerError(null)} hitSlop={8} accessibilityLabel="Скрыть ошибку">
+              <Pressable
+                onPress={() => setServerError(null)}
+                hitSlop={8}
+                accessibilityLabel="Скрыть ошибку"
+              >
                 <Text style={styles.serverErrorClose}>×</Text>
               </Pressable>
             </View>
@@ -338,9 +338,7 @@ export default function ConsultationBookingConfirmScreen() {
                 petGender === "FEMALE" ? styles.genderChipActive : styles.genderChipInactive,
               ]}
               textStyle={
-                petGender === "FEMALE"
-                  ? styles.genderChipTextActive
-                  : styles.genderChipTextInactive
+                petGender === "FEMALE" ? styles.genderChipTextActive : styles.genderChipTextInactive
               }
             >
               Девочка

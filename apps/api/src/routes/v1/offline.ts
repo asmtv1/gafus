@@ -12,6 +12,7 @@ import {
   downloadFullCourse,
 } from "@gafus/core/services/offline";
 import { getTrainingDays } from "@gafus/core/services/training";
+import { getAppSubscriptionAccess } from "@gafus/core/services/appSubscription";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-offline");
@@ -80,13 +81,22 @@ offlineRoutes.get("/course/download", zValidator("query", downloadQuerySchema), 
     const user = c.get("user");
     const { courseType } = c.req.valid("query");
 
+    const subscription = await getAppSubscriptionAccess(user.id);
+    if (!subscription.hasActiveSubscription) {
+      return c.json(
+        {
+          success: false,
+          error: "Скачивание курса доступно по подписке",
+          code: "SUBSCRIPTION_REQUIRED",
+        },
+        402,
+      );
+    }
+
     try {
       await getTrainingDays(user.id, courseType);
     } catch (accessError) {
-      if (
-        accessError instanceof Error &&
-        accessError.message === "COURSE_ACCESS_DENIED"
-      ) {
+      if (accessError instanceof Error && accessError.message === "COURSE_ACCESS_DENIED") {
         return c.json(
           { success: false, error: "Нет доступа к курсу", code: "COURSE_ACCESS_DENIED" },
           403,

@@ -32,6 +32,7 @@ export type {
   RewardedAdSettings,
   RewardedCreditTransaction,
   RewardedCreditWallet,
+  RewardedTargetAccess,
   UserCourse,
   UserProfile,
   UserStep,
@@ -67,6 +68,8 @@ export {
   RewardedCreditTransactionType,
   RewardedPlatform,
   RewardedProvider,
+  RewardedTargetAccessSource,
+  RewardedTargetAccessType,
   RewardedTargetType,
 } from "@prisma/client";
 
@@ -109,6 +112,7 @@ export interface DatabaseClient {
   rewardedAdSettings: PrismaClient["rewardedAdSettings"];
   rewardedCreditWallet: PrismaClient["rewardedCreditWallet"];
   rewardedAdSession: PrismaClient["rewardedAdSession"];
+  rewardedTargetAccess: PrismaClient["rewardedTargetAccess"];
   rewardedCreditTransaction: PrismaClient["rewardedCreditTransaction"];
   rewardedAdEvent: PrismaClient["rewardedAdEvent"];
   pet: PrismaClient["pet"];

@@ -363,6 +363,7 @@ model User {
   adminAppSubscriptionEvents      AppSubscriptionEvent[]           @relation("AppSubscriptionEventActor")
   rewardedCreditWallet            RewardedCreditWallet?
   rewardedAdSessions              RewardedAdSession[]
+  rewardedTargetAccesses          RewardedTargetAccess[]
   rewardedCreditTransactions      RewardedCreditTransaction[]
   updatedRewardedAdSettings       RewardedAdSettings[]
   updatedMobileAppReleasePolicies MobileAppReleasePolicy[]         @relation("MobileAppReleasePolicyUpdatedBy")
@@ -723,11 +724,38 @@ model RewardedAdSession {
   updatedAt DateTime @updatedAt
 
   events       RewardedAdEvent[]
+  targetAccess RewardedTargetAccess?
   transactions RewardedCreditTransaction[]
 
   @@index([userId, createdAt])
   @@index([userId, status, expiresAt])
   @@index([platform, status, createdAt])
+  @@index([createdAt])
+  @@index([rewardedAt])
+  @@index([grantedAt])
+}
+
+model RewardedTargetAccess {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  targetType RewardedTargetAccessType
+  targetId   String
+
+  source   RewardedTargetAccessSource
+  platform RewardedPlatform?
+
+  sessionId String?            @unique
+  session   RewardedAdSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  grantedAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, targetType, targetId, expiresAt])
+  @@index([expiresAt])
 }
 
 model RewardedCreditTransaction {
@@ -777,6 +805,7 @@ model RewardedAdEvent {
 
   @@index([sessionId, createdAt])
   @@index([eventType, createdAt])
+  @@index([createdAt])
 }
 
 model AppSubscription {
@@ -1590,6 +1619,16 @@ enum RewardedTargetType {
   COURSE_STEP
   DAILY_COURSE_STEP
   CONSULTATION_BOOKING
+}
+
+enum RewardedTargetAccessType {
+  ARTICLE
+  COURSE_STEP
+}
+
+enum RewardedTargetAccessSource {
+  REWARDED_AD
+  LEGACY_GAFUS
 }
 
 enum PaymentStatus {

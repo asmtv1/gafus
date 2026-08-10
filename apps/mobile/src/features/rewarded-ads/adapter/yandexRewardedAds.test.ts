@@ -66,14 +66,10 @@ describe("showYandexRewardedAd", () => {
     grantMock.mockResolvedValue({
       success: true,
       data: {
-        transactionId: "tx-1",
-        grantedCredits: 5,
-        balance: 5,
-        pendingRefundCredits: 0,
-        maxBalance: 5,
-        adsWatchedToday: 1,
-        dailyAdLimit: 3,
-        canWatchAd: false,
+        accessId: "access-1",
+        targetType: "ARTICLE",
+        targetId: "article-1",
+        expiresAt: "2026-08-12T10:00:00.000Z",
         replay: false,
       },
     });
@@ -120,7 +116,7 @@ describe("showYandexRewardedAd", () => {
     });
     expect(result).toMatchObject({
       success: true,
-      data: { grantedCredits: 5, balance: 5 },
+      data: { accessId: "access-1", targetType: "ARTICLE", targetId: "article-1" },
     });
   });
 
@@ -151,21 +147,17 @@ describe("showYandexRewardedAd", () => {
     resolveGrant({
       success: true,
       data: {
-        transactionId: "tx-1",
-        grantedCredits: 5,
-        balance: 5,
-        pendingRefundCredits: 0,
-        maxBalance: 5,
-        adsWatchedToday: 1,
-        dailyAdLimit: 3,
-        canWatchAd: false,
+        accessId: "access-1",
+        targetType: "ARTICLE",
+        targetId: "article-1",
+        expiresAt: "2026-08-12T10:00:00.000Z",
         replay: false,
       },
     });
 
     await expect(resultPromise).resolves.toMatchObject({
       success: true,
-      data: { grantedCredits: 5 },
+      data: { accessId: "access-1" },
     });
   });
 
@@ -189,7 +181,7 @@ describe("showYandexRewardedAd", () => {
 
     expect(result).toMatchObject({
       success: true,
-      data: { grantedCredits: 5, balance: 5 },
+      data: { accessId: "access-1", targetType: "ARTICLE", targetId: "article-1" },
     });
   });
 
@@ -263,7 +255,7 @@ describe("showYandexRewardedAd", () => {
     resolveShown({ success: true });
     await expect(resultPromise).resolves.toMatchObject({
       success: true,
-      data: { grantedCredits: 5 },
+      data: { accessId: "access-1" },
     });
     expect(recordEventMock).toHaveBeenCalledWith({
       sessionId: "session-1",

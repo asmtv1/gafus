@@ -10,29 +10,8 @@ export const articlesApi = {
   getBySlug: (slug: string): Promise<ApiResponse<ArticleDetailDto>> =>
     apiClient<ArticleDetailDto>(`/api/v1/articles/${slug}`),
 
-  unlock: (slug: string): Promise<
-    ApiResponse<{
-      targetType: "ARTICLE";
-      targetId: string;
-      unlocked: true;
-      spentCredits: number;
-      balance: number;
-      pendingRefundCredits: number;
-    }>
-  > =>
-    apiClient(`/api/v1/articles/${encodeURIComponent(slug)}/unlock`, {
-      method: "POST",
-      body: {},
-      suppressSubscriptionPaywall: true,
-    }),
-
-  toggleLike: (
-    articleId: string
-  ): Promise<ApiResponse<{ isLiked: boolean }>> =>
-    apiClient<{ isLiked: boolean }>(
-      `/api/v1/articles/${articleId}/like`,
-      { method: "POST" }
-    ),
+  toggleLike: (articleId: string): Promise<ApiResponse<{ isLiked: boolean }>> =>
+    apiClient<{ isLiked: boolean }>(`/api/v1/articles/${articleId}/like`, { method: "POST" }),
 
   incrementView: async (slug: string): Promise<ApiResponse<void>> => {
     const visitorKey = await getOrCreateArticleGuestVisitorKey();

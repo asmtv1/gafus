@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -28,7 +28,7 @@ import {
   openAppSubscriptionPaywall,
   RewardedAccessGate,
 } from "@/features/app-subscription";
-import { rewardedAdsApi } from "@/features/rewarded-ads";
+import { openTargetWithRewardedAd, rewardedAdsApi } from "@/features/rewarded-ads";
 
 /** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
 const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
@@ -41,7 +41,12 @@ export default function ArticleDetailScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
-  const { data: res, isLoading, error, refetch } = useQuery({
+  const {
+    data: res,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["article", slug],
     queryFn: async () => {
       const r = await articlesApi.getBySlug(slug as string);
@@ -54,7 +59,8 @@ export default function ArticleDetailScreen() {
   const article = res?.data;
   const user = useAuthStore((s) => s.user);
   const [payLoading, setPayLoading] = useState(false);
-  const [creditUnlockLoading, setCreditUnlockLoading] = useState(false);
+  const [rewardedUnlockLoading, setRewardedUnlockLoading] = useState(false);
+  const rewardedUnlockInFlightRef = useRef(false);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
   const [webViewReady, setWebViewReady] = useState(false);
   /** Таймаут 3.5s выставил 800px — без внутреннего скролла контент длинных статей обрежется. */
@@ -72,7 +78,7 @@ export default function ArticleDetailScreen() {
       rewardedArticleTarget?.targetType ?? null,
       rewardedArticleTarget?.targetId ?? null,
     ],
-    queryFn: () => rewardedAdsApi.getStatus(rewardedArticleTarget ?? undefined),
+    queryFn: () => rewardedAdsApi.getStatus(rewardedArticleTarget!),
     enabled: Boolean(rewardedArticleTarget),
     staleTime: 30_000,
   });
@@ -81,7 +87,7 @@ export default function ArticleDetailScreen() {
       ? rewardedStatusQuery.data.data
       : null;
   const rewardedPrompt = getRewardedAccessPrompt({
-    isLoading: rewardedStatusQuery.isLoading,
+    isLoading: rewardedStatusQuery.isFetching,
     status: rewardedStatus,
   });
 
@@ -151,70 +157,61 @@ export default function ArticleDetailScreen() {
     }
   }, [article]);
 
-  const unlockArticleWithCredits = useCallback(async () => {
-    if (!article) return;
-    setPayError(null);
-    const unlockResponse = await articlesApi.unlock(article.slug);
-    if (!unlockResponse.success) {
-      const message = unlockResponse.error ?? "Не удалось открыть статью";
-      setPayError(message);
-      throw new Error(message);
-    }
-    await refetch();
-  }, [article, refetch]);
-
-  const handleCreditUnlock = useCallback(async () => {
-    if (creditUnlockLoading) return;
-    setCreditUnlockLoading(true);
-    try {
-      await unlockArticleWithCredits();
-    } catch (error) {
-      reportClientError(error instanceof Error ? error : new Error(String(error)), {
-        issueKey: "ArticleDetailScreen",
-        keys: { operation: "unlock_with_credit" },
-      });
-    } finally {
-      setCreditUnlockLoading(false);
-    }
-  }, [creditUnlockLoading, unlockArticleWithCredits]);
-
-  const handleRewardedPaywall = useCallback(() => {
-    if (!article) return;
+  const handleRewardedUnlock = useCallback(async () => {
+    if (!article || rewardedUnlockInFlightRef.current) return;
+    rewardedUnlockInFlightRef.current = true;
     trackEvent({
       eventName: "button_click",
       platform: "mobile",
       pathOrScreen: `/articles/${article.slug}`,
-      elementId: "article-rewarded-paywall-open",
+      elementId: "article-rewarded-ad-open",
     });
-    openAppSubscriptionPaywall({
-      reason: "required",
-      contentMode: "rewarded",
-      rewardedTarget: { targetType: "ARTICLE", targetId: article.id },
-      onRewardedGrant: async () => {
+    setPayError(null);
+    setRewardedUnlockLoading(true);
+    try {
+      const result = await openTargetWithRewardedAd({
+        targetType: "ARTICLE",
+        targetId: article.id,
+      });
+      if (!result.success) {
+        setPayError(result.message);
+        return;
+      }
+      if (result.data) {
         trackEvent({
-          eventName: "button_click",
+          eventName: "rewarded_access_granted",
           platform: "mobile",
           pathOrScreen: `/articles/${article.slug}`,
-          elementId: "article-rewarded-unlock",
+          targetType: result.data.targetType,
+          targetId: result.data.targetId,
+          expiresAt: result.data.expiresAt,
+          provider: "YANDEX",
         });
-        await unlockArticleWithCredits();
-      },
-    });
-  }, [article, unlockArticleWithCredits]);
+      }
+      await Promise.all([refetch(), rewardedStatusQuery.refetch()]);
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "ArticleDetailScreen",
+        keys: { operation: "open_with_rewarded_ad" },
+      });
+      setPayError("Ошибка сервиса Гафус. Попробуйте ещё раз или обратитесь к администрации");
+    } finally {
+      rewardedUnlockInFlightRef.current = false;
+      setRewardedUnlockLoading(false);
+    }
+  }, [article, refetch, rewardedStatusQuery]);
 
   const handleSubscriptionPaywall = useCallback(() => {
     openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
   }, []);
 
-  const hasMeasuredArticleHtml =
-    htmlHeight != null && htmlHeight > 0;
+  const hasMeasuredArticleHtml = htmlHeight != null && htmlHeight > 0;
   const articleWebViewBlockHeight = hasMeasuredArticleHtml
     ? Math.ceil(htmlHeight) + ARTICLE_WEBVIEW_HEIGHT_PADDING
     : webViewReady
       ? ARTICLE_WEBVIEW_FALLBACK_HEIGHT
       : ARTICLE_WEBVIEW_LOADING_HEIGHT;
-  const articleWebViewScrollInside =
-    !hasMeasuredArticleHtml || articleHeightIsTimeoutFallback;
+  const articleWebViewScrollInside = !hasMeasuredArticleHtml || articleHeightIsTimeoutFallback;
   const handleArticleReadProgress = useCallback(
     (offsetY: number, contentHeight: number, layoutHeight: number) => {
       if (isReadCompleteTracked || !article?.id) return;
@@ -371,14 +368,8 @@ export default function ArticleDetailScreen() {
                     subtitle="С подпиской будет доступно всё!"
                     prompt={rewardedPrompt}
                     errorText={payError}
-                    isBusy={creditUnlockLoading}
-                    onPrimaryPress={() => {
-                      if (rewardedPrompt.mode === "direct-credit") {
-                        void handleCreditUnlock();
-                      } else {
-                        handleRewardedPaywall();
-                      }
-                    }}
+                    isBusy={rewardedUnlockLoading}
+                    onPrimaryPress={() => void handleRewardedUnlock()}
                     onSubscriptionPress={handleSubscriptionPaywall}
                   />
                 )}
@@ -388,7 +379,9 @@ export default function ArticleDetailScreen() {
                 style={styles.btnPrimary}
                 onPress={() =>
                   router.replace(
-                    `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<typeof router.replace>[0],
+                    `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<
+                      typeof router.replace
+                    >[0],
                   )
                 }
               >
@@ -448,13 +441,10 @@ export default function ArticleDetailScreen() {
                       setWebViewReady(true);
                     }
                   } catch (error) {
-                    reportClientError(
-                      error instanceof Error ? error : new Error(String(error)),
-                      {
-                        issueKey: "ArticleDetailScreen",
-                        keys: { operation: "parse_webview_message" },
-                      },
-                    );
+                    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+                      issueKey: "ArticleDetailScreen",
+                      keys: { operation: "parse_webview_message" },
+                    });
                     /* ignore */
                   }
                 }}

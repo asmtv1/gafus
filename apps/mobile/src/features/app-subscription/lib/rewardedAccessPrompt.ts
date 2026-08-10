@@ -1,24 +1,13 @@
-import { formatGafusesWord } from "./rewardedPaywallCopy";
-
 type RewardedAccessPromptStatus = {
   settings?: {
     platformEnabled: boolean;
   };
-  target?: {
-    cost: number;
-    unlocked: boolean;
-    canUnlockWithCurrentBalance: boolean;
-  };
+  canWatchAd?: boolean;
 };
 
 export type RewardedAccessPrompt =
   | {
       mode: "loading";
-      primaryText: string;
-      subscriptionText: string | null;
-    }
-  | {
-      mode: "direct-credit";
       primaryText: string;
       subscriptionText: string | null;
     }
@@ -33,8 +22,6 @@ export function getRewardedAccessPrompt(input: {
   isLoading: boolean;
   status: RewardedAccessPromptStatus | null;
 }): RewardedAccessPrompt {
-  const cost = input.status?.target?.cost ?? 1;
-
   if (input.isLoading) {
     return {
       mode: "loading",
@@ -43,18 +30,11 @@ export function getRewardedAccessPrompt(input: {
     };
   }
 
-  if (input.status?.target?.canUnlockWithCurrentBalance) {
-    return {
-      mode: "direct-credit",
-      primaryText: `Открыть за ${cost} ${formatGafusesWord(cost)}`,
-      subscriptionText: "Оформить подписку",
-    };
-  }
-
   return {
     mode: "standard-paywall",
     primaryText: "Открыть за рекламу",
     subscriptionText: "Оформить подписку",
-    showRewardedAction: input.status?.settings?.platformEnabled === true,
+    showRewardedAction:
+      input.status?.settings?.platformEnabled === true && input.status.canWatchAd === true,
   };
 }

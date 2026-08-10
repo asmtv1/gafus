@@ -16,10 +16,9 @@ import {
   useDailyCourseResumeStep,
   useDailyCourseStartStep,
 } from "@/shared/hooks/useDailyCourse";
-import { dailyCourseApi, getDailyCourseStoreCourseId } from "@/shared/lib/api";
+import { getDailyCourseStoreCourseId } from "@/shared/lib/api";
 import { useDayStepStatuses, useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 export default function DailyCourseDayScreen() {
   const { scheduleId } = useLocalSearchParams<{ scheduleId: string }>();
@@ -80,42 +79,11 @@ export default function DailyCourseDayScreen() {
     return { completed, total, percent };
   }, [dayData?.steps, localStepStatuses]);
 
-  const unlockDailyStepWithRewarded = useCallback(
-    async (index: number) => {
-      const response = await dailyCourseApi.unlockStep({
-        scheduleId: normalizedScheduleId,
-        stepIndex: index,
-      });
-      if (!response.success) {
-        throw new Error(response.error ?? "Не удалось открыть шаг");
-      }
-      await refetch();
-      setOpenIndex(courseId, normalizedScheduleId, index);
-    },
-    [courseId, normalizedScheduleId, refetch, setOpenIndex],
-  );
-
   const handleToggle = useCallback(
     (index: number) => {
-      const step = dayData?.steps?.[index];
-      if (step?.locked && step.monetizationTarget) {
-        openAppSubscriptionPaywall({
-          reason: "required",
-          rewardedTarget: step.monetizationTarget,
-          onRewardedGrant: () => unlockDailyStepWithRewarded(index),
-        });
-        return;
-      }
       setOpenIndex(courseId, normalizedScheduleId, openIndex === index ? null : index);
     },
-    [
-      courseId,
-      dayData?.steps,
-      normalizedScheduleId,
-      openIndex,
-      setOpenIndex,
-      unlockDailyStepWithRewarded,
-    ],
+    [courseId, normalizedScheduleId, openIndex, setOpenIndex],
   );
 
   const handleStart = useCallback(

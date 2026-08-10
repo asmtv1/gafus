@@ -5,7 +5,6 @@ export { useAppSubscriptionStatus } from "./hooks/useAppSubscriptionStatus";
 export { useRequireAppSubscription } from "./hooks/useRequireAppSubscription";
 export { getYookassaPrimaryCta } from "./lib/appSubscriptionPresentation";
 export { getRewardedAccessPrompt } from "./lib/rewardedAccessPrompt";
-export { getRewardedAccessSummary } from "./lib/rewardedPaywallCopy";
 export {
   flushDeferredAppSubscriptionPaywall,
   openAppSubscriptionPaywall,

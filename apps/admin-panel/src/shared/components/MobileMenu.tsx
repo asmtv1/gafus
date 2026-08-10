@@ -15,6 +15,7 @@ import {
   CalendarMonth,
   Flag,
   CardMembership,
+  AdsClick,
   Menu,
   Close,
 } from "@mui/icons-material";
@@ -63,6 +64,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       href: "/main-panel/reengagement",
       icon: TrendingUp,
       label: "Re-engagement",
+      show: userRole === "ADMIN",
+    },
+    {
+      href: "/main-panel/rewarded-ads",
+      icon: AdsClick,
+      label: "Мониторинг рекламы",
       show: userRole === "ADMIN",
     },
     {

@@ -10,7 +10,7 @@ const { consultationMocks } = vi.hoisted(() => ({
     getAvailableSlots: vi.fn(),
     getCalendarSlots: vi.fn(),
     getCynologistDayOffDates: vi.fn(),
-    requireConsultationSlotsPremiumOrRewardedAccess: vi.fn(),
+    requireConsultationSlotsSubscriptionAccess: vi.fn(),
     verifyConsultationSlotFreeForCynologist: vi.fn(),
   },
 }));
@@ -22,8 +22,8 @@ vi.mock("@gafus/core/services/consultation", async (importOriginal) => {
     getAvailableSlots: consultationMocks.getAvailableSlots,
     getCalendarSlots: consultationMocks.getCalendarSlots,
     getCynologistDayOffDates: consultationMocks.getCynologistDayOffDates,
-    requireConsultationSlotsPremiumOrRewardedAccess:
-      consultationMocks.requireConsultationSlotsPremiumOrRewardedAccess,
+    requireConsultationSlotsSubscriptionAccess:
+      consultationMocks.requireConsultationSlotsSubscriptionAccess,
     verifyConsultationSlotFreeForCynologist:
       consultationMocks.verifyConsultationSlotFreeForCynologist,
   };
@@ -52,7 +52,7 @@ describe("consultations route contracts", () => {
     consultationMocks.getAvailableSlots.mockResolvedValue([]);
     consultationMocks.getCalendarSlots.mockResolvedValue([]);
     consultationMocks.getCynologistDayOffDates.mockResolvedValue([]);
-    consultationMocks.requireConsultationSlotsPremiumOrRewardedAccess.mockResolvedValue(undefined);
+    consultationMocks.requireConsultationSlotsSubscriptionAccess.mockResolvedValue(undefined);
     consultationMocks.verifyConsultationSlotFreeForCynologist.mockResolvedValue(undefined);
   });
 
@@ -91,11 +91,11 @@ describe("consultations route contracts", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(consultationMocks.requireConsultationSlotsPremiumOrRewardedAccess).not.toHaveBeenCalled();
+    expect(consultationMocks.requireConsultationSlotsSubscriptionAccess).not.toHaveBeenCalled();
     expect(consultationMocks.getCalendarSlots).toHaveBeenCalled();
   });
 
-  it("requires premium or rewarded credits before verifying a slot on mobile API", async () => {
+  it("requires an active subscription before verifying a slot on mobile API", async () => {
     const app = createAuthenticatedTestApp();
 
     const response = await app.request(
@@ -104,9 +104,8 @@ describe("consultations route contracts", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(consultationMocks.requireConsultationSlotsPremiumOrRewardedAccess).toHaveBeenCalledWith({
+    expect(consultationMocks.requireConsultationSlotsSubscriptionAccess).toHaveBeenCalledWith({
       userId: "user-1",
-      platform: "ANDROID",
     });
     expect(consultationMocks.verifyConsultationSlotFreeForCynologist).toHaveBeenCalledWith(
       "slot-1",

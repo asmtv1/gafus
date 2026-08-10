@@ -9,8 +9,8 @@ const {
   getAppSubscriptionAccessMock,
   getTrainingDayWithMonetizedStepsMock,
   requireCourseStepPremiumOrRewardedUnlockMock,
+  saveDiaryEntryMock,
   syncUserCourseStatusFromDaysMock,
-  unlockCourseStepRewardedTargetMock,
   updateStepAndDayMock,
 } = vi.hoisted(() => ({
   checkCourseAccessMock: vi.fn(),
@@ -20,8 +20,8 @@ const {
   getAppSubscriptionAccessMock: vi.fn(),
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
   requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
+  saveDiaryEntryMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
-  unlockCourseStepRewardedTargetMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
 }));
 
@@ -31,7 +31,6 @@ vi.mock("@gafus/core/services/training", () => ({
   getTrainingDayWithUserSteps: vi.fn(),
   requireCourseStepPremiumOrRewardedUnlock: requireCourseStepPremiumOrRewardedUnlockMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
-  unlockCourseStepRewardedTarget: unlockCourseStepRewardedTargetMock,
   updateStepAndDay: updateStepAndDayMock,
   validateTheoryStepForCompletion: vi.fn(),
 }));
@@ -47,7 +46,7 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
 
 vi.mock("@gafus/core/services/diary", () => ({
   getDiaryEntries: vi.fn(),
-  saveDiaryEntry: vi.fn(),
+  saveDiaryEntry: saveDiaryEntryMock,
 }));
 
 vi.mock("@gafus/core/services/course", () => ({
@@ -129,14 +128,7 @@ describe("training route contracts", () => {
     getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
     getTrainingDayWithMonetizedStepsMock.mockResolvedValue({ trainingDayId: "day-1", steps: [] });
     requireCourseStepPremiumOrRewardedUnlockMock.mockResolvedValue(null);
-    unlockCourseStepRewardedTargetMock.mockResolvedValue({
-      targetType: "COURSE_STEP",
-      targetId: "step-on-day-1",
-      unlocked: true,
-      spentCredits: 1,
-      balance: 4,
-      pendingRefundCredits: 0,
-    });
+    saveDiaryEntryMock.mockResolvedValue({ success: true });
   });
 
   it("requires auth before starting a step", async () => {
@@ -154,6 +146,25 @@ describe("training route contracts", () => {
       success: false,
       error: "Токен не предоставлен",
     });
+  });
+
+  it("keeps DIARY steps free without an active subscription", async () => {
+    getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: false });
+
+    const response = await createAuthenticatedTestApp().request(
+      jsonRequest("/api/v1/training/diary", "POST", {
+        dayOnCourseId: "clwdayoc0000000000000001",
+        content: "Запись в дневнике",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(saveDiaryEntryMock).toHaveBeenCalledWith(
+      "user-1",
+      "clwdayoc0000000000000001",
+      "Запись в дневнике",
+    );
+    expect(getAppSubscriptionAccessMock).not.toHaveBeenCalled();
   });
 
   it("requires auth before reading video progress", async () => {
@@ -262,32 +273,6 @@ describe("training route contracts", () => {
     );
   });
 
-  it("unlocks a monetized training step with rewarded credits", async () => {
-    const app = createAuthenticatedTestApp();
-
-    const response = await app.request(
-      jsonRequest("/api/v1/training/step/unlock", "POST", {
-        courseType: "course",
-        dayOnCourseId: "clwdayoc0000000000000001",
-        stepIndex: 0,
-        platform: "IOS",
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      success: true,
-      data: { targetId: "step-on-day-1", spentCredits: 1 },
-    });
-    expect(unlockCourseStepRewardedTargetMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      platform: "IOS",
-      courseType: "course",
-      dayOnCourseId: "clwdayoc0000000000000001",
-      stepIndex: 0,
-    });
-  });
-
   it("rejects locked monetized step completion with subscription-or-credits required", async () => {
     const app = createAuthenticatedTestApp();
     requireCourseStepPremiumOrRewardedUnlockMock.mockRejectedValueOnce(
@@ -305,7 +290,7 @@ describe("training route contracts", () => {
     expect(response.status).toBe(402);
     await expect(response.json()).resolves.toEqual({
       success: false,
-      error: "Для действия нужна подписка или rewarded credits",
+      error: "Для действия нужна подписка или доступ к шагу за просмотр рекламы",
       code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
     });
     expect(updateStepAndDayMock).not.toHaveBeenCalled();

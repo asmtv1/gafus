@@ -6,13 +6,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { bookSlotInputSchema, bookSlotWithPremiumOrRewardedCredits } from "@gafus/core";
+import { bookSlotInputSchema, bookSlotWithSubscription } from "@gafus/core";
 import { createWebLogger } from "@gafus/logger";
 import { revalidateTag } from "next/cache";
-import {
-  RewardedCreditsRequiredError,
-  SubscriptionOrCreditsRequiredError,
-} from "@gafus/core/services/rewardedCredits";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 import {
   consultationTrainerBookingsTag,
@@ -38,9 +35,8 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const json = await request.json();
     const body = bookSlotInputSchema.parse(json);
     const requestId = request.headers.get("x-request-id") ?? undefined;
-    const result = await bookSlotWithPremiumOrRewardedCredits({
+    const result = await bookSlotWithSubscription({
       userId: session.user.id,
-      platform: "WEB_DESKTOP",
       body,
       requestId,
     });
@@ -49,15 +45,12 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const status = result.kind === "created" ? 201 : 200;
     return NextResponse.json({ success: true, data: result }, { status });
   } catch (error) {
-    if (
-      error instanceof RewardedCreditsRequiredError ||
-      error instanceof SubscriptionOrCreditsRequiredError
-    ) {
+    if (error instanceof SubscriptionRequiredError) {
       return NextResponse.json(
         {
           success: false,
-          error: "Для действия нужна подписка или rewarded credits",
-          code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
+          error: error.message,
+          code: "SUBSCRIPTION_REQUIRED",
         },
         { status: 402 },
       );

@@ -54,9 +54,6 @@ function mapDailyCourseDayToTraining(day: DailyCourseDayResponse): TrainingDetai
       hasTestQuestions: dailyStep.step.hasTestQuestions,
       surveySlug: dailyStep.step.surveySlug,
       userStepId: dailyStep.id,
-      locked: dailyStep.locked,
-      unlockCost: dailyStep.unlockCost,
-      monetizationTarget: dailyStep.monetizationTarget,
     })),
   };
 }

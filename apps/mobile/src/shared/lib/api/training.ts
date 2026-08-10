@@ -63,7 +63,6 @@ export interface UserStep {
   step: StepContent;
   userStepId?: string;
   locked?: boolean;
-  unlockCost?: number;
   monetizationTarget?: {
     targetType: "COURSE_STEP";
     targetId: string;
@@ -225,27 +224,6 @@ export const trainingApi = {
    */
   completePracticeStep: async (params: CompleteStepParams): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/training/step/complete/practice", {
-      method: "POST",
-      body: params,
-      suppressSubscriptionPaywall: true,
-    });
-  },
-
-  unlockStep: async (params: {
-    courseType: string;
-    dayOnCourseId: string;
-    stepIndex: number;
-  }): Promise<
-    ApiResponse<{
-      targetType: "COURSE_STEP";
-      targetId: string;
-      unlocked: true;
-      spentCredits: number;
-      balance: number;
-      pendingRefundCredits: number;
-    }>
-  > => {
-    return apiClient("/api/v1/training/step/unlock", {
       method: "POST",
       body: params,
       suppressSubscriptionPaywall: true,

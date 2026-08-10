@@ -8,7 +8,6 @@ import {
   getArticleForEdit,
   getArticles,
   incrementArticleView,
-  unlockArticleBySlug,
   updateArticle,
 } from "./articleService";
 import { SubscriptionOrCreditsRequiredError } from "../rewardedCredits";
@@ -26,7 +25,6 @@ const mockArticleViewerUpdate = vi.fn();
 const mockArticleGuestViewCreate = vi.fn();
 const mockArticleGuestViewCreateMany = vi.fn();
 const mockGetPremiumOrRewardedAccess = vi.fn();
-const mockUnlockRewardedTarget = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   isPrismaUniqueConstraintError: (error: unknown) =>
@@ -69,7 +67,6 @@ vi.mock("@gafus/logger", () => ({
 
 vi.mock("../rewardedCredits", () => ({
   getPremiumOrRewardedAccess: (...args: unknown[]) => mockGetPremiumOrRewardedAccess(...args),
-  unlockRewardedTarget: (...args: unknown[]) => mockUnlockRewardedTarget(...args),
   REWARDED_ARTICLE_COST: 1,
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {
     code = "SUBSCRIPTION_OR_CREDITS_REQUIRED" as const;
@@ -219,13 +216,13 @@ describe("getArticleBySlugForMonetizedAccess", () => {
       expect(r.data.hasAccess).toBe(false);
       expect(r.data.monetization).toMatchObject({
         locked: true,
-        target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
+        target: { targetType: "ARTICLE", targetId: "a1" },
       });
     }
     expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalledWith({
       userId: "user-1",
       platform: "WEB_DESKTOP",
-      target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
+      target: { targetType: "ARTICLE", targetId: "a1" },
     });
   });
 
@@ -299,71 +296,6 @@ describe("getArticleBySlugForMonetizedAccess", () => {
       expect(r.data.monetization?.locked).toBe(false);
     }
     expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
-  });
-});
-
-describe("unlockArticleBySlug", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("spends rewarded credits for a public article", async () => {
-    mockArticleFindUnique.mockResolvedValue({
-      id: "a1",
-      visibility: "PUBLIC",
-      access: [],
-    });
-    mockUnlockRewardedTarget.mockResolvedValue({
-      targetType: "ARTICLE",
-      targetId: "a1",
-      unlocked: true,
-      spentCredits: 1,
-      balance: 4,
-      pendingRefundCredits: 0,
-    });
-
-    const result = await unlockArticleBySlug({
-      slug: "public-slug",
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
-    });
-
-    expect(result).toEqual({
-      success: true,
-      data: {
-        targetType: "ARTICLE",
-        targetId: "a1",
-        unlocked: true,
-        spentCredits: 1,
-        balance: 4,
-        pendingRefundCredits: 0,
-      },
-    });
-    expect(mockUnlockRewardedTarget).toHaveBeenCalledWith({
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
-      target: { targetType: "ARTICLE", targetId: "a1", cost: 1 },
-    });
-  });
-
-  it("does not spend rewarded credits for a paid article without separate access", async () => {
-    mockArticleFindUnique.mockResolvedValue({
-      id: "a1",
-      visibility: "PAID",
-      access: [],
-    });
-
-    const result = await unlockArticleBySlug({
-      slug: "paid-slug",
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
-    });
-
-    expect(result).toEqual({
-      success: false,
-      error: "Статья доступна только после отдельной оплаты",
-    });
-    expect(mockUnlockRewardedTarget).not.toHaveBeenCalled();
   });
 });
 

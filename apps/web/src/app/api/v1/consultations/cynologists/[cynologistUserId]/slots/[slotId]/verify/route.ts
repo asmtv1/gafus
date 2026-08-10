@@ -7,14 +7,17 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import {
-  requireConsultationSlotsPremiumOrRewardedAccess,
+  requireConsultationSlotsSubscriptionAccess,
   verifyConsultationSlotFreeForCynologist,
 } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
-import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 import { createWebLogger } from "@gafus/logger";
 
-import { logConsultationRouteError, mapConsultationError } from "@/shared/lib/consultation-route-errors";
+import {
+  logConsultationRouteError,
+  mapConsultationError,
+} from "@/shared/lib/consultation-route-errors";
 
 const logger = createWebLogger("api-consultations-slot-verify");
 
@@ -28,9 +31,8 @@ export async function GET(
       throw new AuthorizationError("Не авторизован");
     }
     const { cynologistUserId, slotId } = await context.params;
-    await requireConsultationSlotsPremiumOrRewardedAccess({
+    await requireConsultationSlotsSubscriptionAccess({
       userId: session.user.id,
-      platform: "WEB_DESKTOP",
     });
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
     return NextResponse.json({ success: true });
@@ -41,11 +43,11 @@ export async function GET(
         { status: 401 },
       );
     }
-    if (error instanceof SubscriptionOrCreditsRequiredError) {
+    if (error instanceof SubscriptionRequiredError) {
       return NextResponse.json(
         {
           success: false,
-          error: "Для действия нужна подписка или rewarded credits",
+          error: error.message,
           code: error.code,
         },
         { status: 402 },

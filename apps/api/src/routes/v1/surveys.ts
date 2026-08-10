@@ -20,8 +20,11 @@ export const surveysRoutes = new Hono();
 
 const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
 
-function getRewardedPlatform(c: { req: { query(name: string): string | undefined; header(name: string): string | undefined } }): "ANDROID" | "IOS" {
-  const candidate = c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
+function getRewardedPlatform(c: {
+  req: { query(name: string): string | undefined; header(name: string): string | undefined };
+}): "ANDROID" | "IOS" {
+  const candidate =
+    c.req.query("platform") ?? c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
   const parsed = rewardedPlatformSchema.safeParse(candidate);
   return parsed.success ? parsed.data : "ANDROID";
 }
@@ -33,11 +36,13 @@ function isSubscriptionOrCreditsRequiredError(error: unknown): boolean {
   );
 }
 
-function subscriptionOrCreditsResponse(c: { json: (body: unknown, status: 402) => Response }): Response {
+function subscriptionOrCreditsResponse(c: {
+  json: (body: unknown, status: 402) => Response;
+}): Response {
   return c.json(
     {
       success: false,
-      error: "Для действия нужна подписка или rewarded credits",
+      error: "Для действия нужна подписка или доступ к шагу за просмотр рекламы",
       code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
     },
     402,
@@ -52,12 +57,7 @@ const getSurveyQuerySchema = z.object({
   stepId: z.string().min(1).optional(),
 });
 
-const answerValueSchema = z.union([
-  z.string(),
-  z.array(z.string()),
-  z.boolean(),
-  z.null(),
-]);
+const answerValueSchema = z.union([z.string(), z.array(z.string()), z.boolean(), z.null()]);
 
 const submitSurveySchema = z.object({
   courseId: z.string().min(1),
@@ -72,21 +72,17 @@ const comparisonQuerySchema = z.object({
   familySlug: z.string().min(1),
 });
 
-surveysRoutes.get(
-  "/comparison",
-  zValidator("query", comparisonQuerySchema),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const query = c.req.valid("query");
-      const comparison = await getSurveyComparison(user.id, query.courseId, query.familySlug);
-      return c.json({ success: true, data: comparison });
-    } catch (error) {
-      logger.error("Error getting survey comparison", error as Error);
-      return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
-    }
-  },
-);
+surveysRoutes.get("/comparison", zValidator("query", comparisonQuerySchema), async (c) => {
+  try {
+    const user = c.get("user");
+    const query = c.req.valid("query");
+    const comparison = await getSurveyComparison(user.id, query.courseId, query.familySlug);
+    return c.json({ success: true, data: comparison });
+  } catch (error) {
+    logger.error("Error getting survey comparison", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+  }
+});
 
 surveysRoutes.get(
   "/:slug",
