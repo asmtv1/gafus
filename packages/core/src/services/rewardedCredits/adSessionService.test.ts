@@ -70,6 +70,18 @@ const prismaMocks = vi.hoisted(() => {
       Object.assign(session, data);
       return Promise.resolve(session);
     }),
+    updateMany: vi.fn(({ where, data }) => {
+      const session = state.sessions.get(where.id);
+      if (
+        !session ||
+        session.status !== where.status ||
+        (where.rewardedAt === null && session.rewardedAt !== null)
+      ) {
+        return Promise.resolve({ count: 0 });
+      }
+      Object.assign(session, data);
+      return Promise.resolve({ count: 1 });
+    }),
   };
   const rewardedTargetAccess = {
     findFirst: vi.fn(({ where }) =>
@@ -100,6 +112,14 @@ const prismaMocks = vi.hoisted(() => {
     rewardedAdSession,
     rewardedTargetAccess,
     rewardedAdEvent: {
+      findFirst: vi.fn(({ where }) =>
+        Promise.resolve(
+          state.events.find(
+            (event) =>
+              event.sessionId === where.sessionId && event.eventType === where.eventType,
+          ) ?? null,
+        ),
+      ),
       create: vi.fn(({ data }) => {
         state.events.push(data);
         return Promise.resolve({ id: `event-${state.events.length}`, ...data });
@@ -250,6 +270,57 @@ describe("rewarded ad direct target access", () => {
     ).rejects.toMatchObject({ code: "REWARDED_SESSION_INVALID_TRANSITION" });
   });
 
+  it("accepts a reward racing with DISMISSED and preserves the rewarded status", async () => {
+    const session = await createRewardedAdSession({
+      userId: "user-1",
+      platform: "ANDROID",
+      target: TARGET,
+      now: START,
+    });
+    await recordRewardedAdEvent({
+      userId: "user-1",
+      sessionId: session.sessionId,
+      eventType: "SHOWN",
+    });
+
+    await Promise.all([
+      recordRewardedAdEvent({
+        userId: "user-1",
+        sessionId: session.sessionId,
+        eventType: "REWARDED",
+      }),
+      recordRewardedAdEvent({
+        userId: "user-1",
+        sessionId: session.sessionId,
+        eventType: "DISMISSED",
+      }),
+    ]);
+
+    expect(state.sessions.get(session.sessionId)).toMatchObject({
+      status: "REWARDED",
+    });
+    expect(state.sessions.get(session.sessionId)?.rewardedAt).toBeInstanceOf(Date);
+  });
+
+  it("accepts REWARDED after DISMISSED when SHOWN was recorded", async () => {
+    const session = await createRewardedAdSession({
+      userId: "user-1",
+      platform: "ANDROID",
+      target: TARGET,
+      now: START,
+    });
+    for (const eventType of ["SHOWN", "DISMISSED", "REWARDED"] as const) {
+      await recordRewardedAdEvent({
+        userId: "user-1",
+        sessionId: session.sessionId,
+        eventType,
+      });
+    }
+
+    expect(state.sessions.get(session.sessionId)).toMatchObject({ status: "REWARDED" });
+    expect(state.sessions.get(session.sessionId)?.rewardedAt).toBeInstanceOf(Date);
+  });
+
   it("grants exactly seven days and replays idempotently without extending", async () => {
     const session = await rewardedSession();
     const grantAt = new Date("2026-08-05T10:03:00.000Z");
@@ -270,6 +341,26 @@ describe("rewarded ad direct target access", () => {
     });
     expect(replay).toEqual({ ...first, replay: true });
     expect(state.accesses.size).toBe(1);
+  });
+
+  it("grants an accepted reward even if DISMISSED won the lifecycle status race", async () => {
+    const session = await rewardedSession();
+    const persisted = state.sessions.get(session.sessionId)!;
+    const rewardedAt = persisted.rewardedAt;
+    persisted.status = "DISMISSED";
+
+    await expect(
+      grantRewardedTargetAccess({
+        userId: "user-1",
+        sessionId: session.sessionId,
+        requestNonce: session.requestNonce,
+        now: new Date("2026-08-05T10:03:00.000Z"),
+      }),
+    ).resolves.toMatchObject({ ...TARGET, replay: false });
+    expect(state.sessions.get(session.sessionId)).toMatchObject({
+      status: "GRANTED",
+      rewardedAt,
+    });
   });
 
   it("does not allow a new ad while target access is active", async () => {
