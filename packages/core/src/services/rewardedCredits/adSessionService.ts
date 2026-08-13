@@ -230,7 +230,15 @@ export async function recordRewardedAdEvent(input: {
   if (!session || session.userId !== input.userId) {
     throw new RewardedAdSessionError("REWARDED_SESSION_NOT_FOUND", "Rewarded ad session not found");
   }
-  assertValidLifecycleTransition(session.status, input.eventType);
+  if (input.eventType === "REWARDED" && session.status === "DISMISSED") {
+    const shownEvent = await prisma.rewardedAdEvent.findFirst({
+      where: { sessionId: session.id, eventType: "SHOWN" },
+      select: { id: true },
+    });
+    if (!shownEvent) assertValidLifecycleTransition(session.status, input.eventType);
+  } else {
+    assertValidLifecycleTransition(session.status, input.eventType);
+  }
 
   await prisma.rewardedAdEvent.create({
     data: {
@@ -241,12 +249,19 @@ export async function recordRewardedAdEvent(input: {
   });
 
   const nextStatus = mapEventToStatus(input.eventType);
-  if (shouldMoveStatusForward(session.status, nextStatus)) {
+  if (input.eventType === "REWARDED") {
     await prisma.rewardedAdSession.update({
       where: { id: input.sessionId },
+      data: { status: "REWARDED", rewardedAt: new Date() },
+    });
+  } else if (shouldMoveStatusForward(session.status, nextStatus)) {
+    // DISMISSED/FAILED can race with REWARDED. Only apply the terminal
+    // callback if the session still has the state observed above and no
+    // reward has been accepted in the meantime.
+    await prisma.rewardedAdSession.updateMany({
+      where: { id: input.sessionId, status: session.status, rewardedAt: null },
       data: {
         status: nextStatus,
-        rewardedAt: input.eventType === "REWARDED" ? new Date() : undefined,
         errorCode: input.eventType === "FAILED" ? "CLIENT_EVENT_FAILED" : undefined,
       },
     });
@@ -304,7 +319,9 @@ export async function grantRewardedTargetAccess(input: {
       "Rewarded ad session nonce is invalid",
     );
   }
-  if (session.status !== "REWARDED") {
+  // rewardedAt is the immutable proof that the server accepted the reward.
+  // A terminal SDK callback may race with REWARDED and must not invalidate it.
+  if (!session.rewardedAt) {
     throw new RewardedAdSessionError(
       "REWARDED_SESSION_NOT_REWARDED",
       "Rewarded ad session has no rewarded callback",
