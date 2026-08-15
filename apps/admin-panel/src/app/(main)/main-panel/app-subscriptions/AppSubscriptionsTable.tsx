@@ -28,10 +28,8 @@ import type {
   AppSubscriptionDashboardRow,
 } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
 import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
-import {
-  getAppSubscriptionPlanLabel,
-  type AppSubscriptionAdminDashboardMetrics,
-} from "@gafus/core/services/appSubscription";
+import type { AppSubscriptionAdminDashboardMetrics } from "@gafus/core/services/appSubscription";
+import { getAppSubscriptionPlanLabel } from "@gafus/core/services/appSubscription/plans";
 
 export type AppSubscriptionFilter = "all" | "active" | "not_renewed" | "past_due";
 

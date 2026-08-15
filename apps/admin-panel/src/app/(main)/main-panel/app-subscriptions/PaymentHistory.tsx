@@ -20,11 +20,11 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
-import {
-  getAppSubscriptionPlanLabel,
-  type AppSubscriptionPaymentHistoryItem,
-  type AppSubscriptionPaymentHistoryPage,
+import type {
+  AppSubscriptionPaymentHistoryItem,
+  AppSubscriptionPaymentHistoryPage,
 } from "@gafus/core/services/appSubscription";
+import { getAppSubscriptionPlanLabel } from "@gafus/core/services/appSubscription/plans";
 
 const statusLabels: Record<string, string> = {
   all: "Все статусы",

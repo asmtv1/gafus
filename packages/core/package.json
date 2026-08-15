@@ -153,6 +153,10 @@
       "types": "./dist/core/src/services/appSubscription/index.d.ts",
       "default": "./dist/core/src/services/appSubscription/index.js"
     },
+    "./services/appSubscription/plans": {
+      "types": "./dist/core/src/services/appSubscription/plans.d.ts",
+      "default": "./dist/core/src/services/appSubscription/plans.js"
+    },
     "./services/survey": {
       "types": "./dist/core/src/services/survey/index.d.ts",
       "default": "./dist/core/src/services/survey/index.js"

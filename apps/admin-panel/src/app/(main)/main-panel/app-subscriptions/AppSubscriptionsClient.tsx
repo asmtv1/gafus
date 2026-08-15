@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { AppSubscriptionDashboard } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
 import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
-import { getAppSubscriptionPlanLabel } from "@gafus/core/services/appSubscription";
+import { getAppSubscriptionPlanLabel } from "@gafus/core/services/appSubscription/plans";
 
 import AppSubscriptionsTable, { type AppSubscriptionFilter } from "./AppSubscriptionsTable";
 
