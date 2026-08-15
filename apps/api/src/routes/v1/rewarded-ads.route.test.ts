@@ -104,7 +104,7 @@ describe("rewarded ads routes", () => {
       headers: { "x-client-platform": "ios", "x-client-version": "1.6.6" },
     });
     const old = await app.request(url, {
-      headers: { "x-client-platform": "android", "x-client-version": "1.6.6" },
+      headers: { "x-client-platform": "android", "x-client-version": "1.6.5" },
     });
 
     expect(web.status).toBe(400);
