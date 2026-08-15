@@ -1,4 +1,4 @@
-import { useId, useMemo } from "react";
+import { forwardRef, useId, useMemo, type ComponentRef } from "react";
 import {
   InputAccessoryView,
   Keyboard,
@@ -8,12 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import {
-  HelperText,
-  TextInput,
-  useTheme,
-  type TextInputProps,
-} from "react-native-paper";
+import { HelperText, TextInput, useTheme, type TextInputProps } from "react-native-paper";
 import { BORDER_RADIUS, SPACING, COLORS } from "@/shared/config";
 
 const IOS_NUMERIC_KEYBOARD_TYPES: TextInputProps["keyboardType"][] = [
@@ -36,14 +31,10 @@ interface InputProps extends Omit<TextInputProps, "mode" | "error"> {
  * Обёртка над React Native Paper TextInput (стиль как в веб)
  * Подпись/плейсхолдер — COLORS.text: иначе MD3 даёт бледный onSurfaceVariant
  */
-export function Input({
-  error,
-  style,
-  theme: themeOverride,
-  keyboardType,
-  keyboardDoneAccessory,
-  ...props
-}: InputProps) {
+export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(function Input(
+  { error, style, theme: themeOverride, keyboardType, keyboardDoneAccessory, ...props },
+  ref,
+) {
   const reactId = useId();
   const accessoryNativeId = `gafus-input-acc-${reactId.replace(/:/g, "")}`;
 
@@ -91,6 +82,8 @@ export function Input({
         </InputAccessoryView>
       ) : null}
       <TextInput
+        // react-native-paper intersects the native ref with its narrower public handles type.
+        ref={ref as never}
         mode="outlined"
         error={!!error}
         style={[styles.input, style]}
@@ -111,7 +104,7 @@ export function Input({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

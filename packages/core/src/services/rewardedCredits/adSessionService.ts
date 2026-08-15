@@ -1,9 +1,17 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { prisma, type Prisma, type RewardedAdSessionStatus } from "@gafus/prisma";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
-import { REWARDED_AD_SESSION_TTL_MINUTES } from "./constants";
-import { RewardedAdSessionError, RewardedAdsDisabledError } from "./errors";
+import {
+  REWARDED_AD_SESSION_TTL_MINUTES,
+  REWARDED_DAILY_LIMIT_TIMEZONE,
+} from "./constants";
+import {
+  RewardedAdSessionError,
+  RewardedAdsDisabledError,
+  RewardedDailyLimitReachedError,
+} from "./errors";
 import { resolveRewardedPlatformSettings } from "./settingsService";
 import type { ClientAppContext } from "../appFeatureFlags";
 import type { RewardedAdLifecycleEvent, RewardedAdSessionDto, RewardedPlatform } from "./types";
@@ -20,7 +28,11 @@ export type RewardedAccessTarget = {
 export type RewardedAdStatusDto = {
   settings: { platformEnabled: boolean; testMode: boolean };
   canWatchAd: boolean;
-  canWatchAdReason: "OK" | "PLATFORM_DISABLED" | "TARGET_ALREADY_ACTIVE";
+  canWatchAdReason:
+    | "OK"
+    | "PLATFORM_DISABLED"
+    | "TARGET_ALREADY_ACTIVE"
+    | "DAILY_LIMIT_REACHED";
   target: RewardedAccessTarget & { unlocked: boolean; expiresAt: string | null };
 };
 
@@ -68,6 +80,32 @@ function assertValidLifecycleTransition(
       "Rewarded ad session must be shown before it can be rewarded",
     );
   }
+}
+
+function getMoscowDayRange(now: Date): { start: Date; end: Date } {
+  const zonedNow = toZonedTime(now, REWARDED_DAILY_LIMIT_TIMEZONE);
+  const startInMoscow = new Date(zonedNow);
+  startInMoscow.setHours(0, 0, 0, 0);
+  const endInMoscow = new Date(startInMoscow);
+  endInMoscow.setDate(endInMoscow.getDate() + 1);
+  return {
+    start: fromZonedTime(startInMoscow, REWARDED_DAILY_LIMIT_TIMEZONE),
+    end: fromZonedTime(endInMoscow, REWARDED_DAILY_LIMIT_TIMEZONE),
+  };
+}
+
+async function countRewardsForMoscowDay(
+  client: Pick<Prisma.TransactionClient, "rewardedAdSession">,
+  userId: string,
+  now: Date,
+): Promise<number> {
+  const { start, end } = getMoscowDayRange(now);
+  return client.rewardedAdSession.count({
+    where: {
+      userId,
+      rewardedAt: { gte: start, lt: end },
+    },
+  });
 }
 
 async function assertTargetExists(target: RewardedAccessTarget): Promise<void> {
@@ -123,16 +161,19 @@ export async function getRewardedAdStatus(input: {
   now?: Date;
 }): Promise<RewardedAdStatusDto> {
   const now = input.now ?? new Date();
-  const [platformSettings, access] = await Promise.all([
+  const [platformSettings, access, rewardsToday] = await Promise.all([
     resolveRewardedPlatformSettings(input.platform, input.clientContext),
     findActiveTargetAccess({ userId: input.userId, target: input.target, now }),
+    countRewardsForMoscowDay(prisma, input.userId, now),
   ]);
   const canWatchAdReason: RewardedAdStatusDto["canWatchAdReason"] =
     !platformSettings.platformEnabled
       ? "PLATFORM_DISABLED"
       : access
         ? "TARGET_ALREADY_ACTIVE"
-        : "OK";
+        : rewardsToday >= platformSettings.dailyAdLimit
+          ? "DAILY_LIMIT_REACHED"
+          : "OK";
 
   return {
     settings: {
@@ -173,6 +214,11 @@ export async function createRewardedAdSession(input: {
   });
   if (activeAccess) {
     throw new RewardedAdSessionError("TARGET_ALREADY_ACTIVE", "Материал уже открыт по рекламе");
+  }
+
+  const rewardsToday = await countRewardsForMoscowDay(prisma, input.userId, now);
+  if (rewardsToday >= platformSettings.dailyAdLimit) {
+    throw new RewardedDailyLimitReachedError();
   }
 
   const existing = await prisma.rewardedAdSession.findFirst({
@@ -223,7 +269,66 @@ export async function recordRewardedAdEvent(input: {
   sessionId: string;
   eventType: RewardedAdLifecycleEvent;
   payload?: unknown;
+  now?: Date;
 }): Promise<void> {
+  const now = input.now ?? new Date();
+  if (input.eventType === "REWARDED") {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        `rewarded-daily-limit:${input.userId}`,
+      );
+      const session = await tx.rewardedAdSession.findUnique({
+        where: { id: input.sessionId },
+      });
+      if (!session || session.userId !== input.userId) {
+        throw new RewardedAdSessionError(
+          "REWARDED_SESSION_NOT_FOUND",
+          "Rewarded ad session not found",
+        );
+      }
+
+      // Provider/client retries are successful no-ops and never spend another slot.
+      if (session.rewardedAt || session.status === "REWARDED" || session.status === "GRANTED") {
+        return;
+      }
+      if (session.status === "DISMISSED") {
+        const shownEvent = await tx.rewardedAdEvent.findFirst({
+          where: { sessionId: session.id, eventType: "SHOWN" },
+          select: { id: true },
+        });
+        if (!shownEvent) {
+          assertValidLifecycleTransition(session.status, input.eventType);
+        }
+      } else {
+        assertValidLifecycleTransition(session.status, input.eventType);
+      }
+
+      const settings = await tx.rewardedAdSettings.findUnique({
+        where: { key: "default" },
+        select: { dailyAdLimit: true },
+      });
+      const dailyAdLimit = settings?.dailyAdLimit ?? 1;
+      const rewardsToday = await countRewardsForMoscowDay(tx, input.userId, now);
+      if (rewardsToday >= dailyAdLimit) {
+        throw new RewardedDailyLimitReachedError();
+      }
+
+      await tx.rewardedAdEvent.create({
+        data: {
+          sessionId: input.sessionId,
+          eventType: input.eventType,
+          payload: input.payload as Prisma.InputJsonValue | undefined,
+        },
+      });
+      await tx.rewardedAdSession.update({
+        where: { id: input.sessionId },
+        data: { status: "REWARDED", rewardedAt: now },
+      });
+    });
+    return;
+  }
+
   const session = await prisma.rewardedAdSession.findUnique({
     where: { id: input.sessionId },
   });
@@ -242,11 +347,11 @@ export async function recordRewardedAdEvent(input: {
 
   const nextStatus = mapEventToStatus(input.eventType);
   if (shouldMoveStatusForward(session.status, nextStatus)) {
-    await prisma.rewardedAdSession.update({
-      where: { id: input.sessionId },
+    // A late DISMISSED/FAILED request must not overwrite a concurrently accepted reward.
+    await prisma.rewardedAdSession.updateMany({
+      where: { id: input.sessionId, status: session.status, rewardedAt: null },
       data: {
         status: nextStatus,
-        rewardedAt: input.eventType === "REWARDED" ? new Date() : undefined,
         errorCode: input.eventType === "FAILED" ? "CLIENT_EVENT_FAILED" : undefined,
       },
     });
@@ -304,7 +409,10 @@ export async function grantRewardedTargetAccess(input: {
       "Rewarded ad session nonce is invalid",
     );
   }
-  if (session.status !== "REWARDED") {
+  // rewardedAt is the immutable proof that the server accepted the reward.
+  // Lifecycle callbacks such as DISMISSED can race with REWARDED and must not
+  // make an already accepted reward impossible to grant or replay.
+  if (!session.rewardedAt) {
     throw new RewardedAdSessionError(
       "REWARDED_SESSION_NOT_REWARDED",
       "Rewarded ad session has no rewarded callback",

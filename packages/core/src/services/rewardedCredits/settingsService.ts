@@ -5,7 +5,7 @@ import {
   getMobileFeatureFlagEnabled,
   type ClientAppContext,
 } from "../appFeatureFlags";
-import { REWARDED_DAILY_LIMIT_VALUES } from "./constants";
+import { REWARDED_DAILY_LIMIT_MAX, REWARDED_DAILY_LIMIT_MIN } from "./constants";
 import type {
   RewardedAdSettingsDto,
   RewardedDailyLimit,
@@ -45,8 +45,12 @@ function normalizeDailyLimit(value: number | undefined): RewardedDailyLimit | un
   if (value === undefined) {
     return undefined;
   }
-  if (!REWARDED_DAILY_LIMIT_VALUES.includes(value as RewardedDailyLimit)) {
-    throw new Error("dailyAdLimit must be 1, 2 or 3");
+  if (
+    !Number.isInteger(value) ||
+    value < REWARDED_DAILY_LIMIT_MIN ||
+    value > REWARDED_DAILY_LIMIT_MAX
+  ) {
+    throw new Error("dailyAdLimit must be an integer between 0 and 100");
   }
   return value as RewardedDailyLimit;
 }

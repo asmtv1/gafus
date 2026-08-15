@@ -8,6 +8,7 @@ import {
 
 const state = vi.hoisted(() => ({
   wallets: new Map<string, { userId: string; balance: number; pendingRefundCredits: number }>(),
+  rewardedSessions: [] as { userId: string; rewardedAt: Date | null }[],
   transactions: new Map<
     string,
     {
@@ -27,6 +28,19 @@ const state = vi.hoisted(() => ({
 
 function createMockClient() {
   return {
+    rewardedAdSession: {
+      count: vi.fn(({ where }) =>
+        Promise.resolve(
+          state.rewardedSessions.filter(
+            (session) =>
+              session.userId === where.userId &&
+              session.rewardedAt !== null &&
+              session.rewardedAt >= where.rewardedAt.gte &&
+              session.rewardedAt < where.rewardedAt.lt,
+          ).length,
+        ),
+      ),
+    },
     rewardedCreditWallet: {
       upsert: vi.fn(({ where, create }) => {
         if (!state.wallets.has(where.userId)) {
@@ -119,6 +133,7 @@ describe("rewarded credits wallet", () => {
   beforeEach(() => {
     state.wallets.clear();
     state.transactions.clear();
+    state.rewardedSessions.length = 0;
     vi.clearAllMocks();
   });
 
@@ -127,6 +142,25 @@ describe("rewarded credits wallet", () => {
       .toMatchObject({
         wallet: { balance: 0, pendingRefundCredits: 0, maxBalance: REWARDED_MAX_CREDIT_BALANCE },
       });
+  });
+
+  it("counts rewarded sessions rather than legacy wallet EARN transactions", async () => {
+    const now = new Date("2026-08-05T10:00:00.000Z");
+    state.transactions.set("legacy-earn", {
+      id: "legacy-earn",
+      userId: "user-1",
+      type: "EARN",
+      amount: 5,
+      balanceBefore: 0,
+      balanceAfter: 5,
+      idempotencyKey: "legacy-earn",
+      createdAt: now,
+    });
+    state.rewardedSessions.push({ userId: "user-1", rewardedAt: now });
+
+    await expect(
+      getRewardedCreditsStatus({ userId: "user-1", platform: "ANDROID", now }),
+    ).resolves.toMatchObject({ today: { adsWatchedToday: 1 } });
   });
 
   it("marks target as unlocked when it already has a spend transaction", async () => {

@@ -7,7 +7,10 @@ import { authOptions } from "@gafus/auth";
 import { startYookassaAppSubscriptionPayment } from "@gafus/core/services/appSubscription";
 
 const startYookassaSchema = z.object({
-  planCode: z.literal("MONTHLY"),
+  planCode: z.enum(["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"]),
+  promoCode: z
+    .object({ code: z.string(), revision: z.number().int().positive() })
+    .optional(),
 });
 
 function getOrigin(request: NextRequest): string {
@@ -77,6 +80,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
       shopId,
       secretKey,
       planCode: parsed.data.planCode,
+      promoCode: parsed.data.promoCode,
     });
   } catch (error) {
     console.error("[app-subscription/yookassa/start] start failed before payment response", error);
@@ -94,8 +98,22 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
   });
   if (!data.success) {
     return NextResponse.json(
-      { success: false, error: data.error, code: "PAYMENT_ERROR" },
-      { status: 400 },
+      { success: false, error: data.error, code: data.code ?? "PAYMENT_ERROR" },
+      {
+        status:
+          data.code === "PROMO_CODE_NOT_ELIGIBLE" ||
+          data.code === "PROMO_CODE_FEATURE_DISABLED"
+            ? 403
+            : data.code === "PROMO_CODE_CHANGED" ||
+                data.code === "PROMO_CODE_INACTIVE" ||
+                data.code === "PROMO_CHECKOUT_IN_PROGRESS" ||
+                data.code === "SUBSCRIPTION_CHECKOUT_IN_PROGRESS" ||
+                data.code === "SUBSCRIPTION_ALREADY_ACTIVE"
+              ? 409
+              : data.code === "PROMO_CODE_NOT_FOUND"
+                ? 404
+                : 400,
+      },
     );
   }
 

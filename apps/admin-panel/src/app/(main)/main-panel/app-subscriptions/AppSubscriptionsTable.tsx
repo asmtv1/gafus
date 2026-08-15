@@ -28,7 +28,10 @@ import type {
   AppSubscriptionDashboardRow,
 } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
 import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
-import type { AppSubscriptionAdminDashboardMetrics } from "@gafus/core/services/appSubscription";
+import {
+  getAppSubscriptionPlanLabel,
+  type AppSubscriptionAdminDashboardMetrics,
+} from "@gafus/core/services/appSubscription";
 
 export type AppSubscriptionFilter = "all" | "active" | "not_renewed" | "past_due";
 
@@ -318,9 +321,28 @@ function TodayCheckoutSummary({
                     label={checkoutStatusLabels[attempt.status]}
                   />
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Typography variant="body2" fontWeight={600}>
-                      {formatMoney(attempt.amountRub)}
-                    </Typography>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        Итог: {formatMoney(attempt.amountRub)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                        sx={{ overflowWrap: "anywhere" }}
+                      >
+                        Код: {attempt.promoCodeSnapshot ?? "—"} · скидка:{" "}
+                        {attempt.promoDiscountPercent == null
+                          ? "—"
+                          : `${attempt.promoDiscountPercent}%`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Исходная:{" "}
+                        {attempt.originalAmountRub == null
+                          ? "—"
+                          : formatMoney(attempt.originalAmountRub)}
+                      </Typography>
+                    </Box>
                     <Link
                       href={`/main-panel/users?search=${encodeURIComponent(attempt.user.username)}`}
                     >
@@ -497,7 +519,7 @@ export default function AppSubscriptionsTable({
                         label={getAppSubscriptionStatusLabel(row)}
                       />
                       <Typography variant="caption" color="text.secondary">
-                        {providerLabels[row.provider] ?? row.provider}
+                        {providerLabels[row.provider] ?? row.provider} · {getAppSubscriptionPlanLabel(row.planCode)}
                       </Typography>
                       {row.attention ? (
                         <Chip
@@ -575,7 +597,7 @@ export default function AppSubscriptionsTable({
                 />
               </Box>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                {providerLabels[row.provider] ?? row.provider} · купил {formatDate(row.boughtAt)}
+                {providerLabels[row.provider] ?? row.provider} · {getAppSubscriptionPlanLabel(row.planCode)} · купил {formatDate(row.boughtAt)}
               </Typography>
               <Typography variant="body2">
                 До: {row.isLifetime ? "навсегда" : formatDate(row.activeUntil)}

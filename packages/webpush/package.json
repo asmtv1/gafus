@@ -1,6 +1,6 @@
 {
   "name": "@gafus/webpush",
-  "version": "1.6.4",
+  "version": "1.6.6",
   "private": true,
   "main": "dist/webpush/src/index.js",
   "types": "dist/webpush/src/index.d.ts",

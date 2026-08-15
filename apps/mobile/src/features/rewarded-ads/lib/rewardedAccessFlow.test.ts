@@ -80,10 +80,42 @@ describe("rewarded access flow", () => {
     expect(showYandexRewardedAdMock).not.toHaveBeenCalled();
   });
 
+  it("classifies a daily-limit response while creating the session", async () => {
+    createSessionMock.mockResolvedValue({
+      success: false,
+      code: "REWARDED_DAILY_LIMIT_REACHED",
+      error: "Daily limit reached",
+    });
+
+    await expect(openTargetWithRewardedAd(target)).resolves.toEqual({
+      success: false,
+      failure: "DAILY_LIMIT",
+      message:
+        "Достигнут дневной лимит просмотра рекламы. Пожалуйста, возвращайтесь завтра.",
+    });
+    expect(showYandexRewardedAdMock).not.toHaveBeenCalled();
+  });
+
+  it("classifies a daily-limit response from the rewarded event", async () => {
+    showYandexRewardedAdMock.mockResolvedValue({
+      success: false,
+      code: "REWARDED_DAILY_LIMIT_REACHED",
+      error: "Daily limit reached",
+    });
+
+    await expect(openTargetWithRewardedAd(target)).resolves.toEqual({
+      success: false,
+      failure: "DAILY_LIMIT",
+      message:
+        "Достигнут дневной лимит просмотра рекламы. Пожалуйста, возвращайтесь завтра.",
+    });
+  });
+
   it.each([
     [new Error("No fill"), "NO_FILL"],
     [new Error("Network request failed"), "NETWORK"],
     [new Error("Реклама не загрузилась"), "NETWORK"],
+    [{ code: "REWARDED_DAILY_LIMIT_REACHED" }, "DAILY_LIMIT"],
     [new Error("Unexpected native failure"), "INTERNAL"],
   ] as const)("classifies provider errors", (error, expected) => {
     expect(classifyRewardedAccessError(error)).toBe(expected);
@@ -98,6 +130,9 @@ describe("rewarded access flow", () => {
     );
     expect(getRewardedAccessErrorMessage("INTERNAL")).toBe(
       "Ошибка сервиса Гафус. Попробуйте ещё раз или обратитесь к администрации",
+    );
+    expect(getRewardedAccessErrorMessage("DAILY_LIMIT")).toBe(
+      "Достигнут дневной лимит просмотра рекламы. Пожалуйста, возвращайтесь завтра.",
     );
   });
 });

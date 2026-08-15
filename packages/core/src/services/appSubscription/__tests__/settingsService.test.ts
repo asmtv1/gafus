@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getAppSubscriptionOffer } from "../settingsService";
 
 const mockSettingsFindUnique = vi.fn();
+const mockPaymentFindFirst = vi.fn();
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     appSubscriptionSettings: {
       findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
+    },
+    appSubscriptionPayment: {
+      findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
     },
   },
 }));
@@ -17,6 +21,8 @@ vi.mock("../appleAccountTokenService", () => ({
 
 vi.mock("../../appFeatureFlags", () => ({
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "mobile_ios_ru_card_payment_enabled",
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES:
+    "mobile_ios_subscription_promo_codes",
   getMobileFeatureFlagEnabled: vi.fn().mockResolvedValue(true),
 }));
 
@@ -32,6 +38,7 @@ describe("getAppSubscriptionOffer", () => {
       weeklyAppleProductId: "premium-week",
       monthlyAppleProductId: "premium-month",
     });
+    mockPaymentFindFirst.mockResolvedValue(null);
   });
 
   it("returns only the monthly plan", async () => {
@@ -47,6 +54,7 @@ describe("getAppSubscriptionOffer", () => {
           appleProductId: "premium-month",
         },
       ],
+      promoCode: { entryEnabled: true, eligible: true },
     });
   });
 

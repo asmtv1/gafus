@@ -1,6 +1,6 @@
 {
   "name": "@gafus/core",
-  "version": "1.6.4",
+  "version": "1.6.6",
   "private": true,
   "sideEffects": false,
   "type": "module",

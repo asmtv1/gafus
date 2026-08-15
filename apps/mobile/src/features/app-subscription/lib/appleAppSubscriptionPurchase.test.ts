@@ -56,6 +56,9 @@ describe("runAppleAppSubscriptionPurchase", () => {
       },
       type: "subs",
     });
+    expect(verifyAppleSubscriptionMock).toHaveBeenCalledWith({
+      signedTransactionInfo: "signed-jws",
+    });
   });
 
   it("does not finish the transaction when server-side verification returns a domain failure", async () => {

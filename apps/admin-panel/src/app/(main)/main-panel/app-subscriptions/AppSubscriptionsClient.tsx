@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 
-import PageLayout from "@/shared/components/PageLayout";
 import type { AppSubscriptionDashboard } from "@/features/app-subscriptions/lib/getAppSubscriptionDashboard";
 import { getAppSubscriptionStatusLabel } from "@/features/app-subscriptions/lib/statusPresentation";
+import { getAppSubscriptionPlanLabel } from "@gafus/core/services/appSubscription";
 
 import AppSubscriptionsTable, { type AppSubscriptionFilter } from "./AppSubscriptionsTable";
 
@@ -56,6 +56,7 @@ export default function AppSubscriptionsClient({ dashboard }: AppSubscriptionsCl
           row.id,
           row.provider,
           row.status,
+          getAppSubscriptionPlanLabel(row.planCode),
           getAppSubscriptionStatusLabel(row),
           row.paymentMethod,
           row.appleProductId,
@@ -115,23 +116,18 @@ export default function AppSubscriptionsClient({ dashboard }: AppSubscriptionsCl
   };
 
   return (
-    <PageLayout
-      title="Подписки Gafus Premium"
-      subtitle="Что происходит с подписками сегодня и у кого сейчас есть доступ"
-    >
-      <AppSubscriptionsTable
-        metrics={dashboard.metrics}
-        todayNotPaid={dashboard.todayNotPaid}
-        rows={rows}
-        totalRows={dashboard.rows.length}
-        filter={filter}
-        onFilterChange={setFilter}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSort={handleSort}
-      />
-    </PageLayout>
+    <AppSubscriptionsTable
+      metrics={dashboard.metrics}
+      todayNotPaid={dashboard.todayNotPaid}
+      rows={rows}
+      totalRows={dashboard.rows.length}
+      filter={filter}
+      onFilterChange={setFilter}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      sortField={sortField}
+      sortDirection={sortDirection}
+      onSort={handleSort}
+    />
   );
 }

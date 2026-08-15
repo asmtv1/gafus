@@ -247,11 +247,26 @@ export async function showYandexRewardedAd(
     void (async () => {
       await recordShownOnce();
       logRewardedDebug("recording REWARDED", { sessionId: session.sessionId, reward });
-      await rewardedAdsApi.recordEvent({
+      const rewardedEventResult = await rewardedAdsApi.recordEvent({
         sessionId: session.sessionId,
         eventType: "REWARDED",
         payload: reward,
       });
+      if (!rewardedEventResult.success) {
+        logRewardedDebug("REWARDED event rejected", {
+          sessionId: session.sessionId,
+          code: rewardedEventResult.code,
+          error: rewardedEventResult.error,
+        });
+        grantResult = {
+          success: false,
+          code: rewardedEventResult.code,
+          error: rewardedEventResult.error,
+        };
+        grantSettled = true;
+        finishAfterDismissal();
+        return;
+      }
       logRewardedDebug("granting rewarded access", { sessionId: session.sessionId });
       const result = await rewardedAdsApi.grant({
         sessionId: session.sessionId,

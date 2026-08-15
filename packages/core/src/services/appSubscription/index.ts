@@ -5,5 +5,8 @@ export * from "./accessService";
 export * from "./settingsService";
 export * from "./trialService";
 export * from "./adminService";
+export * from "./adminHistoryService";
 export * from "./appleAccountTokenService";
 export * from "./paymentService";
+export * from "./promoCode";
+export * from "./promoCodeService";

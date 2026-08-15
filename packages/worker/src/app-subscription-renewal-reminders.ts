@@ -35,12 +35,18 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: { bat
     where: { key: "default" },
     select: {
       weeklyEnabled: true,
+      twoWeeksEnabled: true,
       monthlyEnabled: true,
+      threeMonthsEnabled: true,
       yookassaWeeklyPriceRub: true,
+      yookassaTwoWeeksPriceRub: true,
       yookassaMonthlyPriceRub: true,
+      yookassaThreeMonthsPriceRub: true,
       currency: true,
       weeklyIntervalDays: true,
+      twoWeeksIntervalDays: true,
       monthlyIntervalDays: true,
+      threeMonthsIntervalDays: true,
       weeklyAppleProductId: true,
       monthlyAppleProductId: true,
     },
@@ -83,6 +89,15 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: { bat
     }
 
     const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
+    if (!plan) {
+      logger.error(
+        "Renewal reminder skipped: unknown subscription plan code",
+        new Error("Unknown app subscription plan code"),
+        { subscriptionId: row.id, userId: row.userId, planCode: row.planCode },
+      );
+      skipped += 1;
+      continue;
+    }
     const amountRub = plan.yookassaPriceRub;
     const message = renewalText(amountRub, row.currentPeriodEnd);
     const subject = "Скоро продление подписки Gafus Premium";

@@ -1,24 +1,51 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { CloseIcon, IconButton } from "@shared/utils/muiImports";
-import { fetchAppSubscriptionOffer } from "@/shared/lib/app-subscription/client";
 import {
+  AppSubscriptionApiError,
+  type AppSubscriptionPromoCodePreview,
+  fetchAppSubscriptionOffer,
+  previewAppSubscriptionPromoCode,
+  startAppSubscriptionYookassaPayment,
+} from "@/shared/lib/app-subscription/client";
+import {
+  formatAppSubscriptionRubAmount,
+  getAppSubscriptionPlanBadgeText,
+  getAppSubscriptionPlanSavingsText,
+  getAppSubscriptionPromoPricePresentation,
   getYookassaLegalText,
   getYookassaPriceNote,
   getYookassaPrimaryCta,
   getYookassaReturnSuccessTitle,
   formatAppSubscriptionPlanPrice,
-  getAppSubscriptionPlanComparisonText,
   getAppSubscriptionPlanPeriodText,
   selectDefaultAppSubscriptionPlan,
+  sortYookassaSubscriptionPlans,
 } from "@/shared/lib/app-subscription/presentation";
+import {
+  APP_SUBSCRIPTION_PROMO_CODE_MESSAGES,
+  getAppSubscriptionPromoCodeErrorState,
+  isAppSubscriptionPromoCodeInputValid,
+  shouldBlockAppSubscriptionCheckoutForPromo,
+  type AppSubscriptionPromoCodeUiState,
+} from "@/shared/lib/app-subscription/promo-code-ui";
 import styles from "./app-subscription-paywall.module.css";
 
-type AppSubscriptionPlanCode = "MONTHLY";
+type AppSubscriptionPlanCode = "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
+type PromoEligiblePlanCode = Extract<AppSubscriptionPlanCode, "MONTHLY" | "THREE_MONTHS">;
 
 type AppSubscriptionPlanOffer = {
   code: AppSubscriptionPlanCode;
@@ -28,10 +55,20 @@ type AppSubscriptionPlanOffer = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  consultationBookingIncluded: boolean;
+  promoCodeEligible: boolean;
+  badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
+  savingsRub: number | null;
 };
 
 type AppSubscriptionOffer = {
   plans: AppSubscriptionPlanOffer[];
+  yookassaPlans?: AppSubscriptionPlanOffer[];
+  applePlan?: AppSubscriptionPlanOffer | null;
+  promoCode: {
+    entryEnabled: boolean;
+    eligible: boolean;
+  };
 };
 
 type AppSubscriptionPaywallProps = {
@@ -48,18 +85,45 @@ const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
     yookassaPriceRub: 2500,
     enabled: true,
     appleProductId: null,
+    consultationBookingIncluded: true,
+    promoCodeEligible: true,
+    badge: "POPULAR",
+    savingsRub: null,
   },
 ];
+
+const PLAN_BENEFITS = [
+  "Курсы, экзамены и статьи",
+  "Офлайн-доступ",
+  "Документы и напоминания",
+] as const;
+
+function getPlanBadgeClass(badge: AppSubscriptionPlanOffer["badge"]): string {
+  if (badge === "TRY") return styles.planBadgeTry;
+  if (badge === "MAX_SAVINGS") return styles.planBadgeMaxSavings;
+  return styles.planBadgePopular;
+}
+
+function isPromoEligiblePlanCode(code: AppSubscriptionPlanCode): code is PromoEligiblePlanCode {
+  return code === "MONTHLY" || code === "THREE_MONTHS";
+}
 
 export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscriptionPaywallProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const promoInputId = useId();
+  const promoMessageId = useId();
+  const promoInputRef = useRef<HTMLInputElement>(null);
+  const promoRequestIdRef = useRef(0);
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [priceText, setPriceText] = useState("2 500 ₽/месяц");
   const [offer, setOffer] = useState<AppSubscriptionOffer | null>(null);
   const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoState, setPromoState] = useState<AppSubscriptionPromoCodeUiState>("idle");
+  const [promoPreview, setPromoPreview] = useState<AppSubscriptionPromoCodePreview | null>(null);
   const [returnState, setReturnState] = useState<"idle" | "checking" | "success" | "pending">(
     "idle",
   );
@@ -71,26 +135,30 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
     }
   }, [csrfToken, csrfLoading, fetchToken]);
 
-  useEffect(() => {
-    const loadOffer = async () => {
-      try {
-        const response = await fetchAppSubscriptionOffer();
-        if (response?.data) {
-          setOffer(response.data as AppSubscriptionOffer);
-        }
-        const plans = Array.isArray(response?.data?.plans) ? response.data.plans : [];
-        const defaultPlan = selectDefaultAppSubscriptionPlan(plans);
-        if (defaultPlan) {
-          setSelectedPlanCode(defaultPlan.code);
-          setPriceText(formatAppSubscriptionPlanPrice(defaultPlan));
-        }
-      } catch {
-        // keep fallback price text
+  const loadOffer = useCallback(async () => {
+    try {
+      const response = await fetchAppSubscriptionOffer();
+      if (response?.data) {
+        setOffer(response.data as AppSubscriptionOffer);
       }
-    };
-
-    void loadOffer();
+      const plans = Array.isArray(response?.data?.yookassaPlans)
+        ? response.data.yookassaPlans
+        : Array.isArray(response?.data?.plans)
+          ? response.data.plans
+          : [];
+      const defaultOfferPlan = selectDefaultAppSubscriptionPlan(plans);
+      if (defaultOfferPlan) {
+        setSelectedPlanCode(defaultOfferPlan.code);
+        setPriceText(formatAppSubscriptionPlanPrice(defaultOfferPlan));
+      }
+    } catch {
+      // Keep the fallback price and hide eligibility-dependent entry points.
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOffer();
+  }, [loadOffer]);
 
   const ensureCsrfToken = useCallback(async () => {
     if (csrfToken) return csrfToken;
@@ -98,14 +166,45 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
     return useCSRFStore.getState().token;
   }, [csrfToken, fetchToken]);
 
-  const enabledPlans = useMemo(
-    () =>
-      (offer?.plans ?? FALLBACK_APP_SUBSCRIPTION_PLANS).filter((plan) => plan.enabled !== false),
-    [offer],
-  );
+  const enabledPlans = useMemo(() => {
+    const sourcePlans = offer?.yookassaPlans ?? offer?.plans ?? FALLBACK_APP_SUBSCRIPTION_PLANS;
+    return sortYookassaSubscriptionPlans(sourcePlans);
+  }, [offer]);
   const defaultPlan = useMemo(() => selectDefaultAppSubscriptionPlan(enabledPlans), [enabledPlans]);
   const selectedPlan = enabledPlans.find((plan) => plan.code === selectedPlanCode) ?? defaultPlan;
   const selectedPriceText = selectedPlan ? formatAppSubscriptionPlanPrice(selectedPlan) : priceText;
+  const promoEntryVisible = Boolean(
+    offer?.promoCode?.entryEnabled &&
+      offer.promoCode.eligible &&
+      selectedPlan?.promoCodeEligible &&
+      selectedPlan &&
+      isPromoEligiblePlanCode(selectedPlan.code),
+  );
+  const promoPresentation = promoPreview
+    ? getAppSubscriptionPromoPricePresentation(promoPreview)
+    : null;
+  const currentChargeText = promoPreview
+    ? formatAppSubscriptionRubAmount(promoPreview.discountedPriceRub)
+    : formatAppSubscriptionRubAmount(selectedPlan?.yookassaPriceRub);
+  const renewalPriceText = promoPreview
+    ? `${formatAppSubscriptionRubAmount(promoPreview.renewalPriceRub)} каждые ${promoPreview.intervalDays} дней`
+    : selectedPriceText;
+
+  const resetPromo = useCallback(() => {
+    promoRequestIdRef.current += 1;
+    setPromoInput("");
+    setPromoPreview(null);
+    setPromoState("idle");
+    setError(null);
+  }, []);
+
+  const selectPlan = useCallback(
+    (planCode: AppSubscriptionPlanCode) => {
+      setSelectedPlanCode(planCode);
+      resetPromo();
+    },
+    [resetPromo],
+  );
 
   useEffect(() => {
     if (enabledPlans.length === 0) {
@@ -143,6 +242,16 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
           const json = await response.json();
           if (!cancelled && response.ok && json?.data?.hasActiveSubscription) {
             setReturnState("success");
+            setOffer((current) =>
+              current
+                ? {
+                    ...current,
+                    promoCode: { ...current.promoCode, eligible: false },
+                  }
+                : current,
+            );
+            void loadOffer();
+            router.refresh();
             redirectTimer = setTimeout(() => {
               router.replace("/courses");
             }, 2000);
@@ -165,14 +274,80 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
       cancelled = true;
       if (redirectTimer) clearTimeout(redirectTimer);
     };
-  }, [isPaidReturn, router]);
+  }, [isPaidReturn, loadOffer, router]);
+
+  const onPromoInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    promoRequestIdRef.current += 1;
+    setPromoInput(event.target.value);
+    setPromoPreview(null);
+    setPromoState("idle");
+    setError(null);
+  };
+
+  const onApplyPromo = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedPlan || !isPromoEligiblePlanCode(selectedPlan.code)) {
+      setPromoState("network-error");
+      return;
+    }
+
+    if (!isAppSubscriptionPromoCodeInputValid(promoInput)) {
+      setPromoPreview(null);
+      setPromoState("invalid-format");
+      return;
+    }
+
+    const requestId = promoRequestIdRef.current + 1;
+    promoRequestIdRef.current = requestId;
+    setPromoPreview(null);
+    setPromoState("checking");
+    setError(null);
+
+    try {
+      const token = await ensureCsrfToken();
+      if (!token) throw new AppSubscriptionApiError("CSRF token unavailable", null, 0);
+      const preview = await previewAppSubscriptionPromoCode({
+        planCode: selectedPlan.code,
+        promoCode: promoInput,
+        csrfToken: token,
+      });
+      if (promoRequestIdRef.current !== requestId) return;
+      setPromoInput(preview.code);
+      setPromoPreview(preview);
+      setPromoState("applied");
+    } catch (caught) {
+      if (promoRequestIdRef.current !== requestId) return;
+      const apiError =
+        caught instanceof AppSubscriptionApiError
+          ? caught
+          : new AppSubscriptionApiError("Promo preview failed", null, 0);
+      setPromoPreview(null);
+      setPromoState(getAppSubscriptionPromoCodeErrorState(apiError.code));
+      reportClientError(caught, {
+        issueKey: "AppSubscriptionPaywall",
+        keys: { operation: "preview_promo_code", code: apiError.code ?? "NETWORK" },
+      });
+    }
+  };
 
   const onStart = async () => {
     if (!selectedPlan) {
       setError("Подписка сейчас недоступна.");
       return;
     }
-    if (!csrfToken) {
+    if (
+      shouldBlockAppSubscriptionCheckoutForPromo(
+        promoInput,
+        Boolean(promoPreview && promoState === "applied"),
+      )
+    ) {
+      setError("Сначала примените промокод или очистите поле.");
+      promoInputRef.current?.focus();
+      return;
+    }
+
+    const token = await ensureCsrfToken();
+    if (!token) {
       setError("Не удалось получить CSRF токен. Обновите страницу и попробуйте снова.");
       return;
     }
@@ -180,31 +355,35 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/app-subscription/yookassa/start", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": csrfToken,
-        },
-        body: JSON.stringify({ planCode: selectedPlan.code }),
+      const data = await startAppSubscriptionYookassaPayment({
+        planCode: selectedPlan.code,
+        csrfToken: token,
+        promoCode: promoPreview
+          ? { code: promoPreview.code, revision: promoPreview.revision }
+          : undefined,
       });
-      if (!response.ok) {
-        throw new Error("Не удалось открыть ЮKassa");
-      }
-      const data = await response.json();
-      const url = data?.data?.confirmationUrl;
+      const url = data.confirmationUrl;
       if (typeof url === "string" && url.length > 0) {
         window.location.href = url;
         return;
       }
       throw new Error("Ссылка ЮKassa не получена");
     } catch (e) {
+      if (
+        e instanceof AppSubscriptionApiError &&
+        (e.code?.startsWith("PROMO_") || e.code === "SUBSCRIPTION_CHECKOUT_IN_PROGRESS")
+      ) {
+        setPromoPreview(null);
+        setPromoState(getAppSubscriptionPromoCodeErrorState(e.code));
+        setError(null);
+        promoInputRef.current?.focus();
+      } else {
+        setError(e instanceof Error ? e.message : "Ошибка ЮKassa. Попробуйте позже.");
+      }
       reportClientError(e, {
         issueKey: "AppSubscriptionPaywall",
         keys: { operation: "start_yookassa_subscription" },
       });
-      setError(e instanceof Error ? e.message : "Ошибка ЮKassa. Попробуйте позже.");
     } finally {
       setLoading(false);
     }
@@ -262,24 +441,26 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
               </div>
             </div>
 
-            {enabledPlans.length > 1 ? (
+            {enabledPlans.length > 0 ? (
               <div className={styles.planSection}>
                 <div className={styles.planSectionHeader}>
                   <p className={styles.planSectionKicker}>Период оплаты</p>
                   <h2 className={styles.planSectionTitle}>Выберите тариф</h2>
                   <p className={styles.planSectionText}>
-                    Наполнение Premium одинаковое. Отличаются только цена и период списания.
+                    Выберите удобный период. Запись к кинологу включена в тарифы от месяца.
                   </p>
                 </div>
                 <div className={styles.planGrid} role="radiogroup" aria-label="Тарифы подписки">
                   {enabledPlans.map((plan) => {
                     const selected = selectedPlan?.code === plan.code;
+                    const badgeText = getAppSubscriptionPlanBadgeText(plan.badge);
+                    const savingsText = getAppSubscriptionPlanSavingsText(plan.savingsRub);
                     return (
                       <button
                         key={plan.code}
                         className={`${styles.planButton} ${selected ? styles.planButtonSelected : ""}`}
                         type="button"
-                        onClick={() => setSelectedPlanCode(plan.code)}
+                        onClick={() => selectPlan(plan.code)}
                         role="radio"
                         aria-checked={selected}
                       >
@@ -287,7 +468,11 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                           <span className={styles.radioMark} aria-hidden="true">
                             <span className={styles.radioDot} />
                           </span>
-                          <span className={styles.planBadge}>30 дней</span>
+                          {badgeText ? (
+                            <span className={`${styles.planBadge} ${getPlanBadgeClass(plan.badge)}`}>
+                              {badgeText}
+                            </span>
+                          ) : null}
                         </span>
                         <span className={styles.planTitle}>{plan.title}</span>
                         <span className={styles.planPrice}>
@@ -296,8 +481,25 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                         <span className={styles.planPeriod}>
                           {getAppSubscriptionPlanPeriodText(plan)}
                         </span>
-                        <span className={styles.planComparison}>
-                          {getAppSubscriptionPlanComparisonText(plan)}
+                        {savingsText ? (
+                          <span className={styles.planSavings}>{savingsText}</span>
+                        ) : null}
+                        <span className={styles.planBenefits}>
+                          {PLAN_BENEFITS.map((benefit) => (
+                            <span key={benefit} className={styles.planBenefit}>
+                              <span aria-hidden="true">✓</span>
+                              {benefit}
+                            </span>
+                          ))}
+                          <span
+                            className={`${styles.planBenefit} ${
+                              plan.consultationBookingIncluded ? "" : styles.planBenefitUnavailable
+                            }`}
+                          >
+                            <span aria-hidden="true">{plan.consultationBookingIncluded ? "✓" : "—"}</span>
+                            Запись к кинологу
+                            {plan.consultationBookingIncluded ? "" : " — недоступна"}
+                          </span>
                         </span>
                       </button>
                     );
@@ -310,24 +512,82 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
               <p className={styles.errorText}>Подписка сейчас недоступна.</p>
             ) : null}
 
-            <div className={styles.valueGrid} aria-label="Что входит в подписку">
-              <article className={styles.valueItem}>
-                <h2>Курсы и экзамены</h2>
-                <p>Полный доступ к обучению, тренировкам и проверке прогресса без ограничений.</p>
-              </article>
-              <article className={styles.valueItem}>
-                <h2>Консультации с кинологом</h2>
-                <p>Запись к специалисту для разбора поведения и персональных рекомендаций.</p>
-              </article>
-              <article className={styles.valueItem}>
-                <h2>Статьи и офлайн</h2>
-                <p>База материалов под рукой даже без интернета, чтобы учиться в удобном ритме.</p>
-              </article>
-              <article className={styles.valueItem}>
-                <h2>Профилактика и документы</h2>
-                <p>Все данные о питомце в одном месте, с доступом к функциям без лимитов.</p>
-              </article>
-            </div>
+            {promoEntryVisible ? (
+              <div
+                className={`${styles.promoBlock} ${promoState === "applied" ? styles.promoBlockApplied : ""}`}
+              >
+                <form className={styles.promoForm} onSubmit={onApplyPromo} noValidate>
+                  <label className={styles.promoLabel} htmlFor={promoInputId}>
+                    Промокод
+                  </label>
+                  <div className={styles.promoControls}>
+                    <input
+                      ref={promoInputRef}
+                      id={promoInputId}
+                      className={styles.promoInput}
+                      type="text"
+                      value={promoInput}
+                      onChange={onPromoInputChange}
+                      aria-describedby={promoMessageId}
+                      aria-invalid={
+                        promoState !== "idle" &&
+                        promoState !== "checking" &&
+                        promoState !== "applied"
+                      }
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      maxLength={64}
+                      placeholder="Например, KISA1488"
+                    />
+                    <button
+                      className={styles.promoButton}
+                      type="submit"
+                      disabled={promoState === "checking" || !promoInput.trim()}
+                    >
+                      {promoState === "checking" ? "Проверяем…" : "Применить"}
+                    </button>
+                  </div>
+                </form>
+
+                <div
+                  id={promoMessageId}
+                  className={`${styles.promoMessage} ${
+                    promoState !== "idle" &&
+                    promoState !== "checking" &&
+                    promoState !== "applied"
+                      ? styles.promoMessageError
+                      : ""
+                  }`}
+                  aria-live="polite"
+                  role={
+                    promoState !== "idle" &&
+                    promoState !== "checking" &&
+                    promoState !== "applied"
+                      ? "alert"
+                      : "status"
+                  }
+                >
+                  {promoState === "applied"
+                    ? `Промокод ${promoPreview?.code ?? ""} применён.`
+                    : APP_SUBSCRIPTION_PROMO_CODE_MESSAGES[promoState]}
+                </div>
+
+                {promoPreview && promoPresentation ? (
+                  <div className={styles.promoPrice} aria-label="Цена с промокодом">
+                    <div className={styles.promoPriceHeader}>
+                      <span className={styles.promoPeriod}>Скидка на первую оплату</span>
+                      <span className={styles.promoChip}>{promoPresentation.discountChipText}</span>
+                    </div>
+                    <strong className={styles.promoNewPrice}>
+                      {promoPresentation.currentChargeText}
+                    </strong>
+                    <p className={styles.promoRenewal}>{promoPresentation.nextRenewalText}</p>
+                    <p className={styles.promoRenewal}>{promoPresentation.ongoingRenewalText}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <button
               className={styles.primaryButton}
@@ -335,14 +595,16 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
               onClick={onStart}
               disabled={loading || csrfLoading || !selectedPlan}
             >
-              {loading || csrfLoading ? "Переход в ЮKassa..." : getYookassaPrimaryCta()}
+              {loading || csrfLoading
+                ? "Переход в ЮKassa..."
+                : getYookassaPrimaryCta(currentChargeText)}
             </button>
             <p className={styles.legalText}>
               Нажимая кнопку, вы принимаете{" "}
               <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
                 Оферту
               </a>
-              : {getYookassaLegalText(selectedPriceText)}
+              : {getYookassaLegalText(currentChargeText, renewalPriceText)}
             </p>
             <p className={styles.assurance}>
               Безопасная оплата через ЮKassa • Способ оплаты сохранится для автопродления

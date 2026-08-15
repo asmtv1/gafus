@@ -34,9 +34,26 @@ describe("yookassaAppSubscriptionPurchase", () => {
     const result = await yookassaAppSubscriptionPurchase("MONTHLY");
 
     expect(result).toEqual({ ok: true, localSubscriptionId: "sub-1" });
-    expect(startYookassaMock).toHaveBeenCalledWith("MONTHLY");
+    expect(startYookassaMock).toHaveBeenCalledWith("MONTHLY", undefined);
     expect(openBrowserAsyncMock).toHaveBeenCalledWith("https://yookassa.test/confirm", {
       presentationStyle: "fullScreen",
+    });
+  });
+
+  it("passes the applied promo snapshot only to YooKassa start", async () => {
+    startYookassaMock.mockResolvedValue({
+      success: true,
+      data: {
+        confirmationUrl: "https://yookassa.test/confirm",
+        localSubscriptionId: "sub-promo",
+      },
+    });
+
+    await yookassaAppSubscriptionPurchase("MONTHLY", { code: "KISA1488", revision: 3 });
+
+    expect(startYookassaMock).toHaveBeenCalledWith("MONTHLY", {
+      code: "KISA1488",
+      revision: 3,
     });
   });
 

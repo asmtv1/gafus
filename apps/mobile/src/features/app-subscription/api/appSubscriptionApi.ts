@@ -33,7 +33,8 @@ export type AppSubscriptionStatusDto = {
   yookassaTrialUnavailableReason: "CARD_FINGERPRINT_REUSED" | null;
 };
 
-export type AppSubscriptionPlanCode = "MONTHLY";
+export type AppSubscriptionPlanCode = "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
+export type AppSubscriptionPlanBadge = "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
 
 export type AppSubscriptionPlanOfferDto = {
   code: AppSubscriptionPlanCode;
@@ -44,12 +45,35 @@ export type AppSubscriptionPlanOfferDto = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  consultationBookingIncluded: boolean;
+  promoCodeEligible: boolean;
+  badge: AppSubscriptionPlanBadge;
+  savingsRub: number | null;
 };
 
 export type AppSubscriptionOfferDto = {
+  /** Legacy fallback for clients released before the multi-period YooKassa offer. */
   plans: AppSubscriptionPlanOfferDto[];
+  yookassaPlans: AppSubscriptionPlanOfferDto[];
+  applePlan: AppSubscriptionPlanOfferDto | null;
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
+  promoCode: {
+    entryEnabled: boolean;
+    eligible: boolean;
+  };
+};
+
+export type AppSubscriptionPromoCodePreviewDto = {
+  code: string;
+  revision: number;
+  planCode: Extract<AppSubscriptionPlanCode, "MONTHLY" | "THREE_MONTHS">;
+  discountPercent: number;
+  originalPriceRub: number;
+  discountedPriceRub: number;
+  renewalPriceRub: number;
+  intervalDays: number;
+  currency: "RUB";
 };
 
 export const appSubscriptionApi = {
@@ -77,11 +101,12 @@ export const appSubscriptionApi = {
   },
   async startYookassa(
     planCode: AppSubscriptionPlanCode,
+    promoCode?: { code: string; revision: number },
   ): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
     if (isDev) console.log("[appSubscriptionApi] startYookassa request", { planCode });
     const result = await apiClient<{ confirmationUrl: string; localSubscriptionId: string }>(
       "/api/v1/app-subscription/yookassa/start",
-      { method: "POST", body: { planCode } },
+      { method: "POST", body: { planCode, ...(promoCode ? { promoCode } : {}) } },
     );
     if (isDev) {
       console.log("[appSubscriptionApi] startYookassa response", {
@@ -93,6 +118,15 @@ export const appSubscriptionApi = {
       });
     }
     return result;
+  },
+  previewPromoCode(
+    planCode: AppSubscriptionPlanCode,
+    promoCode: string,
+  ): Promise<ApiResponse<AppSubscriptionPromoCodePreviewDto>> {
+    return apiClient<AppSubscriptionPromoCodePreviewDto>(
+      "/api/v1/app-subscription/promo-code/preview",
+      { method: "POST", body: { planCode, promoCode } },
+    );
   },
   cancelYookassa(): Promise<ApiResponse<AppSubscriptionStatusDto>> {
     return apiClient("/api/v1/app-subscription/yookassa/cancel", { method: "POST", body: {} });

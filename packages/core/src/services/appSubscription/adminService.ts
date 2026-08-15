@@ -1,6 +1,8 @@
 import { prisma } from "@gafus/prisma";
 import { DateTime } from "luxon";
 
+import type { AppSubscriptionPlanCode } from "./plans";
+
 const APP_SUBSCRIPTION_DASHBOARD_TIMEZONE = "Europe/Moscow";
 
 export type AppSubscriptionAdminAttention =
@@ -34,13 +36,16 @@ export interface AppSubscriptionAdminCheckoutAttempt {
   };
   attemptedAt: string;
   attemptsCount: number;
+  promoCodeSnapshot: string | null;
+  promoDiscountPercent: number | null;
+  originalAmountRub: number | null;
   amountRub: number;
   status: "PENDING" | "CANCELED" | "FAILED";
 }
 
 export interface AppSubscriptionAdminDashboardRow {
   id: string;
-  planCode: "WEEKLY" | "MONTHLY";
+  planCode: AppSubscriptionPlanCode;
   user: {
     id: string;
     username: string;
@@ -115,6 +120,9 @@ type CheckoutAttemptLike = {
   userId: string;
   status: "PENDING" | "SUCCEEDED" | "CANCELED" | "FAILED" | "REFUNDED";
   amount: { toString(): string } | number | string | null;
+  originalAmount: { toString(): string } | number | string | null;
+  promoCodeSnapshot: string | null;
+  promoDiscountPercent: number | null;
   createdAt: Date;
   user: {
     id: string;
@@ -235,6 +243,9 @@ export async function getAppSubscriptionAdminDashboard(
           subscriptionId: true,
           userId: true,
           amount: true,
+          originalAmount: true,
+          promoCodeSnapshot: true,
+          promoDiscountPercent: true,
           currency: true,
           applePriceMilliunits: true,
           appleTransactionId: true,
@@ -324,6 +335,10 @@ export async function getAppSubscriptionAdminDashboard(
       },
       attemptedAt: latestAttempt.createdAt.toISOString(),
       attemptsCount: attempts.length,
+      promoCodeSnapshot: latestAttempt.promoCodeSnapshot ?? null,
+      promoDiscountPercent: latestAttempt.promoDiscountPercent ?? null,
+      originalAmountRub:
+        latestAttempt.originalAmount == null ? null : moneyToNumber(latestAttempt.originalAmount),
       amountRub: moneyToNumber(latestAttempt.amount),
       status: latestAttempt.status,
     });
@@ -486,9 +501,15 @@ export async function getDefaultAppSubscriptionSettings() {
 }
 
 export async function updateDefaultAppSubscriptionSettings(params: {
+  twoWeeksEnabled: boolean;
+  yookassaTwoWeeksPriceRub: number;
+  twoWeeksIntervalDays: number;
   monthlyEnabled: boolean;
   yookassaMonthlyPriceRub: number;
   monthlyIntervalDays: number;
+  threeMonthsEnabled: boolean;
+  yookassaThreeMonthsPriceRub: number;
+  threeMonthsIntervalDays: number;
   monthlyAppleProductId: string | null;
   actorId: string;
 }) {
@@ -496,19 +517,30 @@ export async function updateDefaultAppSubscriptionSettings(params: {
     where: { key: "default" },
     create: {
       key: "default",
-      weeklyEnabled: false,
+      twoWeeksEnabled: params.twoWeeksEnabled,
+      yookassaTwoWeeksPriceRub: params.yookassaTwoWeeksPriceRub,
+      twoWeeksIntervalDays: params.twoWeeksIntervalDays,
       monthlyEnabled: params.monthlyEnabled,
       yookassaMonthlyPriceRub: params.yookassaMonthlyPriceRub,
-      currency: "RUB",
       monthlyIntervalDays: params.monthlyIntervalDays,
+      threeMonthsEnabled: params.threeMonthsEnabled,
+      yookassaThreeMonthsPriceRub: params.yookassaThreeMonthsPriceRub,
+      threeMonthsIntervalDays: params.threeMonthsIntervalDays,
       monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },
     update: {
-      weeklyEnabled: false,
+      // Legacy weekly settings are deliberately absent from this payload: switching
+      // public YooKassa offers must not alter subscriptions still using WEEKLY.
+      twoWeeksEnabled: params.twoWeeksEnabled,
+      yookassaTwoWeeksPriceRub: params.yookassaTwoWeeksPriceRub,
+      twoWeeksIntervalDays: params.twoWeeksIntervalDays,
       monthlyEnabled: params.monthlyEnabled,
       yookassaMonthlyPriceRub: params.yookassaMonthlyPriceRub,
       monthlyIntervalDays: params.monthlyIntervalDays,
+      threeMonthsEnabled: params.threeMonthsEnabled,
+      yookassaThreeMonthsPriceRub: params.yookassaThreeMonthsPriceRub,
+      threeMonthsIntervalDays: params.threeMonthsIntervalDays,
       monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },

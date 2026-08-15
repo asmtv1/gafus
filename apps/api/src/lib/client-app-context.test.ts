@@ -14,12 +14,12 @@ describe("getClientAppContext", () => {
     const response = await appForContext().request("/", {
       headers: {
         "x-client-platform": "IOS",
-        "x-client-version": "1.6.4",
+        "x-client-version": "1.6.6",
       },
     });
     await expect(response.json()).resolves.toEqual({
       platform: "ios",
-      version: "1.6.4",
+      version: "1.6.6",
     });
   });
 

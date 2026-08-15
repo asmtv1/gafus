@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import {
-  requireConsultationSlotsSubscriptionAccess,
+  requireConsultationBookingSubscriptionAccess,
   verifyConsultationSlotFreeForCynologist,
 } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
@@ -31,7 +31,7 @@ export async function GET(
       throw new AuthorizationError("Не авторизован");
     }
     const { cynologistUserId, slotId } = await context.params;
-    await requireConsultationSlotsSubscriptionAccess({
+    await requireConsultationBookingSubscriptionAccess({
       userId: session.user.id,
     });
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);

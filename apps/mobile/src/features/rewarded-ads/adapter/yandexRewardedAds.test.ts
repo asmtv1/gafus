@@ -161,6 +161,37 @@ describe("showYandexRewardedAd", () => {
     });
   });
 
+  it("does not grant access when the REWARDED event is rejected", async () => {
+    recordEventMock.mockImplementation(({ eventType }) =>
+      Promise.resolve(
+        eventType === "REWARDED"
+          ? {
+              success: false,
+              code: "REWARDED_DAILY_LIMIT_REACHED",
+              error: "Daily limit reached",
+            }
+          : { success: true },
+      ),
+    );
+
+    const result = await showYandexRewardedAd({
+      sessionId: "session-1",
+      requestNonce: "nonce-1",
+      provider: "YANDEX",
+      placementId: "placement-1",
+      platform: "IOS",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      testMode: true,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      code: "REWARDED_DAILY_LIMIT_REACHED",
+      error: "Daily limit reached",
+    });
+    expect(grantMock).not.toHaveBeenCalled();
+  });
+
   it("resolves from callbacks when ad.show never settles after a rewarded view", async () => {
     showMock.mockImplementation(() => {
       loadedAd.onAdShown?.();

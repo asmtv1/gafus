@@ -33,7 +33,10 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
-import { openConsultationAccessPaywall } from "@/features/consultations";
+import {
+  openConsultationAccessPaywall,
+  showConsultationBookingNotIncludedAlert,
+} from "@/features/consultations";
 
 function one(param: string | string[] | undefined): string {
   return Array.isArray(param) ? (param[0] ?? "") : (param ?? "");
@@ -155,6 +158,10 @@ export default function ConsultationBookingConfirmScreen() {
       const msg = e instanceof Error ? e.message : String(e);
       if (code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
         openConsultationAccessPaywall();
+        return;
+      }
+      if (code === "CONSULTATION_BOOKING_NOT_INCLUDED") {
+        showConsultationBookingNotIncludedAlert();
         return;
       }
       if (

@@ -5,6 +5,7 @@ const {
   cancelYookassaAppSubscriptionMock,
   getAppSubscriptionAccessMock,
   getAppSubscriptionOfferMock,
+  previewAppSubscriptionPromoCodeMock,
   reconcilePendingYookassaAppSubscriptionMock,
   restoreAppleAppSubscriptionMock,
   startYookassaAppSubscriptionPaymentMock,
@@ -14,6 +15,7 @@ const {
   cancelYookassaAppSubscriptionMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
   getAppSubscriptionOfferMock: vi.fn(),
+  previewAppSubscriptionPromoCodeMock: vi.fn(),
   reconcilePendingYookassaAppSubscriptionMock: vi.fn(),
   restoreAppleAppSubscriptionMock: vi.fn(),
   startYookassaAppSubscriptionPaymentMock: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
   cancelYookassaAppSubscription: cancelYookassaAppSubscriptionMock,
   getAppSubscriptionAccess: getAppSubscriptionAccessMock,
   getAppSubscriptionOffer: getAppSubscriptionOfferMock,
+  previewAppSubscriptionPromoCode: previewAppSubscriptionPromoCodeMock,
   reconcilePendingYookassaAppSubscription: reconcilePendingYookassaAppSubscriptionMock,
   restoreAppleAppSubscription: restoreAppleAppSubscriptionMock,
   startYookassaAppSubscriptionPayment: startYookassaAppSubscriptionPaymentMock,
@@ -32,11 +35,20 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
     code = "SUBSCRIPTION_REQUIRED" as const;
     status = 402 as const;
   },
+  AppSubscriptionPromoCodeDomainError: class AppSubscriptionPromoCodeDomainError extends Error {
+    constructor(
+      public code: string,
+      message: string,
+    ) {
+      super(message);
+    }
+  },
   verifyAppleAppSubscription: verifyAppleAppSubscriptionMock,
 }));
 
 vi.mock("@gafus/core/services/appFeatureFlags", () => ({
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "mobile_ios_ru_card_payment",
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES: "mobile_ios_subscription_promo_codes",
   getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
 }));
 
@@ -81,7 +93,7 @@ describe("app subscription route contracts", () => {
         "/api/v1/app-subscription/yookassa/start",
         "POST",
         { planCode: "MONTHLY" },
-        { "x-client-platform": "ios", "x-client-version": "1.6.4" },
+        { "x-client-platform": "ios", "x-client-version": "1.6.6" },
       ),
     );
     expect(response.status).toBe(403);
@@ -109,6 +121,62 @@ describe("app subscription route contracts", () => {
     expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
   });
 
+  it("previews promo code through the shared core contract and client context", async () => {
+    const app = createAuthenticatedTestApp();
+    previewAppSubscriptionPromoCodeMock.mockResolvedValueOnce({
+      code: "kisa1488",
+      revision: 2,
+      planCode: "MONTHLY",
+      discountPercent: 10,
+      originalPriceRub: 2500,
+      discountedPriceRub: 2250,
+      renewalPriceRub: 2500,
+      currency: "RUB",
+    });
+
+    const response = await app.request(
+      jsonRequest(
+        "/api/v1/app-subscription/promo-code/preview",
+        "POST",
+        { planCode: "MONTHLY", promoCode: " kisa1488 " },
+        { "x-client-platform": "ios", "x-client-version": "1.6.6" },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(previewAppSubscriptionPromoCodeMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      planCode: "MONTHLY",
+      promoCode: " kisa1488 ",
+      clientContext: { platform: "ios", version: "1.6.6" },
+    });
+  });
+
+  it.each([
+    ["PROMO_CODE_INVALID_FORMAT", 400],
+    ["PROMO_CODE_NOT_FOUND", 404],
+    ["PROMO_CODE_INACTIVE", 409],
+    ["PROMO_CODE_NOT_ELIGIBLE", 403],
+    ["PROMO_CODE_FEATURE_DISABLED", 403],
+  ] as const)("maps preview domain error %s to HTTP %s", async (code, status) => {
+    const app = createAuthenticatedTestApp();
+    const PromoError = (await import("@gafus/core/services/appSubscription"))
+      .AppSubscriptionPromoCodeDomainError;
+    previewAppSubscriptionPromoCodeMock.mockRejectedValueOnce(
+      new PromoError(code, `error:${code}`),
+    );
+
+    const response = await app.request(
+      jsonRequest("/api/v1/app-subscription/promo-code/preview", "POST", {
+        planCode: "MONTHLY",
+        promoCode: "KISA",
+      }),
+    );
+
+    expect(response.status).toBe(status);
+    await expect(response.json()).resolves.toMatchObject({ success: false, code });
+  });
+
   it("passes selected planCode to YooKassa payment start", async () => {
     const app = createAuthenticatedTestApp();
     process.env.WEB_APP_URL = "https://gafus.ru";
@@ -133,7 +201,38 @@ describe("app subscription route contracts", () => {
       shopId: "shop",
       secretKey: "secret",
       planCode: "MONTHLY",
+      promoCode: undefined,
+      clientContext: { platform: "unknown", version: null },
     });
+  });
+
+  it("passes the applied promo snapshot and client context to mobile start", async () => {
+    const app = createAuthenticatedTestApp();
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    startYookassaAppSubscriptionPaymentMock.mockResolvedValueOnce({
+      success: true,
+      confirmationUrl: "https://pay.test",
+      localSubscriptionId: "sub-promo",
+    });
+
+    const response = await app.request(
+      jsonRequest(
+        "/api/v1/app-subscription/yookassa/start",
+        "POST",
+        { planCode: "MONTHLY", promoCode: { code: "Kisa", revision: 3 } },
+        { "x-client-platform": "ios", "x-client-version": "1.6.6" },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(startYookassaAppSubscriptionPaymentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promoCode: { code: "Kisa", revision: 3 },
+        clientContext: { platform: "ios", version: "1.6.6" },
+      }),
+    );
   });
 
   it("rejects the removed weekly plan", async () => {

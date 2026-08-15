@@ -16,7 +16,11 @@ export type RewardedAccessStatusDto = {
     testMode: boolean;
   };
   canWatchAd: boolean;
-  canWatchAdReason: "OK" | "PLATFORM_DISABLED" | "TARGET_ALREADY_ACTIVE";
+  canWatchAdReason:
+    | "OK"
+    | "PLATFORM_DISABLED"
+    | "TARGET_ALREADY_ACTIVE"
+    | "DAILY_LIMIT_REACHED";
   target: RewardedTarget & {
     unlocked: boolean;
     expiresAt: string | null;

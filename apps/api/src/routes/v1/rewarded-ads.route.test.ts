@@ -6,11 +6,15 @@ const {
   getRewardedAdStatusMock,
   grantRewardedTargetAccessMock,
   recordRewardedAdEventMock,
+  RewardedDailyLimitReachedErrorMock,
 } = vi.hoisted(() => ({
   createRewardedAdSessionMock: vi.fn(),
   getRewardedAdStatusMock: vi.fn(),
   grantRewardedTargetAccessMock: vi.fn(),
   recordRewardedAdEventMock: vi.fn(),
+  RewardedDailyLimitReachedErrorMock: class RewardedDailyLimitReachedError extends Error {
+    code = "REWARDED_DAILY_LIMIT_REACHED" as const;
+  },
 }));
 
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
@@ -29,6 +33,7 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   RewardedAdsDisabledError: class RewardedAdsDisabledError extends Error {
     code = "REWARDED_ADS_DISABLED" as const;
   },
+  RewardedDailyLimitReachedError: RewardedDailyLimitReachedErrorMock,
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -40,7 +45,7 @@ import { rewardedAdsRoutes } from "./rewarded-ads";
 
 const MOBILE_HEADERS = {
   "x-client-platform": "android",
-  "x-client-version": "1.6.5",
+  "x-client-version": "1.6.6",
 };
 const ARTICLE_TARGET = { targetType: "ARTICLE", targetId: "article-1" } as const;
 
@@ -71,7 +76,7 @@ describe("rewarded ads routes", () => {
       userId: "user-1",
       platform: "ANDROID",
       target: ARTICLE_TARGET,
-      clientContext: { platform: "android", version: "1.6.5" },
+      clientContext: { platform: "android", version: "1.6.6" },
     });
   });
 
@@ -96,10 +101,10 @@ describe("rewarded ads routes", () => {
       "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=ARTICLE&targetId=article-1";
     const web = await app.request(url);
     const mismatched = await app.request(url, {
-      headers: { "x-client-platform": "ios", "x-client-version": "1.6.5" },
+      headers: { "x-client-platform": "ios", "x-client-version": "1.6.6" },
     });
     const old = await app.request(url, {
-      headers: { "x-client-platform": "android", "x-client-version": "1.6.4" },
+      headers: { "x-client-platform": "android", "x-client-version": "1.6.6" },
     });
 
     expect(web.status).toBe(400);
@@ -131,7 +136,7 @@ describe("rewarded ads routes", () => {
       userId: "user-1",
       platform: "ANDROID",
       target: ARTICLE_TARGET,
-      clientContext: { platform: "android", version: "1.6.5" },
+      clientContext: { platform: "android", version: "1.6.6" },
     });
 
     const grantResponse = await app.request(
@@ -172,5 +177,23 @@ describe("rewarded ads routes", () => {
       payload: undefined,
     });
     expect(grantRewardedTargetAccessMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["session", createRewardedAdSessionMock, { platform: "ANDROID", ...ARTICLE_TARGET }],
+    ["events", recordRewardedAdEventMock, { sessionId: "s1", eventType: "REWARDED" }],
+  ] as const)("maps daily limit errors from /%s to stable HTTP 402", async (path, mock, body) => {
+    const app = createAuthenticatedTestApp();
+    mock.mockRejectedValueOnce(new RewardedDailyLimitReachedErrorMock("limit reached"));
+
+    const response = await app.request(
+      jsonRequest(`/api/v1/rewarded-ads/${path}`, "POST", body, MOBILE_HEADERS),
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      code: "REWARDED_DAILY_LIMIT_REACHED",
+    });
   });
 });

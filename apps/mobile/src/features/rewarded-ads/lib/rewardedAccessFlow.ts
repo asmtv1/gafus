@@ -8,7 +8,12 @@ import {
   type RewardedTarget,
 } from "../api/rewardedAdsApi";
 
-export type RewardedAccessFailure = "NO_FILL" | "NETWORK" | "INTERNAL" | "INCOMPLETE";
+export type RewardedAccessFailure =
+  | "NO_FILL"
+  | "NETWORK"
+  | "INTERNAL"
+  | "INCOMPLETE"
+  | "DAILY_LIMIT";
 
 export type RewardedAccessFlowResult =
   | { success: true; data: RewardedGrantResultDto | null; alreadyActive?: boolean }
@@ -19,6 +24,8 @@ const USER_MESSAGES: Record<RewardedAccessFailure, string> = {
   NETWORK: "Не удалось загрузить рекламу. Проверьте интернет и попробуйте ещё раз",
   INTERNAL: "Ошибка сервиса Гафус. Попробуйте ещё раз или обратитесь к администрации",
   INCOMPLETE: "Материал не открыт: просмотр рекламы не был завершён",
+  DAILY_LIMIT:
+    "Достигнут дневной лимит просмотра рекламы. Пожалуйста, возвращайтесь завтра.",
 };
 
 function errorDetails(error: unknown): { code: string; message: string } {
@@ -40,6 +47,13 @@ function errorDetails(error: unknown): { code: string; message: string } {
 export function classifyRewardedAccessError(error: unknown): RewardedAccessFailure {
   const details = errorDetails(error);
   const normalized = `${details.code} ${details.message}`.toLowerCase();
+
+  if (
+    details.code === "REWARDED_DAILY_LIMIT_REACHED" ||
+    normalized.includes("rewarded_daily_limit_reached")
+  ) {
+    return "DAILY_LIMIT";
+  }
 
   if (
     normalized.includes("no_fill") ||

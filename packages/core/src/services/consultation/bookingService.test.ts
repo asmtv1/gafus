@@ -8,7 +8,7 @@ import {
   Prisma,
 } from "@gafus/prisma";
 
-import { ConsultationSlotTakenError } from "./errors";
+import { ConsultationBookingNotIncludedError, ConsultationSlotTakenError } from "./errors";
 import { SubscriptionRequiredError } from "../appSubscription/errors";
 
 const enqueueConsultationEmail = vi.fn();
@@ -716,6 +716,44 @@ describe("subscription-only consultation access", () => {
       }),
     ).rejects.toBeInstanceOf(SubscriptionRequiredError);
     expect(prismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it("lets a two-week YooKassa subscriber view slots but blocks a new booking", async () => {
+    getAppSubscriptionAccess.mockResolvedValue({
+      hasActiveSubscription: true,
+      provider: "YOOKASSA",
+      planCode: "TWO_WEEKS",
+    });
+    const {
+      bookSlotWithSubscription,
+      requireConsultationSlotsSubscriptionAccess,
+    } = await import("./bookingService");
+
+    await expect(
+      requireConsultationSlotsSubscriptionAccess({ userId: "client-1" }),
+    ).resolves.toBeUndefined();
+    await expect(
+      bookSlotWithSubscription({
+        userId: "client-1",
+        body: { slotId: "slot-1", idempotencyKey: "two-weeks-key", ...bookBodyBase },
+      }),
+    ).rejects.toBeInstanceOf(ConsultationBookingNotIncludedError);
+    expect(prismaTransaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps booking enabled for monthly, Apple, manual, lifetime and legacy weekly access", async () => {
+    const { canBookConsultations } = await import("./bookingService");
+
+    for (const subscription of [
+      { hasActiveSubscription: true, provider: "YOOKASSA", planCode: "MONTHLY" },
+      { hasActiveSubscription: true, provider: "YOOKASSA", planCode: "THREE_MONTHS" },
+      { hasActiveSubscription: true, provider: "YOOKASSA", planCode: "WEEKLY" },
+      { hasActiveSubscription: true, provider: "APPLE", planCode: "MONTHLY" },
+      { hasActiveSubscription: true, provider: "MANUAL", planCode: "MONTHLY" },
+      { hasActiveSubscription: true, provider: "MANUAL", planCode: "TWO_WEEKS" },
+    ]) {
+      expect(canBookConsultations(subscription)).toBe(true);
+    }
   });
 
   it("replays an existing booking after the subscription expires", async () => {

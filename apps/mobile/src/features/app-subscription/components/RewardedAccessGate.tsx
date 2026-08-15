@@ -22,9 +22,11 @@ export function RewardedAccessGate({
   onPrimaryPress: () => void;
   onSubscriptionPress: () => void;
 }) {
-  const primaryDisabled = isBusy || prompt.mode === "loading";
+  const primaryDisabled =
+    isBusy || prompt.mode === "loading" || prompt.rewardedActionDisabled;
   const showSubscriptionFirst = Boolean(prompt.subscriptionText);
-  const showRewardedButton = prompt.mode === "standard-paywall" && prompt.showRewardedAction;
+  const showRewardedButton =
+    prompt.mode === "standard-paywall" && prompt.rewardedActionVisible;
 
   return (
     <View style={styles.gate}>
@@ -44,28 +46,37 @@ export function RewardedAccessGate({
               onPress={onSubscriptionPress}
               disabled={isBusy}
               accessibilityRole="button"
+              accessibilityState={{ disabled: isBusy }}
             >
               <Text style={styles.primaryText}>{prompt.subscriptionText}</Text>
             </Pressable>
             {showRewardedButton ? (
-              <Pressable
-                style={[styles.secondaryButton, primaryDisabled && styles.disabled]}
-                onPress={onPrimaryPress}
-                disabled={primaryDisabled}
-                accessibilityRole="button"
-              >
-                {isBusy ? <ActivityIndicator color={COLORS.primary} /> : null}
-                {!isBusy ? (
-                  <MaterialCommunityIcons
-                    name="play-circle-outline"
-                    size={20}
-                    color={COLORS.primary}
-                  />
+              <>
+                <Pressable
+                  style={[styles.secondaryButton, primaryDisabled && styles.disabled]}
+                  onPress={onPrimaryPress}
+                  disabled={primaryDisabled}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: primaryDisabled }}
+                >
+                  {isBusy ? <ActivityIndicator color={COLORS.primary} /> : null}
+                  {!isBusy ? (
+                    <MaterialCommunityIcons
+                      name="play-circle-outline"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  ) : null}
+                  <Text style={styles.secondaryText}>
+                    {isBusy ? "Открываем..." : prompt.primaryText}
+                  </Text>
+                </Pressable>
+                {prompt.rewardedNotice ? (
+                  <Text style={styles.notice} selectable accessibilityLiveRegion="polite">
+                    {prompt.rewardedNotice}
+                  </Text>
                 ) : null}
-                <Text style={styles.secondaryText}>
-                  {isBusy ? "Открываем..." : prompt.primaryText}
-                </Text>
-              </Pressable>
+              </>
             ) : null}
           </>
         ) : (
@@ -75,15 +86,22 @@ export function RewardedAccessGate({
               onPress={onPrimaryPress}
               disabled={primaryDisabled}
               accessibilityRole="button"
+              accessibilityState={{ disabled: primaryDisabled }}
             >
               {isBusy ? <ActivityIndicator color="#fff" /> : null}
               <Text style={styles.primaryText}>{isBusy ? "Открываем..." : prompt.primaryText}</Text>
             </Pressable>
+            {prompt.rewardedNotice ? (
+              <Text style={styles.notice} selectable accessibilityLiveRegion="polite">
+                {prompt.rewardedNotice}
+              </Text>
+            ) : null}
             {prompt.subscriptionText ? (
               <Pressable
                 style={styles.secondaryButton}
                 onPress={onSubscriptionPress}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: false }}
               >
                 <Text style={styles.secondaryText}>{prompt.subscriptionText}</Text>
               </Pressable>
@@ -141,6 +159,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     textAlign: "center",
+  },
+  notice: {
+    fontFamily: FONTS.montserratMedium,
+    color: "#4E4743",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+    paddingHorizontal: SPACING.xs,
   },
   actions: {
     gap: 9,

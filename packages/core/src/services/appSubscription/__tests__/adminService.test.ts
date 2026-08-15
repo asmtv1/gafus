@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAppSubscriptionAdminDashboard } from "../adminService";
+import {
+  getAppSubscriptionAdminDashboard,
+  updateDefaultAppSubscriptionSettings,
+} from "../adminService";
 
 const mockSubscriptionFindMany = vi.fn();
 const mockPaymentFindMany = vi.fn();
 const mockEventFindMany = vi.fn();
+const mockSettingsUpsert = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -16,6 +20,9 @@ vi.mock("@gafus/prisma", () => ({
     },
     appSubscriptionEvent: {
       findMany: (...args: unknown[]) => mockEventFindMany(...args),
+    },
+    appSubscriptionSettings: {
+      upsert: (...args: unknown[]) => mockSettingsUpsert(...args),
     },
   },
 }));
@@ -295,6 +302,9 @@ describe("getAppSubscriptionAdminDashboard", () => {
         userId: "u1",
         status: "PENDING",
         amount: { toString: () => "399.00" },
+        originalAmount: { toString: () => "499.00" },
+        promoCodeSnapshot: "Kisa",
+        promoDiscountPercent: 20,
         createdAt: new Date("2026-05-17T10:30:00.000Z"),
         user: {
           id: "u1",
@@ -360,9 +370,50 @@ describe("getAppSubscriptionAdminDashboard", () => {
         id: "attempt-latest",
         attemptsCount: 2,
         amountRub: 399,
+        originalAmountRub: 499,
+        promoCodeSnapshot: "Kisa",
+        promoDiscountPercent: 20,
         status: "PENDING",
         user: expect.objectContaining({ username: "waiting" }),
       }),
     ]);
+  });
+});
+
+describe("updateDefaultAppSubscriptionSettings", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("updates the three public plans without overwriting legacy weekly settings", async () => {
+    mockSettingsUpsert.mockResolvedValue({ key: "default" });
+
+    await updateDefaultAppSubscriptionSettings({
+      twoWeeksEnabled: true,
+      yookassaTwoWeeksPriceRub: 1490,
+      twoWeeksIntervalDays: 14,
+      monthlyEnabled: true,
+      yookassaMonthlyPriceRub: 2490,
+      monthlyIntervalDays: 30,
+      threeMonthsEnabled: false,
+      yookassaThreeMonthsPriceRub: 6490,
+      threeMonthsIntervalDays: 90,
+      monthlyAppleProductId: "premium.month",
+      actorId: "admin-1",
+    });
+
+    const input = mockSettingsUpsert.mock.calls[0]?.[0];
+    expect(input.update).toMatchObject({
+      twoWeeksEnabled: true,
+      yookassaTwoWeeksPriceRub: 1490,
+      twoWeeksIntervalDays: 14,
+      monthlyEnabled: true,
+      yookassaMonthlyPriceRub: 2490,
+      monthlyIntervalDays: 30,
+      threeMonthsEnabled: false,
+      yookassaThreeMonthsPriceRub: 6490,
+      threeMonthsIntervalDays: 90,
+    });
+    expect(input.update).not.toHaveProperty("weeklyEnabled");
+    expect(input.update).not.toHaveProperty("yookassaWeeklyPriceRub");
+    expect(input.update).not.toHaveProperty("weeklyIntervalDays");
   });
 });

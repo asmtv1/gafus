@@ -103,6 +103,7 @@ import {
   APP_FEATURE_APP_SUBSCRIPTION_GATING,
   APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
   APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
   APP_FEATURE_MOBILE_VK_LOGIN_IOS,
@@ -126,38 +127,39 @@ describe("app feature flags", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("resolves only an exact iOS version to REVIEW", () => {
-    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.4" }, "1.6.4")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.6" }, "1.6.6")).toBe(
       "REVIEW",
     );
-    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.3" }, "1.6.4")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "ios", version: "1.6.3" }, "1.6.6")).toBe(
       "RELEASED",
     );
-    expect(resolveMobileFeatureProfile({ platform: "android", version: "1.6.4" }, "1.6.4")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "android", version: "1.6.6" }, "1.6.6")).toBe(
       "RELEASED",
     );
-    expect(resolveMobileFeatureProfile({ platform: "ios", version: null }, "1.6.4")).toBe(
+    expect(resolveMobileFeatureProfile({ platform: "ios", version: null }, "1.6.6")).toBe(
       "RELEASED",
     );
   });
 
   it("returns independent released and review mobile values", async () => {
-    state.policy.iosReviewVersion = "1.6.4";
+    state.policy.iosReviewVersion = "1.6.6";
     for (const key of [
       APP_FEATURE_MOBILE_VK_LOGIN_IOS,
       APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
       APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
+      APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
     ]) {
       state.flags.set(key, { enabled: true, reviewEnabled: false });
     }
 
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.4" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.6" }),
     ).resolves.toMatchObject({
       vkLoginEnabledOnIos: false,
       iosRuCardPaymentEnabled: false,
       iosRuCardPaymentHintEnabled: false,
       resolvedFeatureProfile: "REVIEW",
-      resolvedClientVersion: "1.6.4",
+      resolvedClientVersion: "1.6.6",
     });
     await expect(
       getMobileAppPublicConfig({ platform: "ios", version: "1.6.3" }),
@@ -170,11 +172,11 @@ describe("app feature flags", () => {
   });
 
   it("keeps paywall and gating global for the review profile", async () => {
-    state.policy.iosReviewVersion = "1.6.4";
+    state.policy.iosReviewVersion = "1.6.6";
     await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, true);
     await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, false);
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.4" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.6" }),
     ).resolves.toMatchObject({
       appSubscriptionPaywallEnabled: true,
       appSubscriptionGatingEnabled: false,
@@ -182,9 +184,9 @@ describe("app feature flags", () => {
   });
 
   it("defaults review features to disabled and global safeguards to enabled", async () => {
-    state.policy.iosReviewVersion = "1.6.4";
+    state.policy.iosReviewVersion = "1.6.6";
     await expect(
-      getMobileAppPublicConfig({ platform: "ios", version: "1.6.4" }),
+      getMobileAppPublicConfig({ platform: "ios", version: "1.6.6" }),
     ).resolves.toMatchObject({
       vkLoginEnabledOnIos: false,
       iosRuCardPaymentEnabled: false,
@@ -198,17 +200,19 @@ describe("app feature flags", () => {
     const result = await updateMobileReleaseControl(
       {
         revision: 1,
-        iosReviewVersion: "1.6.4",
+        iosReviewVersion: "1.6.6",
         released: {
           vkLogin: true,
           iosRuCardPayment: true,
           iosRuCardPaymentHint: true,
+          subscriptionPromoCodes: true,
           rewardedAds: true,
         },
         review: {
           vkLogin: false,
           iosRuCardPayment: false,
           iosRuCardPaymentHint: false,
+          subscriptionPromoCodes: false,
           rewardedAds: false,
         },
         global: {
@@ -217,6 +221,7 @@ describe("app feature flags", () => {
         },
         rewardedAds: {
           androidEnabled: true,
+          dailyAdLimit: 100,
           yandexAndroidPlacementId: "android-id",
           yandexIosPlacementId: "ios-id",
           testMode: false,
@@ -231,6 +236,7 @@ describe("app feature flags", () => {
       reviewEnabled: false,
     });
     expect(state.rewarded?.iosEnabled).toBe(true);
+    expect(result.rewardedAds.dailyAdLimit).toBe(100);
   });
 
   it("rejects a stale revision before changing flags", async () => {
@@ -239,17 +245,19 @@ describe("app feature flags", () => {
       updateMobileReleaseControl(
         {
           revision: 1,
-          iosReviewVersion: "1.6.4",
+          iosReviewVersion: "1.6.6",
           released: {
             vkLogin: true,
             iosRuCardPayment: true,
             iosRuCardPaymentHint: true,
+            subscriptionPromoCodes: true,
             rewardedAds: true,
           },
           review: {
             vkLogin: false,
             iosRuCardPayment: false,
             iosRuCardPaymentHint: false,
+            subscriptionPromoCodes: false,
             rewardedAds: false,
           },
           global: {
@@ -258,6 +266,7 @@ describe("app feature flags", () => {
           },
           rewardedAds: {
             androidEnabled: false,
+            dailyAdLimit: 0,
             yandexAndroidPlacementId: null,
             yandexIosPlacementId: null,
             testMode: true,
@@ -267,6 +276,41 @@ describe("app feature flags", () => {
       ),
     ).rejects.toBeInstanceOf(MobileReleaseControlConflictError);
     expect(state.flags.size).toBe(0);
+  });
+
+  it.each([-1, 101, 1.5])("rejects invalid rewarded daily limit %s", async (dailyAdLimit) => {
+    await expect(
+      updateMobileReleaseControl(
+        {
+          revision: 1,
+          iosReviewVersion: null,
+          released: {
+            vkLogin: false,
+            iosRuCardPayment: false,
+            iosRuCardPaymentHint: false,
+            subscriptionPromoCodes: false,
+            rewardedAds: false,
+          },
+          review: {
+            vkLogin: false,
+            iosRuCardPayment: false,
+            iosRuCardPaymentHint: false,
+            subscriptionPromoCodes: false,
+            rewardedAds: false,
+          },
+          global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
+          rewardedAds: {
+            androidEnabled: false,
+            dailyAdLimit,
+            yandexAndroidPlacementId: null,
+            yandexIosPlacementId: null,
+            testMode: true,
+          },
+        },
+        "admin-1",
+      ),
+    ).rejects.toThrow("целым числом от 0 до 100");
+    expect(state.policy.revision).toBe(1);
   });
 
   it("returns validated runtime version policy overrides", async () => {

@@ -66,6 +66,7 @@ export default function ArticleDetailScreen() {
   /** Таймаут 3.5s выставил 800px — без внутреннего скролла контент длинных статей обрежется. */
   const [articleHeightIsTimeoutFallback, setArticleHeightIsTimeoutFallback] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [rewardedDailyLimitReached, setRewardedDailyLimitReached] = useState(false);
   const [isReadCompleteTracked, setIsReadCompleteTracked] = useState(false);
   const rewardedArticleTarget =
     article && user && article.content === null && article.visibility !== "PAID"
@@ -89,7 +90,15 @@ export default function ArticleDetailScreen() {
   const rewardedPrompt = getRewardedAccessPrompt({
     isLoading: rewardedStatusQuery.isFetching,
     status: rewardedStatus,
+    dailyLimitReached: rewardedDailyLimitReached,
   });
+
+  useEffect(() => {
+    if (!rewardedStatusQuery.data?.success || !rewardedStatusQuery.data.data) return;
+    setRewardedDailyLimitReached(
+      rewardedStatusQuery.data.data.canWatchAdReason === "DAILY_LIMIT_REACHED",
+    );
+  }, [rewardedStatusQuery.data]);
 
   useEffect(() => {
     if (slug && article) {
@@ -174,6 +183,11 @@ export default function ArticleDetailScreen() {
         targetId: article.id,
       });
       if (!result.success) {
+        if (result.failure === "DAILY_LIMIT") {
+          setRewardedDailyLimitReached(true);
+          await rewardedStatusQuery.refetch();
+          return;
+        }
         setPayError(result.message);
         return;
       }

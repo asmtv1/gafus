@@ -19,6 +19,7 @@ import { DateTime } from "luxon";
 import { createWebLogger } from "@gafus/logger";
 
 import {
+  ConsultationBookingNotIncludedError,
   ConsultationForbiddenError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
@@ -440,10 +441,7 @@ export async function bookSlotWithSubscription(input: {
     return bookSlot(input.userId, input.body, input.requestId);
   }
 
-  const subscription = await getAppSubscriptionAccess(input.userId);
-  if (!subscription.hasActiveSubscription) {
-    throw new SubscriptionRequiredError();
-  }
+  await requireConsultationBookingSubscriptionAccess({ userId: input.userId });
 
   return bookSlot(input.userId, input.body, input.requestId);
 }
@@ -456,6 +454,35 @@ export async function requireConsultationSlotsSubscriptionAccess(input: {
   if (subscription.hasActiveSubscription) return;
 
   throw new SubscriptionRequiredError();
+}
+
+/**
+ * The 14-day YooKassa tariff can browse trainers and open slots, but cannot
+ * create a new consultation. All other active and historical subscription
+ * kinds retain the booking entitlement.
+ */
+export function canBookConsultations(subscription: {
+  hasActiveSubscription: boolean;
+  provider: string | null;
+  planCode: string | null;
+}): boolean {
+  return (
+    subscription.hasActiveSubscription &&
+    !(subscription.provider === "YOOKASSA" && subscription.planCode === "TWO_WEEKS")
+  );
+}
+
+export async function requireConsultationBookingSubscriptionAccess(input: {
+  userId: string;
+  now?: Date;
+}): Promise<void> {
+  const subscription = await getAppSubscriptionAccess(input.userId, input.now);
+  if (!subscription.hasActiveSubscription) {
+    throw new SubscriptionRequiredError();
+  }
+  if (!canBookConsultations(subscription)) {
+    throw new ConsultationBookingNotIncludedError();
+  }
 }
 
 export async function confirmBookingByTrainer(

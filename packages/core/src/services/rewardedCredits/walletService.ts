@@ -80,15 +80,12 @@ async function applyPendingRefundCredits(client: PrismaTx, userId: string) {
 
 async function getAdsWatchedToday(client: PrismaTx, userId: string, now: Date): Promise<number> {
   const { start, end } = nextMskReset(now);
-  const transactions = await client.rewardedCreditTransaction.findMany({
+  return client.rewardedAdSession.count({
     where: {
       userId,
-      type: "EARN",
-      createdAt: { gte: start, lt: end },
+      rewardedAt: { gte: start, lt: end },
     },
-    select: { id: true },
   });
-  return transactions.length;
 }
 
 async function hasTargetUnlock(

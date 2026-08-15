@@ -50,6 +50,16 @@ function getNextAttemptAt(now: Date, attemptCount: number): Date {
   return new Date(now.getTime() + delayMinutes * 60 * 1000);
 }
 
+function amountsEqualToKopecks(left: unknown, right: unknown): boolean {
+  const leftAmount = Number(left);
+  const rightAmount = Number(right);
+  return (
+    Number.isFinite(leftAmount) &&
+    Number.isFinite(rightAmount) &&
+    Math.round(leftAmount * 100) === Math.round(rightAmount * 100)
+  );
+}
+
 export async function processDueYookassaAppSubscriptionRenewals(params?: { batchSize?: number }) {
   const batchSize = params?.batchSize ?? 100;
   const now = new Date();
@@ -114,12 +124,18 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
       where: { key: "default" },
       select: {
         weeklyEnabled: true,
+        twoWeeksEnabled: true,
         monthlyEnabled: true,
+        threeMonthsEnabled: true,
         yookassaWeeklyPriceRub: true,
+        yookassaTwoWeeksPriceRub: true,
         yookassaMonthlyPriceRub: true,
+        yookassaThreeMonthsPriceRub: true,
         currency: true,
         weeklyIntervalDays: true,
+        twoWeeksIntervalDays: true,
         monthlyIntervalDays: true,
+        threeMonthsIntervalDays: true,
         weeklyAppleProductId: true,
         monthlyAppleProductId: true,
       },
@@ -135,6 +151,15 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
       }
 
       const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
+      if (!plan) {
+        logger.error(
+          "Renewal skipped: unknown subscription plan code",
+          new Error("Unknown app subscription plan code"),
+          { subscriptionId: row.id, userId: row.userId, planCode: row.planCode },
+        );
+        skipped += 1;
+        continue;
+      }
       const amountRub = plan.yookassaPriceRub;
       const currency = plan.currency;
       const intervalDays = plan.intervalDays;
@@ -195,6 +220,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 status: "PENDING",
                 planCode: plan.code,
                 amount: amountRub,
+                originalAmount: amountRub,
                 currency,
                 periodStart,
                 periodEnd,
@@ -270,6 +296,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               status: "PENDING",
               planCode: plan.code,
               amount: amountRub,
+              originalAmount: amountRub,
               currency,
               periodStart,
               periodEnd,
@@ -385,7 +412,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         const data = (await res.json()) as {
           id?: string;
           status?: string;
-          amount?: { value?: string };
+          amount?: { value?: string; currency?: string };
           payment_method?: { id?: string };
         };
         if (!data.id) {
@@ -417,6 +444,26 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         }
 
         if (data.status === "succeeded") {
+          if (
+            !amountsEqualToKopecks(data.amount?.value, amountRub) ||
+            data.amount?.currency !== currency
+          ) {
+            await (prisma as any).appSubscriptionPayment.update({
+              where: { id: payment.id },
+              data: {
+                status: "FAILED",
+                failureCode: "PROVIDER_AMOUNT_MISMATCH",
+                failureReason: "YooKassa renewal amount or currency mismatch",
+              },
+            });
+            await (prisma as any).appSubscription.update({
+              where: { id: row.id },
+              data: { status: "PAST_DUE" },
+            });
+            incrementRenewalFailedTotal(1);
+            skipped += 1;
+            continue;
+          }
           await (prisma as any).$transaction(async (tx: any) => {
             await tx.appSubscriptionPayment.update({
               where: { id: payment.id },
@@ -424,7 +471,6 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 status: "SUCCEEDED",
                 planCode: plan.code,
                 yookassaPaymentId: data.id,
-                amount: data.amount?.value ? Number(data.amount.value) : amountRub,
                 currency,
                 periodStart,
                 periodEnd,

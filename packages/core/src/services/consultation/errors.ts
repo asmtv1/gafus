@@ -16,6 +16,18 @@ export class ConsultationForbiddenError extends ServiceError {
   }
 }
 
+/** The active plan permits course access but does not include new consultations. */
+export class ConsultationBookingNotIncludedError extends ServiceError {
+  constructor() {
+    super(
+      "Запись к кинологу доступна в тарифах от 1 месяца",
+      "CONSULTATION_BOOKING_NOT_INCLUDED",
+      403,
+    );
+    this.name = "ConsultationBookingNotIncludedError";
+  }
+}
+
 /** Не удалось создать конференцию в Яндекс Телемост. */
 export class TelemostUnavailableError extends ServiceError {
   constructor(message = "Недоступна видеоконференция") {

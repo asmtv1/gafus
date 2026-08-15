@@ -25,6 +25,8 @@ export type {
   AppSubscription,
   AppSubscriptionPayment,
   AppSubscriptionEvent,
+  AppSubscriptionPromoCode,
+  AppSubscriptionPromoCodeEvent,
   AppSubscriptionSettings,
   AppSubscriptionTrial,
   RewardedAdEvent,
@@ -62,6 +64,7 @@ export {
   AppSubscriptionPaymentKind,
   AppSubscriptionPaymentStatus,
   AppSubscriptionPlanCode,
+  AppSubscriptionPromoCodeEventType,
   AppSubscriptionProvider,
   AppSubscriptionStatus,
   RewardedAdSessionStatus,
@@ -107,6 +110,8 @@ export interface DatabaseClient {
   appSubscription: PrismaClient["appSubscription"];
   appSubscriptionPayment: PrismaClient["appSubscriptionPayment"];
   appSubscriptionEvent: PrismaClient["appSubscriptionEvent"];
+  appSubscriptionPromoCode: PrismaClient["appSubscriptionPromoCode"];
+  appSubscriptionPromoCodeEvent: PrismaClient["appSubscriptionPromoCodeEvent"];
   appSubscriptionSettings: PrismaClient["appSubscriptionSettings"];
   appSubscriptionTrial: PrismaClient["appSubscriptionTrial"];
   rewardedAdSettings: PrismaClient["rewardedAdSettings"];

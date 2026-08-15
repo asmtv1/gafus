@@ -25,10 +25,12 @@
 
 | Документ | Текущая редакция |
 |----------|------------------|
-| `apps/web/public/oferta.html` | 2026-07-16 |
-| `apps/web/public/policy.html` | 2026-05-13 |
-| `apps/web/public/personal.html` | 2026-05-13 |
+| `apps/web/public/oferta.html` | 2026-08-13 |
+| `apps/web/public/policy.html` | 2026-08-13 |
+| `apps/web/public/personal.html` | 2026-08-13 |
 | `apps/web/public/personal-distribution.html` | 2026-05-13 |
+
+Перед правками от 13.08.2026 текущие версии сохранены в `apps/web/public/legal/archive/` как `oferta-2026-07-16.html`, `policy-2026-05-13.html` и `personal-2026-05-13.html`.
 
 Перед правками от 16.07.2026 текущая версия оферты сохранена в `apps/web/public/legal/archive/oferta-2026-05-13.html`.
 

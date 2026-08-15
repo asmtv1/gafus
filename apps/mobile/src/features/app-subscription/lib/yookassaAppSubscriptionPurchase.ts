@@ -7,13 +7,14 @@ const isDev = typeof __DEV__ !== "undefined" && __DEV__;
 
 export type YookassaAppSubscriptionPurchaseResult =
   | { ok: true; localSubscriptionId: string }
-  | { ok: false; message: string; userCancelled?: boolean };
+  | { ok: false; message: string; code?: string; userCancelled?: boolean };
 
 export async function yookassaAppSubscriptionPurchase(
   planCode: AppSubscriptionPlanCode,
+  promoCode?: { code: string; revision: number },
 ): Promise<YookassaAppSubscriptionPurchaseResult> {
   if (isDev) console.log("[yookassaAppSubscriptionPurchase] start", { planCode });
-  const result = await appSubscriptionApi.startYookassa(planCode);
+  const result = await appSubscriptionApi.startYookassa(planCode, promoCode);
   const confirmationUrl = result.data?.confirmationUrl;
   const localSubscriptionId = result.data?.localSubscriptionId;
   if (!result.success || !confirmationUrl || !localSubscriptionId) {
@@ -26,7 +27,11 @@ export async function yookassaAppSubscriptionPurchase(
         localSubscriptionId: localSubscriptionId ?? null,
       });
     }
-    return { ok: false, message: result.error ?? "Не удалось открыть ЮKassa." };
+    return {
+      ok: false,
+      message: result.error ?? "Не удалось открыть ЮKassa.",
+      code: result.code,
+    };
   }
 
   if (isDev) {

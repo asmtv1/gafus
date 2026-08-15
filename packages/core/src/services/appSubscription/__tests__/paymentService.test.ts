@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as PrismaPackage from "@gafus/prisma";
 
 const mockEventCreate = vi.fn();
 const mockEventFindFirst = vi.fn();
@@ -12,6 +13,7 @@ const mockSubscriptionFindFirst = vi.fn();
 const mockSubscriptionFindMany = vi.fn();
 const mockSubscriptionCreate = vi.fn();
 const mockSubscriptionUpdate = vi.fn();
+const mockPromoFindUnique = vi.fn();
 const mockSettingsFindUnique = vi.fn();
 const mockTrialFindFirst = vi.fn();
 const mockTrialFindUnique = vi.fn();
@@ -20,40 +22,44 @@ const mockTransaction = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockGetAllSubscriptionStatuses = vi.fn();
 
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    appSubscriptionEvent: {
-      create: (...args: unknown[]) => mockEventCreate(...args),
-      findFirst: (...args: unknown[]) => mockEventFindFirst(...args),
-      findUnique: (...args: unknown[]) => mockEventFindUnique(...args),
-      update: (...args: unknown[]) => mockEventUpdate(...args),
+vi.mock("@gafus/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof PrismaPackage>();
+  return {
+    ...actual,
+    prisma: {
+      appSubscriptionEvent: {
+        create: (...args: unknown[]) => mockEventCreate(...args),
+        findFirst: (...args: unknown[]) => mockEventFindFirst(...args),
+        findUnique: (...args: unknown[]) => mockEventFindUnique(...args),
+        update: (...args: unknown[]) => mockEventUpdate(...args),
+      },
+      appSubscriptionPayment: {
+        create: (...args: unknown[]) => mockPaymentCreate(...args),
+        findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
+        findUnique: (...args: unknown[]) => mockPaymentFindUnique(...args),
+        update: (...args: unknown[]) => mockPaymentUpdate(...args),
+      },
+      appSubscription: {
+        create: (...args: unknown[]) => mockSubscriptionCreate(...args),
+        update: (...args: unknown[]) => mockSubscriptionUpdate(...args),
+        findFirst: (...args: unknown[]) => mockSubscriptionFindFirst(...args),
+        findMany: (...args: unknown[]) => mockSubscriptionFindMany(...args),
+      },
+      appSubscriptionSettings: {
+        findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
+      },
+      appSubscriptionTrial: {
+        findFirst: (...args: unknown[]) => mockTrialFindFirst(...args),
+        findUnique: (...args: unknown[]) => mockTrialFindUnique(...args),
+        upsert: (...args: unknown[]) => mockTrialUpsert(...args),
+      },
+      user: {
+        findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+      },
+      $transaction: (...args: unknown[]) => mockTransaction(...args),
     },
-    appSubscriptionPayment: {
-      create: (...args: unknown[]) => mockPaymentCreate(...args),
-      findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
-      findUnique: (...args: unknown[]) => mockPaymentFindUnique(...args),
-      update: (...args: unknown[]) => mockPaymentUpdate(...args),
-    },
-    appSubscription: {
-      create: (...args: unknown[]) => mockSubscriptionCreate(...args),
-      update: (...args: unknown[]) => mockSubscriptionUpdate(...args),
-      findFirst: (...args: unknown[]) => mockSubscriptionFindFirst(...args),
-      findMany: (...args: unknown[]) => mockSubscriptionFindMany(...args),
-    },
-    appSubscriptionSettings: {
-      findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
-    },
-    appSubscriptionTrial: {
-      findFirst: (...args: unknown[]) => mockTrialFindFirst(...args),
-      findUnique: (...args: unknown[]) => mockTrialFindUnique(...args),
-      upsert: (...args: unknown[]) => mockTrialUpsert(...args),
-    },
-    user: {
-      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
-    },
-    $transaction: (...args: unknown[]) => mockTransaction(...args),
-  },
-}));
+  };
+});
 
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({
@@ -105,14 +111,37 @@ describe("app subscription payment service", () => {
     mockEventFindFirst.mockResolvedValue(null);
     mockEventFindUnique.mockResolvedValue(null);
     mockEventUpdate.mockResolvedValue({});
-    mockPaymentCreate.mockResolvedValue({ id: "pay-1" });
+    mockPaymentCreate.mockImplementation(async ({ data }: { data?: Record<string, unknown> }) => ({
+      id: "pay-1",
+      idempotenceKey: data?.idempotenceKey ?? "appsub-init:test",
+      amount: data?.amount ?? 1100,
+      promoCodeSnapshot: data?.promoCodeSnapshot ?? null,
+      promoDiscountPercent: data?.promoDiscountPercent ?? null,
+    }));
     mockPaymentFindFirst.mockResolvedValue(null);
     mockPaymentFindUnique.mockResolvedValue(null);
     mockPaymentUpdate.mockResolvedValue({});
+    mockPromoFindUnique.mockResolvedValue(null);
     mockSubscriptionFindFirst.mockResolvedValue(null);
     mockSubscriptionFindMany.mockResolvedValue([]);
-    mockSubscriptionCreate.mockResolvedValue({ id: "sub-1" });
-    mockSubscriptionUpdate.mockResolvedValue({});
+    mockSubscriptionCreate.mockImplementation(
+      async ({ data }: { data?: Record<string, unknown> }) => ({
+        id: "sub-1",
+        status: data?.status ?? "PENDING",
+        isLifetime: false,
+        currentPeriodEnd: data?.currentPeriodEnd ?? null,
+        yookassaPaymentMethodId: data?.yookassaPaymentMethodId ?? null,
+      }),
+    );
+    mockSubscriptionUpdate.mockImplementation(
+      async ({ where, data }: { where: { id: string }; data?: Record<string, unknown> }) => ({
+        id: where.id,
+        status: data?.status ?? "PENDING",
+        isLifetime: false,
+        currentPeriodEnd: data?.currentPeriodEnd ?? null,
+        yookassaPaymentMethodId: data?.yookassaPaymentMethodId ?? null,
+      }),
+    );
     mockTrialFindFirst.mockResolvedValue(null);
     mockTrialFindUnique.mockResolvedValue(null);
     mockTrialUpsert.mockResolvedValue({ id: "trial-1" });
@@ -137,6 +166,9 @@ describe("app subscription payment service", () => {
           findUnique: mockPaymentFindUnique,
           update: mockPaymentUpdate,
         },
+        appSubscriptionPromoCode: {
+          findUnique: mockPromoFindUnique,
+        },
         appSubscription: {
           create: mockSubscriptionCreate,
           findFirst: mockSubscriptionFindFirst,
@@ -152,6 +184,485 @@ describe("app subscription payment service", () => {
         },
       }),
     );
+  });
+
+  it("freezes a valid promo snapshot under the start lock", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockPromoFindUnique.mockResolvedValueOnce({
+      id: "promo-1",
+      code: "Kisa",
+      discountPercent: 10,
+      isActive: true,
+      revision: 3,
+      archivedAt: null,
+    });
+    mockSubscriptionCreate.mockResolvedValueOnce({
+      id: "sub-promo",
+      status: "PENDING",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yoo-promo",
+          confirmation: { confirmation_url: "https://yookassa.test/promo" },
+        }),
+      }),
+    );
+
+    const result = await startYookassaAppSubscriptionPayment({
+      userId: "user-1",
+      origin: "https://gafus.ru",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      planCode: "MONTHLY",
+      promoCode: { code: " kisa ", revision: 3 },
+    });
+
+    expect(result).toMatchObject({ success: true, localSubscriptionId: "sub-promo" });
+    expect(mockPaymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amount: 990,
+          originalAmount: 1100,
+          promoCodeId: "promo-1",
+          promoCodeSnapshot: "Kisa",
+          promoDiscountPercent: 10,
+        }),
+      }),
+    );
+    const body = JSON.parse((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    expect(body.amount).toEqual({ value: "990.00", currency: "RUB" });
+  });
+
+  it("completes previewed promo checkout through a verified YooKassa webhook without recalculation", async () => {
+    const { handleYookassaAppSubscriptionWebhook, startYookassaAppSubscriptionPayment } =
+      await import("../paymentService");
+    const frozenPayment = {
+      id: "pay-promo-flow",
+      idempotenceKey: "promo-flow-key",
+      amount: 990,
+      promoCodeSnapshot: "Kisa",
+      promoDiscountPercent: 10,
+    };
+    mockPromoFindUnique.mockResolvedValueOnce({
+      id: "promo-1",
+      code: "Kisa",
+      discountPercent: 10,
+      isActive: true,
+      revision: 3,
+      archivedAt: null,
+    });
+    mockSubscriptionCreate.mockResolvedValueOnce({
+      id: "sub-promo-flow",
+      status: "PENDING",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    mockPaymentCreate.mockResolvedValueOnce(frozenPayment);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "yoo-promo-flow",
+          confirmation: { confirmation_url: "https://yookassa.test/promo-flow" },
+        }),
+      }),
+    );
+
+    await expect(
+      startYookassaAppSubscriptionPayment({
+        userId: "user-1",
+        origin: "https://gafus.ru",
+        shopId: "shop-id",
+        secretKey: "secret-key",
+        planCode: "MONTHLY",
+        promoCode: { code: "Kisa", revision: 3 },
+      }),
+    ).resolves.toMatchObject({ success: true, localSubscriptionId: "sub-promo-flow" });
+
+    mockPaymentFindUnique.mockResolvedValueOnce({
+      id: frozenPayment.id,
+      userId: "user-1",
+      subscriptionId: "sub-promo-flow",
+      status: "PENDING",
+      planCode: "MONTHLY",
+      amount: frozenPayment.amount,
+      currency: "RUB",
+      periodStart: new Date("2026-08-12T10:00:00.000Z"),
+      periodEnd: new Date("2026-09-11T10:00:00.000Z"),
+      subscription: { currentPeriodEnd: null },
+    });
+    (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: "yoo-promo-flow",
+        status: "succeeded",
+        paid: true,
+        amount: { value: "990.00", currency: "RUB" },
+        metadata: {
+          kind: "app_subscription",
+          localPaymentId: frozenPayment.id,
+          userId: "user-1",
+          subscriptionId: "sub-promo-flow",
+          planCode: "MONTHLY",
+        },
+        payment_method: { id: "pm-promo", type: "sbp" },
+      }),
+    });
+
+    await handleYookassaAppSubscriptionWebhook({
+      event: "payment.succeeded",
+      yookassaPaymentId: "yoo-promo-flow",
+      metadata: {
+        kind: "app_subscription",
+        localPaymentId: frozenPayment.id,
+        userId: "user-1",
+        subscriptionId: "sub-promo-flow",
+        planCode: "MONTHLY",
+      },
+    });
+
+    expect(mockPaymentUpdate).toHaveBeenCalledWith({
+      where: { id: frozenPayment.id },
+      data: expect.objectContaining({ status: "SUCCEEDED", planCode: "MONTHLY" }),
+    });
+    expect(mockPromoFindUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a webhook amount that differs from the frozen discounted snapshot", async () => {
+    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    mockPaymentFindUnique.mockResolvedValueOnce({
+      id: "pay-discounted",
+      userId: "user-1",
+      subscriptionId: "sub-1",
+      status: "PENDING",
+      planCode: "MONTHLY",
+      amount: 990,
+      currency: "RUB",
+      periodStart: new Date("2026-08-12T10:00:00.000Z"),
+      periodEnd: new Date("2026-09-11T10:00:00.000Z"),
+      subscription: { currentPeriodEnd: null },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yoo-wrong-amount",
+          status: "succeeded",
+          paid: true,
+          amount: { value: "1100.00", currency: "RUB" },
+          metadata: {
+            kind: "app_subscription",
+            localPaymentId: "pay-discounted",
+            userId: "user-1",
+            planCode: "MONTHLY",
+          },
+        }),
+      }),
+    );
+
+    await expect(
+      handleYookassaAppSubscriptionWebhook({
+        event: "payment.succeeded",
+        yookassaPaymentId: "yoo-wrong-amount",
+        metadata: {
+          kind: "app_subscription",
+          localPaymentId: "pay-discounted",
+          userId: "user-1",
+          planCode: "MONTHLY",
+        },
+      }),
+    ).rejects.toThrow("YooKassa payment amount mismatch");
+    expect(mockPaymentUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "SUCCEEDED" }) }),
+    );
+  });
+
+  it("requires a fresh preview when promo revision changed", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockPromoFindUnique.mockResolvedValueOnce({
+      id: "promo-1",
+      code: "Kisa",
+      discountPercent: 20,
+      isActive: true,
+      revision: 4,
+      archivedAt: null,
+    });
+    vi.stubGlobal("fetch", vi.fn());
+
+    await expect(
+      startYookassaAppSubscriptionPayment({
+        userId: "user-1",
+        origin: "https://gafus.ru",
+        shopId: "shop-id",
+        secretKey: "secret-key",
+        planCode: "MONTHLY",
+        promoCode: { code: "Kisa", revision: 3 },
+      }),
+    ).resolves.toMatchObject({ success: false, code: "PROMO_CODE_CHANGED" });
+    expect(mockPaymentCreate).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("reuses the saved URL only for an identical pending checkout snapshot", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockPaymentFindFirst.mockResolvedValueOnce({
+      id: "pay-pending",
+      subscriptionId: "sub-pending",
+      idempotenceKey: "pending-key",
+      amount: 1100,
+      planCode: "MONTHLY",
+      promoCodeId: null,
+      promoCodeSnapshot: null,
+      promoDiscountPercent: null,
+      confirmationUrl: "https://yookassa.test/saved",
+    });
+    mockTransaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        $executeRawUnsafe: vi.fn(),
+        appSubscriptionPayment: { findFirst: mockPaymentFindFirst },
+        appSubscription: {
+          findUniqueOrThrow: vi.fn().mockResolvedValue({
+            id: "sub-pending",
+            status: "PENDING",
+            isLifetime: false,
+            currentPeriodEnd: null,
+            yookassaPaymentMethodId: null,
+          }),
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", vi.fn());
+
+    await expect(
+      startYookassaAppSubscriptionPayment({
+        userId: "user-1",
+        origin: "https://gafus.ru",
+        shopId: "shop-id",
+        secretKey: "secret-key",
+        planCode: "MONTHLY",
+      }),
+    ).resolves.toEqual({
+      success: true,
+      localSubscriptionId: "sub-pending",
+      confirmationUrl: "https://yookassa.test/saved",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("reuses a frozen promo checkout after the promo was changed", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockPaymentFindFirst.mockResolvedValueOnce({
+      id: "pay-pending-promo",
+      subscriptionId: "sub-pending-promo",
+      idempotenceKey: "pending-promo-key",
+      amount: 990,
+      planCode: "MONTHLY",
+      promoCodeId: "promo-1",
+      promoCodeSnapshot: "Kisa",
+      promoDiscountPercent: 10,
+      confirmationUrl: "https://yookassa.test/saved-promo",
+    });
+    mockTransaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        $executeRawUnsafe: vi.fn(),
+        appSubscriptionPayment: { findFirst: mockPaymentFindFirst },
+        appSubscription: {
+          findUniqueOrThrow: vi.fn().mockResolvedValue({
+            id: "sub-pending-promo",
+            status: "PENDING",
+            isLifetime: false,
+            currentPeriodEnd: null,
+            yookassaPaymentMethodId: null,
+          }),
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", vi.fn());
+
+    await expect(
+      startYookassaAppSubscriptionPayment({
+        userId: "user-1",
+        origin: "https://gafus.ru",
+        shopId: "shop-id",
+        secretKey: "secret-key",
+        planCode: "MONTHLY",
+        promoCode: { code: " kisa ", revision: 99 },
+      }),
+    ).resolves.toEqual({
+      success: true,
+      localSubscriptionId: "sub-pending-promo",
+      confirmationUrl: "https://yookassa.test/saved-promo",
+    });
+    expect(mockPromoFindUnique).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("blocks a different checkout while an initial payment is pending", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockPaymentFindFirst.mockResolvedValueOnce({
+      id: "pay-pending",
+      subscriptionId: "sub-pending",
+      idempotenceKey: "pending-key",
+      amount: 900,
+      promoCodeId: "promo-1",
+      promoCodeSnapshot: "Kisa",
+      promoDiscountPercent: 10,
+      confirmationUrl: "https://yookassa.test/saved",
+    });
+    vi.stubGlobal("fetch", vi.fn());
+
+    await expect(
+      startYookassaAppSubscriptionPayment({
+        userId: "user-1",
+        origin: "https://gafus.ru",
+        shopId: "shop-id",
+        secretKey: "secret-key",
+        planCode: "MONTHLY",
+      }),
+    ).resolves.toMatchObject({ success: false, code: "SUBSCRIPTION_CHECKOUT_IN_PROGRESS" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("serializes concurrent starts so only one initial payment is created", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    let pendingPayment: Record<string, unknown> | null = null;
+    const lockedPaymentFindFirst = vi.fn(async () => pendingPayment);
+    const lockedPaymentCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      pendingPayment = {
+        id: "pay-race",
+        subscriptionId: "sub-race",
+        idempotenceKey: data.idempotenceKey,
+        amount: data.amount,
+        promoCodeId: null,
+        promoCodeSnapshot: null,
+        promoDiscountPercent: null,
+        confirmationUrl: null,
+      };
+      return pendingPayment;
+    });
+    const tx = {
+      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+      appSubscriptionPayment: {
+        findFirst: lockedPaymentFindFirst,
+        create: lockedPaymentCreate,
+      },
+      appSubscription: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: "sub-race",
+          status: "PENDING",
+          isLifetime: false,
+          currentPeriodEnd: null,
+          yookassaPaymentMethodId: null,
+        }),
+      },
+    };
+    let transactionTail = Promise.resolve();
+    mockTransaction.mockImplementation((callback: (client: typeof tx) => Promise<unknown>) => {
+      const run = transactionTail.then(() => callback(tx));
+      transactionTail = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      return run;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yoo-race",
+          confirmation: { confirmation_url: "https://yookassa.test/race" },
+        }),
+      }),
+    );
+    mockPaymentUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      pendingPayment = { ...pendingPayment, ...data };
+      return pendingPayment;
+    });
+
+    const params = {
+      userId: "user-race",
+      origin: "https://gafus.ru",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      planCode: "MONTHLY" as const,
+    };
+    const [first, second] = await Promise.all([
+      startYookassaAppSubscriptionPayment(params),
+      startYookassaAppSubscriptionPayment(params),
+    ]);
+
+    expect([first, second].filter((result) => result.success)).toHaveLength(1);
+    expect([first, second].filter((result) => !result.success)).toEqual([
+      expect.objectContaining({ code: "SUBSCRIPTION_CHECKOUT_IN_PROGRESS" }),
+    ]);
+    expect(lockedPaymentCreate).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a fresh promo checkout after the failed initial request is recorded", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockPromoFindUnique.mockResolvedValue({
+      id: "promo-retry",
+      code: "RETRY",
+      discountPercent: 10,
+      isActive: true,
+      revision: 1,
+      archivedAt: null,
+    });
+    mockSubscriptionCreate.mockResolvedValue({
+      id: "sub-retry",
+      status: "PENDING",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("network down")));
+    const params = {
+      userId: "user-retry",
+      origin: "https://gafus.ru",
+      shopId: "shop-id",
+      secretKey: "secret-key",
+      planCode: "MONTHLY" as const,
+      promoCode: { code: "RETRY", revision: 1 },
+    };
+
+    await expect(startYookassaAppSubscriptionPayment(params)).resolves.toMatchObject({
+      success: false,
+    });
+    expect(mockPaymentUpdate).toHaveBeenCalledWith({
+      where: { id: "pay-1" },
+      data: expect.objectContaining({ status: "FAILED", failureCode: "NETWORK" }),
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: "yoo-retry",
+        confirmation: { confirmation_url: "https://yookassa.test/retry" },
+      }),
+    } as Response);
+    mockSubscriptionFindFirst.mockResolvedValueOnce({
+      id: "sub-retry",
+      status: "CANCELED",
+      isLifetime: false,
+      currentPeriodEnd: null,
+      yookassaPaymentMethodId: null,
+    });
+    await expect(startYookassaAppSubscriptionPayment(params)).resolves.toMatchObject({
+      success: true,
+      confirmationUrl: "https://yookassa.test/retry",
+    });
   });
 
   it("rejects YooKassa start when planCode is missing", async () => {
@@ -199,6 +710,7 @@ describe("app subscription payment service", () => {
     expect(result).toEqual({
       success: false,
       error: "Тариф подписки недоступен",
+      code: "PLAN_NOT_AVAILABLE",
     });
     expect(fetch).not.toHaveBeenCalled();
     expect(mockSubscriptionCreate).not.toHaveBeenCalled();
@@ -234,7 +746,11 @@ describe("app subscription payment service", () => {
       planCode: "WEEKLY",
     });
 
-    expect(result).toEqual({ success: false, error: "Недельный тариф больше недоступен" });
+    expect(result).toEqual({
+      success: false,
+      error: "Неизвестный тариф подписки",
+      code: "PLAN_NOT_AVAILABLE",
+    });
     expect(fetch).not.toHaveBeenCalled();
     expect(mockPaymentCreate).not.toHaveBeenCalled();
   });
@@ -749,7 +1265,7 @@ describe("app subscription payment service", () => {
     });
   });
 
-  it("uses zero-amount binding when an active subscriber restores autopay", async () => {
+  it("blocks a new checkout when an active subscriber tries to restore autopay", async () => {
     const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
     mockTrialFindUnique.mockResolvedValue({ id: "trial-1" });
     mockSubscriptionFindFirst.mockResolvedValue({
@@ -780,15 +1296,8 @@ describe("app subscription payment service", () => {
       planCode: "MONTHLY",
     });
 
-    expect(result).toEqual({
-      success: true,
-      localSubscriptionId: "sub-active",
-      confirmationUrl: "https://yookassa.test/bind",
-    });
-    expect(fetch).toHaveBeenCalledWith(
-      "https://api.yookassa.ru/v3/payment_methods",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(result).toMatchObject({ success: false, code: "SUBSCRIPTION_ALREADY_ACTIVE" });
+    expect(fetch).not.toHaveBeenCalled();
     expect(mockPaymentCreate).not.toHaveBeenCalled();
   });
 
@@ -885,9 +1394,14 @@ describe("app subscription payment service", () => {
     mockTransaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         $executeRawUnsafe: txExecuteRawUnsafe,
+        appSubscriptionPayment: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          create: mockPaymentCreate,
+        },
         appSubscription: {
           findFirst: txSubscriptionFindFirst,
           create: txSubscriptionCreate,
+          update: mockSubscriptionUpdate,
         },
       }),
     );
@@ -935,6 +1449,10 @@ describe("app subscription payment service", () => {
     mockTransaction.mockImplementationOnce(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+        appSubscriptionPayment: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          create: mockPaymentCreate,
+        },
         appSubscription: {
           findFirst: txSubscriptionFindFirst,
           update: txSubscriptionUpdate,
@@ -971,13 +1489,13 @@ describe("app subscription payment service", () => {
     expect(txSubscriptionCreate).not.toHaveBeenCalled();
     expect(txSubscriptionUpdate).toHaveBeenCalledWith({
       where: { id: "sub-pending" },
-      data: {
+      data: expect.objectContaining({
         planCode: "MONTHLY",
         pendingExpiresAt: new Date("2026-05-30T11:00:00.000Z"),
         yookassaPaymentMethodId: null,
         yookassaPaymentMethodLast4: null,
         yookassaPaymentMethodTitle: null,
-      },
+      }),
       select: {
         id: true,
         status: true,

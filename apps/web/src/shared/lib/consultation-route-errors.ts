@@ -1,4 +1,5 @@
 import {
+  ConsultationBookingNotIncludedError,
   ConsultationForbiddenError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
@@ -26,6 +27,9 @@ export function mapConsultationError(
 ): { status: number; body: Record<string, unknown> } | null {
   if (error instanceof ConsultationSlotTakenError) {
     return { status: 409, body: { success: false, error: error.message, code: error.code } };
+  }
+  if (error instanceof ConsultationBookingNotIncludedError) {
+    return { status: 403, body: { success: false, error: error.message, code: error.code } };
   }
   if (error instanceof ConsultationForbiddenError) {
     return { status: 403, body: { success: false, error: error.message, code: error.code } };

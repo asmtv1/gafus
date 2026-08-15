@@ -1,6 +1,6 @@
 {
   "name": "@gafus/error-handling",
-  "version": "1.6.4",
+  "version": "1.6.6",
   "private": true,
   "description": "React Error Boundaries для приложений GAFUS",
   "type": "module",

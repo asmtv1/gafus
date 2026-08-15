@@ -71,6 +71,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodStart: new Date("2026-05-01T00:00:00.000Z"),
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
@@ -94,6 +95,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodStart: new Date("2026-05-26T00:00:00.000Z"),
         currentPeriodEnd: new Date("2026-05-29T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
@@ -155,12 +157,17 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
           subscriptionId: "sub-month",
           kind: "RENEWAL",
           amount: 2500,
+          originalAmount: 2500,
           planCode: "MONTHLY",
           periodStart: new Date("2026-06-01T10:00:00.000Z"),
           periodEnd: new Date("2026-07-01T10:00:00.000Z"),
         }),
       }),
     );
+    const renewalSnapshot = mockCreate.mock.calls[0]?.[0]?.data;
+    expect(renewalSnapshot).not.toHaveProperty("promoCodeId");
+    expect(renewalSnapshot).not.toHaveProperty("promoCodeSnapshot");
+    expect(renewalSnapshot).not.toHaveProperty("promoDiscountPercent");
     const renewalBody = JSON.parse(
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body,
     );
@@ -175,6 +182,165 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
         renewal: "true",
       },
     });
+  });
+
+  it("renews the 14-day and 90-day plans at their own full prices", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    mockSettingsFindUnique.mockResolvedValue({
+      yookassaTwoWeeksPriceRub: 1490,
+      twoWeeksIntervalDays: 14,
+      yookassaMonthlyPriceRub: 2490,
+      monthlyIntervalDays: 30,
+      yookassaThreeMonthsPriceRub: 6490,
+      threeMonthsIntervalDays: 90,
+      yookassaWeeklyPriceRub: 200,
+      weeklyIntervalDays: 7,
+      currency: "RUB",
+    });
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-two-weeks",
+        userId: "user-1",
+        planCode: "TWO_WEEKS",
+        currentPeriodEnd: new Date("2026-06-01T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+        payments: [{ id: "previous" }],
+      },
+      {
+        id: "sub-three-months",
+        userId: "user-2",
+        planCode: "THREE_MONTHS",
+        currentPeriodEnd: new Date("2026-06-01T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-2",
+        payments: [{ id: "previous" }],
+      },
+    ]);
+    mockCreate.mockResolvedValue({ id: "pay-1", status: "PENDING", attemptCount: 1 });
+
+    await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(mockCreate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          planCode: "TWO_WEEKS",
+          amount: 1490,
+          originalAmount: 1490,
+          periodEnd: new Date("2026-06-15T10:00:00.000Z"),
+        }),
+      }),
+    );
+    expect(mockCreate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          planCode: "THREE_MONTHS",
+          amount: 6490,
+          originalAmount: 6490,
+          periodEnd: new Date("2026-08-30T10:00:00.000Z"),
+        }),
+      }),
+    );
+  });
+
+  it("skips an unknown plan instead of charging the legacy weekly amount", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-unknown",
+        userId: "user-1",
+        planCode: "UNRECOGNIZED",
+        currentPeriodEnd: new Date("2026-06-01T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+      },
+    ]);
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result).toMatchObject({ processed: 0, skipped: 1 });
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the local renewal amount snapshot when YooKassa succeeds", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-succeeded",
+        userId: "user-1",
+        planCode: "MONTHLY",
+        currentPeriodEnd: new Date("2026-06-01T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+        payments: [{ id: "previous-payment" }],
+      },
+    ]);
+    mockCreate.mockResolvedValue({ id: "pay-succeeded", status: "PENDING", attemptCount: 1 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yk-succeeded",
+          status: "succeeded",
+          amount: { value: "2500.00", currency: "RUB" },
+          payment_method: { id: "pm-1" },
+        }),
+      }),
+    );
+
+    await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    const succeededUpdate = mockUpdate.mock.calls.find(
+      ([call]) => call?.where?.id === "pay-succeeded" && call?.data?.status === "SUCCEEDED",
+    )?.[0];
+    expect(succeededUpdate?.data).not.toHaveProperty("amount");
+    expect(succeededUpdate?.data).not.toHaveProperty("originalAmount");
+  });
+
+  it("does not activate a renewal when YooKassa returns another amount", async () => {
+    mockQueryRawUnsafe
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([{ pg_advisory_unlock: true }]);
+    mockFindMany.mockResolvedValue([
+      {
+        id: "sub-mismatch",
+        userId: "user-1",
+        planCode: "MONTHLY",
+        currentPeriodEnd: new Date("2026-06-01T10:00:00.000Z"),
+        yookassaPaymentMethodId: "pm-1",
+        payments: [{ id: "previous-payment" }],
+      },
+    ]);
+    mockCreate.mockResolvedValue({ id: "pay-mismatch", status: "PENDING", attemptCount: 1 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: "yk-mismatch",
+          status: "succeeded",
+          amount: { value: "1.00", currency: "RUB" },
+        }),
+      }),
+    );
+
+    const result = await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
+
+    expect(result.skipped).toBe(1);
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "pay-mismatch" },
+      data: expect.objectContaining({
+        status: "FAILED",
+        failureCode: "PROVIDER_AMOUNT_MISMATCH",
+      }),
+    });
+    expect(mockTransaction).not.toHaveBeenCalled();
   });
 
   it("skips batch when advisory lock is not acquired", async () => {
@@ -194,6 +360,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },
@@ -224,6 +391,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },
@@ -254,6 +422,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },
@@ -304,6 +473,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },
@@ -331,6 +501,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },
@@ -363,6 +534,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },
@@ -394,6 +566,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       {
         id: "sub-1",
         userId: "user-1",
+        planCode: "WEEKLY",
         currentPeriodEnd: new Date("2026-05-08T00:00:00.000Z"),
         yookassaPaymentMethodId: "pm-1",
       },

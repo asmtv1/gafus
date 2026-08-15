@@ -66,6 +66,7 @@ export default function TrainingDayScreen() {
   const [isExporting, setIsExporting] = useState(false);
   const [unlockingStepIndex, setUnlockingStepIndex] = useState<number | null>(null);
   const [stepAccessError, setStepAccessError] = useState<string | null>(null);
+  const [rewardedDailyLimitReached, setRewardedDailyLimitReached] = useState(false);
   const rewardedUnlockInFlightRef = useRef(false);
   const hasHandledPaymentReturnRef = useRef(false);
   const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
@@ -136,11 +137,19 @@ export default function TrainingDayScreen() {
   const rewardedPrompt = getRewardedAccessPrompt({
     isLoading: rewardedStatusQuery.isFetching,
     status: rewardedStatus,
+    dailyLimitReached: rewardedDailyLimitReached,
   });
   const loadingRewardedPrompt = getRewardedAccessPrompt({
     isLoading: true,
     status: null,
   });
+
+  useEffect(() => {
+    if (!rewardedStatusQuery.data?.success || !rewardedStatusQuery.data.data) return;
+    setRewardedDailyLimitReached(
+      rewardedStatusQuery.data.data.canWatchAdReason === "DAILY_LIMIT_REACHED",
+    );
+  }, [rewardedStatusQuery.data]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -262,6 +271,11 @@ export default function TrainingDayScreen() {
       try {
         const result = await openTargetWithRewardedAd(target);
         if (!result.success) {
+          if (result.failure === "DAILY_LIMIT") {
+            setRewardedDailyLimitReached(true);
+            await rewardedStatusQuery.refetch();
+            return;
+          }
           setStepAccessError(result.message);
           setSnackbar({ visible: true, message: result.message });
           return;

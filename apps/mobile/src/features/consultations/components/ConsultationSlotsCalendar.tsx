@@ -25,7 +25,10 @@ import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
-import { openConsultationAccessPaywall } from "../lib/consultationAccessPaywall";
+import {
+  openConsultationAccessPaywall,
+  showConsultationBookingNotIncludedAlert,
+} from "../lib/consultationAccessPaywall";
 
 interface ConsultationSlotsCalendarProps {
   cynologistUserId: string;
@@ -203,6 +206,10 @@ export function ConsultationSlotsCalendar({
         }
         if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
           openConsultationAccessPaywall();
+          return;
+        }
+        if (res.code === "CONSULTATION_BOOKING_NOT_INCLUDED") {
+          showConsultationBookingNotIncludedAlert();
           return;
         }
         if (

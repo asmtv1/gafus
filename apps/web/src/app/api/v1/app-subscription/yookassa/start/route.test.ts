@@ -79,10 +79,63 @@ describe("POST /api/v1/app-subscription/yookassa/start", () => {
     expect(startPaymentMock).toHaveBeenCalledWith({
       origin: "https://gafus.ru",
       planCode: "MONTHLY",
+      promoCode: undefined,
       secretKey: "secret",
       shopId: "shop",
       userId: "user-1",
     });
+  });
+
+  it("passes an applied promo snapshot to the payment service", async () => {
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+    startPaymentMock.mockResolvedValueOnce({
+      confirmationUrl: "https://pay.test",
+      localSubscriptionId: "sub-1",
+      success: true,
+    });
+
+    const response = await POST(
+      request({
+        planCode: "MONTHLY",
+        promoCode: { code: "Kisa", revision: 3 },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(startPaymentMock).toHaveBeenCalledWith({
+      origin: "https://gafus.ru",
+      planCode: "MONTHLY",
+      promoCode: { code: "Kisa", revision: 3 },
+      secretKey: "secret",
+      shopId: "shop",
+      userId: "user-1",
+    });
+  });
+
+  it.each([
+    ["PROMO_CODE_INVALID_FORMAT", 400],
+    ["PROMO_CODE_NOT_FOUND", 404],
+    ["PROMO_CODE_INACTIVE", 409],
+    ["PROMO_CODE_CHANGED", 409],
+    ["PROMO_CODE_NOT_ELIGIBLE", 403],
+    ["PROMO_CODE_FEATURE_DISABLED", 403],
+    ["PROMO_CHECKOUT_IN_PROGRESS", 409],
+  ] as const)("maps start domain result %s to HTTP %s", async (code, status) => {
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+    startPaymentMock.mockResolvedValueOnce({ success: false, code, error: `error:${code}` });
+
+    const response = await POST(
+      request({ planCode: "MONTHLY", promoCode: { code: "Kisa", revision: 3 } }),
+    );
+
+    expect(response.status).toBe(status);
+    await expect(response.json()).resolves.toMatchObject({ success: false, code });
   });
 
   it("requires planCode", async () => {

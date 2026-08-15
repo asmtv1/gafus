@@ -16,11 +16,12 @@ const logger = createWebLogger("admin-mobile-release-control");
 const semverSchema = z
   .string()
   .trim()
-  .regex(/^\d+\.\d+\.\d+$/, "Версия должна быть в формате 1.6.4")
+  .regex(/^\d+\.\d+\.\d+$/, "Версия должна быть в формате 1.6.6")
   .nullable();
 const featureValuesSchema = z.object({
   vkLogin: z.boolean(),
   iosRuCardPayment: z.boolean(),
+  subscriptionPromoCodes: z.boolean(),
   iosRuCardPaymentHint: z.boolean(),
   rewardedAds: z.boolean(),
 });
@@ -35,6 +36,7 @@ const releaseControlSchema = z.object({
   }),
   rewardedAds: z.object({
     androidEnabled: z.boolean(),
+    dailyAdLimit: z.number().int().min(0).max(100),
     yandexAndroidPlacementId: z.string().trim().max(256).nullable(),
     yandexIosPlacementId: z.string().trim().max(256).nullable(),
     testMode: z.boolean(),

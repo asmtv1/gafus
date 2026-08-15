@@ -46,10 +46,21 @@ export type AppSubscriptionPlanOfferDto = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  consultationBookingIncluded: boolean;
+  promoCodeEligible: boolean;
+  badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
+  savingsRub: number | null;
 };
 
 export type AppSubscriptionOfferDto = {
+  /** @deprecated Compatibility fallback for clients released before multi-period YooKassa. */
   plans: AppSubscriptionPlanOfferDto[];
+  yookassaPlans: AppSubscriptionPlanOfferDto[];
+  applePlan: AppSubscriptionPlanOfferDto | null;
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
+  promoCode: {
+    entryEnabled: boolean;
+    eligible: boolean;
+  };
 };

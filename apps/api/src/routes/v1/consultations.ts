@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import {
   ConsultationForbiddenError,
+  ConsultationBookingNotIncludedError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
   TelemostUnavailableError,
@@ -30,6 +31,7 @@ import {
   getSlotsQuerySchema,
   getTrainerAvailability,
   requireConsultationSlotsSubscriptionAccess,
+  requireConsultationBookingSubscriptionAccess,
   listAdminBookings,
   listAllTrainersForAdmin,
   listClientBookings,
@@ -78,6 +80,9 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
   if (error instanceof ConsultationSlotTakenError) {
     return c.json({ success: false, error: error.message, code: error.code }, 409);
   }
+  if (error instanceof ConsultationBookingNotIncludedError) {
+    return c.json({ success: false, error: error.message, code: error.code }, 403);
+  }
   if (error instanceof ConsultationForbiddenError) {
     return c.json({ success: false, error: error.message, code: error.code }, 403);
   }
@@ -108,7 +113,7 @@ consultationsRoutes.get("/cynologists/:cynologistUserId/slots/:slotId/verify", a
   try {
     const user = c.get("user");
     const { cynologistUserId, slotId } = c.req.param();
-    await requireConsultationSlotsSubscriptionAccess({
+    await requireConsultationBookingSubscriptionAccess({
       userId: user.id,
     });
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
@@ -123,11 +128,16 @@ consultationsRoutes.get(
   zValidator("query", getSlotsQuerySchema),
   async (c) => {
     try {
+      const user = c.get("user");
       const { cynologistUserId } = c.req.param();
       const q = c.req.valid("query");
       const from = new Date(q.from);
       const to = new Date(q.to);
       const includeBusy = q.includeBusy === "1";
+      // Viewing slots still requires an active subscription. The dedicated
+      // slots entitlement intentionally permits the 14-day YooKassa plan;
+      // only verify/create-booking require the stricter booking entitlement.
+      await requireConsultationSlotsSubscriptionAccess({ userId: user.id });
       const data = includeBusy
         ? await getCalendarSlots(cynologistUserId, from, to)
         : await getAvailableSlots(cynologistUserId, from, to);

@@ -8,6 +8,7 @@ import {
   recordRewardedAdEvent,
   RewardedAdSessionError,
   RewardedAdsDisabledError,
+  RewardedDailyLimitReachedError,
   type RewardedAccessTarget,
 } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
@@ -15,7 +16,7 @@ import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-rewarded-ads");
 export const rewardedAdsRoutes = new Hono();
-const MINIMUM_DIRECT_ACCESS_VERSION = "1.6.5";
+const MINIMUM_DIRECT_ACCESS_VERSION = "1.6.6";
 
 const mobilePlatformSchema = z.enum(["ANDROID", "IOS"]);
 const targetTypeSchema = z.enum(["ARTICLE", "COURSE_STEP"]);
@@ -102,7 +103,8 @@ function requireSupportedMobileClient(c: Context, requestedPlatform?: "ANDROID" 
 }
 
 function errorStatus(error: unknown): 400 | 402 | 404 | 409 | 500 {
-  if (error instanceof RewardedAdsDisabledError) return 402;
+  if (error instanceof RewardedAdsDisabledError || error instanceof RewardedDailyLimitReachedError)
+    return 402;
   if (error instanceof RewardedAdSessionError) {
     if (error.code === "REWARDED_SESSION_NOT_FOUND" || error.code === "REWARDED_TARGET_NOT_FOUND")
       return 404;
@@ -114,7 +116,11 @@ function errorStatus(error: unknown): 400 | 402 | 404 | 409 | 500 {
 }
 
 function errorCode(error: unknown): string {
-  if (error instanceof RewardedAdSessionError || error instanceof RewardedAdsDisabledError) {
+  if (
+    error instanceof RewardedAdSessionError ||
+    error instanceof RewardedAdsDisabledError ||
+    error instanceof RewardedDailyLimitReachedError
+  ) {
     return error.code;
   }
   return "INTERNAL_ERROR";

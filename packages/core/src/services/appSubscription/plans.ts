@@ -1,16 +1,33 @@
-export const APP_SUBSCRIPTION_PLAN_CODES = ["WEEKLY", "MONTHLY"] as const;
-export const PUBLIC_APP_SUBSCRIPTION_PLAN_CODES = ["MONTHLY"] as const;
+/** `WEEKLY` is retained exclusively for historical subscriptions and Apple receipts. */
+export const APP_SUBSCRIPTION_PLAN_CODES = [
+  "WEEKLY",
+  "TWO_WEEKS",
+  "MONTHLY",
+  "THREE_MONTHS",
+] as const;
+export const PUBLIC_APP_SUBSCRIPTION_PLAN_CODES = [
+  "TWO_WEEKS",
+  "MONTHLY",
+  "THREE_MONTHS",
+] as const;
+export const PROMO_ELIGIBLE_APP_SUBSCRIPTION_PLAN_CODES = ["MONTHLY", "THREE_MONTHS"] as const;
 
 export type AppSubscriptionPlanCode = (typeof APP_SUBSCRIPTION_PLAN_CODES)[number];
 
 export type AppSubscriptionSettingsPlanSource = {
   weeklyEnabled?: boolean | null;
+  twoWeeksEnabled?: boolean | null;
   monthlyEnabled?: boolean | null;
+  threeMonthsEnabled?: boolean | null;
   yookassaWeeklyPriceRub?: unknown;
+  yookassaTwoWeeksPriceRub?: unknown;
   yookassaMonthlyPriceRub?: unknown;
+  yookassaThreeMonthsPriceRub?: unknown;
   currency?: string | null;
   weeklyIntervalDays?: number | null;
+  twoWeeksIntervalDays?: number | null;
   monthlyIntervalDays?: number | null;
+  threeMonthsIntervalDays?: number | null;
   weeklyAppleProductId?: string | null;
   monthlyAppleProductId?: string | null;
   intervalDays?: number | null;
@@ -26,6 +43,10 @@ export type AppSubscriptionPlanConfig = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  consultationBookingIncluded: boolean;
+  promoCodeEligible: boolean;
+  badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
+  savingsRub: number | null;
 };
 
 const PLAN_DEFINITIONS = {
@@ -40,6 +61,18 @@ const PLAN_DEFINITIONS = {
     title: "Месячный",
     fallbackPriceRub: 2500,
     fallbackIntervalDays: 30,
+  },
+  TWO_WEEKS: {
+    label: "2 недели",
+    title: "Две недели",
+    fallbackPriceRub: 1490,
+    fallbackIntervalDays: 14,
+  },
+  THREE_MONTHS: {
+    label: "3 месяца",
+    title: "Три месяца",
+    fallbackPriceRub: 6490,
+    fallbackIntervalDays: 90,
   },
 } as const satisfies Record<
   AppSubscriptionPlanCode,
@@ -62,7 +95,59 @@ function nullableTrimmed(value: string | null | undefined): string | null {
 }
 
 export function normalizeAppSubscriptionPlanCode(value: unknown): AppSubscriptionPlanCode | null {
-  return value === "WEEKLY" || value === "MONTHLY" ? value : null;
+  return typeof value === "string" && APP_SUBSCRIPTION_PLAN_CODES.includes(value as AppSubscriptionPlanCode)
+    ? (value as AppSubscriptionPlanCode)
+    : null;
+}
+
+/** Human-readable plan name for operator-facing surfaces and historical records. */
+export function getAppSubscriptionPlanLabel(value: unknown): string {
+  const code = normalizeAppSubscriptionPlanCode(value);
+  return code ? PLAN_DEFINITIONS[code].label : "Неизвестный тариф";
+}
+
+export function isPublicAppSubscriptionPlanCode(value: unknown): value is (typeof PUBLIC_APP_SUBSCRIPTION_PLAN_CODES)[number] {
+  return (
+    typeof value === "string" &&
+    PUBLIC_APP_SUBSCRIPTION_PLAN_CODES.includes(
+      value as (typeof PUBLIC_APP_SUBSCRIPTION_PLAN_CODES)[number],
+    )
+  );
+}
+
+export function isPromoEligibleAppSubscriptionPlanCode(
+  value: unknown,
+): value is (typeof PROMO_ELIGIBLE_APP_SUBSCRIPTION_PLAN_CODES)[number] {
+  return (
+    typeof value === "string" &&
+    PROMO_ELIGIBLE_APP_SUBSCRIPTION_PLAN_CODES.includes(
+      value as (typeof PROMO_ELIGIBLE_APP_SUBSCRIPTION_PLAN_CODES)[number],
+    )
+  );
+}
+
+function publicPlanPresentation(code: AppSubscriptionPlanCode) {
+  switch (code) {
+    case "TWO_WEEKS":
+      return { consultationBookingIncluded: false, promoCodeEligible: false, badge: "TRY" as const };
+    case "MONTHLY":
+      return { consultationBookingIncluded: true, promoCodeEligible: true, badge: "POPULAR" as const };
+    case "THREE_MONTHS":
+      return { consultationBookingIncluded: true, promoCodeEligible: true, badge: "MAX_SAVINGS" as const };
+    case "WEEKLY":
+      return { consultationBookingIncluded: true, promoCodeEligible: false, badge: null };
+  }
+}
+
+function calculateRoundedSavingsRub(params: {
+  code: AppSubscriptionPlanCode;
+  priceRub: number;
+  twoWeeksPriceRub: number;
+}): number | null {
+  const multiplier = params.code === "MONTHLY" ? 2 : params.code === "THREE_MONTHS" ? 6 : 0;
+  if (multiplier === 0) return null;
+  const rounded = Math.round((multiplier * params.twoWeeksPriceRub - params.priceRub) / 500) * 500;
+  return rounded > 0 ? rounded : null;
 }
 
 export function getAppSubscriptionPlanConfig(
@@ -71,6 +156,11 @@ export function getAppSubscriptionPlanConfig(
 ): AppSubscriptionPlanConfig {
   const definition = PLAN_DEFINITIONS[code];
   const currency = settings?.currency === "RUB" ? "RUB" : "RUB";
+  const presentation = publicPlanPresentation(code);
+  const twoWeeksPriceRub = numberOrDefault(
+    settings?.yookassaTwoWeeksPriceRub,
+    PLAN_DEFINITIONS.TWO_WEEKS.fallbackPriceRub,
+  );
 
   if (code === "WEEKLY") {
     return {
@@ -88,21 +178,64 @@ export function getAppSubscriptionPlanConfig(
       ),
       enabled: settings?.weeklyEnabled ?? true,
       appleProductId: nullableTrimmed(settings?.weeklyAppleProductId ?? settings?.appleProductId),
+      ...presentation,
+      savingsRub: null,
     };
   }
 
+  if (code === "TWO_WEEKS") {
+    const yookassaPriceRub = numberOrDefault(
+      settings?.yookassaTwoWeeksPriceRub,
+      definition.fallbackPriceRub,
+    );
+    return {
+      code,
+      label: definition.label,
+      title: definition.title,
+      intervalDays: numberOrDefault(settings?.twoWeeksIntervalDays, definition.fallbackIntervalDays),
+      currency,
+      yookassaPriceRub,
+      enabled: settings?.twoWeeksEnabled ?? false,
+      appleProductId: null,
+      ...presentation,
+      savingsRub: null,
+    };
+  }
+
+  if (code === "THREE_MONTHS") {
+    const yookassaPriceRub = numberOrDefault(
+      settings?.yookassaThreeMonthsPriceRub,
+      definition.fallbackPriceRub,
+    );
+    return {
+      code,
+      label: definition.label,
+      title: definition.title,
+      intervalDays: numberOrDefault(settings?.threeMonthsIntervalDays, definition.fallbackIntervalDays),
+      currency,
+      yookassaPriceRub,
+      enabled: settings?.threeMonthsEnabled ?? false,
+      appleProductId: null,
+      ...presentation,
+      savingsRub: calculateRoundedSavingsRub({ code, priceRub: yookassaPriceRub, twoWeeksPriceRub }),
+    };
+  }
+
+  const yookassaPriceRub = numberOrDefault(
+    settings?.yookassaMonthlyPriceRub,
+    definition.fallbackPriceRub,
+  );
   return {
     code,
     label: definition.label,
     title: definition.title,
     intervalDays: numberOrDefault(settings?.monthlyIntervalDays, definition.fallbackIntervalDays),
     currency,
-    yookassaPriceRub: numberOrDefault(
-      settings?.yookassaMonthlyPriceRub,
-      definition.fallbackPriceRub,
-    ),
+    yookassaPriceRub,
     enabled: settings?.monthlyEnabled ?? true,
     appleProductId: nullableTrimmed(settings?.monthlyAppleProductId),
+    ...presentation,
+    savingsRub: calculateRoundedSavingsRub({ code, priceRub: yookassaPriceRub, twoWeeksPriceRub }),
   };
 }
 

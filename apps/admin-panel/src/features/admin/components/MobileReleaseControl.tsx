@@ -56,6 +56,11 @@ const FEATURES: {
     description: "Подсказка об оплате российской картой в каталоге курсов.",
   },
   {
+    key: "subscriptionPromoCodes",
+    title: "Промокоды на iOS",
+    description: "Поле промокода для первой оплаты Premium через ЮKassa на iOS.",
+  },
+  {
     key: "rewardedAds",
     title: "Rewarded-реклама",
     description: "Просмотр рекламы для доступа к материалу на 7 дней на iOS.",
@@ -162,6 +167,12 @@ function formatSavedAt(value: string | null): string {
   return Number.isNaN(date.getTime()) ? "дата неизвестна" : date.toLocaleString("ru-RU");
 }
 
+function parseDailyAdLimit(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return parsed <= 100 ? parsed : null;
+}
+
 function buildDiff(saved: MobileReleaseControlDto, draft: MobileReleaseControlDto): string[] {
   const lines: string[] = [];
   if (saved.iosReviewVersion !== draft.iosReviewVersion) {
@@ -190,7 +201,17 @@ function buildDiff(saved: MobileReleaseControlDto, draft: MobileReleaseControlDt
       `Серверная блокировка: ${draft.global.appSubscriptionGating ? "включить" : "выключить"}`,
     );
   }
-  if (JSON.stringify(saved.rewardedAds) !== JSON.stringify(draft.rewardedAds)) {
+  if (saved.rewardedAds.dailyAdLimit !== draft.rewardedAds.dailyAdLimit) {
+    lines.push(
+      `Дневной лимит рекламы: ${saved.rewardedAds.dailyAdLimit} → ${draft.rewardedAds.dailyAdLimit}`,
+    );
+  }
+  const rewardedAdsDetailsChanged =
+    saved.rewardedAds.androidEnabled !== draft.rewardedAds.androidEnabled ||
+    saved.rewardedAds.yandexAndroidPlacementId !== draft.rewardedAds.yandexAndroidPlacementId ||
+    saved.rewardedAds.yandexIosPlacementId !== draft.rewardedAds.yandexIosPlacementId ||
+    saved.rewardedAds.testMode !== draft.rewardedAds.testMode;
+  if (rewardedAdsDetailsChanged) {
     lines.push("Изменить расширенные настройки рекламы");
   }
   return lines;
@@ -205,13 +226,20 @@ export function MobileReleaseControl({
 }) {
   const [saved, setSaved] = useState(() => cloneConfig(initialConfig));
   const [draft, setDraft] = useState(() => cloneConfig(initialConfig));
+  const [dailyAdLimitInput, setDailyAdLimitInput] = useState(() =>
+    String(initialConfig.rewardedAds.dailyAdLimit),
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isAdmin = actorRole === "ADMIN";
-  const dirty = JSON.stringify(saved) !== JSON.stringify(draft);
+  const dailyAdLimit = parseDailyAdLimit(dailyAdLimitInput);
+  const dailyAdLimitValid = dailyAdLimit !== null;
+  const dirty =
+    JSON.stringify(saved) !== JSON.stringify(draft) ||
+    dailyAdLimitInput !== String(saved.rewardedAds.dailyAdLimit);
   const versionValid =
     draft.iosReviewVersion === null ||
     draft.iosReviewVersion === "" ||
@@ -238,13 +266,21 @@ export function MobileReleaseControl({
 
   const openConfirmation = () => {
     if (!versionValid) {
-      setError("Версия должна быть в формате 1.6.4");
+      setError("Версия должна быть в формате 1.6.6");
+      return;
+    }
+    if (!dailyAdLimitValid) {
+      setError("Введите целое число от 0 до 100.");
       return;
     }
     setConfirmOpen(true);
   };
 
   const save = () => {
+    if (dailyAdLimit === null) {
+      setError("Введите целое число от 0 до 100.");
+      return;
+    }
     setConfirmOpen(false);
     setError(null);
     setSuccess(null);
@@ -256,6 +292,7 @@ export function MobileReleaseControl({
           iosReviewVersion: draft.iosReviewVersion?.trim() || null,
           rewardedAds: {
             ...draft.rewardedAds,
+            dailyAdLimit,
             yandexAndroidPlacementId: draft.rewardedAds.yandexAndroidPlacementId?.trim() || null,
             yandexIosPlacementId: draft.rewardedAds.yandexIosPlacementId?.trim() || null,
           },
@@ -269,6 +306,7 @@ export function MobileReleaseControl({
         const next = cloneConfig(result.data);
         setSaved(next);
         setDraft(cloneConfig(next));
+        setDailyAdLimitInput(String(next.rewardedAds.dailyAdLimit));
         setSuccess("Настройки применены атомарно ко всем мобильным профилям.");
       } catch (saveError) {
         reportClientError(saveError, {
@@ -305,14 +343,14 @@ export function MobileReleaseControl({
           >
             <TextField
               label="Версия на ревью"
-              placeholder="1.6.4"
+              placeholder="1.6.6"
               value={draft.iosReviewVersion ?? ""}
               disabled={disabled}
               error={!versionValid}
               helperText={
                 versionValid
                   ? "Формат x.y.z. Пустое поле отключает review-профиль."
-                  : "Например: 1.6.4"
+                  : "Например: 1.6.6"
               }
               onChange={(event) =>
                 setDraft((current) => ({
@@ -368,6 +406,7 @@ export function MobileReleaseControl({
                     vkLogin: false,
                     iosRuCardPayment: false,
                     iosRuCardPaymentHint: false,
+                    subscriptionPromoCodes: false,
                     rewardedAds: false,
                   },
                 }))
@@ -500,7 +539,7 @@ export function MobileReleaseControl({
           <Box>
             <Typography fontWeight={600}>Расширенные настройки рекламы</Typography>
             <Typography variant="body2" color="text.secondary">
-              Android, тестовый режим и Yandex placement ID.
+              Android, тестовый режим, дневной лимит и Yandex placement ID.
             </Typography>
           </Box>
         </AccordionSummary>
@@ -543,7 +582,44 @@ export function MobileReleaseControl({
                 }
                 label="Тестовый режим"
               />
+              <TextField
+                type="number"
+                label="Лимит просмотров в сутки"
+                value={dailyAdLimitInput}
+                disabled={disabled}
+                error={!dailyAdLimitValid}
+                helperText={
+                  dailyAdLimitValid
+                    ? "От 0 до 100 на одного пользователя. 0 — полностью отключить просмотры рекламы."
+                    : "Введите целое число от 0 до 100."
+                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setDailyAdLimitInput(value);
+                  const parsed = parseDailyAdLimit(value);
+                  if (parsed !== null) {
+                    setDraft((current) => ({
+                      ...current,
+                      rewardedAds: {
+                        ...current.rewardedAds,
+                        dailyAdLimit: parsed,
+                      },
+                    }));
+                  }
+                  setError(null);
+                  setSuccess(null);
+                }}
+                slotProps={{
+                  htmlInput: { min: 0, max: 100, step: 1, inputMode: "numeric" },
+                }}
+                sx={{ width: { xs: "100%", sm: 260 } }}
+              />
             </Stack>
+            {dailyAdLimitValid && dailyAdLimit === 0 ? (
+              <Alert severity="warning">
+                После сохранения просмотр рекламы будет недоступен всем пользователям.
+              </Alert>
+            ) : null}
             <TextField
               label="Yandex Android placement ID"
               value={draft.rewardedAds.yandexAndroidPlacementId ?? ""}
@@ -625,6 +701,7 @@ export function MobileReleaseControl({
                 disabled={disabled || !dirty}
                 onClick={() => {
                   setDraft(cloneConfig(saved));
+                  setDailyAdLimitInput(String(saved.rewardedAds.dailyAdLimit));
                   setError(null);
                   setSuccess(null);
                 }}
@@ -633,7 +710,7 @@ export function MobileReleaseControl({
               </Button>
               <Button
                 variant="contained"
-                disabled={disabled || !dirty || !versionValid}
+                disabled={disabled || !dirty || !versionValid || !dailyAdLimitValid}
                 onClick={openConfirmation}
               >
                 {isPending ? "Сохранение…" : "Сохранить"}

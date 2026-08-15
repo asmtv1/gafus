@@ -1,5 +1,5 @@
 export const CONSENT_VERSION =
-  process.env.CONSENT_VERSION ?? "v1.3 2026-05-13";
+  process.env.CONSENT_VERSION ?? "v1.4 2026-08-13";
 
 export type ConsentStatus = "pending" | "completed" | "failed";
 

@@ -1,5 +1,3 @@
-import type { REWARDED_DAILY_LIMIT_VALUES } from "./constants";
-
 export type RewardedPlatform = "ANDROID" | "IOS";
 export type MonetizedAccessPlatform = RewardedPlatform | "WEB_DESKTOP" | "WEB_TOUCH";
 export type RewardedProvider = "YANDEX";
@@ -9,7 +7,8 @@ export type RewardedTargetType =
   | "DAILY_COURSE_STEP"
   | "CONSULTATION_BOOKING";
 export type RewardedCreditTransactionType = "EARN" | "SPEND" | "REFUND" | "ADJUSTMENT";
-export type RewardedDailyLimit = (typeof REWARDED_DAILY_LIMIT_VALUES)[number];
+/** Integer in the inclusive range 0..100; enforced at runtime and in PostgreSQL. */
+export type RewardedDailyLimit = number;
 
 export interface RewardedTargetInput {
   targetType: RewardedTargetType;

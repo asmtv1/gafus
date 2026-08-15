@@ -5,10 +5,12 @@ import {
   cancelYookassaAppSubscription,
   getAppSubscriptionAccess,
   getAppSubscriptionOffer,
+  previewAppSubscriptionPromoCode,
   reconcilePendingYookassaAppSubscription,
   restoreAppleAppSubscription,
   startYookassaAppSubscriptionPayment,
   SubscriptionRequiredError,
+  AppSubscriptionPromoCodeDomainError,
   verifyAppleAppSubscription,
 } from "@gafus/core/services/appSubscription";
 import {
@@ -31,8 +33,34 @@ const restoreAppleSchema = z.object({
 });
 
 const startYookassaSchema = z.object({
-  planCode: z.literal("MONTHLY"),
+  planCode: z.enum(["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"]),
+  promoCode: z
+    .object({
+      code: z.string(),
+      revision: z.number().int().positive(),
+    })
+    .optional(),
 });
+
+const previewPromoCodeSchema = z.object({
+  planCode: z.enum(["MONTHLY", "THREE_MONTHS"]),
+  promoCode: z.string(),
+});
+
+function promoErrorStatus(code: string): 400 | 403 | 404 | 409 {
+  if (code === "PROMO_CODE_FEATURE_DISABLED" || code === "PROMO_CODE_NOT_ELIGIBLE") return 403;
+  if (code === "PROMO_CODE_NOT_FOUND") return 404;
+  if (
+    code === "PROMO_CODE_INACTIVE" ||
+    code === "PROMO_CODE_CHANGED" ||
+    code === "PROMO_CHECKOUT_IN_PROGRESS" ||
+    code === "SUBSCRIPTION_CHECKOUT_IN_PROGRESS" ||
+    code === "SUBSCRIPTION_ALREADY_ACTIVE"
+  ) {
+    return 409;
+  }
+  return 400;
+}
 
 type AppleAppSubscriptionResult =
   | { success: true }
@@ -88,6 +116,36 @@ appSubscriptionRoutes.get("/offer", async (c) => {
     return c.json({ success: true, data });
   } catch (error) {
     logger.error("GET /offer error", error as Error);
+    return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+  }
+});
+
+appSubscriptionRoutes.post("/promo-code/preview", async (c) => {
+  try {
+    const user = c.get("user");
+    const body = await c.req.json().catch(() => null);
+    const parsed = previewPromoCodeSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json(
+        { success: false, error: "Некорректный промокод", code: "PROMO_CODE_INVALID_FORMAT" },
+        400,
+      );
+    }
+    const data = await previewAppSubscriptionPromoCode({
+      userId: user.id,
+      planCode: parsed.data.planCode,
+      promoCode: parsed.data.promoCode,
+      clientContext: getClientAppContext(c),
+    });
+    return c.json({ success: true, data });
+  } catch (error) {
+    if (error instanceof AppSubscriptionPromoCodeDomainError) {
+      return c.json(
+        { success: false, error: error.message, code: error.code },
+        promoErrorStatus(error.code),
+      );
+    }
+    logger.error("POST /promo-code/preview error", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
@@ -168,6 +226,8 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       shopId,
       secretKey,
       planCode: parsed.data.planCode,
+      promoCode: parsed.data.promoCode,
+      clientContext,
     });
     console.log("[api app-subscription/yookassa/start] payment service result", {
       userId: user.id,
@@ -177,7 +237,10 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       localSubscriptionId: data.success ? data.localSubscriptionId : null,
     });
     if (!data.success) {
-      return c.json({ success: false, error: data.error, code: "PAYMENT_ERROR" }, 400);
+      return c.json(
+        { success: false, error: data.error, code: data.code ?? "PAYMENT_ERROR" },
+        data.code ? promoErrorStatus(data.code) : 400,
+      );
     }
 
     return c.json({ success: true, data });

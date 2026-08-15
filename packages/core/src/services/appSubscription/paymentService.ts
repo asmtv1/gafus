@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { prisma } from "@gafus/prisma";
+import { Prisma, prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import {
   AppStoreServerAPIClient,
@@ -16,6 +16,8 @@ import {
   findAppSubscriptionPlanByAppleProductId,
   findAppSubscriptionPlanConfig,
   getAppSubscriptionPlanConfig,
+  isPromoEligibleAppSubscriptionPlanCode,
+  isPublicAppSubscriptionPlanCode,
   normalizeAppSubscriptionPlanCode,
   type AppSubscriptionPlanCode,
 } from "./plans";
@@ -26,6 +28,13 @@ import {
   YOOKASSA_TRIAL_UNAVAILABLE_CARD_FINGERPRINT_REUSED,
   YOOKASSA_TRIAL_DAYS,
 } from "./trialService";
+import {
+  AppSubscriptionPromoCodeDomainError,
+  isAppSubscriptionPromoCodeEntryEnabled,
+  type AppSubscriptionPromoCodeDomainErrorCode,
+} from "./promoCodeService";
+import { calculateAppSubscriptionPromoPrice, parseAppSubscriptionPromoCode } from "./promoCode";
+import type { ClientAppContext } from "../appFeatureFlags";
 
 const logger = createWebLogger("app-subscription-payment-service");
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
@@ -735,43 +744,63 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
   intervalDays: number;
   planCode: AppSubscriptionPlanCode;
   now: Date;
+  preparedPayment?: {
+    id: string;
+    idempotenceKey: string;
+    amountRub: number;
+    promoCodeSnapshot: string | null;
+    promoDiscountPercent: number | null;
+  };
 }): Promise<
   | { success: true; localSubscriptionId: string; confirmationUrl: string }
   | { success: false; error: string }
 > {
   const periodStart = params.now;
   const periodEnd = new Date(params.now.getTime() + params.intervalDays * 24 * 60 * 60 * 1000);
-  const idempotenceKey = `appsub-init:${randomUUID()}`;
-  const payment = await prisma.appSubscriptionPayment.create({
-    data: {
-      subscriptionId: params.subscriptionId,
-      userId: params.userId,
-      provider: "YOOKASSA",
-      kind: "INITIAL",
-      status: "PENDING",
-      planCode: params.planCode,
-      amount: params.amountRub,
-      currency: params.currency,
-      periodStart,
-      periodEnd,
-      idempotenceKey,
-      attemptCount: 1,
-      lastAttemptAt: params.now,
-      nextAttemptAt: params.now,
-    },
-    select: { id: true },
-  });
+  const idempotenceKey = params.preparedPayment?.idempotenceKey ?? `appsub-init:${randomUUID()}`;
+  const payment = params.preparedPayment ??
+    (await prisma.appSubscriptionPayment.create({
+      data: {
+        subscriptionId: params.subscriptionId,
+        userId: params.userId,
+        provider: "YOOKASSA",
+        kind: "INITIAL",
+        status: "PENDING",
+        planCode: params.planCode,
+        amount: params.amountRub,
+        originalAmount: params.amountRub,
+        currency: params.currency,
+        periodStart,
+        periodEnd,
+        idempotenceKey,
+        attemptCount: 1,
+        lastAttemptAt: params.now,
+        nextAttemptAt: params.now,
+      },
+      select: {
+        id: true,
+        idempotenceKey: true,
+        amount: true,
+        promoCodeSnapshot: true,
+        promoDiscountPercent: true,
+      },
+    }));
+  const chargedAmountRub = Number(
+    params.preparedPayment && Number.isFinite(params.preparedPayment.amountRub)
+      ? params.preparedPayment.amountRub
+      : params.amountRub,
+  );
 
   const returnUrl = `${params.origin.replace(/\/$/, "")}/subscription?paid=1`;
   const body = {
-    amount: { value: params.amountRub.toFixed(2), currency: params.currency },
+    amount: { value: chargedAmountRub.toFixed(2), currency: params.currency },
     capture: true,
     save_payment_method: true,
     // Сохраняем именно счёт СБП для последующих рекуррентных списаний.
     payment_method_data: { type: "sbp" as const },
     confirmation: { type: "redirect" as const, return_url: returnUrl },
     description:
-      `Подписка Gafus Premium ${params.amountRub.toFixed(2)} ` +
+      `Подписка Gafus Premium ${chargedAmountRub.toFixed(2)} ` +
       `${params.currency}/${params.intervalDays} дн.`,
     metadata: {
       kind: "app_subscription",
@@ -780,6 +809,12 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
       subscriptionId: params.subscriptionId,
       planCode: params.planCode,
       initial: "true",
+      ...(payment.promoCodeSnapshot
+        ? {
+            promoCode: payment.promoCodeSnapshot,
+            promoDiscountPercent: String(payment.promoDiscountPercent),
+          }
+        : {}),
     },
   };
 
@@ -982,30 +1017,341 @@ async function findOrCreateYookassaSetupSubscription(params: {
   });
 }
 
+type RequestedAppSubscriptionPromoCode = { code: string; revision: number };
+
+type AppSubscriptionCheckoutErrorCode =
+  | AppSubscriptionPromoCodeDomainErrorCode
+  | "SUBSCRIPTION_ALREADY_ACTIVE"
+  | "SUBSCRIPTION_CHECKOUT_IN_PROGRESS"
+  | "PLAN_NOT_AVAILABLE";
+
+type PreparedInitialCheckout = {
+  subscription: Awaited<ReturnType<typeof findOrCreateYookassaSetupSubscription>>;
+  payment:
+    | {
+        id: string;
+        idempotenceKey: string;
+        amountRub: number;
+        promoCodeSnapshot: string | null;
+        promoDiscountPercent: number | null;
+      }
+    | null;
+  reusedConfirmationUrl: string | null;
+};
+
+async function prepareInitialYookassaCheckout(params: {
+  userId: string;
+  planCode: AppSubscriptionPlanCode;
+  originalAmountRub: number;
+  currency: string;
+  intervalDays: number;
+  promoCode?: RequestedAppSubscriptionPromoCode;
+  clientContext?: ClientAppContext;
+  now: Date;
+}): Promise<PreparedInitialCheckout> {
+  const lockKey = hashAdvisoryLockKey(`app-subscription:yookassa:start:${params.userId}`);
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `SELECT pg_advisory_xact_lock(${YOOKASSA_START_LOCK_NAMESPACE}, ${lockKey})`,
+    );
+
+    let promo:
+      | {
+          id: string;
+          code: string;
+          discountPercent: number;
+          revision: number;
+        }
+      | null = null;
+    let amountRub = new Prisma.Decimal(params.originalAmountRub).toDecimalPlaces(
+      2,
+      Prisma.Decimal.ROUND_HALF_UP,
+    );
+    let requestedPromoIdentity: ReturnType<typeof parseAppSubscriptionPromoCode> = null;
+
+    if (params.promoCode) {
+      if (!(await isAppSubscriptionPromoCodeEntryEnabled(params.clientContext))) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_CODE_FEATURE_DISABLED",
+          "Промокоды недоступны в этой версии приложения",
+        );
+      }
+      requestedPromoIdentity = parseAppSubscriptionPromoCode(params.promoCode.code);
+      if (!requestedPromoIdentity) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_CODE_INVALID_FORMAT",
+          "Некорректный формат промокода",
+        );
+      }
+    }
+
+    const pending = await tx.appSubscriptionPayment.findFirst({
+      where: {
+        userId: params.userId,
+        provider: "YOOKASSA",
+        kind: "INITIAL",
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        subscriptionId: true,
+        idempotenceKey: true,
+        amount: true,
+        planCode: true,
+        promoCodeId: true,
+        promoCodeSnapshot: true,
+        promoDiscountPercent: true,
+        confirmationUrl: true,
+      },
+    });
+    const pendingPromoIdentity = pending?.promoCodeSnapshot
+      ? parseAppSubscriptionPromoCode(pending.promoCodeSnapshot)
+      : null;
+    const sameFrozenSnapshot = params.promoCode
+      ? pendingPromoIdentity?.normalizedCode === requestedPromoIdentity?.normalizedCode
+      : pending?.promoCodeId == null && pending?.promoCodeSnapshot == null;
+    if (pending) {
+      if (
+        pending.planCode === params.planCode &&
+        sameFrozenSnapshot &&
+        pending.confirmationUrl &&
+        pending.subscriptionId
+      ) {
+        const subscription = await tx.appSubscription.findUniqueOrThrow({
+          where: { id: pending.subscriptionId },
+          select: {
+            id: true,
+            status: true,
+            isLifetime: true,
+            currentPeriodEnd: true,
+            yookassaPaymentMethodId: true,
+          },
+        });
+        return { subscription, payment: null, reusedConfirmationUrl: pending.confirmationUrl };
+      }
+      throw new AppSubscriptionPromoCodeDomainError(
+        "SUBSCRIPTION_CHECKOUT_IN_PROGRESS",
+        "У вас уже есть незавершённая оплата",
+      );
+    }
+
+    const activeSubscription = await tx.appSubscription.findFirst({
+      where: {
+        userId: params.userId,
+        status: "ACTIVE",
+        OR: [{ isLifetime: true }, { currentPeriodEnd: { gt: params.now } }],
+      },
+      select: { id: true, status: true, isLifetime: true, currentPeriodEnd: true },
+    });
+    if (
+      activeSubscription?.status === "ACTIVE" &&
+      (activeSubscription.isLifetime ||
+        (activeSubscription.currentPeriodEnd instanceof Date &&
+          activeSubscription.currentPeriodEnd > params.now))
+    ) {
+      throw new AppSubscriptionPromoCodeDomainError(
+        "SUBSCRIPTION_ALREADY_ACTIVE",
+        "У вас уже есть активная подписка. Новый тариф будет доступен после окончания текущего периода",
+      );
+    }
+
+    if (params.promoCode && requestedPromoIdentity) {
+      if (!isPromoEligibleAppSubscriptionPlanCode(params.planCode)) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_PLAN_NOT_ELIGIBLE",
+          "Промокод доступен только для тарифов от 1 месяца",
+        );
+      }
+      const priorSuccessfulPayment = await tx.appSubscriptionPayment.findFirst({
+        where: {
+          userId: params.userId,
+          provider: "YOOKASSA",
+          OR: [{ status: { in: ["SUCCEEDED", "REFUNDED"] } }, { succeededAt: { not: null } }],
+        },
+        select: { id: true },
+      });
+      if (priorSuccessfulPayment) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_CODE_NOT_ELIGIBLE",
+          "Промокод доступен только до первой успешной оплаты Premium через ЮKassa",
+        );
+      }
+      const row = await tx.appSubscriptionPromoCode.findUnique({
+        where: { normalizedCode: requestedPromoIdentity.normalizedCode },
+        select: {
+          id: true,
+          code: true,
+          discountPercent: true,
+          isActive: true,
+          revision: true,
+          archivedAt: true,
+        },
+      });
+      if (!row || row.archivedAt) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_CODE_NOT_FOUND",
+          "Промокод не найден",
+        );
+      }
+      if (!row.isActive) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_CODE_INACTIVE",
+          "Промокод выключен",
+        );
+      }
+      if (row.revision !== params.promoCode.revision) {
+        throw new AppSubscriptionPromoCodeDomainError(
+          "PROMO_CODE_CHANGED",
+          "Условия промокода изменились. Примените его повторно",
+        );
+      }
+      promo = row;
+      amountRub = calculateAppSubscriptionPromoPrice(
+        params.originalAmountRub,
+        row.discountPercent,
+      ).discountedPrice;
+    }
+
+    const existingSubscription = await tx.appSubscription.findFirst({
+      where: {
+        userId: params.userId,
+        provider: "YOOKASSA",
+        status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
+      },
+      orderBy: [{ isLifetime: "desc" }, { currentPeriodEnd: "desc" }],
+      select: {
+        id: true,
+        status: true,
+        isLifetime: true,
+        currentPeriodEnd: true,
+        yookassaPaymentMethodId: true,
+      },
+    });
+    let subscription = existingSubscription ??
+      (await tx.appSubscription.create({
+        data: {
+          userId: params.userId,
+          provider: "YOOKASSA",
+          status: "PENDING",
+          planCode: params.planCode,
+          pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+        },
+        select: {
+          id: true,
+          status: true,
+          isLifetime: true,
+          currentPeriodEnd: true,
+          yookassaPaymentMethodId: true,
+        },
+      }));
+
+    if (
+      subscription.status !== "PENDING" ||
+      subscription.yookassaPaymentMethodId ||
+      subscription.currentPeriodEnd
+    ) {
+      subscription = await tx.appSubscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: "PENDING",
+          planCode: params.planCode,
+          currentPeriodStart: null,
+          currentPeriodEnd: null,
+          pendingExpiresAt: new Date(params.now.getTime() + YOOKASSA_PENDING_SETUP_TTL_MS),
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+          yookassaPaymentMethodId: null,
+          yookassaPaymentMethodLast4: null,
+          yookassaPaymentMethodTitle: null,
+          renewalReminderSentForPeriodEnd: null,
+        },
+        select: {
+          id: true,
+          status: true,
+          isLifetime: true,
+          currentPeriodEnd: true,
+          yookassaPaymentMethodId: true,
+        },
+      });
+    }
+
+    const periodStart = params.now;
+    const periodEnd = new Date(
+      params.now.getTime() + params.intervalDays * 24 * 60 * 60 * 1000,
+    );
+    const idempotenceKey = `appsub-init:${randomUUID()}`;
+    const payment = await tx.appSubscriptionPayment.create({
+      data: {
+        subscriptionId: subscription.id,
+        userId: params.userId,
+        provider: "YOOKASSA",
+        kind: "INITIAL",
+        status: "PENDING",
+        planCode: params.planCode,
+        amount: amountRub.toNumber(),
+        originalAmount: params.originalAmountRub,
+        currency: params.currency,
+        promoCodeId: promo?.id,
+        promoCodeSnapshot: promo?.code,
+        promoDiscountPercent: promo?.discountPercent,
+        periodStart,
+        periodEnd,
+        idempotenceKey,
+        attemptCount: 1,
+        lastAttemptAt: params.now,
+        nextAttemptAt: params.now,
+      },
+      select: {
+        id: true,
+        idempotenceKey: true,
+        amount: true,
+        promoCodeSnapshot: true,
+        promoDiscountPercent: true,
+      },
+    });
+    return {
+      subscription,
+      payment: {
+        id: payment.id,
+        idempotenceKey: payment.idempotenceKey,
+        amountRub: Number(payment.amount),
+        promoCodeSnapshot: payment.promoCodeSnapshot,
+        promoDiscountPercent: payment.promoDiscountPercent,
+      },
+      reusedConfirmationUrl: null,
+    };
+  });
+}
+
 export async function startYookassaAppSubscriptionPayment(params: {
   userId: string;
   origin: string;
   shopId: string;
   secretKey: string;
   planCode: AppSubscriptionPlanCode;
+  promoCode?: RequestedAppSubscriptionPromoCode;
+  clientContext?: ClientAppContext;
 }): Promise<
   | { success: true; localSubscriptionId: string; confirmationUrl: string }
-  | { success: false; error: string }
+  | { success: false; error: string; code?: AppSubscriptionCheckoutErrorCode }
 > {
-  console.log("[app-subscription-payment-service] startYookassaAppSubscriptionPayment start", {
-    userId: params.userId,
-    origin: params.origin,
-  });
   const settings = await prisma.appSubscriptionSettings.findUnique({
     where: { key: "default" },
     select: {
       weeklyEnabled: true,
+      twoWeeksEnabled: true,
       monthlyEnabled: true,
+      threeMonthsEnabled: true,
       yookassaWeeklyPriceRub: true,
+      yookassaTwoWeeksPriceRub: true,
       yookassaMonthlyPriceRub: true,
+      yookassaThreeMonthsPriceRub: true,
       currency: true,
       weeklyIntervalDays: true,
+      twoWeeksIntervalDays: true,
       monthlyIntervalDays: true,
+      threeMonthsIntervalDays: true,
       weeklyAppleProductId: true,
       monthlyAppleProductId: true,
     },
@@ -1014,91 +1360,53 @@ export async function startYookassaAppSubscriptionPayment(params: {
     return { success: false, error: "Выберите тариф подписки" };
   }
   const planCode = normalizeAppSubscriptionPlanCode(params.planCode);
-  if (!planCode) {
-    return { success: false, error: "Неизвестный тариф подписки" };
-  }
-  if (planCode !== "MONTHLY") {
-    return { success: false, error: "Недельный тариф больше недоступен" };
+  if (!planCode || !isPublicAppSubscriptionPlanCode(planCode)) {
+    return { success: false, error: "Неизвестный тариф подписки", code: "PLAN_NOT_AVAILABLE" };
   }
   const selectedPlan = getAppSubscriptionPlanConfig(settings, planCode);
   if (!selectedPlan.enabled) {
-    return { success: false, error: "Тариф подписки недоступен" };
+    return { success: false, error: "Тариф подписки недоступен", code: "PLAN_NOT_AVAILABLE" };
   }
   const amountRub = selectedPlan.yookassaPriceRub;
   const intervalDays = selectedPlan.intervalDays;
   const currency = selectedPlan.currency;
-  console.log("[app-subscription-payment-service] settings loaded", {
-    userId: params.userId,
-    planCode,
-    amountRub,
-    intervalDays,
-    currency,
-  });
-
   if (!Number.isFinite(amountRub) || amountRub <= 0) {
-    console.log("[app-subscription-payment-service] invalid amount", {
-      userId: params.userId,
-      amountRub,
-    });
     return { success: false, error: "Некорректная цена подписки" };
   }
   if (!Number.isFinite(intervalDays) || intervalDays <= 0) {
-    console.log("[app-subscription-payment-service] invalid interval", {
-      userId: params.userId,
-      intervalDays,
-    });
     return { success: false, error: "Некорректный период подписки" };
   }
 
   const now = new Date();
-  const subscription = await findOrCreateYookassaSetupSubscription({
-    userId: params.userId,
-    planCode,
-    now,
-  });
-  console.log("[app-subscription-payment-service] setup subscription resolved", {
-    userId: params.userId,
-    subscriptionId: subscription.id,
-    subscriptionStatus: subscription.status,
-    hasPaymentMethod: Boolean(subscription.yookassaPaymentMethodId),
-  });
-
-  if (subscription.status !== "PENDING" && subscription.yookassaPaymentMethodId) {
-    console.log("[app-subscription-payment-service] payment method already saved", {
+  let prepared: PreparedInitialCheckout;
+  try {
+    prepared = await prepareInitialYookassaCheckout({
       userId: params.userId,
-      subscriptionId: subscription.id,
-    });
-    return { success: false, error: "Способ оплаты уже привязан к подписке" };
-  }
-
-  const hasCurrentAccess =
-    subscription.status === "ACTIVE" &&
-    (subscription.isLifetime === true ||
-      (subscription.currentPeriodEnd instanceof Date && subscription.currentPeriodEnd > now));
-
-  if (hasCurrentAccess) {
-    console.log("[app-subscription-payment-service] restoring YooKassa autopay binding", {
-      userId: params.userId,
-      subscriptionId: subscription.id,
-    });
-    return startYookassaAppSubscriptionTrialBinding({
-      userId: params.userId,
-      origin: params.origin,
-      shopId: params.shopId,
-      secretKey: params.secretKey,
-      subscriptionId: subscription.id,
-      amountRub,
+      planCode,
+      originalAmountRub: amountRub,
       currency,
       intervalDays,
-      planCode,
+      promoCode: params.promoCode,
+      clientContext: params.clientContext,
       now,
     });
+  } catch (error) {
+    if (error instanceof AppSubscriptionPromoCodeDomainError) {
+      return { success: false, error: error.message, code: error.code };
+    }
+    throw error;
   }
-
-  console.log("[app-subscription-payment-service] starting paid checkout", {
-    userId: params.userId,
-    subscriptionId: subscription.id,
-  });
+  const subscription = prepared.subscription;
+  if (prepared.reusedConfirmationUrl) {
+    return {
+      success: true,
+      localSubscriptionId: subscription.id,
+      confirmationUrl: prepared.reusedConfirmationUrl,
+    };
+  }
+  if (subscription.status !== "PENDING" && subscription.yookassaPaymentMethodId) {
+    return { success: false, error: "Способ оплаты уже привязан к подписке" };
+  }
   return startInitialYookassaAppSubscriptionPayment({
     userId: params.userId,
     origin: params.origin,
@@ -1110,6 +1418,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
     intervalDays,
     planCode,
     now,
+    preparedPayment: prepared.payment ?? undefined,
   });
 }
 
@@ -1365,12 +1674,18 @@ export async function verifyAppleAppSubscription(_params: {
     where: { key: "default" },
     select: {
       weeklyEnabled: true,
+      twoWeeksEnabled: true,
       monthlyEnabled: true,
+      threeMonthsEnabled: true,
       yookassaWeeklyPriceRub: true,
+      yookassaTwoWeeksPriceRub: true,
       yookassaMonthlyPriceRub: true,
+      yookassaThreeMonthsPriceRub: true,
       currency: true,
       weeklyIntervalDays: true,
+      twoWeeksIntervalDays: true,
       monthlyIntervalDays: true,
+      threeMonthsIntervalDays: true,
       weeklyAppleProductId: true,
       monthlyAppleProductId: true,
     },
@@ -2161,12 +2476,18 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
           where: { key: "default" },
           select: {
             weeklyEnabled: true,
+            twoWeeksEnabled: true,
             monthlyEnabled: true,
+            threeMonthsEnabled: true,
             yookassaWeeklyPriceRub: true,
+            yookassaTwoWeeksPriceRub: true,
             yookassaMonthlyPriceRub: true,
+            yookassaThreeMonthsPriceRub: true,
             currency: true,
             weeklyIntervalDays: true,
+            twoWeeksIntervalDays: true,
             monthlyIntervalDays: true,
+            threeMonthsIntervalDays: true,
             weeklyAppleProductId: true,
             monthlyAppleProductId: true,
           },
@@ -2188,11 +2509,8 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
             status: "SUCCEEDED",
             planCode: payment.planCode,
             yookassaPaymentId: params.yookassaPaymentId,
-            amount: params.amount
-              ? Number(params.amount)
-              : providerPayment.amount?.value
-                ? Number(providerPayment.amount.value)
-                : undefined,
+            // The amount is an immutable local checkout snapshot. Provider amount was
+            // verified against it above and must never replace/recalculate the snapshot.
             currency: payment.currency ?? providerPayment.amount?.currency ?? "RUB",
             periodStart,
             periodEnd,

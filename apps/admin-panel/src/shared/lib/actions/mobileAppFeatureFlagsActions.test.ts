@@ -44,17 +44,19 @@ import { updateMobileReleaseControlAction } from "./mobileAppFeatureFlagsActions
 
 const validPayload = {
   revision: 1,
-  iosReviewVersion: "1.6.4",
+  iosReviewVersion: "1.6.6",
   released: {
     vkLogin: true,
     iosRuCardPayment: true,
     iosRuCardPaymentHint: true,
+    subscriptionPromoCodes: true,
     rewardedAds: true,
   },
   review: {
     vkLogin: false,
     iosRuCardPayment: false,
     iosRuCardPaymentHint: false,
+    subscriptionPromoCodes: false,
     rewardedAds: false,
   },
   global: {
@@ -63,6 +65,7 @@ const validPayload = {
   },
   rewardedAds: {
     androidEnabled: true,
+    dailyAdLimit: 10,
     yandexAndroidPlacementId: "android-id",
     yandexIosPlacementId: "ios-id",
     testMode: false,
@@ -120,6 +123,53 @@ describe("admin mobile release control action", () => {
     const result = await updateMobileReleaseControlAction(validPayload);
     expect(result).toMatchObject({ success: true, data: { revision: 2 } });
     expect(updateMobileReleaseControlMock).toHaveBeenCalledWith(validPayload, "admin-1");
+  });
+
+  it.each([0, 100])("accepts rewarded daily limit %i", async (dailyAdLimit) => {
+    getServerSessionMock.mockResolvedValueOnce({
+      user: { id: "admin-1", role: "ADMIN" },
+    });
+    const payload = {
+      ...validPayload,
+      rewardedAds: { ...validPayload.rewardedAds, dailyAdLimit },
+    };
+    updateMobileReleaseControlMock.mockResolvedValueOnce({
+      ...payload,
+      revision: 2,
+      updatedAt: "2026-07-26T12:00:00.000Z",
+      updatedBy: { id: "admin-1", username: "admin" },
+    });
+
+    await expect(updateMobileReleaseControlAction(payload)).resolves.toMatchObject({
+      success: true,
+    });
+    expect(updateMobileReleaseControlMock).toHaveBeenCalledWith(payload, "admin-1");
+  });
+
+  it.each([
+    ["negative", -1],
+    ["above maximum", 101],
+    ["fractional", 1.5],
+    ["string", "10"],
+    ["missing", undefined],
+  ])("rejects a %s rewarded daily limit", async (_case, dailyAdLimit) => {
+    getServerSessionMock.mockResolvedValueOnce({
+      user: { id: "admin-1", role: "ADMIN" },
+    });
+    const rewardedAds = { ...validPayload.rewardedAds } as Record<string, unknown>;
+    if (dailyAdLimit === undefined) {
+      delete rewardedAds.dailyAdLimit;
+    } else {
+      rewardedAds.dailyAdLimit = dailyAdLimit;
+    }
+
+    await expect(
+      updateMobileReleaseControlAction({ ...validPayload, rewardedAds }),
+    ).resolves.toMatchObject({
+      success: false,
+      code: "VALIDATION_ERROR",
+    });
+    expect(updateMobileReleaseControlMock).not.toHaveBeenCalled();
   });
 
   it("returns a stable stale-config code", async () => {

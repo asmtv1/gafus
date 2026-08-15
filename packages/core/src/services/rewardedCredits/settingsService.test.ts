@@ -68,8 +68,14 @@ describe("rewarded ad settings", () => {
     });
   });
 
-  it("rejects a daily limit outside the allowed product contract", async () => {
-    await expect(updateRewardedAdSettings({ dailyAdLimit: 4 }, "admin-1")).rejects.toThrow(
+  it.each([0, 1, 100])("accepts daily limit %i", async (dailyAdLimit) => {
+    await expect(
+      updateRewardedAdSettings({ dailyAdLimit }, "admin-1"),
+    ).resolves.toMatchObject({ dailyAdLimit });
+  });
+
+  it.each([-1, 101, 1.5, Number.NaN])("rejects invalid daily limit %s", async (dailyAdLimit) => {
+    await expect(updateRewardedAdSettings({ dailyAdLimit }, "admin-1")).rejects.toThrow(
       "dailyAdLimit",
     );
   });
@@ -126,7 +132,7 @@ describe("rewarded ad settings", () => {
     await expect(
       resolveRewardedPlatformSettings("IOS", {
         platform: "ios",
-        version: "1.6.4",
+        version: "1.6.6",
       }),
     ).resolves.toMatchObject({
       platform: "IOS",
@@ -134,7 +140,7 @@ describe("rewarded ad settings", () => {
     });
     expect(getMobileFeatureFlagEnabledMock).toHaveBeenCalledWith(
       "mobile_rewarded_ads_ios",
-      { platform: "ios", version: "1.6.4" },
+      { platform: "ios", version: "1.6.6" },
       true,
       false,
     );
