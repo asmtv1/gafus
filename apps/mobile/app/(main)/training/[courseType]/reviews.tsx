@@ -1,6 +1,6 @@
 import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 import { useState } from "react";
 
 import { COLORS, SPACING, FONTS } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { coursesApi, type CourseReview } from "@/shared/lib/api/courses";
 import { useAuthStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -255,23 +255,26 @@ export default function ReviewsScreen() {
             </View>
 
             <View style={styles.formActions}>
-              <Pressable
-                style={[
-                  styles.submitButton,
-                  (createMutation.isPending || updateMutation.isPending || rating === 0) &&
-                    styles.submitButtonDisabled,
-                ]}
-                onPress={handleSubmit}
-                disabled={createMutation.isPending || updateMutation.isPending || rating === 0}
-              >
-                <Text style={styles.submitButtonText}>
-                  {createMutation.isPending || updateMutation.isPending
+              <Button
+                label={
+                  createMutation.isPending || updateMutation.isPending
                     ? "Сохранение..."
                     : isEditing
                       ? "Сохранить"
-                      : "Отправить"}
-                </Text>
-              </Pressable>
+                      : "Отправить"
+                }
+                flex={1}
+                height={42}
+                fontFamily={FONTS.impact}
+                fontWeight="600"
+                fontSize={15}
+                lineHeight={20}
+                horizontalPadding={24}
+                verticalPadding={12}
+                borderRadius={12}
+                onPress={handleSubmit}
+                disabled={createMutation.isPending || updateMutation.isPending || rating === 0}
+              />
               {isEditing && (
                 <Pressable
                   style={styles.cancelButton}
@@ -480,23 +483,6 @@ const styles = StyleSheet.create({
   formActions: {
     flexDirection: "row",
     gap: SPACING.sm,
-  },
-  submitButton: {
-    flex: 1,
-    backgroundColor: "#636128",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitButtonText: {
-    color: "#ECE5D2",
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: FONTS.impact,
   },
   cancelButton: {
     flex: 1,

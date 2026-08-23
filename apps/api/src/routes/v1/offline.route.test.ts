@@ -17,6 +17,8 @@ vi.mock("@gafus/core/services/training", () => ({
 }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAccess: mocks.getAppSubscriptionAccess,
+  isOfflineCourseDownloadIncludedPlanCode: (planCode: unknown) =>
+    planCode === "MONTHLY" || planCode === "THREE_MONTHS",
 }));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: vi.fn() }),
@@ -52,13 +54,44 @@ describe("offline course download access", () => {
     expect(mocks.downloadFullCourse).not.toHaveBeenCalled();
   });
 
+  it("rejects a full-course download on the two-week plan", async () => {
+    mocks.getAppSubscriptionAccess.mockResolvedValue({
+      hasActiveSubscription: true,
+      planCode: "TWO_WEEKS",
+    });
+
+    const response = await createApp().request("/api/v1/offline/course/download?courseType=basic");
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "OFFLINE_DOWNLOAD_NOT_INCLUDED",
+    });
+    expect(mocks.getTrainingDays).not.toHaveBeenCalled();
+    expect(mocks.downloadFullCourse).not.toHaveBeenCalled();
+  });
+
   it("downloads only after subscription and course access checks pass", async () => {
-    mocks.getAppSubscriptionAccess.mockResolvedValue({ hasActiveSubscription: true });
+    mocks.getAppSubscriptionAccess.mockResolvedValue({
+      hasActiveSubscription: true,
+      planCode: "MONTHLY",
+    });
 
     const response = await createApp().request("/api/v1/offline/course/download?courseType=basic");
 
     expect(response.status).toBe(200);
     expect(mocks.getTrainingDays).toHaveBeenCalledWith("user-1", "basic");
+    expect(mocks.downloadFullCourse).toHaveBeenCalledWith("basic");
+  });
+
+  it("allows a full-course download on the three-month plan", async () => {
+    mocks.getAppSubscriptionAccess.mockResolvedValue({
+      hasActiveSubscription: true,
+      planCode: "THREE_MONTHS",
+    });
+
+    const response = await createApp().request("/api/v1/offline/course/download?courseType=basic");
+
+    expect(response.status).toBe(200);
     expect(mocks.downloadFullCourse).toHaveBeenCalledWith("basic");
   });
 });

@@ -8,8 +8,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Button, Chip, Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Button as PaperButton, Text } from "react-native-paper";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatConsultationConfirmSlotMsk } from "@gafus/consultation-shared";
 import { isLikelyValidRuPhoneInput } from "@gafus/consultation-shared";
@@ -28,8 +28,8 @@ import {
   isSelfHelpField,
   SLOT_TAKEN_MESSAGE,
 } from "@/features/consultations";
-import { Input } from "@/shared/components/ui";
-import { consultationsApi } from "@/shared/lib/api";
+import { Button, Input } from "@/shared/components/ui";
+import { consultationsApi, isSubscriptionRequiredCode } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
@@ -156,7 +156,7 @@ export default function ConsultationBookingConfirmScreen() {
       const code =
         typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
       const msg = e instanceof Error ? e.message : String(e);
-      if (code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+      if (isSubscriptionRequiredCode(code)) {
         openConsultationAccessPaywall();
         return;
       }
@@ -322,34 +322,48 @@ export default function ConsultationBookingConfirmScreen() {
               showFieldErrors && petGender == null ? styles.genderRowError : null,
             ]}
           >
-            <Chip
-              mode={petGender === "MALE" ? "flat" : "outlined"}
-              selected={petGender === "MALE"}
-              onPress={() => setPetGender("MALE")}
-              style={[
-                styles.genderChip,
-                petGender === "MALE" ? styles.genderChipActive : styles.genderChipInactive,
-              ]}
-              textStyle={
-                petGender === "MALE" ? styles.genderChipTextActive : styles.genderChipTextInactive
-              }
-            >
-              Мальчик
-            </Chip>
-            <Chip
-              mode={petGender === "FEMALE" ? "flat" : "outlined"}
-              selected={petGender === "FEMALE"}
-              onPress={() => setPetGender("FEMALE")}
-              style={[
-                styles.genderChip,
-                petGender === "FEMALE" ? styles.genderChipActive : styles.genderChipInactive,
-              ]}
-              textStyle={
-                petGender === "FEMALE" ? styles.genderChipTextActive : styles.genderChipTextInactive
-              }
-            >
-              Девочка
-            </Chip>
+            <Button
+              label="Мальчик"
+              variant={petGender === "MALE" ? "selected" : "primary"}
+              flex={1}
+              fullWidth={false}
+              height={52}
+              fontSize={15}
+              lineHeight={20}
+              fontFamily={FONTS.montserratMedium}
+              horizontalPadding={6}
+              verticalPadding={0}
+              borderRadius={12}
+              animatedPress
+              haptic={false}
+              onPress={() => {
+                void hapticFeedback.selection();
+                setPetGender("MALE");
+              }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: petGender === "MALE" }}
+            />
+            <Button
+              label="Девочка"
+              variant={petGender === "FEMALE" ? "selected" : "primary"}
+              flex={1}
+              fullWidth={false}
+              height={52}
+              fontSize={15}
+              lineHeight={20}
+              fontFamily={FONTS.montserratMedium}
+              horizontalPadding={6}
+              verticalPadding={0}
+              borderRadius={12}
+              animatedPress
+              haptic={false}
+              onPress={() => {
+                void hapticFeedback.selection();
+                setPetGender("FEMALE");
+              }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: petGender === "FEMALE" }}
+            />
           </View>
           {showFieldErrors && petGender == null ? (
             <Text style={styles.fieldError}>Выберите пол питомца</Text>
@@ -412,16 +426,20 @@ export default function ConsultationBookingConfirmScreen() {
 
           <View style={styles.actions}>
             <Button
-              mode="outlined"
+              label="Назад к слотам"
+              variant="secondary"
               onPress={() => router.replace(`/consultations/${cynologistUserId}` as Href)}
               disabled={bookMutation.isPending}
+              height={52}
+              fontSize={18}
+              lineHeight={22}
+              fontFamily={FONTS.montserratMedium}
+              borderRadius={14}
+              animatedPress
               style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-              labelStyle={styles.actionButtonLabel}
-            >
-              Назад к слотам
-            </Button>
-            <Button
+              accessibilityHint="Возвращает к выбору времени без бронирования"
+            />
+            <PaperButton
               mode="contained"
               onPress={onSubmit}
               loading={bookMutation.isPending}
@@ -440,7 +458,7 @@ export default function ConsultationBookingConfirmScreen() {
               }
             >
               Забронировать
-            </Button>
+            </PaperButton>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -522,24 +540,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginTop: SPACING.xs,
   },
-  genderRow: { flexDirection: "row", gap: SPACING.sm, flexWrap: "wrap" },
-  genderChip: { alignSelf: "flex-start" },
-  genderChipInactive: {
-    backgroundColor: "#F5F0E8",
-    borderColor: "#D4C4A8",
-  },
-  genderChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  genderChipTextInactive: {
-    color: COLORS.text,
-    fontFamily: FONTS.montserratMedium,
-  },
-  genderChipTextActive: {
-    color: COLORS.cardBackground,
-    fontFamily: FONTS.montserratMedium,
-  },
+  genderRow: { flexDirection: "row", gap: SPACING.sm },
   textArea: { backgroundColor: "#F5F0E8", minHeight: 100 },
   notice: {
     fontFamily: FONTS.montserrat,

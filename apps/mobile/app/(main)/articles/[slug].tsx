@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
-import { Loading, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading, MascotSpinner } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import {
   getRewardedAccessPrompt,
@@ -360,15 +360,20 @@ export default function ArticleDetailScreen() {
                 ) : null}
                 {isSeparatePaidArticle ? (
                   <>
-                    <Pressable
-                      style={[styles.btnPrimary, payLoading && styles.btnDisabled]}
+                    <Button
+                      label={payLoading ? "Загрузка…" : "Оплатить статью"}
+                      fullWidth={false}
+                      height={44}
+                      fontFamily={FONTS.montserrat}
+                      fontWeight="600"
+                      fontSize={16}
+                      lineHeight={20}
+                      horizontalPadding={20}
+                      verticalPadding={12}
+                      borderRadius={BORDER_RADIUS.md}
                       onPress={handlePay}
                       disabled={payLoading}
-                    >
-                      <Text style={styles.btnPrimaryText}>
-                        {payLoading ? "Загрузка…" : "Оплатить статью"}
-                      </Text>
-                    </Pressable>
+                    />
                     <Pressable
                       style={styles.btnOutline}
                       onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}
@@ -389,8 +394,17 @@ export default function ArticleDetailScreen() {
                 )}
               </View>
             ) : (
-              <Pressable
-                style={styles.btnPrimary}
+              <Button
+                label="Войти"
+                fullWidth={false}
+                height={44}
+                fontFamily={FONTS.montserrat}
+                fontWeight="600"
+                fontSize={16}
+                lineHeight={20}
+                horizontalPadding={20}
+                verticalPadding={12}
+                borderRadius={BORDER_RADIUS.md}
                 onPress={() =>
                   router.replace(
                     `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<
@@ -398,9 +412,7 @@ export default function ArticleDetailScreen() {
                     >[0],
                   )
                 }
-              >
-                <Text style={styles.btnPrimaryText}>Войти</Text>
-              </Pressable>
+              />
             )}
           </View>
         ) : article.contentType === "TEXT" ? (
@@ -571,18 +583,6 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontFamily: FONTS.montserrat,
     textAlign: "center",
-  },
-  btnPrimary: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  btnPrimaryText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-    fontFamily: FONTS.montserrat,
   },
   btnOutline: {
     borderWidth: 2,

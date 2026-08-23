@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
+import { TrainingStatus } from "@gafus/types";
 
 import {
   checkCourseAccess,
@@ -134,6 +135,31 @@ describe("getCoursesWithProgress", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe("c1");
     expect(rows[0].hasAccess).toBe(true);
+  });
+
+  it("считает начавшими только пользователей со статусом в процессе или завершён", async () => {
+    mockCourseFindMany.mockResolvedValue([
+      minimalCourse({
+        userCourses: [
+          TrainingStatus.NOT_STARTED,
+          TrainingStatus.IN_PROGRESS,
+          TrainingStatus.COMPLETED,
+          TrainingStatus.RESET,
+        ].map((status, index) => ({
+          userId: `participant-${index}`,
+          status,
+          startedAt: null,
+          completedAt: null,
+          user: { username: `participant-${index}`, profile: null },
+        })),
+      }),
+    ]);
+    mockUserCourseFindMany.mockResolvedValue([]);
+    mockFavoriteCourseFindMany.mockResolvedValue([]);
+
+    const result = await getCoursesWithProgress("u1");
+
+    expect(result[0]?.startedUsersCount).toBe(2);
   });
 
   it("приватный курс скрыт без userId", async () => {

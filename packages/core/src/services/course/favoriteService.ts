@@ -5,7 +5,7 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
-import type { Course, CourseAccess, CourseReview, FavoriteCourse } from "@gafus/prisma";
+import type { CourseReview } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
 
 const _logger = createWebLogger("favorite-service");
@@ -39,6 +39,7 @@ export async function getFavoritesCourses(
       reviews: true,
       favoritedBy: true,
       access: true,
+      userCourses: { select: { status: true } },
     },
   });
 
@@ -52,57 +53,51 @@ export async function getFavoritesCourses(
     },
   });
 
-  const data: CourseWithProgressData[] = allCourses.map(
-    (
-      course: Course & {
-        author: { username: string; profile?: { avatarUrl: string | null } | null };
-        reviews: CourseReview[];
-        favoritedBy: FavoriteCourse[];
-        access: CourseAccess[];
-      },
-    ) => {
-      const userCourse = userCourses.find((uc) => uc.courseId === course.id);
-      const c = course as Course & { isPaid: boolean; access: { userId: string }[] };
-      const hasAccess = c.isPaid
-        ? c.access.some((a) => a.userId === userId)
-        : !c.isPrivate || c.access.length > 0;
+  const data: CourseWithProgressData[] = allCourses.map((course) => {
+    const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+    const hasAccess = course.isPaid
+      ? course.access.some((access) => access.userId === userId)
+      : !course.isPrivate || course.access.length > 0;
 
-      return {
-        id: course.id,
-        name: course.name,
-        type: course.type,
-        description: course.description,
-        shortDesc: course.shortDesc,
-        duration: course.duration,
-        logoImg: course.logoImg,
-        isPrivate: course.isPrivate,
-        isPaid: course.isPaid,
-        priceRub: course.priceRub != null ? Number(course.priceRub) : null,
-        hasAccess,
-        avgRating: course.avgRating,
-        trainingLevel: course.trainingLevel,
-        createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
-        updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
-        authorUsername: course.author.username,
-        authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
-        userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
-        startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
-        completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
-        isFavorite: true,
-        reviews: course.reviews.map((review: CourseReview) => ({
-          rating: review.rating ?? 0,
-          comment: review.comment ?? "",
-          createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
-          user: {
-            username: "",
-            profile: null,
-          },
-        })),
-        userCourses: [],
-        dayLinks: [],
-      };
-    },
-  );
+    return {
+      id: course.id,
+      name: course.name,
+      type: course.type,
+      description: course.description,
+      shortDesc: course.shortDesc,
+      duration: course.duration,
+      logoImg: course.logoImg,
+      isPrivate: course.isPrivate,
+      isPaid: course.isPaid,
+      priceRub: course.priceRub != null ? Number(course.priceRub) : null,
+      hasAccess,
+      avgRating: course.avgRating,
+      trainingLevel: course.trainingLevel,
+      createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
+      updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
+      authorUsername: course.author.username,
+      authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
+      userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
+      startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
+      completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
+      startedUsersCount: course.userCourses.filter(
+        (entry) =>
+          entry.status === TrainingStatus.IN_PROGRESS || entry.status === TrainingStatus.COMPLETED,
+      ).length,
+      isFavorite: true,
+      reviews: course.reviews.map((review: CourseReview) => ({
+        rating: review.rating ?? 0,
+        comment: review.comment ?? "",
+        createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
+        user: {
+          username: "",
+          profile: null,
+        },
+      })),
+      userCourses: [],
+      dayLinks: [],
+    };
+  });
 
   return {
     data,

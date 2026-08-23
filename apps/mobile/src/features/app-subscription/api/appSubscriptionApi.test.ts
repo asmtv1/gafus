@@ -9,7 +9,7 @@ vi.mock("@/shared/lib/api/client", () => ({
 vi.mock("@/shared/lib/api/client-context", () => ({
   getMobileClientHeaders: () => ({
     "X-Client-Platform": "ANDROID",
-    "X-Client-Version": "1.6.6",
+    "X-Client-Version": "1.6.7",
   }),
 }));
 

@@ -9,6 +9,7 @@ import {
   Share,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from "react-native";
@@ -17,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -26,7 +28,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { WebView } from "react-native-webview";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getPetDocumentDisplayName,
   PET_DOCUMENT_ALLOWED_MIME_TYPES,
@@ -41,7 +42,8 @@ import {
   type MobileOnboardingTourTargetId,
 } from "@/features/onboarding-tour";
 import { TourTarget, useTourTargets } from "@/shared/lib/tour-targets";
-import { Input } from "@/shared/components/ui";
+import { Button, Input } from "@/shared/components/ui";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet, type PetDocument } from "@/shared/lib/api/pets";
@@ -591,17 +593,22 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
               Фото ветпаспорта, справки и другие файлы питомца
             </Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.documentActionButton,
-              pressed && styles.documentActionPressed,
-            ]}
+          <Button
+            label="Добавить"
+            width={124}
+            fullWidth={false}
+            height={44}
+            fontFamily={FONTS.montserrat}
+            fontWeight="600"
+            fontSize={13}
+            lineHeight={18}
+            horizontalPadding={16}
+            verticalPadding={10}
+            borderRadius={12}
+            animatedPress
             onPress={handlePickDocument}
             disabled={uploadDocumentMutation.isPending}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Text style={styles.documentActionText}>Добавить</Text>
-          </Pressable>
+          />
         </View>
 
         {isLoading ? <Text style={styles.documentHint}>Загрузка документов...</Text> : null}
@@ -628,41 +635,60 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
             <Text style={styles.documentName} numberOfLines={1}>
               Название файла: {getPetDocumentDisplayName(document.name)}
             </Text>
-            <View style={styles.documentActions}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.documentManageButton,
-                  pressed && styles.petActionButtonPressed,
-                ]}
-                onPress={() => handleStartRenameDocument(document)}
-              >
-                <Text style={styles.documentManageIcon}>✏️</Text>
-                <Text style={styles.documentManageText}>Изменить название</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.documentManageButton,
-                  pressed && styles.petActionButtonPressed,
-                ]}
-                onPress={() => void handleShareDocument(document)}
-              >
-                <Text style={styles.documentManageIcon}>🔗</Text>
-                <Text style={styles.documentManageText}>Поделиться файлом</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.documentManageButton,
-                  styles.documentManageButtonDelete,
-                  pressed && styles.petActionButtonPressed,
-                ]}
+            <View style={styles.documentFileActions}>
+              <View style={styles.documentFileActionsRow}>
+                <Button
+                  label="Изменить название"
+                  variant="primary"
+                  flex={1}
+                  fullWidth={false}
+                  height={52}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={11}
+                  lineHeight={15}
+                  horizontalPadding={2}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  icon="pencil-outline"
+                  animatedPress
+                  onPress={() => handleStartRenameDocument(document)}
+                />
+                <Button
+                  label="Поделиться файлом"
+                  variant="primary"
+                  flex={1}
+                  fullWidth={false}
+                  height={52}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={11}
+                  lineHeight={15}
+                  horizontalPadding={2}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  icon="share-variant-outline"
+                  animatedPress
+                  onPress={() => void handleShareDocument(document)}
+                />
+              </View>
+              <Button
+                label="Удалить файл"
+                variant="secondary"
+                height={52}
+                fontFamily={FONTS.montserrat}
+                fontWeight="600"
+                fontSize={12}
+                lineHeight={16}
+                horizontalPadding={8}
+                verticalPadding={0}
+                borderRadius={14}
+                icon="trash-can-outline"
+                animatedPress
                 onPress={() => handleDeleteDocument(document)}
                 disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
-              >
-                <Text style={styles.documentManageIcon}>🗑️</Text>
-                <Text style={[styles.documentManageText, styles.documentManageTextDelete]}>
-                  Удалить файл
-                </Text>
-              </Pressable>
+                accessibilityHint="Открывает подтверждение удаления файла"
+              />
             </View>
           </View>
         ))}
@@ -698,28 +724,39 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
                 placeholder="Введите название"
               />
               <View style={styles.documentActions}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentSecondaryButton,
-                    pressed && styles.documentActionPressed,
-                  ]}
+                <Button
+                  label="Отмена"
+                  variant="secondary"
+                  flex={1}
+                  fullWidth={false}
+                  height={52}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={13}
+                  lineHeight={18}
+                  horizontalPadding={8}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  animatedPress
                   onPress={() => setPendingDocument(null)}
                   disabled={uploadDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentSecondaryText}>Отмена</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentActionButton,
-                    pressed && styles.documentActionPressed,
-                  ]}
+                />
+                <Button
+                  label={uploadDocumentMutation.isPending ? "Загрузка..." : "Сохранить"}
+                  flex={1}
+                  fullWidth={false}
+                  height={52}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={13}
+                  lineHeight={18}
+                  horizontalPadding={8}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  animatedPress
                   onPress={handleUploadDocument}
                   disabled={uploadDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentActionText}>
-                    {uploadDocumentMutation.isPending ? "Загрузка..." : "Сохранить"}
-                  </Text>
-                </Pressable>
+                />
               </View>
             </View>
           </View>
@@ -752,28 +789,39 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
                 onSubmitEditing={handleSaveRenameDocument}
               />
               <View style={styles.documentActions}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentSecondaryButton,
-                    pressed && styles.documentActionPressed,
-                  ]}
+                <Button
+                  label="Отмена"
+                  variant="secondary"
+                  flex={1}
+                  fullWidth={false}
+                  height={52}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={13}
+                  lineHeight={18}
+                  horizontalPadding={8}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  animatedPress
                   onPress={handleCancelRenameDocument}
                   disabled={renameDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentSecondaryText}>Отмена</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.documentActionButton,
-                    pressed && styles.documentActionPressed,
-                  ]}
+                />
+                <Button
+                  label={renameDocumentMutation.isPending ? "Сохранение..." : "Сохранить"}
+                  flex={1}
+                  fullWidth={false}
+                  height={52}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={13}
+                  lineHeight={18}
+                  horizontalPadding={8}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  animatedPress
                   onPress={handleSaveRenameDocument}
                   disabled={renameDocumentMutation.isPending}
-                >
-                  <Text style={styles.documentActionText}>
-                    {renameDocumentMutation.isPending ? "Сохранение..." : "Сохранить"}
-                  </Text>
-                </Pressable>
+                />
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -1033,15 +1081,21 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
               Справочно: не заменяет консультацию ветеринара.
             </Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.documentActionButton,
-              pressed && styles.documentActionPressed,
-            ]}
+          <Button
+            label="Добавить"
+            width={124}
+            fullWidth={false}
+            height={44}
+            fontFamily={FONTS.montserrat}
+            fontWeight="600"
+            fontSize={13}
+            lineHeight={18}
+            horizontalPadding={16}
+            verticalPadding={10}
+            borderRadius={12}
+            animatedPress
             onPress={handleOpenAdd}
-          >
-            <Text style={styles.documentActionText}>Добавить</Text>
-          </Pressable>
+          />
         </View>
 
         {isLoading ? <Text style={styles.documentHint}>Загрузка записей...</Text> : null}
@@ -1124,24 +1178,24 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
                 <Text style={styles.preventionFieldLabel}>Тип процедуры</Text>
                 <View style={styles.preventionTypeRow}>
                   {PREVENTION_TYPES.map((item) => (
-                    <Pressable
+                    <Button
                       key={item.value}
-                      style={[
-                        styles.preventionTypeChip,
-                        type === item.value && styles.preventionTypeChipActive,
-                      ]}
+                      label={item.label}
+                      variant={type === item.value ? "selected" : "primary"}
+                      width={item.value === "TICKS_FLEAS" ? "100%" : "48.8%"}
+                      fullWidth={false}
+                      height={50}
+                      fontSize={13}
+                      lineHeight={18}
+                      fontFamily={FONTS.montserratMedium}
+                      horizontalPadding={6}
+                      verticalPadding={0}
+                      borderRadius={12}
+                      animatedPress
                       onPress={() => setType(item.value)}
-                    >
-                      <Text
-                        style={[
-                          styles.preventionTypeChipText,
-                          type === item.value && styles.preventionTypeChipTextActive,
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {item.label}
-                      </Text>
-                    </Pressable>
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: type === item.value }}
+                    />
                   ))}
                 </View>
 
@@ -1171,57 +1225,53 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
 
                 <View style={styles.preventionToggleRow}>
                   <Text style={styles.preventionFieldLabelNoMargin}>Включить напоминание</Text>
-                  <Pressable
-                    style={[
-                      styles.preventionToggle,
-                      reminderEnabled && styles.preventionToggleActive,
-                    ]}
-                    onPress={() => setReminderEnabled((value) => !value)}
-                  >
-                    <View
-                      style={[
-                        styles.preventionToggleThumb,
-                        reminderEnabled && styles.preventionToggleThumbActive,
-                      ]}
-                    />
-                  </Pressable>
+                  <Switch
+                    value={reminderEnabled}
+                    onValueChange={setReminderEnabled}
+                    trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
+                    thumbColor={COLORS.surface}
+                    ios_backgroundColor={COLORS.borderLight}
+                    accessibilityLabel="Включить напоминание"
+                  />
                 </View>
 
                 {reminderEnabled ? (
                   <>
                     <View style={[styles.preventionTypeRow, styles.preventionReminderTypeRow]}>
-                      <Pressable
-                        style={[
-                          styles.preventionTypeChip,
-                          reminderKind === "AFTER_DAYS" && styles.preventionTypeChipActive,
-                        ]}
+                      <Button
+                        label="Через N дней"
+                        variant={reminderKind === "AFTER_DAYS" ? "selected" : "primary"}
+                        flex={1}
+                        fullWidth={false}
+                        height={48}
+                        fontSize={13}
+                        lineHeight={18}
+                        fontFamily={FONTS.montserratMedium}
+                        horizontalPadding={6}
+                        verticalPadding={0}
+                        borderRadius={12}
+                        animatedPress
                         onPress={() => setReminderKind("AFTER_DAYS")}
-                      >
-                        <Text
-                          style={[
-                            styles.preventionTypeChipText,
-                            reminderKind === "AFTER_DAYS" && styles.preventionTypeChipTextActive,
-                          ]}
-                        >
-                          Через N дней
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.preventionTypeChip,
-                          reminderKind === "ON_DATE" && styles.preventionTypeChipActive,
-                        ]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: reminderKind === "AFTER_DAYS" }}
+                      />
+                      <Button
+                        label="По дате"
+                        variant={reminderKind === "ON_DATE" ? "selected" : "primary"}
+                        flex={1}
+                        fullWidth={false}
+                        height={48}
+                        fontSize={13}
+                        lineHeight={18}
+                        fontFamily={FONTS.montserratMedium}
+                        horizontalPadding={6}
+                        verticalPadding={0}
+                        borderRadius={12}
+                        animatedPress
                         onPress={() => setReminderKind("ON_DATE")}
-                      >
-                        <Text
-                          style={[
-                            styles.preventionTypeChipText,
-                            reminderKind === "ON_DATE" && styles.preventionTypeChipTextActive,
-                          ]}
-                        >
-                          По дате
-                        </Text>
-                      </Pressable>
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: reminderKind === "ON_DATE" }}
+                      />
                     </View>
                     {reminderKind === "AFTER_DAYS" ? (
                       <Input
@@ -1244,27 +1294,39 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
                 ) : null}
 
                 <View style={styles.preventionModalActions}>
-                  <Pressable
-                    style={styles.preventionCancelButton}
+                  <Button
+                    label="Отмена"
+                    variant="secondary"
+                    flex={1}
+                    fullWidth={false}
+                    height={48}
+                    fontFamily={FONTS.montserrat}
+                    fontWeight="600"
+                    fontSize={15}
+                    lineHeight={20}
+                    horizontalPadding={0}
+                    verticalPadding={14}
+                    borderRadius={10}
                     onPress={() => {
                       setShowModal(false);
                       resetForm();
                     }}
-                  >
-                    <Text style={styles.preventionCancelText}>Отмена</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.preventionSaveButton,
-                      saving && styles.preventionSaveButtonDisabled,
-                    ]}
+                  />
+                  <Button
+                    label={saving ? "Сохранение..." : "Сохранить"}
+                    flex={1}
+                    fullWidth={false}
+                    height={48}
+                    fontFamily={FONTS.montserrat}
+                    fontWeight="600"
+                    fontSize={15}
+                    lineHeight={20}
+                    horizontalPadding={0}
+                    verticalPadding={14}
+                    borderRadius={10}
                     onPress={handleSave}
                     disabled={saving}
-                  >
-                    <Text style={styles.preventionSaveText}>
-                      {saving ? "Сохранение..." : "Сохранить"}
-                    </Text>
-                  </Pressable>
+                  />
                 </View>
               </ScrollView>
             </View>
@@ -1454,7 +1516,7 @@ export default function PetsTabScreen() {
   }, [pets.length, scrollToTourTarget, tourIsActive]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
         ref={scrollRef}
         onLayout={(event) => {
@@ -1474,40 +1536,41 @@ export default function PetsTabScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.pageTitle}>Питомцы</Text>
+        <PageHeader title="Питомцы" description="Здоровье, документы и важные записи питомцев" />
         {pets.length === 0 ? (
           <View style={styles.emptyStateWrap}>
             <View style={styles.emptyCard}>
-              <Text style={styles.noPets}>Питомцы не добавлены</Text>
+              <View style={styles.emptyIcon}>
+                <MaterialCommunityIcons name="paw-outline" size={31} color={COLORS.primary} />
+              </View>
+              <Text style={styles.noPets}>Питомцы пока не добавлены</Text>
               <Text style={styles.emptyStateHint}>
                 Добавьте питомца, чтобы записывать прививки, ставить напоминания и хранить документы
                 по вашему питомцу.
               </Text>
             </View>
             <TourTarget id="pets-add-button">
-              <Pressable
+              <Button
+                label="Добавить питомца"
                 style={styles.addPetButton}
                 onPress={() => {
                   trackPetsClick("pet-add-open");
                   router.push({ pathname: "/pets/add" });
                 }}
-              >
-                <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-              </Pressable>
+              />
             </TourTarget>
           </View>
         ) : (
           <View style={styles.petsList}>
             {pets.map((pet) => (
-              <View
-                key={pet.id}
-                style={styles.petItem}
-              >
+              <View key={pet.id} style={styles.petItem}>
                 <View style={styles.petMainInfo}>
                   <Pressable
                     onPress={() => pickImageAndUploadPetPhoto(pet.id)}
                     disabled={petPhotoUploadMutation.isPending}
                     style={styles.petAvatarPressable}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Изменить фотографию питомца ${pet.name}`}
                   >
                     {pet.photoUrl ? (
                       <Image
@@ -1516,14 +1579,10 @@ export default function PetsTabScreen() {
                         contentFit="cover"
                       />
                     ) : (
-                      <Image
-                        source={petAvatarImage}
-                        style={styles.petAvatar}
-                        contentFit="cover"
-                      />
+                      <Image source={petAvatarImage} style={styles.petAvatar} contentFit="cover" />
                     )}
                     <View style={styles.petAvatarEditBadge}>
-                      <Text style={styles.petAvatarEditText}>✏️</Text>
+                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#F6F0DF" />
                     </View>
                   </Pressable>
                   <View style={styles.petInfo}>
@@ -1577,37 +1636,44 @@ export default function PetsTabScreen() {
                 </View>
                 <View style={styles.petCardActions}>
                   <View style={styles.petManageActions}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.petManageButton,
-                        pressed && styles.petActionButtonPressed,
-                      ]}
+                    <Button
+                      label="Изменить питомца"
+                      variant="primary"
+                      flex={1}
+                      fullWidth={false}
+                      height={56}
+                      fontSize={11}
+                      lineHeight={15}
+                      fontFamily={FONTS.montserrat}
+                      fontWeight="600"
+                      horizontalPadding={2}
+                      verticalPadding={0}
+                      borderRadius={14}
+                      icon="pencil-outline"
+                      animatedPress
                       onPress={() => {
                         trackPetsClick("pet-edit-open");
                         handleEditPet(pet);
                       }}
-                    >
-                      <Text style={styles.petActionIcon}>✏️</Text>
-                      <Text style={styles.petActionText} numberOfLines={2}>
-                        Изменить питомца
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.petManageButton,
-                        styles.petActionButtonDelete,
-                        pressed && styles.petActionButtonPressedDelete,
-                      ]}
+                    />
+                    <Button
+                      label="Удалить питомца"
+                      variant="secondary"
+                      flex={1}
+                      fullWidth={false}
+                      height={56}
+                      fontSize={11}
+                      lineHeight={15}
+                      fontFamily={FONTS.montserrat}
+                      fontWeight="600"
+                      horizontalPadding={2}
+                      verticalPadding={0}
+                      borderRadius={14}
+                      icon="trash-can-outline"
+                      animatedPress
                       onPress={() => handleDeletePet(pet)}
-                    >
-                      <Text style={styles.petActionIcon}>🗑️</Text>
-                      <Text
-                        style={[styles.petActionText, styles.petActionTextDelete]}
-                        numberOfLines={2}
-                      >
-                        Удалить питомца
-                      </Text>
-                    </Pressable>
+                      accessibilityHint="Открывает подтверждение удаления питомца"
+                    />
                   </View>
                   <PetPreventionSection pet={pet} />
                   <PetDocumentsSection pet={pet} />
@@ -1618,19 +1684,18 @@ export default function PetsTabScreen() {
         )}
         {pets.length > 0 ? (
           <TourTarget id="pets-add-button">
-            <Pressable
+            <Button
+              label="Добавить питомца"
               style={styles.addPetButton}
               onPress={() => {
                 trackPetsClick("pet-add-open");
                 router.push({ pathname: "/pets/add" });
               }}
-            >
-              <Text style={styles.addPetButtonText}>Добавить питомца</Text>
-            </Pressable>
+            />
           </TourTarget>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 
@@ -1642,23 +1707,27 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: SPACING.md,
-    paddingBottom: SPACING.xl,
-  },
-  pageTitle: {
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "400",
-    color: "#352E2E",
-    textAlign: "center",
-    marginBottom: SPACING.md,
-    fontFamily: FONTS.impact,
+    paddingBottom: SPACING.xxl,
   },
   emptyCard: {
-    backgroundColor: "#F5F0E8",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
+    alignItems: "center",
+    backgroundColor: "#FFF8E5",
+    borderRadius: 16,
     padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  emptyIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(99, 97, 40, 0.12)",
     marginBottom: SPACING.md,
   },
   emptyStateWrap: {
@@ -1667,17 +1736,17 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   noPets: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    fontStyle: "normal",
+    color: COLORS.text,
+    fontSize: 19,
+    lineHeight: 25,
     textAlign: "center",
-    fontFamily: FONTS.montserrat,
+    fontFamily: FONTS.montserratBold,
   },
   emptyStateHint: {
     marginTop: SPACING.sm,
     color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: "center",
     fontFamily: FONTS.montserrat,
   },
@@ -1687,44 +1756,56 @@ const styles = StyleSheet.create({
   },
   petItem: {
     flexDirection: "column",
-    padding: SPACING.md,
-    backgroundColor: "#F5F0E8",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xs,
+    backgroundColor: "#FFF8E5",
+    borderRadius: 22,
     marginBottom: SPACING.xs,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 5,
   },
   petMainInfo: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: SPACING.md,
-    marginBottom: SPACING.md,
   },
   petAvatarPressable: {
     position: "relative",
-    width: 78,
-    height: 78,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#F5F0E8",
+    padding: 4,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 3,
   },
   petAvatar: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
   },
   petAvatarEditBadge: {
     position: "absolute",
-    right: -2,
-    bottom: -2,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 11,
-    width: 22,
-    height: 22,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    width: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.surface,
-  },
-  petAvatarEditText: {
-    fontSize: 10,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 4,
+    elevation: 2,
   },
   petInfo: {
     flex: 1,
@@ -1732,12 +1813,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   petName: {
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: "600",
+    fontSize: 19,
+    lineHeight: 25,
+    fontFamily: FONTS.montserratBold,
     color: COLORS.text,
-    marginBottom: 4,
-    fontFamily: FONTS.montserrat,
+    marginBottom: 6,
   },
   petDetail: {
     fontSize: 13,
@@ -1754,21 +1834,18 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
   },
   petCardActions: {
-    marginTop: SPACING.md,
-    gap: SPACING.sm,
+    marginTop: SPACING.lg,
   },
   documentsSection: {
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    borderRadius: 12,
-    padding: SPACING.sm,
-    backgroundColor: "#ECE5D2",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(99, 97, 40, 0.18)",
+    paddingVertical: SPACING.md,
     gap: SPACING.xs,
   },
   documentsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: SPACING.sm,
   },
   documentsTitleWrap: {
@@ -1776,10 +1853,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   documentsTitle: {
-    fontSize: 13,
+    fontSize: 15,
+    lineHeight: 20,
     color: COLORS.text,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
+    fontFamily: FONTS.montserratBold,
   },
   documentHint: {
     fontSize: 12,
@@ -1840,23 +1917,15 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     flexWrap: "wrap",
   },
-  documentActionButton: {
-    minHeight: 44,
-    minWidth: 108,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
+  documentFileActions: {
+    gap: SPACING.xs,
+    paddingTop: 2,
+    paddingBottom: SPACING.sm,
   },
-  documentActionText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.onPrimary,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    textAlign: "center",
+  documentFileActionsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: SPACING.xs,
   },
   documentSecondaryButton: {
     minHeight: 40,
@@ -1894,44 +1963,6 @@ const styles = StyleSheet.create({
   documentActionPressed: {
     opacity: 0.85,
   },
-  documentManageButton: {
-    flex: 1,
-    minWidth: 108,
-    minHeight: 64,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "#F5F0E8",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  documentManageButtonDelete: {
-    borderColor: "#c62828",
-  },
-  documentManageIcon: {
-    fontSize: 16,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  documentManageText: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: COLORS.primary,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  documentManageTextDelete: {
-    color: "#c62828",
-  },
   documentModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -1950,8 +1981,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   documentRenameModalDismiss: {
-    flex: 1,
-    width: "100%",
+    ...StyleSheet.absoluteFillObject,
   },
   documentModalPreview: {
     width: "100%",
@@ -2046,17 +2076,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   preventionSection: {
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    borderRadius: 12,
-    padding: SPACING.sm,
-    backgroundColor: "#ECE5D2",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(99, 97, 40, 0.18)",
+    paddingVertical: SPACING.md,
     gap: SPACING.xs,
   },
   preventionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: SPACING.sm,
   },
   preventionTitleWrap: {
@@ -2064,10 +2092,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   preventionTitle: {
-    fontSize: 13,
+    fontSize: 15,
+    lineHeight: 20,
     color: COLORS.text,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
+    fontFamily: FONTS.montserratBold,
   },
   preventionHint: {
     fontSize: 11,
@@ -2132,40 +2160,12 @@ const styles = StyleSheet.create({
   },
   preventionTypeRow: {
     flexDirection: "row",
-    gap: 6,
+    flexWrap: "wrap",
+    gap: 8,
     marginBottom: SPACING.md,
   },
   preventionReminderTypeRow: {
     marginTop: SPACING.xs,
-  },
-  preventionTypeChip: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: COLORS.background,
-  },
-  preventionTypeChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  preventionTypeChipText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: COLORS.textSecondary,
-    textAlign: "center",
-    width: "100%",
-    fontFamily: FONTS.montserrat,
-  },
-  preventionTypeChipTextActive: {
-    color: COLORS.onPrimary,
-    fontWeight: "600",
   },
   preventionToggleRow: {
     flexDirection: "row",
@@ -2180,64 +2180,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D4C4A8",
   },
-  preventionToggle: {
-    width: 52,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  preventionToggleActive: {
-    backgroundColor: COLORS.primary,
-  },
-  preventionToggleThumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.surface,
-  },
-  preventionToggleThumbActive: {
-    alignSelf: "flex-end",
-  },
   preventionModalActions: {
     flexDirection: "row",
     gap: SPACING.sm,
     marginTop: SPACING.lg,
-  },
-  preventionCancelButton: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-  },
-  preventionCancelText: {
-    color: COLORS.textSecondary,
-    fontSize: 15,
-    fontWeight: "500",
-    fontFamily: FONTS.montserrat,
-  },
-  preventionSaveButton: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-  },
-  preventionSaveButtonDisabled: {
-    opacity: 0.5,
-  },
-  preventionSaveText: {
-    color: COLORS.onPrimary,
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
   },
   preventionInput: {
     minHeight: 52,
@@ -2246,78 +2192,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     gap: SPACING.sm,
-    paddingBottom: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(212, 196, 168, 0.4)",
-  },
-  petManageButton: {
-    flex: 1,
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.xs,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: 4,
-    backgroundColor: "#F5F0E8",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    minHeight: 56,
-  },
-  petActionButtonPressed: {
-    backgroundColor: "#ECE5D2",
-    borderColor: COLORS.primary,
-    transform: [{ scale: 0.98 }],
-  },
-  petActionButtonDelete: {
-    backgroundColor: "#F5F0E8",
-    borderColor: "#c62828",
-  },
-  petActionButtonPressedDelete: {
-    backgroundColor: "#ECE5D2",
-    borderColor: "#c62828",
-    transform: [{ scale: 0.98 }],
-  },
-  petActionIcon: {
-    fontSize: 16,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  petActionText: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: COLORS.primary,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    letterSpacing: 0.1,
-    textAlign: "center",
-    width: "100%",
-  },
-  petActionTextDelete: {
-    color: "#c62828",
+    paddingBottom: SPACING.md,
   },
   addPetButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
     marginTop: SPACING.md,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  addPetButtonText: {
-    color: COLORS.onPrimary,
-    fontSize: 15,
-    fontWeight: "600",
-    textAlign: "center",
-    fontFamily: FONTS.impact,
   },
 });

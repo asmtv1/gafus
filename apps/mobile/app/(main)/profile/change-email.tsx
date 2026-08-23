@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Stack, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Button, Input, Card } from "@/shared/components/ui";
@@ -57,63 +57,79 @@ export default function ChangeEmailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Card mode="contained" style={styles.card}>
-          <Card.Content>
-            <View style={styles.iconWrap}>
-              <MaterialCommunityIcons name="email-outline" size={28} color={COLORS.primaryDark} />
-            </View>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              Новый адрес
-            </Text>
-            <Text variant="bodyMedium" style={styles.hint}>
-              На указанный email придёт письмо со ссылкой для подтверждения. Текущий email останется
-              активен, пока вы не откроете ссылку из письма.
-            </Text>
-            <View style={styles.stepsBox}>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • Введите адрес и нажмите «Отправить письмо»
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Card mode="contained" style={styles.card}>
+            <Card.Content>
+              <View style={styles.iconWrap}>
+                <MaterialCommunityIcons name="email-outline" size={28} color={COLORS.primaryDark} />
+              </View>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                Новый адрес
               </Text>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • Ссылка в письме действует ограниченное время
+              <Text variant="bodyMedium" style={styles.hint}>
+                На указанный email придёт письмо со ссылкой для подтверждения. Текущий email
+                останется активен, пока вы не откроете ссылку из письма.
               </Text>
-            </View>
-            <Input
-              label="Новый email"
-              value={newEmail}
-              onChangeText={(t) => {
-                setNewEmail(t);
-                if (fieldError) {
-                  setFieldError("");
-                }
-              }}
-              placeholder="email@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              error={fieldError}
-              style={styles.input}
-            />
-            <Button
-              label={loading ? "Отправка…" : "Отправить письмо"}
-              onPress={onSend}
-              loading={loading}
-              disabled={loading}
-              style={styles.button}
-            />
-          </Card.Content>
-        </Card>
-      </ScrollView>
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))}
-        duration={4000}
-      >
-        {snackbar.message}
-      </Snackbar>
-    </SafeAreaView>
+              <View style={styles.stepsBox}>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • Введите адрес и нажмите «Отправить письмо»
+                </Text>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • Ссылка в письме действует ограниченное время
+                </Text>
+              </View>
+              <Input
+                label="Новый email"
+                value={newEmail}
+                onChangeText={(t) => {
+                  setNewEmail(t);
+                  if (fieldError) {
+                    setFieldError("");
+                  }
+                }}
+                placeholder="email@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                error={fieldError}
+                style={styles.input}
+              />
+              <View style={styles.actions}>
+                <Button
+                  label={loading ? "Отправка…" : "Отправить письмо"}
+                  onPress={onSend}
+                  loading={loading}
+                  disabled={loading}
+                  animatedPress
+                />
+                <Button
+                  label="Отмена"
+                  variant="secondary"
+                  onPress={() => {
+                    void hapticFeedback.light();
+                    router.back();
+                  }}
+                  disabled={loading}
+                  animatedPress
+                  accessibilityHint="Закрывает экран без сохранения изменений"
+                />
+              </View>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))}
+          duration={4000}
+        >
+          {snackbar.message}
+        </Snackbar>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -123,7 +139,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scroll: {
-    padding: SPACING.lg,
+    padding: SPACING.md,
+    paddingBottom: SPACING.xl,
   },
   card: {
     backgroundColor: COLORS.cardBackground,
@@ -170,8 +187,8 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: SPACING.xs,
   },
-  button: {
+  actions: {
     marginTop: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    gap: SPACING.sm,
   },
 });

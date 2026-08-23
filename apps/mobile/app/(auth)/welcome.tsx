@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Snackbar, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
+import { FontAwesome5 } from "@expo/vector-icons";
 
 import { Button } from "@/shared/components/ui";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
@@ -29,62 +30,86 @@ export default function WelcomeScreen() {
       : publicConfigFetched && Boolean(publicConfigResponse?.data?.vkLoginEnabledOnIos);
 
   const imgW = layout.contentWidth(SPACING.md * 4);
-  const titleSize = layout.moderateScale(110, 0.4);
+  const titleSize = layout.moderateScale(88, 0.35);
   const pawW = layout.scale(141);
   const pawH = layout.scale(136);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Шапка с лапкой */}
-      <View style={styles.pawContainer}>
-        <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>учимся</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+        bounces={false}
+      >
+        {/* Шапка с лапкой */}
+        <View style={styles.pawContainer}>
+          <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>учимся</Text>
+          <Image
+            source={require("../../assets/images/paw.png")}
+            style={[styles.paw, { width: pawW, height: pawH }]}
+            contentFit="contain"
+          />
+          <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>вместе</Text>
+        </View>
+
+        {/* Заголовок */}
+        <Text style={[styles.title, { fontSize: Math.min(titleSize, 92) }]}>Гафус!</Text>
+
+        {/* Приветственная иллюстрация */}
         <Image
-          source={require("../../assets/images/paw.png")}
-          style={[styles.paw, { width: pawW, height: pawH }]}
+          source={require("../../assets/images/firstscrin-transparent.png")}
+          style={[styles.welcomeImage, { width: imgW }]}
           contentFit="contain"
         />
-        <Text style={[styles.pawText, { fontSize: layout.moderateScale(15) }]}>вместе</Text>
-      </View>
 
-      {/* Заголовок */}
-      <Text style={[styles.title, { fontSize: Math.min(titleSize, 110) }]}>Гафус!</Text>
+        {/* Кнопки — как в остальном клиенте */}
+        <View style={styles.buttonsContainer}>
+          <Button
+            label="Войти"
+            variant="primary"
+            onPress={() => router.push("/login")}
+            style={styles.button}
+          />
+          <Button
+            label="Регистрация"
+            variant="outline"
+            buttonColor="#E9E2CF"
+            onPress={() => router.push("/register")}
+            style={[styles.button, styles.registerButton]}
+          />
+          {showVkButton ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.vkButton,
+                pressed && styles.vkButtonPressed,
+                isVkLoading && styles.vkButtonDisabled,
+              ]}
+              onPress={handleVkLogin}
+              disabled={isVkLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Регистрация и вход через VK"
+              accessibilityState={{ disabled: isVkLoading, busy: isVkLoading }}
+            >
+              {isVkLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <View style={styles.vkLogoSurface}>
+                  <FontAwesome5 name="vk" size={20} color="#0077FF" />
+                </View>
+              )}
+              <Text style={styles.vkButtonText} numberOfLines={1} adjustsFontSizeToFit>
+                {isVkLoading ? "Загрузка..." : "Регистрация и вход через VK"}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
 
-      {/* Приветственная иллюстрация */}
-      <Image
-        source={require("../../assets/images/firstscrin.png")}
-        style={[styles.welcomeImage, { width: imgW, aspectRatio: 1 }]}
-        contentFit="contain"
-      />
+      </ScrollView>
 
-      {/* Кнопки — как в остальном клиенте */}
-      <View style={styles.buttonsContainer}>
-        <Button
-          label="Войти"
-          variant="primary"
-          onPress={() => router.push("/login")}
-          style={styles.button}
-        />
-        <Button
-          label="Регистрация"
-          variant="outline"
-          onPress={() => router.push("/register")}
-          style={styles.button}
-        />
-        {showVkButton ? (
-          <Pressable
-            style={[styles.vkButton, { width: "100%" }]}
-            onPress={handleVkLogin}
-            disabled={isVkLoading}
-          >
-            <Text style={styles.vkButtonText}>
-              {isVkLoading ? "Загрузка..." : "Регистрация и вход через VK"}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {/* Подпись */}
+      {/* Подпись закреплена у нижнего края экрана */}
       <Text
+        pointerEvents="none"
         style={[
           styles.subtitle,
           {
@@ -115,9 +140,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  content: {
+    flexGrow: 1,
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    gap: 20,
+    paddingBottom: 64,
+    gap: 16,
   },
   // Шапка с лапкой - как в веб
   pawContainer: {
@@ -127,8 +156,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     width: "100%",
     overflow: "visible",
-    marginTop: 20,
-    marginBottom: -20,
+    marginTop: 12,
+    marginBottom: -18,
   },
   pawText: {
     fontSize: 15,
@@ -138,46 +167,74 @@ const styles = StyleSheet.create({
   },
   paw: {
     marginLeft: 12,
-    marginTop: -30,
+    marginTop: -24,
   },
   title: {
     fontWeight: "400",
     color: COLORS.primary,
-    marginTop: -20,
-    marginBottom: 0,
+    marginTop: -14,
+    marginBottom: -4,
     fontFamily: FONTS.impact,
   },
   welcomeImage: {
-    marginTop: -50,
-    marginBottom: -SPACING.lg,
+    aspectRatio: 1280 / 849,
   },
   buttonsContainer: {
-    marginTop: 5,
-    gap: SPACING.sm,
+    marginTop: 4,
+    gap: 12,
     width: "100%",
     alignItems: "stretch",
   },
   button: {
     minHeight: 48,
   },
+  registerButton: {
+    borderColor: "rgba(99, 97, 40, 0.42)",
+    boxShadow: "0 7px 12px rgba(53, 52, 16, 0.22)",
+    elevation: 7,
+  },
   vkButton: {
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderRadius: 5,
-    height: 36,
+    width: "100%",
+    minHeight: 54,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
-    backgroundColor: "transparent",
+    gap: 12,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: "#0077FF",
+    boxShadow: "0 7px 12px rgba(0, 77, 166, 0.28)",
+    elevation: 7,
+  },
+  vkButtonPressed: {
+    backgroundColor: "#0067E0",
+    boxShadow: "0 2px 4px rgba(0, 77, 166, 0.22)",
+    elevation: 2,
+    transform: [{ translateY: 4 }, { scale: 0.99 }],
+  },
+  vkButtonDisabled: {
+    opacity: 0.58,
+  },
+  vkLogoSurface: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
   },
   vkButtonText: {
-    fontSize: 12,
-    fontFamily: FONTS.montserrat,
-    color: COLORS.primary,
+    flexShrink: 1,
+    fontSize: 14,
+    lineHeight: 19,
+    fontFamily: FONTS.montserratBold,
+    color: "#FFFFFF",
   },
   subtitle: {
     position: "absolute",
-    bottom: 15,
+    bottom: 40,
+    alignSelf: "center",
     color: COLORS.primary,
     opacity: 0.8,
     lineHeight: 15.6,

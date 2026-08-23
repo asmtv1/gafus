@@ -12,7 +12,10 @@ import {
   downloadFullCourse,
 } from "@gafus/core/services/offline";
 import { getTrainingDays } from "@gafus/core/services/training";
-import { getAppSubscriptionAccess } from "@gafus/core/services/appSubscription";
+import {
+  getAppSubscriptionAccess,
+  isOfflineCourseDownloadIncludedPlanCode,
+} from "@gafus/core/services/appSubscription";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-offline");
@@ -90,6 +93,16 @@ offlineRoutes.get("/course/download", zValidator("query", downloadQuerySchema), 
           code: "SUBSCRIPTION_REQUIRED",
         },
         402,
+      );
+    }
+    if (!isOfflineCourseDownloadIncludedPlanCode(subscription.planCode)) {
+      return c.json(
+        {
+          success: false,
+          error: "Скачивание курсов доступно на тарифах от одного месяца",
+          code: "OFFLINE_DOWNLOAD_NOT_INCLUDED",
+        },
+        403,
       );
     }
 

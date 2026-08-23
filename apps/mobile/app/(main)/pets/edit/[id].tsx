@@ -10,14 +10,14 @@ import {
   TextInput,
 } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { validatePetForm, type PetFormErrors } from "@/features/pets";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { formatIsoBirthDateToDdMmYyyy } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -36,7 +36,7 @@ export default function EditPetScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const rawId = useLocalSearchParams<{ id: string | string[] }>().id;
-  const petId = typeof rawId === "string" ? rawId : rawId?.[0] ?? "";
+  const petId = typeof rawId === "string" ? rawId : (rawId?.[0] ?? "");
   const [name, setName] = useState("");
   const [type, setType] = useState<PetKind>("DOG");
   const [breed, setBreed] = useState("");
@@ -113,10 +113,7 @@ export default function EditPetScreen() {
           errorStack: error instanceof Error ? error.stack : undefined,
         });
       }
-      Alert.alert(
-        "Ошибка",
-        error instanceof Error ? error.message : "Не удалось обновить питомца",
-      );
+      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось обновить питомца");
     },
   });
 
@@ -186,9 +183,7 @@ export default function EditPetScreen() {
               <View style={styles.formCard}>
                 <Text style={styles.screenTitle}>Редактировать питомца</Text>
                 <Text style={styles.errorInline}>Питомец не найден</Text>
-                <Pressable style={styles.secondaryButton} onPress={handleBack}>
-                  <Text style={styles.secondaryButtonText}>Назад</Text>
-                </Pressable>
+                <Button label="Назад" variant="outline" onPress={handleBack} />
               </View>
             </ScrollView>
           ) : (
@@ -214,28 +209,29 @@ export default function EditPetScreen() {
                 <Text style={styles.fieldLabel}>Тип *</Text>
                 <View style={styles.typeRow}>
                   {PET_TYPES.map((t) => (
-                    <Pressable
+                    <Button
                       key={t.value}
-                      style={[styles.typeChip, type === t.value && styles.typeChipSelected]}
+                      label={t.label}
+                      icon={t.icon}
+                      variant={type === t.value ? "selected" : "primary"}
+                      flex={1}
+                      fullWidth={false}
+                      height={52}
+                      fontSize={13}
+                      lineHeight={18}
+                      fontFamily={FONTS.montserratMedium}
+                      horizontalPadding={6}
+                      verticalPadding={0}
+                      borderRadius={12}
+                      animatedPress
+                      haptic={false}
                       onPress={() => {
                         void hapticFeedback.selection();
                         setType(t.value);
                       }}
-                    >
-                      <MaterialCommunityIcons
-                        name={t.icon}
-                        size={20}
-                        color={type === t.value ? COLORS.onPrimary : COLORS.textSecondary}
-                      />
-                      <Text
-                        style={[
-                          styles.typeChipText,
-                          type === t.value && styles.typeChipTextSelected,
-                        ]}
-                      >
-                        {t.label}
-                      </Text>
-                    </Pressable>
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: type === t.value }}
+                    />
                   ))}
                 </View>
 
@@ -343,25 +339,37 @@ export default function EditPetScreen() {
                 />
 
                 <View style={styles.actionsRow}>
-                  <Pressable
-                    style={styles.secondaryButton}
+                  <Button
+                    label="Отмена"
+                    variant="secondary"
+                    flex={1}
+                    fullWidth={false}
+                    height={48}
+                    fontFamily={FONTS.montserrat}
+                    fontWeight="600"
+                    fontSize={15}
+                    lineHeight={20}
+                    horizontalPadding={0}
+                    verticalPadding={14}
+                    borderRadius={10}
                     onPress={handleBack}
                     disabled={updateMutation.isPending}
-                  >
-                    <Text style={styles.secondaryButtonText}>Отмена</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.primaryButton,
-                      updateMutation.isPending && styles.primaryButtonDisabled,
-                    ]}
+                  />
+                  <Button
+                    label={updateMutation.isPending ? "Сохранение…" : "Сохранить"}
+                    flex={1}
+                    fullWidth={false}
+                    height={48}
+                    fontFamily={FONTS.montserrat}
+                    fontWeight="600"
+                    fontSize={15}
+                    lineHeight={20}
+                    horizontalPadding={0}
+                    verticalPadding={14}
+                    borderRadius={10}
                     onPress={handleSave}
                     disabled={updateMutation.isPending}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {updateMutation.isPending ? "Сохранение…" : "Сохранить"}
-                    </Text>
-                  </Pressable>
+                  />
                 </View>
               </View>
             </ScrollView>
@@ -484,67 +492,9 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
   },
-  typeChip: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "#FFF",
-  },
-  typeChipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  typeChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-    color: COLORS.textSecondary,
-  },
-  typeChipTextSelected: {
-    color: COLORS.onPrimary,
-  },
   actionsRow: {
     flexDirection: "row",
     gap: SPACING.sm,
     marginTop: SPACING.md,
-  },
-  secondaryButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "transparent",
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
-  primaryButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.55,
-  },
-  primaryButtonText: {
-    color: COLORS.onPrimary,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
   },
 });

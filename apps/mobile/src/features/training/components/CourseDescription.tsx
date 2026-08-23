@@ -3,9 +3,10 @@ import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MarkdownText, VideoPlayer } from "@/shared/components";
+import { Button } from "@/shared/components/ui";
 import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
 import { getEmbeddedVideoInfo } from "@gafus/core/utils";
-import { COLORS, SPACING } from "@/shared/config";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
 
 interface CourseDescriptionProps {
   description: string | null;
@@ -67,7 +68,7 @@ export function CourseDescription({
   return (
     <View style={styles.container}>
       {/* Pressable внутри Surface: на iOS внешняя обёртка + elevation ломала hit-testing */}
-      <Surface style={[styles.headerSurface, isExpanded && styles.headerExpanded]} elevation={1}>
+      <Surface style={[styles.headerSurface, isExpanded && styles.headerExpanded]} elevation={0}>
         <Pressable
           onPress={handleToggle}
           style={({ pressed }) => [
@@ -77,6 +78,7 @@ export function CourseDescription({
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={isExpanded ? "Скрыть описание курса" : "Подробнее описание курса"}
+          accessibilityState={{ expanded: isExpanded }}
         >
           <Text variant="titleMedium" style={styles.title}>
             Описание курса
@@ -95,7 +97,7 @@ export function CourseDescription({
 
       {isExpanded && (
         <View style={styles.content}>
-          <Surface style={styles.contentSurface} elevation={1}>
+          <Surface style={styles.contentSurface} elevation={0}>
             <View style={styles.markdownContainer}>
               {description ? <MarkdownText text={description} /> : null}
 
@@ -114,17 +116,22 @@ export function CourseDescription({
                         <Text style={styles.videoErrorText} selectable>
                           Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
                         </Text>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.videoRetryButton,
-                            pressed && styles.videoLinkPressed,
-                          ]}
+                        <Button
+                          label="Повторить"
+                          fullWidth={false}
+                          height={44}
+                          fontFamily={null}
+                          fontWeight="600"
+                          fontSize={14}
+                          lineHeight={18}
+                          horizontalPadding={SPACING.md}
+                          verticalPadding={0}
+                          borderRadius={10}
+                          style={styles.videoRetryButtonLayout}
                           onPress={retryVideo}
                           accessibilityRole="button"
                           accessibilityLabel="Повторить загрузку видео"
-                        >
-                          <Text style={styles.videoRetryText}>Повторить</Text>
-                        </Pressable>
+                        />
                       </View>
                     ) : playbackUrl ? (
                       <VideoPlayer
@@ -214,39 +221,57 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: SPACING.md,
     marginHorizontal: SPACING.md,
+    borderRadius: 20,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.12)",
+    borderTopColor: "rgba(255, 255, 255, 0.96)",
+    backgroundColor: "#FFFDF5",
+    boxShadow: "0 7px 14px rgba(53, 52, 16, 0.22)",
+    elevation: 7,
   },
   headerSurface: {
-    backgroundColor: "#ECE5D2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderRadius: 12,
+    backgroundColor: "transparent",
+    borderRadius: 20,
+    borderCurve: "continuous",
   },
   headerPressable: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: SPACING.md,
+    minHeight: 66,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
   },
   headerPressablePressed: {
-    opacity: 0.92,
+    backgroundColor: "#F4EEDC",
   },
   headerExpanded: {
+    backgroundColor: "#FAF6EA",
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
   title: {
-    fontWeight: "600",
+    fontFamily: FONTS.montserratBold,
+    fontSize: 16,
+    lineHeight: 21,
     color: "#352E2E",
     flex: 1,
   },
   expandControl: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
+    gap: 2,
+    minHeight: 36,
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderRadius: 18,
+    backgroundColor: "rgba(99, 97, 40, 0.09)",
   },
   expandText: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 13,
+    lineHeight: 18,
     color: "#636128",
   },
   expandIcon: {
@@ -259,15 +284,16 @@ const styles = StyleSheet.create({
     // Высота определяется контентом (max-content)
   },
   contentSurface: {
-    backgroundColor: "#ECE5D2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    backgroundColor: "#FFFDF5",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(99, 97, 40, 0.14)",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderCurve: "continuous",
+    overflow: "hidden",
   },
   markdownContainer: {
-    padding: SPACING.md,
+    padding: 20,
   },
   courseInfo: {
     marginTop: SPACING.md,
@@ -350,18 +376,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
   },
-  videoRetryButton: {
-    minHeight: 44,
+  videoRetryButtonLayout: {
     marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-  },
-  videoRetryText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
   videoLinkButton: {
     flexDirection: "row",

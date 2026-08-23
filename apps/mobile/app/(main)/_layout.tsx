@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Redirect, Stack } from "expo-router";
 
 import { COLORS } from "@/shared/config";
+import { PaperTextureBackground } from "@/shared/components";
 import { useAuthStore } from "@/shared/stores";
 import { MobileOnboardingTourProvider } from "@/features/onboarding-tour";
 import {
@@ -65,6 +66,7 @@ export default function MainLayout() {
             headerStyle: {
               backgroundColor: COLORS.background,
             },
+            headerBackground: () => <PaperTextureBackground />,
             headerTintColor: COLORS.text,
             headerShadowVisible: false,
             headerBackTitle: "Назад",

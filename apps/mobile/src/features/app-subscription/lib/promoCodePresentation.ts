@@ -55,7 +55,7 @@ export function getPromoCodeStateMessage(state: PromoCodeUiState): string | null
     case "checking":
       return "Проверяем промокод…";
     case "applied":
-      return "Промокод применён. Скидка действует только на первый платёж.";
+      return "Промокод применён.";
     case "needs_apply":
       return "Примените промокод или очистите поле перед оплатой.";
     case "invalid_format":
@@ -92,11 +92,11 @@ export function getPromoCodePricePresentation(preview: AppSubscriptionPromoCodeP
         : `${preview.intervalDays} дней`;
   return {
     discounted: formatRub(preview.discountedPriceRub),
+    originalPrice: formatRub(preview.originalPriceRub),
     renewalPrice: formatRub(preview.renewalPriceRub),
     discount: `−${preview.discountPercent}%`,
     firstCharge: `Сейчас спишется ${formatRub(preview.discountedPriceRub)}`,
-    nextCharge: `Следующее списание через ${period} — ${formatRub(preview.renewalPriceRub)}`,
-    renewal: `Далее ${formatRub(preview.renewalPriceRub)} каждые ${period}`,
-    legal: "Скидка действует только на первый платёж. Полная стоимость последующих продлений показана выше.",
+    nextCharge: `Следующее списание произойдёт автоматически через ${period} — ${formatRub(preview.renewalPriceRub)}`,
+    legal: "Скидка действует только на первый платёж.",
   };
 }

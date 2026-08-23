@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar, TextInput as PaperTextInput } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Stack, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -74,94 +74,110 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Card mode="contained" style={styles.card}>
-          <Card.Content>
-            <View style={styles.iconWrap}>
-              <MaterialCommunityIcons name="lock-outline" size={28} color={COLORS.primaryDark} />
-            </View>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              Новый пароль
-            </Text>
-            <Text variant="bodyMedium" style={styles.hint}>
-              Укажите текущий пароль и новый дважды. После сохранения старый пароль перестанет
-              действовать.
-            </Text>
-            <View style={styles.stepsBox}>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • Минимум 8 символов, максимум 100
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Card mode="contained" style={styles.card}>
+            <Card.Content>
+              <View style={styles.iconWrap}>
+                <MaterialCommunityIcons name="lock-outline" size={28} color={COLORS.primaryDark} />
+              </View>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                Новый пароль
               </Text>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • Заглавная и строчная буква, минимум одна цифра
+              <Text variant="bodyMedium" style={styles.hint}>
+                Укажите текущий пароль и новый дважды. После сохранения старый пароль перестанет
+                действовать.
               </Text>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • Поля «Новый пароль» и «Повторите» должны совпадать
-              </Text>
-            </View>
-            <Input
-              label="Текущий пароль"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry={!showCurrent}
-              autoComplete="password"
-              style={styles.input}
-              right={
-                <PaperTextInput.Icon
-                  icon={showCurrent ? "eye-off-outline" : "eye-outline"}
-                  onPress={() => setShowCurrent((v) => !v)}
-                  accessibilityLabel={showCurrent ? "Скрыть пароль" : "Показать пароль"}
+              <View style={styles.stepsBox}>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • Минимум 8 символов, максимум 100
+                </Text>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • Заглавная и строчная буква, минимум одна цифра
+                </Text>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • Поля «Новый пароль» и «Повторите» должны совпадать
+                </Text>
+              </View>
+              <Input
+                label="Текущий пароль"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry={!showCurrent}
+                autoComplete="password"
+                style={styles.input}
+                right={
+                  <PaperTextInput.Icon
+                    icon={showCurrent ? "eye-off-outline" : "eye-outline"}
+                    onPress={() => setShowCurrent((v) => !v)}
+                    accessibilityLabel={showCurrent ? "Скрыть пароль" : "Показать пароль"}
+                  />
+                }
+              />
+              <Input
+                label="Новый пароль"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry={!showNew}
+                autoComplete="new-password"
+                style={styles.input}
+                right={
+                  <PaperTextInput.Icon
+                    icon={showNew ? "eye-off-outline" : "eye-outline"}
+                    onPress={() => setShowNew((v) => !v)}
+                    accessibilityLabel={showNew ? "Скрыть пароль" : "Показать пароль"}
+                  />
+                }
+              />
+              <Input
+                label="Повторите пароль"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirm}
+                autoComplete="new-password"
+                style={styles.input}
+                right={
+                  <PaperTextInput.Icon
+                    icon={showConfirm ? "eye-off-outline" : "eye-outline"}
+                    onPress={() => setShowConfirm((v) => !v)}
+                    accessibilityLabel={showConfirm ? "Скрыть пароль" : "Показать пароль"}
+                  />
+                }
+              />
+              <View style={styles.actions}>
+                <Button
+                  label="Сохранить"
+                  onPress={onSave}
+                  loading={loading}
+                  disabled={loading}
+                  animatedPress
                 />
-              }
-            />
-            <Input
-              label="Новый пароль"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry={!showNew}
-              autoComplete="new-password"
-              style={styles.input}
-              right={
-                <PaperTextInput.Icon
-                  icon={showNew ? "eye-off-outline" : "eye-outline"}
-                  onPress={() => setShowNew((v) => !v)}
-                  accessibilityLabel={showNew ? "Скрыть пароль" : "Показать пароль"}
+                <Button
+                  label="Отмена"
+                  variant="secondary"
+                  onPress={() => {
+                    void hapticFeedback.light();
+                    router.back();
+                  }}
+                  disabled={loading}
+                  animatedPress
+                  accessibilityHint="Закрывает экран без сохранения изменений"
                 />
-              }
-            />
-            <Input
-              label="Повторите пароль"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirm}
-              autoComplete="new-password"
-              style={styles.input}
-              right={
-                <PaperTextInput.Icon
-                  icon={showConfirm ? "eye-off-outline" : "eye-outline"}
-                  onPress={() => setShowConfirm((v) => !v)}
-                  accessibilityLabel={showConfirm ? "Скрыть пароль" : "Показать пароль"}
-                />
-              }
-            />
-            <Button
-              label="Сохранить"
-              onPress={onSave}
-              loading={loading}
-              disabled={loading}
-              style={styles.button}
-            />
-          </Card.Content>
-        </Card>
-      </ScrollView>
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))}
-        duration={4000}
-      >
-        {snackbar.message}
-      </Snackbar>
-    </SafeAreaView>
+              </View>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))}
+          duration={4000}
+        >
+          {snackbar.message}
+        </Snackbar>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -171,7 +187,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scroll: {
-    padding: SPACING.lg,
+    padding: SPACING.md,
+    paddingBottom: SPACING.xl,
   },
   card: {
     backgroundColor: COLORS.cardBackground,
@@ -218,8 +235,8 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: SPACING.sm,
   },
-  button: {
+  actions: {
     marginTop: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    gap: SPACING.sm,
   },
 });

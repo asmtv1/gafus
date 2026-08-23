@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -50,6 +50,7 @@
     "expo-iap": "^3.4.13",
     "expo-image": "~3.0.0",
     "expo-image-picker": "^17.0.11",
+    "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.21",

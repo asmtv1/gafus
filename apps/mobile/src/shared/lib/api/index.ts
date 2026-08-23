@@ -1,4 +1,5 @@
 export { apiClient, type ApiResponse } from "./client";
+export { isSubscriptionRequiredCode } from "./subscriptionRequired";
 export { articlesApi } from "./articles";
 export {
   authApi,
@@ -22,6 +23,7 @@ export {
   type CourseReviewsResponse,
   type SaveCoursePersonalizationData,
 } from "./courses";
+export { getCourseStartedUsersCount } from "./courseParticipation";
 export {
   getStepContent,
   trainingApi,
@@ -83,8 +85,4 @@ export {
   type ConsultationsMyResponse,
 } from "./consultations";
 export { onboardingTourApi, type OnboardingTourStatusDto } from "./onboarding-tour";
-export {
-  paymentsApi,
-  type CreatePaymentData,
-  type CreatePaymentParams,
-} from "./payments";
+export { paymentsApi, type CreatePaymentData, type CreatePaymentParams } from "./payments";

@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
 import { Text, Button } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { Loading } from "@/shared/components/ui";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { achievementsQueryOptions } from "@/shared/lib/api/achievementsQuery";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { type Course } from "@/shared/lib/api";
@@ -73,15 +73,15 @@ export default function AchievementsScreen() {
 
   if (achievementsLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
         <Loading message="Загрузка достижений..." />
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     );
   }
 
   if (achievementsError || !achievementsRes?.success) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.centered}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text variant="titleMedium" style={styles.errorTitle}>
@@ -94,13 +94,13 @@ export default function AchievementsScreen() {
             Попробовать снова
           </Button>
         </View>
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     );
   }
 
   if (!data) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.centered}>
           <Text style={styles.noDataIcon}>📚</Text>
           <Text variant="titleMedium" style={styles.noDataTitle}>
@@ -110,12 +110,12 @@ export default function AchievementsScreen() {
             Не удалось загрузить информацию о достижениях.
           </Text>
         </View>
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={achievementsLoading} onRefresh={onRefresh} />}
@@ -206,7 +206,7 @@ export default function AchievementsScreen() {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 

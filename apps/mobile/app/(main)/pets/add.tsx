@@ -10,12 +10,13 @@ import {
   TextInput,
 } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { Button } from "@/shared/components/ui";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { validatePetForm, type PetFormErrors } from "@/features/pets";
 import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
@@ -174,7 +175,7 @@ export default function AddPetScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <Pressable style={styles.backRow} onPress={handleBack} hitSlop={12}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
@@ -188,8 +189,11 @@ export default function AddPetScreen() {
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
+            <PageHeader
+              title="Добавить питомца"
+              description="Заполните основные данные — остальное можно добавить позже"
+            />
             <View style={styles.formCard}>
-              <Text style={styles.screenTitle}>Добавить питомца</Text>
               {isTourRequiredPetCreation ? (
                 <Text style={styles.hintText}>
                   Для продолжения экскурсии заполните только обязательные поля.
@@ -211,25 +215,29 @@ export default function AddPetScreen() {
               <Text style={styles.fieldLabel}>Тип *</Text>
               <View style={styles.typeRow}>
                 {PET_TYPES.map((t) => (
-                  <Pressable
+                  <Button
                     key={t.value}
-                    style={[styles.typeChip, type === t.value && styles.typeChipSelected]}
+                    label={t.label}
+                    icon={t.icon}
+                    variant={type === t.value ? "selected" : "primary"}
+                    flex={1}
+                    fullWidth={false}
+                    height={52}
+                    fontSize={13}
+                    lineHeight={18}
+                    fontFamily={FONTS.montserratMedium}
+                    horizontalPadding={6}
+                    verticalPadding={0}
+                    borderRadius={12}
+                    animatedPress
+                    haptic={false}
                     onPress={() => {
                       void hapticFeedback.selection();
                       setType(t.value);
                     }}
-                  >
-                    <MaterialCommunityIcons
-                      name={t.icon}
-                      size={20}
-                      color={type === t.value ? COLORS.onPrimary : COLORS.textSecondary}
-                    />
-                    <Text
-                      style={[styles.typeChipText, type === t.value && styles.typeChipTextSelected]}
-                    >
-                      {t.label}
-                    </Text>
-                  </Pressable>
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: type === t.value }}
+                  />
                 ))}
               </View>
 
@@ -271,9 +279,7 @@ export default function AddPetScreen() {
                     placeholderTextColor={COLORS.disabled}
                     keyboardType="decimal-pad"
                   />
-                  {errors.heightCm ? (
-                    <Text style={styles.errorText}>{errors.heightCm}</Text>
-                  ) : null}
+                  {errors.heightCm ? <Text style={styles.errorText}>{errors.heightCm}</Text> : null}
 
                   <Text style={styles.fieldLabel}>Вес (кг)</Text>
                   <TextInput
@@ -284,9 +290,7 @@ export default function AddPetScreen() {
                     placeholderTextColor={COLORS.disabled}
                     keyboardType="decimal-pad"
                   />
-                  {errors.weightKg ? (
-                    <Text style={styles.errorText}>{errors.weightKg}</Text>
-                  ) : null}
+                  {errors.weightKg ? <Text style={styles.errorText}>{errors.weightKg}</Text> : null}
 
                   <Text style={styles.fieldLabel}>Обхват шеи (см)</Text>
                   <TextInput
@@ -304,9 +308,7 @@ export default function AddPetScreen() {
                   <Text style={styles.fieldLabel}>Обхват морды (см)</Text>
                   <TextInput
                     value={muzzleGirthCm}
-                    onChangeText={(value) =>
-                      updateField("muzzleGirthCm", value, setMuzzleGirthCm)
-                    }
+                    onChangeText={(value) => updateField("muzzleGirthCm", value, setMuzzleGirthCm)}
                     style={[styles.input, errors.muzzleGirthCm && styles.inputError]}
                     placeholder="Необязательно"
                     placeholderTextColor={COLORS.disabled}
@@ -319,9 +321,7 @@ export default function AddPetScreen() {
                   <Text style={styles.fieldLabel}>Обхват живота (см)</Text>
                   <TextInput
                     value={bellyGirthCm}
-                    onChangeText={(value) =>
-                      updateField("bellyGirthCm", value, setBellyGirthCm)
-                    }
+                    onChangeText={(value) => updateField("bellyGirthCm", value, setBellyGirthCm)}
                     style={[styles.input, errors.bellyGirthCm && styles.inputError]}
                     placeholder="Необязательно"
                     placeholderTextColor={COLORS.disabled}
@@ -349,36 +349,48 @@ export default function AddPetScreen() {
               ) : null}
 
               <View style={[styles.actionsRow, isTourRequiredPetCreation && styles.actionsRowTour]}>
-                <Pressable
-                  style={styles.secondaryButton}
+                <Button
+                  label={isTourRequiredPetCreation ? "Назад" : "Отмена"}
+                  variant="secondary"
+                  flex={isTourRequiredPetCreation ? undefined : 1}
+                  fullWidth={isTourRequiredPetCreation}
+                  height={48}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={15}
+                  lineHeight={20}
+                  horizontalPadding={0}
+                  verticalPadding={14}
+                  borderRadius={10}
                   onPress={handleBack}
                   disabled={createMutation.isPending}
-                >
-                  <Text style={styles.secondaryButtonText}>
-                    {isTourRequiredPetCreation ? "Назад" : "Отмена"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.primaryButton,
-                    createMutation.isPending && styles.primaryButtonDisabled,
-                  ]}
-                  onPress={handleSave}
-                  disabled={createMutation.isPending}
-                >
-                  <Text style={styles.primaryButtonText}>
-                    {createMutation.isPending
+                />
+                <Button
+                  label={
+                    createMutation.isPending
                       ? "Добавление…"
                       : isTourRequiredPetCreation
                         ? "Создать питомца"
-                        : "Добавить"}
-                  </Text>
-                </Pressable>
+                        : "Добавить"
+                  }
+                  flex={isTourRequiredPetCreation ? undefined : 1}
+                  fullWidth={isTourRequiredPetCreation}
+                  height={48}
+                  fontFamily={FONTS.montserrat}
+                  fontWeight="600"
+                  fontSize={15}
+                  lineHeight={20}
+                  horizontalPadding={0}
+                  verticalPadding={14}
+                  borderRadius={10}
+                  onPress={handleSave}
+                  disabled={createMutation.isPending}
+                />
               </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     </>
   );
 }
@@ -401,42 +413,38 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 17,
     color: COLORS.primary,
-    fontWeight: "500",
+    fontFamily: FONTS.montserratMedium,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingTop: 0,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.xxl,
   },
   formCard: {
-    backgroundColor: "#F5F0E8",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
+    backgroundColor: "#FFF8E5",
+    borderRadius: 16,
     padding: SPACING.md,
     gap: SPACING.sm,
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontFamily: FONTS.impact,
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
   },
   sectionHeading: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 18,
+    lineHeight: 24,
     fontFamily: FONTS.impact,
     color: COLORS.text,
-    marginTop: SPACING.xs,
+    marginTop: SPACING.sm,
   },
   sectionHeadingSpaced: {
     marginTop: SPACING.md,
   },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: FONTS.montserratMedium,
     color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
     marginTop: 4,
   },
   hintText: {
@@ -449,8 +457,9 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: "#D4C4A8",
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: "#FFF",
+    borderRadius: 14,
+    minHeight: 52,
+    backgroundColor: "#FFFCF4",
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === "ios" ? 12 : 10,
     color: COLORS.text,
@@ -477,31 +486,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
   },
-  typeChip: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "#FFF",
-  },
-  typeChipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  typeChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-    color: COLORS.textSecondary,
-  },
-  typeChipTextSelected: {
-    color: COLORS.onPrimary,
-  },
   actionsRow: {
     flexDirection: "row",
     gap: SPACING.sm,
@@ -509,38 +493,5 @@ const styles = StyleSheet.create({
   },
   actionsRowTour: {
     flexDirection: "column-reverse",
-  },
-  secondaryButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "transparent",
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
-  primaryButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.55,
-  },
-  primaryButtonText: {
-    color: COLORS.onPrimary,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
   },
 });

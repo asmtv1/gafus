@@ -66,9 +66,7 @@ const courseSelect = {
  * - все публичные (бесплатные и платные);
  * - приватные только если у пользователя есть запись в CourseAccess.
  */
-export async function getCoursesWithProgress(
-  userId?: string,
-): Promise<CourseWithProgressData[]> {
+export async function getCoursesWithProgress(userId?: string): Promise<CourseWithProgressData[]> {
   const allCourses = await prisma.course.findMany({
     select: courseSelect,
   });
@@ -153,6 +151,10 @@ export async function getCoursesWithProgress(
       userStatus,
       startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
       completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
+      startedUsersCount: course.userCourses.filter(
+        (uc: CourseWithExtras["userCourses"][0]) =>
+          uc.status === TrainingStatus.IN_PROGRESS || uc.status === TrainingStatus.COMPLETED,
+      ).length,
       isFavorite: favoriteCourseIds.has(course.id),
       userCourses: course.userCourses.map((uc: CourseWithExtras["userCourses"][0]) => ({
         userId: uc.userId,
@@ -415,16 +417,16 @@ export async function checkCourseAccess(
       access: { where: { userId }, select: { userId: true } },
     },
   });
-  
+
   if (!course) {
     return { hasAccess: false };
   }
-  
+
   // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
   if (course.isPaid || course.isPrivate) {
     return { hasAccess: course.access.length > 0 };
   }
-  
+
   // Публичные бесплатные курсы доступны всем
   return { hasAccess: true };
 }
@@ -463,7 +465,7 @@ export async function checkCourseAccessById(
   if (course.isPaid || course.isPrivate) {
     return { hasAccess: course.access.length > 0 };
   }
-  
+
   // Публичные бесплатные курсы доступны всем
   return { hasAccess: true };
 }

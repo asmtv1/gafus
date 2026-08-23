@@ -46,6 +46,7 @@ export type AppSubscriptionPlanOfferDto = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  offlineCourseDownloadIncluded: boolean;
   consultationBookingIncluded: boolean;
   promoCodeEligible: boolean;
   badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;

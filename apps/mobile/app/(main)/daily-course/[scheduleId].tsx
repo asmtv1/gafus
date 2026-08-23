@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { Loading } from "@/shared/components/ui";
-import { MarkdownText } from "@/shared/components";
+import { Button, Loading } from "@/shared/components/ui";
+import { MarkdownText, TexturedSafeAreaView } from "@/shared/components";
 import { AccordionStep } from "@/features/training";
 import {
   useDailyCourseCompleteStep,
@@ -145,7 +144,7 @@ export default function DailyCourseDayScreen() {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
-        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <TexturedSafeAreaView style={styles.container} edges={["top", "bottom"]}>
           <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
             <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
             <Text style={styles.backText}>Назад</Text>
@@ -153,11 +152,22 @@ export default function DailyCourseDayScreen() {
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>Задание дня не найдено</Text>
-            <Pressable onPress={() => refetch()} style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>Попробовать снова</Text>
-            </Pressable>
+            <Button
+              label="Попробовать снова"
+              fullWidth={false}
+              height={34}
+              fontFamily={null}
+              fontWeight="600"
+              fontSize={14}
+              lineHeight={18}
+              horizontalPadding={SPACING.md}
+              verticalPadding={SPACING.sm}
+              borderRadius={8}
+              style={styles.retryButtonLayout}
+              onPress={() => refetch()}
+            />
           </View>
-        </SafeAreaView>
+        </TexturedSafeAreaView>
       </>
     );
   }
@@ -165,7 +175,7 @@ export default function DailyCourseDayScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backText}>Назад</Text>
@@ -204,15 +214,17 @@ export default function DailyCourseDayScreen() {
 
           <View style={styles.descriptionDayContainer}>
             <Pressable
-              style={[
+              style={({ pressed }) => [
                 styles.descriptionDayHeader,
                 isDescriptionOpen && styles.descriptionDayHeaderExpanded,
+                pressed && styles.descriptionDayHeaderPressed,
               ]}
               onPress={() => setIsDescriptionOpen((value) => !value)}
               accessibilityRole="button"
               accessibilityLabel={
                 isDescriptionOpen ? "Скрыть описание дня" : "Показать описание дня"
               }
+              accessibilityState={{ expanded: isDescriptionOpen }}
             >
               <Text style={styles.descriptionDayTitle}>Описание дня</Text>
               <View style={styles.descriptionDayExpand}>
@@ -259,7 +271,7 @@ export default function DailyCourseDayScreen() {
             ))}
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     </>
   );
 }
@@ -358,35 +370,54 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     width: "100%",
     maxWidth: 500,
+    borderRadius: 20,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.12)",
+    borderTopColor: "rgba(255, 255, 255, 0.96)",
+    backgroundColor: "#FFFDF5",
+    boxShadow: "0 7px 14px rgba(53, 52, 16, 0.22)",
+    elevation: 7,
   },
   descriptionDayHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: SPACING.md,
-    paddingHorizontal: 20,
-    backgroundColor: "#ece5d2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderRadius: 12,
+    minHeight: 66,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    backgroundColor: "transparent",
+    borderRadius: 20,
+    borderCurve: "continuous",
   },
   descriptionDayHeaderExpanded: {
+    backgroundColor: "#FAF6EA",
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
+  descriptionDayHeaderPressed: {
+    backgroundColor: "#F4EEDC",
+  },
   descriptionDayTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    lineHeight: 21,
+    fontFamily: FONTS.montserratBold,
     color: "#352e2e",
   },
   descriptionDayExpand: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
+    gap: 2,
+    minHeight: 36,
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderRadius: 18,
+    backgroundColor: "rgba(99, 97, 40, 0.09)",
   },
   descriptionDayExpandText: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: FONTS.montserratMedium,
     color: COLORS.primary,
   },
   descriptionDayIcon: {
@@ -396,12 +427,13 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "180deg" }],
   },
   descriptionDayContent: {
-    backgroundColor: "#ece5d2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    backgroundColor: "#FFFDF5",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(99, 97, 40, 0.14)",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderCurve: "continuous",
+    overflow: "hidden",
     padding: 20,
   },
   bundleTitle: {
@@ -424,15 +456,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     textAlign: "center",
   },
-  retryButton: {
+  retryButtonLayout: {
     marginTop: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
   },
 });

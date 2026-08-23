@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { authApi } from "@/shared/lib/api/auth";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { Button } from "@/shared/components/ui";
 
 const emailSchema = z.string().trim().email("Укажите корректный email");
 
@@ -113,7 +114,10 @@ export default function ResetPasswordScreen() {
       });
       setPhase("token");
     } catch (err) {
-      reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "send_reset_request" } });
+      reportClientError(err, {
+        issueKey: "ResetPassword",
+        keys: { operation: "send_reset_request" },
+      });
       setSnackbar({
         visible: true,
         message: "Ошибка отправки. Попробуйте позже.",
@@ -230,15 +234,22 @@ export default function ResetPasswordScreen() {
               />
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-              <Pressable
-                style={[styles.button, (isLoading || !email.trim()) && styles.buttonDisabled]}
+              <Button
+                label={isLoading ? "отправка..." : "отправить письмо"}
+                width={250}
+                fullWidth={false}
+                height={52}
+                fontFamily={FONTS.montserrat}
+                fontWeight="600"
+                fontSize={15}
+                lineHeight={20}
+                horizontalPadding={SPACING.md}
+                verticalPadding={0}
+                animatedPress
+                style={styles.resetButtonLayout}
                 onPress={handleRequestEmail}
                 disabled={isLoading || !email.trim()}
-              >
-                <Text style={styles.buttonText}>
-                  {isLoading ? "отправка..." : "отправить письмо"}
-                </Text>
-              </Pressable>
+              />
             </View>
           )}
 
@@ -310,9 +321,7 @@ export default function ResetPasswordScreen() {
                 <Pressable
                   style={styles.eyeButton}
                   onPress={() => setShowConfirmPassword((v) => !v)}
-                  accessibilityLabel={
-                    showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
-                  }
+                  accessibilityLabel={showConfirmPassword ? "Скрыть пароль" : "Показать пароль"}
                 >
                   <MaterialCommunityIcons
                     name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
@@ -325,19 +334,22 @@ export default function ResetPasswordScreen() {
                 <Text style={styles.errorText}>{errors.confirmPassword}</Text>
               )}
 
-              <Pressable
-                style={[
-                  styles.button,
-                  (isLoading || !token.trim() || !password || !confirmPassword) &&
-                    styles.buttonDisabled,
-                ]}
+              <Button
+                label={isLoading ? "сохранение..." : "сохранить пароль"}
+                width={250}
+                fullWidth={false}
+                height={52}
+                fontFamily={FONTS.montserrat}
+                fontWeight="600"
+                fontSize={15}
+                lineHeight={20}
+                horizontalPadding={SPACING.md}
+                verticalPadding={0}
+                animatedPress
+                style={styles.resetButtonLayout}
                 onPress={handleResetPassword}
                 disabled={isLoading || !token.trim() || !password || !confirmPassword}
-              >
-                <Text style={styles.buttonText}>
-                  {isLoading ? "сохранение..." : "сохранить пароль"}
-                </Text>
-              </Pressable>
+              />
 
               <Pressable
                 style={[styles.linkBack, isLoading && styles.buttonDisabled]}
@@ -495,31 +507,11 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     width: 250,
   },
-  button: {
-    backgroundColor: COLORS.primary,
-    width: 190,
-    height: 36,
-    borderRadius: 5,
+  resetButtonLayout: {
     marginTop: 30,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
-  },
-  buttonText: {
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    fontSize: 10,
-    lineHeight: 10,
-    color: "#dad3c1",
   },
   linkBack: {
     marginTop: 16,

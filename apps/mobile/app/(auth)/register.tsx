@@ -11,7 +11,7 @@ import {
   Linking,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
@@ -26,6 +26,7 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
+import { Button } from "@/shared/components/ui";
 
 const registerSchema = z
   .object({
@@ -204,7 +205,12 @@ export default function RegisterScreen() {
       elementId: "cta-register-submit",
     });
 
-    if (__DEV__) console.log("[Register] handleRegister start", { name: form.name, email: form.email, tempSessionId });
+    if (__DEV__)
+      console.log("[Register] handleRegister start", {
+        name: form.name,
+        email: form.email,
+        tempSessionId,
+      });
     submittingRef.current = true;
     setIsLoading(true);
     setErrors((prev) => ({ ...prev, api: undefined }));
@@ -268,12 +274,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Заголовок */}
-          <Text
-            style={[
-              styles.title,
-              { fontSize: Math.min(layout.moderateScale(100, 0.4), 100) },
-            ]}
-          >
+          <Text style={[styles.title, { fontSize: Math.min(layout.moderateScale(100, 0.4), 100) }]}>
             Гафус!
           </Text>
 
@@ -281,18 +282,10 @@ export default function RegisterScreen() {
           <View style={styles.logoContainer}>
             <Image
               source={require("../../assets/images/register-logo.png")}
-              style={[
-                styles.logo,
-                { width: formWidth * 0.8, height: formWidth * 0.8 * 0.74 },
-              ]}
+              style={[styles.logo, { width: formWidth * 0.8, height: formWidth * 0.8 * 0.74 }]}
               contentFit="contain"
             />
-            <Text
-              style={[
-                styles.subtitle,
-                { fontSize: Math.min(layout.moderateScale(40), 40) },
-              ]}
-            >
+            <Text style={[styles.subtitle, { fontSize: Math.min(layout.moderateScale(40), 40) }]}>
               регистрация
             </Text>
           </View>
@@ -404,9 +397,7 @@ export default function RegisterScreen() {
               <Pressable
                 style={styles.eyeButton}
                 onPress={() => setShowConfirmPassword((v) => !v)}
-                accessibilityLabel={
-                  showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
-                }
+                accessibilityLabel={showConfirmPassword ? "Скрыть пароль" : "Показать пароль"}
               >
                 <MaterialCommunityIcons
                   name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
@@ -511,9 +502,7 @@ export default function RegisterScreen() {
                   Даю согласие на{" "}
                   <Text
                     style={styles.consentLink}
-                    onPress={() =>
-                      Linking.openURL(CONSENT_DOCUMENT_URLS.dataDistribution)
-                    }
+                    onPress={() => Linking.openURL(CONSENT_DOCUMENT_URLS.dataDistribution)}
                   >
                     размещение данных в публичном профиле
                   </Text>
@@ -530,24 +519,25 @@ export default function RegisterScreen() {
               ) : null}
             </View>
 
-            {errors.api && (
-              <Text style={[styles.errorText, styles.apiError]}>{errors.api}</Text>
-            )}
+            {errors.api && <Text style={[styles.errorText, styles.apiError]}>{errors.api}</Text>}
 
             {/* Кнопка регистрации */}
-            <Pressable
-              style={[
-                styles.button,
-                { width: formWidth },
-                isLoading && styles.buttonDisabled,
-              ]}
+            <Button
+              label={isLoading ? "регистрация..." : "зарегистрироваться"}
+              width={formWidth}
+              fullWidth={false}
+              height={48}
+              fontFamily={FONTS.impact}
+              fontWeight="400"
+              fontSize={22}
+              lineHeight={26}
+              horizontalPadding={0}
+              verticalPadding={0}
+              animatedPress
+              style={styles.registerButtonLayout}
               onPress={handleRegister}
               disabled={isLoading}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? "регистрация..." : "зарегистрироваться"}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           {/* Метка бандла: после применения OTA меняется префикс ota xxxxxxxx */}
@@ -592,7 +582,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
     marginBottom: 5,
     marginTop: 0,
-
   },
   // Контейнер с логотипом и подзаголовком
   logoContainer: {
@@ -762,31 +751,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  // Кнопка регистрации - width задаётся динамически, стиль как welcome
-  button: {
-    backgroundColor: COLORS.primary,
-    height: 48,
-    borderRadius: 8,
+  registerButtonLayout: {
     marginTop: 20,
-    borderWidth: 2,
-    borderColor: COLORS.cardBackground,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  buttonText: {
-    fontFamily: FONTS.impact,
-    fontWeight: "400",
-    fontSize: 22,
-    color: COLORS.onPrimary,
-    textAlign: "center",
   },
   /** Едва заметная подсказка для проверки OTA; не тянется с web */
   otaBundleHint: {

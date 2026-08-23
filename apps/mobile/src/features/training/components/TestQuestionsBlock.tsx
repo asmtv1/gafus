@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { canRetakeRejectedExam } from "../lib/examRetake";
@@ -223,19 +223,20 @@ export function TestQuestionsBlock({
       )}
 
       {!isSubmitted ? (
-        <Pressable
-          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+        <Button
+          label="ЗАВЕРШИТЬ ТЕСТ"
+          height={46}
+          fontFamily={null}
+          fontWeight="600"
+          fontSize={14}
+          lineHeight={18}
+          horizontalPadding={20}
+          verticalPadding={14}
+          borderRadius={12}
+          loading={isSubmitting}
           onPress={handleSubmit}
           disabled={!canSubmit}
-        >
-          {isSubmitting ? (
-            <MascotSpinner size="small" />
-          ) : (
-            <Text style={[styles.submitBtnText, !canSubmit && styles.submitBtnTextDisabled]}>
-              ЗАВЕРШИТЬ ТЕСТ
-            </Text>
-          )}
-        </Pressable>
+        />
       ) : (
         <View style={styles.scoreRow}>
           <Text style={styles.scoreText}>
@@ -330,17 +331,6 @@ const styles = StyleSheet.create({
   resultWrong: { backgroundColor: "rgba(220, 53, 69, 0.15)" },
   resultText: { fontSize: 13, color: COLORS.text },
   commentText: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
-  submitBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  submitBtnDisabled: { backgroundColor: COLORS.disabled, opacity: 0.7 },
-  submitBtnText: { color: COLORS.surface, fontSize: 14, fontWeight: "600" },
-  submitBtnTextDisabled: { color: COLORS.placeholder },
   scoreRow: { marginTop: SPACING.sm, gap: SPACING.sm },
   scoreText: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   retakeBtn: {

@@ -2,11 +2,11 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { useCourseStore } from "@/shared/stores";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
@@ -108,16 +108,16 @@ export default function FavoritesScreen() {
 
   if (isOffline) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
         <OfflineDownloadedScreen />
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
       {isLoading ? (
-        <Loading fullScreen message="Загрузка избранных курсов..." />
+        <Loading fullScreen embedded message="Загрузка избранных курсов..." />
       ) : error ? (
         <View style={styles.errorContainer}>
           {renderHeader()}
@@ -153,7 +153,7 @@ export default function FavoritesScreen() {
       >
         {snackbar.message}
       </Snackbar>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 

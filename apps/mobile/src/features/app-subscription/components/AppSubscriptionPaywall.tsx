@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Modal,
@@ -16,11 +15,12 @@ import { Image } from "expo-image";
 import { fetchProducts, initConnection } from "expo-iap";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, TextInput as PaperTextInput } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text, type TextInput as PaperTextInput } from "react-native-paper";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { Input } from "@/shared/components";
+import { Input, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Button } from "@/shared/components/ui";
 import {
   appSubscriptionApi,
   type AppSubscriptionOfferDto,
@@ -61,9 +61,9 @@ const YOOKASSA_PLAN_ORDER: readonly AppSubscriptionPlanCode[] = [
 
 const PLAN_BENEFITS = [
   "Курсы, экзамены и статьи",
-  "Офлайн-доступ",
   "Документы и напоминания",
 ] as const;
+const OFFLINE_DOWNLOAD_BENEFIT = "Скачивание курсов для офлайн-работы";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -75,7 +75,9 @@ function extractDisplayPrice(product: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-function legacyApplePlan(offer: AppSubscriptionOfferDto | null): AppSubscriptionPlanOfferDto | null {
+function legacyApplePlan(
+  offer: AppSubscriptionOfferDto | null,
+): AppSubscriptionPlanOfferDto | null {
   return offer?.applePlan ?? offer?.plans.find((plan) => Boolean(plan.appleProductId)) ?? null;
 }
 
@@ -89,15 +91,23 @@ async function pollActiveSubscription(): Promise<"active" | "pending"> {
 }
 
 function badgeStyle(badge: AppSubscriptionPlanOfferDto["badge"]) {
-  if (badge === "POPULAR") return [styles.badgeChip, styles.badgePopular] as const;
-  if (badge === "MAX_SAVINGS") return [styles.badgeChip, styles.badgeSavings] as const;
-  return [styles.badgeChip, styles.badgeTry] as const;
+  if (badge === "POPULAR") return [styles.badgeChip, styles.badgePopular];
+  if (badge === "MAX_SAVINGS") return [styles.badgeChip, styles.badgeSavings];
+  return [styles.badgeChip, styles.badgeTry];
 }
 
 function badgeLabel(badge: AppSubscriptionPlanOfferDto["badge"]) {
   if (badge === "POPULAR") return "Популярный";
   if (badge === "MAX_SAVINGS") return "Максимальная экономия";
   return "Попробовать";
+}
+
+function includesOfflineCourseDownload(plan: AppSubscriptionPlanOfferDto | null): boolean {
+  if (!plan) return false;
+  return (
+    plan.offlineCourseDownloadIncluded ??
+    (plan.code === "MONTHLY" || plan.code === "THREE_MONTHS")
+  );
 }
 
 export function AppSubscriptionPaywall() {
@@ -107,7 +117,9 @@ export function AppSubscriptionPaywall() {
   const close = usePaywallStore((state) => state.close);
   const [isPaying, setIsPaying] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(null);
+  const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
+    null,
+  );
   const [selectedYookassaPlanCode, setSelectedYookassaPlanCode] =
     useState<AppSubscriptionPlanCode | null>("MONTHLY");
   const promoInputRef = useRef<ComponentRef<typeof PaperTextInput>>(null);
@@ -173,7 +185,8 @@ export function AppSubscriptionPaywall() {
     yookassaPlans.find((plan) => plan.code === selectedYookassaPlanCode) ?? defaultYookassaPlan;
   const applePlan = legacyApplePlan(effectiveOffer);
   const canUseApple = isIos && Boolean(applePlan?.appleProductId);
-  const showYookassa = Boolean(effectiveOffer) && (!isIos || Boolean(effectiveOffer.iosRuCardPaymentEnabled));
+  const showYookassa =
+    Boolean(effectiveOffer) && (!isIos || Boolean(effectiveOffer?.iosRuCardPaymentEnabled));
   const canUseYookassa = showYookassa && Boolean(selectedYookassaPlan);
   const showPromoCode = shouldShowSubscriptionPromoCode({
     canUseYookassa,
@@ -195,14 +208,20 @@ export function AppSubscriptionPaywall() {
     },
   });
   const promoPrice = promoPreview ? getPromoCodePricePresentation(promoPreview) : null;
-  const firstYookassaPaymentRub = promoPreview?.discountedPriceRub ?? selectedYookassaPlan?.yookassaPriceRub;
+  const firstYookassaPaymentRub =
+    promoPreview?.discountedPriceRub ?? selectedYookassaPlan?.yookassaPriceRub;
   const isPaymentBlocked = isPaying || offerQuery.isLoading;
   const promoHasError = !["idle", "checking", "applied"].includes(promoState);
   const compact = width < 360;
 
   const promoPreviewMutation = useMutation({
-    mutationFn: ({ planCode, promoCode }: { planCode: AppSubscriptionPlanCode; promoCode: string }) =>
-      appSubscriptionApi.previewPromoCode(planCode, promoCode),
+    mutationFn: ({
+      planCode,
+      promoCode,
+    }: {
+      planCode: AppSubscriptionPlanCode;
+      promoCode: string;
+    }) => appSubscriptionApi.previewPromoCode(planCode, promoCode),
   });
   const resetPromoPreviewMutation = promoPreviewMutation.reset;
 
@@ -280,7 +299,9 @@ export function AppSubscriptionPaywall() {
 
   const handleYookassaPay = async () => {
     if (isPaymentBlocked || !selectedYookassaPlan) return;
-    if (shouldBlockYookassaStartForPromo({ hasPromoText, hasAppliedPreview: Boolean(promoPreview) })) {
+    if (
+      shouldBlockYookassaStartForPromo({ hasPromoText, hasAppliedPreview: Boolean(promoPreview) })
+    ) {
       setPromoState("needs_apply");
       promoInputRef.current?.focus();
       return;
@@ -325,47 +346,39 @@ export function AppSubscriptionPaywall() {
           automaticallyAdjustKeyboardInsets
         >
           <View style={styles.contentInner}>
-            <Pressable style={styles.backRow} onPress={close} hitSlop={12} accessibilityRole="button">
+            <Pressable
+              style={styles.backRow}
+              onPress={close}
+              hitSlop={12}
+              accessibilityRole="button"
+            >
               <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
               <Text style={styles.backText}>Назад</Text>
             </Pressable>
-            <View style={styles.header}><Text style={styles.brand}>GAFUS PREMIUM</Text></View>
-
-            {isIos && canUseApple ? (
-              <View style={styles.providerSection}>
-                <Text style={styles.sectionTitle}>App Store</Text>
-                <View style={styles.appleCard}>
-                  <View><Text style={styles.cardTitle}>1 месяц</Text><Text style={styles.cardSubtitle}>Подписка через Apple</Text></View>
-                  <Text style={styles.applePrice}>{applePriceQuery.data ?? formatAppSubscriptionPlanPrice(applePlan)}</Text>
-                </View>
-                <Pressable
-                  style={[styles.primaryButton, isPaymentBlocked && styles.disabledButton]}
-                  onPress={handleApplePay}
-                  disabled={isPaymentBlocked}
-                  accessibilityRole="button"
-                  accessibilityLabel="Оформить Premium через App Store"
-                  accessibilityState={{ disabled: isPaymentBlocked, busy: isPaying }}
-                >
-                  {isPaying ? <ActivityIndicator color="#F6F0DF" /> : null}
-                  <Text style={styles.primaryButtonText}>{isPaying ? "Оформляем..." : "Оформить через App Store"}</Text>
-                </Pressable>
-                <Text style={styles.providerCaption}>Списание и управление подпиской выполняются через App Store.</Text>
-              </View>
-            ) : null}
+            <View style={styles.header}>
+              <Text style={styles.brand}>GAFUS PREMIUM</Text>
+            </View>
 
             {showYookassa ? (
               <View style={styles.providerSection}>
-                <Text style={styles.sectionTitle}>Подписка через ЮKassa</Text>
-                <Text style={styles.sectionLead}>Выберите срок доступа. Оплата и продление — через СБП.</Text>
+                <Text style={styles.sectionTitle}>Оплата по СБП</Text>
                 {yookassaPlans.length > 0 ? (
-                  <View accessibilityRole="radiogroup" accessibilityLabel="Тариф ЮKassa" style={styles.plansList}>
+                  <View
+                    accessibilityRole="radiogroup"
+                    accessibilityLabel="Тариф ЮKassa"
+                    style={styles.plansList}
+                  >
                     {yookassaPlans.map((plan) => {
                       const selected = selectedYookassaPlan?.code === plan.code;
                       const savings = formatSavingsRub(plan.savingsRub);
                       return (
                         <Pressable
                           key={plan.code}
-                          style={[styles.planCard, selected && styles.planCardSelected]}
+                          style={({ pressed }) => [
+                            styles.planCard,
+                            selected && styles.planCardSelected,
+                            pressed && styles.planCardPressed,
+                          ]}
                           onPress={() => setSelectedYookassaPlanCode(plan.code)}
                           disabled={isPaying}
                           accessibilityRole="radio"
@@ -374,36 +387,80 @@ export function AppSubscriptionPaywall() {
                           <View style={styles.planTopRow}>
                             <View style={styles.planTitleBlock}>
                               <Text style={styles.cardTitle}>{plan.label}</Text>
-                              <Text style={styles.cardSubtitle}>{formatPlanPeriod(plan.intervalDays)}</Text>
+                              <Text style={styles.cardSubtitle}>
+                                {formatPlanPeriod(plan.intervalDays)}
+                              </Text>
                             </View>
-                            <View style={styles.planPriceBlock}>
-                              {plan.badge ? <View style={badgeStyle(plan.badge)}><Text style={[styles.badgeChipText, plan.badge === "TRY" && styles.badgeTryText]}>{badgeLabel(plan.badge)}</Text></View> : null}
-                              <Text style={styles.planPrice}>{formatAppSubscriptionPlanPrice(plan)}</Text>
-                              {savings ? <Text style={styles.savingsText}>{savings}</Text> : null}
-                            </View>
+                            {plan.badge ? (
+                              <View style={badgeStyle(plan.badge)}>
+                                <Text
+                                  style={[
+                                    styles.badgeChipText,
+                                    plan.badge === "TRY" && styles.badgeTryText,
+                                    plan.badge === "MAX_SAVINGS" && styles.badgeSavingsText,
+                                  ]}
+                                >
+                                  {badgeLabel(plan.badge)}
+                                </Text>
+                              </View>
+                            ) : null}
                           </View>
-                          <View style={styles.selectedRow}>
-                            <MaterialCommunityIcons name={selected ? "radiobox-marked" : "radiobox-blank"} size={20} color="#636128" />
-                            <Text style={styles.selectedLabel}>{selected ? "Выбрано" : "Выбрать тариф"}</Text>
+                          <View style={styles.planPriceBlock}>
+                            <Text style={styles.planPrice}>
+                              {formatAppSubscriptionPlanPrice(plan)}
+                            </Text>
+                            {savings ? <Text style={styles.savingsText}>{savings}</Text> : null}
+                          </View>
+                          <View style={[styles.selectedRow, selected && styles.selectedRowActive]}>
+                            <View
+                              style={[
+                                styles.selectionIconSurface,
+                                selected && styles.selectionIconSurfaceActive,
+                              ]}
+                            >
+                              <MaterialCommunityIcons
+                                name={selected ? "radiobox-marked" : "radiobox-blank"}
+                                size={22}
+                                color="#636128"
+                              />
+                            </View>
+                            <Text style={styles.selectedLabel}>
+                              {selected ? "Выбрано" : "Выбрать тариф"}
+                            </Text>
                           </View>
                           <View style={styles.benefits}>
-                            {PLAN_BENEFITS.map((benefit) => <BenefitRow key={benefit} label={benefit} included />)}
-                            <BenefitRow label="Запись к кинологу" included={plan.consultationBookingIncluded} />
+                            {PLAN_BENEFITS.map((benefit) => (
+                              <BenefitRow key={benefit} label={benefit} included />
+                            ))}
+                            <BenefitRow
+                              label={OFFLINE_DOWNLOAD_BENEFIT}
+                              included={includesOfflineCourseDownload(plan)}
+                            />
+                            <BenefitRow
+                              label="Запись к кинологу"
+                              included={plan.consultationBookingIncluded}
+                            />
                           </View>
                         </Pressable>
                       );
                     })}
                   </View>
-                ) : <Text style={styles.pendingText}>Подписка через ЮKassa сейчас недоступна.</Text>}
+                ) : (
+                  <Text style={styles.pendingText}>Подписка через ЮKassa сейчас недоступна.</Text>
+                )}
 
                 {showPromoCode ? (
-                  <View style={[styles.promoCard, promoState === "applied" && styles.promoCardApplied]} accessibilityLabel="Промокод для первого платежа через ЮKassa">
+                  <View
+                    style={[styles.promoCard, promoState === "applied" && styles.promoCardApplied]}
+                    accessibilityLabel="Промокод для первого платежа через ЮKassa"
+                  >
                     <View style={styles.promoHeadingRow}>
-                      <View style={styles.promoHeadingCopy}>
-                        <Text style={styles.promoTitle}>Промокод</Text>
-                        <Text style={styles.promoSubtitle}>Скидка действует только на первый платёж</Text>
-                      </View>
-                      {promoPrice ? <View style={styles.promoChip}><Text style={styles.promoChipText}>{promoPrice.discount}</Text></View> : null}
+                      <Text style={styles.promoTitle}>Промокод</Text>
+                      {promoPrice ? (
+                        <View style={styles.promoChip}>
+                          <Text style={styles.promoChipText}>{promoPrice.discount}</Text>
+                        </View>
+                      ) : null}
                     </View>
                     <Input
                       ref={promoInputRef}
@@ -420,52 +477,184 @@ export function AppSubscriptionPaywall() {
                       accessibilityLabel="Введите промокод"
                       style={styles.promoInput}
                     />
-                    <Pressable
-                      style={[styles.promoApplyButton, (!hasPromoText || isPaymentBlocked) && styles.disabledButton]}
+                    {getPromoCodeStateMessage(promoState) ? (
+                      <Text
+                        style={[styles.promoMessage, promoHasError && styles.promoErrorMessage]}
+                        accessibilityRole={promoHasError ? "alert" : "text"}
+                      >
+                        {getPromoCodeStateMessage(promoState)}
+                      </Text>
+                    ) : null}
+                    <Button
+                      label={promoPreviewMutation.isPending ? "Проверяем…" : "Применить"}
+                      height={47}
+                      fontFamily={FONTS.montserratBold}
+                      fontSize={14}
+                      lineHeight={18}
+                      verticalPadding={0}
+                      animatedPress
+                      loading={promoPreviewMutation.isPending}
                       onPress={() => void handlePromoApply()}
                       disabled={!hasPromoText || isPaymentBlocked}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: !hasPromoText || isPaymentBlocked, busy: promoPreviewMutation.isPending }}
-                    >
-                      {promoPreviewMutation.isPending ? <ActivityIndicator size="small" color="#F6F0DF" /> : null}
-                      <Text style={styles.promoApplyButtonText}>{promoPreviewMutation.isPending ? "Проверяем…" : "Применить"}</Text>
-                    </Pressable>
+                      accessibilityState={{
+                        disabled: !hasPromoText || isPaymentBlocked,
+                        busy: promoPreviewMutation.isPending,
+                      }}
+                    />
                     {promoPrice ? (
-                      <View style={styles.promoPriceBlock} accessible accessibilityLabel={`${promoPrice.firstCharge}. ${promoPrice.nextCharge}. ${promoPrice.renewal}`}>
-                        <Text style={styles.promoDiscountedPrice}>{promoPrice.firstCharge}</Text>
+                      <View
+                        style={styles.promoPriceBlock}
+                        accessible
+                        accessibilityLabel={`${promoPrice.firstCharge}. ${promoPrice.nextCharge}. ${promoPrice.legal}`}
+                      >
+                        <Text style={styles.promoChargeLabel}>Сейчас спишется</Text>
+                        <View style={styles.promoPriceRow}>
+                          <Text style={styles.promoOriginalPrice}>{promoPrice.originalPrice}</Text>
+                          <Text style={styles.promoDiscountedPrice}>{promoPrice.discounted}</Text>
+                        </View>
                         <Text style={styles.promoRenewal}>{promoPrice.nextCharge}</Text>
-                        <Text style={styles.promoRenewal}>{promoPrice.renewal}</Text>
-                        <Text style={styles.promoLegal}>{promoPrice.legal}</Text>
+                        <Text style={styles.promoFirstPaymentNotice}>{promoPrice.legal}</Text>
                       </View>
                     ) : null}
-                    {getPromoCodeStateMessage(promoState) ? <Text style={[styles.promoMessage, promoHasError && styles.promoErrorMessage]} accessibilityRole={promoHasError ? "alert" : "text"}>{getPromoCodeStateMessage(promoState)}</Text> : null}
                   </View>
                 ) : null}
 
                 {canUseYookassa ? (
-                  <Pressable
-                    style={[styles.primaryButton, isPaymentBlocked && styles.disabledButton]}
+                  <Button
+                    label={
+                      isPaying ? "Оформляем..." : getYookassaPrimaryCta(firstYookassaPaymentRub)
+                    }
+                    icon={
+                      isPaying
+                        ? undefined
+                        : () => (
+                            <Image
+                              source={require("../../../../assets/images/sbp-logo.svg")}
+                              style={styles.sbpIcon}
+                              contentFit="contain"
+                              accessible={false}
+                            />
+                          )
+                    }
+                    height={56}
+                    fontFamily={FONTS.impact}
+                    fontWeight="400"
+                    fontSize={17}
+                    lineHeight={22}
+                    verticalPadding={0}
+                    borderRadius={20}
+                    animatedPress
+                    loading={isPaying}
                     onPress={handleYookassaPay}
                     disabled={isPaymentBlocked}
-                    accessibilityRole="button"
                     accessibilityLabel={getYookassaPrimaryCta(firstYookassaPaymentRub)}
                     accessibilityState={{ disabled: isPaymentBlocked, busy: isPaying }}
-                  >
-                    {isPaying ? <ActivityIndicator color="#F6F0DF" /> : <Image source={require("../../../../assets/images/sbp-logo.svg")} style={styles.sbpIcon} contentFit="contain" accessible={false} />}
-                    <Text style={styles.primaryButtonText}>{isPaying ? "Оформляем..." : getYookassaPrimaryCta(firstYookassaPaymentRub)}</Text>
-                  </Pressable>
+                  />
                 ) : null}
                 <Text style={styles.providerCaption}>{getYookassaPaymentCaption()}</Text>
                 <Text style={styles.legalText}>
-                  Нажимая кнопку оплаты, вы принимаете <Text style={styles.legalLink} onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>Оферту</Text> и <Text style={styles.legalLink} onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>Политику конфиденциальности</Text>. Подписка продлевается автоматически; способ оплаты сохраняется в ЮKassa для продления.
+                  Нажимая кнопку оплаты, вы принимаете{" "}
+                  <Text
+                    style={styles.legalLink}
+                    onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}
+                  >
+                    Оферту
+                  </Text>{" "}
+                  и{" "}
+                  <Text
+                    style={styles.legalLink}
+                    onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}
+                  >
+                    Политику конфиденциальности
+                  </Text>
+                  . Подписка продлевается автоматически; способ оплаты сохраняется в ЮKassa для
+                  продления.
                 </Text>
               </View>
             ) : null}
 
-            {isIos && canUseApple ? <Text style={styles.legalText}>Оформляя подписку, вы принимаете <Text style={styles.legalLink} onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.appleEula)}>Terms of Use (Apple EULA)</Text>, <Text style={styles.legalLink} onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>Оферту</Text> и <Text style={styles.legalLink} onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>Политику конфиденциальности</Text>.</Text> : null}
+            {isIos && canUseApple ? (
+              <View style={styles.providerSection}>
+                <Text style={styles.sectionTitle}>App Store</Text>
+                <View style={styles.appleCard}>
+                  <View>
+                    <Text style={styles.cardTitle}>1 месяц</Text>
+                    <Text style={styles.cardSubtitle}>Подписка через Apple</Text>
+                  </View>
+                  <Text style={styles.applePrice}>
+                    {applePriceQuery.data ?? formatAppSubscriptionPlanPrice(applePlan)}
+                  </Text>
+                </View>
+                <View style={styles.appleBenefits}>
+                  {PLAN_BENEFITS.map((benefit) => (
+                    <BenefitRow key={benefit} label={benefit} included />
+                  ))}
+                  <BenefitRow
+                    label={OFFLINE_DOWNLOAD_BENEFIT}
+                    included={includesOfflineCourseDownload(applePlan)}
+                  />
+                  <BenefitRow
+                    label="Запись к кинологу"
+                    included={Boolean(applePlan?.consultationBookingIncluded)}
+                  />
+                </View>
+                <Button
+                  label={isPaying ? "Оформляем..." : "Оформить через App Store"}
+                  height={56}
+                  fontFamily={FONTS.impact}
+                  fontWeight="400"
+                  fontSize={17}
+                  lineHeight={22}
+                  verticalPadding={0}
+                  borderRadius={20}
+                  animatedPress
+                  loading={isPaying}
+                  onPress={handleApplePay}
+                  disabled={isPaymentBlocked}
+                  accessibilityLabel="Оформить Premium через App Store"
+                  accessibilityState={{ disabled: isPaymentBlocked, busy: isPaying }}
+                />
+                <Text style={styles.providerCaption}>
+                  Списание и управление подпиской выполняются через App Store.
+                </Text>
+              </View>
+            ) : null}
+
+            {isIos && canUseApple ? (
+              <Text style={styles.legalText}>
+                Оформляя подписку, вы принимаете{" "}
+                <Text
+                  style={styles.legalLink}
+                  onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.appleEula)}
+                >
+                  Terms of Use (Apple EULA)
+                </Text>
+                ,{" "}
+                <Text
+                  style={styles.legalLink}
+                  onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}
+                >
+                  Оферту
+                </Text>{" "}
+                и{" "}
+                <Text
+                  style={styles.legalLink}
+                  onPress={() => openLegalLink(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}
+                >
+                  Политику конфиденциальности
+                </Text>
+                .
+              </Text>
+            ) : null}
             {pendingMessage ? <Text style={styles.pendingText}>{pendingMessage}</Text> : null}
-            {offerQuery.isLoading ? <Text style={styles.muted}>Загружаем условия подписки...</Text> : null}
-            {offerQuery.data && !offerQuery.data.success ? <Text style={styles.errorText} accessibilityRole="alert">Не удалось загрузить условия подписки. Попробуйте ещё раз.</Text> : null}
+            {offerQuery.isLoading ? (
+              <Text style={styles.muted}>Загружаем условия подписки...</Text>
+            ) : null}
+            {offerQuery.data && !offerQuery.data.success ? (
+              <Text style={styles.errorText} accessibilityRole="alert">
+                Не удалось загрузить условия подписки. Попробуйте ещё раз.
+              </Text>
+            ) : null}
             {compact ? null : <View style={styles.bottomSpacer} />}
           </View>
         </ScrollView>
@@ -477,8 +666,15 @@ export function AppSubscriptionPaywall() {
 function BenefitRow({ label, included }: { label: string; included: boolean }) {
   return (
     <View style={styles.benefitRow}>
-      <MaterialCommunityIcons name={included ? "check-circle" : "close-circle-outline"} size={18} color={included ? "#636128" : "#8E6256"} />
-      <Text style={[styles.benefitText, !included && styles.benefitTextUnavailable]}>{label}{included ? "" : " — недоступно"}</Text>
+      <MaterialCommunityIcons
+        name={included ? "check-circle" : "close-circle-outline"}
+        size={20}
+        color={included ? "#636128" : "#8E6256"}
+      />
+      <Text style={[styles.benefitText, !included && styles.benefitTextUnavailable]}>
+        {label}
+        {included ? "" : " — недоступно"}
+      </Text>
     </View>
   );
 }
@@ -492,57 +688,215 @@ const styles = StyleSheet.create({
   header: { alignItems: "center", paddingVertical: 4 },
   brand: { color: "#C9A646", fontFamily: FONTS.impact, fontSize: 28, lineHeight: 33 },
   providerSection: { gap: 10 },
-  sectionTitle: { color: "#352E2E", fontFamily: FONTS.montserratBold, fontSize: 21, lineHeight: 27 },
-  sectionLead: { color: "#5F5750", fontFamily: FONTS.montserrat, fontSize: 13, lineHeight: 19 },
-  plansList: { gap: 10 },
-  planCard: { borderRadius: 20, borderWidth: 1.5, borderColor: "rgba(99, 97, 40, 0.28)", backgroundColor: "#FFF9EA", padding: 15, gap: 11 },
-  planCardSelected: { borderWidth: 2.5, borderColor: "#636128", backgroundColor: "#EDF0DB" },
-  planTopRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  sectionTitle: {
+    color: "#352E2E",
+    fontFamily: FONTS.montserratBold,
+    fontSize: 21,
+    lineHeight: 27,
+  },
+  plansList: { gap: 16 },
+  planCard: {
+    borderRadius: 24,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.10)",
+    borderTopColor: "rgba(255, 255, 255, 0.96)",
+    backgroundColor: "#FFFDF5",
+    padding: 18,
+    gap: 14,
+    boxShadow: "0 8px 14px rgba(53, 52, 16, 0.24)",
+    elevation: 7,
+  },
+  planCardSelected: {
+    borderWidth: 2,
+    borderColor: "#636128",
+    borderTopColor: "#D6AF43",
+    backgroundColor: "#F0F3DF",
+    boxShadow: "0 10px 18px rgba(53, 52, 16, 0.30)",
+    elevation: 9,
+  },
+  planCardPressed: {
+    opacity: 0.98,
+    transform: [{ translateY: 4 }, { scale: 0.99 }],
+    boxShadow: "0 2px 4px rgba(53, 52, 16, 0.18)",
+    elevation: 2,
+  },
+  planTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: 12,
+  },
   planTitleBlock: { flex: 1, gap: 2 },
-  planPriceBlock: { alignItems: "flex-end", gap: 3, maxWidth: "58%" },
-  cardTitle: { color: "#352E2E", fontFamily: FONTS.montserratBold, fontSize: 18, lineHeight: 23 },
-  cardSubtitle: { color: "#756D65", fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 17 },
-  planPrice: { color: "#352E2E", fontFamily: FONTS.impact, fontSize: 23, lineHeight: 27, fontVariant: ["tabular-nums"] },
-  badgeChip: { borderRadius: 12, minHeight: 25, paddingHorizontal: 9, justifyContent: "center" },
-  badgeTry: { borderWidth: 1.25, borderColor: "#636128", backgroundColor: "transparent" },
+  planPriceBlock: { alignItems: "flex-end", alignSelf: "stretch", gap: 5 },
+  cardTitle: { color: "#352E2E", fontFamily: FONTS.montserratBold, fontSize: 21, lineHeight: 26 },
+  cardSubtitle: { color: "#756D65", fontFamily: FONTS.montserrat, fontSize: 13, lineHeight: 18 },
+  planPrice: {
+    color: "#352E2E",
+    fontFamily: FONTS.impact,
+    fontSize: 30,
+    lineHeight: 35,
+    fontVariant: ["tabular-nums"],
+  },
+  badgeChip: {
+    alignSelf: "flex-end",
+    minHeight: 30,
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+    boxShadow: "0 2px 5px rgba(53, 46, 46, 0.14)",
+    elevation: 2,
+  },
+  badgeTry: { borderWidth: 1.5, borderColor: "#636128", backgroundColor: "#FFFDF5" },
   badgePopular: { backgroundColor: "#636128" },
-  badgeSavings: { backgroundColor: "#C9A646" },
-  badgeChipText: { color: "#FFF9EA", fontFamily: FONTS.montserratBold, fontSize: 11, lineHeight: 15 },
+  badgeSavings: { backgroundColor: "#D6AF43" },
+  badgeChipText: {
+    color: "#FFF9EA",
+    fontFamily: FONTS.montserratBold,
+    fontSize: 11,
+    lineHeight: 15,
+  },
   badgeTryText: { color: "#636128" },
-  savingsText: { color: "#636128", fontFamily: FONTS.montserratBold, fontSize: 12, lineHeight: 16 },
-  selectedRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  selectedLabel: { color: "#636128", fontFamily: FONTS.montserratMedium, fontSize: 12 },
-  benefits: { borderTopColor: "rgba(99, 97, 40, 0.18)", borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, gap: 6 },
+  badgeSavingsText: { color: "#352E2E" },
+  savingsText: { color: "#636128", fontFamily: FONTS.montserratBold, fontSize: 13, lineHeight: 18 },
+  selectedRow: {
+    alignSelf: "flex-start",
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderRadius: 19,
+    paddingHorizontal: 9,
+    backgroundColor: "rgba(99, 97, 40, 0.04)",
+  },
+  selectedRowActive: {
+    backgroundColor: "rgba(99, 97, 40, 0.12)",
+    boxShadow: "inset 0 1px 2px rgba(99, 97, 40, 0.10)",
+  },
+  selectionIconSurface: {
+    width: 25,
+    height: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: "#FFFDF5",
+    boxShadow: "0 1px 2px rgba(76, 73, 31, 0.10)",
+  },
+  selectionIconSurfaceActive: { backgroundColor: "#F6F0DF" },
+  selectedLabel: { color: "#636128", fontFamily: FONTS.montserratMedium, fontSize: 13 },
+  benefits: { borderTopColor: "rgba(99, 97, 40, 0.14)", borderTopWidth: 1, paddingTop: 13, gap: 9 },
   benefitRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  benefitText: { color: "#352E2E", fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 18 },
+  benefitText: { color: "#352E2E", fontFamily: FONTS.montserrat, fontSize: 13, lineHeight: 19 },
   benefitTextUnavailable: { color: "#8E6256" },
-  appleCard: { borderRadius: 18, borderWidth: 1.5, borderColor: "rgba(99, 97, 40, 0.28)", backgroundColor: "#FFF9EA", padding: 15, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  appleCard: {
+    borderRadius: 22,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.22)",
+    backgroundColor: "#FFFDF5",
+    padding: 18,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    boxShadow: "0 5px 12px rgba(53, 46, 46, 0.10)",
+  },
   applePrice: { color: "#352E2E", fontFamily: FONTS.impact, fontSize: 20, textAlign: "right" },
-  primaryButton: { minHeight: 56, borderRadius: 20, backgroundColor: "#636128", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10, paddingHorizontal: SPACING.md },
-  primaryButtonText: { color: "#F6F0DF", fontFamily: FONTS.impact, fontSize: 17, textAlign: "center" },
-  disabledButton: { opacity: 0.58 },
-  providerCaption: { color: "#5F5750", fontFamily: FONTS.montserrat, fontSize: 11, lineHeight: 16, textAlign: "center" },
-  promoCard: { borderRadius: 18, borderWidth: 1.5, borderColor: "rgba(99, 97, 40, 0.42)", backgroundColor: "#FFF9EA", padding: SPACING.md, gap: 10 },
+  appleBenefits: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.14)",
+    backgroundColor: "rgba(255, 253, 245, 0.72)",
+    padding: 14,
+    gap: 9,
+  },
+  providerCaption: {
+    color: "#5F5750",
+    fontFamily: FONTS.montserrat,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: "center",
+  },
+  promoCard: {
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "rgba(99, 97, 40, 0.42)",
+    backgroundColor: "#FFF9EA",
+    padding: SPACING.md,
+    gap: 10,
+  },
   promoCardApplied: { borderColor: "#636128", backgroundColor: "#EDF0DB" },
-  promoHeadingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  promoHeadingCopy: { flex: 1, gap: 2 },
+  promoHeadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   promoTitle: { color: COLORS.text, fontFamily: FONTS.montserratBold, fontSize: 17 },
-  promoSubtitle: { color: COLORS.textSecondary, fontFamily: FONTS.montserrat, fontSize: 11, lineHeight: 16 },
-  promoChip: { minHeight: 30, borderRadius: 15, paddingHorizontal: 10, justifyContent: "center", backgroundColor: "#636128" },
+  promoChip: {
+    minHeight: 30,
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    backgroundColor: "#636128",
+  },
   promoChipText: { color: "#F6F0DF", fontFamily: FONTS.montserratBold, fontSize: 13 },
   promoInput: { minHeight: 56, fontFamily: FONTS.montserratMedium, backgroundColor: "#FFFDF5" },
-  promoApplyButton: { minHeight: 47, borderRadius: 14, paddingHorizontal: SPACING.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#636128" },
-  promoApplyButtonText: { color: "#F6F0DF", fontFamily: FONTS.montserratBold, fontSize: 14 },
-  promoPriceBlock: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(99, 97, 40, 0.34)", paddingTop: 10, gap: 4 },
-  promoDiscountedPrice: { color: "#636128", fontFamily: FONTS.impact, fontSize: 22, lineHeight: 27, fontVariant: ["tabular-nums"] },
-  promoRenewal: { color: COLORS.textSecondary, fontFamily: FONTS.montserratMedium, fontSize: 12, lineHeight: 18 },
-  promoLegal: { color: COLORS.textSecondary, fontFamily: FONTS.montserrat, fontSize: 10, lineHeight: 15, marginTop: 2 },
-  promoMessage: { color: COLORS.textSecondary, fontFamily: FONTS.montserratMedium, fontSize: 12, lineHeight: 17 },
+  promoPriceBlock: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(99, 97, 40, 0.34)",
+    paddingTop: 10,
+    gap: 4,
+  },
+  promoChargeLabel: { color: "#636128", fontFamily: FONTS.impact, fontSize: 22, lineHeight: 27 },
+  promoPriceRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: 8 },
+  promoOriginalPrice: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 15,
+    lineHeight: 22,
+    textDecorationLine: "line-through",
+    fontVariant: ["tabular-nums"],
+  },
+  promoDiscountedPrice: {
+    color: "#636128",
+    fontFamily: FONTS.impact,
+    fontSize: 26,
+    lineHeight: 31,
+    fontVariant: ["tabular-nums"],
+  },
+  promoRenewal: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  promoFirstPaymentNotice: {
+    color: "#352E2E",
+    fontFamily: FONTS.montserratBold,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  promoMessage: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   promoErrorMessage: { color: "#9B2F1C" },
   sbpIcon: { width: 20, height: 25 },
   legalText: { color: "#5F5750", fontFamily: FONTS.montserrat, fontSize: 11, lineHeight: 16 },
   legalLink: { color: COLORS.primary, textDecorationLine: "underline" },
-  pendingText: { borderRadius: 14, backgroundColor: "#E8F1DD", padding: SPACING.sm, color: COLORS.primary, fontFamily: FONTS.montserrat, lineHeight: 20 },
+  pendingText: {
+    borderRadius: 14,
+    backgroundColor: "#E8F1DD",
+    padding: SPACING.sm,
+    color: COLORS.primary,
+    fontFamily: FONTS.montserrat,
+    lineHeight: 20,
+  },
   muted: { color: COLORS.textSecondary, fontFamily: FONTS.montserrat, fontSize: 13 },
   errorText: { color: "#9B2F1C", fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 17 },
   bottomSpacer: { height: 8 },

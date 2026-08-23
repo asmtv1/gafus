@@ -24,13 +24,15 @@ export async function requireWebAppSubscription(userId: string) {
 export async function requireWebAppSubscriptionOrThrow(userId: string) {
   const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) {
-    return;
+    return null;
   }
 
   const access = await getAppSubscriptionAccess(userId);
   if (!access.hasActiveSubscription) {
     throw new SubscriptionRequiredError();
   }
+
+  return access;
 }
 
 export async function requireSessionUserIdOrRedirectToLogin(): Promise<string> {

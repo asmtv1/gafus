@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { cynologistDisplayInitials, plainConsultationAboutHtml } from "@gafus/consultation-shared";
 import type { ListedCynologistCardDto } from "@gafus/consultation-shared";
@@ -11,6 +10,8 @@ import { useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { TourTarget } from "@/shared/lib/tour-targets";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -63,33 +64,57 @@ export default function ConsultationsCynologistsListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.root} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <TourTarget id="consultations-list">
-          <View style={styles.header}>
-            <Text style={styles.pageTitle}>Консультации с кинологом</Text>
-          </View>
+          <PageHeader
+            title="Консультации"
+            description="Выберите кинолога и удобное время для встречи"
+          />
         </TourTarget>
 
         <View style={styles.subNav}>
-          <View style={[styles.subNavItem, styles.subNavItemActive]}>
-            <Text style={[styles.subNavText, styles.subNavTextActive]}>Каталог кинологов</Text>
-          </View>
-          <Pressable
-            style={styles.subNavItem}
+          <Button
+            label="Каталог кинологов"
+            variant="selected"
+            flex={1}
+            fullWidth={false}
+            height={52}
+            fontSize={12}
+            lineHeight={18}
+            fontFamily={FONTS.montserratMedium}
+            horizontalPadding={6}
+            verticalPadding={0}
+            borderRadius={12}
+            animatedPress
+            compact
+            haptic={false}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: true }}
+          />
+          <Button
+            label="Мои консультации"
+            variant="primary"
+            flex={1}
+            fullWidth={false}
+            height={52}
+            fontSize={12}
+            lineHeight={18}
+            fontFamily={FONTS.montserratMedium}
+            horizontalPadding={6}
+            verticalPadding={0}
+            borderRadius={12}
+            animatedPress
+            compact
+            haptic={false}
             onPress={() => {
               hapticFeedback.light();
               router.push("/(main)/(tabs)/consultations?view=mine" as Href);
             }}
-          >
-            <Text style={styles.subNavText}>Мои консультации</Text>
-          </Pressable>
+            accessibilityRole="radio"
+            accessibilityState={{ checked: false }}
+          />
         </View>
-
-        <Text style={styles.intro}>
-          Выберите кинолога и свободный слот. После записи тренер подтвердит встречу — на почту
-          придут уведомления.
-        </Text>
 
         {query.isError ? (
           <Text style={styles.error}>Не удалось загрузить список. Попробуйте позже.</Text>
@@ -102,7 +127,10 @@ export default function ConsultationsCynologistsListScreen() {
         ) : null}
 
         {!query.isLoading && items.length > 0 ? (
-          <Text style={styles.sectionTitle}>Кинологи</Text>
+          <View style={styles.catalogHeading}>
+            <Text style={styles.sectionTitle}>Доступные специалисты</Text>
+            <Text style={styles.catalogCaption}>Выберите того, с кем хотите обсудить питомца</Text>
+          </View>
         ) : null}
 
         {items.map((c) => {
@@ -110,7 +138,7 @@ export default function ConsultationsCynologistsListScreen() {
           const about = plainConsultationAboutHtml(c.about);
           const title = c.displayName ?? "Кинолог";
           return (
-            <Pressable key={c.id} style={styles.card} onPress={() => onOpen(c)}>
+            <View key={c.id} style={styles.card}>
               <View style={styles.cardInner}>
                 <View style={styles.avatarFrame}>
                   {src ? (
@@ -134,107 +162,89 @@ export default function ConsultationsCynologistsListScreen() {
                     <Text style={styles.metaLine}>
                       Длительность слота: {c.slotDurationMin} мин. · Часовой пояс: МСК (UTC+3)
                     </Text>
-                    <View style={styles.ctaPill}>
-                      <Text style={styles.cta}>Выбрать слот →</Text>
-                    </View>
+                    <Button
+                      label="Выбрать слот"
+                      icon="arrow-right"
+                      iconPosition="right"
+                      fullWidth={false}
+                      height={44}
+                      fontFamily={FONTS.montserratMedium}
+                      fontSize={14}
+                      lineHeight={18}
+                      horizontalPadding={14}
+                      verticalPadding={0}
+                      borderRadius={14}
+                      animatedPress
+                      haptic={false}
+                      style={styles.ctaButtonLayout}
+                      onPress={() => onOpen(c)}
+                      accessibilityLabel={`Выбрать слот у кинолога ${title}`}
+                      accessibilityHint="Открывает календарь свободных слотов"
+                    />
                   </View>
                 </View>
               </View>
-            </Pressable>
+            </View>
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: {
-    paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING.xs,
-    paddingBottom: SPACING.xl,
-  },
-  header: {
-    paddingBottom: SPACING.sm,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: "400",
-    fontFamily: FONTS.impact,
-    color: "#352E2E",
-    textAlign: "center",
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-  },
+  scroll: { paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.xxl },
   subNav: {
     flexDirection: "row",
     gap: SPACING.xs,
+    marginBottom: SPACING.lg,
+  },
+  catalogHeading: {
     marginBottom: SPACING.md,
-  },
-  subNavItem: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: SPACING.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "#F5F0E8",
-  },
-  subNavItemActive: {
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    backgroundColor: "#ECE5D2",
-  },
-  subNavText: {
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 15,
-    lineHeight: 20,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-  },
-  subNavTextActive: { color: COLORS.primaryDark },
-  intro: {
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
-    lineHeight: 20,
   },
   sectionTitle: {
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 18,
+    fontFamily: FONTS.montserratBold,
+    fontSize: 20,
     color: COLORS.text,
-    marginBottom: SPACING.sm,
+    lineHeight: 26,
+  },
+  catalogCaption: {
+    color: "#756D65",
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   card: {
-    backgroundColor: "#F5F0E8",
-    borderRadius: 12,
+    backgroundColor: "#FFF8E5",
+    borderRadius: 16,
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
     overflow: "hidden",
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardInner: { flexDirection: "row", padding: SPACING.md, gap: SPACING.md },
   avatarFrame: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     overflow: "hidden",
     backgroundColor: "#ECE5D2",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatar: { width: 96, height: 96 },
+  avatar: { width: 88, height: 88 },
   avatarPlaceholder: {
     fontFamily: FONTS.montserratMedium,
     fontSize: 28,
     color: COLORS.textSecondary,
   },
   cardBody: { flex: 1, minWidth: 0 },
-  title: { fontFamily: FONTS.montserratMedium, fontSize: 17, color: COLORS.text },
+  title: { fontFamily: FONTS.montserratBold, fontSize: 18, color: COLORS.text, lineHeight: 24 },
   about: {
     fontFamily: FONTS.montserrat,
     fontSize: 14,
@@ -251,20 +261,9 @@ const styles = StyleSheet.create({
   },
   meta: { marginTop: SPACING.sm },
   metaLine: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
-  ctaPill: {
+  ctaButtonLayout: {
     alignSelf: "flex-start",
     marginTop: SPACING.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary,
-  },
-  cta: {
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 14,
-    color: "#ECE5D2",
   },
   muted: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },

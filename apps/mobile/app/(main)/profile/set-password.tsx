@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 

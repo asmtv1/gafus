@@ -1,6 +1,7 @@
 import { replaceEqualDeep } from "@tanstack/react-query";
 
 import { type Course, coursesApi } from "./courses";
+import { getCourseStartedUsersCount } from "./courseParticipation";
 
 type CoursesCatalogResponse = Awaited<ReturnType<typeof coursesApi.getAll>>;
 
@@ -25,6 +26,7 @@ function areCourseCardFieldsEqual(prev: Course, next: Course): boolean {
     prev.duration === next.duration &&
     prev.trainingLevel === next.trainingLevel &&
     prev.userStatus === next.userStatus &&
+    getCourseStartedUsersCount(prev) === getCourseStartedUsersCount(next) &&
     prev.isPaid === next.isPaid &&
     prev.isPrivate === next.isPrivate &&
     prev.hasAccess === next.hasAccess &&

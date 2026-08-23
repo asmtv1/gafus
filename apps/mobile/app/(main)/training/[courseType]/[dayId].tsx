@@ -9,14 +9,15 @@ import {
   Platform,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { WebView } from "react-native-webview";
-import { Loading, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading, MascotSpinner } from "@/shared/components/ui";
 import { MarkdownText } from "@/shared/components";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { AccordionStep } from "@/features/training";
 import {
   useTrainingDay,
@@ -781,15 +782,23 @@ export default function TrainingDayScreen() {
                 {`courseType: ${courseType}\ndayId: ${dayId}`}
               </Text>
             )}
-            <Pressable
+            <Button
+              label="Попробовать снова"
+              fullWidth={false}
+              height={34}
+              fontFamily={null}
+              fontWeight="600"
+              fontSize={14}
+              lineHeight={18}
+              horizontalPadding={SPACING.md}
+              verticalPadding={SPACING.sm}
+              borderRadius={8}
+              style={styles.retryButtonLayout}
               onPress={() => {
                 void hapticFeedback.light();
                 refetch();
               }}
-              style={styles.retryButton}
-            >
-              <Text style={styles.retryButtonText}>Попробовать снова</Text>
-            </Pressable>
+            />
           </View>
         </SafeAreaView>
       </>
@@ -851,10 +860,12 @@ export default function TrainingDayScreen() {
                 accessibilityLabel={
                   isDescriptionOpen ? "Скрыть описание дня" : "Подробнее описание дня"
                 }
-                style={[
+                style={({ pressed }) => [
                   styles.descriptionDayHeader,
                   isDescriptionOpen && styles.descriptionDayHeaderExpanded,
+                  pressed && styles.descriptionDayHeaderPressed,
                 ]}
+                accessibilityState={{ expanded: isDescriptionOpen }}
               >
                 <Text style={styles.descriptionDayTitle}>Описание дня</Text>
                 <View style={styles.descriptionDayExpand}>
@@ -1172,35 +1183,54 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     width: "100%",
     maxWidth: 500,
+    borderRadius: 20,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.12)",
+    borderTopColor: "rgba(255, 255, 255, 0.96)",
+    backgroundColor: "#FFFDF5",
+    boxShadow: "0 7px 14px rgba(53, 52, 16, 0.22)",
+    elevation: 7,
   },
   descriptionDayHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: SPACING.md,
-    paddingHorizontal: 20,
-    backgroundColor: "#ece5d2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderRadius: 12,
+    minHeight: 66,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    backgroundColor: "transparent",
+    borderRadius: 20,
+    borderCurve: "continuous",
   },
   descriptionDayHeaderExpanded: {
+    backgroundColor: "#FAF6EA",
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
+  descriptionDayHeaderPressed: {
+    backgroundColor: "#F4EEDC",
+  },
   descriptionDayTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    lineHeight: 21,
+    fontFamily: FONTS.montserratBold,
     color: "#352e2e",
   },
   descriptionDayExpand: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
+    gap: 2,
+    minHeight: 36,
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderRadius: 18,
+    backgroundColor: "rgba(99, 97, 40, 0.09)",
   },
   descriptionDayExpandText: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: FONTS.montserratMedium,
     color: COLORS.primary,
   },
   descriptionDayIcon: {
@@ -1210,12 +1240,13 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "180deg" }],
   },
   descriptionDayContent: {
-    backgroundColor: "#ece5d2",
-    borderWidth: 1,
-    borderColor: "#636128",
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    backgroundColor: "#FFFDF5",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(99, 97, 40, 0.14)",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderCurve: "continuous",
+    overflow: "hidden",
     padding: 20,
   },
   exportPathBlock: {
@@ -1263,15 +1294,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
   },
-  retryButton: {
+  retryButtonLayout: {
     marginTop: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
   },
 });

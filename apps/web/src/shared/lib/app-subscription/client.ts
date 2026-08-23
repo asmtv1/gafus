@@ -3,6 +3,32 @@ export async function fetchAppSubscriptionStatus() {
   return response.json();
 }
 
+type AppSubscriptionStatusResponse = {
+  success?: boolean;
+  data?: {
+    hasActiveSubscription?: boolean;
+    planCode?: "WEEKLY" | "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS" | null;
+  };
+};
+
+let courseDownloadStatusCache:
+  | { expiresAt: number; promise: Promise<AppSubscriptionStatusResponse> }
+  | undefined;
+
+export function fetchCachedCourseDownloadSubscriptionStatus() {
+  const now = Date.now();
+  if (courseDownloadStatusCache && courseDownloadStatusCache.expiresAt > now) {
+    return courseDownloadStatusCache.promise;
+  }
+
+  const promise = fetchAppSubscriptionStatus() as Promise<AppSubscriptionStatusResponse>;
+  courseDownloadStatusCache = { expiresAt: now + 30_000, promise };
+  void promise.catch(() => {
+    if (courseDownloadStatusCache?.promise === promise) courseDownloadStatusCache = undefined;
+  });
+  return promise;
+}
+
 export async function fetchAppSubscriptionOffer() {
   const response = await fetch("/api/v1/app-subscription/offer", { cache: "no-store" });
   return response.json();

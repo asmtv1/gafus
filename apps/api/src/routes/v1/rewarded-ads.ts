@@ -16,7 +16,7 @@ import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-rewarded-ads");
 export const rewardedAdsRoutes = new Hono();
-const MINIMUM_DIRECT_ACCESS_VERSION = "1.6.6";
+const MINIMUM_DIRECT_ACCESS_VERSION = "1.6.7";
 
 const mobilePlatformSchema = z.enum(["ANDROID", "IOS"]);
 const targetTypeSchema = z.enum(["ARTICLE", "COURSE_STEP"]);

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
+import { Button } from "@/shared/components/ui";
 import type { TourTargetRect } from "@/shared/lib/tour-targets";
 import type { MobileOnboardingTourStep } from "./tour-steps";
 
@@ -178,11 +179,18 @@ export function TourOverlay({
               <Text style={styles.secondaryButtonText}>Пропустить</Text>
             </Pressable>
           ) : null}
-          <Pressable style={styles.primaryButton} onPress={onNext}>
-            <Text style={styles.primaryButtonText}>
-              {primaryActionLabel ?? (isLastStep ? "Готово" : "Далее")}
-            </Text>
-          </Pressable>
+          <Button
+            label={primaryActionLabel ?? (isLastStep ? "Готово" : "Далее")}
+            fullWidth={false}
+            height={44}
+            fontFamily={FONTS.montserratMedium}
+            fontSize={14}
+            lineHeight={18}
+            horizontalPadding={SPACING.md}
+            verticalPadding={0}
+            borderRadius={BORDER_RADIUS.md}
+            onPress={onNext}
+          />
         </View>
       </View>
     </View>
@@ -308,18 +316,6 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: COLORS.textSecondary,
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 14,
-  },
-  primaryButton: {
-    minHeight: 44,
-    justifyContent: "center",
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.md,
-  },
-  primaryButtonText: {
-    color: COLORS.onPrimary,
     fontFamily: FONTS.montserratMedium,
     fontSize: 14,
   },

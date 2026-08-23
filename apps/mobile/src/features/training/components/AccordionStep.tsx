@@ -12,14 +12,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-} from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useCallback, useEffect, useMemo, useState, memo, useRef } from "react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { Button } from "@/shared/components/ui";
 
 import {
   formatTimeLeft,
@@ -44,10 +41,7 @@ import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore
 import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { WebView } from "react-native-webview";
-import {
-  getOfflineVideoPosterUri,
-  getOfflineVideoUri,
-} from "@/shared/lib/offline/offlineStorage";
+import { getOfflineVideoPosterUri, getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -60,13 +54,48 @@ function formatDiaryEntryDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ru-RU");
 }
 
-/** Цвета и эмодзи для статусов — как в web Day.tsx */
-const STEP_STATUS_CONFIG: Record<string, { emoji: string; backgroundColor: string }> = {
-  NOT_STARTED: { emoji: "⏳", backgroundColor: "#FFF8E5" },
-  IN_PROGRESS: { emoji: "🔄", backgroundColor: "#E6F3FF" },
-  COMPLETED: { emoji: "✅", backgroundColor: "#B6C582" },
-  PAUSED: { emoji: "⏸️", backgroundColor: "#FFF4E6" },
-  RESET: { emoji: "🔄", backgroundColor: "#E8E6E6" },
+type StepStatusIcon = ComponentProps<typeof MaterialCommunityIcons>["name"];
+
+/** Спокойные оттенки поверхности и системные иконки для состояний шага. */
+const STEP_STATUS_CONFIG: Record<
+  string,
+  {
+    icon: StepStatusIcon;
+    backgroundColor: string;
+    statusBackgroundColor: string;
+    foregroundColor: string;
+  }
+> = {
+  NOT_STARTED: {
+    icon: "clock-outline",
+    backgroundColor: "#FFFDF5",
+    statusBackgroundColor: "rgba(99, 97, 40, 0.08)",
+    foregroundColor: "#636128",
+  },
+  IN_PROGRESS: {
+    icon: "progress-clock",
+    backgroundColor: "#F3F5E8",
+    statusBackgroundColor: "rgba(99, 97, 40, 0.12)",
+    foregroundColor: "#636128",
+  },
+  COMPLETED: {
+    icon: "check-circle-outline",
+    backgroundColor: "#EFF3DF",
+    statusBackgroundColor: "rgba(78, 97, 31, 0.13)",
+    foregroundColor: "#4E611F",
+  },
+  PAUSED: {
+    icon: "pause-circle-outline",
+    backgroundColor: "#FFF8EA",
+    statusBackgroundColor: "rgba(143, 102, 38, 0.11)",
+    foregroundColor: "#795A28",
+  },
+  RESET: {
+    icon: "restart",
+    backgroundColor: "#F5F2EC",
+    statusBackgroundColor: "rgba(83, 76, 68, 0.09)",
+    foregroundColor: "#5F5750",
+  },
 };
 
 interface AccordionStepProps {
@@ -460,9 +489,9 @@ function AccordionStepComponent({
       ? "Дневник успехов"
       : isSurvey
         ? "Анкета"
-      : stepNumber != null
-        ? `Упражнение #${stepNumber}`
-        : `#${index + 1}`;
+        : stepNumber != null
+          ? `Упражнение #${stepNumber}`
+          : `#${index + 1}`;
   const stepSubtitle =
     stepType === "BREAK" ? (stepData?.title ?? "") : `«${stepData?.title ?? "Шаг"}»`;
   const showDiaryBlock = isDiary && !!onSaveDiary;
@@ -473,7 +502,13 @@ function AccordionStepComponent({
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: statusConfig.backgroundColor }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: statusConfig.backgroundColor },
+        isOpen && styles.containerOpen,
+      ]}
+    >
       <View style={styles.surfaceContent}>
         {/* Две строки: 1 — название по центру, 2 — Подробнее/Скрыть + статус */}
         <Pressable
@@ -481,10 +516,11 @@ function AccordionStepComponent({
             void hapticFeedback.selection();
             onToggle();
           }}
-          style={styles.header}
+          style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={isOpen ? "Скрыть шаг" : "Подробнее о шаге"}
+          accessibilityState={{ expanded: isOpen }}
         >
           {stepSubtitle || stepTypeLabel ? (
             <Text style={styles.stepTitleLine}>{stepSubtitle || stepTypeLabel}</Text>
@@ -498,9 +534,19 @@ function AccordionStepComponent({
               />
               <Text style={styles.expandText}>{isOpen ? "Скрыть" : "Подробнее"}</Text>
             </View>
-            <View style={styles.stepStatusConfig}>
-              <Text style={styles.stepStatusText}>
-                {statusConfig.emoji} {statusText}
+            <View
+              style={[
+                styles.stepStatusConfig,
+                { backgroundColor: statusConfig.statusBackgroundColor },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={statusConfig.icon}
+                size={18}
+                color={statusConfig.foregroundColor}
+              />
+              <Text style={[styles.stepStatusText, { color: statusConfig.foregroundColor }]}>
+                {statusText}
               </Text>
             </View>
           </View>
@@ -520,506 +566,555 @@ function AccordionStepComponent({
                 <View style={styles.accessGateWrap}>{accessGate}</View>
               ) : (
                 <>
-
-              {/* Информационные карточки для разных типов шагов (как в web) */}
-              {isTheory && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.THEORY}</Text>
-                  {shouldShowEstimatedDuration(stepTypeForUi) &&
-                    stepData.estimatedDurationSec &&
-                    stepData.estimatedDurationSec > 0 && (
-                      <View style={styles.estimatedTimeBadge}>
-                        <Text style={styles.estimatedTimeBadgeText}>
-                          Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
-                        </Text>
-                      </View>
-                    )}
-                </View>
-              )}
-
-              {isPractice && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.PRACTICE}</Text>
-                  {shouldShowEstimatedDuration(stepTypeForUi) &&
-                    stepData.estimatedDurationSec &&
-                    stepData.estimatedDurationSec > 0 && (
-                      <View style={styles.estimatedTimeBadge}>
-                        <Text style={styles.estimatedTimeBadgeText}>
-                          Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
-                        </Text>
-                      </View>
-                    )}
-                </View>
-              )}
-
-              {isExamination && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.EXAMINATION}</Text>
-                  {shouldShowEstimatedDuration(stepTypeForUi) &&
-                    stepData.estimatedDurationSec &&
-                    stepData.estimatedDurationSec > 0 && (
-                      <View style={styles.estimatedTimeBadge}>
-                        <Text style={styles.estimatedTimeBadgeText}>
-                          Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
-                        </Text>
-                      </View>
-                    )}
-                </View>
-              )}
-
-              {isDiary && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.DIARY}</Text>
-                </View>
-              )}
-
-              {isSurvey && (
-                <View style={styles.infoCard}>
-                  <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.SURVEY}</Text>
-                  {shouldShowEstimatedDuration(stepTypeForUi) &&
-                    stepData.estimatedDurationSec &&
-                    stepData.estimatedDurationSec > 0 && (
-                      <View style={styles.estimatedTimeBadge}>
-                        <Text style={styles.estimatedTimeBadgeText}>
-                          Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
-                        </Text>
-                      </View>
-                    )}
-                </View>
-              )}
-
-              {/* Блок экзамена: тест, письменная связь, видео (как на web) */}
-              {isExamination && examUserStepId && (
-                <View style={styles.descriptionSection}>
-                  <Text style={styles.descriptionSectionTitle}>Экзамен:</Text>
-                  <View style={styles.descriptionSectionContent}>
-                    {stepData.hasTestQuestions && examChecklist && examChecklist.length > 0 && (
-                      <TestQuestionsBlock
-                        checklist={examChecklist}
-                        userStepId={examUserStepId}
-                        stepId={
-                          (stepData && "id" in stepData && stepData.id) ||
-                          ("id" in step && (step as { id: string }).id) ||
-                          ""
-                        }
-                      />
-                    )}
-                    {stepData.requiresWrittenFeedback && (
-                      <WrittenFeedbackBlock
-                        userStepId={examUserStepId}
-                        stepId={
-                          (stepData && "id" in stepData && stepData.id) ||
-                          ("id" in step && (step as { id: string }).id) ||
-                          ""
-                        }
-                      />
-                    )}
-                    {stepData.requiresVideoReport && (
-                      <VideoReportBlock
-                        userStepId={examUserStepId}
-                        stepId={
-                          (stepData && "id" in stepData && stepData.id) ||
-                          ("id" in step && (step as { id: string }).id) ||
-                          ""
-                        }
-                      />
-                    )}
-                  </View>
-                </View>
-              )}
-
-              {isSurvey && stepData.surveySlug && (
-                <View style={styles.descriptionSection}>
-                  <Text style={styles.descriptionSectionTitle}>Анкета:</Text>
-                  <View style={styles.descriptionSectionContent}>
-                    <SurveyBlock
-                      courseId={courseId}
-                      stepId={stepData.id}
-                      userStepId={examUserStepId}
-                      surveySlug={stepData.surveySlug}
-                      onComplete={onComplete}
-                    />
-                  </View>
-                </View>
-              )}
-
-              {showDiaryBlock && (
-                <View key={diaryEntriesListKey} style={styles.diaryStepInfo}>
-                  {!isCompleted ? (
-                    <>
-                      <Text style={styles.diarySectionTitle}>Ваша запись:</Text>
-                      <TextInput
-                        value={diaryContent}
-                        onChangeText={(t) => {
-                          setDiaryContent(t);
-                          if (diaryError) setDiaryError(null);
-                        }}
-                        multiline
-                        maxLength={10000}
-                        placeholder="Опишите свои успехи за сегодня..."
-                        placeholderTextColor={COLORS.textSecondary}
-                        style={styles.diaryTextarea}
-                      />
-                      {diaryError ? (
-                        <Text style={styles.diaryError} accessibilityRole="alert">
-                          {diaryError}
-                        </Text>
-                      ) : null}
-                      <View style={styles.diarySaveAction}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.completeBtn,
-                            pressed && styles.completeBtnPressed,
-                            (isSavingDiary || !diaryContent.trim()) && styles.diarySaveBtnDisabled,
-                          ]}
-                          disabled={isSavingDiary || !diaryContent.trim()}
-                          onPress={async () => {
-                            const content = diaryContent.trim();
-                            if (!onSaveDiary) return;
-                            if (!content) {
-                              setDiaryError("Введите текст записи");
-                              return;
-                            }
-                            setIsSavingDiary(true);
-                            try {
-                              await onSaveDiary(
-                                index,
-                                content,
-                                typeof stepData?.title === "string" ? stepData.title : undefined,
-                              );
-                              void hapticFeedback.success();
-                              setDiaryContent("");
-                              setDiaryError(null);
-                            } finally {
-                              setIsSavingDiary(false);
-                            }
-                          }}
-                        >
-                          <Text style={styles.completeBtnText}>
-                            {isSavingDiary ? "Сохранение…" : "Сохранить"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </>
-                  ) : (
-                    <View style={styles.completedBadge}>
-                      <Text style={styles.completedBadgeCheck}>✓</Text>
-                      <Text style={styles.completedBadgeText}>Запись сохранена</Text>
+                  {/* Информационные карточки для разных типов шагов (как в web) */}
+                  {isTheory && (
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.THEORY}</Text>
+                      {shouldShowEstimatedDuration(stepTypeForUi) &&
+                        stepData.estimatedDurationSec &&
+                        stepData.estimatedDurationSec > 0 && (
+                          <View style={styles.estimatedTimeBadge}>
+                            <Text style={styles.estimatedTimeBadgeText}>
+                              Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                            </Text>
+                          </View>
+                        )}
                     </View>
                   )}
-                  {diaryEntries.length > 0 ? (
-                    <>
-                      <Text style={styles.diarySectionTitle}>Предыдущие записи:</Text>
-                      <View style={styles.diaryEntriesList}>
-                        {diaryEntries.map((entry) => (
-                          <View key={entry.id} style={styles.diaryEntryItem}>
-                            <Text style={styles.diaryEntryTitle}>
-                              День {entry.dayOrder}. {entry.dayTitle}
+
+                  {isPractice && (
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.PRACTICE}</Text>
+                      {shouldShowEstimatedDuration(stepTypeForUi) &&
+                        stepData.estimatedDurationSec &&
+                        stepData.estimatedDurationSec > 0 && (
+                          <View style={styles.estimatedTimeBadge}>
+                            <Text style={styles.estimatedTimeBadgeText}>
+                              Примерное время: ~{Math.round(stepData.estimatedDurationSec / 60)} мин
                             </Text>
-                            <Text style={styles.diaryEntryDate}>
-                              {formatDiaryEntryDate(entry.createdAt)}
-                            </Text>
-                            <Text style={styles.diaryEntryContent}>{entry.content}</Text>
                           </View>
-                        ))}
-                      </View>
-                    </>
-                  ) : null}
-                </View>
-              )}
-
-              {/* Описание перед видео */}
-              {(() => {
-                const description =
-                  (stepData && "description" in stepData && stepData.description) ||
-                  (step && "description" in step && step.description);
-                if (!description || typeof description !== "string" || description.trim() === "")
-                  return null;
-                return (
-                  <View style={styles.descriptionSection}>
-                    <Text style={styles.descriptionSectionTitle}>Описание:</Text>
-                    <View style={styles.descriptionSectionContent}>
-                      <MarkdownText text={description} />
+                        )}
                     </View>
-                  </View>
-                );
-              })()}
+                  )}
 
-              {/* Изображения тренера — как web StepContent (отдельное поле imageUrls, не markdown). */}
-              {!isBreak && resolvedTrainerImageUris.length > 0 && (
-                <View style={styles.imagesSection}>
-                  <Text style={styles.descriptionSectionTitle}>Изображения:</Text>
-                  {resolvedTrainerImageUris.map((src, imgIndex) => (
-                    <Pressable
-                      key={`${imgIndex}-${src.slice(0, 48)}`}
-                      onPress={() => {
-                        void hapticFeedback.light();
-                        setImageViewerIndex(imgIndex);
-                        setImageViewerOpen(true);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Открыть изображение ${imgIndex + 1} на весь экран`}
-                    >
-                      <Image
-                        source={{ uri: src }}
-                        style={[styles.stepTrainerImage, { maxWidth: stepImageMaxWidth }]}
-                        contentFit="contain"
-                        accessibilityLabel={`Изображение ${imgIndex + 1} к шагу`}
-                      />
-                    </Pressable>
-                  ))}
-                </View>
-              )}
+                  {isExamination && (
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.EXAMINATION}</Text>
+                      {shouldShowEstimatedDuration(stepTypeForUi) &&
+                        stepData.estimatedDurationSec &&
+                        stepData.estimatedDurationSec > 0 && (
+                          <View style={styles.estimatedTimeBadge}>
+                            <Text style={styles.estimatedTimeBadgeText}>
+                              Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                            </Text>
+                          </View>
+                        )}
+                    </View>
+                  )}
 
-              {/* Видео: сначала обложка с кнопкой Play (как на web), по нажатию — загрузка и плеер */}
-              {!isBreak && videoUrl && typeof videoUrl === "string" && videoUrl.trim() !== "" && (
-                <View style={styles.videoContainer}>
-                  {!userRequestedPlay ? (
-                    <Pressable
-                      style={styles.videoCover}
-                      onPress={() => {
-                        void hapticFeedback.light();
-                        setUserRequestedPlay(true);
-                      }}
-                    >
-                      <MaterialCommunityIcons name="play-circle-outline" size={72} color="#fff" />
-                      <Text style={styles.videoCoverText}>Смотреть видео</Text>
-                    </Pressable>
-                  ) : embedPageUrl ? (
-                    isOffline ? (
-                      <View style={styles.videoLoadingContainer}>
-                        <Text style={styles.videoLoadingText}>Для просмотра нужен интернет</Text>
+                  {isDiary && (
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.DIARY}</Text>
+                    </View>
+                  )}
+
+                  {isSurvey && (
+                    <View style={styles.infoCard}>
+                      <Text style={styles.infoCardTitle}>{STEP_TYPE_LABELS.SURVEY}</Text>
+                      {shouldShowEstimatedDuration(stepTypeForUi) &&
+                        stepData.estimatedDurationSec &&
+                        stepData.estimatedDurationSec > 0 && (
+                          <View style={styles.estimatedTimeBadge}>
+                            <Text style={styles.estimatedTimeBadgeText}>
+                              Этот шаг займёт ~ {Math.round(stepData.estimatedDurationSec / 60)} мин
+                            </Text>
+                          </View>
+                        )}
+                    </View>
+                  )}
+
+                  {/* Блок экзамена: тест, письменная связь, видео (как на web) */}
+                  {isExamination && examUserStepId && (
+                    <View style={styles.descriptionSection}>
+                      <Text style={styles.descriptionSectionTitle}>Экзамен:</Text>
+                      <View style={styles.descriptionSectionContent}>
+                        {stepData.hasTestQuestions && examChecklist && examChecklist.length > 0 && (
+                          <TestQuestionsBlock
+                            checklist={examChecklist}
+                            userStepId={examUserStepId}
+                            stepId={
+                              (stepData && "id" in stepData && stepData.id) ||
+                              ("id" in step && (step as { id: string }).id) ||
+                              ""
+                            }
+                          />
+                        )}
+                        {stepData.requiresWrittenFeedback && (
+                          <WrittenFeedbackBlock
+                            userStepId={examUserStepId}
+                            stepId={
+                              (stepData && "id" in stepData && stepData.id) ||
+                              ("id" in step && (step as { id: string }).id) ||
+                              ""
+                            }
+                          />
+                        )}
+                        {stepData.requiresVideoReport && (
+                          <VideoReportBlock
+                            userStepId={examUserStepId}
+                            stepId={
+                              (stepData && "id" in stepData && stepData.id) ||
+                              ("id" in step && (step as { id: string }).id) ||
+                              ""
+                            }
+                          />
+                        )}
                       </View>
-                    ) : (
-                      <View style={[styles.embedWebViewWrap, { height: embedWebViewHeight }]}>
-                        <WebView
-                          key={embedPageUrl}
-                          source={{ uri: embedPageUrl }}
-                          style={[styles.embedWebView, { height: embedWebViewHeight }]}
-                          /* Иначе about:srcdoc/iframe уходят в Linking → WARN и пустой экран */
-                          originWhitelist={["http://*", "https://*", "about:*"]}
-                          onShouldStartLoadWithRequest={handleEmbedShouldStartLoad}
-                          allowsInlineMediaPlayback
-                          mediaPlaybackRequiresUserAction={false}
-                          javaScriptEnabled
-                          domStorageEnabled
-                          mixedContentMode="always"
-                          allowsFullscreenVideo
-                          setSupportMultipleWindows={false}
-                          thirdPartyCookiesEnabled={Platform.OS === "android"}
-                          cacheEnabled
+                    </View>
+                  )}
+
+                  {isSurvey && stepData.surveySlug && (
+                    <View style={styles.descriptionSection}>
+                      <Text style={styles.descriptionSectionTitle}>Анкета:</Text>
+                      <View style={styles.descriptionSectionContent}>
+                        <SurveyBlock
+                          courseId={courseId}
+                          stepId={stepData.id}
+                          userStepId={examUserStepId}
+                          surveySlug={stepData.surveySlug}
+                          onComplete={onComplete}
                         />
                       </View>
-                    )
-                  ) : showOfflineStub ? (
-                    <View style={styles.videoLoadingContainer}>
-                      <Text style={styles.videoLoadingText}>Для просмотра нужен интернет</Text>
                     </View>
-                  ) : isLoadingVideoProgress ||
-                    ((isLoadingVideo || isCheckingOfflineVideo) && !offlineVideoUri) ? (
-                    <View style={styles.videoLoadingContainer}>
-                      <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
-                    </View>
-                  ) : videoError && !offlineVideoUri ? (
-                    <View style={styles.videoLoadingContainer}>
-                      <Text style={styles.videoLoadingText} selectable>
-                        Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
-                      </Text>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.videoRetryButton,
-                          pressed && styles.videoRetryButtonPressed,
-                        ]}
-                        onPress={retryVideo}
-                        accessibilityRole="button"
-                        accessibilityLabel="Повторить загрузку видео"
-                      >
-                        <Text style={styles.videoRetryText}>Повторить</Text>
-                      </Pressable>
-                    </View>
-                  ) : effectivePlaybackUrl ? (
-                    <VideoPlayer
-                      key={videoPlayerRetryKey}
-                      uri={effectivePlaybackUrl}
-                      poster={offlinePosterUri ?? posterUrl ?? undefined}
-                      autoPlay
-                      initialTimeSec={initialTimeSec}
-                      onSaveProgress={saveProgress}
-                      onRetry={handleVideoPlayerRetry}
-                    />
-                  ) : userRequestedPlay ? (
-                    <View style={styles.videoLoadingContainer}>
-                      <Text style={styles.videoLoadingText}>
-                        Не удалось открыть видео. Попробуйте ещё раз или откройте ссылку в браузере.
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              )}
+                  )}
 
-              {/* Таймер для тренировочных шагов и перерывов (как в web) */}
-              {showTimer &&
-                (() => {
-                  try {
-                    const duration = stepData?.durationSec ?? 0;
-                    const timeLeft =
-                      hasActiveTimer && stepTimerTuple
-                        ? stepTimerTuple[0]
-                        : isReset
-                          ? duration
-                          : (localState?.timeLeft ?? localState?.remainingSec ?? duration);
-
-                    const timerHeaderText = isBreak
-                      ? "Начни перерыв"
-                      : isReset
-                        ? "Сброшен"
-                        : "Начните занятие!";
-
-                    return (
-                      <View style={styles.timerCard}>
-                        <View style={styles.timerHeader}>
-                          <MaterialCommunityIcons
-                            name="clock-outline"
-                            size={20}
-                            color={COLORS.textSecondary}
+                  {showDiaryBlock && (
+                    <View key={diaryEntriesListKey} style={styles.diaryStepInfo}>
+                      {!isCompleted ? (
+                        <>
+                          <Text style={styles.diarySectionTitle}>Ваша запись:</Text>
+                          <TextInput
+                            value={diaryContent}
+                            onChangeText={(t) => {
+                              setDiaryContent(t);
+                              if (diaryError) setDiaryError(null);
+                            }}
+                            multiline
+                            maxLength={10000}
+                            placeholder="Опишите свои успехи за сегодня..."
+                            placeholderTextColor={COLORS.textSecondary}
+                            style={styles.diaryTextarea}
                           />
-                          <Text style={styles.timerHeaderText}>{timerHeaderText}</Text>
-                        </View>
-
-                        <View style={styles.timerControls}>
-                          {/* Отображение времени */}
-                          <Text style={styles.timerDisplay}>{formatTimeLeft(timeLeft)}</Text>
-
-                          {/* Кнопки управления */}
-                          <View style={styles.timerButtons}>
-                            {(status === "NOT_STARTED" || status === "RESET") && (
-                              <IconButton
-                                icon="play-circle"
-                                iconColor={WEB.circleBtnBorder}
-                                size={28}
-                                style={styles.circleBtn}
-                                onPress={() => {
-                                  void hapticFeedback.medium();
-                                  const started = startTimer(
-                                    courseId,
-                                    dayOnCourseId,
+                          {diaryError ? (
+                            <Text style={styles.diaryError} accessibilityRole="alert">
+                              {diaryError}
+                            </Text>
+                          ) : null}
+                          <View style={styles.diarySaveAction}>
+                            <Button
+                              label={isSavingDiary ? "Сохранение…" : "Сохранить"}
+                              width={200}
+                              fullWidth={false}
+                              height={48}
+                              fontFamily={null}
+                              fontWeight="600"
+                              fontSize={15}
+                              lineHeight={20}
+                              horizontalPadding={28}
+                              verticalPadding={0}
+                              borderRadius={12}
+                              animatedPress
+                              haptic={false}
+                              style={styles.completeButtonLayout}
+                              loading={isSavingDiary}
+                              disabled={isSavingDiary || !diaryContent.trim()}
+                              onPress={async () => {
+                                const content = diaryContent.trim();
+                                if (!onSaveDiary) return;
+                                if (!content) {
+                                  setDiaryError("Введите текст записи");
+                                  return;
+                                }
+                                setIsSavingDiary(true);
+                                try {
+                                  await onSaveDiary(
                                     index,
-                                    duration,
+                                    content,
+                                    typeof stepData?.title === "string"
+                                      ? stepData.title
+                                      : undefined,
                                   );
-                                  if (!started) return;
-                                  onStart();
-                                }}
-                              />
-                            )}
-                            {status === "IN_PROGRESS" && isActuallyRunning && (
-                              <IconButton
-                                icon="pause-circle"
-                                iconColor={WEB.circleBtnBorder}
-                                size={28}
-                                style={styles.circleBtn}
-                                onPress={() => {
-                                  void hapticFeedback.light();
-                                  const remaining = pauseTimer();
-                                  if (remaining !== null) {
-                                    onPause(remaining);
-                                  }
-                                }}
-                              />
-                            )}
-                            {((status === "IN_PROGRESS" && !isActuallyRunning) ||
-                              status === "PAUSED") && (
-                              <IconButton
-                                icon="play-circle"
-                                iconColor={WEB.circleBtnBorder}
-                                size={28}
-                                style={styles.circleBtn}
-                                onPress={() => {
-                                  void hapticFeedback.medium();
-                                  const remaining =
-                                    localState?.timeLeft ?? localState?.remainingSec ?? duration;
-                                  const resumed = startTimer(
-                                    courseId,
-                                    dayOnCourseId,
-                                    index,
-                                    remaining,
-                                  );
-                                  if (!resumed) return;
-                                  onResume();
-                                }}
-                              />
-                            )}
-                            <IconButton
-                              icon="replay"
-                              iconColor={WEB.circleBtnBorder}
-                              size={22}
-                              style={styles.circleBtnReset}
-                              onPress={() => {
-                                void hapticFeedback.selection();
-                                stopTimer(courseId, dayOnCourseId, index);
-                                if (onReset) {
-                                  onReset(duration);
+                                  void hapticFeedback.success();
+                                  setDiaryContent("");
+                                  setDiaryError(null);
+                                } finally {
+                                  setIsSavingDiary(false);
                                 }
                               }}
                             />
                           </View>
+                        </>
+                      ) : (
+                        <View style={styles.completedBadge}>
+                          <Text style={styles.completedBadgeCheck}>✓</Text>
+                          <Text style={styles.completedBadgeText}>Запись сохранена</Text>
+                        </View>
+                      )}
+                      {diaryEntries.length > 0 ? (
+                        <>
+                          <Text style={styles.diarySectionTitle}>Предыдущие записи:</Text>
+                          <View style={styles.diaryEntriesList}>
+                            {diaryEntries.map((entry) => (
+                              <View key={entry.id} style={styles.diaryEntryItem}>
+                                <Text style={styles.diaryEntryTitle}>
+                                  День {entry.dayOrder}. {entry.dayTitle}
+                                </Text>
+                                <Text style={styles.diaryEntryDate}>
+                                  {formatDiaryEntryDate(entry.createdAt)}
+                                </Text>
+                                <Text style={styles.diaryEntryContent}>{entry.content}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </>
+                      ) : null}
+                    </View>
+                  )}
+
+                  {/* Описание перед видео */}
+                  {(() => {
+                    const description =
+                      (stepData && "description" in stepData && stepData.description) ||
+                      (step && "description" in step && step.description);
+                    if (
+                      !description ||
+                      typeof description !== "string" ||
+                      description.trim() === ""
+                    )
+                      return null;
+                    return (
+                      <View style={styles.descriptionSection}>
+                        <Text style={styles.descriptionSectionTitle}>Описание:</Text>
+                        <View style={styles.descriptionSectionContent}>
+                          <MarkdownText text={description} />
                         </View>
                       </View>
                     );
-                  } catch (error) {
-                    reportClientError(error instanceof Error ? error : new Error(String(error)), {
-                      issueKey: "AccordionStep",
-                      keys: { operation: "timer_display", stepIndex: index },
-                    });
-                    return null;
-                  }
-                })()}
+                  })()}
 
-              {/* Кнопки действий — как в web: PRACTICE «Я выполнил» / «Упражнение выполнено», THEORY «Прочитано» */}
-              <View style={styles.actions}>
-                {isPractice ? (
-                  isCompleted ? (
-                    <View style={styles.completedBadge}>
-                      <Text style={styles.completedBadgeCheck}>✓</Text>
-                      <Text style={styles.completedBadgeText}>Упражнение выполнено</Text>
+                  {/* Изображения тренера — как web StepContent (отдельное поле imageUrls, не markdown). */}
+                  {!isBreak && resolvedTrainerImageUris.length > 0 && (
+                    <View style={styles.imagesSection}>
+                      <Text style={styles.descriptionSectionTitle}>Изображения:</Text>
+                      {resolvedTrainerImageUris.map((src, imgIndex) => (
+                        <Pressable
+                          key={`${imgIndex}-${src.slice(0, 48)}`}
+                          onPress={() => {
+                            void hapticFeedback.light();
+                            setImageViewerIndex(imgIndex);
+                            setImageViewerOpen(true);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Открыть изображение ${imgIndex + 1} на весь экран`}
+                        >
+                          <Image
+                            source={{ uri: src }}
+                            style={[styles.stepTrainerImage, { maxWidth: stepImageMaxWidth }]}
+                            contentFit="contain"
+                            accessibilityLabel={`Изображение ${imgIndex + 1} к шагу`}
+                          />
+                        </Pressable>
+                      ))}
                     </View>
-                  ) : (
-                    <View style={styles.completeAction}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.completeBtn,
-                          pressed && styles.completeBtnPressed,
-                        ]}
-                        onPress={() => {
-                          void hapticFeedback.light();
-                          onComplete?.();
-                        }}
-                      >
-                        <Text style={styles.completeBtnText}>Я выполнил</Text>
-                      </Pressable>
-                    </View>
-                  )
-                ) : isTheory && !isCompleted ? (
-                  <View style={styles.completeAction}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.completeBtn,
-                        pressed && styles.completeBtnPressed,
-                      ]}
-                      onPress={() => {
-                        void hapticFeedback.light();
-                        onComplete?.();
-                      }}
-                    >
-                      <Text style={styles.completeBtnText}>Прочитано</Text>
-                    </Pressable>
+                  )}
+
+                  {/* Видео: сначала обложка с кнопкой Play (как на web), по нажатию — загрузка и плеер */}
+                  {!isBreak &&
+                    videoUrl &&
+                    typeof videoUrl === "string" &&
+                    videoUrl.trim() !== "" && (
+                      <View style={styles.videoContainer}>
+                        {!userRequestedPlay ? (
+                          <Pressable
+                            style={styles.videoCover}
+                            onPress={() => {
+                              void hapticFeedback.light();
+                              setUserRequestedPlay(true);
+                            }}
+                          >
+                            <MaterialCommunityIcons
+                              name="play-circle-outline"
+                              size={72}
+                              color="#fff"
+                            />
+                            <Text style={styles.videoCoverText}>Смотреть видео</Text>
+                          </Pressable>
+                        ) : embedPageUrl ? (
+                          isOffline ? (
+                            <View style={styles.videoLoadingContainer}>
+                              <Text style={styles.videoLoadingText}>
+                                Для просмотра нужен интернет
+                              </Text>
+                            </View>
+                          ) : (
+                            <View style={[styles.embedWebViewWrap, { height: embedWebViewHeight }]}>
+                              <WebView
+                                key={embedPageUrl}
+                                source={{ uri: embedPageUrl }}
+                                style={[styles.embedWebView, { height: embedWebViewHeight }]}
+                                /* Иначе about:srcdoc/iframe уходят в Linking → WARN и пустой экран */
+                                originWhitelist={["http://*", "https://*", "about:*"]}
+                                onShouldStartLoadWithRequest={handleEmbedShouldStartLoad}
+                                allowsInlineMediaPlayback
+                                mediaPlaybackRequiresUserAction={false}
+                                javaScriptEnabled
+                                domStorageEnabled
+                                mixedContentMode="always"
+                                allowsFullscreenVideo
+                                setSupportMultipleWindows={false}
+                                thirdPartyCookiesEnabled={Platform.OS === "android"}
+                                cacheEnabled
+                              />
+                            </View>
+                          )
+                        ) : showOfflineStub ? (
+                          <View style={styles.videoLoadingContainer}>
+                            <Text style={styles.videoLoadingText}>
+                              Для просмотра нужен интернет
+                            </Text>
+                          </View>
+                        ) : isLoadingVideoProgress ||
+                          ((isLoadingVideo || isCheckingOfflineVideo) && !offlineVideoUri) ? (
+                          <View style={styles.videoLoadingContainer}>
+                            <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
+                          </View>
+                        ) : videoError && !offlineVideoUri ? (
+                          <View style={styles.videoLoadingContainer}>
+                            <Text style={styles.videoLoadingText} selectable>
+                              Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
+                            </Text>
+                            <Button
+                              label="Повторить"
+                              fullWidth={false}
+                              height={44}
+                              fontFamily={null}
+                              fontWeight="600"
+                              fontSize={14}
+                              lineHeight={18}
+                              horizontalPadding={SPACING.md}
+                              verticalPadding={0}
+                              borderRadius={10}
+                              style={styles.videoRetryButtonLayout}
+                              onPress={retryVideo}
+                              accessibilityRole="button"
+                              accessibilityLabel="Повторить загрузку видео"
+                            />
+                          </View>
+                        ) : effectivePlaybackUrl ? (
+                          <VideoPlayer
+                            key={videoPlayerRetryKey}
+                            uri={effectivePlaybackUrl}
+                            poster={offlinePosterUri ?? posterUrl ?? undefined}
+                            autoPlay
+                            initialTimeSec={initialTimeSec}
+                            onSaveProgress={saveProgress}
+                            onRetry={handleVideoPlayerRetry}
+                          />
+                        ) : userRequestedPlay ? (
+                          <View style={styles.videoLoadingContainer}>
+                            <Text style={styles.videoLoadingText}>
+                              Не удалось открыть видео. Попробуйте ещё раз или откройте ссылку в
+                              браузере.
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+
+                  {/* Таймер для тренировочных шагов и перерывов (как в web) */}
+                  {showTimer &&
+                    (() => {
+                      try {
+                        const duration = stepData?.durationSec ?? 0;
+                        const timeLeft =
+                          hasActiveTimer && stepTimerTuple
+                            ? stepTimerTuple[0]
+                            : isReset
+                              ? duration
+                              : (localState?.timeLeft ?? localState?.remainingSec ?? duration);
+
+                        const timerHeaderText = isBreak
+                          ? "Начни перерыв"
+                          : isReset
+                            ? "Сброшен"
+                            : "Начните занятие!";
+
+                        return (
+                          <View style={styles.timerCard}>
+                            <View style={styles.timerHeader}>
+                              <MaterialCommunityIcons
+                                name="clock-outline"
+                                size={20}
+                                color={COLORS.textSecondary}
+                              />
+                              <Text style={styles.timerHeaderText}>{timerHeaderText}</Text>
+                            </View>
+
+                            <View style={styles.timerControls}>
+                              {/* Отображение времени */}
+                              <Text style={styles.timerDisplay}>{formatTimeLeft(timeLeft)}</Text>
+
+                              {/* Кнопки управления */}
+                              <View style={styles.timerButtons}>
+                                {(status === "NOT_STARTED" || status === "RESET") && (
+                                  <IconButton
+                                    icon="play-circle"
+                                    iconColor={WEB.circleBtnBorder}
+                                    size={28}
+                                    style={styles.circleBtn}
+                                    onPress={() => {
+                                      void hapticFeedback.medium();
+                                      const started = startTimer(
+                                        courseId,
+                                        dayOnCourseId,
+                                        index,
+                                        duration,
+                                      );
+                                      if (!started) return;
+                                      onStart();
+                                    }}
+                                  />
+                                )}
+                                {status === "IN_PROGRESS" && isActuallyRunning && (
+                                  <IconButton
+                                    icon="pause-circle"
+                                    iconColor={WEB.circleBtnBorder}
+                                    size={28}
+                                    style={styles.circleBtn}
+                                    onPress={() => {
+                                      void hapticFeedback.light();
+                                      const remaining = pauseTimer();
+                                      if (remaining !== null) {
+                                        onPause(remaining);
+                                      }
+                                    }}
+                                  />
+                                )}
+                                {((status === "IN_PROGRESS" && !isActuallyRunning) ||
+                                  status === "PAUSED") && (
+                                  <IconButton
+                                    icon="play-circle"
+                                    iconColor={WEB.circleBtnBorder}
+                                    size={28}
+                                    style={styles.circleBtn}
+                                    onPress={() => {
+                                      void hapticFeedback.medium();
+                                      const remaining =
+                                        localState?.timeLeft ??
+                                        localState?.remainingSec ??
+                                        duration;
+                                      const resumed = startTimer(
+                                        courseId,
+                                        dayOnCourseId,
+                                        index,
+                                        remaining,
+                                      );
+                                      if (!resumed) return;
+                                      onResume();
+                                    }}
+                                  />
+                                )}
+                                <IconButton
+                                  icon="replay"
+                                  iconColor={WEB.circleBtnBorder}
+                                  size={22}
+                                  style={styles.circleBtnReset}
+                                  onPress={() => {
+                                    void hapticFeedback.selection();
+                                    stopTimer(courseId, dayOnCourseId, index);
+                                    if (onReset) {
+                                      onReset(duration);
+                                    }
+                                  }}
+                                />
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      } catch (error) {
+                        reportClientError(
+                          error instanceof Error ? error : new Error(String(error)),
+                          {
+                            issueKey: "AccordionStep",
+                            keys: { operation: "timer_display", stepIndex: index },
+                          },
+                        );
+                        return null;
+                      }
+                    })()}
+
+                  {/* Кнопки действий — как в web: PRACTICE «Я выполнил» / «Упражнение выполнено», THEORY «Прочитано» */}
+                  <View style={styles.actions}>
+                    {isPractice ? (
+                      isCompleted ? (
+                        <View style={styles.completedBadge}>
+                          <Text style={styles.completedBadgeCheck}>✓</Text>
+                          <Text style={styles.completedBadgeText}>Упражнение выполнено</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.completeAction}>
+                          <Button
+                            label="Я выполнил"
+                            width={200}
+                            fullWidth={false}
+                            height={48}
+                            fontFamily={null}
+                            fontWeight="600"
+                            fontSize={15}
+                            lineHeight={20}
+                            horizontalPadding={28}
+                            verticalPadding={0}
+                            borderRadius={12}
+                            animatedPress
+                            haptic={false}
+                            style={styles.completeButtonLayout}
+                            onPress={() => {
+                              void hapticFeedback.light();
+                              onComplete?.();
+                            }}
+                          />
+                        </View>
+                      )
+                    ) : isTheory && !isCompleted ? (
+                      <View style={styles.completeAction}>
+                        <Button
+                          label="Прочитано"
+                          width={200}
+                          fullWidth={false}
+                          height={48}
+                          fontFamily={null}
+                          fontWeight="600"
+                          fontSize={15}
+                          lineHeight={20}
+                          horizontalPadding={28}
+                          verticalPadding={0}
+                          borderRadius={12}
+                          animatedPress
+                          haptic={false}
+                          style={styles.completeButtonLayout}
+                          onPress={() => {
+                            void hapticFeedback.light();
+                            onComplete?.();
+                          }}
+                        />
+                      </View>
+                    ) : isCompleted ? (
+                      <View style={styles.completedBadge}>
+                        <MaterialCommunityIcons name="check" size={16} color={COLORS.success} />
+                        <Text style={styles.completedText}>Выполнено</Text>
+                      </View>
+                    ) : null}
                   </View>
-                ) : isCompleted ? (
-                  <View style={styles.completedBadge}>
-                    <MaterialCommunityIcons name="check" size={16} color={COLORS.success} />
-                    <Text style={styles.completedText}>Выполнено</Text>
-                  </View>
-                ) : null}
-              </View>
                 </>
               )}
             </Animated.View>
@@ -1087,8 +1182,6 @@ const WEB = {
   stepBg: "#fff8e5",
   timerCardBg: "#fffdf3",
   timerCardBorder: "#d5d0bb",
-  completeBtnBg: "#636128",
-  completeBtnText: "#ece5d2",
   completedBadgeBg: "#b6c582",
   completedBadgeText: "#155724",
   circleBtnBorder: "#b6c582",
@@ -1098,28 +1191,43 @@ const WEB = {
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 2,
-    borderColor: WEB.stepBorder,
-    borderRadius: 12,
-    paddingVertical: Math.round(SPACING.md * 0.75),
-    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(99, 97, 40, 0.12)",
+    borderTopColor: "rgba(255, 255, 255, 0.96)",
+    borderRadius: 20,
+    borderCurve: "continuous",
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     marginBottom: SPACING.md,
+    boxShadow: "0 7px 14px rgba(53, 52, 16, 0.20)",
+    elevation: 7,
+  },
+  containerOpen: {
+    boxShadow: "0 9px 18px rgba(53, 52, 16, 0.24)",
+    elevation: 9,
   },
   surfaceContent: {
     overflow: "hidden",
     width: "100%",
+    borderRadius: 15,
+    borderCurve: "continuous",
   },
   header: {
     flexDirection: "column",
-    gap: 4,
+    gap: 7,
     width: "100%",
+    paddingVertical: 3,
+    paddingHorizontal: 2,
+    borderRadius: 14,
+  },
+  headerPressed: {
+    backgroundColor: "rgba(99, 97, 40, 0.07)",
   },
   stepTitleLine: {
     fontSize: 15,
-    fontWeight: "400",
     color: WEB.stepTitleText,
-    fontFamily: FONTS.montserrat,
-    lineHeight: 20,
+    fontFamily: FONTS.montserratMedium,
+    lineHeight: 21,
     width: "100%",
     textAlign: "center",
   },
@@ -1128,28 +1236,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
-    marginTop: 2,
+    marginTop: 3,
   },
   expandControl: {
     flexDirection: "row",
     alignItems: "center",
     flexShrink: 0,
+    minHeight: 34,
+    paddingLeft: 8,
+    paddingRight: 11,
+    borderRadius: 17,
+    backgroundColor: "rgba(99, 97, 40, 0.08)",
   },
   expandText: {
     fontSize: 13,
-    fontWeight: "500",
     color: WEB.stepBorder,
-    fontFamily: FONTS.montserrat,
-    marginLeft: 4,
+    fontFamily: FONTS.montserratMedium,
+    marginLeft: 2,
   },
   stepStatusConfig: {
     flexShrink: 0,
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 11,
+    borderRadius: 17,
   },
   stepStatusText: {
     fontSize: 13,
-    fontWeight: "400",
-    color: WEB.stepTitleText,
-    fontFamily: FONTS.montserrat,
+    fontFamily: FONTS.montserratMedium,
     lineHeight: 18,
   },
   content: {
@@ -1257,9 +1373,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  diarySaveBtnDisabled: {
-    opacity: 0.6,
-  },
   diaryEntriesList: {
     gap: 12,
   },
@@ -1294,23 +1407,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  completeBtn: {
-    backgroundColor: WEB.completeBtnBg,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    minWidth: 200,
-    maxWidth: 220,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  completeBtnPressed: {
-    opacity: 0.9,
-  },
-  completeBtnText: {
-    color: WEB.completeBtnText,
-    fontSize: 15,
-    fontWeight: "600",
+  completeButtonLayout: {
+    alignSelf: "center",
   },
   completedBadge: {
     flexDirection: "row",
@@ -1468,21 +1566,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: "center",
   },
-  videoRetryButton: {
-    minHeight: 44,
+  videoRetryButtonLayout: {
     marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-  },
-  videoRetryButtonPressed: {
-    opacity: 0.8,
-  },
-  videoRetryText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
 });
 

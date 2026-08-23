@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { Text, Surface, Snackbar } from "react-native-paper";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -22,7 +22,8 @@ import { WebView } from "react-native-webview";
 import { fetchProducts, initConnection } from "expo-iap";
 import type { Product } from "expo-iap";
 
-import { Input, Loading, MascotSpinner } from "@/shared/components/ui";
+import { Button, Input, Loading, MascotSpinner } from "@/shared/components/ui";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
@@ -597,21 +598,27 @@ export default function TrainingDaysScreen() {
               </>
             )}
             <View style={styles.paywallButtons}>
-              <Pressable
-                onPress={() => void handleCreatePayment()}
-                disabled={isCreatingPayment || isLoadingCourseForPay}
-                style={styles.paywallPrimaryButton}
-              >
-                <Text style={styles.paywallPrimaryButtonText}>
-                  {isCreatingPayment
+              <Button
+                label={
+                  isCreatingPayment
                     ? Platform.OS === "ios"
                       ? "App Store…"
                       : "Переход к оплате..."
                     : Platform.OS === "ios"
                       ? "Купить через App Store"
-                      : "Оплатить/Начать курс"}
-                </Text>
-              </Pressable>
+                      : "Оплатить/Начать курс"
+                }
+                height={42}
+                fontFamily={FONTS.montserratBold}
+                fontWeight="700"
+                fontSize={15}
+                lineHeight={18}
+                horizontalPadding={SPACING.md}
+                verticalPadding={12}
+                borderRadius={10}
+                onPress={() => void handleCreatePayment()}
+                disabled={isCreatingPayment || isLoadingCourseForPay}
+              />
               <Pressable
                 onPress={() => {
                   void hapticFeedback.light();
@@ -871,26 +878,39 @@ export default function TrainingDaysScreen() {
                 style={styles.personalizationInput}
                 placeholder="Например: о Барсике"
               />
-              <Pressable
+              <Button
+                label="Подставить склонения"
+                fullWidth={false}
+                height={32}
+                fontFamily={FONTS.montserrat}
+                fontSize={13}
+                lineHeight={16}
+                horizontalPadding={12}
+                verticalPadding={8}
+                borderRadius={8}
+                style={styles.personalizationFillButtonLayout}
+                haptic={false}
                 onPress={handleFillDeclensions}
-                style={[styles.genderButton, styles.personalizationFillButton]}
-              >
-                <Text style={styles.personalizationFillButtonText}>Подставить склонения</Text>
-              </Pressable>
+              />
 
               <View style={styles.personalizationButtons}>
-                <Pressable
+                <Button
+                  label={isSavingPersonalization ? "Сохранение..." : "Сохранить и продолжить"}
+                  height={42}
+                  fontFamily={FONTS.montserratBold}
+                  fontWeight="700"
+                  fontSize={15}
+                  lineHeight={18}
+                  horizontalPadding={SPACING.md}
+                  verticalPadding={12}
+                  borderRadius={10}
+                  haptic={false}
                   onPress={() => {
                     void hapticFeedback.light();
                     void handleSavePersonalization();
                   }}
                   disabled={isSavingPersonalization}
-                  style={styles.paywallPrimaryButton}
-                >
-                  <Text style={styles.paywallPrimaryButtonText}>
-                    {isSavingPersonalization ? "Сохранение..." : "Сохранить и продолжить"}
-                  </Text>
-                </Pressable>
+                />
                 <Pressable
                   onPress={() => {
                     void hapticFeedback.light();
@@ -1217,16 +1237,10 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontFamily: FONTS.montserratBold,
   },
-  personalizationFillButton: {
+  personalizationFillButtonLayout: {
     alignSelf: "flex-start",
-    backgroundColor: "#636128",
     marginTop: SPACING.xs,
     marginBottom: SPACING.sm,
-  },
-  personalizationFillButtonText: {
-    fontSize: 13,
-    color: "#FFF8E5",
-    fontFamily: FONTS.montserrat,
   },
   personalizationButtons: {
     marginTop: SPACING.sm,
@@ -1307,18 +1321,6 @@ const styles = StyleSheet.create({
   paywallButtons: {
     marginTop: SPACING.lg,
     gap: SPACING.sm,
-  },
-  paywallPrimaryButton: {
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  paywallPrimaryButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#ffffff",
-    fontFamily: FONTS.montserratBold,
   },
   paywallSecondaryButton: {
     borderRadius: 10,

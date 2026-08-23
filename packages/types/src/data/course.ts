@@ -23,6 +23,7 @@ export interface CourseWithProgressData {
   userStatus: TrainingStatus;
   startedAt: Date | null;
   completedAt: Date | null;
+  startedUsersCount?: number;
   isFavorite: boolean;
   reviews: CourseReview[];
   userCourses: UserCourse[];
@@ -84,6 +85,7 @@ export interface CourseCardData {
   userStatus: TrainingStatus;
   startedAt: Date | null;
   completedAt: Date | null;
+  startedUsersCount?: number;
   shortDesc: string;
   authorUsername: string;
   authorAvatarUrl?: string | null;

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Stack, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
@@ -70,69 +70,87 @@ export default function ChangeUsernameScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Card mode="contained" style={styles.card}>
-          <Card.Content>
-            <View style={styles.iconWrap}>
-              <MaterialCommunityIcons name="account-outline" size={28} color={COLORS.primaryDark} />
-            </View>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              Новый логин
-            </Text>
-            <Text variant="bodyMedium" style={styles.hint}>
-              Логин нужен для входа. После смены при следующем входе используйте новый логин.
-            </Text>
-            <View style={styles.stepsBox}>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • От 3 до 50 символов, только латиница, цифры и символ _
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Card mode="contained" style={styles.card}>
+            <Card.Content>
+              <View style={styles.iconWrap}>
+                <MaterialCommunityIcons
+                  name="account-outline"
+                  size={28}
+                  color={COLORS.primaryDark}
+                />
+              </View>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                Новый логин
               </Text>
-              <Text variant="bodySmall" style={styles.stepLine}>
-                • Свободность логина проверяется при вводе
+              <Text variant="bodyMedium" style={styles.hint}>
+                Логин нужен для входа. После смены при следующем входе используйте новый логин.
               </Text>
-            </View>
-            <Input
-              label="Новый логин"
-              value={newUsername}
-              onChangeText={setNewUsername}
-              placeholder="mylogin"
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.input}
-            />
-            {status === "checking" && (
-              <Text style={[styles.availabilityHint, { color: COLORS.textSecondary }]}>
-                Проверка...
-              </Text>
-            )}
-            {status === "available" && (
-              <Text style={[styles.availabilityHint, { color: COLORS.success }]}>
-                Логин свободен
-              </Text>
-            )}
-            {status === "taken" && (
-              <Text style={[styles.availabilityHint, { color: COLORS.error }]}>
-                Логин занят
-              </Text>
-            )}
-            <Button
-              label="Сохранить"
-              onPress={onSave}
-              loading={loading}
-              disabled={loading || status === "taken" || status === "checking"}
-              style={styles.button}
-            />
-          </Card.Content>
-        </Card>
-      </ScrollView>
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))}
-        duration={4000}
-      >
-        {snackbar.message}
-      </Snackbar>
-    </SafeAreaView>
+              <View style={styles.stepsBox}>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • От 3 до 50 символов, только латиница, цифры и символ _
+                </Text>
+                <Text variant="bodySmall" style={styles.stepLine}>
+                  • Свободность логина проверяется при вводе
+                </Text>
+              </View>
+              <Input
+                label="Новый логин"
+                value={newUsername}
+                onChangeText={setNewUsername}
+                placeholder="mylogin"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.input}
+              />
+              {status === "checking" && (
+                <Text style={[styles.availabilityHint, { color: COLORS.textSecondary }]}>
+                  Проверка...
+                </Text>
+              )}
+              {status === "available" && (
+                <Text style={[styles.availabilityHint, { color: COLORS.success }]}>
+                  Логин свободен
+                </Text>
+              )}
+              {status === "taken" && (
+                <Text style={[styles.availabilityHint, { color: COLORS.error }]}>Логин занят</Text>
+              )}
+              <View style={styles.actions}>
+                <Button
+                  label="Сохранить"
+                  onPress={onSave}
+                  loading={loading}
+                  disabled={loading || status === "taken" || status === "checking"}
+                  animatedPress
+                />
+                <Button
+                  label="Отмена"
+                  variant="secondary"
+                  onPress={() => {
+                    void hapticFeedback.light();
+                    router.back();
+                  }}
+                  disabled={loading}
+                  animatedPress
+                  accessibilityHint="Закрывает экран без сохранения изменений"
+                />
+              </View>
+            </Card.Content>
+          </Card>
+        </ScrollView>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar((s) => ({ ...s, visible: false }))}
+          duration={4000}
+        >
+          {snackbar.message}
+        </Snackbar>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -142,7 +160,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scroll: {
-    padding: SPACING.lg,
+    padding: SPACING.md,
+    paddingBottom: SPACING.xl,
   },
   card: {
     backgroundColor: COLORS.cardBackground,
@@ -194,8 +213,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     fontSize: 14,
   },
-  button: {
+  actions: {
     marginTop: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    gap: SPACING.sm,
   },
 });

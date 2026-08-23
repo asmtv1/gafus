@@ -55,6 +55,7 @@ type AppSubscriptionPlanOffer = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  offlineCourseDownloadIncluded?: boolean;
   consultationBookingIncluded: boolean;
   promoCodeEligible: boolean;
   badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
@@ -85,6 +86,7 @@ const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
     yookassaPriceRub: 2500,
     enabled: true,
     appleProductId: null,
+    offlineCourseDownloadIncluded: true,
     consultationBookingIncluded: true,
     promoCodeEligible: true,
     badge: "POPULAR",
@@ -94,7 +96,6 @@ const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
 
 const PLAN_BENEFITS = [
   "Курсы, экзамены и статьи",
-  "Офлайн-доступ",
   "Документы и напоминания",
 ] as const;
 
@@ -106,6 +107,13 @@ function getPlanBadgeClass(badge: AppSubscriptionPlanOffer["badge"]): string {
 
 function isPromoEligiblePlanCode(code: AppSubscriptionPlanCode): code is PromoEligiblePlanCode {
   return code === "MONTHLY" || code === "THREE_MONTHS";
+}
+
+function includesOfflineCourseDownload(plan: AppSubscriptionPlanOffer): boolean {
+  return (
+    plan.offlineCourseDownloadIncluded ??
+    (plan.code === "MONTHLY" || plan.code === "THREE_MONTHS")
+  );
 }
 
 export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscriptionPaywallProps) {
@@ -447,7 +455,7 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                   <p className={styles.planSectionKicker}>Период оплаты</p>
                   <h2 className={styles.planSectionTitle}>Выберите тариф</h2>
                   <p className={styles.planSectionText}>
-                    Выберите удобный период. Запись к кинологу включена в тарифы от месяца.
+                    Скачивание курсов и запись к кинологу включены в тарифы от месяца.
                   </p>
                 </div>
                 <div className={styles.planGrid} role="radiogroup" aria-label="Тарифы подписки">
@@ -491,6 +499,19 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                               {benefit}
                             </span>
                           ))}
+                          <span
+                            className={`${styles.planBenefit} ${
+                              includesOfflineCourseDownload(plan)
+                                ? ""
+                                : styles.planBenefitUnavailable
+                            }`}
+                          >
+                            <span aria-hidden="true">
+                              {includesOfflineCourseDownload(plan) ? "✓" : "—"}
+                            </span>
+                            Скачивание курсов для офлайн-работы
+                            {includesOfflineCourseDownload(plan) ? "" : " — недоступно"}
+                          </span>
                           <span
                             className={`${styles.planBenefit} ${
                               plan.consultationBookingIncluded ? "" : styles.planBenefitUnavailable

@@ -1,15 +1,17 @@
 import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getConsultationBookingStatusPresentation } from "@gafus/consultation-shared";
 import { formatConsultationListDateTimeMsk } from "@gafus/consultation-shared";
 import * as Linking from "expo-linking";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { Stack, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -62,32 +64,85 @@ export default function ConsultationsMineScreen() {
   }, [router]);
 
   return (
-    <SafeAreaView style={styles.root} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.root} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Stack.Screen options={{ headerBackVisible: false }} />
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>Мои консультации</Text>
-        </View>
+        <PageHeader
+          title="Мои консультации"
+          description="Все встречи и изменения по записи собраны в одном месте"
+        />
 
         <View style={styles.subNav}>
-          <Pressable style={styles.subNavItem} onPress={onCatalog}>
-            <Text style={styles.subNavText}>Каталог кинологов</Text>
-          </Pressable>
-          <View style={[styles.subNavItem, styles.subNavItemActive]}>
-            <Text style={[styles.subNavText, styles.subNavTextActive]}>Мои консультации</Text>
-          </View>
+          <Button
+            label="Каталог кинологов"
+            variant="primary"
+            flex={1}
+            fullWidth={false}
+            height={52}
+            fontSize={12}
+            lineHeight={18}
+            fontFamily={FONTS.montserratMedium}
+            horizontalPadding={6}
+            verticalPadding={0}
+            borderRadius={12}
+            animatedPress
+            compact
+            haptic={false}
+            onPress={onCatalog}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: false }}
+          />
+          <Button
+            label="Мои консультации"
+            variant="selected"
+            flex={1}
+            fullWidth={false}
+            height={52}
+            fontSize={12}
+            lineHeight={18}
+            fontFamily={FONTS.montserratMedium}
+            horizontalPadding={6}
+            verticalPadding={0}
+            borderRadius={12}
+            animatedPress
+            compact
+            haptic={false}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: true }}
+          />
         </View>
 
-        <Text style={styles.hint}>Все консультации отображаются по времени МСК (UTC+3).</Text>
+        <View style={styles.timezoneNote}>
+          <MaterialCommunityIcons name="clock-outline" size={18} color={COLORS.primaryDark} />
+          <Text style={styles.hint}>Все консультации отображаются по времени МСК (UTC+3).</Text>
+        </View>
 
         {query.isLoading ? <Text style={styles.muted}>Загрузка…</Text> : null}
-        {query.isError ? (
-          <Text style={styles.error}>Не удалось загрузить записи.</Text>
-        ) : null}
-        {items.length === 0 && !query.isLoading ? (
-          <Text style={styles.muted}>
-            Пока нет записей. Выберите кинолога в каталоге и забронируйте удобное время.
-          </Text>
+        {query.isError ? <Text style={styles.error}>Не удалось загрузить записи.</Text> : null}
+        {items.length === 0 && !query.isLoading && !query.isError ? (
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <MaterialCommunityIcons
+                name="calendar-blank-outline"
+                size={31}
+                color={COLORS.primary}
+              />
+            </View>
+            <Text style={styles.emptyTitle}>Здесь появятся ваши записи</Text>
+            <Text style={styles.emptyText}>
+              Выберите кинолога в каталоге и забронируйте удобное время для консультации.
+            </Text>
+            <Button
+              label="Найти кинолога"
+              width={232}
+              fullWidth={false}
+              style={styles.catalogCta}
+              onPress={onCatalog}
+              accessibilityRole="button"
+              accessibilityLabel="Перейти в каталог кинологов"
+              accessibilityHint="Открывает список специалистов и свободных слотов"
+            />
+          </View>
         ) : null}
 
         {items.map((b) => {
@@ -107,7 +162,8 @@ export default function ConsultationsMineScreen() {
                 </Text>
               ) : null}
               <Text style={styles.titleLine}>
-                {b.cynologistDisplayName ?? "Кинолог"} — {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
+                {b.cynologistDisplayName ?? "Кинолог"} —{" "}
+                {formatConsultationListDateTimeMsk(b.slot.startAtUtc)}
               </Text>
               {b.clientOwnerName?.trim() || b.petName?.trim() ? (
                 <Text style={styles.intakeShort}>
@@ -115,13 +171,27 @@ export default function ConsultationsMineScreen() {
                 </Text>
               ) : null}
               {(b.status === "CONFIRMED" || b.status === "COMPLETED") && b.joinUrl ? (
-                <Pressable onPress={() => void Linking.openURL(b.joinUrl!)}>
-                  <Text style={styles.link}>Перейти к видеовстрече</Text>
-                </Pressable>
+                <Button
+                  label="Перейти к видеовстрече"
+                  icon="video-outline"
+                  iconPosition="right"
+                  fullWidth={false}
+                  height={44}
+                  fontFamily={FONTS.montserratMedium}
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={SPACING.md}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  style={styles.videoCtaLayout}
+                  onPress={() => void Linking.openURL(b.joinUrl!)}
+                  accessibilityRole="link"
+                  accessibilityLabel="Перейти к видеовстрече"
+                />
               ) : null}
               {canCancel(b.status) ? (
                 <Pressable
-                  style={styles.cancelBtn}
+                  style={({ pressed }) => [styles.cancelBtn, pressed && styles.cancelBtnPressed]}
                   disabled={cancelMutation.isPending}
                   onPress={() => {
                     hapticFeedback.medium();
@@ -135,7 +205,7 @@ export default function ConsultationsMineScreen() {
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 
@@ -154,65 +224,36 @@ function badgeToneStyle(tone: "pending" | "success" | "danger" | "neutral") {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: {
-    paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING.xs,
-    paddingBottom: SPACING.xl,
-  },
-  header: {
-    paddingBottom: SPACING.sm,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: "400",
-    fontFamily: FONTS.impact,
-    color: "#352E2E",
-    textAlign: "center",
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-  },
+  scroll: { paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.xxl },
   subNav: {
     flexDirection: "row",
     gap: SPACING.xs,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
   },
-  subNavItem: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
+  timezoneNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: SPACING.xs,
+    marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: "#F5F0E8",
   },
-  subNavItemActive: {
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    backgroundColor: "#ECE5D2",
-  },
-  subNavText: {
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 15,
-    lineHeight: 20,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-  },
-  subNavTextActive: { color: COLORS.primaryDark },
   hint: {
     fontFamily: FONTS.montserrat,
     fontSize: 13,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
+    flex: 1,
+    lineHeight: 18,
   },
   card: {
-    backgroundColor: "#F5F0E8",
-    borderRadius: 12,
+    backgroundColor: "#FFF8E5",
+    borderRadius: 16,
     padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
+    marginBottom: SPACING.md,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
   },
   badgeWrap: { marginBottom: SPACING.xs },
   badge: {
@@ -221,7 +262,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: "hidden",
   },
   badgePending: { backgroundColor: "#ECE5D2", color: COLORS.primaryDark },
@@ -242,9 +283,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     padding: SPACING.sm,
     backgroundColor: "#ECE5D2",
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    borderRadius: 10,
   },
   cancelReasonLabel: { fontFamily: FONTS.montserratMedium, color: COLORS.text },
   titleLine: {
@@ -259,23 +298,62 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
   },
-  link: {
+  videoCtaLayout: {
+    alignSelf: "flex-start",
     marginTop: SPACING.sm,
-    color: COLORS.primary,
-    fontFamily: FONTS.montserratMedium,
-    fontSize: 14,
   },
   cancelBtn: {
     alignSelf: "flex-start",
     marginTop: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.error,
-    borderRadius: 10,
+    borderRadius: 14,
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
     backgroundColor: "rgba(180, 60, 60, 0.06)",
   },
+  cancelBtnPressed: { opacity: 0.82 },
   cancelText: { color: COLORS.error, fontFamily: FONTS.montserratMedium, fontSize: 14 },
+  emptyCard: {
+    alignItems: "center",
+    backgroundColor: "#FFF8E5",
+    borderRadius: 16,
+    padding: SPACING.lg,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  emptyIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(99, 97, 40, 0.12)",
+    marginBottom: SPACING.md,
+  },
+  emptyTitle: {
+    color: COLORS.text,
+    fontFamily: FONTS.montserratBold,
+    fontSize: 19,
+    lineHeight: 25,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginTop: SPACING.xs,
+  },
+  catalogCta: {
+    marginTop: SPACING.lg,
+    alignSelf: "center",
+  },
   muted: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },
 });

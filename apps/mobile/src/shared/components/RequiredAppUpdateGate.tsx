@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import * as Application from "expo-application";
 import * as Linking from "expo-linking";
-import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
+import { Button } from "@/shared/components/ui";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import { isAppUpdateRequired } from "@/shared/lib/app-version";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -124,35 +125,21 @@ function RequiredAppUpdateScreen({
           </Text>
         ) : null}
 
-        <Pressable
+        <Button
+          label={isOpeningStore ? "" : "Обновить приложение"}
+          height={54}
+          fontFamily={FONTS.montserratBold}
+          fontSize={18}
+          lineHeight={22}
+          horizontalPadding={SPACING.md}
+          verticalPadding={0}
+          borderRadius={BORDER_RADIUS.lg}
+          loading={isOpeningStore}
           accessibilityRole="button"
           accessibilityLabel="Обновить приложение в магазине"
           disabled={isOpeningStore}
           onPress={() => void openStore()}
-          style={({ pressed }) => ({
-            minHeight: 54,
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: BORDER_RADIUS.lg,
-            borderCurve: "continuous",
-            backgroundColor: COLORS.primary,
-            opacity: pressed || isOpeningStore ? 0.78 : 1,
-          })}
-        >
-          {isOpeningStore ? (
-            <ActivityIndicator color={COLORS.onPrimary} />
-          ) : (
-            <Text
-              style={{
-                color: COLORS.onPrimary,
-                fontFamily: FONTS.montserratBold,
-                fontSize: 18,
-              }}
-            >
-              Обновить приложение
-            </Text>
-          )}
-        </Pressable>
+        />
       </View>
     </ScrollView>
   );

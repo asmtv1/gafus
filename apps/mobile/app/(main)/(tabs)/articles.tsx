@@ -1,22 +1,7 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  View,
-  StyleSheet,
-  RefreshControl,
-  Pressable,
-  InteractionManager,
-} from "react-native";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, RefreshControl, Pressable, InteractionManager } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Image } from "expo-image";
@@ -24,13 +9,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import type { ArticleListDto } from "@gafus/types";
 
-import { Loading } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import { articlesApi } from "@/shared/lib/api";
 import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { trackEvent } from "@/shared/lib/analytics";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { COLORS, SPACING, FONTS, BORDER_RADIUS, UI_TIMEOUTS } from "@/shared/config";
+import { COLORS, SPACING, FONTS, UI_TIMEOUTS } from "@/shared/config";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 /** Сколько обложек префетчим в фоне (ускорение без привязки к снятию оверлея). */
@@ -57,8 +43,7 @@ function getVersionedImageUrl(
 ): string | null {
   const resolved = resolveImageUrl(rawUrl);
   if (!resolved) return null;
-  const version =
-    updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
+  const version = updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
   return `${resolved}${resolved.includes("?") ? "&" : "?"}v=${version}`;
 }
 
@@ -103,10 +88,7 @@ const ArticleCard = memo(function ArticleCard({
   const router = useRouter();
   const rawCover = article.logoImg || article.imageUrls?.[0];
   const coverUrl = getVersionedImageUrl(rawCover, article.updatedAt);
-  const coverCandidates = useMemo(
-    () => getArticleLogoVariantCandidates(coverUrl),
-    [coverUrl],
-  );
+  const coverCandidates = useMemo(() => getArticleLogoVariantCandidates(coverUrl), [coverUrl]);
   const [coverCandidateIndex, setCoverCandidateIndex] = useState(0);
   const hasNextCoverFallback = coverCandidateIndex < coverCandidates.length - 1;
   const currentCoverUrl = coverCandidates[coverCandidateIndex];
@@ -185,131 +167,149 @@ const ArticleCard = memo(function ArticleCard({
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={handleOpenArticle}
+      accessibilityRole="button"
+      accessibilityLabel={`Открыть статью «${article.title}»`}
+      accessibilityHint="Открывает полный текст статьи"
     >
-      <View style={styles.row}>
-        <View style={styles.logoBox}>
-          {currentCoverUrl ? (
-            <>
-              <Image
-                source={{ uri: currentCoverUrl, cacheKey: coverCacheKey }}
-                style={styles.logoImage}
-                contentFit="cover"
-                recyclingKey={coverCacheKey}
-                cachePolicy="memory-disk"
-                priority={isInViewportGate ? "high" : "normal"}
-                transition={0}
-                accessibilityLabel={`Обложка статьи «${article.title}»`}
-                onLoadStart={() => {
-                  if (coverPlaceholderDelayTimeoutRef.current) {
-                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-                    coverPlaceholderDelayTimeoutRef.current = null;
-                  }
-                  setIsCoverLoading(true);
-                  setShowCoverPlaceholder(false);
-                  if (isInViewportGate) return;
-                  coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
-                    setShowCoverPlaceholder(true);
-                  }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
-                }}
-                onLoadEnd={() => {
-                  if (coverPlaceholderDelayTimeoutRef.current) {
-                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-                    coverPlaceholderDelayTimeoutRef.current = null;
-                  }
-                  setIsCoverLoading(false);
-                  setShowCoverPlaceholder(false);
-                  if (!hasNextCoverFallback) {
-                    maybeReportViewportCoverReady();
-                  }
-                }}
-                onDisplay={() => {
-                  if (coverPlaceholderDelayTimeoutRef.current) {
-                    clearTimeout(coverPlaceholderDelayTimeoutRef.current);
-                    coverPlaceholderDelayTimeoutRef.current = null;
-                  }
-                  setIsCoverLoading(false);
-                  setShowCoverPlaceholder(false);
-                  maybeReportViewportCoverReady();
-                }}
-                onError={() => {
-                  if (hasNextCoverFallback) {
+      <View style={styles.cardSurface}>
+        <View style={styles.row}>
+          <View style={styles.logoBox}>
+            {currentCoverUrl ? (
+              <>
+                <Image
+                  source={{ uri: currentCoverUrl, cacheKey: coverCacheKey }}
+                  style={styles.logoImage}
+                  contentFit="cover"
+                  recyclingKey={coverCacheKey}
+                  cachePolicy="memory-disk"
+                  priority={isInViewportGate ? "high" : "normal"}
+                  transition={0}
+                  accessibilityLabel={`Обложка статьи «${article.title}»`}
+                  onLoadStart={() => {
                     if (coverPlaceholderDelayTimeoutRef.current) {
                       clearTimeout(coverPlaceholderDelayTimeoutRef.current);
                       coverPlaceholderDelayTimeoutRef.current = null;
                     }
-                    setCoverCandidateIndex((prev) => prev + 1);
                     setIsCoverLoading(true);
                     setShowCoverPlaceholder(false);
-                    if (!isInViewportGate) {
-                      coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
-                        setShowCoverPlaceholder(true);
-                      }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+                    if (isInViewportGate) return;
+                    coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                      setShowCoverPlaceholder(true);
+                    }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+                  }}
+                  onLoadEnd={() => {
+                    if (coverPlaceholderDelayTimeoutRef.current) {
+                      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                      coverPlaceholderDelayTimeoutRef.current = null;
                     }
-                    return;
-                  }
-                  setIsCoverLoading(false);
-                  setShowCoverPlaceholder(false);
-                  maybeReportViewportCoverReady();
-                }}
-              />
-              {isCoverLoading && showCoverPlaceholder && !isInViewportGate && (
-                <View style={styles.logoLoadingPlaceholder}>
-                  <MaterialCommunityIcons
-                    name="image-outline"
-                    size={28}
-                    color={COLORS.textSecondary}
-                  />
-                </View>
-              )}
-            </>
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <MaterialCommunityIcons
-                name="newspaper-variant-outline"
-                size={32}
-                color={COLORS.textSecondary}
-              />
+                    setIsCoverLoading(false);
+                    setShowCoverPlaceholder(false);
+                    if (!hasNextCoverFallback) {
+                      maybeReportViewportCoverReady();
+                    }
+                  }}
+                  onDisplay={() => {
+                    if (coverPlaceholderDelayTimeoutRef.current) {
+                      clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                      coverPlaceholderDelayTimeoutRef.current = null;
+                    }
+                    setIsCoverLoading(false);
+                    setShowCoverPlaceholder(false);
+                    maybeReportViewportCoverReady();
+                  }}
+                  onError={() => {
+                    if (hasNextCoverFallback) {
+                      if (coverPlaceholderDelayTimeoutRef.current) {
+                        clearTimeout(coverPlaceholderDelayTimeoutRef.current);
+                        coverPlaceholderDelayTimeoutRef.current = null;
+                      }
+                      setCoverCandidateIndex((prev) => prev + 1);
+                      setIsCoverLoading(true);
+                      setShowCoverPlaceholder(false);
+                      if (!isInViewportGate) {
+                        coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                          setShowCoverPlaceholder(true);
+                        }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
+                      }
+                      return;
+                    }
+                    setIsCoverLoading(false);
+                    setShowCoverPlaceholder(false);
+                    maybeReportViewportCoverReady();
+                  }}
+                />
+                {isCoverLoading && showCoverPlaceholder && !isInViewportGate && (
+                  <View style={styles.logoLoadingPlaceholder}>
+                    <MaterialCommunityIcons
+                      name="image-outline"
+                      size={28}
+                      color={COLORS.textSecondary}
+                    />
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <MaterialCommunityIcons
+                  name="newspaper-variant-outline"
+                  size={32}
+                  color={COLORS.textSecondary}
+                />
+              </View>
+            )}
+            {article.visibility === "PAID" && (
+              <View style={styles.paidBadge}>
+                <Text style={styles.paidBadgeText}>Платная</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.content}>
+            <Text style={styles.title}>{article.title}</Text>
+            <View style={styles.articleMeta}>
+              <View style={styles.articleFact}>
+                <MaterialCommunityIcons name="eye-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.metaText}>{formatViews(article.viewCount ?? 0)}</Text>
+              </View>
+              <Pressable
+                style={({ pressed: p }) => [
+                  styles.likeButton,
+                  article.isLiked && styles.likeButtonLiked,
+                  p && styles.likeButtonPressed,
+                ]}
+                onPress={handleLikePress}
+                disabled={isLikePending}
+                hitSlop={8}
+                accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLikePending }}
+              >
+                <MaterialCommunityIcons
+                  name={article.isLiked ? "heart" : "heart-outline"}
+                  size={18}
+                  color={article.isLiked ? "#B74C45" : COLORS.primary}
+                />
+                <Text style={styles.likeButtonText}>{article.likeCount}</Text>
+              </Pressable>
             </View>
-          )}
-          {article.visibility === "PAID" && (
-            <View style={styles.paidBadge}>
-              <Text style={styles.paidBadgeText}>Платная</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.content}>
-          <Text style={styles.title} numberOfLines={2}>
-            {article.title}
-          </Text>
-          <View style={styles.meta}>
-            <View style={styles.metaCol}>
-              <Text style={styles.metaText}>{article.authorUsername}</Text>
-              <Text style={styles.metaText}>
-                {formatViews(article.viewCount ?? 0)}
-              </Text>
-              <Text style={styles.metaText}>
-                {new Date(article.createdAt).toLocaleDateString("ru-RU", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </Text>
-            </View>
-            <Pressable
-              style={({ pressed: p }) => [styles.likeButton, p && styles.likeButtonPressed]}
-              onPress={handleLikePress}
-              disabled={isLikePending}
-              hitSlop={8}
-              accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
-              accessibilityRole="button"
-            >
-              <MaterialCommunityIcons
-                name={article.isLiked ? "heart" : "heart-outline"}
-                size={14}
-                color={article.isLiked ? "#e63946" : "rgba(255,255,255,0.9)"}
-              />
-              <Text style={styles.likeButtonText}>{article.likeCount}</Text>
-            </Pressable>
+            <Button
+              label="Читать"
+              variant="primary"
+              height={40}
+              fontSize={12}
+              lineHeight={16}
+              fontFamily={FONTS.montserratBold}
+              horizontalPadding={12}
+              verticalPadding={0}
+              borderRadius={12}
+              icon="arrow-right"
+              iconPosition="right"
+              animatedPress
+              onPress={(event) => {
+                event.stopPropagation();
+                handleOpenArticle();
+              }}
+              accessibilityHint="Открывает полный текст статьи"
+            />
           </View>
         </View>
       </View>
@@ -424,10 +424,7 @@ export default function ArticlesScreen() {
     },
   });
 
-  const handleLike = useCallback(
-    (id: string) => likeMutation.mutate(id),
-    [likeMutation],
-  );
+  const handleLike = useCallback((id: string) => likeMutation.mutate(id), [likeMutation]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: ArticleListDto; index: number }) => (
@@ -445,28 +442,23 @@ export default function ArticlesScreen() {
 
   const listHeader = (
     <View style={styles.header}>
-      <Text style={styles.pageTitle}>Статьи</Text>
+      <PageHeader title="Статьи" description="Полезные материалы о заботе и воспитании питомца" />
     </View>
   );
 
   const showInitialLoading = !error && !refreshing && isPending;
   const showViewportLoadingOverlay =
-    !error &&
-    !refreshing &&
-    !isPending &&
-    articles.length > 0 &&
-    !viewportReady;
+    !error && !refreshing && !isPending && articles.length > 0 && !viewportReady;
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
       {showInitialLoading ? (
-        <Loading fullScreen message="Загрузка статей..." />
+        <Loading fullScreen embedded message="Загрузка статей..." />
       ) : error ? (
         <View style={styles.errorContainer}>
           {listHeader}
           <Text style={styles.errorText}>
-            Ошибка загрузки статей:{" "}
-            {error instanceof Error ? error.message : "Неизвестная ошибка"}
+            Ошибка загрузки статей: {error instanceof Error ? error.message : "Неизвестная ошибка"}
           </Text>
           <Pressable onPress={() => refetch()}>
             <Text style={styles.retryText}>Попробовать снова</Text>
@@ -479,15 +471,13 @@ export default function ArticlesScreen() {
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             overrideProps={{
-              estimatedItemSize: 112,
+              estimatedItemSize: 150,
               /** Чтобы первые карточки смонтировались и отдали onDisplay обложек до снятия оверлея. */
               initialDrawBatchSize: VIEWPORT_ARTICLE_COVER_GATE_COUNT + 4,
             }}
             ListHeaderComponent={listHeader}
             contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>Пока нет статей</Text>
@@ -501,7 +491,7 @@ export default function ArticlesScreen() {
           ) : null}
         </View>
       )}
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 
@@ -524,46 +514,42 @@ const styles = StyleSheet.create({
   header: {
     paddingBottom: SPACING.sm,
   },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: "400",
-    fontFamily: FONTS.impact,
-    color: "#352E2E",
-    textAlign: "center",
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-  },
   listContent: {
-    paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING.xs,
-    paddingBottom: SPACING.xl,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xxl,
   },
   card: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: "hidden",
+    borderRadius: 16,
     marginBottom: SPACING.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 17,
+    elevation: 5,
     position: "relative",
   },
+  cardSurface: {
+    flex: 1,
+    overflow: "hidden",
+    borderRadius: 16,
+    backgroundColor: "#FFF8E5",
+  },
   cardPressed: {
-    opacity: 0.9,
+    opacity: 0.94,
+    transform: [{ translateY: 2 }, { scale: 0.988 }],
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: SPACING.md,
-    gap: SPACING.md,
+    alignItems: "stretch",
+    padding: 12,
+    gap: 12,
   },
   logoBox: {
-    width: 80,
-    height: 80,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: "#e8e3d2",
+    width: 150,
+    alignSelf: "stretch",
+    borderRadius: 12,
+    backgroundColor: "#ECE5D2",
     overflow: "hidden",
     position: "relative",
   },
@@ -576,22 +562,22 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e8e3d2",
+    backgroundColor: "#ECE5D2",
   },
   logoLoadingPlaceholder: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e8e3d2",
+    backgroundColor: "#ECE5D2",
   },
   paidBadge: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    backgroundColor: "rgba(40, 120, 80, 0.9)",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderBottomRightRadius: BORDER_RADIUS.sm,
+    top: SPACING.xs,
+    left: SPACING.xs,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
   },
   paidBadgeText: {
     color: "#ffffff",
@@ -603,82 +589,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    alignSelf: "flex-start",
+    minWidth: 48,
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 9,
+    backgroundColor: "#E8E1CB",
+    borderRadius: 20,
+  },
+  likeButtonLiked: {
+    backgroundColor: "#F2D8D3",
   },
   likeButtonPressed: {
-    opacity: 0.85,
+    opacity: 0.82,
+    transform: [{ scale: 0.95 }],
   },
   likeButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
-    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    color: COLORS.primaryDark,
+    fontFamily: FONTS.montserratBold,
   },
   metaText: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.9)",
-    fontFamily: FONTS.montserrat,
-  },
-  views: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
-  date: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#686540",
     fontFamily: FONTS.montserrat,
   },
   content: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "flex-start",
+    gap: 8,
+    paddingVertical: 1,
   },
   title: {
-    fontSize: 15,
-    fontWeight: "700",
-    fontFamily: FONTS.montserrat,
-    color: "#fff",
-    marginBottom: SPACING.xs,
-    lineHeight: 20,
+    fontSize: 16,
+    fontFamily: FONTS.montserratBold,
+    color: COLORS.text,
+    lineHeight: 22,
   },
-  meta: {
+  articleMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
-    marginTop: SPACING.xs,
+    justifyContent: "space-between",
+    gap: SPACING.xs,
   },
-  metaCol: {
-    flexDirection: "column",
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  metaRow: {
+  articleFact: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
-    minWidth: 0,
     gap: 4,
-  },
-  metaDot: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.7)",
-  },
-  likeCount: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
-  author: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
   },
   errorContainer: {
     flex: 1,

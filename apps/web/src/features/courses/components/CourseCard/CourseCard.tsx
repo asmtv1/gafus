@@ -22,6 +22,7 @@ import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
 import Swal from "sweetalert2";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { FavoriteButton } from "../FavoriteButton/FavoriteButton";
+import { fetchCachedCourseDownloadSubscriptionStatus } from "@/shared/lib/app-subscription/client";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -116,6 +117,26 @@ export const CourseCard = ({
   } = useOfflineCourse();
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [offlineDownloadAllowed, setOfflineDownloadAllowed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetchCachedCourseDownloadSubscriptionStatus()
+      .then((response) => {
+        if (!active) return;
+        const planCode = response.success ? response.data?.planCode : null;
+        setOfflineDownloadAllowed(
+          response.data?.hasActiveSubscription === true &&
+            (planCode === "MONTHLY" || planCode === "THREE_MONTHS"),
+        );
+      })
+      .catch(() => {
+        if (active) setOfflineDownloadAllowed(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Проверяем наличие ожидающих синхронизации действий для этого курса
   const syncQueue = useOfflineStore((state) => state.syncQueue);
@@ -484,6 +505,20 @@ export const CourseCard = ({
                 <Download className={styles.buttonIcon} />
                 <span>Оплатите для скачивания</span>
               </button>
+            ) : offlineDownloadAllowed !== true ? (
+              <button
+                className={styles.downloadButton}
+                type="button"
+                disabled
+                title="Скачивание курсов доступно на тарифах от одного месяца"
+              >
+                <Download className={styles.buttonIcon} />
+                <span>
+                  {offlineDownloadAllowed === null
+                    ? "Проверяем тариф…"
+                    : "Скачивание — от 1 месяца"}
+                </span>
+              </button>
             ) : (
               <button
                 className={styles.downloadButton}
@@ -502,11 +537,21 @@ export const CourseCard = ({
               <button
                 className={styles.updateButton}
                 onClick={handleUpdate}
-                disabled={isUpdating}
-                title="Обновить курс"
+                disabled={isUpdating || offlineDownloadAllowed !== true}
+                title={
+                  offlineDownloadAllowed === true
+                    ? "Обновить курс"
+                    : "Обновление офлайн-копии доступно на тарифах от одного месяца"
+                }
               >
                 <Refresh className={`${styles.buttonIcon} ${isUpdating ? styles.spinning : ""}`} />
-                <span>{isUpdating ? "Обновление..." : "Обновить"}</span>
+                <span>
+                  {isUpdating
+                    ? "Обновление..."
+                    : offlineDownloadAllowed === true
+                      ? "Обновить"
+                      : "Обновление — от 1 месяца"}
+                </span>
               </button>
               <button
                 className={styles.deleteButton}

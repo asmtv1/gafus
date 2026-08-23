@@ -4,3 +4,6 @@ export { MarkdownText } from "./MarkdownText";
 export { VideoPlayer } from "./VideoPlayer";
 export { OfflineIndicator } from "./OfflineIndicator";
 export { RequiredAppUpdateGate } from "./RequiredAppUpdateGate";
+export { PaperTextureBackground } from "./PaperTextureBackground";
+export { TexturedSafeAreaView } from "./TexturedSafeAreaView";
+export { PageHeader } from "./PageHeader";

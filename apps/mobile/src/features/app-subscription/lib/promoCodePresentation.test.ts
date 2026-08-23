@@ -39,10 +39,11 @@ describe("mobile subscription promo code presentation", () => {
 
     expect(result).toMatchObject({
       discounted: "2 475 ₽",
+      originalPrice: "2 500 ₽",
       discount: "−1%",
       firstCharge: "Сейчас спишется 2 475 ₽",
-      nextCharge: "Следующее списание через 30 дней — 2 500 ₽",
-      renewal: "Далее 2 500 ₽ каждые 30 дней",
+      nextCharge: "Следующее списание произойдёт автоматически через 30 дней — 2 500 ₽",
+      legal: "Скидка действует только на первый платёж.",
     });
   });
 
@@ -60,8 +61,9 @@ describe("mobile subscription promo code presentation", () => {
     });
 
     expect(result.discounted).toBe("1 250 ₽");
+    expect(result.originalPrice).toBe("2 500 ₽");
     expect(result.discount).toBe("−50%");
-    expect(result.renewal).toBe("Далее 2 500 ₽ каждые 90 дней");
+    expect(result.nextCharge).toBe("Следующее списание произойдёт автоматически через 90 дней — 2 500 ₽");
   });
 
   it("maps changed checkout and network errors to actionable states", () => {

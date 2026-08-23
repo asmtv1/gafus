@@ -43,6 +43,7 @@ export type AppSubscriptionPlanConfig = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  offlineCourseDownloadIncluded: boolean;
   consultationBookingIncluded: boolean;
   promoCodeEligible: boolean;
   badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
@@ -129,14 +130,39 @@ export function isPromoEligibleAppSubscriptionPlanCode(
 function publicPlanPresentation(code: AppSubscriptionPlanCode) {
   switch (code) {
     case "TWO_WEEKS":
-      return { consultationBookingIncluded: false, promoCodeEligible: false, badge: "TRY" as const };
+      return {
+        offlineCourseDownloadIncluded: false,
+        consultationBookingIncluded: false,
+        promoCodeEligible: false,
+        badge: "TRY" as const,
+      };
     case "MONTHLY":
-      return { consultationBookingIncluded: true, promoCodeEligible: true, badge: "POPULAR" as const };
+      return {
+        offlineCourseDownloadIncluded: true,
+        consultationBookingIncluded: true,
+        promoCodeEligible: true,
+        badge: "POPULAR" as const,
+      };
     case "THREE_MONTHS":
-      return { consultationBookingIncluded: true, promoCodeEligible: true, badge: "MAX_SAVINGS" as const };
+      return {
+        offlineCourseDownloadIncluded: true,
+        consultationBookingIncluded: true,
+        promoCodeEligible: true,
+        badge: "MAX_SAVINGS" as const,
+      };
     case "WEEKLY":
-      return { consultationBookingIncluded: true, promoCodeEligible: false, badge: null };
+      return {
+        offlineCourseDownloadIncluded: false,
+        consultationBookingIncluded: true,
+        promoCodeEligible: false,
+        badge: null,
+      };
   }
+}
+
+export function isOfflineCourseDownloadIncludedPlanCode(value: unknown): boolean {
+  const code = normalizeAppSubscriptionPlanCode(value);
+  return code === "MONTHLY" || code === "THREE_MONTHS";
 }
 
 function calculateRoundedSavingsRub(params: {

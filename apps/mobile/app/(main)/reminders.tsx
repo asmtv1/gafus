@@ -8,9 +8,9 @@ import {
   Alert,
   Modal,
   Platform,
-  ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Button } from "@/shared/components/ui";
 import { Snackbar, Switch, Text } from "react-native-paper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
@@ -383,15 +383,11 @@ export default function RemindersScreen() {
               })}
             </View>
 
-            <Pressable
-              style={styles.primaryButton}
+            <Button
+              label={createMutation.isPending ? "Добавление..." : "Добавить"}
               onPress={handleCreate}
               disabled={createMutation.isPending}
-            >
-              <Text style={styles.primaryButtonText}>
-                {createMutation.isPending ? "Добавление..." : "Добавить"}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           {reminders.length > 0 && (
@@ -502,18 +498,21 @@ export default function RemindersScreen() {
               <Text style={styles.pushPromptText}>
                 Разрешите уведомления, чтобы мы прислали напоминание в выбранное вами время.
               </Text>
-              <Pressable
-                style={[styles.pushPromptPrimary, isEnablingPush && styles.buttonDisabled]}
+              <Button
+                label={isEnablingPush ? "Включаем..." : "Разрешить уведомления"}
+                height={52}
+                fontFamily={FONTS.montserratBold}
+                fontSize={16}
+                lineHeight={21}
+                horizontalPadding={SPACING.md}
+                verticalPadding={0}
+                borderRadius={BORDER_RADIUS.lg}
+                loading={isEnablingPush}
                 onPress={() => void handleEnablePush()}
                 disabled={isEnablingPush}
                 accessibilityRole="button"
                 accessibilityLabel="Разрешить уведомления о тренировках"
-              >
-                {isEnablingPush ? <ActivityIndicator color={COLORS.onPrimary} /> : null}
-                <Text style={styles.pushPromptPrimaryText}>
-                  {isEnablingPush ? "Включаем..." : "Разрешить уведомления"}
-                </Text>
-              </Pressable>
+              />
               <Pressable
                 style={styles.pushPromptSecondary}
                 onPress={() => void handleSkipPushEducation()}
@@ -572,22 +571,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
   },
-  pushPromptPrimary: {
-    minHeight: 52,
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.primary,
-  },
-  pushPromptPrimaryText: {
-    fontFamily: FONTS.montserratBold,
-    color: COLORS.onPrimary,
-    fontSize: 16,
-  },
   pushPromptSecondary: {
     minHeight: 44,
     justifyContent: "center",
@@ -597,9 +580,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserratMedium,
     color: COLORS.primary,
     fontSize: 15,
-  },
-  buttonDisabled: {
-    opacity: 0.68,
   },
   backRow: {
     flexDirection: "row",
@@ -742,19 +722,6 @@ const styles = StyleSheet.create({
   },
   dayChipTextSelected: {
     color: COLORS.onPrimary,
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: SPACING.xs,
-  },
-  primaryButtonText: {
-    color: COLORS.onPrimary,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
   },
   item: {
     flexDirection: "row",

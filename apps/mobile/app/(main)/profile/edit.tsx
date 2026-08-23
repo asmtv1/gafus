@@ -9,14 +9,14 @@ import {
   TextInput,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { userApi, type UpdateProfileData } from "@/shared/lib/api";
 import {
   formatIsoBirthDateToDdMmYyyy,
@@ -219,9 +219,7 @@ export default function EditProfileScreen() {
                   textAlignVertical="top"
                 />
 
-                <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>
-                  Контакты
-                </Text>
+                <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>Контакты</Text>
 
                 <Text style={styles.fieldLabel}>Telegram</Text>
                 <TextInput
@@ -267,25 +265,28 @@ export default function EditProfileScreen() {
                 </Text>
 
                 <View style={styles.actionsRow}>
-                  <Pressable
-                    style={styles.secondaryButton}
+                  <Button
+                    label="Отмена"
+                    variant="secondary"
+                    flex={1}
+                    fullWidth={false}
+                    height={52}
+                    animatedPress
+                    haptic={false}
                     onPress={handleBack}
                     disabled={updateMutation.isPending}
-                  >
-                    <Text style={styles.secondaryButtonText}>Отмена</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.primaryButton,
-                      updateMutation.isPending && styles.primaryButtonDisabled,
-                    ]}
+                    accessibilityHint="Закрывает экран без сохранения изменений"
+                  />
+                  <Button
+                    label={updateMutation.isPending ? "Сохранение…" : "Сохранить"}
+                    flex={1}
+                    fullWidth={false}
+                    height={52}
+                    animatedPress
                     onPress={handleSave}
+                    loading={updateMutation.isPending}
                     disabled={updateMutation.isPending}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {updateMutation.isPending ? "Сохранение…" : "Сохранить"}
-                    </Text>
-                  </Pressable>
+                  />
                 </View>
               </View>
             </ScrollView>
@@ -420,22 +421,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.textSecondary,
     fontFamily: FONTS.montserrat,
-  },
-  primaryButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: COLORS.primary,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.55,
-  },
-  primaryButtonText: {
-    color: COLORS.onPrimary,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
   },
 });

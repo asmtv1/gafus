@@ -9,6 +9,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { IconButton, Text } from "react-native-paper";
 
 import { COLORS, SPACING } from "@/shared/config";
+import { Button } from "@/shared/components/ui";
 import { reportClientError } from "@/shared/lib/tracer";
 import {
   canLoadHlsQualityVariants,
@@ -534,14 +535,23 @@ export function VideoPlayer({
                 Не удалось воспроизвести видео. Проверьте соединение и попробуйте ещё раз.
               </Text>
               {onRetry && (
-                <Pressable
-                  style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+                <Button
+                  label="Повторить"
+                  width={112}
+                  fullWidth={false}
+                  height={44}
+                  fontFamily={null}
+                  fontWeight="600"
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={18}
+                  verticalPadding={0}
+                  borderRadius={10}
+                  style={styles.retryButtonLayout}
                   onPress={onRetry}
                   accessibilityRole="button"
                   accessibilityLabel="Повторить загрузку видео"
-                >
-                  <Text style={styles.retryText}>Повторить</Text>
-                </Pressable>
+                />
               )}
             </View>
           )}
@@ -735,20 +745,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
-  retryButton: {
+  retryButtonLayout: {
     marginTop: 12,
-    minHeight: 44,
-    minWidth: 112,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  retryText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
   buttonPressed: {
     opacity: 0.8,

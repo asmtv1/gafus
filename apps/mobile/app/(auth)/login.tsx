@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { Link, usePathname } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";

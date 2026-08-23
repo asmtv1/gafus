@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  isSubscriptionRequiredCode,
   notifySubscriptionRequired,
   setSubscriptionRequiredHandler,
   shouldNotifySubscriptionRequired,
@@ -37,6 +38,17 @@ describe("subscription required API event", () => {
         code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
       }),
     ).toBe(true);
+  });
+
+  it.each(["SUBSCRIPTION_REQUIRED", "SUBSCRIPTION_OR_CREDITS_REQUIRED"])(
+    "recognizes the %s business response",
+    (code) => {
+      expect(isSubscriptionRequiredCode(code)).toBe(true);
+    },
+  );
+
+  it("does not classify an infrastructure failure as a subscription response", () => {
+    expect(isSubscriptionRequiredCode("INTERNAL_SERVER_ERROR")).toBe(false);
   });
 
   it("can suppress passive subscription-or-credits 402 responses", () => {

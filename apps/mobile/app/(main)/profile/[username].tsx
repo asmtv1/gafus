@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
 import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -196,9 +196,19 @@ export default function PublicProfileScreen() {
         <Stack.Screen options={{ title: "Профиль не найден" }} />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Профиль не найден</Text>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Назад</Text>
-          </Pressable>
+          <Button
+            label="Назад"
+            fullWidth={false}
+            height={42}
+            fontFamily={FONTS.impact}
+            fontWeight="600"
+            fontSize={15}
+            lineHeight={20}
+            horizontalPadding={24}
+            verticalPadding={12}
+            borderRadius={12}
+            onPress={() => router.back()}
+          />
         </View>
       </SafeAreaView>
     );
@@ -454,18 +464,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: "500",
     fontFamily: FONTS.montserrat,
-  },
-  backButton: {
-    backgroundColor: "#636128",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  backButtonText: {
-    color: "#ECE5D2",
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: FONTS.impact,
   },
   title: {
     fontSize: 28,

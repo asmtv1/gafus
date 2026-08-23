@@ -23,6 +23,10 @@ export interface Course {
   userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
   startedAt: Date | string | null;
   completedAt: Date | string | null;
+  startedUsersCount?: number;
+  userCourses?: {
+    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED" | "RESET";
+  }[];
   isFavorite: boolean;
   reviews?: {
     rating: number | null;
@@ -114,12 +118,8 @@ export const coursesApi = {
   /**
    * Проверить доступ к курсу
    */
-  checkAccess: async (
-    courseType: string,
-  ): Promise<ApiResponse<{ hasAccess: boolean }>> => {
-    return apiClient<{ hasAccess: boolean }>(
-      `/api/v1/courses/access?courseType=${courseType}`,
-    );
+  checkAccess: async (courseType: string): Promise<ApiResponse<{ hasAccess: boolean }>> => {
+    return apiClient<{ hasAccess: boolean }>(`/api/v1/courses/access?courseType=${courseType}`);
   },
 
   /**

@@ -6,11 +6,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useShallow } from "zustand/react/shallow";
 
-import { Card } from "@/shared/components/ui";
+import { Button, Card } from "@/shared/components/ui";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import {
   appSubscriptionApi,
   requestAppSubscriptionPaywall,
@@ -120,12 +121,17 @@ function MobileAppSubscriptionCard() {
         <Text style={styles.subscriptionMuted}>
           Откройте курсы, тренировки, документы питомца и консультации с кинологом.
         </Text>
-        <Pressable
-          style={styles.subscriptionPrimaryButton}
+        <Button
+          label="Оформить подписку"
+          height={48}
+          fontFamily={FONTS.impact}
+          fontSize={16}
+          lineHeight={20}
+          horizontalPadding={SPACING.md}
+          verticalPadding={0}
+          borderRadius={14}
           onPress={() => requestAppSubscriptionPaywall("required")}
-        >
-          <Text style={styles.subscriptionPrimaryButtonText}>Оформить подписку</Text>
-        </Pressable>
+        />
         {statusResponse && !statusResponse.success ? (
           <Pressable style={styles.subscriptionGhostButton} onPress={() => void refetch()}>
             <Text style={styles.subscriptionGhostButtonText}>Обновить статус</Text>
@@ -580,13 +586,18 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Заголовок */}
-        <Text style={styles.title}>Профиль {user?.username}</Text>
+        <PageHeader title="Профиль" description="Ваш аккаунт и персональные настройки" />
 
         {/* Баннер профиля (оливковый фон) */}
-        <View style={styles.profileBanner}>
+        <LinearGradient
+          colors={["#777631", COLORS.primary, "#4C4B20"]}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.profileBanner}
+        >
           <Pressable
             style={styles.avatarContainer}
             onPress={pickImageAndUploadAvatar}
@@ -620,7 +631,7 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Контейнер с информацией о себе */}
         <View style={styles.infoContainer}>
@@ -683,15 +694,22 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <Pressable
-            style={styles.editBioButton}
+          <Button
+            label="Внести/Изменить «О себе»"
+            height={48}
+            fontFamily={FONTS.impact}
+            fontWeight="600"
+            fontSize={13}
+            lineHeight={18}
+            horizontalPadding={16}
+            verticalPadding={8}
+            borderRadius={12}
+            style={styles.editBioButtonLayout}
             onPress={() => {
               trackProfileClick("profile-edit-open");
               router.push({ pathname: "/profile/edit" });
             }}
-          >
-            <Text style={styles.editBioButtonText}>Внести/Изменить «О себе»</Text>
-          </Pressable>
+          />
 
           <View style={styles.notificationsCard}>
             <Text style={styles.notificationsTitle}>Уведомления</Text>
@@ -766,43 +784,64 @@ export default function ProfileScreen() {
 
             <View style={styles.notificationsActions}>
               {osPermission === "denied" ? (
-                <Pressable
-                  style={[styles.notifyActionButton, styles.notifyActionSettings]}
+                <Button
+                  label="Открыть настройки телефона"
+                  flex={1}
+                  height={48}
+                  fontFamily={FONTS.impact}
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={12}
+                  verticalPadding={6}
+                  borderRadius={12}
+                  icon="cog-outline"
+                  buttonColor="#352E2E"
                   onPress={() => void Linking.openSettings()}
-                >
-                  <MaterialCommunityIcons name="cog-outline" size={15} color="#ECE5D2" />
-                  <Text style={styles.notifyActionText}>Открыть настройки телефона</Text>
-                </Pressable>
+                />
               ) : osPermission === "undetermined" ? (
-                <Pressable
-                  style={styles.notifyActionButton}
+                <Button
+                  label={enablePushMutation.isPending ? "Загрузка..." : "Включить уведомления"}
+                  flex={1}
+                  height={48}
+                  fontFamily={FONTS.impact}
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={12}
+                  verticalPadding={6}
+                  borderRadius={12}
                   disabled={enablePushMutation.isPending}
                   onPress={() => enablePushMutation.mutate()}
-                >
-                  <Text style={styles.notifyActionText}>
-                    {enablePushMutation.isPending ? "Загрузка..." : "Включить уведомления"}
-                  </Text>
-                </Pressable>
+                />
               ) : pushServerDetermined && hasThisDevicePushOnServer ? (
-                <Pressable
-                  style={[styles.notifyActionButton, styles.notifyActionDanger]}
+                <Button
+                  label={disablePushMutation.isPending ? "Загрузка..." : "Отключить уведомления"}
+                  variant="danger"
+                  flex={1}
+                  height={48}
+                  fontFamily={FONTS.impact}
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={12}
+                  verticalPadding={6}
+                  borderRadius={12}
+                  buttonColor="#8B4513"
                   disabled={disablePushMutation.isPending}
                   onPress={() => disablePushMutation.mutate()}
-                >
-                  <Text style={styles.notifyActionText}>
-                    {disablePushMutation.isPending ? "Загрузка..." : "Отключить уведомления"}
-                  </Text>
-                </Pressable>
+                />
               ) : (
-                <Pressable
-                  style={styles.notifyActionButton}
+                <Button
+                  label={enablePushMutation.isPending ? "Загрузка..." : "Включить подписку"}
+                  flex={1}
+                  height={48}
+                  fontFamily={FONTS.impact}
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={12}
+                  verticalPadding={6}
+                  borderRadius={12}
                   disabled={enablePushMutation.isPending}
                   onPress={() => enablePushMutation.mutate()}
-                >
-                  <Text style={styles.notifyActionText}>
-                    {enablePushMutation.isPending ? "Загрузка..." : "Включить подписку"}
-                  </Text>
-                </Pressable>
+                />
               )}
             </View>
           </View>
@@ -896,19 +935,20 @@ export default function ProfileScreen() {
         </View>
 
         {!hasVkLinked && canLinkVk ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.passwordButton,
-              pressed && { opacity: 0.7 },
-              isVkLinkLoading && { opacity: 0.5 },
-            ]}
+          <Button
+            label={isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
+            height={48}
+            fontFamily={FONTS.impact}
+            fontWeight="600"
+            fontSize={15}
+            lineHeight={20}
+            horizontalPadding={28}
+            verticalPadding={14}
+            borderRadius={12}
+            style={styles.profileActionButtonLayout}
             onPress={handleVkLink}
             disabled={isVkLinkLoading}
-          >
-            <Text style={styles.passwordButtonText}>
-              {isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
-            </Text>
-          </Pressable>
+          />
         ) : hasVkLinked ? (
           <View style={styles.vkLinkedBadge}>
             <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
@@ -917,34 +957,62 @@ export default function ProfileScreen() {
         ) : null}
 
         {hasAppPassword ? (
-          <Pressable
-            style={styles.passwordButton}
+          <Button
+            label="🔐 Сменить пароль"
+            height={48}
+            fontFamily={FONTS.impact}
+            fontWeight="600"
+            fontSize={15}
+            lineHeight={20}
+            horizontalPadding={28}
+            verticalPadding={14}
+            borderRadius={12}
+            style={styles.profileActionButtonLayout}
             onPress={() => router.push("/profile/change-password" as Href)}
-          >
-            <Text style={styles.passwordButtonText}>🔐 Сменить пароль</Text>
-          </Pressable>
+          />
         ) : (
-          <Pressable
-            style={styles.passwordButton}
+          <Button
+            label="🔐 Установить пароль"
+            height={48}
+            fontFamily={FONTS.impact}
+            fontWeight="600"
+            fontSize={15}
+            lineHeight={20}
+            horizontalPadding={28}
+            verticalPadding={14}
+            borderRadius={12}
+            style={styles.profileActionButtonLayout}
             onPress={() => router.push("/profile/set-password")}
-          >
-            <Text style={styles.passwordButtonText}>🔐 Установить пароль</Text>
-          </Pressable>
+          />
         )}
 
-        <Pressable
-          style={styles.passwordButton}
+        <Button
+          label="✉️ Сменить email"
+          height={48}
+          fontFamily={FONTS.impact}
+          fontWeight="600"
+          fontSize={15}
+          lineHeight={20}
+          horizontalPadding={28}
+          verticalPadding={14}
+          borderRadius={12}
+          style={styles.profileActionButtonLayout}
           onPress={() => router.push("/profile/change-email" as Href)}
-        >
-          <Text style={styles.passwordButtonText}>✉️ Сменить email</Text>
-        </Pressable>
+        />
 
-        <Pressable
-          style={styles.passwordButton}
+        <Button
+          label="👤 Сменить логин"
+          height={48}
+          fontFamily={FONTS.impact}
+          fontWeight="600"
+          fontSize={15}
+          lineHeight={20}
+          horizontalPadding={28}
+          verticalPadding={14}
+          borderRadius={12}
+          style={styles.profileActionButtonLayout}
           onPress={() => router.push({ pathname: "/profile/change-username" })}
-        >
-          <Text style={styles.passwordButtonText}>👤 Сменить логин</Text>
-        </Pressable>
+        />
 
         <Pressable
           style={styles.deleteAccountButton}
@@ -954,9 +1022,19 @@ export default function ProfileScreen() {
         </Pressable>
 
         {/* Выход */}
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Выйти из аккаунта</Text>
-        </Pressable>
+        <Button
+          label="Выйти из аккаунта"
+          height={48}
+          fontFamily={FONTS.impact}
+          fontWeight="600"
+          fontSize={15}
+          lineHeight={20}
+          horizontalPadding={28}
+          verticalPadding={14}
+          borderRadius={12}
+          style={styles.profileActionButtonLayout}
+          onPress={handleLogout}
+        />
 
         {/* Информация (в самом низу) */}
         <Card style={styles.infoCard}>
@@ -1037,7 +1115,7 @@ export default function ProfileScreen() {
           </Pressable>
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 
@@ -1048,14 +1126,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.md,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "400",
-    color: "#352E2E",
-    textAlign: "center",
-    marginBottom: SPACING.md,
-    fontFamily: FONTS.impact,
+    paddingBottom: SPACING.xxl,
   },
   // Баннер профиля (оливковый фон)
   profileBanner: {
@@ -1063,29 +1134,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: SPACING.sm,
     width: "100%",
-    backgroundColor: "#636128",
-    borderRadius: 12,
+    borderRadius: 20,
     paddingVertical: SPACING.sm + 10,
     paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    marginBottom: SPACING.md,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
   },
   avatarContainer: {
     position: "relative",
-    width: 105,
-    height: 105,
+    width: 108,
+    height: 108,
     flexShrink: 0,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 95,
-    height: 95,
-    borderRadius: 48,
+    width: 98,
+    height: 98,
+    borderRadius: 49,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1102,12 +1172,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(246, 240, 223, 0.24)",
     borderRadius: 14,
     width: 28,
     height: 28,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F6F0DF",
   },
   avatarEditText: {
     fontSize: 14,
@@ -1118,15 +1190,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   greeting: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 19,
     color: "#ECE5D2",
     fontFamily: FONTS.impact,
     lineHeight: 20,
   },
   contactInfo: {
     fontSize: 13,
-    color: "#D4C4A8",
+    color: "rgba(246, 240, 223, 0.84)",
     fontFamily: FONTS.montserrat,
     opacity: 0.9,
   },
@@ -1151,16 +1222,14 @@ const styles = StyleSheet.create({
   infoContainer: {
     width: "100%",
     padding: SPACING.md,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: "#FFF8E5",
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
     marginBottom: SPACING.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: "#4A4A1E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
   },
   infoText: {
     fontSize: 14,
@@ -1188,28 +1257,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.montserrat,
   },
-  editBioButton: {
-    backgroundColor: "#636128",
-    minHeight: 48,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+  editBioButtonLayout: {
     marginTop: SPACING.sm,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#636128",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  editBioButtonText: {
-    color: "#ECE5D2",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    fontFamily: FONTS.impact,
   },
   notificationsCard: {
     marginTop: SPACING.md,
@@ -1291,30 +1340,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     flexDirection: "row",
     gap: SPACING.sm,
-  },
-  notifyActionButton: {
-    flex: 1,
-    backgroundColor: "#636128",
-    minHeight: 48,
-    borderRadius: 12,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  notifyActionDanger: {
-    backgroundColor: "#8B4513",
-  },
-  notifyActionSettings: {
-    backgroundColor: "#352E2E",
-  },
-  notifyActionText: {
-    color: "#ECE5D2",
-    fontFamily: FONTS.impact,
-    fontSize: 14,
-    lineHeight: 18,
   },
   remindersCard: {
     flexDirection: "row",
@@ -1434,19 +1459,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: "#352E2E",
-  },
-  subscriptionPrimaryButton: {
-    minHeight: 48,
-    borderRadius: 14,
-    backgroundColor: "#636128",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: SPACING.md,
-  },
-  subscriptionPrimaryButtonText: {
-    fontFamily: FONTS.impact,
-    fontSize: 16,
-    color: "#ECE5D2",
   },
   subscriptionGhostButton: {
     minHeight: 42,
@@ -1618,28 +1630,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.montserrat,
   },
-  passwordButton: {
-    backgroundColor: "#636128",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
+  profileActionButtonLayout: {
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
-    shadowColor: "#636128",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-    minHeight: 48,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-  },
-  passwordButtonText: {
-    color: "#ECE5D2",
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: FONTS.impact,
   },
   vkLinkedBadge: {
     flexDirection: "row",
@@ -1678,29 +1671,6 @@ const styles = StyleSheet.create({
   },
   deleteAccountButtonText: {
     color: "#c62828",
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: FONTS.impact,
-  },
-  logoutButton: {
-    backgroundColor: "#636128",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-    shadowColor: "#636128",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-    minHeight: 48,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-  },
-  logoutButtonText: {
-    color: "#ECE5D2",
     fontSize: 15,
     fontWeight: "600",
     fontFamily: FONTS.impact,

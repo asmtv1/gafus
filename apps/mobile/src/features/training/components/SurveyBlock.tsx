@@ -11,7 +11,7 @@ import {
   type SurveyResponseDto,
 } from "@gafus/types";
 
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { COLORS, SPACING } from "@/shared/config";
 import { surveyApi } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -359,19 +359,20 @@ export function SurveyBlock({
       ) : null}
 
       {editable ? (
-        <Pressable
-          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+        <Button
+          label="ОТПРАВИТЬ АНКЕТУ"
+          height={46}
+          fontFamily={null}
+          fontWeight="700"
+          fontSize={14}
+          lineHeight={18}
+          horizontalPadding={20}
+          verticalPadding={14}
+          borderRadius={12}
+          loading={submitMutation.isPending}
           onPress={() => submitMutation.mutate()}
           disabled={!canSubmit}
-        >
-          {submitMutation.isPending ? (
-            <MascotSpinner size="small" />
-          ) : (
-            <Text style={[styles.submitText, !canSubmit && styles.submitTextDisabled]}>
-              ОТПРАВИТЬ АНКЕТУ
-            </Text>
-          )}
-        </Pressable>
+        />
       ) : null}
       {missingRequired.length > 0 ? (
         <Text style={styles.caption}>Заполните обязательные поля: {missingRequired.length}</Text>
@@ -480,26 +481,6 @@ const styles = StyleSheet.create({
   comparisonText: {
     color: COLORS.text,
     fontSize: 13,
-  },
-  submitBtn: {
-    alignItems: "center",
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  submitBtnDisabled: {
-    backgroundColor: COLORS.disabled,
-    opacity: 0.7,
-  },
-  submitText: {
-    color: COLORS.surface,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  submitTextDisabled: {
-    color: COLORS.placeholder,
   },
   caption: {
     color: COLORS.textSecondary,

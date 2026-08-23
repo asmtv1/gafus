@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 
 const MIN_FEEDBACK_LENGTH = 10;
@@ -135,19 +135,20 @@ export function WrittenFeedbackBlock({
       )}
 
       {!isSubmitted ? (
-        <Pressable
-          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+        <Button
+          label="ОТПРАВИТЬ ОБРАТНУЮ СВЯЗЬ"
+          height={46}
+          fontFamily={null}
+          fontWeight="600"
+          fontSize={14}
+          lineHeight={18}
+          horizontalPadding={20}
+          verticalPadding={14}
+          borderRadius={12}
+          loading={isSubmitting}
           onPress={handleSubmit}
           disabled={!canSubmit}
-        >
-          {isSubmitting ? (
-            <MascotSpinner size="small" />
-          ) : (
-            <Text style={[styles.submitBtnText, !canSubmit && styles.submitBtnTextDisabled]}>
-              ОТПРАВИТЬ ОБРАТНУЮ СВЯЗЬ
-            </Text>
-          )}
-        </Pressable>
+        />
       ) : (
         <View style={[styles.alert, styles.alertSuccess]}>
           <Text style={styles.alertText}>Обратная связь успешно отправлена!</Text>
@@ -237,25 +238,5 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     color: COLORS.textSecondary,
-  },
-  submitBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  submitBtnDisabled: {
-    backgroundColor: COLORS.disabled,
-    opacity: 0.7,
-  },
-  submitBtnText: {
-    color: COLORS.surface,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  submitBtnTextDisabled: {
-    color: COLORS.placeholder,
   },
 });

@@ -21,7 +21,8 @@ import type { Href } from "expo-router";
 import { useNavigation, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { consultationsApi } from "@/shared/lib/api";
+import { Button } from "@/shared/components/ui";
+import { consultationsApi, isSubscriptionRequiredCode } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
@@ -82,14 +83,15 @@ export function ConsultationSlotsCalendar({
     queryFn: async () => {
       const res = await consultationsApi.getSlotsCalendar(cynologistUserId, fromIso, toIso);
       if (!res.success || !res.data) {
-        if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+        if (isSubscriptionRequiredCode(res.code)) {
           openConsultationAccessPaywall();
+          return { slots: EMPTY_SLOTS, dayOffDates: EMPTY_DAY_OFF_DATES, accessRequired: true };
         }
         throw new Error(res.error ?? "Ошибка загрузки слотов");
       }
       const raw = res.data.filter((s) => s.status !== "BLOCKED");
       const dayOffDates = Array.isArray(res.dayOffDates) ? res.dayOffDates : [];
-      return { slots: raw, dayOffDates };
+      return { slots: raw, dayOffDates, accessRequired: false };
     },
   });
 
@@ -204,7 +206,7 @@ export function ConsultationSlotsCalendar({
           openConfirm(slot);
           return;
         }
-        if (res.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED") {
+        if (isSubscriptionRequiredCode(res.code)) {
           openConsultationAccessPaywall();
           return;
         }
@@ -258,7 +260,30 @@ export function ConsultationSlotsCalendar({
       ) : null}
       {slotsQuery.isError ? <Text style={styles.error}>Не удалось загрузить слоты.</Text> : null}
 
-      {!slotsQuery.isLoading && !slotsQuery.isError ? (
+      {slotsQuery.data?.accessRequired ? (
+        <View style={styles.accessRequired}>
+          <Text style={styles.accessRequiredTitle}>Для просмотра слотов нужна подписка</Text>
+          <Text style={styles.accessRequiredText}>
+            Выберите подходящий тариф, чтобы посмотреть свободное время кинолога.
+          </Text>
+          <Button
+            label="Выбрать тариф"
+            fullWidth={false}
+            height={44}
+            fontFamily={FONTS.montserratMedium}
+            fontSize={14}
+            lineHeight={18}
+            horizontalPadding={SPACING.md}
+            verticalPadding={0}
+            borderRadius={14}
+            animatedPress
+            style={styles.accessRequiredButtonLayout}
+            onPress={openConsultationAccessPaywall}
+          />
+        </View>
+      ) : null}
+
+      {!slotsQuery.isLoading && !slotsQuery.isError && !slotsQuery.data?.accessRequired ? (
         <View style={styles.layout}>
           <View style={styles.calendarPanel}>
             <View style={styles.calendarHeader}>
@@ -351,6 +376,7 @@ export function ConsultationSlotsCalendar({
                 const start = new Date(slot.startAtUtc);
                 const end = new Date(slot.endAtUtc);
                 const isFree = slot.status === "FREE";
+                const isVerifying = verifyingSlotId === slot.id;
                 return (
                   <View key={slot.id} style={styles.slotRow}>
                     <View style={styles.slotTextCol}>
@@ -359,19 +385,29 @@ export function ConsultationSlotsCalendar({
                       </Text>
                       <Text style={styles.slotStatus}>{slotStatusLabel(slot.status)}</Text>
                     </View>
-                    <Pressable
-                      style={[styles.slotBtn, !isFree && styles.slotBtnDisabled]}
-                      disabled={!isFree || verifyingSlotId === slot.id}
+                    <Button
+                      label={isFree ? (isVerifying ? "Проверяем…" : "Выбрать слот") : "Недоступно"}
+                      width={140}
+                      fullWidth={false}
+                      height={44}
+                      fontFamily={FONTS.montserratMedium}
+                      fontSize={13}
+                      lineHeight={18}
+                      horizontalPadding={SPACING.sm}
+                      verticalPadding={0}
+                      borderRadius={14}
+                      animatedPress
+                      haptic={false}
+                      loading={isVerifying}
+                      disabled={!isFree || isVerifying}
                       onPress={() => void verifyAndBook(slot)}
-                    >
-                      <Text style={[styles.slotBtnText, !isFree && styles.slotBtnTextMuted]}>
-                        {isFree
-                          ? verifyingSlotId === slot.id
-                            ? "…"
-                            : "Выбрать слот"
-                          : "Недоступно"}
-                      </Text>
-                    </Pressable>
+                      accessibilityLabel={
+                        isFree
+                          ? `Выбрать слот ${formatTimeMsk(start)} — ${formatTimeMsk(end)}`
+                          : `Слот ${formatTimeMsk(start)} — ${formatTimeMsk(end)} недоступен`
+                      }
+                      accessibilityState={{ disabled: !isFree || isVerifying, busy: isVerifying }}
+                    />
                   </View>
                 );
               })
@@ -398,6 +434,28 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },
+  accessRequired: {
+    backgroundColor: "#F5F0E8",
+    borderRadius: 12,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#D4C4A8",
+    alignItems: "flex-start",
+    gap: SPACING.sm,
+  },
+  accessRequiredTitle: {
+    color: COLORS.text,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 16,
+  },
+  accessRequiredText: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
+  },
+  accessRequiredButtonLayout: {
+    marginTop: SPACING.xs,
+  },
   layout: { gap: SPACING.lg },
   calendarPanel: {
     backgroundColor: "#F5F0E8",
@@ -494,17 +552,4 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
   },
-  slotBtn: {
-    backgroundColor: COLORS.primary,
-    minWidth: 140,
-    minHeight: 40,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  slotBtnDisabled: { backgroundColor: COLORS.borderLight },
-  slotBtnText: { color: "#fff", fontFamily: FONTS.montserratMedium, fontSize: 13 },
-  slotBtnTextMuted: { color: COLORS.textSecondary },
 });

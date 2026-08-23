@@ -12,11 +12,12 @@ import type { FlashListRef } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { Text, Snackbar } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Loading } from "@/shared/components/ui";
+import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { getMobileMoscowDateKey, useTodayDailyCourse } from "@/shared/hooks/useDailyCourse";
@@ -37,7 +38,7 @@ import {
   type RatingFilterType,
 } from "@/shared/utils/courseFilters";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
-import { COLORS, SPACING, FONTS, API_BASE_URL } from "@/shared/config";
+import { COLORS, FONTS, SPACING, API_BASE_URL } from "@/shared/config";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 
 const LOGO_PREFETCH_LIMIT = 12;
@@ -89,8 +90,10 @@ function DailyCourseCard({
     return (
       <View style={styles.dailyCourseCard}>
         <TourTarget id="daily-course-card" style={styles.tourTargetFill} />
-        <Text style={styles.dailyCourseEyebrow}>Курс дня</Text>
-        <Text style={styles.dailyCourseTitle}>Сегодня связка не запланирована</Text>
+        <View style={styles.dailyCourseEmptyContent}>
+          <MaterialCommunityIcons name="calendar-blank-outline" size={24} color={COLORS.primary} />
+          <Text style={styles.dailyCourseTitle}>Сегодня связка не запланирована</Text>
+        </View>
       </View>
     );
   }
@@ -102,7 +105,13 @@ function DailyCourseCard({
       : 0;
 
   return (
-    <Pressable style={styles.dailyCourseCard} onPress={() => onPress(data.scheduleId!)}>
+    <Pressable
+      style={({ pressed }) => [styles.dailyCourseCard, pressed && styles.dailyCourseCardPressed]}
+      onPress={() => onPress(data.scheduleId!)}
+      accessibilityRole="button"
+      accessibilityLabel={`Задание дня. Обновляется ежедневно. ${data.day.stepsCount} упражнения. ${progress} выполнено.`}
+      accessibilityHint="Показывает упражнения, запланированные на сегодня"
+    >
       <TourTarget id="daily-course-card" style={styles.tourTargetFill} />
       <View style={styles.dailyCourseMedia}>
         <Image
@@ -114,12 +123,17 @@ function DailyCourseCard({
       </View>
       <View style={styles.dailyCourseContent}>
         <View style={styles.dailyCourseHeader}>
-          <View style={styles.dailyCoursePill}>
-            <Text style={styles.dailyCoursePillText}>Обновляется ежедневно</Text>
+          <View style={styles.dailyCourseTitleRow}>
+            <MaterialCommunityIcons name="calendar-star" size={19} color={COLORS.primary} />
+            <Text style={styles.dailyCourseTitle}>Задание дня</Text>
+          </View>
+          <View style={styles.dailyCourseRefreshStatus}>
+            <MaterialCommunityIcons name="refresh" size={14} color={COLORS.primary} />
+            <Text style={styles.dailyCourseRefreshText}>Ежедневно</Text>
           </View>
         </View>
-        <View style={styles.dailyCourseText}>
-          <Text style={styles.dailyCourseDescription}>{DAILY_COURSE_DESCRIPTION}</Text>
+        <Text style={styles.dailyCourseDescription}>{DAILY_COURSE_DESCRIPTION}</Text>
+        <View style={styles.dailyCourseProgressBlock}>
           <View style={styles.dailyCourseProgressRow}>
             <Text style={styles.dailyCourseMeta}>{data.day.stepsCount} упражнения</Text>
             <Text style={styles.dailyCourseMeta}>{progress} выполнено</Text>
@@ -403,7 +417,7 @@ export default function CoursesScreen() {
 
   const listHeader = (
     <View style={styles.headerFilters}>
-      <Text style={styles.pageTitle}>Курсы</Text>
+      <PageHeader title="Курсы" description="Занятия и ежедневная практика для вашего питомца" />
       <DailyCourseCard
         data={dailyCourseData?.data ?? null}
         onPress={(scheduleId) => router.push(`/daily-course/${scheduleId}`)}
@@ -434,7 +448,7 @@ export default function CoursesScreen() {
       cachedDailyCourse?.scheduleId != null &&
       cachedDailyCourse.mskDate === getMobileMoscowDateKey();
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
         {canShowCachedDailyCourse ? (
           <DailyCourseCard
             data={cachedDailyCourse}
@@ -442,14 +456,14 @@ export default function CoursesScreen() {
           />
         ) : null}
         <OfflineDownloadedScreen />
-      </SafeAreaView>
+      </TexturedSafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
       {isLoading ? (
-        <Loading fullScreen message="Загрузка курсов..." />
+        <Loading fullScreen embedded message="Загрузка курсов..." />
       ) : error ? (
         <View style={styles.errorContainer}>
           {listHeader}
@@ -498,7 +512,7 @@ export default function CoursesScreen() {
       >
         {snackbar.message}
       </Snackbar>
-    </SafeAreaView>
+    </TexturedSafeAreaView>
   );
 }
 
@@ -521,29 +535,22 @@ const styles = StyleSheet.create({
   headerFilters: {
     paddingBottom: SPACING.sm,
   },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: "400",
-    color: "#352E2E",
-    textAlign: "center",
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-    fontFamily: FONTS.impact,
-  },
   dailyCourseCard: {
     position: "relative",
     width: "100%",
     alignSelf: "stretch",
     backgroundColor: "#FFF8E5",
-    borderRadius: 12,
-    marginBottom: 36,
-    borderWidth: 2,
-    borderColor: "#636128",
-    shadowColor: "#000000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderRadius: 18,
+    marginBottom: SPACING.lg,
+    shadowColor: "#4A4917",
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  dailyCourseCardPressed: {
+    opacity: 0.96,
+    transform: [{ scale: 0.992 }],
   },
   tourTargetFill: {
     ...StyleSheet.absoluteFillObject,
@@ -551,67 +558,70 @@ const styles = StyleSheet.create({
   dailyCourseHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 12,
+    gap: SPACING.sm,
+  },
+  dailyCourseTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
   dailyCourseMedia: {
     width: "100%",
-    paddingTop: 10,
-    paddingHorizontal: 30,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingTop: 14,
+    paddingHorizontal: 14,
   },
   dailyCourseImage: {
     width: "100%",
-    maxWidth: 350,
-    aspectRatio: 245 / 140,
-    borderRadius: 8,
+    aspectRatio: 16 / 9,
+    borderRadius: 14,
     backgroundColor: "#EFE7DF",
   },
   dailyCourseContent: {
-    paddingTop: 10,
-    paddingHorizontal: 30,
-    alignItems: "center",
+    padding: SPACING.md,
+    gap: 12,
   },
-  dailyCourseText: {
-    width: "100%",
+  dailyCourseEmptyContent: {
+    minHeight: 112,
+    padding: SPACING.md,
     alignItems: "center",
-  },
-  dailyCourseEyebrow: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginBottom: SPACING.xs,
+    justifyContent: "center",
+    gap: SPACING.sm,
   },
   dailyCourseTitle: {
+    flexShrink: 1,
     color: "#352E2E",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: SPACING.xs,
+    fontSize: 17,
+    lineHeight: 22,
+    fontFamily: FONTS.montserratBold,
   },
-  dailyCoursePill: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    minHeight: 28,
-    paddingHorizontal: 12,
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(99, 97, 40, 0.2)",
-    backgroundColor: "rgba(255, 248, 229, 0.92)",
+  dailyCourseRefreshStatus: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: "#EEE7D2",
   },
-  dailyCoursePillText: {
+  dailyCourseRefreshText: {
     color: "#636128",
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    fontSize: 10,
+    lineHeight: 14,
+    fontFamily: FONTS.montserratBold,
   },
   dailyCourseDescription: {
-    color: "#352E2E",
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 12,
-    marginBottom: 10,
-    textAlign: "center",
+    color: "#514B46",
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: FONTS.montserrat,
+  },
+  dailyCourseProgressBlock: {
+    gap: 8,
   },
   dailyCourseProgressRow: {
     width: "100%",
@@ -621,18 +631,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dailyCourseMeta: {
-    color: "rgba(53, 46, 46, 0.78)",
-    fontSize: 15,
-    fontWeight: "600",
+    color: "#686540",
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: FONTS.montserratMedium,
   },
   dailyCourseProgressTrack: {
     width: "100%",
-    height: 8,
+    height: 7,
     borderRadius: 999,
     overflow: "hidden",
     backgroundColor: "rgba(99, 97, 40, 0.18)",
-    marginTop: 12,
-    marginBottom: 12,
   },
   dailyCourseProgressFill: {
     height: "100%",

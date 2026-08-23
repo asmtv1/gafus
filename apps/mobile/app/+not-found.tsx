@@ -1,8 +1,9 @@
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
 import { Link } from "expo-router";
 
 import { Button } from "@/shared/components/ui";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, SPACING } from "@/shared/config";
 
 /**
@@ -10,7 +11,7 @@ import { COLORS, SPACING } from "@/shared/config";
  */
 export default function NotFoundScreen() {
   return (
-    <View style={styles.container}>
+    <TexturedSafeAreaView style={styles.container}>
       <Text style={styles.icon}>🔍</Text>
       <Text variant="headlineMedium" style={styles.title}>
         Страница не найдена
@@ -19,7 +20,7 @@ export default function NotFoundScreen() {
       <Link href="/" asChild>
         <Button label="На главную" style={styles.button} />
       </Link>
-    </View>
+    </TexturedSafeAreaView>
   );
 }
 

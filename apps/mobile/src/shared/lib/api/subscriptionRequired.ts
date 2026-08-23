@@ -19,6 +19,10 @@ export function notifySubscriptionRequired(reason: SubscriptionRequiredReason = 
   subscriptionRequiredHandler?.(reason);
 }
 
+export function isSubscriptionRequiredCode(code?: string): boolean {
+  return code === "SUBSCRIPTION_REQUIRED" || code === "SUBSCRIPTION_OR_CREDITS_REQUIRED";
+}
+
 export function shouldNotifySubscriptionRequired(input: {
   httpStatus: number;
   code?: string;
@@ -26,5 +30,5 @@ export function shouldNotifySubscriptionRequired(input: {
 }): boolean {
   if (input.suppressSubscriptionPaywall) return false;
   if (input.httpStatus !== 402) return false;
-  return input.code === "SUBSCRIPTION_REQUIRED" || input.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED";
+  return isSubscriptionRequiredCode(input.code);
 }

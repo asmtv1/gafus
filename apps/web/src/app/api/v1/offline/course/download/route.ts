@@ -9,7 +9,10 @@ import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
 import { z } from "zod";
 import { requireWebAppSubscriptionOrThrow } from "@shared/lib/app-subscription/server";
-import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
+import {
+  isOfflineCourseDownloadIncludedPlanCode,
+  SubscriptionRequiredError,
+} from "@gafus/core/services/appSubscription";
 
 const logger = createWebLogger("api-offline-course-download");
 
@@ -23,7 +26,20 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       throw new AuthorizationError("Не авторизован");
     }
-    await requireWebAppSubscriptionOrThrow(session.user.id);
+    const subscription = await requireWebAppSubscriptionOrThrow(session.user.id);
+    if (
+      subscription &&
+      !isOfflineCourseDownloadIncludedPlanCode(subscription.planCode)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Скачивание курсов доступно на тарифах от одного месяца",
+          code: "OFFLINE_DOWNLOAD_NOT_INCLUDED",
+        },
+        { status: 403 },
+      );
+    }
 
     const { searchParams } = request.nextUrl;
     const parsed = querySchema.parse({

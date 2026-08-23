@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "react-native-paper";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { Button } from "@/shared/components/ui";
 import type { RewardedAccessPrompt } from "../lib/rewardedAccessPrompt";
 
 export function RewardedAccessGate({
@@ -41,36 +42,39 @@ export function RewardedAccessGate({
       <View style={styles.actions}>
         {showSubscriptionFirst ? (
           <>
-            <Pressable
-              style={[styles.primaryButton, isBusy && styles.disabled]}
+            <Button
+              label={prompt.subscriptionText ?? ""}
+              height={52}
+              fontFamily={FONTS.montserratBold}
+              fontSize={16}
+              lineHeight={21}
+              horizontalPadding={SPACING.md}
+              verticalPadding={0}
+              borderRadius={16}
               onPress={onSubscriptionPress}
               disabled={isBusy}
               accessibilityRole="button"
               accessibilityState={{ disabled: isBusy }}
-            >
-              <Text style={styles.primaryText}>{prompt.subscriptionText}</Text>
-            </Pressable>
+            />
             {showRewardedButton ? (
               <>
-                <Pressable
-                  style={[styles.secondaryButton, primaryDisabled && styles.disabled]}
+                <Button
+                  label={isBusy ? "Открываем..." : prompt.primaryText}
+                  variant="outline"
+                  height={48}
+                  fontFamily={FONTS.montserratBold}
+                  fontSize={14}
+                  lineHeight={19}
+                  horizontalPadding={SPACING.md}
+                  verticalPadding={0}
+                  borderRadius={16}
+                  loading={isBusy}
+                  icon={isBusy ? undefined : "play-circle-outline"}
                   onPress={onPrimaryPress}
                   disabled={primaryDisabled}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: primaryDisabled }}
-                >
-                  {isBusy ? <ActivityIndicator color={COLORS.primary} /> : null}
-                  {!isBusy ? (
-                    <MaterialCommunityIcons
-                      name="play-circle-outline"
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                  ) : null}
-                  <Text style={styles.secondaryText}>
-                    {isBusy ? "Открываем..." : prompt.primaryText}
-                  </Text>
-                </Pressable>
+                />
                 {prompt.rewardedNotice ? (
                   <Text style={styles.notice} selectable accessibilityLiveRegion="polite">
                     {prompt.rewardedNotice}
@@ -81,30 +85,41 @@ export function RewardedAccessGate({
           </>
         ) : (
           <>
-            <Pressable
-              style={[styles.primaryButton, primaryDisabled && styles.disabled]}
+            <Button
+              label={isBusy ? "Открываем..." : prompt.primaryText}
+              height={52}
+              fontFamily={FONTS.montserratBold}
+              fontSize={16}
+              lineHeight={21}
+              horizontalPadding={SPACING.md}
+              verticalPadding={0}
+              borderRadius={16}
+              loading={isBusy}
               onPress={onPrimaryPress}
               disabled={primaryDisabled}
               accessibilityRole="button"
               accessibilityState={{ disabled: primaryDisabled }}
-            >
-              {isBusy ? <ActivityIndicator color="#fff" /> : null}
-              <Text style={styles.primaryText}>{isBusy ? "Открываем..." : prompt.primaryText}</Text>
-            </Pressable>
+            />
             {prompt.rewardedNotice ? (
               <Text style={styles.notice} selectable accessibilityLiveRegion="polite">
                 {prompt.rewardedNotice}
               </Text>
             ) : null}
             {prompt.subscriptionText ? (
-              <Pressable
-                style={styles.secondaryButton}
+              <Button
+                label={prompt.subscriptionText}
+                variant="outline"
+                height={48}
+                fontFamily={FONTS.montserratBold}
+                fontSize={14}
+                lineHeight={19}
+                horizontalPadding={SPACING.md}
+                verticalPadding={0}
+                borderRadius={16}
                 onPress={onSubscriptionPress}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: false }}
-              >
-                <Text style={styles.secondaryText}>{prompt.subscriptionText}</Text>
-              </Pressable>
+              />
             ) : null}
           </>
         )}
@@ -170,43 +185,5 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 9,
-  },
-  primaryButton: {
-    minHeight: 52,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: SPACING.md,
-  },
-  primaryText: {
-    fontFamily: FONTS.montserratBold,
-    color: "#fff",
-    fontSize: 16,
-    lineHeight: 21,
-    textAlign: "center",
-  },
-  secondaryButton: {
-    minHeight: 48,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 7,
-    paddingHorizontal: SPACING.md,
-  },
-  secondaryText: {
-    fontFamily: FONTS.montserratBold,
-    color: COLORS.primary,
-    fontSize: 14,
-    lineHeight: 19,
-    textAlign: "center",
-  },
-  disabled: {
-    opacity: 0.62,
   },
 });

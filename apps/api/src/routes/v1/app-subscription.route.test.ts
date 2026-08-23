@@ -93,7 +93,7 @@ describe("app subscription route contracts", () => {
         "/api/v1/app-subscription/yookassa/start",
         "POST",
         { planCode: "MONTHLY" },
-        { "x-client-platform": "ios", "x-client-version": "1.6.6" },
+        { "x-client-platform": "ios", "x-client-version": "1.6.7" },
       ),
     );
     expect(response.status).toBe(403);
@@ -139,7 +139,7 @@ describe("app subscription route contracts", () => {
         "/api/v1/app-subscription/promo-code/preview",
         "POST",
         { planCode: "MONTHLY", promoCode: " kisa1488 " },
-        { "x-client-platform": "ios", "x-client-version": "1.6.6" },
+        { "x-client-platform": "ios", "x-client-version": "1.6.7" },
       ),
     );
 
@@ -148,7 +148,7 @@ describe("app subscription route contracts", () => {
       userId: "user-1",
       planCode: "MONTHLY",
       promoCode: " kisa1488 ",
-      clientContext: { platform: "ios", version: "1.6.6" },
+      clientContext: { platform: "ios", version: "1.6.7" },
     });
   });
 
@@ -222,7 +222,7 @@ describe("app subscription route contracts", () => {
         "/api/v1/app-subscription/yookassa/start",
         "POST",
         { planCode: "MONTHLY", promoCode: { code: "Kisa", revision: 3 } },
-        { "x-client-platform": "ios", "x-client-version": "1.6.6" },
+        { "x-client-platform": "ios", "x-client-version": "1.6.7" },
       ),
     );
 
@@ -230,7 +230,7 @@ describe("app subscription route contracts", () => {
     expect(startYookassaAppSubscriptionPaymentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         promoCode: { code: "Kisa", revision: 3 },
-        clientContext: { platform: "ios", version: "1.6.6" },
+        clientContext: { platform: "ios", version: "1.6.7" },
       }),
     );
   });

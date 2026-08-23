@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo
 import { getInfoAsync } from "expo-file-system/legacy";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Button, MascotSpinner } from "@/shared/components/ui";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -422,15 +422,36 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
           )}
 
           {!isRecording ? (
-            <Pressable style={styles.primaryBtn} onPress={handleStartRecording}>
-              <MaterialCommunityIcons name="record-circle" size={22} color={COLORS.surface} />
-              <Text style={styles.primaryBtnText}>Начать запись</Text>
-            </Pressable>
+            <Button
+              label="Начать запись"
+              height={46}
+              fontFamily={null}
+              fontWeight="600"
+              fontSize={14}
+              lineHeight={18}
+              horizontalPadding={16}
+              verticalPadding={14}
+              borderRadius={12}
+              icon="record-circle"
+              style={styles.recordButtonLayout}
+              onPress={handleStartRecording}
+            />
           ) : (
-            <Pressable style={styles.dangerBtn} onPress={handleStopRecording}>
-              <MaterialCommunityIcons name="stop-circle" size={22} color={COLORS.surface} />
-              <Text style={styles.primaryBtnText}>Остановить запись</Text>
-            </Pressable>
+            <Button
+              label="Остановить запись"
+              variant="danger"
+              buttonColor={COLORS.error}
+              height={46}
+              fontFamily={null}
+              fontWeight="600"
+              fontSize={14}
+              lineHeight={18}
+              horizontalPadding={16}
+              verticalPadding={14}
+              borderRadius={12}
+              icon="stop-circle"
+              onPress={handleStopRecording}
+            />
           )}
         </View>
       ) : (
@@ -572,6 +593,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   flexBtn: { flex: 1, minWidth: 140 },
+  recordButtonLayout: { marginBottom: SPACING.xs },
   primaryBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -589,15 +611,6 @@ const styles = StyleSheet.create({
     color: COLORS.surface,
     fontSize: 14,
     fontWeight: "600",
-  },
-  dangerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.xs,
-    backgroundColor: COLORS.error,
-    paddingVertical: 14,
-    borderRadius: 12,
   },
   outlineBtn: {
     flexDirection: "row",

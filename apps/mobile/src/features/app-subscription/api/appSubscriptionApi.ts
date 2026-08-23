@@ -45,6 +45,8 @@ export type AppSubscriptionPlanOfferDto = {
   yookassaPriceRub: number;
   enabled: boolean;
   appleProductId: string | null;
+  /** Older API versions omit this field; clients derive it from planCode as a fallback. */
+  offlineCourseDownloadIncluded?: boolean;
   consultationBookingIncluded: boolean;
   promoCodeEligible: boolean;
   badge: AppSubscriptionPlanBadge;

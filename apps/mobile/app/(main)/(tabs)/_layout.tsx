@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Platform, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, FONTS } from "@/shared/config";
@@ -36,8 +36,12 @@ export default function TabsLayout() {
   };
 
   const renderIcon = (name: IconName, color: string, focused: boolean) => (
-    <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
-      <MaterialCommunityIcons name={name} size={TAB_ICON_SIZE} color={color} />
+    <View style={styles.tabIconWrap}>
+      <MaterialCommunityIcons
+        name={name}
+        size={TAB_ICON_SIZE}
+        color={focused ? COLORS.primary : color}
+      />
     </View>
   );
   const renderTargetedIcon = (
@@ -71,16 +75,41 @@ export default function TabsLayout() {
           textAlign: "center",
           includeFontPadding: false,
         },
+        tabBarButton: ({ children, style, ref: _ref, ...props }) => {
+          const isSelected =
+            props["aria-selected"] === true || props.accessibilityState?.selected === true;
+
+          return (
+            <Pressable
+              {...props}
+              style={({ pressed }) => [
+                style,
+                styles.tabButton,
+                isSelected && styles.tabButtonSelected,
+                pressed && styles.tabButtonPressed,
+              ]}
+            >
+              {children}
+            </Pressable>
+          );
+        },
         tabBarItemStyle: {
           minHeight: 58,
+          marginVertical: 6,
           paddingHorizontal: 2,
-          paddingVertical: 2,
+          paddingVertical: 3,
         },
         tabBarStyle: {
           backgroundColor: TAB_BAR_BG,
-          borderTopWidth: 1,
-          borderTopColor: COLORS.borderLight,
-          paddingTop: 4,
+          borderTopWidth: 0,
+          gap: 6,
+          paddingHorizontal: 16,
+          paddingTop: 5,
+          shadowColor: "#4A4A1E",
+          shadowOffset: { width: 0, height: -5 },
+          shadowOpacity: 0.12,
+          shadowRadius: 14,
+          elevation: 14,
           ...androidSafeAreaStyle,
         },
         headerStyle: {
@@ -171,15 +200,32 @@ export default function TabsLayout() {
 }
 
 const styles = {
+  tabButton: {
+    backgroundColor: "#FBF7EF",
+    borderRadius: 18,
+    borderCurve: "continuous" as const,
+    boxShadow: "0 4px 8px rgba(74, 74, 30, 0.18)",
+    elevation: 5,
+  },
+  tabButtonSelected: {
+    backgroundColor: "#E9E2CF",
+    boxShadow:
+      "inset 0 2px 5px rgba(74, 74, 30, 0.22), 0 1px 2px rgba(74, 74, 30, 0.10)",
+    elevation: 1,
+    transform: [{ translateY: 3 }],
+  },
+  tabButtonPressed: {
+    backgroundColor: "#E3DCC8",
+    boxShadow:
+      "inset 0 3px 6px rgba(74, 74, 30, 0.24), 0 1px 1px rgba(74, 74, 30, 0.08)",
+    elevation: 0,
+    transform: [{ translateY: 4 }, { scale: 0.98 }],
+  },
   tabIconWrap: {
-    minWidth: 41,
-    height: 29,
-    borderRadius: 15,
+    minWidth: 36,
+    height: 28,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-  },
-  tabIconWrapActive: {
-    backgroundColor: "rgba(99, 97, 40, 0.16)",
   },
   tabLabel: {
     fontFamily: FONTS.montserrat,
@@ -188,7 +234,7 @@ const styles = {
     textAlign: "center" as const,
   },
   tabLabelActive: {
-    fontFamily: FONTS.montserratMedium,
+    fontFamily: FONTS.montserratBold,
     color: COLORS.primary,
   },
 };
