@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
   const obj = (body as {
     object?: {
       id?: string;
+      payment_id?: string;
       amount?: { value?: string };
       status?: string;
       saved?: boolean;
@@ -105,7 +106,8 @@ export async function POST(request: NextRequest) {
       metadata?: Record<string, string | undefined>;
     };
   }).object;
-  const yookassaPaymentId = obj?.id;
+  const refundId = event === "refund.succeeded" ? obj?.id : undefined;
+  const yookassaPaymentId = event === "refund.succeeded" ? obj?.payment_id : obj?.id;
   const amount = obj?.amount?.value;
   const isPaymentMethodEvent = typeof event === "string" && event.startsWith("payment_method.");
   const paymentMethodId = isPaymentMethodEvent ? (obj?.id ?? null) : (obj?.payment_method?.id ?? null);
@@ -127,10 +129,11 @@ export async function POST(request: NextRequest) {
 
   try {
     let userIdToInvalidate: string | null = null;
-    if (isAppSubscriptionWebhook) {
+    if (isAppSubscriptionWebhook || event === "refund.succeeded") {
       const result = await handleYookassaAppSubscriptionWebhook({
         event: event ?? "unknown",
         yookassaPaymentId,
+        yookassaRefundId: refundId,
         amount,
         paymentMethodId,
         paymentMethodLast4,
@@ -141,6 +144,13 @@ export async function POST(request: NextRequest) {
         secretKey: process.env.YOOKASSA_SECRET_KEY,
       });
       userIdToInvalidate = result.userId;
+      // Refund objects do not reliably include payment metadata. The Premium
+      // handler has already fetched and checked the canonical refund/payment;
+      // only a verified non-Premium payment continues through the legacy path.
+      if (event === "refund.succeeded" && !userIdToInvalidate) {
+        await refundPaymentFromWebhook(yookassaPaymentId);
+        userIdToInvalidate = await getUserIdByYookassaPaymentId(yookassaPaymentId);
+      }
     } else {
       // Обработка разных событий платежа
       if (event === "payment.succeeded") {

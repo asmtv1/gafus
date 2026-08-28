@@ -7,6 +7,7 @@ import {
   incrementRenewalFailedTotal,
 } from "./app-subscription-metrics";
 import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
+import { ensureNpdReceiptForSucceededPayment } from "@gafus/core/services/appSubscription";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
@@ -149,6 +150,19 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         skipped += 1;
         continue;
       }
+      const buyer = await (prisma as any).user.findUnique({
+        where: { id: row.userId },
+        select: { email: true },
+      });
+      const buyerEmail = buyer?.email?.trim();
+      if (!buyerEmail) {
+        logger.warn("Renewal skipped: buyer email is required for NPD receipt", {
+          subscriptionId: row.id,
+          userId: row.userId,
+        });
+        skipped += 1;
+        continue;
+      }
 
       const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
       if (!plan) {
@@ -222,6 +236,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 amount: amountRub,
                 originalAmount: amountRub,
                 currency,
+                buyerEmail,
                 periodStart,
                 periodEnd,
                 idempotenceKey,
@@ -298,6 +313,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               amount: amountRub,
               originalAmount: amountRub,
               currency,
+              buyerEmail,
               periodStart,
               periodEnd,
               idempotenceKey,
@@ -488,6 +504,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 renewalReminderSentForPeriodEnd: null,
               },
             });
+            await ensureNpdReceiptForSucceededPayment(tx, payment.id);
           });
         }
 

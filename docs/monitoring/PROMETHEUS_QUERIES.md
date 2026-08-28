@@ -2,6 +2,29 @@
 
 Список доступных метрик и примеры PromQL-запросов. В production используются в **Yandex Monitoring → Explore**. Локально — в Prometheus (docker-compose.local).
 
+## НПД: outbox, чеки и почта
+
+Worker экспортирует агрегаты `npd_operation_total{type,status}`, `npd_receipt_total{status}`,
+`npd_oldest_pending_age_seconds`, `npd_connection_auth_required` и
+`npd_last_successful_operation_timestamp_seconds`. При `NPD_PROCESSING_ENABLED=false`
+outbox намеренно накапливается — это не само по себе авария.
+
+```promql
+npd_connection_auth_required == 1
+sum(npd_operation_total{status="RECONCILIATION_REQUIRED"}) > 0
+npd_oldest_pending_age_seconds > 900
+sum(npd_operation_total{status=~"FAILED|RETRY"}) > 0
+sum(increase(payment_success_total[30m])) > 0
+and time() - max(npd_last_successful_operation_timestamp_seconds) > 1800
+sum(npd_receipt_email_total{status="FAILED"}) > 0
+```
+
+Рекомендуемые уведомления: `AUTH_REQUIRED` и `RECONCILIATION_REQUIRED` — critical
+сразу; backlog oldest age — warning 15 минут/critical 60 минут; mail failures — warning
+при любой ошибке и critical при росте 15 минут; отсутствие успешных чеков после успешных
+платежей — critical через 30 минут. `payment_success_total` и `npd_receipt_email_total`
+нужно подтвердить в production перед включением правил.
+
 ## 📊 Системные метрики (Node Exporter)
 
 ### CPU (Процессор)

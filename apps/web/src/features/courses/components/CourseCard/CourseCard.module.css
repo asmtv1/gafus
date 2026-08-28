@@ -6,15 +6,22 @@
 
 .courseCard {
   list-style: none;
-  background: #fff8e5;
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   height: 100%;
   display: flex;
   flex-direction: column;
-  border: 2px solid #636128;
-  width: 330px;
+  border: 0;
+  width: 100%;
+  max-width: 360px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.courseCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(74, 73, 23, 0.24);
 }
 .courseCardContent {
   display: flex;
@@ -24,10 +31,7 @@
 
 .imageContainer {
   width: 100%;
-  max-width: 350px;
-  padding-top: 10px;
-  padding-left: 30px;
-  padding-right: 30px;
+  padding: 14px 14px 0;
 
   display: flex;
   justify-content: center;
@@ -37,10 +41,17 @@
 }
 
 .image {
-  width: 245px;
-  height: 140px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+}
+
+.imageFrame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f4efe2;
 }
 
 .privateBadge {
@@ -68,33 +79,78 @@
 }
 
 .content {
-  padding-top: 10px;
-  padding-left: 30px;
-  padding-right: 10px;
+  padding: 16px;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
 .title {
-  margin: 0 0 10px 0;
-  font-size: 20px;
+  margin: 0;
+  font-size: 22px;
   color: #352e2e;
   line-height: 100%;
-  font-weight: 400;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 700;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  line-height: 1.25;
 }
 
 .description {
-  display: flex;
-  gap: 10px;
-  flex-direction: column;
-  color: #352e2e;
-  font-size: 12px;
+  color: #514b46;
+  font-size: 14px;
+  line-height: 1.45;
   font-weight: 400;
   font-family: var(--font-montserrat), var(--font-impact), system-ui, sans-serif;
-  margin-bottom: 10px;
+  margin: 0;
 }
+
+.description p { margin: 0; }
+
+.accessLabels { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.accessLabel {
+  padding: 4px 9px;
+  border-radius: 9px;
+  background: #e7e0c8;
+  color: #4a4917;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.factsRow { display: flex; gap: 6px; }
+
+.fact {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: #4a4917;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.factIcon { width: 16px; height: 16px; flex: none; }
+
+.participants {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.participantsIcon { width: 17px; height: 17px; color: var(--bg-2); flex: none; }
 
 .meta {
   display: flex;
@@ -274,7 +330,7 @@
 .offlineActions {
   display: flex;
   gap: 8px;
-  padding: 8px 30px 12px;
+  padding: 0 16px 16px;
   margin-top: auto;
 }
 
@@ -285,14 +341,14 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border: 1px solid #636128;
-  border-radius: 6px;
-  background: #fff8e5;
-  color: #352e2e;
-  font-size: 0.75rem;
-  font-weight: 500;
+  border: 0;
+  border-radius: 14px;
+  background: #e8e1cb;
+  color: #4a4917;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   white-space: nowrap;
   flex: 1;
@@ -306,31 +362,31 @@
 }
 
 .downloadButton:hover:not(:disabled) {
-  background: #636128;
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
   color: #fff8e5;
-  border-color: #636128;
+  box-shadow: var(--shadow-button);
+  transform: translateY(-2px);
 }
 
 .updateButton {
-  border-color: #009dcf;
-  color: #009dcf;
+  color: #4a4917;
 }
 
 .updateButton:hover:not(:disabled) {
-  background: #009dcf;
-  color: white;
-  border-color: #009dcf;
+  background: #dcd4b8;
+  box-shadow: 0 5px 12px rgba(74, 73, 23, 0.16);
+  transform: translateY(-2px);
 }
 
 .deleteButton {
-  border-color: #dc3545;
-  color: #dc3545;
+  background: #f0d8d3;
+  color: #7e2f2a;
 }
 
 .deleteButton:hover {
-  background: #dc3545;
-  color: white;
-  border-color: #dc3545;
+  background: #e8b1a8;
+  box-shadow: 0 5px 12px rgba(126, 47, 42, 0.18);
+  transform: translateY(-2px);
 }
 
 .downloadButton:disabled,
@@ -350,6 +406,13 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+@media (max-width: 480px) {
+  .courseCard { max-width: none; }
+  .factsRow { gap: 4px; }
+  .fact { font-size: 10px; padding: 5px 3px; }
+  .factIcon { width: 14px; height: 14px; }
 }
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
@@ -33,34 +33,38 @@ function PaidArticleBlock({ article, userId }: PaidArticleBlockProps) {
 
   if (isGuest) {
     return (
-      <main style={{ padding: 24, maxWidth: 600, margin: "0 auto" }}>
-        <h1>{article.title}</h1>
-        <div className={styles.accessDeniedBlock}>
-          <h2 className={styles.title}>Нужен доступ</h2>
-          <p className={styles.subtitle}>Войдите, чтобы оформить подписку и открыть материал.</p>
-          <Link
-            href={`/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}`}
-            className={styles.btnPrimary}
-          >
-            Войти
-          </Link>
-        </div>
+      <main className={styles.articleShell}>
+        <article className={styles.articleSurface}>
+          <h1 className={styles.articleTitle}>{article.title}</h1>
+          <div className={styles.accessDeniedBlock}>
+            <h2 className={styles.title}>Нужен доступ</h2>
+            <p className={styles.subtitle}>Войдите, чтобы оформить подписку и открыть материал.</p>
+            <Link
+              href={`/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}`}
+              className={styles.btnPrimary}
+            >
+              Войти
+            </Link>
+          </div>
+        </article>
       </main>
     );
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 600, margin: "0 auto" }}>
-      <h1>{article.title}</h1>
-      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
+    <main className={styles.articleShell}>
+      <article className={styles.articleSurface}>
+      <h1 className={styles.articleTitle}>{article.title}</h1>
+      <p className={styles.articleMeta}>
         {article.authorUsername} • {new Date(article.createdAt).toLocaleDateString("ru-RU")}
       </p>
       {article.description && (
-        <div className={styles.markdownContent} style={{ marginBottom: 24 }}>
+        <div className={styles.markdownContent}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{article.description}</ReactMarkdown>
         </div>
       )}
       <AppSubscriptionPaywall mode="embedded" />
+      </article>
     </main>
   );
 }
@@ -170,9 +174,11 @@ export default function ArticleDetailClient({
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
-      <h1>{article.title}</h1>
-      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
+    <main className={styles.articleShell}>
+      <article className={styles.articleSurface}>
+      <header className={styles.articleHeader}>
+      <h1 className={styles.articleTitle}>{article.title}</h1>
+      <p className={styles.articleMeta}>
         {article.authorUsername} •{" "}
         {new Date(article.createdAt).toLocaleDateString("ru-RU")}
       </p>
@@ -181,18 +187,9 @@ export default function ArticleDetailClient({
         type="button"
         onClick={handleLike}
         disabled={isPending}
+        aria-pressed={isLiked}
         aria-label={isLiked ? "Убрать лайк" : "Нравится"}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "8px 12px",
-          marginBottom: 24,
-          border: "none",
-          borderRadius: 8,
-          background: "var(--bg-2)",
-          cursor: isPending ? "not-allowed" : "pointer",
-        }}
+        className={`${styles.likeButton} ${isLiked ? styles.likeButtonActive : ""}`}
       >
         {isLiked ? (
           <FavoriteIcon fontSize="small" color="error" />
@@ -201,9 +198,10 @@ export default function ArticleDetailClient({
         )}
         <span>{likeCount}</span>
       </button>
+      </header>
 
       {article.imageUrls.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
+        <figure className={styles.coverFrame}>
           <Image
             src={
               article.imageUrls[0].startsWith("http")
@@ -213,34 +211,34 @@ export default function ArticleDetailClient({
             alt={`Обложка статьи «${article.title}»`}
             width={800}
             height={450}
-            style={{ width: "100%", height: "auto", objectFit: "cover", borderRadius: 8 }}
+            className={styles.coverImage}
             unoptimized={article.imageUrls[0].startsWith("http")}
           />
-        </div>
+        </figure>
       )}
 
       {article.videoUrl && (
-        <div style={{ marginBottom: 24 }}>
+        <div className={styles.videoFrame}>
           <iframe
             src={article.videoUrl}
             title="Видео"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            style={{ width: "100%", aspectRatio: "16/9", border: "none" }}
+            className={styles.video}
           />
         </div>
       )}
 
-      {article.imageUrls.length > 0 && (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
-          {article.imageUrls.map((url, i) => (
+      {article.imageUrls.length > 1 && (
+        <div className={styles.imageGallery}>
+          {article.imageUrls.slice(1).map((url, i) => (
             <Image
               key={url}
               src={url.startsWith("http") ? url : getCDNUrl(url)}
-              alt={`Иллюстрация ${i + 1} к статье «${article.title}»`}
+              alt={`Иллюстрация ${i + 2} к статье «${article.title}»`}
               width={320}
               height={180}
-              style={{ objectFit: "cover", borderRadius: 8 }}
+              className={styles.galleryImage}
               unoptimized={url.startsWith("http")}
             />
           ))}
@@ -248,16 +246,16 @@ export default function ArticleDetailClient({
       )}
 
       {article.contentType === "TEXT" ? (
-        <div className={styles.markdownContent} style={{ marginBottom: 24 }}>
+        <div className={styles.markdownContent}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{article.content ?? ""}</ReactMarkdown>
         </div>
       ) : article.content ? (
         <div
           className={styles.markdownContent}
-          style={{ marginBottom: 24 }}
           dangerouslySetInnerHTML={{ __html: article.content }}
         />
       ) : null}
+      </article>
     </main>
   );
 }

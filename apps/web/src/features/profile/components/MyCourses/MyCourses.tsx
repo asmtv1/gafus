@@ -63,7 +63,6 @@ export default function MyCourses({
                 height: "100%",
                 backgroundColor: isCompleted ? "#28a745" : "#ffc107",
                 borderRadius: "4px",
-                transition: "width 0.3s ease",
               }}
             />
           </div>

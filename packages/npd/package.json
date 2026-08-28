@@ -1,0 +1,21 @@
+{
+  "name": "@gafus/npd",
+  "version": "1.6.7",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "rimraf": "5.0.1",
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17"
+  }
+}

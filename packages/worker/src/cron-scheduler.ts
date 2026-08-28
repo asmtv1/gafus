@@ -16,6 +16,8 @@ import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule"
 import { sendTrainingReminders } from "./training-reminders-sender";
 import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-renewals";
 import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-renewal-reminders";
+import { processDueNpdReceiptOperations } from "./npd-worker";
+import { processDueNpdReceiptEmailDeliveries } from "./npd-email-worker";
 
 const logger = createWorkerLogger("cron-scheduler");
 
@@ -126,6 +128,17 @@ export function startCronJobs(): void {
   cron.schedule(
     "* * * * *",
     async () => {
+      try {
+        await processDueNpdReceiptOperations();
+      } catch (error) {
+        logger.error("Ошибка обработки очереди чеков НПД", error as Error);
+      }
+      try {
+        await processDueNpdReceiptEmailDeliveries();
+      } catch (error) {
+        logger.error("Ошибка отправки чеков НПД по email", error as Error);
+      }
+
       logger.info("Запуск reconciliation консультационных напоминаний");
       try {
         const result = await reconcileMissedConsultationReminders();

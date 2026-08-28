@@ -7,7 +7,15 @@ import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Download, Refresh, Delete } from "@mui/icons-material";
+import {
+  Download,
+  Refresh,
+  Delete,
+  AccessTime,
+  SignalCellularAlt,
+  CheckCircleOutline,
+  GroupOutlined,
+} from "@mui/icons-material";
 
 import styles from "./CourseCard.module.css";
 
@@ -53,6 +61,7 @@ const formatPriceRub = (priceRub: number | null) => {
 
 const getDownloadTitle = (courseName: string) => `Скачивание курса: ${courseName}`;
 const SHOW_COURSE_AUTHOR_PILL = false;
+const SHOW_COURSE_RATING_AND_REVIEWS = false;
 
 const getDownloadModalHtml = (progress: number) => {
   const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
@@ -87,6 +96,7 @@ export const CourseCard = ({
   avgRating,
   trainingLevel,
   reviews,
+  startedUsersCount,
   isFavorite: propIsFavorite,
   onUnfavorite,
   onPaidCourseClick,
@@ -366,48 +376,57 @@ export const CourseCard = ({
           prefetch={false}
         >
           <div className={styles.imageContainer}>
-            <Image
-              src={finalSrc}
-              alt={`${name} logo`}
-              width={350}
-              height={200}
-              className={styles.image}
-              onError={() => setImgError(true)}
-            />
-            {isPrivate && <div className={styles.privateBadge}>Приватный</div>}
-            {isPaid && <div className={styles.paidBadge}>Платный</div>}
+            <div className={styles.imageFrame}>
+              <Image
+                src={finalSrc}
+                alt={`Обложка курса «${name}»`}
+                width={350}
+                height={200}
+                className={styles.image}
+                onError={() => setImgError(true)}
+              />
+            </div>
           </div>
 
           <div className={styles.content}>
-            <h3 className={styles.title}>{name}</h3>
-            <div className={styles.meta}>
-              <div className={styles.duration}>
-                <span>
-                  <b>Длительность:</b> {duration}
-                </span>
+            {(isPaid || isPrivate) && (
+              <div className={styles.accessLabels}>
+                {isPaid && <span className={styles.accessLabel}>Платный</span>}
+                {isPaid && <span className={styles.accessLabel}>{formatPriceRub(priceRub)}</span>}
+                {isPrivate && <span className={styles.accessLabel}>Приватный</span>}
               </div>
-              <div className={styles.status}>
-                <span className={getStatusColor()}>{getStatusText()}</span>
+            )}
+            <h3 className={styles.title}>{name}</h3>
+            <div className={styles.factsRow}>
+              <span className={styles.fact}>
+                <AccessTime aria-hidden="true" className={styles.factIcon} />
+                <span>{duration}</span>
+              </span>
+              <span className={styles.fact}>
+                <SignalCellularAlt aria-hidden="true" className={styles.factIcon} />
+                <span>{getTrainingLevelLabel(trainingLevel)}</span>
+              </span>
+              <span className={`${styles.fact} ${getStatusColor()}`}>
+                <CheckCircleOutline aria-hidden="true" className={styles.factIcon} />
+                <span>{getStatusText()}</span>
                 {hasPendingSync && (
                   <span className={styles.pendingIndicator} title="Ожидает синхронизации">
                     ⏳
                   </span>
                 )}
-              </div>
+              </span>
             </div>
             <div className={styles.description}>
-              {isPaid && (
-                <p>
-                  <b>Стоимость:</b> {formatPriceRub(priceRub)}
-                </p>
-              )}
-              <p>
-                <b>Уровень сложности:</b> {getTrainingLevelLabel(trainingLevel)}
-              </p>
-              <p>
-                <b>Описание:</b> {shortDesc}
-              </p>
+              <p>{shortDesc}</p>
             </div>
+
+            {typeof startedUsersCount === "number" && startedUsersCount > 0 ? (
+              <div className={styles.participants}>
+                <GroupOutlined aria-hidden="true" className={styles.participantsIcon} />
+                Этот курс уже прошли {startedUsersCount}{" "}
+                {declOfNum(startedUsersCount, ["человек", "человека", "человек"])}
+              </div>
+            ) : null}
 
             {startedAt && (
               <div className={styles.date}>
@@ -440,7 +459,7 @@ export const CourseCard = ({
             )}
           </div>
         </Link>
-        <div className={styles.rating}>
+        {SHOW_COURSE_RATING_AND_REVIEWS && <div className={styles.rating}>
           <SimpleCourseRating
             courseId={id}
             initialRating={avgRating || 0}
@@ -453,7 +472,7 @@ export const CourseCard = ({
           ) : (
             <span className={styles.reviews}>{getReviewText()}</span>
           )}
-        </div>
+        </div>}
       </div>
 
       {SHOW_COURSE_AUTHOR_PILL ? (

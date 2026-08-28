@@ -9,15 +9,11 @@ import styles from "./MainAuthButtons.module.css";
 export function MainAuthButtons() {
   return (
     <div className={styles.buttonsContainer}>
-      <Link href="/login">
-        <button className={styles.button_login} type="button">
-          войти
-        </button>
+      <Link href="/login" className={styles.button_login}>
+        Войти
       </Link>
-      <Link href="/register" prefetch={false}>
-        <button className={styles.button_register} type="button">
-          регистрация
-        </button>
+      <Link href="/register" prefetch={false} className={styles.button_register}>
+        Регистрация
       </Link>
       <VkIdOneTap />
     </div>

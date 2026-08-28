@@ -30,6 +30,13 @@
 | `apps/web/public/personal.html` | 2026-08-13 |
 | `apps/web/public/personal-distribution.html` | 2026-05-13 |
 
+### Proposed NPD wording — 2026-08-28 (LEGAL REVIEW REQUIRED)
+
+The current public HTML files contain proposed NPD receipt wording. The previous published
+files are preserved as `apps/web/public/legal/archive/{oferta,policy,personal}-2026-08-13.html`.
+Do not publish this revision until the owner/legal reviewer approves the wording and confirms
+the actual FNS/«Мой налог» provider and data-transfer basis.
+
 Перед правками от 13.08.2026 текущие версии сохранены в `apps/web/public/legal/archive/` как `oferta-2026-07-16.html`, `policy-2026-05-13.html` и `personal-2026-05-13.html`.
 
 Перед правками от 16.07.2026 текущая версия оферты сохранена в `apps/web/public/legal/archive/oferta-2026-05-13.html`.

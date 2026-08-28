@@ -121,6 +121,29 @@ describe("app subscription route contracts", () => {
     expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
   });
 
+  it("returns the stable email-required code from YooKassa checkout", async () => {
+    const app = createAuthenticatedTestApp();
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    startYookassaAppSubscriptionPaymentMock.mockResolvedValueOnce({
+      success: false,
+      code: "SUBSCRIPTION_EMAIL_REQUIRED",
+      error: "Укажите email в профиле, чтобы получить чек",
+    });
+
+    const response = await app.request(
+      jsonRequest("/api/v1/app-subscription/yookassa/start", "POST", { planCode: "MONTHLY" }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      code: "SUBSCRIPTION_EMAIL_REQUIRED",
+      error: "Укажите email в профиле, чтобы получить чек",
+    });
+  });
+
   it("previews promo code through the shared core contract and client context", async () => {
     const app = createAuthenticatedTestApp();
     previewAppSubscriptionPromoCodeMock.mockResolvedValueOnce({

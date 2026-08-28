@@ -10,3 +10,9 @@ export {
   createMailerTransporter,
   sendTransactionalMail,
 } from "./send-transactional-mail.js";
+export {
+  type NpdReceiptEmailData,
+  type RenderedNpdReceiptEmail,
+  escapeHtml,
+  renderNpdReceiptEmail,
+} from "./npd-receipt-email.js";

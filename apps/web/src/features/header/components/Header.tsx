@@ -1,7 +1,7 @@
 "use client";
 
 import { resetAnalyticsUser, trackEvent } from "@gafus/analytics";
-import { Article as ArticleIcon, Pets as PetsIcon } from "@mui/icons-material";
+import { ArrowBack, Article as ArticleIcon, Pets as PetsIcon } from "@mui/icons-material";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
@@ -55,7 +55,8 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
   return (
     <header className={styles.container}>
       <button className={styles.backButton} onClick={() => window.history.back()}>
-        ← Назад
+        <ArrowBack aria-hidden="true" className={styles.backIcon} />
+        Назад
       </button>
 
       <button

@@ -561,3 +561,11 @@
     min-height: 120px;
   }
 }
+
+/* Shared web surface language */
+.stepContainer, .timerCard, .cardSection, .diaryEntryItem { border: 1px solid rgba(var(--accent-primary-rgb), 0.2); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.stepContainer { padding: 20px; }
+.btnPrimary, .btnSecondary, .btnOutline, .completeBtn { min-height: 44px; border-radius: 12px; font-family: var(--font-montserrat), var(--font-sans-fallback); font-weight: 700; }
+.btnPrimary, .completeBtn { box-shadow: var(--shadow-button); }
+.btnPrimary:focus-visible, .btnSecondary:focus-visible, .btnOutline:focus-visible, .completeBtn:focus-visible, .circleBtn:focus-visible, .circleBtnReset:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
+@media (max-width: 600px) { .stepContainer { padding: 14px; } .timerDisplay { margin-right: 0; font-size: clamp(36px, 14vw, 52px); } .stepActions { width: 100%; } }

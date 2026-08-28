@@ -1,14 +1,28 @@
 .container {
-  position: relative;
+  position: sticky;
+  top: 8px;
+  z-index: 90;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background-color: var(--bg-1);
+  min-height: 58px;
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  border-radius: 16px;
+  background: rgba(255, 248, 229, 0.82);
+  box-shadow: 0 8px 18px rgba(74, 74, 30, 0.16);
+  backdrop-filter: blur(10px);
 }
 
 .backButton {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fbf7ef;
   border: none;
   color: var(--bg-2);
   font-family: var(--font-montserrat), system-ui, sans-serif;
@@ -19,7 +33,30 @@
   text-align: center;
   cursor: pointer;
   z-index: 101;
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
+
+.backButton:hover {
+  background: #e9e2cf;
+  box-shadow: 0 4px 8px rgba(74, 74, 30, 0.16);
+  transform: translateY(-1px);
+}
+
+.backButton:active {
+  background: #e3dcc8;
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.2);
+  transform: translateY(2px) scale(0.98);
+}
+
+.backButton:focus-visible,
+.burgerButton:focus-visible,
+.menuButton:focus-visible,
+.logoutButton:focus-visible {
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.42);
+  outline-offset: 2px;
+}
+
+.backIcon { width: 19px; height: 19px; }
 
 .avatar {
   width: 24px;
@@ -42,78 +79,20 @@
 }
 .dropdownMenu {
   position: absolute;
-  top: 105%;
-  right: 0%;
-  transform: translateX(-10%) translateY(-8%);
-  background-color: #fff8e5;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #fff8e5;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  row-gap: 10px;
-  padding: 16px;
-  min-width: 160px;
-  z-index: 100;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* Маленькие телефоны (до 480px) */
-@media (max-width: 480px) {
-  .dropdownMenu {
-    top: 75%;
-    right: 25px;
-    transform: translateX(0) translateY(0);
-    min-width: 140px;
-    padding: 12px;
-    row-gap: 8px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-  }
-
-  .menuButton,
-  .logoutButton {
-    font-size: 0.875rem;
-  }
-}
-
-/* Планшеты и телефоны (481px - 768px) */
-@media (min-width: 481px) and (max-width: 768px) {
-  .dropdownMenu {
-    top: 95%;
-    right: 15px;
-    transform: translateX(-5%) translateY(-5%);
-    min-width: 150px;
-    padding: 14px;
-    row-gap: 9px;
-  }
-
-  .menuButton,
-  .logoutButton {
-    font-size: 0.9375rem;
-  }
-}
-
-/* Планшеты в ландшафте и небольшие десктопы (769px - 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .dropdownMenu {
-    top: 105%;
-    right: 10px;
-    transform: translateX(-8%) translateY(-6%);
-    min-width: 155px;
-    padding: 15px;
-  }
-}
-
-/* Средние десктопы (1025px - 1439px) */
-@media (min-width: 1025px) and (max-width: 1439px) {
-  .dropdownMenu {
-    top: 115%;
-    right: 5px;
-    transform: translateX(-10%) translateY(-8%);
-    min-width: 160px;
-    padding: 16px;
-  }
+  row-gap: 4px;
+  padding: 8px;
+  min-width: 230px;
+  z-index: 101;
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(74, 74, 30, 0.22);
 }
 .overlay {
   position: fixed;
@@ -121,33 +100,70 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(4px);
+  background: rgba(53, 46, 46, 0.14);
+  backdrop-filter: blur(2px);
   z-index: 99;
 }
 .menuButton {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: black;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border-radius: 12px;
+  color: var(--text-primary);
   text-decoration: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background-color 150ms ease, transform 150ms ease;
 }
+
+.menuButton:hover {
+  background: #e9e2cf;
+  transform: translateX(2px);
+}
+
+.menuButton:active { transform: translateX(2px) scale(0.99); }
 .burgerButton {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 14px;
+  background: #fbf7ef;
   border: none;
-  outline: none;
   z-index: 101;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(74, 74, 30, 0.14);
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
 }
+
+.burgerButton:hover { background: #e9e2cf; transform: translateY(-1px); }
+.burgerButton:active { background: #e3dcc8; box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.2); transform: translateY(2px) scale(0.98); }
 .logoutButton {
   background: none;
   border: none;
-  outline: none;
   cursor: pointer;
-  color: black;
+  color: var(--text-primary);
   text-decoration: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   padding: 0;
+  text-align: left;
+}
+
+@media (max-width: 480px) {
+  .container { top: 4px; min-height: 54px; margin: 4px 8px 0; }
+  .dropdownMenu {
+    min-width: min(280px, calc(100vw - 16px));
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .menuButton,
+  .logoutButton { font-size: 0.875rem; }
 }
 @keyframes fadeInDown {
   from {

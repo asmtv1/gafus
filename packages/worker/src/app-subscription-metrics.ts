@@ -17,14 +17,31 @@ export function incrementWebhookDuplicateTotal(delta = 1) {
 }
 
 export async function renderAppSubscriptionMetricsPrometheus(): Promise<string> {
-  const [activeTotal, pastDueTotal] = await Promise.all([
+  const [activeTotal, pastDueTotal, npdOperations, oldestNpdOperation, npdReceipts, npdConnection] = await Promise.all([
     (prisma as any).appSubscription.count({
       where: { status: "ACTIVE" },
     }),
     (prisma as any).appSubscription.count({
       where: { status: "PAST_DUE" },
     }),
+    (prisma as any).npdReceiptOperation.groupBy({ by: ["status", "type"], _count: { _all: true } }),
+    (prisma as any).npdReceiptOperation.findFirst({
+      where: { status: { in: ["PENDING", "RETRY", "PROCESSING"] } },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    (prisma as any).npdReceipt.groupBy({ by: ["status"], _count: { _all: true } }),
+    (prisma as any).npdConnection.findUnique({ where: { id: "default" }, select: { status: true, lastSuccessfulOperationAt: true } }),
   ]);
+
+  const operationLines = (npdOperations as Array<any>).map((row) =>
+    `npd_operation_total{type="${row.type}",status="${row.status}"} ${row._count._all}`,
+  );
+  const receiptLines = (npdReceipts as Array<any>).map((row) =>
+    `npd_receipt_total{status="${row.status}"} ${row._count._all}`,
+  );
+  const oldestAge = oldestNpdOperation ? Math.max(0, (Date.now() - oldestNpdOperation.createdAt.getTime()) / 1000) : 0;
+  const lastSuccess = npdConnection?.lastSuccessfulOperationAt ? npdConnection.lastSuccessfulOperationAt.getTime() / 1000 : 0;
 
   return [
     "# HELP app_subscription_active_total Count of ACTIVE app subscriptions",
@@ -42,6 +59,21 @@ export async function renderAppSubscriptionMetricsPrometheus(): Promise<string> 
     "# HELP webhook_duplicate_total Number of duplicate webhook events",
     "# TYPE webhook_duplicate_total counter",
     `webhook_duplicate_total ${webhookDuplicateTotal}`,
+    "# HELP npd_operation_total NPD outbox operations by type and status",
+    "# TYPE npd_operation_total gauge",
+    ...operationLines,
+    "# HELP npd_receipt_total NPD receipts by status",
+    "# TYPE npd_receipt_total gauge",
+    ...receiptLines,
+    "# HELP npd_oldest_pending_age_seconds Age of the oldest active NPD operation",
+    "# TYPE npd_oldest_pending_age_seconds gauge",
+    `npd_oldest_pending_age_seconds ${oldestAge}`,
+    "# HELP npd_connection_auth_required Whether NPD connection needs SMS reauthentication",
+    "# TYPE npd_connection_auth_required gauge",
+    `npd_connection_auth_required ${npdConnection?.status === "REAUTH_REQUIRED" ? 1 : 0}`,
+    "# HELP npd_last_successful_operation_timestamp_seconds Last successful NPD external operation",
+    "# TYPE npd_last_successful_operation_timestamp_seconds gauge",
+    `npd_last_successful_operation_timestamp_seconds ${lastSuccess}`,
     "",
   ].join("\n");
 }

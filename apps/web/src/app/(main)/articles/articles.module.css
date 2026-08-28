@@ -1,38 +1,58 @@
+.articlesSection {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 0 20px 36px;
+}
+
+.articleList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .paidBadge {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(40, 120, 80, 0.9);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  top: 16px;
+  left: 16px;
+  background: var(--bg-2);
+  color: #fff8e5;
+  padding: 4px 9px;
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 700;
   z-index: 1;
 }
 
 .articleCard {
   position: relative;
   list-style: none;
-  flex: 1 1 min(100%, 480px);
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  max-width: 480px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: none;
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--bg-2, #636128) 0%, #4a4920 100%);
+  background: var(--surface);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.articleCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(74, 73, 23, 0.24);
 }
 
 .articleLink {
-  flex: 1;
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 12px 0;
   text-decoration: none;
   color: inherit;
   min-width: 0;
@@ -40,11 +60,11 @@
 
 .articleLogoBox {
   flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  width: 150px;
+  min-height: 150px;
+  height: auto;
+  background: #f4efe2;
+  border-radius: 14px;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -63,21 +83,21 @@
   background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
 }
 
-.articleRight {
+.articleContent {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: flex-start;
+  padding: 3px 0;
 }
 
 .articleTitle {
   margin: 0;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  line-height: 1.3;
+  color: var(--text-primary);
+  line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -85,69 +105,107 @@
   overflow: hidden;
 }
 
-.articleMeta {
+.articleActions {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.articleMeta span {
-  display: block;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px 12px 12px 174px;
 }
 
 .likeButton {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.95);
+  min-width: 48px;
+  min-height: 36px;
+  padding: 7px 10px;
+  background: #e8e1cb;
   border: none;
   border-radius: 20px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  color: #333;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  color: #4a4917;
+  box-shadow: none;
+  transition: transform 150ms ease, background-color 150ms ease;
 }
 
 .likeButton:hover:not(:disabled) {
-  background: #fff;
+  background: #dcd4b8;
+  transform: translateY(-1px);
 }
+
+.likeButtonLiked { background: #f2d8d3; }
+
+.views {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.viewsIcon { width: 17px; height: 17px; color: var(--bg-2); flex: none; }
+
+.readLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 40px;
+  padding: 8px 13px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  color: #fff8e5;
+  box-shadow: var(--shadow-button);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.readLink:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #4a4917, 0 11px 18px rgba(74, 73, 23, 0.23);
+}
+
+.readIcon { width: 16px; height: 16px; }
 
 .likeButton:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
 
-/* Мобильная адаптация — компактная карточка без overflow */
-@media (max-width: 480px) {
+@media (max-width: 560px) {
+  .articlesSection { padding: 0 14px 28px; }
+
   .articleCard {
-    flex: 1 1 100%;
     max-width: 100%;
   }
 
   .articleLogoBox {
-    width: 64px;
-    height: 64px;
+    width: 122px;
+    min-height: 122px;
   }
 
   .articleLink {
-    gap: 12px;
+    gap: 10px;
     padding: 12px;
   }
 
   .articleTitle {
-    font-size: 14px;
+    font-size: 16px;
   }
 
-  .articleMeta {
-    font-size: 11px;
-  }
+  .articleActions { padding: 8px 12px 12px 144px; }
+}
+
+@media (max-width: 390px) {
+  .articleLogoBox { width: 104px; min-height: 104px; }
+  .articleActions { padding-left: 116px; }
 
   .likeButton {
     padding: 6px 10px;

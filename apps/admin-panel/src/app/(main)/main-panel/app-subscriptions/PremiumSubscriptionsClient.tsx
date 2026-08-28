@@ -14,9 +14,11 @@ import type { AppSubscriptionDashboard } from "@/features/app-subscriptions/lib/
 import AppSubscriptionsClient from "./AppSubscriptionsClient";
 import PaymentHistory from "./PaymentHistory";
 import PromoCodesPanel from "./PromoCodesPanel";
+import NpdReceiptsPanel from "./NpdReceiptsPanel";
+import type { NpdAdminPage } from "@gafus/core/services/appSubscription";
 
 interface PremiumSubscriptionsClientProps {
-  activeTab: "payments" | "promo-codes";
+  activeTab: "payments" | "promo-codes" | "npd";
   role: "ADMIN" | "MODERATOR";
   dashboard: AppSubscriptionDashboard | null;
   paymentHistory: AppSubscriptionPaymentHistoryPage | null;
@@ -24,6 +26,8 @@ interface PremiumSubscriptionsClientProps {
   paymentStatus: string;
   paymentSearch: string;
   includeArchived: boolean;
+  npd: NpdAdminPage | null;
+  npdStatus: string; npdSearch: string; npdFrom: string; npdTo: string;
 }
 
 export default function PremiumSubscriptionsClient(props: PremiumSubscriptionsClientProps) {
@@ -43,6 +47,7 @@ export default function PremiumSubscriptionsClient(props: PremiumSubscriptionsCl
         >
           <Tab value="payments" label="Оплаты" />
           <Tab value="promo-codes" label="Промокоды" />
+          <Tab value="npd" label="Чеки НПД" />
         </Tabs>
       </Box>
 
@@ -64,6 +69,7 @@ export default function PremiumSubscriptionsClient(props: PremiumSubscriptionsCl
           includeArchived={props.includeArchived}
         />
       ) : null}
+      {props.activeTab === "npd" && props.npd ? <NpdReceiptsPanel data={props.npd} role={props.role} status={props.npdStatus} search={props.npdSearch} from={props.npdFrom} to={props.npdTo} /> : null}
     </Box>
   );
 }

@@ -25,9 +25,9 @@
 
 .card {
   background: #fff8e5;
-  border-radius: 12px;
-  border: 2px solid #636128;
-  box-shadow: 0 4px 14px rgba(53, 46, 46, 0.1);
+  border-radius: 18px;
+  border: 0;
+  box-shadow: var(--shadow-card);
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
@@ -90,7 +90,7 @@
   padding: 10px 12px;
   background: rgba(99, 97, 40, 0.08);
   border-radius: 8px;
-  border-left: 3px solid #636128;
+  border: 1px solid rgba(99, 97, 40, 0.2);
 }
 
 .cancelReasonLabel {
@@ -135,9 +135,9 @@
   align-self: flex-start;
   margin-top: 4px;
   padding: 8px 16px;
-  border-radius: 999px;
-  border: 2px solid rgba(183, 28, 28, 0.45);
-  background: #fff8e5;
+  border-radius: 12px;
+  border: 0;
+  background: #f0d8d3;
   color: #8b1c1c;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-size: 14px;

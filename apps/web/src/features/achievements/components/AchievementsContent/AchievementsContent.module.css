@@ -172,7 +172,8 @@
   height: 100%;
   background: linear-gradient(90deg, #007bff, #0056b3);
   border-radius: 6px;
-  transition: width 0.3s ease;
+  transform-origin: left center;
+  transition: transform 0.3s ease;
 }
 
 /* Достижения */
@@ -599,3 +600,12 @@
     font-size: 14px;
   }
 }
+
+.container { background: transparent; color: var(--text-primary); }
+.title, .sectionTitle, .categoryTitle, .achievementTitle, .noData h3, .noAchievements h3, .noCourses h3 { font-family: var(--font-montserrat), var(--font-sans-fallback); color: var(--text-primary); }
+.title { font-size: clamp(40px, 7vw, 64px); font-weight: 800; }
+.statCard, .progressSection, .category, .achievementCard, .noData, .noAchievements, .noCourses { border: 1px solid rgba(var(--accent-primary-rgb), 0.2); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.statValue { color: var(--accent-primary); }
+.refreshButton, .coursesLink { border-radius: 12px; background: var(--accent-primary); box-shadow: var(--shadow-button); font-family: var(--font-montserrat), var(--font-sans-fallback); font-weight: 700; }
+.refreshButton:focus-visible, .coursesLink:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
+@media (max-width: 600px) { .container { padding: 16px 12px; } .statsSection, .achievementsSection, .coursesSection { padding: 0; } }

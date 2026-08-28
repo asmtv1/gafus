@@ -7,6 +7,8 @@ import {
   type AppSubscriptionPaymentHistoryPage,
   type AppSubscriptionPaymentHistoryStatus,
   type AppSubscriptionPromoCodeAdminItem,
+  getNpdAdminPage,
+  type NpdAdminPage,
 } from "@gafus/core/services/appSubscription";
 import { createAdminPanelLogger } from "@gafus/logger";
 import { redirect } from "next/navigation";
@@ -22,6 +24,7 @@ export type AppSubscriptionAdminPageData = {
   dashboard: AppSubscriptionAdminDashboard | null;
   paymentHistory: AppSubscriptionPaymentHistoryPage | null;
   promoCodes: AppSubscriptionPromoCodeAdminItem[] | null;
+  npd: NpdAdminPage | null;
 };
 
 async function requireAppSubscriptionReader() {
@@ -46,12 +49,18 @@ export async function getAdminAppSubscriptionDashboard(): Promise<AppSubscriptio
 }
 
 export async function getAdminAppSubscriptionPageData(params: {
-  tab: "payments" | "promo-codes";
+  tab: "payments" | "promo-codes" | "npd";
   paymentPage: number;
   paymentPageSize: number;
   paymentStatus?: AppSubscriptionPaymentHistoryStatus;
   paymentSearch?: string;
   includeArchived: boolean;
+  npdPage: number;
+  npdPageSize: number;
+  npdStatus?: import("@gafus/core/services/appSubscription").NpdAdminReceiptStatus;
+  npdSearch?: string;
+  npdFrom?: Date;
+  npdTo?: Date;
 }): Promise<AppSubscriptionAdminPageData> {
   const role = await requireAppSubscriptionReader();
 
@@ -64,7 +73,12 @@ export async function getAdminAppSubscriptionPageData(params: {
         promoCodes: await getAppSubscriptionPromoCodesAdmin({
           includeArchived: params.includeArchived,
         }),
+        npd: null,
       };
+    }
+
+    if (params.tab === "npd") {
+      return { role, dashboard: null, paymentHistory: null, promoCodes: null, npd: await getNpdAdminPage({ role, page: params.npdPage, pageSize: params.npdPageSize, status: params.npdStatus, search: params.npdSearch, from: params.npdFrom, to: params.npdTo }) };
     }
 
     const [dashboard, paymentHistory] = await Promise.all([
@@ -76,7 +90,7 @@ export async function getAdminAppSubscriptionPageData(params: {
         search: params.paymentSearch,
       }),
     ]);
-    return { role, dashboard, paymentHistory, promoCodes: null };
+    return { role, dashboard, paymentHistory, promoCodes: null, npd: null };
   } catch (error) {
     logger.error("Ошибка при получении данных раздела Premium", error as Error);
     throw error;

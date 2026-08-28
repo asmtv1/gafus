@@ -180,14 +180,13 @@
 }
 
 .descriptionContent blockquote {
-  border-left: 4px solid #636128;
-  padding-left: 16px;
+  border: 1px solid rgba(99, 97, 40, 0.2);
   margin: 1em 0;
   font-style: italic;
   color: #5a5249;
   background-color: #d4c4a8;
   padding: 12px 16px;
-  border-radius: 0 8px 8px 0;
+  border-radius: 12px;
 }
 
 .descriptionContent a {

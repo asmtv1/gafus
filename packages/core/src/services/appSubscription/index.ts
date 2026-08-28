@@ -8,5 +8,6 @@ export * from "./adminService";
 export * from "./adminHistoryService";
 export * from "./appleAccountTokenService";
 export * from "./paymentService";
+export * from "./npdReceiptService";
 export * from "./promoCode";
 export * from "./promoCodeService";

@@ -900,14 +900,17 @@ model AppSubscriptionPayment {
   status   AppSubscriptionPaymentStatus @default(PENDING)
   planCode AppSubscriptionPlanCode      @default(WEEKLY)
 
-  amount   Decimal? @db.Decimal(12, 3)
-  currency String?  @db.VarChar(3)
+  amount     Decimal? @db.Decimal(12, 3)
+  currency   String?  @db.VarChar(3)
+  buyerEmail String?  @db.VarChar(320)
 
   promoCodeId          String?
   promoCode            AppSubscriptionPromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
   promoCodeSnapshot    String?                   @db.VarChar(64)
   promoDiscountPercent Int?
   originalAmount       Decimal?                  @db.Decimal(12, 3)
+
+  npdReceipt NpdReceipt?
 
   periodStart DateTime?
   periodEnd   DateTime?
@@ -938,6 +941,115 @@ model AppSubscriptionPayment {
   @@index([planCode])
   @@index([appleOriginalTransactionId])
   @@index([promoCodeId])
+}
+
+model NpdConnection {
+  /// The database enforces that this singleton key is always "default".
+  id String @id @default("default") @db.VarChar(32)
+
+  inn      String @db.VarChar(12)
+  deviceId String @db.VarChar(128)
+
+  refreshTokenCipher     Bytes
+  refreshTokenIv         Bytes
+  refreshTokenTag        Bytes
+  refreshTokenKeyVersion Int
+
+  status                     NpdConnectionStatus @default(ACTIVE)
+  fiscalizationStartedAt     DateTime?
+  lastAuthorizedAt           DateTime?
+  lastSuccessfulOperationAt  DateTime?
+  lastRefreshedAt            DateTime?
+  lastErrorCode              String?             @db.VarChar(64)
+  lastErrorRedacted          String?             @db.VarChar(1024)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+
+  receipts NpdReceipt[]
+}
+
+model NpdReceipt {
+  id String @id @default(cuid())
+
+  paymentId String                 @unique
+  payment   AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  connectionId String        @default("default") @db.VarChar(32)
+  connection   NpdConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+
+  status             NpdReceiptStatus @default(PENDING)
+  amountKopecks      Int
+  currency           String           @default("RUB") @db.VarChar(3)
+  planCode           AppSubscriptionPlanCode
+  intervalDays       Int
+  serviceName        String           @db.VarChar(256)
+  buyerEmail         String?          @db.VarChar(320)
+  providerReceiptId  String?          @unique @db.VarChar(128)
+  operationAt        DateTime
+  printUrl           String?          @db.VarChar(2048)
+  jsonUrl            String?          @db.VarChar(2048)
+  issuedAt           DateTime?
+  canceledAt         DateTime?
+  cancellationReason String?          @db.VarChar(256)
+
+  operations    NpdReceiptOperation[]
+  emailDelivery NpdReceiptEmailDelivery?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model NpdReceiptOperation {
+  id String @id @default(cuid())
+
+  receiptId String
+  receipt   NpdReceipt                @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  type      NpdReceiptOperationType
+  status    NpdReceiptOperationStatus @default(PENDING)
+
+  attemptCount      Int       @default(0)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime? @default(now())
+  leaseOwner        String?   @db.VarChar(128)
+  leaseExpiresAt    DateTime?
+  providerRequestId String?   @db.VarChar(128)
+  completedAt       DateTime?
+  lastErrorCode     String?   @db.VarChar(64)
+  lastErrorRedacted String?   @db.VarChar(1024)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([receiptId, type])
+  @@index([status, nextAttemptAt, leaseExpiresAt])
+  @@index([receiptId, status])
+}
+
+model NpdReceiptEmailDelivery {
+  id String @id @default(cuid())
+
+  receiptId String     @unique
+  receipt   NpdReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  status            NpdReceiptEmailDeliveryStatus @default(PENDING)
+  recipientEmail    String                        @db.VarChar(320)
+  attemptCount      Int                           @default(0)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime?                     @default(now())
+  leaseOwner        String?                       @db.VarChar(128)
+  leaseExpiresAt    DateTime?
+  sentAt            DateTime?
+  providerMessageId String?                       @db.VarChar(128)
+  lastErrorCode     String?                       @db.VarChar(64)
+  lastErrorRedacted String?                       @db.VarChar(1024)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, nextAttemptAt, leaseExpiresAt])
 }
 
 model AppSubscriptionPromoCode {
@@ -1636,6 +1748,45 @@ enum AppSubscriptionPaymentStatus {
   CANCELED
   FAILED
   REFUNDED
+}
+
+enum NpdConnectionStatus {
+  ACTIVE
+  REAUTH_REQUIRED
+  DISABLED
+}
+
+enum NpdReceiptStatus {
+  PENDING
+  ISSUED
+  CANCEL_PENDING
+  CANCELED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+enum NpdReceiptOperationType {
+  CREATE
+  CANCEL
+}
+
+enum NpdReceiptOperationStatus {
+  PENDING
+  PROCESSING
+  RETRY
+  SUCCEEDED
+  NOT_REQUIRED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+enum NpdReceiptEmailDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  DEAD_LETTER
+  SKIPPED
 }
 
 enum AppSubscriptionPromoCodeEventType {

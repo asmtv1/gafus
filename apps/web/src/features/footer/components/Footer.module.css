@@ -1,7 +1,10 @@
 .footer {
-  padding: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
-  background-color: var(--bg-1);
+  margin: 20px 12px 12px;
+  padding: 18px 16px;
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  border-radius: 16px;
+  background: rgba(255, 248, 229, 0.7);
+  box-shadow: 0 8px 18px rgba(74, 74, 30, 0.12);
 }
 
 .footerInner {
@@ -13,7 +16,7 @@
   gap: 10px;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-size: 14px;
-  color: #352e2e;
+  color: var(--text-primary);
   text-align: center;
 }
 
@@ -27,7 +30,8 @@
 
 .footerLink {
   color: var(--bg-2, #636128);
-  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   font-weight: 600;
   transition: color 0.2s;
 }
@@ -52,7 +56,8 @@
   align-items: center;
   gap: 6px;
   color: var(--bg-2, #636128);
-  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   font-weight: 600;
   transition: color 0.2s;
 }

@@ -333,3 +333,41 @@
 .addTimeButton:hover {
   background: rgba(99, 97, 40, 0.06) !important;
 }
+
+/* Prevention records share profile's raised paper surfaces and action states. */
+.formRoot :global(.MuiOutlinedInput-root),
+.dialogPaper,
+.listItem,
+.documentsSection,
+.preventionSection {
+  border-radius: 16px;
+  border-color: rgba(var(--accent-primary-rgb), 0.2);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.dialogTitle,
+.documentsTitle { font-family: var(--font-montserrat), var(--font-sans-fallback) !important; }
+
+.btnPrimary,
+.addButton,
+.iconBtn {
+  min-height: 44px;
+  border-radius: 12px !important;
+  font-family: var(--font-montserrat), var(--font-sans-fallback) !important;
+  box-shadow: var(--shadow-button) !important;
+}
+
+.btnPrimary:focus-visible,
+.btnSecondary:focus-visible,
+.addButton:focus-visible,
+.iconBtn:focus-visible,
+.addTimeButton:focus-visible {
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.38);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .dialogActions { padding: 0.75rem 1rem 1rem !important; }
+  .btnPrimary, .btnSecondary, .addButton { width: 100%; }
+}

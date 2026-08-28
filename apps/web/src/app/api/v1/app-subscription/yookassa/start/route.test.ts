@@ -138,6 +138,27 @@ describe("POST /api/v1/app-subscription/yookassa/start", () => {
     await expect(response.json()).resolves.toMatchObject({ success: false, code });
   });
 
+  it("returns the stable email-required checkout error", async () => {
+    process.env.WEB_APP_URL = "https://gafus.ru";
+    process.env.YOOKASSA_SECRET_KEY = "secret";
+    process.env.YOOKASSA_SHOP_ID = "shop";
+    getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+    startPaymentMock.mockResolvedValueOnce({
+      success: false,
+      code: "SUBSCRIPTION_EMAIL_REQUIRED",
+      error: "Укажите email в профиле, чтобы получить чек",
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      code: "SUBSCRIPTION_EMAIL_REQUIRED",
+      error: "Укажите email в профиле, чтобы получить чек",
+    });
+  });
+
   it("requires planCode", async () => {
     process.env.WEB_APP_URL = "https://gafus.ru";
     process.env.YOOKASSA_SECRET_KEY = "secret";

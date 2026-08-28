@@ -26,15 +26,14 @@
   max-width: 100%;
   min-width: 0;
   padding: 10px 10px 10px 16px;
-  background: var(--bg-2);
-  border: 2px solid var(--bg-3);
+  background: #e9e2cf;
+  border: 0;
   border-radius: 12px;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 3px 7px rgba(74, 74, 30, 0.12);
 }
 
 .activeFilterChipLabel {
@@ -84,25 +83,24 @@
   align-items: center;
   gap: 10px;
   padding: 12px 20px;
-  background: var(--bg-2);
-  border: 2px solid var(--bg-3);
-  border-radius: 12px;
+  background: #fbf7ef;
+  border: 0;
+  border-radius: 14px;
   color: var(--text-primary);
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  box-shadow: 0 4px 9px rgba(74, 74, 30, 0.14);
   position: relative;
 }
 
 .sortButton:hover,
 .filterToggleButton:hover {
-  background-color: var(--bg-3);
-  border-color: var(--accent-primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+  background-color: #e9e2cf;
+  box-shadow: 0 6px 13px rgba(74, 74, 30, 0.18);
+  transform: translateY(-2px);
 }
 
 .sortIcon,
@@ -132,16 +130,16 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--bg-2);
-  border: 2px solid var(--bg-3);
-  border-radius: 10px;
+  background: #fbf7ef;
+  border: 0;
+  border-radius: 12px;
   color: var(--text-primary);
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: transform 150ms ease, background-color 150ms ease;
+  box-shadow: 0 3px 7px rgba(74, 74, 30, 0.12);
   white-space: nowrap;
 }
 
@@ -190,24 +188,24 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--bg-2);
-  border: 2px solid var(--bg-3);
-  border-radius: 10px;
+  background: #fbf7ef;
+  border: 0;
+  border-radius: 12px;
   color: var(--text-primary);
   font-family: var(--font-montserrat), system-ui, sans-serif;
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  box-shadow: 0 3px 7px rgba(74, 74, 30, 0.12);
   white-space: nowrap;
   min-width: 140px;
 }
 
 .filterButton:hover {
-  background-color: var(--bg-3);
-  border-color: var(--accent-primary);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  background-color: #e9e2cf;
+  box-shadow: 0 5px 11px rgba(74, 74, 30, 0.16);
+  transform: translateY(-1px);
 }
 
 .label {
@@ -245,10 +243,10 @@
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  background: var(--bg-2);
-  border: 2px solid var(--bg-3);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: #fff8e5;
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(74, 74, 30, 0.2);
   z-index: 100;
   overflow: hidden;
   animation: dropdownOpen 0.2s ease;
@@ -285,7 +283,7 @@
 }
 
 .option:hover {
-  background-color: var(--bg-3);
+  background-color: #e9e2cf;
 }
 
 .option.active {

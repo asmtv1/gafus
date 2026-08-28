@@ -199,3 +199,8 @@
     margin-bottom: 0.75rem;
   }
 }
+
+.card { border: 1px solid rgba(var(--accent-primary-rgb), 0.2); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.dayOdd, .dayEven { border-width: 8px; border-radius: 16px; }
+.link:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 4px; border-radius: 16px; }
+@media (max-width: 600px) { .card { min-width: 0; padding: 16px; } .dayTitle { font-size: 20px; } }

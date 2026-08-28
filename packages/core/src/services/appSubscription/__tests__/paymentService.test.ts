@@ -21,6 +21,11 @@ const mockTrialUpsert = vi.fn();
 const mockTransaction = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockGetAllSubscriptionStatuses = vi.fn();
+const mockNpdConnectionFindUnique = vi.fn();
+const mockNpdReceiptUpsert = vi.fn();
+const mockNpdReceiptFindUnique = vi.fn();
+const mockNpdReceiptUpdate = vi.fn();
+const mockNpdOperationUpsert = vi.fn();
 
 vi.mock("@gafus/prisma", async (importOriginal) => {
   const actual = await importOriginal<typeof PrismaPackage>();
@@ -145,6 +150,8 @@ describe("app subscription payment service", () => {
     mockTrialFindFirst.mockResolvedValue(null);
     mockTrialFindUnique.mockResolvedValue(null);
     mockTrialUpsert.mockResolvedValue({ id: "trial-1" });
+    mockUserFindUnique.mockResolvedValue({ email: "buyer@gafus.test" });
+    mockNpdConnectionFindUnique.mockResolvedValue(null);
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
       monthlyEnabled: true,
@@ -166,6 +173,10 @@ describe("app subscription payment service", () => {
           findUnique: mockPaymentFindUnique,
           update: mockPaymentUpdate,
         },
+        user: { findUnique: mockUserFindUnique },
+        npdConnection: { findUnique: mockNpdConnectionFindUnique },
+        npdReceipt: { upsert: mockNpdReceiptUpsert, findUnique: mockNpdReceiptFindUnique, update: mockNpdReceiptUpdate },
+        npdReceiptOperation: { upsert: mockNpdOperationUpsert },
         appSubscriptionPromoCode: {
           findUnique: mockPromoFindUnique,
         },
@@ -184,6 +195,25 @@ describe("app subscription payment service", () => {
         },
       }),
     );
+  });
+
+  it("requires an email before creating a YooKassa checkout", async () => {
+    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    mockUserFindUnique.mockResolvedValueOnce({ email: "   " });
+
+    await expect(
+      startYookassaAppSubscriptionPayment({
+        userId: "user-1",
+        origin: "https://gafus.ru",
+        shopId: "shop-id",
+        secretKey: "secret-key",
+        planCode: "MONTHLY",
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      code: "SUBSCRIPTION_EMAIL_REQUIRED",
+    });
+    expect(mockPaymentCreate).not.toHaveBeenCalled();
   });
 
   it("freezes a valid promo snapshot under the start lock", async () => {

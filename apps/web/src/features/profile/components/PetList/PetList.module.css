@@ -702,3 +702,10 @@
     padding: 6px;
   }
 }
+
+.container { background: transparent; }
+.dog_item, .documentsSection, .preventionSection { border: 1px solid rgba(var(--accent-primary-rgb), 0.2); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.container h2, .dog_info h3, .documentsTitle { font-family: var(--font-montserrat), var(--font-sans-fallback); }
+.dogActionButton, .preventionLink { border-radius: 12px; box-shadow: var(--shadow-button); }
+.dogActionButton:focus-visible, .preventionLink:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
+@media (max-width: 600px) { .dog_item { padding: 16px; gap: 12px; } .dog_actions { flex-direction: row; width: 100%; justify-content: flex-end; } }

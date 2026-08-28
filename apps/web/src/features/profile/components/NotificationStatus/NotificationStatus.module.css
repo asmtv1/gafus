@@ -297,3 +297,9 @@
     padding: 4px 8px;
   }
 }
+
+.container { background: var(--surface); border-color: rgba(var(--accent-primary-rgb), 0.2); border-radius: 16px; box-shadow: var(--shadow-card); }
+.container h3, .label { font-family: var(--font-montserrat), var(--font-sans-fallback); }
+.statusItem, .help { border-radius: 12px; }
+.button, .allowButton, .denyButton { min-height: 44px; border-radius: 12px; font-family: var(--font-montserrat), var(--font-sans-fallback); box-shadow: var(--shadow-button); }
+.button:focus-visible, .allowButton:focus-visible, .denyButton:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }

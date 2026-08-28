@@ -34,11 +34,13 @@ import {
   type AppSubscriptionPromoCodeDomainErrorCode,
 } from "./promoCodeService";
 import { calculateAppSubscriptionPromoPrice, parseAppSubscriptionPromoCode } from "./promoCode";
+import { ensureNpdReceiptForSucceededPayment, queueNpdReceiptCancellation } from "./npdReceiptService";
 import type { ClientAppContext } from "../appFeatureFlags";
 
 const logger = createWebLogger("app-subscription-payment-service");
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
 const YOOKASSA_PAYMENT_METHODS_API = "https://api.yookassa.ru/v3/payment_methods";
+const YOOKASSA_REFUNDS_API = "https://api.yookassa.ru/v3/refunds";
 const YOOKASSA_PENDING_SETUP_TTL_MS = 60 * 60 * 1000;
 const YOOKASSA_START_LOCK_NAMESPACE = 90210018;
 const APPLE_ROOT_CA_G3_DER_BASE64 =
@@ -248,6 +250,13 @@ type YooKassaPaymentObject = {
   };
 };
 
+type YooKassaRefundObject = {
+  id?: string;
+  status?: string;
+  payment_id?: string;
+  amount?: { value?: string; currency?: string };
+};
+
 type YooKassaBankCardDetails = {
   first6?: string;
   last4?: string;
@@ -362,6 +371,24 @@ async function fetchYookassaPaymentObject(params: {
     );
   }
   return (await response.json()) as YooKassaPaymentObject;
+}
+
+async function fetchYookassaRefundObject(params: {
+  yookassaRefundId: string;
+  shopId?: string;
+  secretKey?: string;
+}): Promise<YooKassaRefundObject> {
+  const { shopId, secretKey } = getYookassaCredentials(params);
+  const auth = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
+  const response = await fetch(`${YOOKASSA_REFUNDS_API}/${encodeURIComponent(params.yookassaRefundId)}`, {
+    method: "GET",
+    headers: { Authorization: `Basic ${auth}` },
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new YookassaHttpError(`YooKassa refund verification failed: ${response.status} ${text}`.slice(0, 512), response.status);
+  }
+  return (await response.json()) as YooKassaRefundObject;
 }
 
 async function fetchYookassaPaymentMethodObject(params: {
@@ -1023,7 +1050,8 @@ type AppSubscriptionCheckoutErrorCode =
   | AppSubscriptionPromoCodeDomainErrorCode
   | "SUBSCRIPTION_ALREADY_ACTIVE"
   | "SUBSCRIPTION_CHECKOUT_IN_PROGRESS"
-  | "PLAN_NOT_AVAILABLE";
+  | "PLAN_NOT_AVAILABLE"
+  | "SUBSCRIPTION_EMAIL_REQUIRED";
 
 type PreparedInitialCheckout = {
   subscription: Awaited<ReturnType<typeof findOrCreateYookassaSetupSubscription>>;
@@ -1047,6 +1075,7 @@ async function prepareInitialYookassaCheckout(params: {
   intervalDays: number;
   promoCode?: RequestedAppSubscriptionPromoCode;
   clientContext?: ClientAppContext;
+  buyerEmail: string;
   now: Date;
 }): Promise<PreparedInitialCheckout> {
   const lockKey = hashAdvisoryLockKey(`app-subscription:yookassa:start:${params.userId}`);
@@ -1292,6 +1321,7 @@ async function prepareInitialYookassaCheckout(params: {
         amount: amountRub.toNumber(),
         originalAmount: params.originalAmountRub,
         currency: params.currency,
+        buyerEmail: params.buyerEmail,
         promoCodeId: promo?.id,
         promoCodeSnapshot: promo?.code,
         promoDiscountPercent: promo?.discountPercent,
@@ -1378,6 +1408,11 @@ export async function startYookassaAppSubscriptionPayment(params: {
   }
 
   const now = new Date();
+  const buyer = await prisma.user.findUnique({ where: { id: params.userId }, select: { email: true } });
+  const buyerEmail = buyer?.email?.trim();
+  if (!buyerEmail) {
+    return { success: false, error: "Укажите email в профиле, чтобы получить чек", code: "SUBSCRIPTION_EMAIL_REQUIRED" };
+  }
   let prepared: PreparedInitialCheckout;
   try {
     prepared = await prepareInitialYookassaCheckout({
@@ -1388,6 +1423,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
       intervalDays,
       promoCode: params.promoCode,
       clientContext: params.clientContext,
+      buyerEmail,
       now,
     });
   } catch (error) {
@@ -2265,6 +2301,7 @@ export async function restoreAppleAppSubscription(_params: {
 export async function handleYookassaAppSubscriptionWebhook(params: {
   event: string;
   yookassaPaymentId: string;
+  yookassaRefundId?: string;
   amount?: string;
   paymentMethodId?: string | null;
   paymentMethodLast4?: string | null;
@@ -2275,7 +2312,8 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
   shopId?: string;
   secretKey?: string;
 }): Promise<{ userId: string | null }> {
-  const providerEventKey = params.providerEventKey ?? `${params.event}:${params.yookassaPaymentId}`;
+  const providerEventKey = params.providerEventKey ??
+    `${params.event}:${params.event === "refund.succeeded" ? params.yookassaRefundId ?? params.yookassaPaymentId : params.yookassaPaymentId}`;
   let eventId: string | null = null;
   let metadata = params.metadata;
 
@@ -2402,6 +2440,81 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     }
 
     return { userId: subscription.userId };
+  }
+
+  if (params.event === "refund.succeeded") {
+    const refundId = params.yookassaRefundId;
+    if (!refundId) throw new Error("YooKassa refund webhook without refund id");
+    const refund = await fetchYookassaRefundObject({
+      yookassaRefundId: refundId,
+      shopId: params.shopId,
+      secretKey: params.secretKey,
+    });
+    if (refund.id !== refundId || refund.status !== "succeeded" || !refund.payment_id) {
+      throw new Error("YooKassa refund is not confirmed");
+    }
+    if (params.yookassaPaymentId && refund.payment_id !== params.yookassaPaymentId) {
+      throw new Error("YooKassa refund payment id mismatch");
+    }
+    const providerPayment = await fetchYookassaPaymentObject({
+      yookassaPaymentId: refund.payment_id,
+      shopId: params.shopId,
+      secretKey: params.secretKey,
+    });
+    const payment = await prisma.appSubscriptionPayment.findUnique({
+      where: { yookassaPaymentId: refund.payment_id },
+      select: {
+        id: true, userId: true, subscriptionId: true, status: true, amount: true, currency: true,
+        periodEnd: true, yookassaPaymentId: true,
+      },
+    });
+    // A verified non-Premium payment is deliberately left to the legacy
+    // webhook branch. This is not a decision based on the incoming payload.
+    if (!payment) return { userId: null };
+    assertYookassaPaymentConfirmed({ providerPayment, localPayment: payment, yookassaPaymentId: refund.payment_id });
+    const fullRefund = amountsEqual(refund.amount?.value, payment.amount) && refund.amount?.currency === payment.currency;
+    if (!fullRefund) {
+      logger.warn("Partial app-subscription refund does not cancel NPD receipt", {
+        refundId, paymentId: payment.id, amount: refund.amount?.value,
+      });
+      await prisma.npdReceipt.updateMany({
+        where: { paymentId: payment.id, status: { notIn: ["CANCELED", "CANCEL_PENDING"] } },
+        data: {
+          status: "RECONCILIATION_REQUIRED",
+          cancellationReason: "Частичный возврат: требуется проверка чека НПД",
+        },
+      });
+      if (eventId) {
+        await prisma.appSubscriptionEvent.update({
+          where: { id: eventId },
+          data: { processingStatus: "PROCESSED", processedAt: new Date(), userId: payment.userId, lastProcessingError: "PARTIAL_REFUND_NOT_FISCALIZED" },
+        }).catch(() => undefined);
+      }
+      return { userId: payment.userId };
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.appSubscriptionPayment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } });
+      await queueNpdReceiptCancellation(tx, payment.id);
+      if (payment.subscriptionId && payment.periodEnd) {
+        const newerPaid = await tx.appSubscriptionPayment.findFirst({
+          where: { subscriptionId: payment.subscriptionId, status: "SUCCEEDED", periodEnd: { gt: payment.periodEnd } },
+          select: { id: true },
+        });
+        if (!newerPaid) {
+          await tx.appSubscription.updateMany({
+            where: { id: payment.subscriptionId, currentPeriodEnd: { lte: payment.periodEnd } },
+            data: { status: "CANCELED", yookassaPaymentMethodId: null, yookassaPaymentMethodLast4: null, yookassaPaymentMethodTitle: null },
+          });
+        }
+      }
+    });
+    if (eventId) {
+      await prisma.appSubscriptionEvent.update({
+        where: { id: eventId },
+        data: { processingStatus: "PROCESSED", processedAt: new Date(), userId: payment.userId },
+      }).catch(() => undefined);
+    }
+    return { userId: payment.userId };
   }
 
   const localPaymentId = metadata?.localPaymentId;
@@ -2567,6 +2680,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
             data: { subscriptionId: created.id },
           });
         }
+        await ensureNpdReceiptForSucceededPayment(tx, payment.id);
       });
     } else if (params.event === "payment.canceled") {
       const providerPayment = await fetchYookassaPaymentObject({
@@ -2583,14 +2697,6 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         where: { id: payment.id },
         data: { status: "CANCELED", yookassaPaymentId: params.yookassaPaymentId },
       });
-    } else if (params.event === "refund.succeeded") {
-      logger.warn(
-        "App subscription refund webhook ignored until refund verification is implemented",
-        {
-          localPaymentId,
-          yookassaPaymentId: params.yookassaPaymentId,
-        },
-      );
     }
 
     if (eventId) {

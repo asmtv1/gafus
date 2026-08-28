@@ -238,6 +238,14 @@ services:
       - SMTP_PASS=${SMTP_PASS}
       - MAIL_FROM=${MAIL_FROM:-api@gafus.ru}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Гафус}
+      # НПД: только worker/bootstrap. По умолчанию внешний процессинг выключен.
+      - NPD_PROCESSING_ENABLED=${NPD_PROCESSING_ENABLED:-false}
+      - NPD_TOKEN_ENCRYPTION_KEY=${NPD_TOKEN_ENCRYPTION_KEY}
+      - NPD_API_BASE_URL=${NPD_API_BASE_URL:-https://lknpd.nalog.ru/api/v1}
+      - NPD_BATCH_SIZE=${NPD_BATCH_SIZE:-20}
+      - NPD_REQUEST_TIMEOUT_MS=${NPD_REQUEST_TIMEOUT_MS:-10000}
+      - NPD_RECEIPT_EMAIL_BATCH_SIZE=${NPD_RECEIPT_EMAIL_BATCH_SIZE:-20}
+      - NPD_RECEIPT_EMAIL_ENABLED=${NPD_RECEIPT_EMAIL_ENABLED:-true}
     volumes:
       - ${APPLE_PRIVATE_KEY_HOST_PATH:-/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8}:${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}:ro
     deploy:

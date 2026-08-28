@@ -89,6 +89,15 @@ NEXT_PUBLIC_ENABLE_TRACER=true
 # Безопасность (строгие настройки)
 NEXTAUTH_SECRET=very-secure-production-secret-key-64-chars-long
 CSRF_SECRET=very-secure-production-csrf-secret-64-chars-long
+
+# НПД: передавать только worker/bootstrap; внешний процессинг выключен до live-проверки.
+NPD_PROCESSING_ENABLED=false
+NPD_TOKEN_ENCRYPTION_KEY=2:<base64-32-byte-key>[,1:<base64-previous-key>]
+NPD_API_BASE_URL=https://lknpd.nalog.ru/api/v1
+NPD_BATCH_SIZE=20
+NPD_REQUEST_TIMEOUT_MS=10000
+NPD_RECEIPT_EMAIL_BATCH_SIZE=20
+NPD_RECEIPT_EMAIL_ENABLED=true
 ```
 
 ## 🔐 Безопасность

@@ -17,7 +17,8 @@
       "@gafus/core/services/appSubscription": ["../../packages/core/src/services/appSubscription/index.ts"],
       "@gafus/core/services/consultation": ["../../packages/core/src/services/consultation/index.ts"],
       "@gafus/core/services/notifications": ["../../packages/core/src/services/notifications"],
-      "@gafus/prisma": ["../../packages/prisma/src/index.ts"]
+      "@gafus/prisma": ["../../packages/prisma/src/index.ts"],
+      "@gafus/npd": ["../../packages/npd/src/index.ts"]
     }
   },
   "include": ["src"],

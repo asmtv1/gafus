@@ -48,6 +48,7 @@ const previewPromoCodeSchema = z.object({
 });
 
 function promoErrorStatus(code: string): 400 | 403 | 404 | 409 {
+  if (code === "SUBSCRIPTION_EMAIL_REQUIRED") return 400;
   if (code === "PROMO_CODE_FEATURE_DISABLED" || code === "PROMO_CODE_NOT_ELIGIBLE") return 403;
   if (code === "PROMO_CODE_NOT_FOUND") return 404;
   if (

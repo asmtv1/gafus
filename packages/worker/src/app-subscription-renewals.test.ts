@@ -10,6 +10,7 @@ const mockUpdateMany = vi.fn();
 const mockSettingsFindUnique = vi.fn();
 const mockQueryRawUnsafe = vi.fn();
 const mockTransaction = vi.fn();
+const mockUserFindUnique = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -26,6 +27,7 @@ vi.mock("@gafus/prisma", () => ({
       findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
     },
+    user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
     $queryRawUnsafe: (...args: unknown[]) => mockQueryRawUnsafe(...args),
     $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
@@ -54,6 +56,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
       monthlyIntervalDays: 30,
     });
     mockPaymentFindFirst.mockResolvedValue(null);
+    mockUserFindUnique.mockResolvedValue({ email: "buyer@gafus.test" });
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({

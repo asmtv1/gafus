@@ -4,9 +4,10 @@
   max-width: 500px;
   width: 100%;
   margin: 1rem auto;
-  background: #ece5d2;
+  background: rgba(255, 248, 229, 0.72);
   border-radius: 16px;
-  border: 1px solid #636128;
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }
 
@@ -62,23 +63,23 @@
 
 /* Кнопки */
 .button {
-  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
   color: #ece5d2;
-  border: 1px solid #636128;
+  border: 0;
   padding: 14px 28px;
   border-radius: 12px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  box-shadow: var(--shadow-button);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 220px;
   min-height: 48px;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
   position: relative;
   overflow: hidden;
   width: 100%;
@@ -87,15 +88,15 @@
 }
 
 .button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
+  box-shadow: 0 7px 0 #4a4917, 0 11px 18px rgba(74, 73, 23, 0.23);
 }
 
 .button:active:not(:disabled) {
   background: linear-gradient(135deg, #352e2e 0%, #2a2525 100%);
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
+  transform: translateY(2px) scale(0.99);
+  box-shadow: 0 2px 0 #4a4917, 0 4px 8px rgba(74, 73, 23, 0.2);
 }
 
 .button:disabled {

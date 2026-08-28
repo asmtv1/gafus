@@ -4,7 +4,12 @@ import { memo, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
-import { Favorite as FavoriteIcon, FavoriteBorder as FavoriteBorderIcon } from "@mui/icons-material";
+import {
+  ArrowForward,
+  Favorite as FavoriteIcon,
+  FavoriteBorder as FavoriteBorderIcon,
+  VisibilityOutlined,
+} from "@mui/icons-material";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 
@@ -12,21 +17,12 @@ import { getCDNUrl } from "@gafus/cdn-upload";
 import type { ArticleListDto } from "@gafus/types";
 import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 
-import courseStyles from "../courses/courses.module.css";
 import styles from "./articles.module.css";
 
 interface ArticleCardProps {
   article: ArticleListDto;
   onLike: (id: string) => Promise<void>;
   isPending: boolean;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 function formatViews(n: number | undefined): string {
@@ -45,8 +41,8 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isPending }: Ar
 
   return (
     <li className={styles.articleCard}>
+      {article.visibility === "PAID" && <div className={styles.paidBadge}>Платная</div>}
       <Link href={`/articles/${article.slug}`} className={styles.articleLink}>
-        {article.visibility === "PAID" && <div className={styles.paidBadge}>Платная</div>}
         <div className={styles.articleLogoBox}>
           {coverUrl ? (
             <Image
@@ -61,32 +57,33 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isPending }: Ar
             <div className={styles.articleLogoPlaceholder} aria-hidden />
           )}
         </div>
-        <div className={styles.articleRight}>
+        <div className={styles.articleContent}>
           <h3 className={styles.articleTitle}>{article.title}</h3>
-          <div className={styles.articleMeta}>
-            <span>{article.authorUsername}</span>
-            <span>{formatViews(article.viewCount)}</span>
-            <span>{formatDate(article.createdAt)}</span>
-          </div>
         </div>
       </Link>
-      <button
-        type="button"
-        className={styles.likeButton}
-        onClick={(e) => {
-          e.preventDefault();
-          void onLike(article.id);
-        }}
-        disabled={isPending}
-        aria-label={article.isLiked ? "Убрать лайк" : "Нравится"}
-      >
-        {article.isLiked ? (
-          <FavoriteIcon fontSize="small" color="error" />
-        ) : (
-          <FavoriteBorderIcon fontSize="small" />
-        )}
-        <span>{article.likeCount}</span>
-      </button>
+      <div className={styles.articleActions}>
+        <span className={styles.views}>
+          <VisibilityOutlined aria-hidden="true" className={styles.viewsIcon} />
+          {formatViews(article.viewCount)}
+        </span>
+        <button
+          type="button"
+          className={`${styles.likeButton} ${article.isLiked ? styles.likeButtonLiked : ""}`}
+          onClick={() => void onLike(article.id)}
+          disabled={isPending}
+          aria-label={article.isLiked ? "Убрать лайк" : "Нравится"}
+        >
+          {article.isLiked ? (
+            <FavoriteIcon fontSize="small" color="error" />
+          ) : (
+            <FavoriteBorderIcon fontSize="small" />
+          )}
+          <span>{article.likeCount}</span>
+        </button>
+        <Link href={`/articles/${article.slug}`} className={styles.readLink}>
+          Читать <ArrowForward aria-hidden="true" className={styles.readIcon} />
+        </Link>
+      </div>
     </li>
   );
 });
@@ -164,8 +161,8 @@ export default function ArticlesClient({
   }
 
   return (
-    <section className={courseStyles.guidesSection} aria-labelledby="articles-heading">
-      <ul className={courseStyles.courseList} id="articles-heading">
+    <section className={styles.articlesSection} aria-labelledby="articles-heading">
+      <ul className={styles.articleList} id="articles-heading">
         {articles.map((article) => (
           <ArticleCard
             key={article.id}
@@ -176,7 +173,7 @@ export default function ArticlesClient({
         ))}
       </ul>
       {articles.length === 0 && (
-        <div className={courseStyles.emptyState}>
+        <div className={styles.emptyState}>
           <p>Пока нет статей</p>
         </div>
       )}

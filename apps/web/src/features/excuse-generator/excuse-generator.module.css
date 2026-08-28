@@ -303,7 +303,6 @@
   background: linear-gradient(90deg, #c2483d, #e5b84c, #2a755c);
   border-radius: inherit;
   height: 100%;
-  transition: width 220ms ease;
 }
 
 .toneBadge {

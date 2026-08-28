@@ -24,13 +24,40 @@ body {
     Helvetica,
     Arial,
     sans-serif;
+  color: var(--text-primary);
+  background-color: var(--bg-1);
+  background-image:
+    linear-gradient(rgba(255, 248, 229, 0.62), rgba(255, 248, 229, 0.62)),
+    url("/paper-texture.jpg");
+  background-position: center;
+  background-size: auto, cover;
+  background-attachment: fixed;
 }
 
 .page-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: var(--bg-1);
+  background: transparent;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #d7837b;
+  outline-offset: 3px;
+}
+
+::selection {
+  color: #fff8e5;
+  background: var(--bg-2);
 }
 
 /* Визуально скрытый, но доступный для скринридеров */

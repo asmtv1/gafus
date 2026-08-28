@@ -12,7 +12,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
+  border-inline-start-color: #4f77a8;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -106,12 +106,14 @@
 }
 
 .courseCard.completed {
-  border-left: 4px solid #b6c582;
+  border: 1px solid rgba(99, 97, 40, 0.25);
+  box-shadow: var(--shadow-card);
   background: #ece5d2;
 }
 
 .courseCard.inProgress {
-  border-left: 4px solid #007bff;
+  border: 1px solid rgba(99, 97, 40, 0.25);
+  box-shadow: var(--shadow-card);
   background: #e0ddd3;
 }
 
@@ -531,3 +533,8 @@
     font-size: 0.8rem;
   }
 }
+
+.courseCard, .noCourses, .loading, .error { border-radius: 16px; border-color: rgba(var(--accent-primary-rgb), 0.2); background: var(--surface); box-shadow: var(--shadow-card); }
+.courseTitle, .trackerTitle { font-family: var(--font-montserrat), var(--font-sans-fallback); }
+.continueButton, .viewButton, .browseCoursesButton { min-height: 44px; border-radius: 12px; font-family: var(--font-montserrat), var(--font-sans-fallback); font-weight: 700; }
+.continueButton:focus-visible, .viewButton:focus-visible, .browseCoursesButton:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }

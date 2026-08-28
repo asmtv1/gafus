@@ -1,7 +1,7 @@
 /* Базовые стили для SweetAlert2 - мобильная совместимость */
 
 .swal2-popup-custom {
-  font-family: "Montserrat", sans-serif !important;
+  font-family: var(--font-montserrat, var(--font-sans-fallback)) !important;
   border-radius: 8px !important;
   background: #dad3c1 !important;
 }
@@ -73,7 +73,7 @@
 }
 
 .swal2-download-popup {
-  font-family: "Montserrat", sans-serif !important;
+  font-family: var(--font-montserrat, var(--font-sans-fallback)) !important;
   border-radius: 24px !important;
   background: radial-gradient(circle at top, #fff9f0 0%, #f3e9d3 45%, #e7d7bb 100%) !important;
   box-shadow: 0 25px 40px rgba(88, 70, 40, 0.25) !important;
