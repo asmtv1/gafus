@@ -6,11 +6,11 @@
   max-width: 500px;
   margin: 0.25rem auto;
   padding: 1rem;
-  background-color: var(--bg-1);
-  border-radius: 12px;
-  border: 1px solid var(--bg-2);
+  background: rgba(255, 248, 229, 0.72);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 253, 244, 0.94);
   position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 /* Новый дизайн баннера профиля */
@@ -81,10 +81,10 @@
   width: 100%;
   margin: 0 auto;
   padding: 1rem;
-  background: #f5f0e8;
+  background: var(--surface);
   border-radius: 16px;
-  border: 1px solid #d4c4a8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.2);
+  box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
 }
@@ -103,16 +103,16 @@
   color: #352e2e;
   margin: 0.5rem 0;
   padding: 0.8rem 1rem;
-  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
+  background: var(--surface-muted);
   border-radius: 12px;
-  border: 1px solid #d4c4a8;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.18);
   width: 100%;
   box-sizing: border-box;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   position: relative;
   transition: all 0.3s ease;
   cursor: default;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 10px rgba(74, 73, 23, 0.08);
 }
 
 .container div {
@@ -307,9 +307,9 @@
 
 /* Улучшенные hover эффекты для карточек */
 .container p:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background: #f0e6d2;
-  border-color: #b6c582;
+  box-shadow: 0 6px 14px rgba(74, 73, 23, 0.12);
+  background: var(--surface-strong);
+  border-color: rgba(var(--accent-primary-rgb), 0.3);
 }
 
 /* Улучшенные стили для пустого уведомления */
@@ -591,10 +591,10 @@
   width: 100%;
   margin-top: 1rem;
   padding: 1rem;
-  background: linear-gradient(135deg, #ece5d2 0%, #f0e6d2 100%);
-  border-radius: 12px;
-  border: 1px solid #d4c4a8;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.2);
+  box-shadow: var(--shadow-card);
 }
 
 .socialLinksTitle {
@@ -619,27 +619,27 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  background: var(--bg-1);
-  border-radius: 8px;
-  border: 1px solid #d4c4a8;
+  background: var(--surface-muted);
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.18);
   text-decoration: none;
   color: #352e2e;
   transition: all 0.2s ease;
   min-height: 44px; /* Для touch targets */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 10px rgba(74, 73, 23, 0.08);
 }
 
 .socialLink:hover {
-  background: #fff8e5;
-  border-color: #b6c582;
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--surface-strong);
+  border-color: rgba(var(--accent-primary-rgb), 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(74, 73, 23, 0.12);
 }
 
 .socialLink:focus {
-  outline: 2px solid #b6c582;
-  outline-offset: 2px;
-  border-radius: 8px;
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.38);
+  outline-offset: 3px;
+  border-radius: 12px;
 }
 
 .socialIcon {
@@ -718,4 +718,30 @@
 
 .socialLinkWebsite:hover .socialIcon {
   fill: #352e2e;
+}
+
+/* Финальная унификация нейтральных поверхностей с текущим дизайн-кодом. */
+.container .socialLinksContainer {
+  background: var(--surface);
+  border-color: rgba(var(--accent-primary-rgb), 0.2);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  font-style: normal;
+  text-align: left;
+}
+
+.container .socialLinksList {
+  width: 100%;
+  background: transparent;
+  border-radius: 0;
+  font-style: normal;
+  text-align: left;
+}
+
+.container .socialLink {
+  background: var(--surface-muted);
+  border-color: rgba(var(--accent-primary-rgb), 0.18);
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(74, 73, 23, 0.08);
+  font-style: normal;
 }

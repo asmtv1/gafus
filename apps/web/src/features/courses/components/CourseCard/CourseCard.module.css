@@ -1,7 +1,10 @@
 .link {
   text-decoration: none;
   color: inherit;
-  display: block;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .courseCard {
@@ -26,6 +29,8 @@
 .courseCardContent {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   height: 100%;
 }
 
@@ -79,26 +84,28 @@
 }
 
 .content {
-  padding: 16px;
+  gap: 12px;
+  padding: 18px 16px 16px;
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .title {
   margin: 0;
   font-size: 22px;
   color: #352e2e;
-  line-height: 100%;
   font-weight: 700;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  line-height: 1.25;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
 }
 
 .description {
   color: #514b46;
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.55;
   font-weight: 400;
   font-family: var(--font-montserrat), var(--font-impact), system-ui, sans-serif;
   margin: 0;
@@ -118,19 +125,24 @@
   line-height: 1.4;
 }
 
-.factsRow { display: flex; gap: 6px; }
+.factsRow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
 
 .fact {
   flex: 1;
   min-width: 0;
-  min-height: 34px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 6px;
+  gap: 6px;
+  padding: 8px 6px;
   border-radius: 10px;
   background: var(--surface-muted);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.12);
   color: #4a4917;
   font-size: 11px;
   font-weight: 600;
@@ -330,8 +342,8 @@
 .offlineActions {
   display: flex;
   gap: 8px;
-  padding: 0 16px 16px;
-  margin-top: auto;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(var(--accent-primary-rgb), 0.14);
 }
 
 .downloadButton,
@@ -340,10 +352,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 14px;
-  background: #e8e1cb;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.14);
+  border-radius: 12px;
+  background: var(--surface-muted);
   color: #4a4917;
   font-size: 0.8rem;
   font-weight: 700;
@@ -353,6 +366,7 @@
   white-space: nowrap;
   flex: 1;
   justify-content: center;
+  box-shadow: 0 4px 10px rgba(74, 73, 23, 0.08);
 }
 
 .buttonIcon {
@@ -373,7 +387,7 @@
 }
 
 .updateButton:hover:not(:disabled) {
-  background: #dcd4b8;
+  background: var(--surface-strong);
   box-shadow: 0 5px 12px rgba(74, 73, 23, 0.16);
   transform: translateY(-2px);
 }
@@ -390,9 +404,11 @@
 }
 
 .downloadButton:disabled,
-.updateButton:disabled {
+.updateButton:disabled,
+.deleteButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .spinning {
@@ -411,7 +427,8 @@
 @media (max-width: 480px) {
   .courseCard { max-width: none; }
   .factsRow { gap: 4px; }
-  .fact { font-size: 10px; padding: 5px 3px; }
+  .content { gap: 10px; padding: 16px 14px 14px; }
+  .fact { min-height: 40px; font-size: 10px; padding: 7px 3px; }
   .factIcon { width: 14px; height: 14px; }
 }
 

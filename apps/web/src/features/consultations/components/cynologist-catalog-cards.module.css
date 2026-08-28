@@ -164,16 +164,17 @@
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  padding: 8px 16px;
+  min-height: 40px;
+  padding: 8px 13px;
   border-radius: 12px;
-  border: 0;
-  background: #e8e1cb;
-  box-shadow: 0 4px 8px rgba(74, 74, 30, 0.14);
-  font-size: 13px;
-  font-weight: 600;
+  border: 1px solid var(--accent-primary);
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  box-shadow: var(--shadow-button);
+  font-size: 12px;
+  font-weight: 700;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  color: #4a4920;
-  line-height: 1.2;
+  color: #fff8e5;
+  line-height: 1;
   transition:
     background 0.15s ease,
     box-shadow 0.15s ease,
@@ -181,9 +182,14 @@
 }
 
 .card:hover .cta {
-  background: #dcd4b8;
-  box-shadow: 0 6px 12px rgba(74, 74, 30, 0.18);
+  background: linear-gradient(180deg, #898544 0%, #51501c 100%);
+  box-shadow: 0 7px 0 #4a4917, 0 11px 18px rgba(74, 73, 23, 0.23);
   transform: translateY(-2px);
+}
+
+.link:focus-visible {
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.38);
+  outline-offset: -3px;
 }
 
 @media (max-width: 600px) {

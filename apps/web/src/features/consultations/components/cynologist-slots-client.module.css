@@ -222,38 +222,102 @@
   font-weight: 500;
 }
 
-.calendarPanel :global(.MuiButton-root),
-.slotsPanel :global(.MuiButton-root) {
-  border-radius: 10px;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.calendarPanel :global(.MuiButton-contained),
-.slotsPanel :global(.MuiButton-contained) {
-  background-color: var(--bg-2);
-  color: #f5f0e8;
-  border: 2px solid var(--bg-2);
-}
-
-.calendarPanel :global(.MuiButton-contained:hover),
-.slotsPanel :global(.MuiButton-contained:hover) {
-  background-color: #4e4c1f;
-  border-color: #4e4c1f;
-}
-
-.calendarPanel :global(.MuiButton-outlined),
-.slotsPanel :global(.MuiButton-outlined) {
-  border-color: var(--bg-2);
+.calendarNavButton {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.22);
+  border-radius: 12px;
+  background: var(--surface-muted);
   color: var(--bg-2);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+  font-family: var(--font-montserrat), var(--font-sans-fallback), sans-serif;
+  box-shadow: 0 3px 7px rgba(74, 73, 23, 0.1);
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 
-.calendarPanel :global(.MuiButton-outlined:hover),
-.slotsPanel :global(.MuiButton-outlined:hover) {
-  border-color: #4e4c1f;
-  color: #4e4c1f;
-  background-color: rgba(99, 97, 40, 0.06);
+.calendarNavButton:hover:not(:disabled) {
+  background: var(--surface-strong);
+  box-shadow: 0 5px 10px rgba(74, 73, 23, 0.14);
+  transform: translateY(-1px);
+}
+
+.calendarNavButton:active:not(:disabled) {
+  box-shadow: 0 2px 5px rgba(74, 73, 23, 0.1);
+  transform: translateY(1px);
+}
+
+.calendarNavButton:disabled {
+  opacity: 0.42;
+  box-shadow: none;
+}
+
+.slotActionButton {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--bg-2);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  color: #fff8e5;
+  font-family: var(--font-montserrat), var(--font-sans-fallback), sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-button);
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.slotActionButton:global(.MuiButton-contained) {
+  border-color: var(--bg-2);
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  color: #fff8e5;
+}
+
+.slotActionButton:hover:not(:disabled) {
+  filter: brightness(0.96);
+  box-shadow: 0 7px 12px rgba(74, 73, 23, 0.2);
+  transform: translateY(-1px);
+}
+
+.slotActionButton:global(.MuiButton-contained):hover:not(:disabled) {
+  background: linear-gradient(180deg, #898544 0%, #51501c 100%);
+}
+
+.slotActionButton:active:not(:disabled) {
+  box-shadow: 0 2px 5px rgba(74, 73, 23, 0.14);
+  transform: translateY(2px);
+}
+
+.slotActionButton:focus-visible,
+.calendarNavButton:focus-visible {
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.38);
+  outline-offset: 3px;
+}
+
+.slotActionButton:global(.MuiButton-outlined) {
+  border-color: rgba(var(--accent-primary-rgb), 0.25);
+  background: var(--surface-strong);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.slotActionButton:global(.MuiButton-outlined):hover:not(:disabled) {
+  border-color: rgba(var(--accent-primary-rgb), 0.35);
+  background: var(--surface-muted);
+  box-shadow: 0 4px 9px rgba(74, 73, 23, 0.1);
+}
+
+.slotActionButton:disabled {
+  opacity: 0.65;
+  box-shadow: none;
 }
 
 @media (max-width: 900px) {

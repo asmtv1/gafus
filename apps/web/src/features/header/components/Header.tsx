@@ -20,6 +20,10 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
   const burgerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  const isCurrentRoute = useCallback(
+    (route: string) => pathname === route || pathname.startsWith(`${route}/`),
+    [pathname],
+  );
 
   const trackMenuClick = useCallback(
     (elementId: string) => {
@@ -73,20 +77,21 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
       {menuOpen && (
         <>
           <div className={styles.overlay} onClick={() => setMenuOpen(false)} />
-          <nav className={styles.dropdownMenu} ref={menuRef}>
+          <nav className={styles.dropdownMenu} ref={menuRef} aria-label="Навигация">
             <Link
-              className={styles.menuButton}
+              className={`${styles.menuButton} ${isCurrentRoute("/profile") ? styles.menuButtonActive : ""}`}
               href={{ pathname: "/profile", query: { username: userName } }}
+              aria-current={isCurrentRoute("/profile") ? "page" : undefined}
               onClick={() => {
                 trackMenuClick("tab-profile");
                 setMenuOpen(false);
               }}
             >
-              <div className={styles.avatarWrapper}>
+              <div className={styles.menuIconSlot} aria-hidden="true">
                 {userName ? (
                   <Image
                     src={`${avatarUrl}`}
-                    alt="Avatar"
+                    alt=""
                     width={24}
                     height={24}
                     className={styles.avatar}
@@ -96,7 +101,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   <div className={styles.avatarPlaceholder} />
                 )}
               </div>
-              <div className={styles.profiltext}>Профиль</div>
+              <span className={styles.menuLabel}>Профиль</span>
             </Link>
             {trainerOnly && process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
               <Link
@@ -104,14 +109,16 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 onClick={() => setMenuOpen(false)}
                 className={styles.menuButton}
               >
-                <Image
-                  src="/uploads/header/trainer-panel.svg"
-                  alt="Панель тренера"
-                  width={24}
-                  height={24}
-                  loading="lazy"
-                />
-                Панель тренера
+                <span className={styles.menuIconSlot} aria-hidden="true">
+                  <Image
+                    src="/uploads/header/trainer-panel.svg"
+                    alt=""
+                    width={24}
+                    height={24}
+                    loading="lazy"
+                  />
+                </span>
+                <span className={styles.menuLabel}>Панель тренера</span>
               </Link>
             )}
             <Link
@@ -122,10 +129,13 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 setMenuOpen(false);
               }}
               onMouseEnter={() => router.prefetch("/pets")}
-              className={styles.menuButton}
+              className={`${styles.menuButton} ${isCurrentRoute("/pets") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/pets") ? "page" : undefined}
             >
-              <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
-              Питомцы
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+              </span>
+              <span className={styles.menuLabel}>Питомцы</span>
             </Link>
             <Link
               href="/courses"
@@ -134,16 +144,19 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 setMenuOpen(false);
               }}
               onMouseEnter={() => router.prefetch("/courses")}
-              className={styles.menuButton}
+              className={`${styles.menuButton} ${isCurrentRoute("/courses") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/courses") ? "page" : undefined}
             >
-              <Image
-                src="/uploads/header/home.svg"
-                alt="Курсы"
-                width={24}
-                height={24}
-                loading="lazy"
-              />
-              Курсы
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image
+                  src="/uploads/header/home.svg"
+                  alt=""
+                  width={24}
+                  height={24}
+                  loading="lazy"
+                />
+              </span>
+              <span className={styles.menuLabel}>Курсы</span>
             </Link>
             <Link
               href="/consultations"
@@ -153,10 +166,13 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 setMenuOpen(false);
               }}
               onMouseEnter={() => router.prefetch("/consultations")}
-              className={styles.menuButton}
+              className={`${styles.menuButton} ${isCurrentRoute("/consultations") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/consultations") ? "page" : undefined}
             >
-              <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
-              Занятия с кинологом
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+              </span>
+              <span className={styles.menuLabel}>Занятия с кинологом</span>
             </Link>
             <Link
               href="/articles"
@@ -165,19 +181,24 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                 setMenuOpen(false);
               }}
               onMouseEnter={() => router.prefetch("/articles")}
-              className={styles.menuButton}
+              className={`${styles.menuButton} ${isCurrentRoute("/articles") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/articles") ? "page" : undefined}
             >
-              <ArticleIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
-              Статьи
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <ArticleIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+              </span>
+              <span className={styles.menuLabel}>Статьи</span>
             </Link>
-            <div className={styles.menuButton}>
-              <Image
-                src="/uploads/header/logout.svg"
-                alt="Logout"
-                width={24}
-                height={24}
-                loading="lazy"
-              />
+            <div className={`${styles.menuButton} ${styles.logoutMenuItem}`}>
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image
+                  src="/uploads/header/logout.svg"
+                  alt=""
+                  width={24}
+                  height={24}
+                  loading="lazy"
+                />
+              </span>
               <button
                 className={styles.logoutButton}
                 onClick={() => {
@@ -187,7 +208,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   signOut({ callbackUrl: "/" });
                 }}
               >
-                Выход
+                <span className={styles.menuLabel}>Выход</span>
               </button>
             </div>
           </nav>

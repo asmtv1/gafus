@@ -318,6 +318,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
             <div className={styles.calendarHeader}>
               <Button
                 size="small"
+                className={styles.calendarNavButton}
                 disabled={selectedMonthIndex <= 0}
                 onClick={() => {
                   if (selectedMonthIndex > 0) {
@@ -332,6 +333,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
               </Typography>
               <Button
                 size="small"
+                className={styles.calendarNavButton}
                 disabled={selectedMonthIndex < 0 || selectedMonthIndex >= monthKeys.length - 1}
                 onClick={() => {
                   if (selectedMonthIndex >= 0 && selectedMonthIndex < monthKeys.length - 1) {
@@ -420,6 +422,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                       <Button
                         size="small"
                         variant={isFree ? "contained" : "outlined"}
+                        className={styles.slotActionButton}
                         disabled={pending || !isFree || verifyingSlotId === slot.id}
                         onClick={() => void verifyAndBook(slot.id, slot.startAtUtc, slot.endAtUtc)}
                       >
