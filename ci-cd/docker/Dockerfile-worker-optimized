@@ -30,7 +30,7 @@ RUN cd packages/prisma \
 # mailer до core (см. Dockerfile-admin-panel-optimized)
 # Порядок важен: сначала зависимости, потом worker. Worker импортирует только @gafus/core/services/consent (без auth)
 RUN pnpm --filter @gafus/mailer build && \
-    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/consultation-shared --filter @gafus/core --filter @gafus/worker
+    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/consultation-shared --filter @gafus/core --filter @gafus/npd --filter @gafus/worker
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -56,6 +56,7 @@ COPY --from=base /app/packages/consultation-shared/dist ./packages/consultation-
 COPY --from=base /app/packages/cdn-upload/dist ./packages/cdn-upload/dist
 COPY --from=base /app/packages/core/dist ./packages/core/dist
 COPY --from=base /app/packages/mailer/dist ./packages/mailer/dist
+COPY --from=base /app/packages/npd/dist ./packages/npd/dist
 
 # Копируем только package.json файлы
 COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
@@ -69,6 +70,7 @@ COPY --from=base /app/packages/consultation-shared/package.json ./packages/consu
 COPY --from=base /app/packages/cdn-upload/package.json ./packages/cdn-upload/package.json
 COPY --from=base /app/packages/core/package.json ./packages/core/package.json
 COPY --from=base /app/packages/mailer/package.json ./packages/mailer/package.json
+COPY --from=base /app/packages/npd/package.json ./packages/npd/package.json
 
 # Устанавливаем только production зависимости (expo-server-sdk нужен для push в мобильное приложение)
 # bcryptjs, libphonenumber-js, zod, petrovich, @apple/app-store-server-library — deps @gafus/core
@@ -111,7 +113,8 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload \
   && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement \
   && ln -s /app/packages/core /app/node_modules/@gafus/core \
-  && ln -s /app/packages/mailer /app/node_modules/@gafus/mailer
+  && ln -s /app/packages/mailer /app/node_modules/@gafus/mailer \
+  && ln -s /app/packages/npd /app/node_modules/@gafus/npd
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
