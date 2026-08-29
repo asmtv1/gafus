@@ -34,8 +34,29 @@ describe("NpdGateway", () => {
   it("classifies an aborted non-write request as timeout", async () => {
     await expect(gateway(async (_url, init) => { await new Promise<void>((_, reject) => init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error(), { name: "AbortError" })))); throw new Error("unreachable"); }).getProfile()).rejects.toMatchObject({ code: "TIMEOUT" });
   });
-  it("redacts tokens and explicitly blocks unevidenced receipt history", async () => {
+  it("redacts sensitive credentials", async () => {
     expect(redactNpd('Authorization: Bearer abc.def refreshToken="secret"')).not.toContain("abc.def");
-    await expect(gateway(async () => response("{}")).listRecentReceipts()).rejects.toMatchObject({ code: "UNAVAILABLE" satisfies NpdGatewayError["code"] });
+  });
+  it("uses the fixture-evidenced, bounded income-history query for reconciliation", async () => {
+    let url = "";
+    const receipts = await gateway(async (input) => {
+      url = String(input);
+      return response(JSON.stringify({ content: [{
+        approvedReceiptUuid: "receipt-1",
+        totalAmount: 86.28,
+        operationTime: "2026-08-29T10:00:00Z",
+        sourceDeviceId: "stable-device",
+        services: [{ name: "Подписка Gafus Premium на 30 дней" }],
+        cancellationInfo: null,
+      }] }));
+    }).listRecentReceipts({ from: new Date("2026-08-29T09:00:00Z"), limit: 1000 });
+    expect(url).toContain("/api/v1/incomes?");
+    expect(url).toContain("from=2026-08-29T09%3A00%3A00.000Z");
+    expect(url).toContain("limit=100");
+    expect(url).toContain("sortBy=operation_time%3Adesc");
+    expect(receipts).toEqual([{ receiptUuid: "receipt-1", amountKopecks: 8628, serviceNames: ["Подписка Gafus Premium на 30 дней"], operationAt: new Date("2026-08-29T10:00:00Z"), sourceDeviceId: "stable-device", cancelled: false }]);
+  });
+  it("fails closed on malformed income history", async () => {
+    await expect(gateway(async () => response('{"content":[{"approvedReceiptUuid":"x","totalAmount":1.001,"operationTime":"not-a-date","services":[]}]}')).listRecentReceipts({ from: new Date() })).rejects.toMatchObject({ code: "MALFORMED_RESPONSE" satisfies NpdGatewayError["code"] });
   });
 });

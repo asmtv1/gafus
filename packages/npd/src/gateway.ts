@@ -7,6 +7,15 @@ export type SmsChallenge = { challengeToken: string; expiresIn?: number };
 export type Tokens = { accessToken: string; refreshToken: string; expiresAt?: string; profile?: NpdProfile };
 export type NpdProfile = { inn: string; displayName?: string; phone?: string; email?: string };
 export type NpdReceipt = { receiptUuid: string; printUrl: string; jsonUrl: string; totalAmount?: number; cancelled?: boolean };
+/** A minimal, reconciliation-safe projection of an income returned by `GET /incomes`. */
+export type NpdRecentReceipt = {
+  receiptUuid: string;
+  amountKopecks: number;
+  serviceNames: string[];
+  operationAt: Date;
+  sourceDeviceId?: string;
+  cancelled: boolean;
+};
 /** `amount` is a decimal string with at most two fractional digits; never pass a JS float. */
 export type CreateReceiptInput = { inn: string; operationAt: Date; services: { name: string; amount: string; quantity?: number }[]; buyer?: { displayName?: string; inn?: string; phone?: string; incomeType?: "FROM_INDIVIDUAL" | "FROM_LEGAL_ENTITY" | "FROM_FOREIGN_AGENCY" }; paymentType?: "CASH" | "ACCOUNT" };
 export type CancelReceiptInput = { receiptUuid: string; reason: "CANCEL" | "REFUND"; operationAt?: Date; comment?: string };
@@ -42,7 +51,27 @@ export class NpdGateway {
     }
   }
   async getReceipt(inn: string, receiptUuid: string): Promise<NpdReceipt> { const data = await this.request("GET", `receipt/${encodeURIComponent(inn)}/${encodeURIComponent(receiptUuid)}/json`); return { ...this.receipt(inn, receiptUuid), totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : undefined, cancelled: data.cancellationInfo != null }; }
-  async listRecentReceipts(): Promise<NpdReceipt[]> { throw new NpdGatewayError("UNAVAILABLE", "NPD receipt-list protocol is not fixture-evidenced; production reconciliation must remain disabled"); }
+  /**
+   * Reads the official web-client's income history endpoint. This is deliberately
+   * a narrow, bounded query: its only caller is ambiguous-write reconciliation.
+   * The endpoint and shape are fixture-tested from captured `GET /api/v1/incomes`
+   * traffic; do not use it as a general reporting API.
+   */
+  async listRecentReceipts(options: { from: Date; limit?: number } ): Promise<NpdRecentReceipt[]> {
+    if (!(options.from instanceof Date) || Number.isNaN(options.from.getTime())) throw new NpdGatewayError("INVALID_INPUT", "Receipt history requires a valid lower time bound");
+    const limit = Math.min(Math.max(options.limit ?? 100, 1), 100);
+    const query = new URLSearchParams({
+      from: options.from.toISOString(),
+      limit: String(limit),
+      offset: "0",
+      sortBy: "operation_time:desc",
+      buyerType: "PERSON",
+    });
+    const data = await this.request("GET", `incomes?${query.toString()}`);
+    const content = data.content;
+    if (!Array.isArray(content)) throw new NpdGatewayError("MALFORMED_RESPONSE", "listRecentReceipts: missing content");
+    return content.map((item, index) => recentReceipt(item, index));
+  }
   async cancelReceipt(input: CancelReceiptInput): Promise<void> { await this.request("POST", "cancel", { receiptUuid: input.receiptUuid, comment: input.comment ?? (input.reason === "REFUND" ? "Возврат средств" : "Чек сформирован ошибочно"), operationTime: iso(input.operationAt ?? new Date()), requestTime: iso(new Date()), partnerCode: null }, true); }
   private receipt(inn: string, receiptUuid: string): NpdReceipt { const root = this.baseUrl.toString().replace(/\/$/, ""); const id = encodeURIComponent(receiptUuid); return { receiptUuid, printUrl: `${root}/receipt/${encodeURIComponent(inn)}/${id}/print`, jsonUrl: `${root}/receipt/${encodeURIComponent(inn)}/${id}/json` }; }
   private deviceInfo() { return { sourceDeviceId: this.options.deviceId, sourceType: "WEB", appVersion: "gafus-npd/1", metaDetails: { userAgent: "gafus-npd" } }; }
@@ -50,6 +79,22 @@ export class NpdGateway {
   private async request(method: string, endpoint: string, body?: unknown, write = false): Promise<Record<string, unknown>> { const url = endpoint.startsWith("http") ? new URL(endpoint) : new URL(endpoint, `${this.baseUrl.toString().replace(/\/$/, "")}/`); if (url.protocol !== "https:" || url.hostname !== PRODUCTION_HOST) throw new NpdGatewayError("INVALID_CONFIGURATION", "NPD request host is not allowlisted"); const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 10_000); try { const response = await (this.options.fetch ?? fetch)(url.toString(), { method, signal: controller.signal, headers: { Accept: "application/json", "Content-Type": "application/json", ...(this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }); const raw = await response.text(); let parsed: unknown; try { parsed = raw ? JSON.parse(raw) : {}; } catch { throw new NpdGatewayError(write ? "AMBIGUOUS_WRITE" : "MALFORMED_RESPONSE", "NPD returned malformed JSON", response.status); } if (!response.ok) { const api = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {}; const duplicate = String(api.code ?? "").toUpperCase().includes("DUPLICATE"); if (write && (response.status === 408 || response.status >= 500 || duplicate)) throw new NpdGatewayError("AMBIGUOUS_WRITE", "NPD write delivery is ambiguous", response.status, { code: redactNpd(api.code) }); const code: NpdErrorCode = response.status === 401 ? "UNAUTHORIZED" : response.status === 429 ? "RATE_LIMITED" : "API_ERROR"; throw new NpdGatewayError(code, redactNpd(api.message ?? `NPD HTTP ${response.status}`), response.status, { code: redactNpd(api.code) }); } return object(parsed, "NPD response"); } catch (error) { if (error instanceof NpdGatewayError) throw error; const code: NpdErrorCode = write ? "AMBIGUOUS_WRITE" : error instanceof Error && error.name === "AbortError" ? "TIMEOUT" : "NETWORK"; throw new NpdGatewayError(code, code === "AMBIGUOUS_WRITE" ? "NPD write delivery is ambiguous" : "NPD request failed"); } finally { clearTimeout(timer); } }
 }
 const optional = (data: Record<string, unknown>, key: string) => typeof data[key] === "string" ? data[key] as string : undefined;
+const recentReceipt = (value: unknown, index: number): NpdRecentReceipt => {
+  const data = object(value, `listRecentReceipts content[${index}]`);
+  const receiptUuid = string(data, "approvedReceiptUuid", "listRecentReceipts");
+  const operationAtRaw = string(data, "operationTime", "listRecentReceipts");
+  const operationAt = new Date(operationAtRaw);
+  if (Number.isNaN(operationAt.getTime())) throw new NpdGatewayError("MALFORMED_RESPONSE", "listRecentReceipts: invalid operationTime");
+  if (!Array.isArray(data.services) || data.services.length === 0) throw new NpdGatewayError("MALFORMED_RESPONSE", "listRecentReceipts: missing services");
+  const serviceNames = data.services.map((service, serviceIndex) => string(object(service, `listRecentReceipts services[${serviceIndex}]`), "name", "listRecentReceipts"));
+  return { receiptUuid, amountKopecks: jsonAmountToKopecks(data.totalAmount), serviceNames, operationAt, sourceDeviceId: optional(data, "sourceDeviceId"), cancelled: data.cancellationInfo != null };
+};
+const jsonAmountToKopecks = (value: unknown) => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new NpdGatewayError("MALFORMED_RESPONSE", "listRecentReceipts: invalid totalAmount");
+  const kopecks = Math.round(value * 100);
+  if (!Number.isSafeInteger(kopecks) || Math.abs(value * 100 - kopecks) > 1e-7) throw new NpdGatewayError("MALFORMED_RESPONSE", "listRecentReceipts: totalAmount is not kopeck-precise");
+  return kopecks;
+};
 const normalizePhone = (phone: string) => { const digits = phone.replace(/\D/g, ""); return digits.length === 10 ? `7${digits}` : digits.startsWith("8") && digits.length === 11 ? `7${digits.slice(1)}` : digits; };
 const iso = (date: Date) => date.toISOString().replace("Z", "+00:00");
 const decimalService = (service: CreateReceiptInput["services"][number]) => {

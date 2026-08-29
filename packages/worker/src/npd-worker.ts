@@ -8,6 +8,7 @@ const logger = createWorkerLogger("npd-worker");
 const NPD_LOCK_KEY = 671_203_419;
 const LEASE_MS = 90_000;
 const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000];
+const RECONCILIATION_WINDOW_MS = 5 * 60_000;
 
 type Operation = any;
 type Db = typeof prisma & Record<string, any>;
@@ -98,6 +99,51 @@ async function markReconciliation(db: Db, op: Operation, code: string, message: 
   });
 }
 
+async function persistIssuedReceipt(db: Db, op: Operation, issued: { receiptUuid: string; printUrl: string; jsonUrl: string }) {
+  await db.$transaction(async (tx: any) => {
+    // Lock the receipt before observing refund state. If a refund is in the
+    // other transaction, one side waits: the subsequent read always sees the
+    // committed intent instead of overwriting CANCEL_PENDING with ISSUED.
+    await tx.$queryRawUnsafe(`SELECT id FROM "NpdReceipt" WHERE id = $1 FOR UPDATE`, op.receiptId);
+    const stillOwned = await tx.npdReceiptOperation.updateMany({ where: { id: op.id, status: "PROCESSING", leaseOwner: op.leaseOwner }, data: { status: "SUCCEEDED", completedAt: new Date(), leaseOwner: null, leaseExpiresAt: null, lastErrorCode: null, lastErrorRedacted: null } });
+    if (stillOwned.count !== 1) return;
+    const current = await tx.npdReceipt.findUnique({ where: { id: op.receiptId }, include: { payment: { select: { status: true } } } });
+    const refunded = current?.payment.status === "REFUNDED" || current?.status === "CANCEL_PENDING";
+    await tx.npdReceipt.update({ where: { id: op.receiptId }, data: refunded ? { status: "CANCEL_PENDING", providerReceiptId: issued.receiptUuid, printUrl: issued.printUrl, jsonUrl: issued.jsonUrl, issuedAt: new Date() } : { status: "ISSUED", providerReceiptId: issued.receiptUuid, printUrl: issued.printUrl, jsonUrl: issued.jsonUrl, issuedAt: new Date() } });
+    if (refunded) await tx.npdReceiptOperation.upsert({ where: { receiptId_type: { receiptId: op.receiptId, type: "CANCEL" } }, create: { receiptId: op.receiptId, type: "CANCEL", status: "PENDING" }, update: {} });
+    else if (op.receipt.buyerEmail) await tx.npdReceiptEmailDelivery.upsert({ where: { receiptId: op.receiptId }, create: { receiptId: op.receiptId, recipientEmail: op.receipt.buyerEmail, status: "PENDING" }, update: {} });
+    await tx.npdConnection.update({ where: { id: op.receipt.connectionId }, data: { lastSuccessfulOperationAt: new Date() } });
+  });
+}
+
+/**
+ * A timed-out create is never sent a second time. We only bind it when the
+ * history has exactly one receipt that proves it came from this device and
+ * matches every immutable receipt field. Zero or multiple matches stay in
+ * review; this is intentionally more conservative than a retry.
+ */
+async function reconcileAmbiguousCreate(db: Db, op: Operation): Promise<boolean> {
+  const gateway = await requireGateway(db, op);
+  const receipts = await gateway.listRecentReceipts({ from: new Date(op.receipt.operationAt.getTime() - RECONCILIATION_WINDOW_MS) });
+  const matches = reconciliationMatches(op, receipts);
+  if (matches.length !== 1) return false;
+  const verified = await gateway.getReceipt(op.receipt.connection.inn, matches[0].receiptUuid);
+  if (verified.cancelled) return false;
+  await persistIssuedReceipt(db, op, verified);
+  return true;
+}
+
+export function reconciliationMatches(op: Operation, receipts: Array<{ receiptUuid: string; cancelled: boolean; sourceDeviceId?: string; amountKopecks: number; serviceNames: string[]; operationAt: Date }>) {
+  return receipts.filter((receipt) =>
+    !receipt.cancelled
+    && receipt.sourceDeviceId === op.receipt.connection.deviceId
+    && receipt.amountKopecks === op.receipt.amountKopecks
+    && receipt.serviceNames.length === 1
+    && receipt.serviceNames[0] === op.receipt.serviceName
+    && Math.abs(receipt.operationAt.getTime() - op.receipt.operationAt.getTime()) <= RECONCILIATION_WINDOW_MS,
+  );
+}
+
 async function executeCreate(db: Db, op: Operation) {
   if (op.receipt.payment.status === "REFUNDED") {
     await finish(db, op, { status: "NOT_REQUIRED", completedAt: new Date() });
@@ -106,26 +152,18 @@ async function executeCreate(db: Db, op: Operation) {
   try {
     const gateway = await requireGateway(db, op);
     const issued = await gateway.createReceipt({ inn: op.receipt.connection.inn, operationAt: op.receipt.operationAt, paymentType: "ACCOUNT", buyer: { incomeType: "FROM_INDIVIDUAL" }, services: [{ name: op.receipt.serviceName, amount: `${Math.floor(op.receipt.amountKopecks / 100)}.${String(op.receipt.amountKopecks % 100).padStart(2, "0")}`, quantity: 1 }] });
-    await db.$transaction(async (tx: any) => {
-      // Lock the receipt before observing refund state. If a refund is in the
-      // other transaction, one side waits: the subsequent read always sees the
-      // committed intent instead of overwriting CANCEL_PENDING with ISSUED.
-      await tx.$queryRawUnsafe(`SELECT id FROM "NpdReceipt" WHERE id = $1 FOR UPDATE`, op.receiptId);
-      const stillOwned = await tx.npdReceiptOperation.updateMany({ where: { id: op.id, status: "PROCESSING", leaseOwner: op.leaseOwner }, data: { status: "SUCCEEDED", completedAt: new Date(), leaseOwner: null, leaseExpiresAt: null, lastErrorCode: null, lastErrorRedacted: null } });
-      if (stillOwned.count !== 1) return;
-      // Re-read the refund/cancellation intent after the external write. A refund
-      // may arrive while the request is in flight; it must turn this newly bound
-      // receipt into a cancellation, never discard the provider UUID.
-      const current = await tx.npdReceipt.findUnique({ where: { id: op.receiptId }, include: { payment: { select: { status: true } } } });
-      const refunded = current?.payment.status === "REFUNDED" || current?.status === "CANCEL_PENDING";
-      await tx.npdReceipt.update({ where: { id: op.receiptId }, data: refunded ? { status: "CANCEL_PENDING", providerReceiptId: issued.receiptUuid, printUrl: issued.printUrl, jsonUrl: issued.jsonUrl, issuedAt: new Date() } : { status: "ISSUED", providerReceiptId: issued.receiptUuid, printUrl: issued.printUrl, jsonUrl: issued.jsonUrl, issuedAt: new Date() } });
-      if (refunded) await tx.npdReceiptOperation.upsert({ where: { receiptId_type: { receiptId: op.receiptId, type: "CANCEL" } }, create: { receiptId: op.receiptId, type: "CANCEL", status: "PENDING" }, update: {} });
-      else if (op.receipt.buyerEmail) await tx.npdReceiptEmailDelivery.upsert({ where: { receiptId: op.receiptId }, create: { receiptId: op.receiptId, recipientEmail: op.receipt.buyerEmail, status: "PENDING" }, update: {} });
-      await tx.npdConnection.update({ where: { id: op.receipt.connectionId }, data: { lastSuccessfulOperationAt: new Date() } });
-    });
+    await persistIssuedReceipt(db, op, issued);
   } catch (error) {
     const safe = safeError(error);
-    if (safe.code === "AMBIGUOUS_WRITE" || safe.code === "UNAVAILABLE") return markReconciliation(db, op, safe.code, safe.message);
+    if (safe.code === "AMBIGUOUS_WRITE") {
+      try { if (await reconcileAmbiguousCreate(db, op)) return; }
+      catch (reconciliationError) {
+        const reconciliation = safeError(reconciliationError);
+        return markReconciliation(db, op, reconciliation.code, reconciliation.message);
+      }
+      return markReconciliation(db, op, safe.code, safe.message);
+    }
+    if (safe.code === "UNAVAILABLE") return markReconciliation(db, op, safe.code, safe.message);
     if (safe.code === "UNAUTHORIZED") {
       await db.npdConnection.update({ where: { id: op.receipt.connectionId }, data: { status: "REAUTH_REQUIRED", lastErrorCode: safe.code, lastErrorRedacted: safe.message } });
       return finish(db, op, { status: "RETRY", nextAttemptAt: null, lastErrorCode: safe.code, lastErrorRedacted: safe.message });
