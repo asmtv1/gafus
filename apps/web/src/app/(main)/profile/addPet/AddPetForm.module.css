@@ -93,38 +93,10 @@
 }
 
 .submit {
-  width: 100%;
-  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
-  color: #ece5d2;
-  border: 1px solid #636128;
   padding: 14px 28px;
-  border-radius: 12px;
   font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
-  min-height: 48px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-}
-
-.submit:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4);
-}
-
-.submit:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(99, 97, 40, 0.3);
-}
-
-.submit:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-  transform: none;
 }
 
 .cancel {

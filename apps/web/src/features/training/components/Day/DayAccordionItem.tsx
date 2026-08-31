@@ -30,7 +30,6 @@ interface DayAccordionItemProps {
   courseType: string;
   index: number;
   step: TrainingDetail["steps"][number];
-  exerciseNumber: number | null;
   openIndex: number | null;
   onOpenChange: (newOpenIndex: number | null) => void;
   onStepStart: (stepIndex: number) => void;
@@ -50,7 +49,6 @@ export const DayAccordionItem = memo(function DayAccordionItem({
   courseType,
   index,
   step,
-  exerciseNumber,
   openIndex,
   onOpenChange,
   onStepStart,
@@ -167,13 +165,9 @@ export const DayAccordionItem = memo(function DayAccordionItem({
           </div>
           <h3 className={styles.stepTitle}>
             <div className={styles.stepTitleText}>
-              <span>
-                {isBreakStep
-                  ? "Перерыв"
-                  : isDiaryStep
-                    ? "Дневник успехов"
-                    : `Упражнение #${exerciseNumber}`}
-              </span>
+              {(isBreakStep || isDiaryStep) && (
+                <span>{isBreakStep ? "Перерыв" : "Дневник успехов"}</span>
+              )}
               <span>{step.type === "BREAK" ? step.title : `«${step.title}»`}</span>
             </div>
           </h3>

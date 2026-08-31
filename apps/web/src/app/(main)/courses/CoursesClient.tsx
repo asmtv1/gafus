@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -309,7 +311,14 @@ export default function CoursesClient({
             </div>
             <div className={styles.dailyCourseContent}>
               <div className={styles.dailyCourseHeader}>
-                <span className={styles.dailyCoursePill}>Обновляется ежедневно</span>
+                <div className={styles.dailyCourseTitleRow}>
+                  <CalendarMonthIcon aria-hidden="true" className={styles.dailyCourseTitleIcon} />
+                  <span className={styles.dailyCourseTitle}>Задание дня</span>
+                </div>
+                <span className={styles.dailyCourseRefreshStatus}>
+                  <RefreshIcon aria-hidden="true" className={styles.dailyCourseRefreshIcon} />
+                  Ежедневно
+                </span>
               </div>
               <p className={styles.dailyCourseDescription}>
                 Каждый день — новая короткая связка упражнений для спокойного прогресса с собакой.

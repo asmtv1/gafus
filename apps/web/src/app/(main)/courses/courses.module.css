@@ -26,8 +26,8 @@
 }
 
 .dailyCourseSection {
-  margin: 0 auto 36px;
-  max-width: 330px;
+  margin: 0 auto 32px;
+  max-width: 680px;
   padding: 0 20px;
   display: flex;
   justify-content: center;
@@ -36,7 +36,7 @@
 .dailyCourseCard {
   display: flex;
   flex-direction: column;
-  width: 330px;
+  width: 100%;
   gap: 0;
   border: 0;
   border-radius: 18px;
@@ -51,9 +51,7 @@
 
 .dailyCourseMedia {
   width: 100%;
-  padding-top: 10px;
-  padding-left: 30px;
-  padding-right: 30px;
+  padding: 14px 14px 0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -61,16 +59,19 @@
 }
 
 .dailyCourseImage {
-  width: 245px;
-  height: 140px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 14px;
 }
 
 .dailyCourseCard:hover {
   box-shadow: 0 14px 30px rgba(74, 73, 23, 0.24);
   transform: translateY(-3px);
 }
+
+.dailyCourseCard:active { opacity: 0.96; transform: scale(0.992); }
 
 .dailyCourseCard:focus-visible {
   outline: 3px solid #d7837b;
@@ -82,77 +83,66 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  padding-top: 10px;
-  padding-inline: 30px;
-  align-items: center;
-  text-align: center;
+  gap: 12px;
+  padding: 16px;
 }
 
 .dailyCourseHeader {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.dailyCourseEyebrow,
-.dailyCoursePill,
+.dailyCourseTitle,
 .dailyCourseDescription,
 .dailyCourseProgressRow {
   font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
-.dailyCourseEyebrow {
+.dailyCourseTitleRow {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  border-radius: 9999px;
-  background: var(--bg-2, #636128);
-  color: #fff8e5;
-  padding: 0 12px;
-  font-weight: 700;
-  font-size: 13px;
-  line-height: 1;
-  text-transform: uppercase;
+  gap: 7px;
+  min-width: 0;
 }
 
-.dailyCoursePill {
+.dailyCourseTitleIcon { color: var(--bg-2, #636128); font-size: 19px; }
+
+.dailyCourseTitle {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.dailyCourseRefreshStatus {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  border-radius: 9999px;
-  border: 1px solid rgba(99, 97, 40, 0.2);
-  background: rgba(255, 248, 229, 0.92);
+  flex: 0 0 auto;
+  gap: 4px;
+  border-radius: 10px;
+  background: var(--surface-muted, #eee7d2);
   color: #636128;
-  padding: 0 12px;
+  padding: 6px 8px;
   font-weight: 700;
-  font-size: 11px;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0;
+  font-size: 10px;
+  line-height: 14px;
 }
 
-.dailyCourseDescription {
-  display: flex;
-  gap: 10px;
-  flex-direction: column;
-  color: #352e2e;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.5;
-  margin: 12px 0 10px;
-}
+.dailyCourseRefreshIcon { font-size: 14px; }
+
+.dailyCourseDescription { color: #514b46; font-size: 14px; font-weight: 400; line-height: 20px; margin: 0; }
 
 .dailyCourseProgressRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: rgba(53, 46, 46, 0.78);
-  font-size: 15px;
-  font-weight: 600;
-  margin-top: auto;
+  color: #686540;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .dailyCourseProgressTrack {
@@ -160,8 +150,8 @@
   overflow: hidden;
   border-radius: 9999px;
   background: rgba(99, 97, 40, 0.18);
-  margin-top: 12px;
-  margin-bottom: 12px;
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 
 .dailyCourseProgressFill {
@@ -222,12 +212,11 @@
 
   .dailyCourseCard {
     width: 100%;
-    max-width: 330px;
+    max-width: 680px;
   }
 
   .dailyCourseMedia {
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-inline: 14px;
   }
 
   .dailyCourseDescription {

@@ -5,6 +5,7 @@ import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { FormField, TextField } from "@shared/components/ui/FormField";
+import { PrimaryButton } from "@shared/components/ui";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
@@ -271,13 +272,14 @@ export function RegisterForm() {
 
       {csrfError && <div className={styles.errorText}>Ошибка загрузки токена: {csrfError}</div>}
 
-      <button
+      <PrimaryButton
         className={styles.button}
         type="submit"
         disabled={isPending || csrfLoading}
+        fullWidth
       >
         {isPending ? "регистрация..." : "зарегистрироваться"}
-      </button>
+      </PrimaryButton>
     </form>
   );
 }

@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
+import { PrimaryButton } from "@shared/components/ui";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { usernameChangeSchema } from "@shared/lib/validation/authSchemas";
 import { changeUsernameAction, checkUsernameAvailableAction } from "@shared/server-actions";
@@ -161,13 +162,14 @@ export default function ChangeUsernameForm() {
             ) : null}
           </div>
           {rootError ? <p className={styles.errorBox}>{rootError}</p> : null}
-          <button
+          <PrimaryButton
             type="submit"
             className={styles.submit}
             disabled={isSubmitting || availability === "taken"}
+            fullWidth
           >
             {isSubmitting ? "Сохранение…" : "Сохранить"}
-          </button>
+          </PrimaryButton>
         </form>
       </section>
     </main>

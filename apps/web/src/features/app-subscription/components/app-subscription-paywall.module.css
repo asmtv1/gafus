@@ -541,31 +541,8 @@
 
 .primaryButton {
   margin-top: 24px;
-  border: none;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
-  color: #fff8e5;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
   font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
   padding: 18px 30px;
-  cursor: pointer;
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    opacity 160ms ease;
-  box-shadow: var(--shadow-button);
-}
-
-.primaryButton:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 7px 0 #4a4917, 0 11px 18px rgba(74, 73, 23, 0.23);
-}
-
-.primaryButton:disabled {
-  cursor: default;
-  opacity: 0.7;
 }
 
 .assurance {

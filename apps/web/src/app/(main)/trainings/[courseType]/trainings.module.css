@@ -1,5 +1,6 @@
 .container {
-  background-color: var(--bg-1);
+  /* Let the shared paper texture on <body> remain visible around course content. */
+  background: transparent;
   width: 100%;
   min-height: 100dvh;
   display: flex;

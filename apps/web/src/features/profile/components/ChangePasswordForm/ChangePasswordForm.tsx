@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
+import { PrimaryButton } from "@shared/components/ui";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { profilePagePath } from "@shared/lib/profile/profilePagePath";
 import { changePasswordSchema } from "@shared/lib/validation/authSchemas";
@@ -185,9 +186,9 @@ export default function ChangePasswordForm() {
             />
           </div>
           {error ? <p className={styles.errorBox}>{error}</p> : null}
-          <button type="submit" className={styles.submit} disabled={isSubmitting}>
+          <PrimaryButton type="submit" className={styles.submit} disabled={isSubmitting} fullWidth>
             {isSubmitting ? "Сохранение…" : "Сохранить"}
-          </button>
+          </PrimaryButton>
         </form>
       </section>
     </main>

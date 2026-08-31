@@ -6,6 +6,9 @@ import type { PublicProfile, UserWithTrainings } from "@gafus/types";
 
 import styles from "./profile.module.css";
 
+// The achievements route remains available, but it is not part of the web-profile UI.
+const SHOW_ACHIEVEMENTS_LINK = false;
+
 interface ProfileClientProps {
   publicData: PublicProfile;
   isOwner: boolean;
@@ -26,7 +29,7 @@ export default function ProfileClient({
       <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
       {isOwner && publicData.role === "USER" && <StudentNotes />}
       {isOwner && userData && <PrivateProfileSection user={userData} />}
-      {isOwner && (
+      {SHOW_ACHIEVEMENTS_LINK && isOwner && (
         <Link href="/achievements" className={styles.achievementsLink}>
           🏆 Достижения →
         </Link>

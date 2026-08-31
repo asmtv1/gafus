@@ -129,8 +129,6 @@ export function Day({ training, courseType, titleOverride, serverActions }: DayP
     initializeStep,
   ]);
 
-  let exerciseCounter = 0;
-
   return (
     <div className={styles.main}>
       <div className={styles.dayHeader}>
@@ -202,9 +200,6 @@ export function Day({ training, courseType, titleOverride, serverActions }: DayP
       )}
 
       {training.steps.map((step, index) => {
-        const isBreakStep = step.type === "BREAK";
-        const isDiaryStep = step.type === "DIARY";
-        const exerciseNumber = (isBreakStep || isDiaryStep) ? null : ++exerciseCounter;
         return (
           <DayAccordionItem
             key={`${step.id}-${index}`}
@@ -212,7 +207,6 @@ export function Day({ training, courseType, titleOverride, serverActions }: DayP
             courseType={courseType}
             index={index}
             step={step}
-            exerciseNumber={exerciseNumber}
             openIndex={openIndex}
             onOpenChange={handleOpenChange}
             onStepStart={handleStepStart}

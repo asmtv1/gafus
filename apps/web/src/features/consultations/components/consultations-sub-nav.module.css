@@ -9,39 +9,79 @@
 .subNavLink,
 .subNavLinkActive {
   display: inline-flex;
+  flex: 1 1 260px;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 10px 18px;
-  border-radius: 999px;
+  max-width: 390px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 12px;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
-  border: 2px solid #636128;
   transition:
-    background 0.15s ease,
+    background 0.16s ease,
     color 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
 }
 
 .subNavLink {
-  background: #fff8e5;
-  color: #352e2e;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, #96914d 0%, #817d40 18%, #666429 56%, #59581f 84%, #4a4917 100%);
+  color: #f6f0df;
+  box-shadow: 0 7px 12px rgba(53, 52, 16, 0.3);
 }
 
 .subNavLink:hover {
-  background: #fff3d6;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34);
+  transform: translateY(-2px);
+}
+
+.subNavLink:active {
+  box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2);
+  transform: translateY(2px) scale(0.99);
 }
 
 .subNavLinkActive {
-  background: #636128;
-  color: #fff8e5;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.35);
+  background: #e9e2cf;
+  color: var(--accent-secondary, #4a4917);
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.22), 0 1px 2px rgba(74, 74, 30, 0.1);
+  transform: translateY(3px);
 }
 
-.subNavLinkActive:hover {
-  filter: brightness(1.05);
+.subNavLinkActive:active {
+  background: #e3dcc8;
+  box-shadow: inset 0 3px 6px rgba(74, 74, 30, 0.24), 0 1px 1px rgba(74, 74, 30, 0.08);
+  transform: translateY(3px) scale(0.994);
+}
+
+.subNavLink:focus-visible,
+.subNavLinkActive:focus-visible {
+  outline: 3px solid rgba(215, 131, 123, 0.8);
+  outline-offset: 3px;
+}
+
+@media (max-width: 580px) {
+  .subNav {
+    gap: 8px;
+  }
+
+  .subNavLink,
+  .subNavLinkActive {
+    flex-basis: 100%;
+    max-width: none;
+    min-height: 50px;
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subNavLink,
+  .subNavLinkActive {
+    transition: none;
+  }
 }

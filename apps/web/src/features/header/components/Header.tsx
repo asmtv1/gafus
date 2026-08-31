@@ -58,7 +58,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
 
   return (
     <header className={styles.container}>
-      <button className={styles.backButton} onClick={() => window.history.back()}>
+      <button className={styles.backButton} type="button" onClick={() => window.history.back()}>
         <ArrowBack aria-hidden="true" className={styles.backIcon} />
         Назад
       </button>
@@ -70,7 +70,8 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
           trackMenuClick("tab-menu-toggle");
           setMenuOpen((v) => !v);
         }}
-        aria-label="Открыть меню"
+        aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+        aria-expanded={menuOpen}
       >
         <BurgerIcon active={menuOpen} />
       </button>
@@ -189,7 +190,16 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
               </span>
               <span className={styles.menuLabel}>Статьи</span>
             </Link>
-            <div className={`${styles.menuButton} ${styles.logoutMenuItem}`}>
+            <button
+              className={`${styles.menuButton} ${styles.logoutMenuItem}`}
+              type="button"
+              onClick={() => {
+                trackMenuClick("tab-logout");
+                setMenuOpen(false);
+                resetAnalyticsUser();
+                signOut({ callbackUrl: "/" });
+              }}
+            >
               <span className={styles.menuIconSlot} aria-hidden="true">
                 <Image
                   src="/uploads/header/logout.svg"
@@ -199,18 +209,8 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   loading="lazy"
                 />
               </span>
-              <button
-                className={styles.logoutButton}
-                onClick={() => {
-                  trackMenuClick("tab-logout");
-                  setMenuOpen(false);
-                  resetAnalyticsUser();
-                  signOut({ callbackUrl: "/" });
-                }}
-              >
-                <span className={styles.menuLabel}>Выход</span>
-              </button>
-            </div>
+              <span className={styles.menuLabel}>Выход</span>
+            </button>
           </nav>
         </>
       )}

@@ -4,6 +4,7 @@
   align-items: center;
   width: 100%;
   max-width: 100%;
+  padding-top: 82px;
 }
 
 .dayHeader {
@@ -378,7 +379,7 @@
 /* Мобильные стили */
 @media (max-width: 768px) {
   .main {
-    padding: 0 8px;
+    padding: 70px 8px 0;
   }
 
   .dayHeader {

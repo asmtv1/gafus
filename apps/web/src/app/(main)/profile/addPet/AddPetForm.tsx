@@ -11,6 +11,7 @@ import { Controller } from "react-hook-form";
 import { useSession } from "next-auth/react";
 
 import { reportClientError } from "@gafus/error-handling";
+import { PrimaryButton } from "@shared/components/ui";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useCreatePetZodForm } from "@shared/hooks/usePetZodForm";
 import { savePet } from "@shared/lib/pets/savePet";
@@ -300,9 +301,9 @@ export default function AddPetForm() {
           </div>
 
           <div className={styles.actions}>
-            <button type="submit" className={styles.submit} disabled={isSubmitting}>
+            <PrimaryButton type="submit" className={styles.submit} disabled={isSubmitting} fullWidth>
               {isSubmitting ? "Добавление…" : "Добавить питомца"}
-            </button>
+            </PrimaryButton>
             <button
               type="button"
               className={styles.cancel}

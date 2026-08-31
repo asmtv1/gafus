@@ -42,6 +42,7 @@ import {
   shouldBlockAppSubscriptionCheckoutForPromo,
   type AppSubscriptionPromoCodeUiState,
 } from "@/shared/lib/app-subscription/promo-code-ui";
+import { PrimaryButton } from "@shared/components/ui";
 import styles from "./app-subscription-paywall.module.css";
 
 type AppSubscriptionPlanCode = "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
@@ -610,16 +611,17 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
               </div>
             ) : null}
 
-            <button
+            <PrimaryButton
               className={styles.primaryButton}
-              type="button"
               onClick={onStart}
               disabled={loading || csrfLoading || !selectedPlan}
+              fullWidth
+              size="large"
             >
               {loading || csrfLoading
                 ? "Переход в ЮKassa..."
                 : getYookassaPrimaryCta(currentChargeText)}
-            </button>
+            </PrimaryButton>
             <p className={styles.legalText}>
               Нажимая кнопку, вы принимаете{" "}
               <a href="/oferta.html" target="_blank" rel="noopener noreferrer">

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { reportClientError } from "@gafus/error-handling";
 
 import { EmailField } from "@shared/components/ui/FormField";
+import { PrimaryButton } from "@shared/components/ui";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { sendPasswordResetRequestAction } from "@shared/server-actions";
@@ -70,9 +71,9 @@ export function PasswordResetForm() {
         errorClassName={styles.errorText}
       />
 
-      <button className={styles.button} type="submit" disabled={isPending || !isValid}>
+      <PrimaryButton className={styles.button} type="submit" disabled={isPending || !isValid} fullWidth>
         {isPending ? "отправка..." : "восстановить пароль"}
-      </button>
+      </PrimaryButton>
 
       {status && (
         <>
