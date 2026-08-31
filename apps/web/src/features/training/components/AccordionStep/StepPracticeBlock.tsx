@@ -1,6 +1,7 @@
 "use client";
 
 import styles from "./AccordionStep.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface StepPracticeBlockProps {
   stepStatus: string;
@@ -16,13 +17,13 @@ export function StepPracticeBlock({
   return (
     <div className={styles.completeAction}>
       {stepStatus !== "COMPLETED" ? (
-        <button
+        <PrimaryButton
           onClick={onCompletePractice}
           disabled={isCompleting}
           className={styles.completeBtn}
         >
           Я выполнил
-        </button>
+        </PrimaryButton>
       ) : (
         <div className={styles.completedBadge}>Упражнение выполнено</div>
       )}

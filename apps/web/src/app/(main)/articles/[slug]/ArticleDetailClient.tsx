@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useTransition } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -19,6 +18,7 @@ import type { ArticleDetailDto } from "@gafus/types";
 import { usePathname } from "next/navigation";
 
 import { AppSubscriptionPaywall } from "@/features/app-subscription";
+import { PrimaryButtonLink } from "@/shared/components/ui";
 import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
 
 import styles from "./ArticleDetailClient.module.css";
@@ -39,12 +39,12 @@ function PaidArticleBlock({ article, userId }: PaidArticleBlockProps) {
           <div className={styles.accessDeniedBlock}>
             <h2 className={styles.title}>Нужен доступ</h2>
             <p className={styles.subtitle}>Войдите, чтобы оформить подписку и открыть материал.</p>
-            <Link
+            <PrimaryButtonLink
               href={`/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}`}
               className={styles.btnPrimary}
             >
               Войти
-            </Link>
+            </PrimaryButtonLink>
           </div>
         </article>
       </main>

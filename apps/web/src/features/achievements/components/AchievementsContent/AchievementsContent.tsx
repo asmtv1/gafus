@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { PrimaryButtonLink } from "@/shared/components/ui";
 import {
   useAchievementsFromStores,
   useAchievementsByCategoryFromStores,
@@ -100,9 +100,9 @@ export function AchievementsContent() {
             <div className={styles.noAchievementsIcon}>🎯</div>
             <h3>Пока нет достижений</h3>
             <p>Начните проходить курсы, чтобы получить первые достижения!</p>
-            <Link href="/courses" className={styles.coursesLink}>
+            <PrimaryButtonLink href="/courses" className={styles.coursesLink}>
               Перейти к курсам →
-            </Link>
+            </PrimaryButtonLink>
           </div>
         ) : (
           <div className={styles.categoriesContainer}>

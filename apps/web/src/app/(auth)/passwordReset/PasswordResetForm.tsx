@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
 
 import { EmailField } from "@shared/components/ui/FormField";
-import { PrimaryButton } from "@shared/components/ui";
+import { PrimaryButton, PrimaryButtonLink } from "@shared/components/ui";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { passwordResetFormSchema } from "@shared/lib/validation/authSchemas";
 import { sendPasswordResetRequestAction } from "@shared/server-actions";
@@ -78,9 +77,9 @@ export function PasswordResetForm() {
       {status && (
         <>
           <p className={styles.status}>{status}</p>
-          <Link href="/reset-password" className={styles.linkButton}>
+          <PrimaryButtonLink href="/reset-password" className={styles.linkButton} fullWidth>
             Уже есть ссылка — ввести новый пароль
-          </Link>
+          </PrimaryButtonLink>
         </>
       )}
     </form>

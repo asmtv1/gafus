@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
 import styles from "./ShareButton.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface ShareButtonProps {
   courseName: string;
@@ -54,7 +55,7 @@ export default function ShareButton({
   };
 
   return (
-    <button className={styles.shareButton} onClick={handleShare} title="Поделиться курсом">
+    <PrimaryButton className={styles.shareButton} onClick={handleShare} title="Поделиться курсом">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className={styles.shareIcon}>
         <path
           d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"
@@ -67,6 +68,6 @@ export default function ShareButton({
       <span className={styles.shareText}>
         {copied ? "Ссылка скопирована!" : "Поделиться ссылкой на курс"}
       </span>
-    </button>
+    </PrimaryButton>
   );
 }

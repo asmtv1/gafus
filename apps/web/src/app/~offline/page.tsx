@@ -13,6 +13,7 @@ import { CourseCard } from "@/features/courses";
 import type { CourseCardPropsWithIndex } from "@/features/courses";
 import courseStyles from "../(main)/courses/courses.module.css";
 import styles from "./offline.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 // Преобразование OfflineCourse → CourseCardProps
 function convertToCourseCardProps(
@@ -140,9 +141,9 @@ export default function OfflinePage() {
 
       {/* Кнопки действий */}
       <div className={styles.actionsSection}>
-        <button onClick={() => window.location.reload()} className={styles.button}>
+        <PrimaryButton onClick={() => window.location.reload()} className={styles.button}>
           Попробовать снова
-        </button>
+        </PrimaryButton>
         <button
           onClick={() => (window.location.href = "/")}
           className={`${styles.button} ${styles.buttonSecondary}`}

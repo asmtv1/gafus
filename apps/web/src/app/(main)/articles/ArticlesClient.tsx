@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { PrimaryButtonLink } from "@/shared/components/ui";
 import { useTransition } from "react";
 import {
   ArrowForward,
@@ -80,9 +81,9 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isPending }: Ar
           )}
           <span>{article.likeCount}</span>
         </button>
-        <Link href={`/articles/${article.slug}`} className={styles.readLink}>
+        <PrimaryButtonLink href={`/articles/${article.slug}`} className={styles.readLink}>
           Читать <ArrowForward aria-hidden="true" className={styles.readIcon} />
-        </Link>
+        </PrimaryButtonLink>
       </div>
     </li>
   );

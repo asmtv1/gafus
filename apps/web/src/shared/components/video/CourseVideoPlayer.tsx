@@ -9,6 +9,7 @@ import { CircularProgress } from "@shared/utils/muiImports";
 import { PlayArrowIcon } from "@shared/utils/muiImports";
 
 import styles from "./CourseVideoPlayer.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 export interface CourseVideoPlayerProps {
   poster: string | null;
@@ -282,9 +283,9 @@ export function CourseVideoPlayer({
         <div className={styles.errorOverlay} role="alert">
           <p className={styles.errorText}>{errorMessage}</p>
           {onRetry && (
-            <button type="button" className={styles.retryButton} onClick={onRetry}>
+            <PrimaryButton type="button" className={styles.retryButton} onClick={onRetry}>
               Повторить
-            </button>
+            </PrimaryButton>
           )}
         </div>
       )}

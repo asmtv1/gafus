@@ -18,6 +18,7 @@ import { PREVENTION_TYPE_LABELS } from "../types";
 import type { PreventionEntryDisplay } from "../types";
 
 import styles from "./prevention-ui.module.css";
+import { primaryButtonClassName } from "@/shared/components/ui";
 
 interface PreventionEntryListProps {
   entries: PreventionEntryDisplay[];
@@ -116,7 +117,7 @@ export function PreventionEntryList({
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleShowAddForm}
-          className={styles.addButton}
+          className={`${styles.addButton} ${primaryButtonClassName}`}
           disableElevation
         >
           Добавить запись

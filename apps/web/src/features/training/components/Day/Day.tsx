@@ -17,6 +17,7 @@ import { ExpandMoreIcon } from "@shared/utils/muiImports";
 import { DayAccordionItem } from "./DayAccordionItem";
 import { generateCoursePathPdf } from "@shared/lib/actions/generateCoursePathPdf";
 import styles from "./Day.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface DayProps {
   training: TrainingDetail;
@@ -155,7 +156,7 @@ export function Day({ training, courseType, titleOverride, serverActions }: DayP
 
       {training.type === "summary" && training.showCoursePathExport && (
         <div className={styles.exportPathBlock} style={{ marginTop: 16, marginBottom: 16 }}>
-          <button
+          <PrimaryButton
             type="button"
             className={styles.exportPathButton}
             disabled={isGenerating}
@@ -194,7 +195,7 @@ export function Day({ training, courseType, titleOverride, serverActions }: DayP
             }}
           >
             {isGenerating ? "Генерация…" : "Экспортировать «Ваш путь»"}
-          </button>
+          </PrimaryButton>
           {exportError && <p className={styles.exportError}>{exportError}</p>}
         </div>
       )}

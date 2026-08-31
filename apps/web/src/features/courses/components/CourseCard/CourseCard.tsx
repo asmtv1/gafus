@@ -18,6 +18,7 @@ import {
 } from "@mui/icons-material";
 
 import styles from "./CourseCard.module.css";
+import { primaryButtonClassName } from "@/shared/components/ui";
 
 import type { CourseCardPropsWithIndex } from "./types";
 
@@ -516,7 +517,7 @@ export const CourseCard = ({
           {!isDownloaded ? (
             isPaid && !hasAccess ? (
               <button
-                className={styles.downloadButton}
+                className={`${styles.downloadButton} ${primaryButtonClassName}`}
                 type="button"
                 disabled
                 title="Оплатите курс для скачивания"
@@ -526,7 +527,7 @@ export const CourseCard = ({
               </button>
             ) : offlineDownloadAllowed !== true ? (
               <button
-                className={styles.downloadButton}
+                className={`${styles.downloadButton} ${primaryButtonClassName}`}
                 type="button"
                 disabled
                 title="Скачивание курсов доступно на тарифах от одного месяца"
@@ -540,7 +541,7 @@ export const CourseCard = ({
               </button>
             ) : (
               <button
-                className={styles.downloadButton}
+                className={`${styles.downloadButton} ${primaryButtonClassName}`}
                 onClick={handleDownload}
                 disabled={isDownloading}
                 title="Скачать курс для офлайн-доступа"

@@ -169,7 +169,7 @@ export function RegisterForm() {
           <span className={styles.emailTypoHintText}>
             Возможно, имелось в виду {emailTypoSuggestion}?
           </span>
-          <button
+          <PrimaryButton
             type="button"
             className={styles.emailTypoFix}
             onClick={() => {
@@ -181,7 +181,7 @@ export function RegisterForm() {
             }}
           >
             Исправить
-          </button>
+          </PrimaryButton>
         </div>
       )}
 

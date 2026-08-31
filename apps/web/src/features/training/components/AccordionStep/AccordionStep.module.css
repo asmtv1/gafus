@@ -564,6 +564,7 @@
 
 /* Shared web surface language */
 .stepContainer, .timerCard, .cardSection, .diaryEntryItem { border: 1px solid rgba(var(--accent-primary-rgb), 0.2); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.stepTypeHeaderCard { box-shadow: none; }
 .stepContainer { padding: 20px; }
 .btnPrimary, .btnSecondary, .btnOutline, .completeBtn { min-height: 44px; border-radius: 12px; font-family: var(--font-montserrat), var(--font-sans-fallback); font-weight: 700; }
 .btnPrimary, .completeBtn { box-shadow: var(--shadow-button); }

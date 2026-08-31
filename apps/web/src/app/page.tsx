@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { PrimaryButtonLink } from "@/shared/components/ui";
 import { Suspense } from "react";
 
 import { MainAuthButtons } from "@shared/components/auth/MainAuthButtons";
@@ -48,12 +48,8 @@ export default function AuthPage() {
       <Suspense
         fallback={
           <div className={styles.buttonsContainer}>
-            <Link href="/login">
-              <button className={styles.button_login}>войти</button>
-            </Link>
-            <Link href="/register" prefetch={false}>
-              <button className={styles.button_register}>регистрация</button>
-            </Link>
+            <PrimaryButtonLink href="/login" className={styles.button_login}>войти</PrimaryButtonLink>
+            <PrimaryButtonLink href="/register" prefetch={false} className={styles.button_register}>регистрация</PrimaryButtonLink>
           </div>
         }
       >

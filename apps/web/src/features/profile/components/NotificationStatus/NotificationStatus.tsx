@@ -12,6 +12,7 @@ import { detectPushSupport } from "@shared/utils/detectPushSupport";
 import { showInstallPWAAlert } from "@shared/utils/sweetAlert";
 
 import styles from "./NotificationStatus.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 // Создаем логгер для NotificationStatus
 const logger = createWebLogger("web-notification-status");
@@ -264,35 +265,35 @@ export default function NotificationStatus() {
         <div className={styles.actions}>
           {/* Показываем кнопку "Разрешить" если разрешение не запрошено */}
           {permission === "default" && (
-            <button
+            <PrimaryButton
               onClick={handleAllowNotifications}
               disabled={isLoading}
               className={styles.allowButton}
             >
               {isLoading ? "Загрузка..." : "Разрешить уведомления"}
-            </button>
+            </PrimaryButton>
           )}
 
           {/* Показываем кнопку "Включить подписку" если разрешение есть, но подписка отключена */}
           {isGranted() && hasServerSubscription === false && (
-            <button
+            <PrimaryButton
               onClick={handleAllowNotifications}
               disabled={isLoading}
               className={styles.allowButton}
             >
               {isLoading ? "Загрузка..." : "Включить подписку"}
-            </button>
+            </PrimaryButton>
           )}
 
           {/* Показываем кнопку "Отключить" если разрешение есть и подписка активна */}
           {isGranted() && hasServerSubscription === true && (
-            <button
+            <PrimaryButton
               onClick={handleDenyNotifications}
               disabled={isLoading}
               className={styles.denyButton}
             >
               {isLoading ? "Загрузка..." : "Отключить уведомления"}
-            </button>
+            </PrimaryButton>
           )}
 
           {/* Показываем кнопку "Включить подписку" если разрешение есть, но подписка не проверена */}

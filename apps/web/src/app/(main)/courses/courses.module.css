@@ -27,7 +27,7 @@
 
 .dailyCourseSection {
   margin: 0 auto 32px;
-  max-width: 680px;
+  max-width: 360px;
   padding: 0 20px;
   display: flex;
   justify-content: center;
@@ -212,7 +212,7 @@
 
   .dailyCourseCard {
     width: 100%;
-    max-width: 680px;
+    max-width: 360px;
   }
 
   .dailyCourseMedia {

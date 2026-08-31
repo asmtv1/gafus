@@ -8,6 +8,7 @@ import { showSuccessAlert, showErrorAlert, showConfirmDialog } from "@shared/uti
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { useReviewsStore } from "@shared/stores/reviewsStore";
 import styles from "./ReviewsList.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface ReviewsListProps {
   courseType: string;
@@ -179,13 +180,13 @@ export function ReviewsList({
             </div>
 
             <div className={styles.formActions}>
-              <button
+              <PrimaryButton
                 type="submit"
                 className={styles.submitButton}
                 disabled={isLoading || rating === 0}
               >
                 {isLoading ? "Сохранение..." : isEditing ? "Сохранить" : "Отправить"}
-              </button>
+              </PrimaryButton>
               {isEditing && (
                 <button
                   type="button"

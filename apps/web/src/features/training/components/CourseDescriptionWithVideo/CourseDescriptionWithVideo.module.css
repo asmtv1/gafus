@@ -18,14 +18,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background-color: #ece5d2;
-  border: 1px solid #636128;
+  background: var(--surface);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.28);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .descriptionHeader:hover {
-  background-color: #e6dcc7;
+  background: var(--surface-strong);
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -33,7 +33,7 @@
 .descriptionTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #352e2e;
+  color: var(--text-primary);
   margin: 0;
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
@@ -48,13 +48,13 @@
 .expandText {
   font-size: 14px;
   font-weight: 500;
-  color: #636128;
+  color: var(--accent-primary);
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
   white-space: nowrap;
 }
 
 .expandIcon {
-  color: #636128;
+  color: var(--accent-primary);
   transition: transform 0.2s ease;
   font-size: 24px;
   flex-shrink: 0;
@@ -69,13 +69,13 @@
   justify-content: center;
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 2px solid #d4c4a8;
+  border-top: 1px solid rgba(var(--accent-primary-rgb), 0.2);
 }
 
 .descriptionContent {
-  color: #352e2e;
-  background-color: #ece5d2;
-  border: 1px solid #636128;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.28);
   border-top: none;
   border-radius: 0 0 12px 12px;
   padding: 0 20px;
@@ -102,7 +102,7 @@
 .descriptionContent p {
   margin-bottom: 1em;
   line-height: 1.6;
-  color: #352e2e;
+  color: var(--text-primary);
 }
 
 .descriptionContent ul,
@@ -114,7 +114,7 @@
 .descriptionContent li {
   margin-bottom: 0.5em;
   line-height: 1.5;
-  color: #352e2e;
+  color: var(--text-primary);
 }
 
 .descriptionContent h1,
@@ -126,7 +126,7 @@
   margin-top: 1.2em;
   margin-bottom: 0.6em;
   font-weight: 600;
-  color: #352e2e;
+  color: var(--text-primary);
   font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
 }
 

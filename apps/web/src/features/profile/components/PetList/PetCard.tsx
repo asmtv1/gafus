@@ -17,6 +17,7 @@ import { getAgeWithMonths, declOfNum, getPetTypeLabel } from "@gafus/core/utils"
 import { Avatar, IconButton } from "@shared/utils/muiImports";
 import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
 import { PreventionEntryList } from "@/features/pet-prevention";
+import { PrimaryButton, primaryButtonClassName } from "@/shared/components/ui";
 
 import EditablePetAvatar from "../EditablePetAvatar";
 import styles from "./PetList.module.css";
@@ -522,7 +523,7 @@ const PetCard = memo(function PetCard({
           <button
             type="button"
             onClick={handleEditIconClick}
-            className={`${styles.dogActionButton} ${styles.dogActionEdit}`}
+            className={`${styles.dogActionButton} ${styles.dogActionEdit} ${primaryButtonClassName}`}
             aria-label="Редактировать питомца"
           >
             <EditRoundedIcon fontSize="small" />
@@ -614,14 +615,14 @@ const PetCard = memo(function PetCard({
                 disabled={documentsBusy}
               />
               <div className={styles.pendingDocumentActions}>
-                <button
+                <PrimaryButton
                   type="button"
                   className={styles.documentCancel}
                   onClick={clearPendingDocument}
                   disabled={documentsBusy}
                 >
                   Отмена
-                </button>
+                </PrimaryButton>
                 <button
                   type="button"
                   className={styles.documentSave}
@@ -679,14 +680,14 @@ const PetCard = memo(function PetCard({
                     </a>
                     {editingDocumentId === document.id ? (
                       <>
-                        <button
+                        <PrimaryButton
                           type="button"
                           className={styles.documentSaveInline}
                           onClick={() => handleDocumentRenameSave(document.id)}
                           disabled={documentsBusy}
                         >
                           Сохранить
-                        </button>
+                        </PrimaryButton>
                         <button
                           type="button"
                           className={styles.documentCancelInline}
@@ -699,7 +700,7 @@ const PetCard = memo(function PetCard({
                     ) : (
                       <button
                         type="button"
-                        className={`${styles.documentActionIcon} ${styles.documentActionEdit}`}
+                        className={`${styles.documentActionIcon} ${styles.documentActionEdit} ${primaryButtonClassName}`}
                         onClick={() => handleDocumentRenameStart(document)}
                         disabled={documentsBusy}
                         aria-label={`Изменить документ ${documentDisplayName}`}

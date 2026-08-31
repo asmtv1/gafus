@@ -23,7 +23,7 @@ export function StepTypeHeader({ type, estimatedDurationSec }: StepTypeHeaderPro
     shouldShowEstimatedDuration(type);
 
   return (
-    <div className={styles.timerCard}>
+    <div className={`${styles.timerCard} ${styles.stepTypeHeaderCard}`}>
       <div className={styles.timerHeader}>
         <span>{title}</span>
       </div>

@@ -16,6 +16,7 @@ import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";
 import CourseDescriptionWithVideo from "../CourseDescriptionWithVideo";
 import TrainingDayList from "../TrainingDayList";
+import { PrimaryButton, PrimaryButtonLink } from "@/shared/components/ui";
 
 import styles from "./TrainingPageClient.module.css";
 
@@ -319,12 +320,12 @@ export default function TrainingPageClient({
           )}
           {isGuest ? (
             <div className={styles.buttonsRow}>
-              <Link
+              <PrimaryButtonLink
                 href={`/login?returnUrl=${encodeURIComponent(`/trainings/${courseForPay.type}`)}`}
                 className={styles.btnPrimary}
               >
                 Войти
-              </Link>
+              </PrimaryButtonLink>
               <Link href="/courses" className={styles.btnOutline}>
                 Назад к курсам
               </Link>
@@ -337,14 +338,14 @@ export default function TrainingPageClient({
                 </Typography>
               )}
               <div className={styles.buttonsRow}>
-                <button
+                <PrimaryButton
                   type="button"
                   className={styles.btnPrimary}
                   onClick={handlePay}
                   disabled={payLoading || csrfLoading}
                 >
                   {payLoading || csrfLoading ? "Переход к оплате…" : "Оплатить/Начать курс"}
-                </button>
+                </PrimaryButton>
                 {justPaid && (
                   <button
                     type="button"
@@ -379,9 +380,9 @@ export default function TrainingPageClient({
             кинологу для получения доступа.
           </p>
           <div className={styles.buttonsRow}>
-            <Link href="/courses" className={styles.btnPrimary}>
+            <PrimaryButtonLink href="/courses" className={styles.btnPrimary}>
               Назад к курсам
-            </Link>
+            </PrimaryButtonLink>
           </div>
         </div>
       );
@@ -391,9 +392,9 @@ export default function TrainingPageClient({
         <h2 className={styles.title}>Доступ закрыт</h2>
         <p className={styles.subtitle}>У вас нет доступа к этому курсу.</p>
         <div className={styles.buttonsRow}>
-          <Link href="/courses" className={styles.btnPrimary}>
+            <PrimaryButtonLink href="/courses" className={styles.btnPrimary}>
             Назад к курсам
-          </Link>
+            </PrimaryButtonLink>
         </div>
       </div>
     );

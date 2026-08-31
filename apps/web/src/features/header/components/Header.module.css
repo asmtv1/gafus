@@ -1,18 +1,13 @@
 .container {
   position: sticky;
-  top: 8px;
+  top: 12px;
   z-index: 90;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 58px;
-  margin: 8px 12px 0;
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 253, 244, 0.94);
-  border-radius: 16px;
-  background: rgba(255, 248, 229, 0.82);
-  box-shadow: 0 8px 18px rgba(74, 74, 30, 0.16);
-  backdrop-filter: blur(10px);
+  min-height: 44px;
+  margin: 12px 20px 0;
+  padding: 0;
 }
 
 .backButton {
@@ -198,7 +193,7 @@
 .burgerButton:hover { background: #e9e2cf; transform: translateY(-1px); }
 .burgerButton:active { background: #e3dcc8; box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.2); transform: translateY(2px) scale(0.98); }
 @media (max-width: 480px) {
-  .container { top: 4px; min-height: 54px; margin: 4px 8px 0; }
+  .container { top: 8px; min-height: 44px; margin: 8px 12px 0; }
   .dropdownMenu {
     top: calc(100% + 8px);
     width: min(360px, calc(100vw - 16px));

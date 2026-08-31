@@ -12,6 +12,7 @@ import {
   type TrainingReminderData,
 } from "@shared/lib/actions/trainingReminders";
 import styles from "./TrainingReminders.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 const DAYS_OF_WEEK = [
   { id: "1", label: "Пн" },
@@ -234,9 +235,9 @@ export default function TrainingReminders() {
       </div>
 
       {reminders.length < MAX_REMINDERS && (
-        <button onClick={handleAddReminder} className={styles.addButton}>
+        <PrimaryButton onClick={handleAddReminder} className={styles.addButton} fullWidth>
           + Добавить напоминание ({reminders.length}/{MAX_REMINDERS})
-        </button>
+        </PrimaryButton>
       )}
 
       <div className={styles.infoBox}>

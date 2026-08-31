@@ -9,6 +9,7 @@ import type {
   TrainingLevelType,
 } from "@shared/utils/courseFilters";
 import styles from "./FiltersDrawer.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface FiltersDrawerProps {
   isOpen: boolean;
@@ -295,12 +296,12 @@ export default function FiltersDrawer({
               Сбросить
             </button>
           )}
-          <button className={styles.applyButton} onClick={handleApply}>
+          <PrimaryButton className={styles.applyButton} onClick={handleApply}>
             Показать
             {previewCount !== undefined && (
               <span className={styles.resultsCount}>{previewCount}</span>
             )}
-          </button>
+          </PrimaryButton>
         </div>
       </div>
     </>

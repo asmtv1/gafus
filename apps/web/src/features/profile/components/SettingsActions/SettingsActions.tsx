@@ -7,6 +7,7 @@ import { memo, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useWebOnboardingTourStore } from "@/features/onboarding-tour";
+import { PrimaryButton, PrimaryButtonLink } from "@/shared/components/ui";
 
 import { initiateVkIdLink } from "@shared/server-actions";
 
@@ -81,14 +82,14 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
       )}
       <div className={styles.buttonsContainer}>
         {!hasVkLinked ? (
-          <button
+          <PrimaryButton
             onClick={handleLinkVk}
             disabled={isLinking}
             className={styles.button}
             type="button"
           >
             {isLinking ? "Подключение..." : "🔗 Подключить VK"}
-          </button>
+          </PrimaryButton>
         ) : (
           <div className={styles.vkLinkedBadge}>
             <CheckCircleIcon className={styles.successIcon} />
@@ -96,36 +97,36 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
           </div>
         )}
         {linkError && <p className={styles.errorText}>{linkError}</p>}
-        <button
+        <PrimaryButton
           onClick={() => resetCookieConsent()}
           className={styles.button}
           type="button"
         >
           🍪 Управление cookies
-        </button>
-        <button onClick={handleRestartTour} className={styles.button} type="button">
+        </PrimaryButton>
+        <PrimaryButton onClick={handleRestartTour} className={styles.button} type="button">
           🧭 Повторить экскурсию
-        </button>
+        </PrimaryButton>
         {session?.user?.passwordSetAt == null ? (
-          <Link href="/profile/set-password" className={styles.button}>
+          <PrimaryButtonLink href="/profile/set-password" className={styles.button}>
             🔐 Установить пароль
-          </Link>
+          </PrimaryButtonLink>
         ) : (
-          <Link href="/profile/change-password" className={styles.button}>
+          <PrimaryButtonLink href="/profile/change-password" className={styles.button}>
             🔐 Сменить пароль
-          </Link>
+          </PrimaryButtonLink>
         )}
         {session?.user?.passwordSetAt != null && (
-          <Link href="/passwordReset" className={styles.button}>
+          <PrimaryButtonLink href="/passwordReset" className={styles.button}>
             Забыли пароль
-          </Link>
+          </PrimaryButtonLink>
         )}
-        <Link href="/profile/change-email" className={styles.button}>
+        <PrimaryButtonLink href="/profile/change-email" className={styles.button}>
           ✉️ Сменить email
-        </Link>
-        <Link href="/profile/change-username" className={styles.button}>
+        </PrimaryButtonLink>
+        <PrimaryButtonLink href="/profile/change-username" className={styles.button}>
           👤 Сменить логин
-        </Link>
+        </PrimaryButtonLink>
         {session?.user?.passwordSetAt != null && (
           <Link href="/profile/delete-account" className={styles.dangerButton}>
             Удалить аккаунт

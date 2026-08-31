@@ -1,6 +1,7 @@
 import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyticsLink";
 
 import styles from "./Bio.module.css";
+import { primaryButtonClassName } from "@/shared/components/ui";
 import EditableAvatar from "../EditableAvatar";
 import NotificationStatus from "../NotificationStatus";
 import ProfileAvatar from "../ProfileAvatar";
@@ -146,7 +147,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
 
         {isOwner && (
           <ProfileAnalyticsLink
-            className={`${styles.editBioButton} ${styles.buttonLink}`}
+            className={`${styles.editBioButton} ${styles.buttonLink} ${primaryButtonClassName}`}
             elementId="profile-bio-edit-link-click"
             href="/profile/editBio"
             pathOrScreen={profilePathOrScreen}

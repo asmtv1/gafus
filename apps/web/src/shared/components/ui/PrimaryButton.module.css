@@ -1,4 +1,5 @@
-.root {
+.root,
+:global(.gafus-primary-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -18,22 +19,27 @@
   transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
-.root:hover:not(:disabled) {
+.root:hover:not(:disabled),
+:global(.gafus-primary-button):hover:not(:disabled) {
   box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34);
   transform: translateY(-2px);
 }
 
-.root:active:not(:disabled) {
+.root:active:not(:disabled),
+:global(.gafus-primary-button):active:not(:disabled) {
   box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2);
+  opacity: 0.94;
   transform: translateY(2px);
 }
 
-.root:focus-visible {
+.root:focus-visible,
+:global(.gafus-primary-button):focus-visible {
   outline: 3px solid rgba(215, 131, 123, 0.8);
   outline-offset: 3px;
 }
 
-.root:disabled {
+.root:disabled,
+:global(.gafus-primary-button):disabled {
   cursor: default;
   opacity: 0.56;
 }
@@ -47,4 +53,24 @@
   border-radius: 22px;
   font-size: 18px;
   line-height: 1.33;
+}
+
+/* Allows third-party controls (MUI) and legacy action links to share this exact CTA skin. */
+:global(.gafus-primary-button) {
+  background: linear-gradient(180deg, #96914d 0%, #817d40 18%, #666429 56%, #59581f 84%, #4a4917 100%) !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 7px 12px rgba(53, 52, 16, 0.3) !important;
+  color: #f6f0df !important;
+}
+
+:global(.gafus-primary-button):hover:not(:disabled) {
+  box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34) !important;
+  transform: translateY(-2px) !important;
+}
+
+:global(.gafus-primary-button):active:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2) !important;
+  opacity: 0.94;
+  transform: translateY(2px) !important;
 }

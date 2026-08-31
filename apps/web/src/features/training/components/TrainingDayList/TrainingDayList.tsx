@@ -20,6 +20,9 @@ import styles from "./TrainingDayList.module.css";
 
 const logger = createWebLogger("TrainingDayList");
 
+/** Course records may still contain the legacy "День N" title. Keep it as display-only copy. */
+const getBlockTitle = (title: string) => title.replace(/^День\s+(?=\d)/i, "Блок ");
+
 interface TrainingDayListDay {
   trainingDayId: string;
   dayOnCourseId: string;
@@ -74,6 +77,7 @@ const TrainingDayListDayItem = memo(function TrainingDayListDayItem({
   const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
   const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
   const itemClassName = getItemClass(finalStatus, dayNumber);
+  const displayTitle = getBlockTitle(day.title);
 
   const handleLinkClick = useCallback(
     (e: MouseEvent<HTMLAnchorElement>) => {
@@ -134,7 +138,7 @@ const TrainingDayListDayItem = memo(function TrainingDayListDayItem({
             </div>
           )}
           <div className={styles.titleWithLock}>
-            <h2 className={styles.dayTitle}>{day.title}</h2>
+            <h2 className={styles.dayTitle}>{displayTitle}</h2>
           </div>
           <p className={styles.subtitle}>({DAY_TYPE_LABELS[day.type] || day.type})</p>
           <p>Что понадобится:</p>

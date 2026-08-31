@@ -27,6 +27,7 @@ import { AppSubscriptionPaywall } from "@/features/app-subscription/components/A
 import { showErrorAlert } from "@shared/utils/sweetAlert";
 
 import styles from "./cynologist-slots-client.module.css";
+import { primaryButtonClassName } from "@/shared/components/ui";
 
 interface CynologistSlotsClientProps {
   cynologist: ListedCynologistCardDto;
@@ -422,7 +423,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
                       <Button
                         size="small"
                         variant={isFree ? "contained" : "outlined"}
-                        className={styles.slotActionButton}
+                        className={`${styles.slotActionButton} ${isFree ? primaryButtonClassName : ""}`}
                         disabled={pending || !isFree || verifyingSlotId === slot.id}
                         onClick={() => void verifyAndBook(slot.id, slot.startAtUtc, slot.endAtUtc)}
                       >

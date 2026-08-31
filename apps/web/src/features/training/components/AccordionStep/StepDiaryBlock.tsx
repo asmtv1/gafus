@@ -3,6 +3,7 @@
 import type { DiaryEntry } from "./hooks/useStepDiary";
 
 import styles from "./AccordionStep.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface StepDiaryBlockProps {
   diaryContent: string;
@@ -41,14 +42,14 @@ export function StepDiaryBlock({
               {diaryError}
             </div>
           )}
-          <button
+          <PrimaryButton
             type="button"
             onClick={onSaveDiary}
             disabled={isSavingDiary || !diaryContent.trim()}
             className={styles.completeBtn}
           >
             {isSavingDiary ? "Сохранение…" : "Сохранить"}
-          </button>
+          </PrimaryButton>
         </>
       ) : (
         <div className={styles.completedBadge}>Запись сохранена</div>

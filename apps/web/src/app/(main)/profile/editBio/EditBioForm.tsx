@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 import styles from "./EditBioForm.module.css";
+import { PrimaryButton } from "@/shared/components/ui";
 
 import type { BioFormData, UserProfile, UpdateUserProfileInput } from "@gafus/types";
 import type { UserProfileFormSchema } from "@shared/lib/validation/authSchemas";
@@ -233,9 +234,9 @@ export default function EditBioForm() {
           </div>
 
           <div className={styles.form_buttons}>
-            <button type="submit" className={styles.form_button}>
+            <PrimaryButton type="submit" className={styles.form_button}>
               Сохранить
-            </button>
+            </PrimaryButton>
             <button
               type="button"
               onClick={() => router.back()}

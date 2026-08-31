@@ -4,6 +4,7 @@ import { PetList } from "@/features/profile";
 import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyticsLink";
 import { getCurrentUserPetsPageData } from "@shared/lib/pets/server";
 import { redirect, unstable_rethrow } from "next/navigation";
+import { primaryButtonClassName } from "@/shared/components/ui";
 
 import styles from "./pets.module.css";
 
@@ -45,7 +46,7 @@ export default async function PetsPage() {
           </div>
           <ProfileAnalyticsLink
             href="/profile/addPet"
-            className={styles.addPetButton}
+            className={`${styles.addPetButton} ${primaryButtonClassName}`}
             elementId="pets-add-pet-open"
             pathOrScreen="/pets"
             data-tour-target="pets-add-button"
