@@ -105,28 +105,7 @@
 }
 
 .btnPrimary {
-  text-transform: none !important;
-  font-weight: 600 !important;
-  font-size: 0.95rem !important;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
-  padding: 10px 22px !important;
-  border-radius: 12px !important;
-  color: #ece5d2 !important;
-  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%) !important;
-  border: 1px solid #636128 !important;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3) !important;
-}
-
-.btnPrimary:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%) !important;
-  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4) !important;
-}
-
-.btnPrimary:disabled {
-  background: #d4c4a8 !important;
-  color: #636128 !important;
-  border-color: #d4c4a8 !important;
-  box-shadow: none !important;
+  padding: 10px 22px;
 }
 
 .errorText {
@@ -141,25 +120,13 @@
 }
 
 .addButton {
-  text-transform: none !important;
-  font-weight: 600 !important;
-  font-size: 0.95rem !important;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
-  padding: 10px 20px !important;
-  border-radius: 12px !important;
-  color: #ece5d2 !important;
-  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%) !important;
-  border: 1px solid #636128 !important;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3) !important;
+  gap: 10px;
+  padding: 10px 20px;
 }
 
-.addButton:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%) !important;
-  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4) !important;
-}
-
-.addButton :global(.MuiButton-startIcon) {
-  color: inherit;
+.addButtonIcon {
+  flex: 0 0 auto;
+  font-size: 22px !important;
 }
 
 .emptyState {
@@ -379,10 +346,8 @@
 
 .btnPrimary,
 .addButton {
-  min-height: 44px;
-  border-radius: 12px !important;
+  min-height: 52px;
   font-family: var(--font-montserrat), var(--font-sans-fallback) !important;
-  box-shadow: var(--shadow-button) !important;
 }
 
 .iconBtn {

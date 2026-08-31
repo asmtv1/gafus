@@ -39,7 +39,7 @@ import { PREVENTION_TYPE_LABELS } from "../types";
 import type { PreventionEntryDisplay } from "../types";
 
 import styles from "./prevention-ui.module.css";
-import { primaryButtonClassName } from "@/shared/components/ui";
+import { PrimaryButton } from "@/shared/components/ui";
 
 const REMINDER_TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const MAX_REMINDER_TIMES = 5;
@@ -429,15 +429,13 @@ export function PreventionEntryForm({
         >
           Отмена
         </Button>
-        <Button
+        <PrimaryButton
           onClick={handleSubmit}
-          variant="contained"
           disabled={isPending}
-          className={`${styles.btnPrimary} ${primaryButtonClassName}`}
-          disableElevation
+          className={styles.btnPrimary}
         >
           {isPending ? "Сохранение..." : "Сохранить"}
-        </Button>
+        </PrimaryButton>
       </DialogActions>
     </Dialog>
   );

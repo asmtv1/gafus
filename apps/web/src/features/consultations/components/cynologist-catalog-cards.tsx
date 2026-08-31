@@ -7,6 +7,7 @@ import {
   plainConsultationAboutHtml,
   type ListedCynologistCardDto,
 } from "@gafus/consultation-shared";
+import { primaryButtonClassName } from "@/shared/components/ui";
 
 import styles from "./cynologist-catalog-cards.module.css";
 
@@ -91,7 +92,7 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
                       <span>Длительность слота: {c.slotDurationMin} мин.</span>
                       <span>Часовой пояс: МСК (UTC+3)</span>
                     </div>
-                    <span className={styles.cta}>Выбрать слот →</span>
+                    <span className={`${styles.cta} ${primaryButtonClassName}`}>Выбрать слот →</span>
                   </div>
                 </div>
               </Link>

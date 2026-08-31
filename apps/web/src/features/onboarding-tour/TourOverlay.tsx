@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { PrimaryButton, SecondaryButton } from "@/shared/components/ui";
+
 import styles from "./TourOverlay.module.css";
 import type {
   WebOnboardingTourCardAnchor,
@@ -106,13 +108,13 @@ export function TourOverlay({
         <div className={styles.text}>{step.text}</div>
         <div className={styles.actions}>
           {!isLastStep && allowSkip ? (
-            <button className={styles.skip} type="button" onClick={onSkip}>
+            <SecondaryButton className={styles.skip} onClick={onSkip}>
               Пропустить
-            </button>
+            </SecondaryButton>
           ) : null}
-          <button className={styles.next} type="button" onClick={onNext}>
+          <PrimaryButton className={styles.next} onClick={onNext}>
             {step.primaryActionLabel ?? (isLastStep ? "Готово" : "Далее")}
-          </button>
+          </PrimaryButton>
         </div>
       </div>
     </div>

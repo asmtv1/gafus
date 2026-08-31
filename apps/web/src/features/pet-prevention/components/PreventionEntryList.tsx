@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { trackEvent } from "@gafus/analytics";
 
-import { Box, Button, Chip, IconButton, List, ListItem, ListItemText, Typography } from "@mui/material";
+import { Box, Chip, IconButton, List, ListItem, ListItemText, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
@@ -18,7 +18,7 @@ import { PREVENTION_TYPE_LABELS } from "../types";
 import type { PreventionEntryDisplay } from "../types";
 
 import styles from "./prevention-ui.module.css";
-import { primaryButtonClassName } from "@/shared/components/ui";
+import { PrimaryButton } from "@/shared/components/ui";
 
 interface PreventionEntryListProps {
   entries: PreventionEntryDisplay[];
@@ -113,15 +113,13 @@ export function PreventionEntryList({
   return (
     <>
       <Box className={styles.listWrap} sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
+        <PrimaryButton
           onClick={handleShowAddForm}
-          className={`${styles.addButton} ${primaryButtonClassName}`}
-          disableElevation
+          className={styles.addButton}
         >
+          <AddIcon className={styles.addButtonIcon} aria-hidden="true" />
           Добавить запись
-        </Button>
+        </PrimaryButton>
       </Box>
       {entries.length === 0 ? (
         <p className={styles.emptyState}>Записей пока нет</p>

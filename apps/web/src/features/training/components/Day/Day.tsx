@@ -139,7 +139,7 @@ export function Day({ training, courseType, titleOverride, serverActions }: DayP
       </div>
       <div className={`${styles.descriptionContainer} ${isDescriptionOpen ? styles.expanded : ""}`}>
         <div className={styles.descriptionHeader} onClick={handleToggleDescription}>
-          <h3 className={styles.descriptionTitle}>Описание дня</h3>
+          <h3 className={styles.descriptionTitle}>Описание блока</h3>
           <div className={styles.expandControl}>
             <span className={styles.expandText}>{isDescriptionOpen ? "Скрыть" : "Подробнее"}</span>
             <ExpandMoreIcon

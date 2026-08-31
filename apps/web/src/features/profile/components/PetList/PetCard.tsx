@@ -576,7 +576,10 @@ const PetCard = memo(function PetCard({
             справки от врача.
           </Alert>
           <div className={styles.documentsAddWrap}>
-            <label className={styles.documentUploadLabel} aria-disabled={documentsBusy}>
+            <label
+              className={`${styles.documentUploadLabel} ${primaryButtonClassName}`}
+              aria-disabled={documentsBusy}
+            >
               + Добавить документ
               <input
                 type="file"

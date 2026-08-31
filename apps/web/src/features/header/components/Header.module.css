@@ -178,9 +178,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: 14px;
   background: #fbf7ef;
   border: none;
@@ -188,6 +189,14 @@
   cursor: pointer;
   box-shadow: 0 4px 8px rgba(74, 74, 30, 0.14);
   transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.burgerLabel {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bg-2);
 }
 
 .burgerButton:hover { background: #e9e2cf; transform: translateY(-1px); }

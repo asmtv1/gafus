@@ -144,10 +144,10 @@ export const NON_NUMBERED_DAY_TYPES = [
   "summary",
 ] as const;
 
-/** Подписи типов дней для списка и карточек. */
+/** Подписи типов блоков для списка и карточек. */
 export const DAY_TYPE_LABELS: Record<string, string> = {
-  base: "Базовый день",
-  regular: "Тренировочный день",
+  base: "Базовый блок",
+  regular: "Тренировочный блок",
   introduction: "Вводный блок",
   instructions: "Инструкции",
   diagnostics: "Диагностика",
@@ -155,8 +155,8 @@ export const DAY_TYPE_LABELS: Record<string, string> = {
 };
 
 /**
- * Заголовок дня по типу и номеру для отображения.
- * Для не-тренировочных типов возвращает подпись, иначе «День N» или «День».
+ * Заголовок блока по типу и номеру для отображения.
+ * Для не-тренировочных типов возвращает подпись, иначе «Блок N» или «Блок».
  */
 export function getDayTitle(type: string, displayDayNumber?: number | null): string {
   switch (type) {
@@ -169,7 +169,7 @@ export function getDayTitle(type: string, displayDayNumber?: number | null): str
     case "summary":
       return "Подведение итогов";
     default:
-      return displayDayNumber != null ? `День ${displayDayNumber}` : "День";
+      return displayDayNumber != null ? `Блок ${displayDayNumber}` : "Блок";
   }
 }
 

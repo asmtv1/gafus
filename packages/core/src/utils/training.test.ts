@@ -195,12 +195,12 @@ describe("getDayTitle", () => {
     expect(getDayTitle("summary")).toBe("Подведение итогов");
   });
 
-  it("returns День N for default type with displayDayNumber", () => {
-    expect(getDayTitle("regular", 3)).toBe("День 3");
+  it("returns Блок N for default type with displayDayNumber", () => {
+    expect(getDayTitle("regular", 3)).toBe("Блок 3");
   });
 
-  it("returns День for default type without displayDayNumber", () => {
-    expect(getDayTitle("regular")).toBe("День");
+  it("returns Блок for default type without displayDayNumber", () => {
+    expect(getDayTitle("regular")).toBe("Блок");
   });
 });
 

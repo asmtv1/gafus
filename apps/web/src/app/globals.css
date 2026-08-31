@@ -164,7 +164,8 @@ input[type="reset"],
 }
 
 /* Allows third-party controls (MUI) and legacy action links to share the primary CTA skin. */
-.gafus-primary-button {
+.gafus-primary-button,
+.swal2-confirm-custom {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -184,23 +185,27 @@ input[type="reset"],
   transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
-.gafus-primary-button:hover:not(:disabled) {
+.gafus-primary-button:hover:not(:disabled),
+.swal2-confirm-custom:hover:not(:disabled) {
   box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34) !important;
   transform: translateY(-2px) !important;
 }
 
-.gafus-primary-button:active:not(:disabled) {
+.gafus-primary-button:active:not(:disabled),
+.swal2-confirm-custom:active:not(:disabled) {
   box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2) !important;
   opacity: 0.94;
   transform: translateY(2px) !important;
 }
 
-.gafus-primary-button:focus-visible {
+.gafus-primary-button:focus-visible,
+.swal2-confirm-custom:focus-visible {
   outline: 3px solid rgba(215, 131, 123, 0.8);
   outline-offset: 3px;
 }
 
-.gafus-primary-button:disabled {
+.gafus-primary-button:disabled,
+.swal2-confirm-custom:disabled {
   cursor: default;
   opacity: 0.56;
 }

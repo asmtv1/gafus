@@ -4,7 +4,7 @@
   align-items: center;
   width: 100%;
   max-width: 100%;
-  padding-top: 82px;
+  padding-top: 48px;
 }
 
 .dayHeader {
@@ -379,7 +379,7 @@
 /* Мобильные стили */
 @media (max-width: 768px) {
   .main {
-    padding: 70px 8px 0;
+    padding: 36px 8px 0;
   }
 
   .dayHeader {
@@ -448,4 +448,5 @@
 .descriptionTitle, .dayDescription h1, .dayDescription h2, .dayDescription h3, .dayDescription h4, .dayDescription h5, .dayDescription h6 { font-family: var(--font-montserrat), var(--font-sans-fallback); color: var(--text-primary); }
 .exportPathButton { border: 1px solid var(--accent-primary); border-radius: 12px; background: var(--accent-primary); box-shadow: var(--shadow-button); min-height: 44px; font-family: var(--font-montserrat), var(--font-sans-fallback); font-weight: 700; }
 .exportPathButton:focus-visible, .descriptionHeader:focus-visible, .accordionHeader:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
+@media (min-width: 769px) { .descriptionContainer, .exportPathBlock, .accordionItem { max-width: 920px; } }
 @media (max-width: 768px) { .dayTitle { font-size: clamp(42px, 14vw, 64px); } .descriptionContainer, .accordionItem { max-width: 100%; } }

@@ -22,25 +22,7 @@
   color: #666666 !important;
 }
 
-/* Кнопки как в editBio: Сохранить — градиент, Отмена — обводка */
-.swal2-confirm-custom {
-  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%) !important;
-  color: #ece5d2 !important;
-  border: 1px solid #636128 !important;
-  padding: 12px 24px !important;
-  border-radius: 8px !important;
-  font-size: 0.95rem !important;
-  font-weight: 600 !important;
-  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif !important;
-  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3) !important;
-  transition: all 0.3s ease !important;
-}
-
-.swal2-confirm-custom:hover {
-  background: linear-gradient(135deg, #4a4a1a 0%, #352e2e 100%) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(99, 97, 40, 0.4) !important;
-}
+/* Confirm actions reuse the shared primary CTA from globals.css. */
 
 .swal2-cancel-custom {
   background: transparent !important;

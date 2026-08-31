@@ -74,6 +74,9 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
         aria-expanded={menuOpen}
       >
         <BurgerIcon active={menuOpen} />
+        <span className={styles.burgerLabel} aria-hidden="true">
+          Меню
+        </span>
       </button>
       {menuOpen && (
         <>

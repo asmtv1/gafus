@@ -1,6 +1,6 @@
 /* Основной контейнер страницы редактирования */
 .container {
-  background-color: var(--bg-1);
+  background: transparent;
   width: 100%;
   min-height: 100vh;
   display: flex;
@@ -314,7 +314,7 @@
 
 /* Стили для состояний загрузки */
 .loading_container {
-  background-color: var(--bg-1);
+  background: transparent;
   width: 100%;
   min-height: 100vh;
   display: flex;
