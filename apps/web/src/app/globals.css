@@ -162,3 +162,45 @@ input[type="reset"],
     min-height: 44px;
   }
 }
+
+/* Allows third-party controls (MUI) and legacy action links to share the primary CTA skin. */
+.gafus-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #96914d 0%, #817d40 18%, #666429 56%, #59581f 84%, #4a4917 100%) !important;
+  color: #f6f0df !important;
+  box-shadow: 0 7px 12px rgba(53, 52, 16, 0.3) !important;
+  cursor: pointer;
+  font-family: var(--font-montserrat, var(--font-sans-fallback));
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.gafus-primary-button:hover:not(:disabled) {
+  box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34) !important;
+  transform: translateY(-2px) !important;
+}
+
+.gafus-primary-button:active:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2) !important;
+  opacity: 0.94;
+  transform: translateY(2px) !important;
+}
+
+.gafus-primary-button:focus-visible {
+  outline: 3px solid rgba(215, 131, 123, 0.8);
+  outline-offset: 3px;
+}
+
+.gafus-primary-button:disabled {
+  cursor: default;
+  opacity: 0.56;
+}
