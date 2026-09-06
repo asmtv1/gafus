@@ -151,7 +151,7 @@ async function executeCreate(db: Db, op: Operation) {
   }
   try {
     const gateway = await requireGateway(db, op);
-    const issued = await gateway.createReceipt({ inn: op.receipt.connection.inn, operationAt: op.receipt.operationAt, paymentType: "ACCOUNT", buyer: { incomeType: "FROM_INDIVIDUAL" }, services: [{ name: op.receipt.serviceName, amount: `${Math.floor(op.receipt.amountKopecks / 100)}.${String(op.receipt.amountKopecks % 100).padStart(2, "0")}`, quantity: 1 }] });
+    const issued = await gateway.createReceipt({ inn: op.receipt.connection.inn, operationAt: op.receipt.operationAt, paymentType: "WIRE", buyer: { incomeType: "FROM_INDIVIDUAL" }, services: [{ name: op.receipt.serviceName, amount: `${Math.floor(op.receipt.amountKopecks / 100)}.${String(op.receipt.amountKopecks % 100).padStart(2, "0")}`, quantity: 1 }] });
     await persistIssuedReceipt(db, op, issued);
   } catch (error) {
     const safe = safeError(error);

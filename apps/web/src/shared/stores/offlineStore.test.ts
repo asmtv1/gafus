@@ -16,7 +16,7 @@ vi.mock("@gafus/core/utils/retry", () => ({
   retryWithBackoff: (fn: () => Promise<void>) => fn(),
 }));
 
-import { useOfflineStore } from "./offlineStore";
+import { initializeOfflineStore, setOfflineSyncOwner, useOfflineStore } from "./offlineStore";
 
 describe("web offline store", () => {
   beforeEach(() => {
@@ -27,6 +27,16 @@ describe("web offline store", () => {
       configurable: true,
       value: { randomUUID: () => "action-1" },
     });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { localStorage: globalThis.localStorage },
+    });
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: {},
+    });
+    globalThis.localStorage.clear();
+    setOfflineSyncOwner("user-1");
     useOfflineStore.setState({
       activeDownloads: 0,
       isOnline: false,
@@ -59,11 +69,22 @@ describe("web offline store", () => {
     expect(useOfflineStore.getState().syncQueue).toEqual([
       expect.objectContaining({
         id: "action-1",
+        ownerId: "user-1",
         retryCount: 0,
         timestamp: Date.now(),
         type: "favorite-toggle",
       }),
     ]);
+  });
+
+  it("does not queue an action whose payload belongs to another user", () => {
+    useOfflineStore.getState().addToSyncQueue({
+      data: { content: "test", courseId: "course-1", userId: "user-2" },
+      maxRetries: 1,
+      type: "comment",
+    });
+
+    expect(useOfflineStore.getState().syncQueue).toEqual([]);
   });
 
   it("removes queued actions and clears the queue", () => {
@@ -81,7 +102,7 @@ describe("web offline store", () => {
     expect(useOfflineStore.getState().syncQueue).toEqual([]);
   });
 
-  it("cleans up actions older than seven days", () => {
+  it("keeps actions older than seven days until the server confirms them", () => {
     useOfflineStore.setState({
       syncQueue: [
         {
@@ -104,7 +125,113 @@ describe("web offline store", () => {
     useOfflineStore.getState().cleanupOldActions();
 
     expect(useOfflineStore.getState().syncQueue).toEqual([
+      expect.objectContaining({ id: "old" }),
       expect.objectContaining({ id: "fresh" }),
     ]);
+  });
+
+  it("does not send another user's persisted action", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    useOfflineStore.setState({
+      isOnline: true,
+      lastSyncAttempt: null,
+      syncCooldown: 0,
+      syncQueue: [
+        { data: {}, id: "other-user", maxRetries: 1, ownerId: "user-2", retryCount: 0, timestamp: Date.now(), type: "comment" },
+      ] as never,
+    });
+
+    await useOfflineStore.getState().syncOfflineActions();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useOfflineStore.getState().syncQueue).toHaveLength(1);
+  });
+
+  it("keeps an owned action when the server does not confirm it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: "Unavailable",
+      text: vi.fn().mockResolvedValue("temporary failure"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    useOfflineStore.setState({
+      isOnline: true,
+      lastSyncAttempt: null,
+      syncCooldown: 0,
+      maxRetries: 1,
+      syncQueue: [
+        {
+          data: { content: "test", courseId: "course-1", userId: "user-1" },
+          id: "retry-me",
+          maxRetries: 1,
+          ownerId: "user-1",
+          retryCount: 0,
+          timestamp: Date.now(),
+          type: "comment",
+        },
+      ] as never,
+    });
+
+    await useOfflineStore.getState().syncOfflineActions();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(useOfflineStore.getState().syncQueue).toEqual([expect.objectContaining({ id: "retry-me" })]);
+  });
+
+  it("does not sync while another tab holds the localStorage lease", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    globalThis.localStorage.setItem(
+      "gafus-offline-sync-lock",
+      JSON.stringify({ token: "other-tab", expiresAt: Date.now() + 30_000 }),
+    );
+    useOfflineStore.setState({
+      isOnline: true,
+      lastSyncAttempt: null,
+      syncCooldown: 0,
+      syncQueue: [
+        {
+          data: { content: "test", courseId: "course-1", userId: "user-1" },
+          id: "locked",
+          maxRetries: 1,
+          ownerId: "user-1",
+          retryCount: 0,
+          timestamp: Date.now(),
+          type: "comment",
+        },
+      ] as never,
+    });
+
+    await useOfflineStore.getState().syncOfflineActions();
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(useOfflineStore.getState().syncQueue).toHaveLength(1);
+  });
+
+  it("registers online/offline recovery listeners and removes them on cleanup", () => {
+    const listeners = new Map<string, () => void>();
+    const addEventListener = vi.fn((event: string, listener: () => void) => {
+      listeners.set(event, listener);
+    });
+    const removeEventListener = vi.fn((event: string, listener: () => void) => {
+      if (listeners.get(event) === listener) listeners.delete(event);
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { addEventListener, localStorage: globalThis.localStorage, removeEventListener },
+    });
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { onLine: false },
+    });
+
+    const cleanup = initializeOfflineStore();
+
+    expect(addEventListener).toHaveBeenCalledWith("online", expect.any(Function));
+    expect(addEventListener).toHaveBeenCalledWith("offline", expect.any(Function));
+    cleanup?.();
+    expect(removeEventListener).toHaveBeenCalledWith("online", expect.any(Function));
+    expect(removeEventListener).toHaveBeenCalledWith("offline", expect.any(Function));
   });
 });

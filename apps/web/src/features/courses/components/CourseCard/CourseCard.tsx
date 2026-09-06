@@ -6,11 +6,8 @@ import { useCourseStore } from "@shared/stores";
 import Image from "next/image";
 import Link from "next/link";
 import NextLink from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Download,
-  Refresh,
-  Delete,
   AccessTime,
   SignalCellularAlt,
   CheckCircleOutline,
@@ -18,20 +15,14 @@ import {
 } from "@mui/icons-material";
 
 import styles from "./CourseCard.module.css";
-import { primaryButtonClassName } from "@/shared/components/ui";
 
 import type { CourseCardPropsWithIndex } from "./types";
 
 import { declOfNum } from "@gafus/core/utils";
 import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
 import { SimpleCourseRating } from "../CourseRating";
-import { useOfflineCourse } from "@shared/hooks/useOfflineCourse";
-import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
-import { showSuccessAlert, showErrorAlert } from "@shared/utils/sweetAlert";
-import Swal from "sweetalert2";
 import { useOfflineStore } from "@shared/stores/offlineStore";
 import { FavoriteButton } from "../FavoriteButton/FavoriteButton";
-import { fetchCachedCourseDownloadSubscriptionStatus } from "@/shared/lib/app-subscription/client";
 
 // Заглушка по умолчанию для отсутствующих изображений
 const DEFAULT_PLACEHOLDER = "/uploads/course-logo.webp";
@@ -60,22 +51,8 @@ const formatPriceRub = (priceRub: number | null) => {
   return `${new Intl.NumberFormat("ru-RU").format(priceRub)} ₽`;
 };
 
-const getDownloadTitle = (courseName: string) => `Скачивание курса: ${courseName}`;
 const SHOW_COURSE_AUTHOR_PILL = false;
 const SHOW_COURSE_RATING_AND_REVIEWS = false;
-
-const getDownloadModalHtml = (progress: number) => {
-  const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
-  return `
-    <div class="swal2-download-body">
-      <p class="swal2-download-note">Пожалуйста, не закрывайте приложение до завершения скачивания.</p>
-      <div class="swal2-download-progress">
-        <span class="swal2-download-progress-bar" style="width:${safeProgress}%"></span>
-      </div>
-      <div class="swal2-download-progress-value">${safeProgress}%</div>
-    </div>
-  `;
-};
 
 export const CourseCard = ({
   id,
@@ -86,7 +63,6 @@ export const CourseCard = ({
   isPrivate = false,
   isPaid = false,
   priceRub,
-  hasAccess = true,
   userStatus = TrainingStatus.NOT_STARTED,
   startedAt,
   completedAt,
@@ -114,40 +90,6 @@ export const CourseCard = ({
   const isFavorite = storeIsFavorite(id) ?? propIsFavorite;
   const [imgError, setImgError] = useState(false);
   const [isImageAlreadyCached, setIsImageAlreadyCached] = useState(false);
-  const downloadModalOpenRef = useRef(false);
-
-  // Офлайн-функциональность
-  const {
-    isDownloadedByType,
-    downloadCourse,
-    updateCourse,
-    deleteCourse,
-    isDownloading,
-    downloadProgress,
-    isUpdating,
-  } = useOfflineCourse();
-  const [isDownloaded, setIsDownloaded] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-  const [offlineDownloadAllowed, setOfflineDownloadAllowed] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void fetchCachedCourseDownloadSubscriptionStatus()
-      .then((response) => {
-        if (!active) return;
-        const planCode = response.success ? response.data?.planCode : null;
-        setOfflineDownloadAllowed(
-          response.data?.hasActiveSubscription === true &&
-            (planCode === "MONTHLY" || planCode === "THREE_MONTHS"),
-        );
-      })
-      .catch(() => {
-        if (active) setOfflineDownloadAllowed(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // Проверяем наличие ожидающих синхронизации действий для этого курса
   const syncQueue = useOfflineStore((state) => state.syncQueue);
@@ -164,31 +106,11 @@ export const CourseCard = ({
     }
   }, [propIsFavorite, isFavorite]);
 
-  // Проверяем, скачан ли курс
-  useEffect(() => {
-    const checkDownloaded = async () => {
-      setIsChecking(true);
-      const downloaded = await isDownloadedByType(type);
-      setIsDownloaded(downloaded);
-      setIsChecking(false);
-    };
-    checkDownloaded();
-  }, [type, isDownloadedByType]);
-
-  // Получаем офлайн-версию логотипа из IndexedDB
-  const offlineLogoUrl = useOfflineMediaUrl(type, logoImg || undefined);
-
-  // Используем blob URL если доступен, иначе оригинальный URL
-  // Если изображение не загрузилось или если src пустой, используем заглушку
-  // НО: если есть blob URL, игнорируем imgError (blob URL всегда работает офлайн)
-  const hasBlobUrl = offlineLogoUrl && offlineLogoUrl.startsWith("blob:");
   const finalSrc = !logoImg
     ? DEFAULT_PLACEHOLDER
-    : hasBlobUrl
-      ? offlineLogoUrl
-      : imgError
-        ? DEFAULT_PLACEHOLDER
-        : logoImg;
+    : imgError
+      ? DEFAULT_PLACEHOLDER
+      : logoImg;
 
   // Проверяем кэш изображения в useEffect
   useEffect(() => {
@@ -207,130 +129,6 @@ export const CourseCard = ({
       img.src = logoImg;
     }
   }, [logoImg, isImageAlreadyCached, markImageLoaded, markImageError]);
-
-  const isDownloadModalVisible = () => {
-    const popup = Swal.getPopup();
-    return Boolean(popup && popup.getAttribute("data-download-modal") === "true");
-  };
-
-  // Показываем прогресс скачивания в модальном окне
-  useEffect(() => {
-    if (!isDownloading) {
-      if (isDownloadModalVisible()) {
-        Swal.close();
-      }
-      return;
-    }
-
-    if (!isDownloadModalVisible()) {
-      downloadModalOpenRef.current = true;
-      void Swal.fire({
-        titleText: getDownloadTitle(name),
-        html: getDownloadModalHtml(downloadProgress),
-        imageUrl: "/uploads/logo.png",
-        imageWidth: 140,
-        imageHeight: 120,
-        imageAlt: "Собака",
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        customClass: {
-          popup: "swal2-download-popup",
-          title: "swal2-download-title",
-          htmlContainer: "swal2-download-content",
-          image: "swal2-download-image",
-        },
-        didOpen: (popup) => {
-          popup.setAttribute("data-download-modal", "true");
-        },
-        willClose: () => {
-          downloadModalOpenRef.current = false;
-        },
-      });
-      return;
-    }
-
-    Swal.update({
-      titleText: getDownloadTitle(name),
-      html: getDownloadModalHtml(downloadProgress),
-    });
-  }, [isDownloading, downloadProgress, name]);
-
-  // Обработчики для скачивания и обновления
-  const handleDownload = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const result = await downloadCourse(type);
-    if (isDownloadModalVisible()) {
-      Swal.close();
-    }
-    if (result.success) {
-      setIsDownloaded(true);
-      await showSuccessAlert("Курс успешно скачан");
-    } else {
-      await showErrorAlert(result.error || "Не удалось скачать курс");
-    }
-  };
-
-  const handleUpdate = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const result = await updateCourse(type);
-    if (result.success) {
-      // Обновляем состояние
-      setIsDownloaded(true);
-
-      // Показываем информативное сообщение
-      if (result.hasUpdates) {
-        await showSuccessAlert(result.message || "Курс успешно обновлен");
-      } else {
-        // Курс уже актуален
-        await showSuccessAlert(result.message || "Курс уже актуален");
-      }
-    } else {
-      await showErrorAlert(result.error || "Не удалось обновить курс");
-    }
-  };
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const confirmed = await Swal.fire({
-      title: "Удалить курс?",
-      text: "Вы уверены, что хотите удалить курс из офлайн-хранилища?",
-      imageUrl: "/uploads/logo.png",
-      imageWidth: 50,
-      imageHeight: 50,
-      imageAlt: "Гафус",
-      showCancelButton: true,
-      confirmButtonText: "Удалить",
-      cancelButtonText: "Отмена",
-      confirmButtonColor: "#d32f2f",
-      cancelButtonColor: "#FFF8E5",
-      customClass: {
-        popup: "swal2-popup-custom",
-        title: "swal2-title-custom",
-        htmlContainer: "swal2-content-custom",
-        confirmButton: "swal2-confirm-custom",
-        cancelButton: "swal2-cancel-custom",
-      },
-    });
-
-    if (!confirmed.isConfirmed) {
-      return;
-    }
-
-    const result = await deleteCourse(id);
-    if (result.success) {
-      setIsDownloaded(false);
-      await showSuccessAlert("Курс удален из офлайн-хранилища");
-    } else {
-      await showErrorAlert(result.error || "Не удалось удалить курс");
-    }
-  };
 
   const getStatusText = () =>
     STEP_STATUS_LABELS[userStatus as TrainingStatus] ??
@@ -512,79 +310,6 @@ export const CourseCard = ({
         </div>
       ) : null}
 
-      {!isChecking && (
-        <div className={styles.offlineActions}>
-          {!isDownloaded ? (
-            isPaid && !hasAccess ? (
-              <button
-                className={`${styles.downloadButton} ${primaryButtonClassName}`}
-                type="button"
-                disabled
-                title="Оплатите курс для скачивания"
-              >
-                <Download className={styles.buttonIcon} />
-                <span>Оплатите для скачивания</span>
-              </button>
-            ) : offlineDownloadAllowed !== true ? (
-              <button
-                className={`${styles.downloadButton} ${primaryButtonClassName}`}
-                type="button"
-                disabled
-                title="Скачивание курсов доступно на тарифах от одного месяца"
-              >
-                <Download className={styles.buttonIcon} />
-                <span>
-                  {offlineDownloadAllowed === null
-                    ? "Проверяем тариф…"
-                    : "Скачивание — от 1 месяца"}
-                </span>
-              </button>
-            ) : (
-              <button
-                className={`${styles.downloadButton} ${primaryButtonClassName}`}
-                onClick={handleDownload}
-                disabled={isDownloading}
-                title="Скачать курс для офлайн-доступа"
-              >
-                <Download className={styles.buttonIcon} />
-                <span>
-                  {isDownloading ? `Скачивание ${Math.round(downloadProgress)}%` : "Скачать"}
-                </span>
-              </button>
-            )
-          ) : (
-            <>
-              <button
-                className={styles.updateButton}
-                onClick={handleUpdate}
-                disabled={isUpdating || offlineDownloadAllowed !== true}
-                title={
-                  offlineDownloadAllowed === true
-                    ? "Обновить курс"
-                    : "Обновление офлайн-копии доступно на тарифах от одного месяца"
-                }
-              >
-                <Refresh className={`${styles.buttonIcon} ${isUpdating ? styles.spinning : ""}`} />
-                <span>
-                  {isUpdating
-                    ? "Обновление..."
-                    : offlineDownloadAllowed === true
-                      ? "Обновить"
-                      : "Обновление — от 1 месяца"}
-                </span>
-              </button>
-              <button
-                className={styles.deleteButton}
-                onClick={handleDelete}
-                title="Удалить курс из офлайн-хранилища"
-              >
-                <Delete className={styles.buttonIcon} />
-                <span>Удалить</span>
-              </button>
-            </>
-          )}
-        </div>
-      )}
     </li>
   );
 };

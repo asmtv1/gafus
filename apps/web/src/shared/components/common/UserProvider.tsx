@@ -4,6 +4,9 @@ import AnalyticsIdentityBridge from "@shared/components/analytics/AnalyticsIdent
 import { useStepStore } from "@shared/stores/stepStore";
 import { useUserStore } from "@shared/stores";
 import { usePushStore } from "@shared/stores/push/pushStore";
+import { setOfflineSyncOwner } from "@shared/stores/offlineStore";
+import { setVideoProgressOwner } from "@shared/lib/video/videoProgressStorage";
+import { cleanupLegacyWebOfflineData } from "@shared/lib/migrations/cleanupLegacyWebOfflineData";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 
@@ -44,6 +47,9 @@ export default function UserProvider({ children }: UserProviderProps) {
     }
 
     const nextUserId = status === "authenticated" && session?.user ? session.user.id : null;
+    setOfflineSyncOwner(nextUserId);
+    setVideoProgressOwner(nextUserId);
+    void cleanupLegacyWebOfflineData(nextUserId);
 
     if (lastUserIdRef.current !== nextUserId) {
       lastUserIdRef.current = nextUserId;

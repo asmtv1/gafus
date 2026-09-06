@@ -4,14 +4,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import ImageViewer from "@shared/components/ui/ImageViewer";
-import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
 
 import type { StepType } from "./types";
 
 import styles from "./AccordionStep.module.css";
 
-function OfflineImageViewer({
-  courseType,
+function StepImageViewer({
   src,
   alt,
   width,
@@ -21,7 +19,6 @@ function OfflineImageViewer({
   priority,
   loading,
 }: {
-  courseType: string;
   src: string;
   alt: string;
   width?: number;
@@ -31,10 +28,9 @@ function OfflineImageViewer({
   priority?: boolean;
   loading?: "lazy" | "eager";
 }) {
-  const offlineSrc = useOfflineMediaUrl(courseType, src);
   return (
     <ImageViewer
-      src={offlineSrc || src}
+      src={src}
       alt={alt}
       width={width}
       height={height}
@@ -49,7 +45,6 @@ function OfflineImageViewer({
 interface StepContentProps {
   stepDescription?: string;
   imageUrls?: string[];
-  courseType: string;
   stepTitle: string;
   type: StepType | undefined;
 }
@@ -57,7 +52,6 @@ interface StepContentProps {
 export function StepContent({
   stepDescription,
   imageUrls,
-  courseType,
   stepTitle,
   type,
 }: StepContentProps) {
@@ -84,9 +78,8 @@ export function StepContent({
             <div className={styles.sectionTitle}>Изображения:</div>
             <div className={styles.imagesGrid}>
               {imageUrls!.map((imageUrl, index) => (
-                <OfflineImageViewer
+                <StepImageViewer
                   key={index}
-                  courseType={courseType}
                   src={imageUrl}
                   alt={`Изображение ${index + 1} для шага "${stepTitle}"`}
                   width={300}

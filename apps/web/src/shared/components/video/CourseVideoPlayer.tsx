@@ -78,7 +78,6 @@ export function CourseVideoPlayer({
     const isHLS =
       playbackUrl.includes(".m3u8") ||
       playbackUrl.includes("/manifest") ||
-      playbackUrl.startsWith("/offline-hls/") ||
       playbackUrl.startsWith("blob:");
 
     if (!isHLS) {

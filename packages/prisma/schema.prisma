@@ -839,6 +839,7 @@ model AppSubscription {
   yookassaPaymentMethodLast4      String?   @db.VarChar(4)
   yookassaPaymentMethodTitle      String?
   renewalReminderSentForPeriodEnd DateTime?
+  renewalEmailThreeDaysSentForPeriodEnd DateTime?
   appleOriginalTransactionId      String?
   appleProductId                  String?
 

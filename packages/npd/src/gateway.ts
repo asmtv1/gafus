@@ -17,7 +17,7 @@ export type NpdRecentReceipt = {
   cancelled: boolean;
 };
 /** `amount` is a decimal string with at most two fractional digits; never pass a JS float. */
-export type CreateReceiptInput = { inn: string; operationAt: Date; services: { name: string; amount: string; quantity?: number }[]; buyer?: { displayName?: string; inn?: string; phone?: string; incomeType?: "FROM_INDIVIDUAL" | "FROM_LEGAL_ENTITY" | "FROM_FOREIGN_AGENCY" }; paymentType?: "CASH" | "ACCOUNT" };
+export type CreateReceiptInput = { inn: string; operationAt: Date; services: { name: string; amount: string; quantity?: number }[]; buyer?: { displayName?: string; inn?: string; phone?: string; incomeType?: "FROM_INDIVIDUAL" | "FROM_LEGAL_ENTITY" | "FROM_FOREIGN_AGENCY" }; paymentType?: "CASH" | "WIRE" };
 export type CancelReceiptInput = { receiptUuid: string; reason: "CANCEL" | "REFUND"; operationAt?: Date; comment?: string };
 
 const PRODUCTION_HOST = "lknpd.nalog.ru";
@@ -42,7 +42,7 @@ export class NpdGateway {
     const services = input.services.map((service) => ({ ...service, ...decimalService(service) }));
     const totalKopecks = services.reduce((sum, service) => checkedAdd(sum, checkedMultiply(service.amountKopecks, service.quantity)), 0);
     try {
-      const data = await this.request("POST", "income", { operationTime: iso(input.operationAt), requestTime: iso(new Date()), paymentType: input.paymentType ?? "ACCOUNT", ignoreMaxTotalIncomeRestriction: false, client: { incomeType: input.buyer?.incomeType ?? "FROM_INDIVIDUAL", displayName: input.buyer?.displayName ?? null, contactPhone: input.buyer?.phone ?? null, inn: input.buyer?.inn ?? null }, services: services.map(({ amountKopecks: _amountKopecks, ...service }) => ({ ...service, amount: kopecksToDecimal(_amountKopecks) })), totalAmount: kopecksToDecimal(totalKopecks) }, true);
+      const data = await this.request("POST", "income", { operationTime: iso(input.operationAt), requestTime: iso(new Date()), paymentType: input.paymentType ?? "WIRE", ignoreMaxTotalIncomeRestriction: false, client: { incomeType: input.buyer?.incomeType ?? "FROM_INDIVIDUAL", displayName: input.buyer?.displayName ?? null, contactPhone: input.buyer?.phone ?? null, inn: input.buyer?.inn ?? null }, services: services.map(({ amountKopecks: _amountKopecks, ...service }) => ({ ...service, amount: kopecksToDecimal(_amountKopecks) })), totalAmount: kopecksToDecimal(totalKopecks) }, true);
       try { return this.receipt(input.inn, string(data, "approvedReceiptUuid", "createReceipt")); }
       catch (error) { if (error instanceof NpdGatewayError) throw new NpdGatewayError("AMBIGUOUS_WRITE", "NPD create receipt outcome is ambiguous"); throw error; }
     } catch (error) {

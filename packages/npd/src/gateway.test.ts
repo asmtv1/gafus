@@ -4,6 +4,27 @@ import { NpdGateway, NpdGatewayError, redactNpd } from "./gateway.js";
 const response = (body: string, status = 200) => new Response(body, { status, headers: { "content-type": "application/json" } });
 const gateway = (fetch: typeof globalThis.fetch) => new NpdGateway({ deviceId: "stable-device", fetch, timeoutMs: 5 });
 describe("NpdGateway", () => {
+  it.each([undefined, "WIRE", "CASH"] as const)("serializes the receipt payment type %s (default WIRE)", async (paymentType) => {
+    let body = "";
+    let endpoint = "";
+    let method = "";
+    const operationAt = new Date("2026-09-05T20:08:49.193Z");
+    await gateway(async (url, init) => {
+      endpoint = String(url);
+      method = String(init?.method);
+      body = String(init?.body);
+      return response('{"approvedReceiptUuid":"receipt"}');
+    }).createReceipt({ inn: "123456789012", operationAt, paymentType, services: [{ name: "Premium", amount: "390.00", quantity: 1 }] });
+    expect(endpoint).toBe("https://lknpd.nalog.ru/api/v1/income");
+    expect(method).toBe("POST");
+    expect(JSON.parse(body)).toMatchObject({
+      paymentType: paymentType ?? "WIRE",
+      operationTime: "2026-09-05T20:08:49.193+00:00",
+      totalAmount: "390.00",
+      client: { incomeType: "FROM_INDIVIDUAL", inn: null },
+      services: [{ name: "Premium", amount: "390.00", quantity: 1 }],
+    });
+  });
   it("uses the captured SMS protocol and validates its response", async () => {
     let request = "";
     const result = await gateway(async (url) => { request = String(url); return response('{"challengeToken":"challenge","expireIn":120}'); }).startSms("8 (900) 123-45-67");

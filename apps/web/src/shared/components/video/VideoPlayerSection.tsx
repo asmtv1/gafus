@@ -6,21 +6,13 @@ import { getCDNUrl } from "@gafus/cdn-upload";
 import { CourseVideoPlayer } from "@shared/components/video/CourseVideoPlayer";
 import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";
-import { getOfflineCourseByType } from "@shared/lib/offline/offlineCourseStorage";
 import { getVideoProgress, saveVideoProgress } from "@shared/lib/video/videoProgressActions";
-import {
-  getLocalVideoProgress,
-  saveLocalVideoProgress,
-} from "@shared/lib/video/videoProgressStorage";
 import { reportClientError } from "@gafus/error-handling";
-import { useOfflineStore } from "@shared/stores/offlineStore";
 import type { VideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import styles from "./VideoPlayerSection.module.css";
 
 interface VideoPlayerSectionProps {
-  videoUrl: string | null; // URL для воспроизведения (может быть blob URL для офлайн)
-  originalVideoUrl?: string | null; // Оригинальный URL для получения метаданных
-  courseType?: string | null; // Тип курса для доступа к IndexedDB
+  videoUrl: string | null;
   videoInfo?: {
     embedUrl: string;
     isShorts: boolean;
@@ -36,35 +28,16 @@ interface VideoPlayerSectionProps {
  */
 export function VideoPlayerSection({
   videoUrl,
-  originalVideoUrl,
-  courseType,
   videoInfo,
 }: VideoPlayerSectionProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
-  const [offlineThumbnail, setOfflineThumbnail] = useState<Blob | null>(null);
-  const [thumbnailBlobUrl, setThumbnailBlobUrl] = useState<string | null>(null);
   const [initialTimeSec, setInitialTimeSec] = useState<number | undefined>(undefined);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false); // Флаг для ленивой загрузки
   const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const progressSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
-
-  // Получаем статус онлайн/офлайн
-  const isOnline = useOfflineStore((state) => state.isOnline);
-
-  // Определяем, является ли videoUrl Service Worker URL для офлайн видео
-  // Мемоизируем для предотвращения лишних ререндеров
-  const isOfflineVideo = useMemo(() => videoUrl?.startsWith("/offline-hls/") ?? false, [videoUrl]);
-  // Используем originalVideoUrl для метаданных, если videoUrl это Service Worker URL
-  // Мемоизируем для предотвращения лишних ререндеров
-  const urlForMetadata = useMemo(
-    () => (isOfflineVideo && originalVideoUrl ? originalVideoUrl : videoUrl),
-    [isOfflineVideo, originalVideoUrl, videoUrl],
-  );
-
-  // Для офлайн видео signedUrl не нужен, используем videoUrl напрямую
 
   // Мемоизируем videoId для предотвращения лишних ререндеров
   const videoId = useMemo(() => videoMetadata?.videoId, [videoMetadata?.videoId]);
@@ -77,81 +50,9 @@ export function VideoPlayerSection({
     setRetryAttempt(0);
   }, [videoUrl]);
 
-  // Загружаем thumbnail из IndexedDB для офлайн режима
+  // Загружаем метаданные видео при монтировании.
   useEffect(() => {
-    if (!isOfflineVideo || !courseType || !videoUrl) {
-      setOfflineThumbnail(null);
-      setThumbnailBlobUrl(null);
-      return;
-    }
-
-    // Получаем курс из IndexedDB
-    let cancelled = false;
-    getOfflineCourseByType(courseType)
-      .then((offlineCourse) => {
-        if (cancelled) return null;
-        if (!offlineCourse) {
-          return null;
-        }
-
-        const hlsVideos = offlineCourse.mediaFiles.hlsVideos;
-        let hlsVideo = hlsVideos[videoUrl];
-
-        // Если не найдено по точному совпадению, ищем по videoId из метаданных
-        if (!hlsVideo && videoId) {
-          for (const [, value] of Object.entries(hlsVideos)) {
-            if (value.videoId === videoId) {
-              hlsVideo = value;
-              break;
-            }
-          }
-        }
-
-        // Если не найдено, пробуем найти по originalVideoUrl
-        if (!hlsVideo && originalVideoUrl) {
-          hlsVideo = hlsVideos[originalVideoUrl];
-        }
-
-        // Если найдено видео и есть thumbnailPath, получаем thumbnail
-        if (hlsVideo?.thumbnailPath) {
-          const thumbnailBlob = offlineCourse.mediaFiles.images[hlsVideo.thumbnailPath];
-          if (thumbnailBlob) {
-            if (cancelled) return null;
-            setOfflineThumbnail(thumbnailBlob);
-            // Создаём blob URL для thumbnail
-            const blobUrl = URL.createObjectURL(thumbnailBlob);
-            setThumbnailBlobUrl(blobUrl);
-            return;
-          }
-        }
-
-        return null;
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        reportClientError(error, {
-          severity: "error",
-          issueKey: "VideoPlayerSection",
-          keys: { operation: "video_thumbnail" },
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOfflineVideo, courseType, videoUrl, originalVideoUrl, videoId]);
-
-  // Очищаем blob URL для thumbnail при размонтировании или изменении
-  useEffect(() => {
-    return () => {
-      if (thumbnailBlobUrl) {
-        URL.revokeObjectURL(thumbnailBlobUrl);
-      }
-    };
-  }, [thumbnailBlobUrl]);
-
-  // Загружаем метаданные видео при монтировании (используем originalVideoUrl если videoUrl это blob)
-  useEffect(() => {
-    if (!urlForMetadata) {
+    if (!videoUrl) {
       setVideoMetadata(null);
       setIsLoadingMetadata(false);
       return;
@@ -160,7 +61,7 @@ export function VideoPlayerSection({
     let cancelled = false;
     setIsLoadingMetadata(true);
     setVideoMetadata(null);
-    getVideoMetadata(urlForMetadata)
+    getVideoMetadata(videoUrl)
       .then((metadata) => {
         if (cancelled) return;
         setVideoMetadata(metadata);
@@ -179,7 +80,7 @@ export function VideoPlayerSection({
     return () => {
       cancelled = true;
     };
-  }, [urlForMetadata]);
+  }, [videoUrl]);
 
   // Загружаем прогресс просмотра при наличии videoId (универсально: онлайн/офлайн)
   useEffect(() => {
@@ -191,12 +92,7 @@ export function VideoPlayerSection({
     let cancelled = false;
     setInitialTimeSec(undefined);
 
-    // Выбираем источник в зависимости от статуса онлайн/офлайн
-    const loadProgress = isOnline
-      ? getVideoProgress(videoId)
-      : getLocalVideoProgress(videoId).then((pos) => (pos ? { lastPositionSec: pos } : null));
-
-    loadProgress
+    getVideoProgress(videoId)
       .then((progress) => {
         if (cancelled) return;
         if (progress && progress.lastPositionSec > 0) {
@@ -214,7 +110,7 @@ export function VideoPlayerSection({
     return () => {
       cancelled = true;
     };
-  }, [videoId, isOnline]);
+  }, [videoId]);
 
   // Колбэк для сохранения позиции просмотра (универсально: онлайн/офлайн)
   const handleSaveProgress = useCallback(
@@ -223,13 +119,10 @@ export function VideoPlayerSection({
         return;
       }
 
-      // Выбираем метод сохранения в зависимости от статуса онлайн/офлайн
       progressSaveQueueRef.current = progressSaveQueueRef.current
         .catch(() => undefined)
         .then(async () => {
-          const result = isOnline
-            ? await saveVideoProgress(videoId, positionSec)
-            : await saveLocalVideoProgress(videoId, positionSec).then(() => ({ success: true }));
+          const result = await saveVideoProgress(videoId, positionSec);
           if (!result.success) {
             const errorMessage =
               "error" in result && typeof result.error === "string"
@@ -246,13 +139,12 @@ export function VideoPlayerSection({
           });
         });
     },
-    [videoId, isOnline],
+    [videoId],
   );
 
   // Загружаем signed URL только когда пользователь кликнул на play (для CDN видео)
   useEffect(() => {
-    // Пропускаем если нет videoUrl, это офлайн видео, signed URL уже загружен, или пользователь ещё не кликнул
-    if (!videoUrl || isOfflineVideo || !shouldLoadVideo) {
+    if (!videoUrl || !shouldLoadVideo) {
       return;
     }
 
@@ -292,7 +184,7 @@ export function VideoPlayerSection({
     return () => {
       cancelled = true;
     };
-  }, [videoUrl, isOfflineVideo, shouldLoadVideo, retryAttempt]);
+  }, [videoUrl, shouldLoadVideo, retryAttempt]);
 
   const handleRetryVideo = useCallback(() => {
     setVideoLoadError(null);
@@ -391,23 +283,14 @@ export function VideoPlayerSection({
     );
   }
 
-  // CDN видео COMPLETED - показываем thumbnail или плеер
-  // Для офлайн видео (isOfflineVideo) всегда показываем thumbnail или плеер
+  // CDN видео COMPLETED - показываем thumbnail или плеер.
   if (
     videoMetadata?.transcodingStatus === "COMPLETED" ||
-    (!videoMetadata && videoInfo?.isHLS) ||
-    isOfflineVideo
+    (!videoMetadata && videoInfo?.isHLS)
   ) {
-    // Для офлайн видео используем Service Worker URL напрямую, для онлайн - signed URL
-    const playbackUrl = isOfflineVideo ? videoUrl : signedUrl;
-
-    // Определяем, какой thumbnail показывать
-    const thumbnailSrc =
-      isOfflineVideo && offlineThumbnail && thumbnailBlobUrl
-        ? thumbnailBlobUrl
-        : videoMetadata?.thumbnailPath
-          ? getCDNUrl(videoMetadata.thumbnailPath)
-          : null;
+    const thumbnailSrc = videoMetadata?.thumbnailPath
+      ? getCDNUrl(videoMetadata.thumbnailPath)
+      : null;
 
     // Один кастомный плеер: обложка и <video> в одном контейнере, по клику — HLS без смены DOM
     return (
@@ -415,8 +298,8 @@ export function VideoPlayerSection({
         <CourseVideoPlayer
           key={retryAttempt}
           poster={thumbnailSrc}
-          playbackUrl={playbackUrl}
-          isLoading={!isOfflineVideo && shouldLoadVideo && !signedUrl}
+          playbackUrl={signedUrl}
+          isLoading={shouldLoadVideo && !signedUrl}
           onPlayRequest={() => setShouldLoadVideo(true)}
           initialTimeSec={initialTimeSec}
           onSaveProgress={handleSaveProgress}

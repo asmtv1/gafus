@@ -21,6 +21,85 @@ import type {
 // Создаем логгер для offline store
 const logger = createWebLogger("web-offline-store");
 
+type OwnedOfflineAction = OfflineAction & { ownerId?: string };
+
+const SYNC_LOCK_KEY = "gafus-offline-sync-lock";
+const SYNC_LOCK_TTL_MS = 30_000;
+let currentOwnerId: string | null = null;
+let syncInThisTab = false;
+
+/** The session owner is supplied by UserProvider and is never persisted separately. */
+export function setOfflineSyncOwner(userId: string | null): void {
+  currentOwnerId = userId;
+}
+
+function isOwnedByCurrentSession(action: OfflineAction): action is OwnedOfflineAction & { ownerId: string } {
+  return (
+    typeof (action as OwnedOfflineAction).ownerId === "string" &&
+    (action as OwnedOfflineAction).ownerId === currentOwnerId
+  );
+}
+
+function actionBelongsToOwner(action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">): boolean {
+  const data = action.data as { userId?: unknown };
+  return typeof data.userId !== "string" || data.userId === currentOwnerId;
+}
+
+async function withSyncLock(run: () => Promise<void>): Promise<void> {
+  if (syncInThisTab || typeof window === "undefined") return;
+  syncInThisTab = true;
+  const token = crypto.randomUUID();
+
+  try {
+    // navigator.locks is atomic across tabs when available. The localStorage lease
+    // also protects browsers without that API and makes the ownership observable.
+    const executeWithLease = async () => {
+      const now = Date.now();
+      const existing = window.localStorage.getItem(SYNC_LOCK_KEY);
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing) as { token?: string; expiresAt?: number };
+          if (typeof parsed.expiresAt === "number" && parsed.expiresAt > now) return;
+        } catch {
+          // A malformed stale value is safe to replace with our short lease.
+        }
+      }
+      const lease = JSON.stringify({ token, expiresAt: now + SYNC_LOCK_TTL_MS });
+      window.localStorage.setItem(SYNC_LOCK_KEY, lease);
+      if (window.localStorage.getItem(SYNC_LOCK_KEY) !== lease) return;
+
+      try {
+        await run();
+      } finally {
+        const held = window.localStorage.getItem(SYNC_LOCK_KEY);
+        if (held) {
+          try {
+            if ((JSON.parse(held) as { token?: string }).token === token) window.localStorage.removeItem(SYNC_LOCK_KEY);
+          } catch {
+            // Do not remove a lock we cannot prove belongs to this tab.
+          }
+        }
+      }
+    };
+
+    const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+    if (locks) {
+      await locks.request(SYNC_LOCK_KEY, { ifAvailable: true }, async (lock) => {
+        if (lock) await executeWithLease();
+      });
+    } else {
+      await executeWithLease();
+    }
+  } catch (error) {
+    logger.warn("Could not acquire offline sync lock", {
+      operation: "offline_sync_lock_error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    syncInThisTab = false;
+  }
+}
+
 export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
@@ -104,9 +183,25 @@ export const useOfflineStore = create<OfflineState>()(
       // Добавление действия в очередь синхронизации
       addToSyncQueue: (action) => {
         try {
-          const newAction: OfflineAction = {
+          if (!currentOwnerId) {
+            logger.warn("Skipping offline action without an authenticated session owner", {
+              operation: "skip_unowned_offline_action",
+              actionType: action.type,
+            });
+            return;
+          }
+          if (!actionBelongsToOwner(action)) {
+            logger.warn("Skipping offline action with a different user owner", {
+              operation: "skip_foreign_offline_action",
+              actionType: action.type,
+            });
+            return;
+          }
+
+          const newAction: OwnedOfflineAction = {
             ...action,
             id: crypto.randomUUID(),
+            ownerId: currentOwnerId,
             timestamp: Date.now(),
             retryCount: 0,
           };
@@ -158,82 +253,69 @@ export const useOfflineStore = create<OfflineState>()(
         set({ syncQueue: [] });
       },
 
-      // Очистка старых действий из очереди
+      // Сохранённые действия не удаляются по возрасту: без подтверждения сервера
+      // они остаются для владельца следующей сессии.
       cleanupOldActions: () => {
-        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 дней
-        const now = Date.now();
-
-        set((state) => ({
-          syncQueue: state.syncQueue.filter((action) => {
-            const age = now - action.timestamp;
-            return age < maxAge;
-          }),
-        }));
+        return;
       },
 
       // Синхронизация offline действий
       syncOfflineActions: async () => {
         try {
-          const state = get();
-          const now = Date.now();
-
-          // Сначала очищаем старые действия
-          get().cleanupOldActions();
-
-          // Проверяем, что мы онлайн и есть действия для синхронизации
-          if (!state.isOnline || state.syncQueue.length === 0) {
+          const initialState = get();
+          if (!initialState.isOnline || initialState.syncQueue.length === 0 || !currentOwnerId) {
             return;
           }
-
-          // Проверяем таймаут между попытками синхронизации
-          if (state.lastSyncAttempt && now - state.lastSyncAttempt < state.syncCooldown) {
-            return;
-          }
-
-          // Обновляем время последней попытки синхронизации
-          set({ lastSyncAttempt: now });
-
-          const actionsToSync = [...state.syncQueue];
-
-          for (const action of actionsToSync) {
-            try {
-              // Используем retryWithBackoff для экспоненциальной задержки
-              await retryWithBackoff(() => syncAction(action), {
-                maxRetries: state.maxRetries,
-                baseDelay: 1000, // 1 секунда
-                maxDelay: 10000, // 10 секунд максимум
-                onRetry: (attempt, error) => {
-                  logger.warn(`Retry ${attempt}/${state.maxRetries} for action ${action.type}`, {
-                    operation: "sync_action_retry",
-                    actionType: action.type,
-                    attempt,
-                    error: error.message,
-                  });
-                },
-              });
-              // Удаляем успешно синхронизированное действие
-              get().removeFromSyncQueue(action.id);
-            } catch (error) {
-              const syncError = error instanceof Error ? error : new Error(String(error));
-              reportClientError(syncError, {
-                issueKey: "OfflineStore",
-                keys: { operation: "syncAction", actionType: action.type },
-              });
-              logger.error(
-                `Failed to sync action ${action.type} after ${state.maxRetries} attempts`,
-                syncError,
-                {
-                  operation: "sync_action_failed_final",
-                  actionType: action.type,
-                  actionId: action.id,
-                },
-              );
-              get().removeFromSyncQueue(action.id);
+          await withSyncLock(async () => {
+            const state = get();
+            const now = Date.now();
+            if (
+              !state.isOnline ||
+              (state.lastSyncAttempt && now - state.lastSyncAttempt < state.syncCooldown)
+            ) {
+              return;
             }
-          }
+            set({ lastSyncAttempt: now });
 
-          // Обновляем время последней синхронизации
-          set({ lastSyncTime: now });
+            const actionsToSync = state.syncQueue.filter(isOwnedByCurrentSession);
+            for (const action of actionsToSync) {
+              try {
+                // Используем retryWithBackoff для экспоненциальной задержки
+                await retryWithBackoff(() => syncAction(action), {
+                  maxRetries: state.maxRetries,
+                  baseDelay: 1000, // 1 секунда
+                  maxDelay: 10000, // 10 секунд максимум
+                  onRetry: (attempt, error) => {
+                    logger.warn(`Retry ${attempt}/${state.maxRetries} for action ${action.type}`, {
+                      operation: "sync_action_retry",
+                      actionType: action.type,
+                      attempt,
+                      error: error.message,
+                    });
+                  },
+                });
+                // Удаляем успешно синхронизированное действие
+                get().removeFromSyncQueue(action.id);
+              } catch (error) {
+                const syncError = error instanceof Error ? error : new Error(String(error));
+                reportClientError(syncError, {
+                  issueKey: "OfflineStore",
+                  keys: { operation: "syncAction", actionType: action.type },
+                });
+                logger.error(
+                  `Failed to sync action ${action.type} after ${state.maxRetries} attempts`,
+                  syncError,
+                  {
+                    operation: "sync_action_failed_final",
+                    actionType: action.type,
+                    actionId: action.id,
+                  },
+                );
+                // Keep an unconfirmed action. A later session for the same owner can retry it.
+              }
+            }
+            set({ lastSyncTime: now });
+          });
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error));
           reportClientError(err, { issueKey: "OfflineStore", keys: { operation: "sync" } });
@@ -391,13 +473,14 @@ async function syncStepStatusUpdate(data: StepStatusUpdateData): Promise<void> {
     if (!dayOnCourseId) {
       throw new Error("dayOnCourseId is required");
     }
-    await updateStepStatusServerAction(
+    const result = await updateStepStatusServerAction(
       data.courseId,
       dayOnCourseId,
       data.stepIndex,
       data.status as TrainingStatus,
       data.stepTitle,
     );
+    assertBusinessSuccess(result, "step status update");
   } catch (error) {
     logger.warn("Failed to sync step status update", {
       operation: "sync_step_status_update_error",
@@ -421,7 +504,7 @@ async function syncStepPause(data: StepPauseData): Promise<void> {
     if (!dayOnCourseId) {
       throw new Error("dayOnCourseId is required");
     }
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       pauseUserStepServerAction(data.courseId, dayOnCourseId, data.stepIndex, data.timeLeft),
       pauseNotificationClient({
         courseId: data.courseId,
@@ -429,6 +512,8 @@ async function syncStepPause(data: StepPauseData): Promise<void> {
         stepIndex: data.stepIndex,
       }),
     ]);
+    if (results[0].status !== "fulfilled") throw results[0].reason;
+    assertBusinessSuccess(results[0].value, "step pause");
   } catch (error) {
     logger.warn("Failed to sync step pause", {
       operation: "sync_step_pause_error",
@@ -452,7 +537,7 @@ async function syncStepResume(data: StepResumeData): Promise<void> {
     if (!dayOnCourseId) {
       throw new Error("dayOnCourseId is required");
     }
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       resumeUserStepServerAction(data.courseId, dayOnCourseId, data.stepIndex),
       resumeNotificationClient({
         courseId: data.courseId,
@@ -461,6 +546,8 @@ async function syncStepResume(data: StepResumeData): Promise<void> {
         durationSec: data.timeLeft,
       }),
     ]);
+    if (results[0].status !== "fulfilled") throw results[0].reason;
+    assertBusinessSuccess(results[0].value, "step resume");
   } catch (error) {
     logger.warn("Failed to sync step resume", {
       operation: "sync_step_resume_error",
@@ -505,7 +592,10 @@ async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
     const { toggleFavoriteCourseAction } = await import("@shared/server-actions");
 
     // Вызываем серверное действие для переключения избранного
-    await toggleFavoriteCourseAction(data.courseId);
+    const result = await toggleFavoriteCourseAction(data.courseId);
+    if (typeof result !== "boolean") {
+      throw new Error("Favorite toggle was not confirmed by the server");
+    }
   } catch (error) {
     logger.warn("Failed to sync favorite toggle", {
       operation: "sync_favorite_toggle_error",
@@ -517,10 +607,16 @@ async function syncFavoriteToggle(data: FavoriteToggleData): Promise<void> {
   }
 }
 
-// Упрощенная функция инициализации store
-// Слушатели событий браузера и редирект обрабатываются в offlineDetector
-export function initializeOfflineStore() {
-  if (typeof window === "undefined") return;
+function assertBusinessSuccess(result: unknown, operation: string): void {
+  if (!result || typeof result !== "object" || (result as { success?: unknown }).success !== true) {
+    throw new Error(`${operation} was not confirmed by the server`);
+  }
+}
+
+// Инициализирует только browser network events. Navigation and fetch interception
+// deliberately live outside this recovery path.
+export function initializeOfflineStore(): (() => void) | undefined {
+  if (typeof window === "undefined") return undefined;
 
   // Инициализируем статус на основе navigator.onLine
   const isOnline = navigator.onLine;
@@ -530,6 +626,20 @@ export function initializeOfflineStore() {
     useOfflineStore.getState().setOnlineStatus(isOnline);
   }
 
-  // Очищаем старые действия при инициализации
-  useOfflineStore.getState().cleanupOldActions();
+  const handleOnline = () => {
+    const store = useOfflineStore.getState();
+    store.setOnlineStatus(true);
+    void store.syncOfflineActions();
+  };
+  const handleOffline = () => {
+    useOfflineStore.getState().setOnlineStatus(false);
+  };
+
+  window.addEventListener("online", handleOnline);
+  window.addEventListener("offline", handleOffline);
+
+  return () => {
+    window.removeEventListener("online", handleOnline);
+    window.removeEventListener("offline", handleOffline);
+  };
 }

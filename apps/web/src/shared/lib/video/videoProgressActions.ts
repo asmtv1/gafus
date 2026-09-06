@@ -90,7 +90,12 @@ export async function saveVideoProgress(
 export async function syncVideoProgressFromLocal(payload: {
   videoId: string;
   lastPositionSec: number;
-}[]): Promise<{ success: boolean; error?: string; syncedCount?: number }> {
+}[]): Promise<{
+  success: boolean;
+  error?: string;
+  syncedCount?: number;
+  confirmedVideoIds?: string[];
+}> {
   try {
     // Получаем сессию
     const session = await getServerSession(authOptions);
@@ -117,12 +122,18 @@ export async function syncVideoProgressFromLocal(payload: {
     );
 
     // Подсчитываем успешно синхронизированные
-    const syncedCount = results.filter(
-      (result) => result.status === "fulfilled" && result.value.success
-    ).length;
+    const confirmedVideoIds = results.flatMap((result, index) =>
+      result.status === "fulfilled" && result.value.success ? [payload[index].videoId] : [],
+    );
+    const syncedCount = confirmedVideoIds.length;
 
     logger.info("Синхронизировано прогрессов", { syncedCount, total: payload.length });
-    return { success: true, syncedCount };
+    return {
+      success: syncedCount === payload.length,
+      syncedCount,
+      confirmedVideoIds,
+      error: syncedCount === payload.length ? undefined : "Не все прогрессы подтверждены сервером",
+    };
   } catch (error) {
     logger.error("Ошибка при синхронизации", error as Error);
     return { success: false, error: "Ошибка при синхронизации прогресса" };

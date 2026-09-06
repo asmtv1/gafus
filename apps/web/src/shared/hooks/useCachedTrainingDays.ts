@@ -9,9 +9,6 @@ import { checkCourseAccessAction } from "@shared/server-actions/course";
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { getOfflineCourseByType } from "../lib/offline/offlineCourseStorage";
-import { checkCourseUpdates } from "../lib/actions/offlineCourseActions";
-import { isOnline } from "@shared/utils/offlineCacheUtils";
 
 // Создаем логгер для use-cached-training-days
 const logger = createWebLogger("web-use-cached-training-days");
@@ -54,7 +51,7 @@ export function useCachedTrainingDays(
   options: UseCachedTrainingDaysOptions = {},
 ): UseCachedTrainingDaysResult {
   const { initialData, initialError } = options;
-  const [loading, setLoading] = useState(true); // Начинаем с loading=true, так как проверяем IndexedDB
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const { getCachedTrainingDays, setCachedTrainingDays } = useTrainingStore();
@@ -67,7 +64,7 @@ export function useCachedTrainingDays(
     setError(null);
 
     try {
-      // Ошибка доступа (платный/приватный курс без прав) — не показываем кэш и офлайн
+      // Ошибка доступа (платный/приватный курс без прав) — не показываем кэш.
       if (initialError?.includes("COURSE_ACCESS_DENIED")) {
         useTrainingStore.getState().clearCachedTrainingDays(courseType);
         setError(initialError);
@@ -75,100 +72,8 @@ export function useCachedTrainingDays(
         return;
       }
 
-      // Приоритет 1: Проверяем IndexedDB (офлайн версия) - ВСЕГДА ПЕРВЫМ
-      try {
-        const offlineCourse = await getOfflineCourseByType(courseType);
-        if (offlineCourse) {
-          logger.info("[Offline] Loading course from IndexedDB", { courseType, operation: "info" });
-
-          // Преобразуем офлайн данные в формат TrainingDaysData
-          // Вычисляем estimatedDuration и theoryMinutes из шагов
-          const offlineData: TrainingDaysData = {
-            trainingDays: offlineCourse.course.trainingDays.map((day) => {
-              // Вычисляем время из шагов
-              let trainingSeconds = 0;
-              let theoryExamSeconds = 0;
-
-              for (const step of day.steps) {
-                if (step.type === "TRAINING") {
-                  trainingSeconds += step.durationSec ?? 0;
-                } else if (step.type === "PRACTICE") {
-                  trainingSeconds += step.estimatedDurationSec ?? 0;
-                } else if (step.type === "DIARY") {
-                  // DIARY не учитывается в расчётах времени
-                } else if (step.type !== "BREAK") {
-                  theoryExamSeconds += step.estimatedDurationSec ?? 0;
-                }
-              }
-
-              const estimatedDuration = Math.ceil(trainingSeconds / 60);
-              const theoryMinutes = Math.ceil(theoryExamSeconds / 60);
-
-              return {
-                trainingDayId: day.id,
-                dayOnCourseId: day.id,
-                title: day.title,
-                type: day.type,
-                courseId: offlineCourse.courseId,
-                userStatus: "NOT_STARTED",
-                estimatedDuration,
-                theoryMinutes,
-                equipment: day.equipment || "",
-                showCoursePathExport: day.showCoursePathExport ?? false,
-              };
-            }),
-            courseDescription: offlineCourse.course.metadata.description,
-            courseId: offlineCourse.courseId,
-            courseVideoUrl: offlineCourse.course.metadata.videoUrl,
-            courseIsPersonalized: false,
-            userCoursePersonalization: null,
-          };
-
-          setCachedTrainingDays(courseType, offlineData);
-          logger.info("[Offline] Course loaded from IndexedDB", {
-            courseType,
-            daysCount: offlineData.trainingDays.length,
-            operation: "info",
-          });
-
-          // Проверяем обновления в фоне (только если онлайн)
-          if (isOnline()) {
-            checkCourseUpdates(courseType, offlineCourse.version)
-              .then((updateResult) => {
-                if (updateResult.success && updateResult.hasUpdates) {
-                  logger.info("[Offline] Course has updates available", {
-                    courseType,
-                    operation: "info",
-                  });
-                }
-              })
-              .catch((err) => {
-                logger.warn("[Offline] Failed to check course updates", {
-                  error: err instanceof Error ? err.message : String(err),
-                  courseType,
-                  operation: "warn",
-                });
-              });
-          }
-
-          setLoading(false);
-          return;
-        }
-      } catch (offlineError) {
-        reportClientError(offlineError, {
-          issueKey: "useCachedTrainingDays",
-          severity: "warning",
-          keys: { operation: "offline_indexeddb", courseType },
-        });
-        logger.warn("[Offline] Failed to load from IndexedDB", {
-          error: offlineError instanceof Error ? offlineError.message : String(offlineError),
-          courseType,
-          operation: "warn",
-        });
-      }
-
-      // Приоритет 2: Если есть серверные данные — проверяем доступ на клиенте (страховка от кэша RSC)
-      if (initialData && isOnline()) {
+      // Приоритет 1: Если есть серверные данные — проверяем доступ на клиенте.
+      if (initialData) {
         const { hasAccess } = await checkCourseAccessAction(courseType);
         if (!hasAccess) {
           useTrainingStore.getState().clearCachedTrainingDays(courseType);
@@ -182,45 +87,26 @@ export function useCachedTrainingDays(
         return;
       }
 
-      // Приоритет 3: Проверяем краткий кэш trainingStore (только для предотвращения дублирующих запросов)
-      // Используется только если нет серверных данных и мы онлайн
-      if (isOnline()) {
-        const cached = getCachedTrainingDays(courseType);
-
-        if (cached.data && !cached.isExpired) {
-          logger.info("[Cache] Using brief cache to prevent duplicate requests", {
-            courseType,
-            operation: "info",
-          });
-          setLoading(false);
-          return;
-        }
+      // Приоритет 2: Проверяем краткий кэш trainingStore, чтобы не дублировать запрос.
+      const cached = getCachedTrainingDays(courseType);
+      if (cached.data && !cached.isExpired) {
+        logger.info("[Cache] Using brief cache to prevent duplicate requests", {
+          courseType,
+          operation: "info",
+        });
+        setLoading(false);
+        return;
       }
 
-      // Если есть серверная ошибка и мы офлайн, игнорируем её (используем офлайн данные)
-      if (initialError && !isOnline()) {
-        logger.warn("[Cache] Server error in offline mode, ignoring", {
-          courseType,
-          error: initialError,
-          operation: "warn",
-        });
-        // Продолжаем - возможно есть офлайн данные в кэше
-      } else if (initialError) {
-        // Если онлайн и есть ошибка - показываем её
+      if (initialError) {
         setError(initialError);
         setLoading(false);
         return;
       }
 
-      // Приоритет 4: Загружаем с сервера (только если онлайн)
-      if (isOnline()) {
-        const userId = await getCurrentUserId();
-        const data = await getTrainingDays(courseType, userId);
-        setCachedTrainingDays(courseType, data);
-      } else {
-        // Офлайн и нет данных - показываем ошибку
-        throw new Error("Нет подключения к интернету и курс не скачан для офлайн-доступа");
-      }
+      const userId = await getCurrentUserId();
+      const data = await getTrainingDays(courseType, userId);
+      setCachedTrainingDays(courseType, data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Неизвестная ошибка";
       reportClientError(err instanceof Error ? err : new Error(errorMessage), {

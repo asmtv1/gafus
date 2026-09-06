@@ -456,7 +456,7 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                   <p className={styles.planSectionKicker}>Период оплаты</p>
                   <h2 className={styles.planSectionTitle}>Выберите тариф</h2>
                   <p className={styles.planSectionText}>
-                    Скачивание курсов и запись к кинологу включены в тарифы от месяца.
+                    Скачивание курсов в мобильном приложении и запись к кинологу включены в тарифы от месяца.
                   </p>
                 </div>
                 <div className={styles.planGrid} role="radiogroup" aria-label="Тарифы подписки">
@@ -510,7 +510,7 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                             <span aria-hidden="true">
                               {includesOfflineCourseDownload(plan) ? "✓" : "—"}
                             </span>
-                            Скачивание курсов для офлайн-работы
+                            Скачивание курсов в мобильном приложении
                             {includesOfflineCourseDownload(plan) ? "" : " — недоступно"}
                           </span>
                           <span

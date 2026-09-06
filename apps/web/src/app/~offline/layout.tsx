@@ -2,10 +2,6 @@
 
 import "../globals.css";
 import NotificationRequesterNew from "@shared/components/ui/NotificationRequesterNew";
-import OfflineStatus from "@shared/components/ui/OfflineStatus";
-import OfflineStoreInitializer from "@shared/components/ui/OfflineStoreInitializer";
-import OfflineDetector from "@shared/components/ui/OfflineDetector";
-import ServiceWorkerRegistrar from "@shared/components/ui/ServiceWorkerRegistrar";
 import { Footer } from "@/features/footer";
 import { Header } from "@/features/header";
 
@@ -16,11 +12,7 @@ export default function OfflineLayout({ children }: { children: React.ReactNode 
     <>
       <div className="page-container">
         <Header userName="" avatarUrl="/uploads/avatar.svg" trainerOnly={false} />
-        <ServiceWorkerRegistrar />
         <NotificationRequesterNew />
-        <OfflineStatus />
-        <OfflineStoreInitializer />
-        <OfflineDetector />
         <main style={{ flex: 1 }}>{children}</main>
         <Footer />
       </div>

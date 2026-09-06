@@ -5,7 +5,7 @@ import { sendImmediatePushNotification } from "@gafus/webpush";
 import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
 
 const logger = createWorkerLogger("app-subscription-renewal-reminders");
-const LOOKAHEAD_MS = 2 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 function sameInstant(a: Date | null, b: Date | null): boolean {
   return Boolean(a && b && a.getTime() === b.getTime());
@@ -27,9 +27,20 @@ function renewalText(amountRub: number, chargeAt: Date): string {
 }
 
 export async function sendYookassaAppSubscriptionRenewalReminders(params?: { batchSize?: number }) {
+  const early = await sendRenewalReminders(params, true);
+  const late = await sendRenewalReminders(params, false);
+  return {
+    sent: early.sent + late.sent,
+    skipped: early.skipped + late.skipped,
+    errors: early.errors + late.errors,
+  };
+}
+
+async function sendRenewalReminders(params: { batchSize?: number } | undefined, early: boolean) {
+  const marker = early ? "renewalEmailThreeDaysSentForPeriodEnd" : "renewalReminderSentForPeriodEnd";
   const batchSize = params?.batchSize ?? 100;
   const now = new Date();
-  const chargeBefore = new Date(now.getTime() + LOOKAHEAD_MS);
+  const chargeBefore = new Date(now.getTime() + (early ? 72 : 2) * HOUR_MS);
 
   const settings = await (prisma as any).appSubscriptionSettings.findUnique({
     where: { key: "default" },
@@ -54,13 +65,20 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: { bat
 
   const rows = await (prisma as any).appSubscription.findMany({
     where: {
+      // Filter before take so already notified subscriptions cannot starve later batches.
+      OR: [
+        { [marker]: null },
+        { [marker]: { not: (prisma as any).appSubscription.fields.currentPeriodEnd } },
+      ],
+      ...(early ? { user: { email: { not: null } } } : {}),
       provider: "YOOKASSA",
       status: "ACTIVE",
       cancelAtPeriodEnd: false,
       isLifetime: false,
       yookassaPaymentMethodId: { not: null },
       currentPeriodEnd: {
-        gt: now,
+        // Catch up after downtime, but avoid two emails in the final two hours.
+        gt: early ? new Date(now.getTime() + 2 * HOUR_MS) : now,
         lte: chargeBefore,
       },
     },
@@ -82,7 +100,8 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: { bat
   for (const row of rows) {
     if (
       !row.currentPeriodEnd ||
-      sameInstant(row.renewalReminderSentForPeriodEnd, row.currentPeriodEnd)
+      sameInstant(row[marker], row.currentPeriodEnd) ||
+      (early && !row.user?.email)
     ) {
       skipped += 1;
       continue;
@@ -99,7 +118,9 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: { bat
       continue;
     }
     const amountRub = plan.yookassaPriceRub;
-    const message = renewalText(amountRub, row.currentPeriodEnd);
+    const message = early
+      ? `Скоро будет продлена подписка Gafus Premium. С карты будет списано ${amountRub} ₽. Дата и время списания: ${formatMskDateTime(row.currentPeriodEnd)}.`
+      : renewalText(amountRub, row.currentPeriodEnd);
     const subject = "Скоро продление подписки Gafus Premium";
 
     try {
@@ -107,26 +128,28 @@ export async function sendYookassaAppSubscriptionRenewalReminders(params?: { bat
         await sendTransactionalMail({
           to: row.user.email,
           subject,
-          text: `${message}\n\nУправлять подпиской можно в профиле: /profile`,
-          html: `<p>${message}</p><p>Управлять подпиской можно в профиле.</p>`,
+          text: `${message}\n\nУправлять подпиской и отключить автопродление можно в профиле: https://gafus.ru/profile`,
+          html: `<p>${message}</p><p>Управлять подпиской и отключить автопродление можно <a href="https://gafus.ru/profile">в профиле</a>.</p>`,
         });
       }
 
-      await sendImmediatePushNotification({
-        userId: row.userId,
-        title: "Скоро продление подписки",
-        body: message,
-        url: "/profile",
-      }).catch((error: unknown) => {
-        logger.warn("Push renewal reminder failed", {
+      if (!early) {
+        await sendImmediatePushNotification({
           userId: row.userId,
-          error: error instanceof Error ? error.message : String(error),
+          title: "Скоро продление подписки",
+          body: message,
+          url: "/profile",
+        }).catch((error: unknown) => {
+          logger.warn("Push renewal reminder failed", {
+            userId: row.userId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         });
-      });
+      }
 
       await (prisma as any).appSubscription.update({
         where: { id: row.id },
-        data: { renewalReminderSentForPeriodEnd: row.currentPeriodEnd },
+        data: { [marker]: row.currentPeriodEnd },
       });
       sent += 1;
     } catch (error) {

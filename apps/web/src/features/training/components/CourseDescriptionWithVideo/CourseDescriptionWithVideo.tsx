@@ -90,8 +90,6 @@ const CourseDescriptionWithVideo = memo(function CourseDescriptionWithVideo({
             {videoInfo.isCDN || videoInfo.isHLS ? (
               <VideoPlayerSection
                 videoUrl={videoUrl}
-                originalVideoUrl={videoUrl}
-                courseType={courseType ?? null}
                 videoInfo={videoInfo}
               />
             ) : videoInfo.embedUrl ? (

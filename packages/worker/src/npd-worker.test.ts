@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { encryptRefreshToken, NpdGateway } from "@gafus/npd";
 
 import { processDueNpdReceiptOperations, reconciliationMatches } from "./npd-worker";
 
@@ -17,9 +18,34 @@ function db(overrides: Record<string, unknown> = {}) {
   return client;
 }
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe("processDueNpdReceiptOperations", () => {
+  it("creates a paid receipt with WIRE and persists the issued receipt", async () => {
+    vi.stubEnv("NPD_PROCESSING_ENABLED", "true");
+    vi.stubEnv("NPD_TOKEN_ENCRYPTION_KEY", "a".repeat(64));
+    const encrypted = encryptRefreshToken("test-refresh-token");
+    const operationAt = new Date("2026-09-05T20:08:49.193Z");
+    vi.spyOn(NpdGateway.prototype, "refresh").mockResolvedValue({ accessToken: "test-access", refreshToken: "test-refresh" });
+    vi.spyOn(NpdGateway.prototype, "getProfile").mockResolvedValue({ inn: "123456789012" });
+    const createReceipt = vi.spyOn(NpdGateway.prototype, "createReceipt").mockResolvedValue({ receiptUuid: "provider-receipt", printUrl: "https://example.test/print", jsonUrl: "https://example.test/json" });
+    const client = db({
+      npdConnection: { update: vi.fn().mockResolvedValue({}) },
+      npdReceipt: { findUnique: vi.fn().mockResolvedValue({ status: "PENDING", payment: { status: "SUCCEEDED" } }), update: vi.fn().mockResolvedValue({}) },
+    });
+    client.npdReceiptOperation.findFirst.mockResolvedValueOnce({ id: "op-1" });
+    client.npdReceiptOperation.updateMany.mockResolvedValue({ count: 1 });
+    client.npdReceiptOperation.findUnique.mockResolvedValue({
+      id: "op-1", receiptId: "receipt-1", type: "CREATE", leaseOwner: "owner", attemptCount: 1,
+      receipt: {
+        connectionId: "connection-1", payment: { status: "SUCCEEDED" }, operationAt, amountKopecks: 39000, serviceName: "Premium",
+        connection: { id: "connection-1", inn: "123456789012", deviceId: "test-device", status: "ACTIVE", fiscalizationStartedAt: operationAt, refreshTokenCipher: encrypted.cipher, refreshTokenIv: encrypted.iv, refreshTokenTag: encrypted.tag, refreshTokenKeyVersion: encrypted.keyVersion },
+      },
+    });
+    await expect(processDueNpdReceiptOperations({ db: client, batchSize: 1 })).resolves.toMatchObject({ processed: 1, skipped: 0 });
+    expect(createReceipt).toHaveBeenCalledExactlyOnceWith({ inn: "123456789012", operationAt, paymentType: "WIRE", buyer: { incomeType: "FROM_INDIVIDUAL" }, services: [{ name: "Premium", amount: "390.00", quantity: 1 }] });
+    expect(client.npdReceipt.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "ISSUED", providerReceiptId: "provider-receipt" }) }));
+  });
   it("does not touch the database while kill switch is off", async () => {
     vi.stubEnv("NPD_PROCESSING_ENABLED", "false");
     const client = db();

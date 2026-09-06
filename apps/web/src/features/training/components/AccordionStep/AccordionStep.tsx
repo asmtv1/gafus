@@ -11,7 +11,6 @@ import { getEmbeddedVideoInfo } from "@gafus/core/utils";
 import { isStepWithTimer } from "@gafus/core/utils/training";
 
 import styles from "./AccordionStep.module.css";
-import { useOfflineMediaUrl } from "@shared/lib/offline/offlineMediaResolver";
 import { VideoPlayerSection } from "@shared/components/video/VideoPlayerSection";
 
 import { useStepDiary } from "./hooks/useStepDiary";
@@ -97,11 +96,7 @@ export function AccordionStep({
   const { startSync, finishSync, addPendingChange, removePendingChange } = useSyncStatus();
   const { updateStepProgress } = useCacheManager();
 
-  const offlineVideoUrl = useOfflineMediaUrl(courseType, videoUrl);
-  const videoInfo = useMemo(() => {
-    const url = offlineVideoUrl || videoUrl;
-    return url ? getEmbeddedVideoInfo(url) : null;
-  }, [offlineVideoUrl, videoUrl]);
+  const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
 
   const handleCompletePractice = useCallback(() => {
     startCompleteTransition(async () => {
@@ -191,7 +186,6 @@ export function AccordionStep({
       <StepContent
         stepDescription={stepDescription}
         imageUrls={imageUrls}
-        courseType={courseType}
         stepTitle={stepTitle}
         type={type}
       />
@@ -219,9 +213,7 @@ export function AccordionStep({
 
       {videoUrl && type !== "BREAK" && (
         <VideoPlayerSection
-          videoUrl={offlineVideoUrl || videoUrl}
-          originalVideoUrl={videoUrl}
-          courseType={courseType}
+          videoUrl={videoUrl}
           videoInfo={videoInfo}
         />
       )}

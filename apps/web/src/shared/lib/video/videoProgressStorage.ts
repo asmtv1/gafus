@@ -17,6 +17,14 @@ interface VideoProgressEntry {
   videoId: string;
   lastPositionSec: number;
   updatedAt: number;
+  ownerId?: string;
+}
+
+let currentOwnerId: string | null = null;
+
+/** Set from UserProvider; records without this binding are never sent to the server. */
+export function setVideoProgressOwner(userId: string | null): void {
+  currentOwnerId = userId;
 }
 
 /**
@@ -80,6 +88,9 @@ export async function saveLocalVideoProgress(
   lastPositionSec: number,
 ): Promise<void> {
   try {
+    if (!currentOwnerId) {
+      throw new Error("Cannot save video progress without an authenticated session owner");
+    }
     const db = await openDB();
     const transaction = db.transaction(STORE_NAME, "readwrite");
     const store = transaction.objectStore(STORE_NAME);
@@ -88,6 +99,7 @@ export async function saveLocalVideoProgress(
       videoId,
       lastPositionSec,
       updatedAt: Date.now(),
+      ownerId: currentOwnerId,
     };
 
     return new Promise((resolve, reject) => {
@@ -130,27 +142,60 @@ export async function getAllVideoProgress(): Promise<VideoProgressEntry[]> {
 }
 
 /**
- * Очищает все записи из IndexedDB (после синхронизации)
+ * Legacy course-download data can be removed only after video progress has no
+ * pending records for the current account. Entries without an owner, or for a
+ * different account, remain untouched because their ownership is unknown here.
  */
-export async function clearAllVideoProgress(): Promise<void> {
+export async function getVideoProgressMigrationState(
+  userId: string | null,
+): Promise<"clear" | "pending" | "unknown"> {
+  if (!userId) return "unknown";
+
   try {
     const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const transaction = db.transaction(STORE_NAME, "readonly");
     const store = transaction.objectStore(STORE_NAME);
-
-    return new Promise((resolve, reject) => {
-      const request = store.clear();
-
+    const entries = await new Promise<VideoProgressEntry[]>((resolve, reject) => {
+      const request = store.getAll();
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
+      request.onsuccess = () => resolve(request.result as VideoProgressEntry[]);
     });
-  } catch (error) {
-    reportClientError(error instanceof Error ? error : new Error(String(error)), {
-      issueKey: "VideoProgress",
-      keys: { operation: "clear" },
-    });
-    throw error;
+
+    if (entries.some((entry) => entry.ownerId !== userId)) return "unknown";
+    return entries.length === 0 ? "clear" : "pending";
+  } catch {
+    return "unknown";
   }
+}
+
+/** Deletes only snapshots acknowledged by the server and unchanged while the request was in flight. */
+async function deleteConfirmedVideoProgress(entries: VideoProgressEntry[], confirmedVideoIds: string[]): Promise<void> {
+  if (!currentOwnerId || confirmedVideoIds.length === 0) return;
+  const confirmed = new Set(confirmedVideoIds);
+  const db = await openDB();
+  const transaction = db.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+
+  await Promise.all(entries.filter((entry) => confirmed.has(entry.videoId)).map((entry) =>
+    new Promise<void>((resolve, reject) => {
+      const request = store.get(entry.videoId);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const current = request.result as VideoProgressEntry | undefined;
+        if (
+          current?.ownerId === currentOwnerId &&
+          current.updatedAt === entry.updatedAt &&
+          current.lastPositionSec === entry.lastPositionSec
+        ) {
+          const deleteRequest = store.delete(entry.videoId);
+          deleteRequest.onerror = () => reject(deleteRequest.error);
+          deleteRequest.onsuccess = () => resolve();
+        } else {
+          resolve();
+        }
+      };
+    }),
+  ));
 }
 
 /**
@@ -158,8 +203,9 @@ export async function clearAllVideoProgress(): Promise<void> {
  */
 export async function syncVideoProgressFromIndexedDB(): Promise<void> {
   try {
+    if (!currentOwnerId) return;
     // Получаем все записи из IndexedDB
-    const entries = await getAllVideoProgress();
+    const entries = (await getAllVideoProgress()).filter((entry) => entry.ownerId === currentOwnerId);
 
     if (entries.length === 0) {
       logger.info("Нет прогрессов для синхронизации");
@@ -178,13 +224,13 @@ export async function syncVideoProgressFromIndexedDB(): Promise<void> {
     // Отправляем на сервер
     const result = await syncVideoProgressFromLocal(payload);
 
-    if (result.success) {
+    if (result.confirmedVideoIds?.length) {
       logger.info("Синхронизировано прогрессов", {
-        count: result.syncedCount ?? entries.length,
+        count: result.confirmedVideoIds.length,
       });
-      // Очищаем IndexedDB после успешной синхронизации
-      await clearAllVideoProgress();
-    } else {
+      await deleteConfirmedVideoProgress(entries, result.confirmedVideoIds);
+    }
+    if (!result.success) {
       logger.error("Ошибка синхронизации", new Error(result.error ?? "Unknown"));
     }
   } catch (error) {

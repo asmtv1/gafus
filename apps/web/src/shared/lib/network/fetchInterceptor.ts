@@ -3,7 +3,6 @@
 import { reportClientError } from "@gafus/error-handling";
 import { createWebLogger } from "@gafus/logger";
 import { useOfflineStore } from "@shared/stores/offlineStore";
-import { isInOfflineGracePeriod } from "./offlineDetector";
 
 /** Извлекает pathname из URL без query (безопасность: не передаём токены/секреты) */
 function extractUrlPath(u: string): string {
@@ -21,7 +20,6 @@ const logger = createWebLogger("web-fetch-interceptor");
 /**
  * Глобальный перехватчик fetch для определения сетевых ошибок
  * Обновляет статус офлайна в store при сетевых ошибках
- * Редирект на страницу офлайна обрабатывается в offlineDetector
  */
 export function setupFetchInterceptor() {
   if (typeof window === "undefined") {
@@ -43,12 +41,11 @@ export function setupFetchInterceptor() {
       url.includes("gafus-media.storage.yandexcloud.net") ||
       url.includes("storage.yandexcloud.net/gafus-media");
 
-    // Игнорируем запросы к странице офлайна, статическим ресурсам и Service Worker URLs
+    // Игнорируем запросы к информационной странице и статическим ресурсам.
     if (
       url.includes("/~offline") ||
       url.includes("/_next/") ||
       url.includes("/api/ping") ||
-      url.startsWith("/offline-hls/") || // Service Worker URLs для офлайн HLS
       url.startsWith("data:") ||
       url.startsWith("blob:")
     ) {
@@ -72,8 +69,8 @@ export function setupFetchInterceptor() {
       throw new TypeError("Failed to fetch: OFFLINE_MODE");
     }
 
-    // Проверяем navigator.onLine перед запросом (grace period — не блокируем при кратких просадках)
-    if (!navigator.onLine && !shouldIgnoreOffline && !isInOfflineGracePeriod()) {
+    // Проверяем navigator.onLine перед запросом.
+    if (!navigator.onLine && !shouldIgnoreOffline) {
       if (store.isOnline) {
         logger.warn("Navigator offline detected before request, setting offline status", { url });
         store.setOnlineStatus(false);
@@ -147,7 +144,6 @@ export function setupFetchInterceptor() {
             isSameOrigin,
           });
           currentStore.setOnlineStatus(false);
-          // Редирект обрабатывается в offlineDetector
         }
       }
 

@@ -7,7 +7,6 @@ import { trackEvent } from "@gafus/analytics";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
-import { useOfflineStore } from "@shared/stores/offlineStore";
 import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
 import type { PaidCourseDrawerCourse } from "@/features/courses";
@@ -67,7 +66,6 @@ export default function TrainingPageClient({
   courseTrainingLevel = null,
   userId,
 }: TrainingPageClientProps) {
-  const _online = useOfflineStore((s) => s.isOnline);
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);

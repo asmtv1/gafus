@@ -5,10 +5,7 @@ import type { Metadata } from "next";
 import "../globals.css";
 
 import NotificationRequesterNew from "@shared/components/ui/NotificationRequesterNew";
-import OfflineStatus from "@shared/components/ui/OfflineStatus";
-import OfflineStoreInitializer from "@shared/components/ui/OfflineStoreInitializer";
-import OfflineDetector from "@shared/components/ui/OfflineDetector";
-import ServiceWorkerRegistrar from "@shared/components/ui/ServiceWorkerRegistrar";
+import WebSyncInitializer from "@shared/components/ui/WebSyncInitializer";
 
 import { Footer } from "@/features/footer";
 import { HeaderServerWrapper } from "@/features/header";
@@ -26,11 +23,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <>
       <div className="page-container">
         <HeaderServerWrapper />
-        <ServiceWorkerRegistrar />
         <NotificationRequesterNew />
-        <OfflineStatus />
-        <OfflineStoreInitializer />
-        <OfflineDetector />
+        <WebSyncInitializer />
         <main style={{ flex: 1 }}>{children}</main>
         <Footer />
       </div>

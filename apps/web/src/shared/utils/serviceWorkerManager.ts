@@ -60,9 +60,6 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
     });
 
     try {
-      // Очищаем старые регистрации перед новой регистрацией
-      await this.cleanupOldRegistrations();
-
       // Мгновенная регистрация без таймаутов
       const registration = await navigator.serviceWorker.register("/sw.js", {
         scope: "/",
@@ -166,36 +163,6 @@ class UniversalServiceWorkerManager implements ServiceWorkerManager {
         );
       }
     });
-  }
-
-  private async cleanupOldRegistrations(): Promise<void> {
-    try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      const currentScope = new URL("/", location.href).href;
-
-      // Удаляем все регистрации, кроме текущей
-      const cleanupPromises = registrations
-        .filter((reg) => reg.scope !== currentScope)
-        .map((reg) => reg.unregister());
-
-      if (cleanupPromises.length > 0) {
-        await Promise.all(cleanupPromises);
-        logger.info(`🧹 SW Manager: Cleaned up ${cleanupPromises.length} old registrations`, {
-          operation: "cleanup_old_registrations",
-          cleanedCount: cleanupPromises.length,
-        });
-      }
-    } catch (error) {
-      logger.warn("⚠️ SW Manager: Failed to cleanup old registrations", {
-        operation: "cleanup_old_registrations_failed",
-        error: error instanceof Error ? error.message : String(error),
-      });
-      reportClientError(error, {
-        severity: "warning",
-        issueKey: "ServiceWorkerManager",
-        keys: { operation: "cleanup_old_registrations" },
-      });
-    }
   }
 
   async getRegistration(): Promise<ServiceWorkerRegistration | null> {
