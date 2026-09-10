@@ -50,8 +50,10 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pnpm
+        run: |
+          npm install --global pnpm@10.12.4
+          test "$(pnpm --version)" = "10.12.4"
 
       - name: Cache pnpm store
         uses: actions/cache@v5
@@ -191,8 +193,10 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pnpm
+        run: |
+          npm install --global pnpm@10.12.4
+          test "$(pnpm --version)" = "10.12.4"
 
       - name: Restore pnpm store cache
         uses: actions/cache@v5
