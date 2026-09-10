@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { canRetakeRejectedExam } from "../lib/examRetake";
@@ -134,10 +134,12 @@ export function TestQuestionsBlock({
 
   if (isLoading) {
     return (
-      <View style={styles.loadingWrap}>
-        <MascotSpinner size="small" />
-        <Text style={styles.loadingText}>Загрузка данных...</Text>
-      </View>
+      <Loading
+        variant="inline"
+        size="small"
+        message="Загрузка данных..."
+        style={styles.loadingWrap}
+      />
     );
   }
 
@@ -207,9 +209,7 @@ export function TestQuestionsBlock({
                     ? "Правильно!"
                     : `Правильный ответ: ${q.options[q.correctAnswer]}`}
                 </Text>
-                {q.comment && (
-                  <Text style={styles.commentText}>Комментарий: {q.comment}</Text>
-                )}
+                {q.comment && <Text style={styles.commentText}>Комментарий: {q.comment}</Text>}
               </View>
             )}
           </View>
@@ -261,11 +261,6 @@ const styles = StyleSheet.create({
   loadingWrap: {
     padding: SPACING.md,
     alignItems: "center",
-  },
-  loadingText: {
-    marginTop: SPACING.sm,
-    fontSize: 14,
-    color: COLORS.textSecondary,
   },
   title: {
     fontSize: 16,

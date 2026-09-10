@@ -1,57 +1,62 @@
 /**
- * One-time токены VK ID (web callback → CredentialsProvider / consent page).
- * Реализация через signed JWT (jose): не требует хранилища, работает
- * в многопроцессорном окружении (next start, Kubernetes и т.д.).
- * TTL 5 мин. «Однократность» обеспечена коротким сроком жизни — повторный
- * вход после consent физически невозможен, т.к. пользователь уже имеет сессию.
+ * Web VK login grants. The previous VkIdOneTimeLogin table is intentionally
+ * never read: migration expiry makes legacy opaque tokens a restart-OAuth case.
  */
+import crypto from "crypto";
 
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { prisma, VkLoginGrantPurpose } from "@gafus/prisma";
 
-interface VkIdUser {
+export interface VkIdUser {
   userId: string;
   username: string;
   role: string;
 }
 
-interface VkIdPayload extends JWTPayload {
-  userId: string;
-  username: string;
-  role: string;
+function tokenHash(token: string) {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-const TTL_SECONDS = 5 * 60;
-
-function getSecret(): Uint8Array {
-  const raw = process.env.NEXTAUTH_SECRET ?? process.env.JWT_SECRET;
-  if (!raw) throw new Error("NEXTAUTH_SECRET не задан");
-  return new TextEncoder().encode(raw);
+/** Compatibility entrypoint for completed-account web OAuth only. */
+export async function storeVkIdOneTimeUser(token: string, user: VkIdUser, requiresConsent = false): Promise<string> {
+  if (requiresConsent) throw new Error("VK registration context required; restart OAuth");
+  const active = await prisma.user.findUnique({
+    where: { id: user.userId }, select: { registrationPending: true },
+  });
+  if (!active || active.registrationPending) throw new Error("VK registration is not completed");
+  await prisma.vkLoginGrant.create({
+    data: {
+      tokenHash: tokenHash(token), userId: user.userId, purpose: VkLoginGrantPurpose.LOGIN,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    },
+  });
+  return token;
 }
 
-export async function storeVkIdOneTimeUser(token: string, user: VkIdUser): Promise<string> {
-  const secret = getSecret();
-  return new SignJWT({ userId: user.userId, username: user.username, role: user.role })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${TTL_SECONDS}s`)
-    .setJti(token)
-    .sign(secret);
+/** Consumes only LOGIN grants, atomically requiring a completed user. */
+export async function consumeVkIdOneTimeUser(token: string): Promise<VkIdUser | null> {
+  const now = new Date();
+  const record = await prisma.vkLoginGrant.findFirst({
+    where: { tokenHash: tokenHash(token), purpose: VkLoginGrantPurpose.LOGIN, expiresAt: { gt: now }, consumedAt: null },
+    include: { user: { select: { id: true, username: true, role: true, registrationPending: true } } },
+  });
+  if (!record || record.user.registrationPending) return null;
+  const consumed = await prisma.vkLoginGrant.updateMany({
+    where: {
+      id: record.id, purpose: VkLoginGrantPurpose.LOGIN, expiresAt: { gt: now }, consumedAt: null,
+      user: { registrationPending: false },
+    },
+    data: { consumedAt: now },
+  });
+  if (consumed.count !== 1) return null;
+  return { userId: record.user.id, username: record.user.username, role: record.user.role };
 }
 
-async function verifyToken(jwtToken: string): Promise<VkIdUser | null> {
-  try {
-    const { payload } = await jwtVerify<VkIdPayload>(jwtToken, getSecret());
-    return { userId: payload.userId, username: payload.username, role: payload.role };
-  } catch {
-    return null;
-  }
+/** Legacy consent tokens cannot be upgraded into an authorization context. */
+export async function getVkIdUserFromToken(_token: string): Promise<VkIdUser | null> {
+  return null;
 }
 
-export async function consumeVkIdOneTimeUser(jwtToken: string): Promise<VkIdUser | null> {
-  return verifyToken(jwtToken);
-}
-
-/** Возвращает пользователя по токену без потребления (для страницы согласий VK). */
-export async function getVkIdUserFromToken(jwtToken: string): Promise<VkIdUser | null> {
-  return verifyToken(jwtToken);
+/** Legacy consent tokens cannot complete pending registration. */
+export async function completeVkIdOneTimeConsent(_token: string): Promise<"invalid"> {
+  return "invalid";
 }

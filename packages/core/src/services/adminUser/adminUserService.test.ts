@@ -10,6 +10,8 @@ import { ServiceError, NotFoundError } from "../../errors/ServiceError";
 const mockUserFindMany = vi.fn();
 const mockUserUpdate = vi.fn();
 const mockUserDelete = vi.fn();
+const mockTransaction = vi.fn();
+const mockBindPartnerPromoCodeInTransaction = vi.fn();
 
 const mockHandlePrismaError = vi.fn(() => {
   throw new NotFoundError("Пользователь");
@@ -21,12 +23,17 @@ vi.mock("../../errors/prismaErrorHandler", () => ({
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
+    $transaction: (...args: unknown[]) => mockTransaction(...args),
     user: {
       findMany: (...args: unknown[]) => mockUserFindMany(...args),
       update: (...args: unknown[]) => mockUserUpdate(...args),
       delete: (...args: unknown[]) => mockUserDelete(...args),
     },
   },
+}));
+
+vi.mock("../appSubscription/partnerService", () => ({
+  bindPartnerPromoCodeInTransaction: (...args: unknown[]) => mockBindPartnerPromoCodeInTransaction(...args),
 }));
 
 vi.mock("bcryptjs", () => ({
@@ -75,6 +82,10 @@ describe("updateUserAdmin", () => {
   beforeEach(() => {
     mockUserUpdate.mockReset();
     mockUserUpdate.mockResolvedValue({});
+    mockTransaction.mockImplementation(async (callback: (tx: { user: { update: typeof mockUserUpdate } }) => unknown) =>
+      callback({ user: { update: mockUserUpdate } }),
+    );
+    mockBindPartnerPromoCodeInTransaction.mockReset();
     mockHandlePrismaError.mockReset();
     mockHandlePrismaError.mockImplementation(() => {
       throw new NotFoundError("Пользователь");
@@ -106,6 +117,18 @@ describe("updateUserAdmin", () => {
         where: { id: "user-1" },
         data: expect.objectContaining({ password: "hashed" }),
       }),
+    );
+  });
+
+  it("runs partner binding inside the same update transaction", async () => {
+    mockBindPartnerPromoCodeInTransaction.mockResolvedValue({});
+
+    const result = await updateUserAdmin("partner-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" });
+
+    expect(result).toEqual({ success: true });
+    expect(mockBindPartnerPromoCodeInTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ update: mockUserUpdate }) }),
+      { userId: "partner-1", promoCodeId: "promo-1" },
     );
   });
 
@@ -209,4 +232,3 @@ describe("deleteUserAdmin", () => {
     });
   });
 });
-

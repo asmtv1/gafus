@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, Pressable, Alert, Platform } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter } from "expo-router";
@@ -140,11 +140,8 @@ function areCourseCardPropsEqual(prev: CourseCardProps, next: CourseCardProps): 
     prev.isFavorite === next.isFavorite &&
     prev.disabled === next.disabled &&
     prev.showIosRuCardPaymentHint === next.showIosRuCardPaymentHint &&
-    prev.listIndex === next.listIndex &&
-    prev.viewportGateCount === next.viewportGateCount &&
     prev.tourTargetId === next.tourTargetId &&
     prev.onToggleFavorite === next.onToggleFavorite &&
-    prev.onViewportCoverReady === next.onViewportCoverReady &&
     areCourseVisualFieldsEqual(prev.course, next.course)
   );
 }
@@ -192,10 +189,6 @@ export interface CourseCardProps {
   showIosRuCardPaymentHint?: boolean;
   /** Блокировка кнопки избранного (напр. во время запроса) */
   disabled?: boolean;
-  /** Индекс в списке: для вкладки «Курсы» — готовность лого до снятия полноэкранного оверлея */
-  listIndex?: number;
-  viewportGateCount?: number;
-  onViewportCoverReady?: (courseId: string) => void;
   tourTargetId?: MobileOnboardingTourTargetId;
 }
 
@@ -208,9 +201,6 @@ function CourseCardComponent({
   onToggleFavorite,
   showIosRuCardPaymentHint = false,
   disabled = false,
-  listIndex,
-  viewportGateCount = 0,
-  onViewportCoverReady,
   tourTargetId,
 }: CourseCardProps) {
   const router = useRouter();
@@ -284,20 +274,6 @@ function CourseCardComponent({
       preferredLogoImgUri ? { uri: preferredLogoImgUri, cacheKey: coverImageCacheKey } : undefined,
     [preferredLogoImgUri, coverImageCacheKey],
   );
-  const viewportCoverReportedRef = useRef(false);
-
-  const isInViewportGate =
-    typeof listIndex === "number" &&
-    viewportGateCount > 0 &&
-    listIndex < viewportGateCount &&
-    typeof onViewportCoverReady === "function";
-
-  const maybeReportViewportCoverReady = useCallback(() => {
-    if (!isInViewportGate || viewportCoverReportedRef.current) return;
-    viewportCoverReportedRef.current = true;
-    onViewportCoverReady?.(course.id);
-  }, [course.id, isInViewportGate, onViewportCoverReady]);
-
   const markLogoDisplayed = useCallback(() => {
     if (displayedCourseLogoVersionKeys.has(logoDisplayVersionKey)) {
       if (!hasDisplayedLogo) {
@@ -308,22 +284,6 @@ function CourseCardComponent({
     displayedCourseLogoVersionKeys.add(logoDisplayVersionKey);
     setHasDisplayedLogo(true);
   }, [hasDisplayedLogo, logoDisplayVersionKey]);
-
-  useEffect(() => {
-    viewportCoverReportedRef.current = false;
-  }, [course.id]);
-
-  useEffect(() => {
-    if (!isInViewportGate || logoImgVersionedUri) return;
-    maybeReportViewportCoverReady();
-  }, [logoImgVersionedUri, isInViewportGate, maybeReportViewportCoverReady]);
-
-  /** Нет ни одного URL варианта — Image не загрузится, onDisplay/onLoadEnd не придут. */
-  useEffect(() => {
-    if (!isInViewportGate || !logoImgVersionedUri) return;
-    if (preferredLogoImgUri) return;
-    maybeReportViewportCoverReady();
-  }, [isInViewportGate, logoImgVersionedUri, preferredLogoImgUri, maybeReportViewportCoverReady]);
 
   useEffect(() => {
     setLogoCandidateIndex(0);
@@ -409,22 +369,19 @@ function CourseCardComponent({
                 contentPosition="center"
                 recyclingKey={logoRecyclingKey}
                 transition={0}
-                priority={isInViewportGate ? "high" : "normal"}
+                priority="normal"
                 onLoad={markLogoDisplayed}
                 onLoadEnd={() => {
                   markLogoDisplayed();
-                  maybeReportViewportCoverReady();
                 }}
                 onDisplay={() => {
                   markLogoDisplayed();
-                  maybeReportViewportCoverReady();
                 }}
                 onError={() => {
                   if (hasNextLogoFallback) {
                     setLogoCandidateIndex((prev) => prev + 1);
                     return;
                   }
-                  maybeReportViewportCoverReady();
                 }}
               />
             </View>
@@ -481,9 +438,7 @@ function CourseCardComponent({
                 </Text>
               </View>
             </View>
-            <Text style={styles.descriptionText} numberOfLines={4}>
-              {course.shortDesc}
-            </Text>
+            <Text style={styles.descriptionText}>{course.shortDesc}</Text>
             <View style={styles.participantsRow}>
               <MaterialCommunityIcons
                 name="account-group-outline"
@@ -675,9 +630,7 @@ function CourseCardComponent({
               ) : !canDownloadOffline ? (
                 <Button
                   label={
-                    isOfflineEligibilityLoading
-                      ? "Проверяем тариф…"
-                      : "Скачивание — от 1 месяца"
+                    isOfflineEligibilityLoading ? "Проверяем тариф…" : "Скачивание — от 1 месяца"
                   }
                   variant="outline"
                   disabled
@@ -902,20 +855,17 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   offlineActions: {
-    width: "46%",
+    width: "100%",
     flexDirection: "row",
     gap: 8,
-    marginLeft: "auto",
-    marginRight: 0,
-    alignSelf: "flex-end",
+    alignSelf: "stretch",
   },
   offlineActionsExpanded: {
     width: "100%",
-    marginLeft: 0,
   },
   courseFooter: {
     width: "100%",
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "stretch",
     justifyContent: "space-between",
     gap: 12,

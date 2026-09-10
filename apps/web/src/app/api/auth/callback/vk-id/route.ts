@@ -5,11 +5,13 @@ import { revalidatePath } from "next/cache";
 
 import { authOptions, storeVkIdOneTimeUser } from "@gafus/auth";
 import { getServerSession } from "next-auth";
-import { prisma, RegistrationChannel } from "@gafus/prisma";
+import { prisma, RegistrationChannel, VkRegistrationContextPurpose } from "@gafus/prisma";
 import {
   exchangeVkCodeAndGetUser,
   exchangeVkCodeForProfile,
   linkVkToUser,
+  claimVkRegistrationContextUserInTransaction,
+  hashRegistrationOpaqueValue,
 } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
@@ -23,29 +25,30 @@ const vkIdCallbackDebug =
   process.env.VK_ID_DEBUG === "true" ||
   process.env.VK_ID_DEBUG === "1";
 
+/**
+ * OAuth redirects must never inherit the request Host/X-Forwarded-Host.  The
+ * callback carries a one-time login grant, so a permissive proxy header here
+ * would turn a proxy misconfiguration into an external redirect/token leak.
+ */
+function getConfiguredBaseOrigin(request: NextRequest): string {
+  const configured = process.env.VK_WEB_REDIRECT_URI
+    ? new URL(process.env.VK_WEB_REDIRECT_URI).origin
+    : process.env.WEB_APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  if (configured) return new URL(configured).origin;
+  if (process.env.NODE_ENV === "production") return "https://gafus.ru";
+
+  const origin = request.nextUrl.origin;
+  const hostname = new URL(origin).hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".ngrok-free.app")) {
+    return origin;
+  }
+  return "http://localhost:3002";
+}
+
 export async function GET(request: NextRequest) {
   if (vkIdCallbackDebug) console.log("[VK ID callback] GET вызван, url:", request.url);
 
-  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  let baseOrigin: string;
-  if (/ngrok/i.test(forwardedHost)) {
-    baseOrigin = `https://${forwardedHost}`;
-  } else if (
-    forwardedHost &&
-    /\./.test(forwardedHost) &&
-    !/localhost|127\.0\.0\.1|^[a-f0-9]{12}$/i.test(forwardedHost.split(":")[0] ?? "")
-  ) {
-    baseOrigin = `${proto}://${forwardedHost}`;
-  } else {
-    // В Docker/proxy Host может быть внутренним — используем env, затем fallback для production
-    const vkOrigin = process.env.VK_WEB_REDIRECT_URI
-      ? new URL(process.env.VK_WEB_REDIRECT_URI).origin
-      : null;
-    const webUrl = process.env.WEB_APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
-    const prodFallback = process.env.NODE_ENV === "production" ? "https://gafus.ru" : null;
-    baseOrigin = vkOrigin ?? webUrl ?? prodFallback ?? new URL(request.url).origin;
-  }
+  const baseOrigin = getConfiguredBaseOrigin(request);
 
   const ip = getClientIp(request);
   if (!checkAuthRateLimit(ip, "vk-id-callback")) {
@@ -72,7 +75,8 @@ export async function GET(request: NextRequest) {
 
   let parsedCookie: {
     state: string;
-    codeVerifier: string;
+    codeVerifier?: string;
+    contextToken?: string;
     returnPath?: string;
     mode?: string;
     redirectUri?: string;
@@ -104,17 +108,23 @@ export async function GET(request: NextRequest) {
 
   const isLinkMode = parsedCookie.mode === "link";
 
+  const registrationContext = !isLinkMode && parsedCookie.contextToken
+    ? await prisma.vkRegistrationContext.findUnique({
+        where: { contextTokenHash: hashRegistrationOpaqueValue(parsedCookie.contextToken) },
+        select: { codeVerifier: true, expiresAt: true, purpose: true },
+      })
+    : null;
+  if (!isLinkMode && (!registrationContext || registrationContext.expiresAt <= new Date() || registrationContext.purpose !== VkRegistrationContextPurpose.REGISTER)) {
+    return NextResponse.redirect(new URL("/login?error=vk_context_expired", baseOrigin));
+  }
+
   const clientId = process.env.VK_CLIENT_ID ?? "";
   let redirectUri =
     parsedCookie.redirectUri ??
     process.env.VK_WEB_REDIRECT_URI ??
     "";
-  if (!redirectUri && forwardedHost) {
-    if (/ngrok/i.test(forwardedHost)) {
-      redirectUri = `https://${forwardedHost}/api/auth/callback/vk-id`;
-    } else if (/localhost|127\.0\.0\.1/i.test(forwardedHost)) {
-      redirectUri = `${baseOrigin}/api/auth/callback/vk-id`;
-    }
+  if (!redirectUri && process.env.NODE_ENV !== "production") {
+    redirectUri = `${baseOrigin}/api/auth/callback/vk-id`;
   }
   if (vkIdCallbackDebug) console.log("[VK ID callback] state OK, redirectUri=", redirectUri, "обмениваем code на token...");
 
@@ -128,7 +138,7 @@ export async function GET(request: NextRequest) {
 
       const vkProfile = await exchangeVkCodeForProfile({
         code,
-        codeVerifier: parsedCookie.codeVerifier,
+        codeVerifier: parsedCookie.codeVerifier ?? "",
         deviceId: device_id,
         state: returnedState,
         redirectUri,
@@ -163,7 +173,7 @@ export async function GET(request: NextRequest) {
 
     const result = await exchangeVkCodeAndGetUser({
       code,
-      codeVerifier: parsedCookie.codeVerifier,
+      codeVerifier: registrationContext!.codeVerifier,
       deviceId: device_id,
       state: returnedState,
       redirectUri,
@@ -171,21 +181,32 @@ export async function GET(request: NextRequest) {
       registrationChannel: RegistrationChannel.WEB,
     });
 
-    const { user, isNewUser } = result;
-    const jwtToken = await storeVkIdOneTimeUser(crypto.randomUUID(), {
+    const { user, requiresConsent } = result;
+    if (requiresConsent) {
+      await prisma.$transaction((tx) => claimVkRegistrationContextUserInTransaction(tx, {
+        contextToken: parsedCookie.contextToken!, state: returnedState, userId: user.id, purpose: VkRegistrationContextPurpose.REGISTER,
+      }));
+      const finalUrl = new URL("/vk-consent", baseOrigin);
+      finalUrl.searchParams.set("context", parsedCookie.contextToken!);
+      const response = NextResponse.redirect(finalUrl);
+      response.cookies.set("vk_registration_state", returnedState, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 300, path: "/" });
+      return response;
+    }
+    const { isNewUser } = result;
+    const vkToken = await storeVkIdOneTimeUser(crypto.randomUUID(), {
       userId: user.id,
       username: user.username,
       role: user.role,
-    });
+    }, isNewUser);
 
     logger.info("VK ID callback success", { userId: user.id, isNewUser });
     if (vkIdCallbackDebug) console.log("[VK ID callback] success, userId=", user.id, "isNewUser=", isNewUser);
 
     // Новые VK-пользователи — на страницу согласий перед входом
     const finalPath = isNewUser ? "/vk-consent" : returnPath;
-    return NextResponse.redirect(
-      new URL(`${finalPath}?vk_id_token=${encodeURIComponent(jwtToken)}`, baseOrigin),
-    );
+    const finalUrl = new URL(finalPath, baseOrigin);
+    finalUrl.searchParams.set("vk_id_token", vkToken);
+    return NextResponse.redirect(finalUrl);
   } catch (error) {
     const err = error as Error;
     if (vkIdCallbackDebug) console.error("[VK ID callback] исключение:", err);

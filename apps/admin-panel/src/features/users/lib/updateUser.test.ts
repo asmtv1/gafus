@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getServerSessionMock, revalidatePathMock, updateUserAdminMock } = vi.hoisted(() => ({
+const { getServerSessionMock, revalidatePathMock, updateUserAdminMock, userFindUniqueMock } = vi.hoisted(() => ({
   getServerSessionMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   updateUserAdminMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({
@@ -16,6 +17,10 @@ vi.mock("@gafus/auth", () => ({
 
 vi.mock("@gafus/core/services/adminUser", () => ({
   updateUserAdmin: updateUserAdminMock,
+}));
+
+vi.mock("@gafus/prisma", () => ({
+  prisma: { user: { findUnique: userFindUniqueMock } },
 }));
 
 vi.mock("next/cache", () => ({
@@ -40,6 +45,9 @@ function buildFormData(fields: Record<string, string>): FormData {
 describe("updateUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    userFindUniqueMock.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ role: where.id === "moderator-1" ? "MODERATOR" : where.id === "admin-1" ? "ADMIN" : "USER" }),
+    );
   });
 
   it("rejects unauthenticated users before calling the service", async () => {
@@ -130,5 +138,31 @@ describe("updateUser", () => {
       error: "Нельзя изменить роль",
     });
     expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let a current moderator assign a partner even if the form includes a promo code", async () => {
+    getServerSessionMock.mockResolvedValueOnce({
+      user: { id: "moderator-1", username: "mod", role: "MODERATOR" },
+    });
+
+    await expect(updateUser({}, buildFormData({
+      id: "user-1", username: "updated", phone: "+79999999999", role: "PARTNER", newPassword: "secret1", partnerPromoCodeId: "promo-1",
+    }))).resolves.toEqual({
+      success: false,
+      error: "Только администратор может управлять ролью и промокодом партнёра",
+    });
+    expect(updateUserAdminMock).not.toHaveBeenCalled();
+  });
+
+  it("carries a partner promo code through for a current database admin", async () => {
+    getServerSessionMock.mockResolvedValueOnce({
+      user: { id: "admin-1", username: "admin", role: "ADMIN" },
+    });
+    updateUserAdminMock.mockResolvedValueOnce({ success: true });
+
+    await expect(updateUser({}, buildFormData({
+      id: "user-1", username: "updated", phone: "+79999999999", role: "PARTNER", newPassword: "secret1", partnerPromoCodeId: "promo-1",
+    }))).resolves.toEqual({ success: true });
+    expect(updateUserAdminMock).toHaveBeenCalledWith("user-1", expect.objectContaining({ role: "PARTNER", partnerPromoCodeId: "promo-1" }));
   });
 });

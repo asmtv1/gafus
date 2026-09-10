@@ -43,13 +43,13 @@ export interface UseVkLoginOptions {
 }
 
 export function useVkLogin(options?: UseVkLoginOptions): {
-  handleVkLogin: () => Promise<void>;
+  handleVkLogin: (promoCode?: string) => Promise<void>;
   isVkLoading: boolean;
 } {
   const loginViaVk = useAuthStore((s) => s.loginViaVk);
   const [isVkLoading, setIsVkLoading] = useState(false);
 
-  const handleVkLogin = useCallback(async () => {
+  const handleVkLogin = useCallback(async (promoCode?: string) => {
     setIsVkLoading(true);
     try {
       const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
@@ -90,21 +90,10 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         "&fastAuthEnabled=1"; // не показывать экран подтверждения повторно
 
       if (Platform.OS === "android") {
-        if (__DEV__) {
-          console.log("[VK_LOGIN] Android start", {
-            clientId,
-            returnUrl,
-            redirectUri,
-            authUrlFirst100: authUrl.slice(0, 100),
-          });
-        }
         await WebBrowser.warmUpAsync();
         await WebBrowser.mayInitWithUrlAsync(authUrl);
       }
 
-      if (__DEV__ && Platform.OS === "android") {
-        console.log("[VK_LOGIN] calling openAuthSessionAsync...");
-      }
       const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
         createTask: false, // Android: в той же task — лучше redirect, совместимость с эмулятором
       });
@@ -136,32 +125,15 @@ export function useVkLogin(options?: UseVkLoginOptions): {
             resolve(undefined);
           }, 2000);
         });
-        if (__DEV__ && redirectUrl) {
-          console.log("[VK_LOGIN] fallback: got URL from Linking after dismiss");
-        }
       }
 
       if (!redirectUrl) {
-        if (__DEV__ && Platform.OS === "android") {
-          console.log("[VK_LOGIN] early return: no redirect URL");
-        }
         return;
-      }
-
-      if (__DEV__) {
-        console.log("[VK_LOGIN] redirect URL (first 300 chars):", redirectUrl.slice(0, 300));
       }
 
       const parsed = Linking.parse(redirectUrl);
       const q = parsed.queryParams ?? {};
 
-      if (__DEV__) {
-        console.log("[VK_LOGIN] parsed", {
-          path: parsed.path,
-          queryParamsKeys: Object.keys(q ?? {}),
-          hasPayload: !!q?.payload,
-        });
-      }
 
       // VK может возвращать code/device_id/state либо в query, либо в payload (Android)
       let code = q.code as string | undefined;
@@ -177,7 +149,6 @@ export function useVkLogin(options?: UseVkLoginOptions): {
           code = payload.code ?? code;
           device_id = payload.device_id ?? device_id;
           returnedState = payload.state ?? returnedState;
-          if (__DEV__) console.log("[VK_LOGIN] extracted from payload", { code: !!code, device_id: !!device_id });
         } catch (e) {
           reportClientError(e instanceof Error ? e : new Error(String(e)), {
             issueKey: "VkLogin",
@@ -190,15 +161,6 @@ export function useVkLogin(options?: UseVkLoginOptions): {
       device_id = device_id?.trim();
 
       if (!code || !device_id || returnedState !== state) {
-        if (__DEV__) {
-          console.log("[VK_LOGIN] validation failed", {
-            hasCode: !!code,
-            hasDeviceId: !!device_id,
-            stateMatch: returnedState === state,
-            returnedState: returnedState?.slice(0, 20),
-            expectedState: state.slice(0, 20),
-          });
-        }
         options?.onError?.("Ошибка авторизации VK ID: некорректный ответ");
         return;
       }
@@ -210,6 +172,7 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         device_id,
         state,
         platform,
+        promoCode: promoCode?.trim() || undefined,
       });
 
       if (loginResult.success) {
@@ -222,7 +185,6 @@ export function useVkLogin(options?: UseVkLoginOptions): {
         issueKey: "VkLogin",
         keys: { operation: "vk_login" },
       });
-      if (__DEV__) console.error("[VK_LOGIN] catch", err);
       options?.onError?.("Ошибка подключения к серверу");
     } finally {
       setIsVkLoading(false);

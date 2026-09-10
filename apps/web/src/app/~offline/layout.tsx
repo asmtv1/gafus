@@ -11,7 +11,7 @@ export default function OfflineLayout({ children }: { children: React.ReactNode 
   return (
     <>
       <div className="page-container">
-        <Header userName="" avatarUrl="/uploads/avatar.svg" trainerOnly={false} />
+        <Header userName="" avatarUrl="/uploads/avatar.svg" trainerOnly={false} partnerOnly={false} />
         <NotificationRequesterNew />
         <main style={{ flex: 1 }}>{children}</main>
         <Footer />

@@ -13,8 +13,7 @@ import {
   coreRegisterEmailSchema,
   resolveRegistrationChannelFromBody,
 } from "@gafus/core/validation/auth-register";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
-import { storeVkIdOneTimeUser, consumeVkIdOneTimeUser } from "@gafus/auth";
+import { assertCompletedUser, generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
 import {
   changePassword,
   changeUsername,
@@ -37,18 +36,18 @@ import {
   setVkPhone,
   validateCredentials,
   validateRefreshToken,
+  claimVkRegistrationContextUserInTransaction,
+  completeVkRegistration,
+  createVkRegistrationContextInTransaction,
+  resolveRegistrationPromoCodeInTransaction,
+  hashRegistrationOpaqueValue,
 } from "@gafus/core/services/auth";
-import {
-  createConsentLogs,
-  linkConsentLogsToUser,
-  markConsentLogsFailed,
-} from "@gafus/core/services/consent";
 import {
   APP_FEATURE_MOBILE_VK_LOGIN_IOS,
   getMobileFeatureFlagEnabled,
 } from "@gafus/core/services/appFeatureFlags";
 import { createWebLogger } from "@gafus/logger";
-import { RegistrationChannel } from "@gafus/prisma";
+import { prisma, RegistrationChannel, VkRegistrationContextPurpose } from "@gafus/prisma";
 import { getClientAppContext } from "../../lib/client-app-context.js";
 import { authMiddleware } from "../../middleware/auth.js";
 
@@ -120,6 +119,9 @@ const vkIdSchema = z.object({
   device_id: z.string().min(1),
   state: z.string().min(32),
   platform: z.enum(["ios", "android"]).optional(),
+  // Selection is validated and stored in the durable context, never attributed
+  // until consent completion.
+  promoCode: z.string().trim().min(1).max(64).optional(),
 });
 const vkPhoneSetSchema = z.object({
   phone: z
@@ -127,6 +129,7 @@ const vkPhoneSetSchema = z.object({
     .min(1, "Номер телефона обязателен")
     .regex(/^\+\d{10,15}$/, "Некорректный формат номера (ожидается E.164, пример: +79001234567)"),
 });
+const registrationPromoPreviewSchema = z.object({ promoCode: z.string().trim().min(1).max(64) });
 const setPasswordApiSchema = z.object({
   newPassword: z
     .string()
@@ -168,9 +171,10 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
+        role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
 
+      await assertCompletedUser(user.id);
       const accessToken = await generateAccessToken(authUser);
       const tokenId = crypto.randomUUID();
       const refreshToken = await generateRefreshToken(user.id, tokenId);
@@ -206,32 +210,22 @@ authRoutes.post(
   bodyLimit({ maxSize: 10 * 1024 }),
   zValidator("json", authRegisterBodySchema),
   async (c) => {
-    const { name, email, password, tempSessionId, consentPayload, registrationChannel } =
+    const { name, email, password, tempSessionId, consentPayload, registrationChannel, promoCode } =
       c.req.valid("json");
     const ipAddress = c.req.header("x-forwarded-for")?.split(",")[0];
     const userAgent = c.req.header("user-agent");
 
-    let consentCreated = false;
     try {
-      await createConsentLogs({
-        tempSessionId,
-        consentPayload,
-        formData: { name, email },
-        ipAddress,
-        userAgent,
-        defaultVersion: CONSENT_VERSION,
-      });
-      consentCreated = true;
-
       const result = await registerUserService(
         name,
         email,
         password,
         resolveRegistrationChannelFromBody(registrationChannel),
+        promoCode,
+        { tempSessionId, consentPayload, formData: { name, email }, ipAddress, userAgent, defaultVersion: CONSENT_VERSION },
       );
 
       if ("error" in result) {
-        await markConsentLogsFailed(tempSessionId);
         const isConflict = result.error === REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE;
         return c.json(
           {
@@ -242,8 +236,6 @@ authRoutes.post(
         );
       }
 
-      await linkConsentLogsToUser(tempSessionId, result.userId);
-
       const user = await getAuthUserById(result.userId);
       if (!user) {
         return c.json({ success: false, error: "Ошибка регистрации" }, 500);
@@ -252,8 +244,9 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
+        role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
+      await assertCompletedUser(user.id);
       const accessToken = await generateAccessToken(authUser);
 
       const tokenId = crypto.randomUUID();
@@ -277,12 +270,26 @@ authRoutes.post(
         },
       });
     } catch (error) {
-      if (consentCreated) {
-        await markConsentLogsFailed(tempSessionId).catch(() => undefined);
-      }
       logger.error("Register error", error as Error);
       const message = error instanceof Error ? error.message : "Ошибка регистрации";
       return c.json({ success: false, error: message }, 500);
+    }
+  },
+);
+
+// Public registration preview deliberately validates only the code lifecycle;
+// it does not receive a user id or expose subscription eligibility/pricing.
+authRoutes.post(
+  "/registration-promo-preview",
+  bodyLimit({ maxSize: 1024 }),
+  zValidator("json", registrationPromoPreviewSchema),
+  async (c) => {
+    try {
+      const promo = await prisma.$transaction((tx) => resolveRegistrationPromoCodeInTransaction(tx, c.req.valid("json").promoCode));
+      return c.json({ success: true, data: { code: promo!.normalizedCode } });
+    } catch (error) {
+      const code = error instanceof Error && "code" in error ? String(error.code) : "PROMO_INVALID";
+      return c.json({ success: false, code, error: "Промокод недействителен или недоступен" }, 400);
     }
   },
 );
@@ -327,9 +334,10 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
+        role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
 
+      await assertCompletedUser(user.id);
       const newAccessToken = await generateAccessToken(authUser);
       const newTokenId = crypto.randomUUID();
       const newRefreshToken = await generateRefreshToken(user.id, newTokenId);
@@ -470,7 +478,13 @@ authRoutes.post(
 );
 
 const vkConsentSchema = z.object({
-  vkConsentToken: z.string().min(1, "Токен обязателен"),
+  contextToken: z.string().min(32, "Контекст обязателен").optional(),
+  vkConsentToken: z.string().min(32, "Контекст обязателен").optional(), // legacy field name for current clients
+  state: z.string().min(32, "Состояние авторизации обязательно"),
+  tempSessionId: z.string().uuid().optional(),
+  // Kept for clients that display the field on consent. Attribution has
+  // already happened in the account-creation transaction, if applicable.
+  promoCode: z.string().trim().min(1).max(64).optional(),
   consentPayload: z.object({
     acceptPersonalData: z.literal(true, {
       errorMap: () => ({ message: "Необходимо принять согласие на обработку данных" }),
@@ -482,6 +496,24 @@ const vkConsentSchema = z.object({
       errorMap: () => ({ message: "Необходимо принять согласие на размещение данных" }),
     }),
   }),
+});
+
+// Context inspection intentionally returns no account data. It lets a mobile
+// consent screen restore the server-saved promo after a restart.
+authRoutes.get("/vk-consent/:contextToken", async (c) => {
+  const state = c.req.query("state");
+  if (!state) return c.json({ success: false, code: "CONTEXT_INVALID", error: "Контекст VK не найден. Повторите вход." }, 400);
+  const context = await prisma.vkRegistrationContext.findFirst({
+    where: {
+      contextTokenHash: hashRegistrationOpaqueValue(c.req.param("contextToken")),
+      stateHash: hashRegistrationOpaqueValue(state),
+      purpose: VkRegistrationContextPurpose.REGISTER,
+      expiresAt: { gt: new Date() },
+    },
+    select: { selectedPromoCodeValue: true, completedAt: true },
+  });
+  if (!context) return c.json({ success: false, code: "CONTEXT_EXPIRED", error: "Время подтверждения истекло. Повторите вход через VK." }, 400);
+  return c.json({ success: true, data: { savedPromoCode: context.selectedPromoCodeValue, completed: Boolean(context.completedAt) } });
 });
 
 // POST /api/v1/auth/vk — вход через VK ID (mobile, PKCE)
@@ -510,7 +542,7 @@ authRoutes.post(
           403,
         );
       }
-      const { code, code_verifier, device_id, state, platform } = c.req.valid("json");
+      const { code, code_verifier, device_id, state, platform, promoCode } = c.req.valid("json");
       const ip =
         c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
 
@@ -528,6 +560,25 @@ authRoutes.post(
             ? RegistrationChannel.ANDROID
             : RegistrationChannel.UNKNOWN;
 
+      // Create and validate the durable consent context before consuming the
+      // single-use VK OAuth code.  Previously an invalid promo or a database
+      // error after findOrCreateVkUser() could leave a new user permanently
+      // registrationPending without a context token with which to finish.
+      const contextToken = crypto.randomBytes(32).toString("base64url");
+      await prisma.$transaction(async (tx) => {
+        const selected = promoCode
+          ? await resolveRegistrationPromoCodeInTransaction(tx, promoCode)
+          : null;
+        await createVkRegistrationContextInTransaction(tx, {
+          contextToken,
+          state,
+          codeVerifier: code_verifier,
+          purpose: VkRegistrationContextPurpose.REGISTER,
+          selectedPromoCodeId: selected?.id,
+          selectedPromoCodeValue: selected?.normalizedCode,
+        });
+      });
+
       const result = await exchangeVkCodeAndGetUser({
         code,
         codeVerifier: code_verifier,
@@ -536,22 +587,23 @@ authRoutes.post(
         redirectUri: `vk${clientId}://vk.ru/blank.html`,
         clientId,
         registrationChannel: vkRegistrationChannel,
+        promoCode,
       });
 
       const { user, needsPhone, isNewUser } = result;
 
-      if (isNewUser) {
-        const vkConsentToken = await storeVkIdOneTimeUser(crypto.randomUUID(), {
-          userId: user.id,
-          username: user.username,
-          role: user.role,
+      if (result.requiresConsent) {
+        await prisma.$transaction(async (tx) => {
+          await claimVkRegistrationContextUserInTransaction(tx, { contextToken, state, userId: user.id, purpose: VkRegistrationContextPurpose.REGISTER });
         });
         logger.info("VK ID new user, needs consent", { userId: user.id });
         return c.json({
           success: true,
           data: {
             needsConsent: true,
-            vkConsentToken,
+            vkConsentToken: contextToken,
+            contextToken,
+            savedPromoCode: promoCode?.trim().toUpperCase() ?? null,
             user: { id: user.id, username: user.username, role: user.role },
           },
         });
@@ -560,8 +612,9 @@ authRoutes.post(
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
+        role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
+      await assertCompletedUser(user.id);
       const accessToken = await generateAccessToken(authUser);
       const tokenId = crypto.randomUUID();
       const refreshToken = await generateRefreshToken(user.id, tokenId);
@@ -603,41 +656,32 @@ authRoutes.post(
   zValidator("json", vkConsentSchema),
   async (c) => {
     try {
-      const { vkConsentToken, consentPayload } = c.req.valid("json");
+      const { contextToken: directContextToken, vkConsentToken, state, consentPayload, promoCode, tempSessionId } = c.req.valid("json");
+      const contextToken = directContextToken ?? vkConsentToken;
+      if (!contextToken) return c.json({ success: false, code: "CONTEXT_INVALID", error: "Контекст VK не найден. Повторите вход." }, 400);
       const ip =
         c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
       const userAgent = c.req.header("user-agent");
-
-      const vkUser = await consumeVkIdOneTimeUser(vkConsentToken);
-      if (!vkUser) {
-        return c.json({ success: false, error: "Ссылка устарела. Повторите вход через VK." }, 400);
-      }
-
-      const user = await getAuthUserById(vkUser.userId);
-      if (!user) {
-        return c.json({ success: false, error: "Пользователь не найден" }, 400);
-      }
-
-      const tempSessionId = crypto.randomUUID();
-      await createConsentLogs({
-        tempSessionId,
-        consentPayload,
-        formData: {
-          name: vkUser.username,
-          phone: user.phone ?? undefined,
-          email: undefined,
-        },
-        ipAddress: ip,
-        userAgent: userAgent ?? undefined,
-        defaultVersion: CONSENT_VERSION,
+      const pendingContext = await prisma.vkRegistrationContext.findFirst({
+        where: { contextTokenHash: hashRegistrationOpaqueValue(contextToken), stateHash: hashRegistrationOpaqueValue(state) },
+        select: { user: { select: { username: true } } },
       });
-      await linkConsentLogsToUser(tempSessionId, vkUser.userId);
+      if (!pendingContext?.user) return c.json({ success: false, code: "CONTEXT_EXPIRED", error: "Время подтверждения истекло. Повторите вход через VK." }, 400);
+
+      const completion = await completeVkRegistration({
+        contextToken, state, promoCode,
+        consent: { tempSessionId: tempSessionId ?? crypto.randomUUID(), consentPayload, formData: { name: pendingContext.user.username }, ipAddress: ip, userAgent: userAgent ?? undefined, defaultVersion: CONSENT_VERSION },
+        transport: "MOBILE",
+      });
+      const user = await getAuthUserById(completion.user.id);
+      if (!user) return c.json({ success: false, error: "Пользователь не найден" }, 400);
 
       const authUser = {
         id: user.id,
         username: user.username,
-        role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
+          role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
       };
+      await assertCompletedUser(user.id);
       const accessToken = await generateAccessToken(authUser);
       const tokenId = crypto.randomUUID();
       const refreshToken = await generateRefreshToken(user.id, tokenId);

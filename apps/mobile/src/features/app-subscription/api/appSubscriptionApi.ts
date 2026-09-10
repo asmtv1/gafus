@@ -64,6 +64,8 @@ export type AppSubscriptionOfferDto = {
     entryEnabled: boolean;
     eligible: boolean;
   };
+  /** Saved registration selection and lifecycle status for an explicit checkout warning. */
+  savedRegistrationPromoCode: { code: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED" } | null;
 };
 
 export type AppSubscriptionPromoCodePreviewDto = {

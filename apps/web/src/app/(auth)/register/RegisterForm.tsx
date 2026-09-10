@@ -10,20 +10,39 @@ import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/server-actions";
+import { previewRegistrationPromoAction } from "@shared/server-actions/auth";
+import { VkIdOneTap } from "@shared/components/auth/VkIdOneTap";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import type { ConsentPayload } from "@shared/constants/consent";
 import { suggestRegisterEmailDomain } from "@gafus/core/validation/email-domain-suggestion";
+import {
+  getRegistrationPromoStatusMessage,
+  shouldBlockRegistrationForPromo,
+  type RegistrationPromoUiState,
+} from "@shared/lib/auth/registration-promo-ui";
 import { signIn } from "next-auth/react";
-import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 
 import styles from "./register.module.css";
 
 import type { RegisterFormSchema } from "@shared/lib/validation/authSchemas";
 
+const REGISTRATION_SESSION_KEY = "gafus.registration.temp-session-id.v1";
+
+function getRegistrationTempSessionId(): string {
+  if (typeof window === "undefined") return crypto.randomUUID();
+  const existing = window.sessionStorage.getItem(REGISTRATION_SESSION_KEY);
+  if (existing) return existing;
+  const next = crypto.randomUUID();
+  window.sessionStorage.setItem(REGISTRATION_SESSION_KEY, next);
+  return next;
+}
+
 export function RegisterForm() {
   const router = useRouter();
   const pathname = usePathname() ?? "/register";
+  const searchParams = useSearchParams();
   const { token: csrfToken, loading: csrfLoading, error: csrfError } = useCSRFStore();
 
   const {
@@ -51,8 +70,13 @@ export function RegisterForm() {
 
   const [catchError] = useCaughtError();
   const [isPending, setIsPending] = useState(false);
-  const [tempSessionId] = useState<string>(() => crypto.randomUUID());
+  // This is an idempotency key only. Passwords and form values are deliberately never persisted.
+  const [tempSessionId] = useState<string>(getRegistrationTempSessionId);
   const [emailTypoSuggestion, setEmailTypoSuggestion] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState(() => searchParams.get("promoCode")?.trim() ?? "");
+  const [promoState, setPromoState] = useState<RegistrationPromoUiState>("idle");
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const promoRequestId = useRef(0);
 
   const emailRegisterOptions = useMemo(
     () => ({
@@ -80,6 +104,13 @@ export function RegisterForm() {
     };
 
     const username = data.name.toLowerCase().trim();
+    const safePromoCode = promoCode.trim() || undefined;
+
+    if (shouldBlockRegistrationForPromo(safePromoCode ?? "", promoState)) {
+      setPromoMessage("Сначала примените промокод или очистите поле.");
+      setPromoState("invalid");
+      return;
+    }
 
     trackEvent({
       eventName: "button_click",
@@ -96,6 +127,7 @@ export function RegisterForm() {
         data.password,
         tempSessionId,
         consentPayload,
+        safePromoCode,
       );
 
       if (result?.error) {
@@ -128,6 +160,36 @@ export function RegisterForm() {
       reportClientError(error, { issueKey: "RegisterForm", keys: { operation: "submit_register" } });
       catchError(error);
       setIsPending(false);
+    }
+  };
+
+  const onApplyPromo = async () => {
+    const rawCode = promoCode.trim();
+    if (!rawCode) {
+      setPromoState("idle");
+      setPromoMessage(null);
+      return;
+    }
+    const requestId = promoRequestId.current + 1;
+    promoRequestId.current = requestId;
+    setPromoState("checking");
+    setPromoMessage("Проверяем промокод…");
+    try {
+      const result = await previewRegistrationPromoAction(rawCode);
+      if (promoRequestId.current !== requestId) return;
+      if (!result.success) {
+        setPromoState("invalid");
+        setPromoMessage(result.error);
+        return;
+      }
+      setPromoCode(result.code);
+      setPromoState("applied");
+      setPromoMessage(`Промокод ${result.code} применён.`);
+    } catch (error) {
+      if (promoRequestId.current !== requestId) return;
+      reportClientError(error, { issueKey: "RegisterForm", keys: { operation: "preview_registration_promo" } });
+      setPromoState("network-error");
+      setPromoMessage("Не удалось проверить промокод. Проверьте соединение и попробуйте снова.");
     }
   };
 
@@ -184,6 +246,47 @@ export function RegisterForm() {
           </PrimaryButton>
         </div>
       )}
+
+      <div className="flex flex-col">
+        <label htmlFor="promoCode" className="sr-only">
+          Промокод
+        </label>
+        <div className={styles.promoControls}>
+          <input
+            id="promoCode"
+            className={styles.input}
+            value={promoCode}
+            onChange={(event) => {
+              promoRequestId.current += 1;
+              setPromoCode(event.target.value);
+              setPromoState("idle");
+              setPromoMessage(null);
+            }}
+            placeholder="Промокод (необязательно)"
+            autoComplete="off"
+            autoCapitalize="characters"
+            maxLength={64}
+            aria-describedby="registration-promo-status"
+            aria-invalid={promoState === "invalid" || promoState === "network-error"}
+          />
+          <PrimaryButton
+            type="button"
+            className={styles.promoApply}
+            onClick={onApplyPromo}
+            disabled={promoState === "checking" || !promoCode.trim()}
+          >
+            {promoState === "checking" ? "Проверяем…" : "Применить"}
+          </PrimaryButton>
+        </div>
+        <p
+          id="registration-promo-status"
+          className={promoState === "invalid" || promoState === "network-error" ? styles.errorText : styles.info}
+          role={promoState === "invalid" || promoState === "network-error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {getRegistrationPromoStatusMessage(promoState, promoMessage)}
+        </p>
+      </div>
 
       <PasswordInput
         className={styles.input}
@@ -280,6 +383,7 @@ export function RegisterForm() {
       >
         {isPending ? "регистрация..." : "зарегистрироваться"}
       </PrimaryButton>
+      <VkIdOneTap promoCode={promoCode} />
     </form>
   );
 }

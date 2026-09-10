@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createAdminPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { updateUserAdmin } from "@gafus/core/services/adminUser";
+import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
@@ -14,9 +15,23 @@ const updateUserSchema = z.object({
   id: z.string().min(1, "ID обязателен"),
   username: z.string().min(1).optional(),
   phone: z.string().optional(),
-  role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "USER"]).optional(),
+  role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "PARTNER", "USER"]).optional(),
   newPassword: z.string().min(6, "Пароль минимум 6 символов").optional(),
+  partnerPromoCodeId: z.string().min(1).optional(),
 });
+
+async function partnerChangeRequiresAdmin(actorId: string, userId: string, input: z.infer<typeof updateUserSchema>) {
+  if (input.partnerPromoCodeId === undefined && input.role === undefined) return false;
+
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+  ]);
+  const changesPartnerRole = input.role !== undefined && input.role !== target?.role &&
+    (input.role === "PARTNER" || target?.role === "PARTNER");
+
+  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) && actor?.role !== "ADMIN";
+}
 
 export async function updateUser(
   prevState: Record<string, unknown>,
@@ -41,6 +56,7 @@ export async function updateUser(
       phone: formData.get("phone"),
       role: formData.get("role"),
       newPassword: formData.get("newPassword"),
+      partnerPromoCodeId: formData.get("partnerPromoCodeId") || undefined,
     });
 
     if (!parsed.success) {
@@ -49,13 +65,18 @@ export async function updateUser(
       return { success: false, error: msg };
     }
 
-    const { id, username, phone, role, newPassword } = parsed.data;
+    const { id, username, phone, role, newPassword, partnerPromoCodeId } = parsed.data;
+
+    if (await partnerChangeRequiresAdmin(session.user.id, id, parsed.data)) {
+      return { success: false, error: "Только администратор может управлять ролью и промокодом партнёра" };
+    }
 
     const result = await updateUserAdmin(id, {
       username,
       phone,
       role,
       newPassword,
+      partnerPromoCodeId,
     });
 
     if (!result.success) {

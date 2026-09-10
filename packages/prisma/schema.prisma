@@ -364,12 +364,26 @@ model User {
   createdAppSubscriptionPromoCodes AppSubscriptionPromoCode[]       @relation("AppSubscriptionPromoCodeCreatedBy")
   updatedAppSubscriptionPromoCodes AppSubscriptionPromoCode[]       @relation("AppSubscriptionPromoCodeUpdatedBy")
   appSubscriptionPromoCodeEvents   AppSubscriptionPromoCodeEvent[]  @relation("AppSubscriptionPromoCodeEventActor")
+  partnerProfile                   PartnerProfile?
+  referredByPartner                PartnerReferral?                 @relation("PartnerReferralBuyer")
+  savedRegistrationPromoCodeId     String?
+  savedRegistrationPromoCode       AppSubscriptionPromoCode?       @relation("UserSavedRegistrationPromoCode", fields: [savedRegistrationPromoCodeId], references: [id], onDelete: SetNull)
+  registrationEmailAttempts        RegistrationEmailAttempt[]
+  vkRegistrationContexts           VkRegistrationContext[]          @relation("VkRegistrationContextUser")
+  vkRegistrationResults            VkRegistrationContext[]          @relation("VkRegistrationContextResultUser")
+  vkLoginGrants                    VkLoginGrant[]
   rewardedCreditWallet             RewardedCreditWallet?
   rewardedAdSessions               RewardedAdSession[]
   rewardedTargetAccesses           RewardedTargetAccess[]
+  vkIdOneTimeLogins                VkIdOneTimeLogin[]
   rewardedCreditTransactions       RewardedCreditTransaction[]
   updatedRewardedAdSettings        RewardedAdSettings[]
   updatedMobileAppReleasePolicies  MobileAppReleasePolicy[]         @relation("MobileAppReleasePolicyUpdatedBy")
+
+  /// False for every existing account. Set only while a VK registration still awaits consent.
+  registrationPending              Boolean                          @default(false)
+
+  @@index([savedRegistrationPromoCodeId])
 }
 
 enum ConsentType {
@@ -912,6 +926,7 @@ model AppSubscriptionPayment {
   originalAmount       Decimal?                  @db.Decimal(12, 3)
 
   npdReceipt NpdReceipt?
+  partnerCommissions PartnerCommission[]
 
   periodStart DateTime?
   periodEnd   DateTime?
@@ -942,6 +957,154 @@ model AppSubscriptionPayment {
   @@index([planCode])
   @@index([appleOriginalTransactionId])
   @@index([promoCodeId])
+}
+
+/// Partner identity is separated from a public referral code so codes can be rotated
+/// without changing already attributed buyers or financial history.
+model PartnerProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Legacy random code retained only to display old profiles/history. New profiles use promoCodeId.
+  referralCode String? @unique @db.VarChar(32)
+  /// A real Premium promo code is the sole public partner code. It may belong to one partner only.
+  promoCodeId String? @unique
+  promoCode AppSubscriptionPromoCode? @relation("PartnerProfilePromoCode", fields: [promoCodeId], references: [id], onDelete: Restrict)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referrals PartnerReferral[] @relation("PartnerReferralPartner")
+  commissions PartnerCommission[] @relation("PartnerCommissionPartner")
+  payouts PartnerPayout[] @relation("PartnerPayoutPartner")
+}
+
+/// Attribution is immutable: a buyer can belong to only one partner.
+model PartnerReferral {
+  id String @id @default(cuid())
+  partnerId String
+  partner PartnerProfile @relation("PartnerReferralPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  buyerId String @unique
+  buyer User @relation("PartnerReferralBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([partnerId, createdAt])
+}
+
+model PartnerCommission {
+  id String @id @default(cuid())
+  partnerId String
+  partner PartnerProfile @relation("PartnerCommissionPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  paymentId String
+  payment AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  /// Signed amount: +25000 for a successful paid period, -25000 for its full refund.
+  amountKopecks Int
+  kind PartnerCommissionKind
+  createdAt DateTime @default(now())
+
+  @@unique([paymentId, kind])
+  @@index([partnerId, createdAt])
+}
+
+model PartnerPayout {
+  id String @id @default(cuid())
+  partnerId String
+  partner PartnerProfile @relation("PartnerPayoutPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  amountKopecks Int
+  status PartnerPayoutStatus @default(PENDING)
+  requestedAt DateTime @default(now())
+  processedAt DateTime?
+  note String? @db.VarChar(512)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId, status, requestedAt])
+}
+
+/// Short-lived server-side context for the VK callback → consent → NextAuth flow.
+/// The opaque token itself never reaches the database; only its SHA-256 digest does.
+model VkIdOneTimeLogin {
+  id String @id @default(cuid())
+  tokenHash String @unique @db.VarChar(64)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  requiresConsent Boolean @default(false)
+  consentCompletedAt DateTime?
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+/// Idempotency record for credential registration. Password is deliberately absent:
+/// a retry must verify it independently against the resulting user account.
+model RegistrationEmailAttempt {
+  id String @id @default(cuid())
+  tempSessionId String @unique @db.VarChar(128)
+  dataFingerprint String @db.VarChar(64)
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  result RegistrationEmailAttemptResult?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dataFingerprint])
+  @@index([userId])
+}
+
+/// Server-side OAuth/registration state. The browser sees only an opaque token;
+/// state is verified by hash and the PKCE verifier never enters a URL or cookie.
+model VkRegistrationContext {
+  id String @id @default(cuid())
+  contextTokenHash String @unique @db.VarChar(64)
+  stateHash String @unique @db.VarChar(64)
+  codeVerifier String @db.VarChar(128)
+  purpose VkRegistrationContextPurpose
+  expiresAt DateTime
+  selectedPromoCodeId String?
+  /// Normalized selection survives promo deletion so completion can reject it.
+  selectedPromoCodeValue String? @db.VarChar(128)
+  selectedPromoCode AppSubscriptionPromoCode? @relation("VkRegistrationContextSelectedPromoCode", fields: [selectedPromoCodeId], references: [id], onDelete: SetNull)
+  userId String?
+  user User? @relation("VkRegistrationContextUser", fields: [userId], references: [id], onDelete: SetNull)
+  resultUserId String?
+  resultUser User? @relation("VkRegistrationContextResultUser", fields: [resultUserId], references: [id], onDelete: SetNull)
+  loginGrants VkLoginGrant[]
+  completionFingerprint String? @db.VarChar(64)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
+  @@index([resultUserId])
+  @@index([completionFingerprint])
+  @@index([selectedPromoCodeId])
+}
+
+/// Replacement for legacy VkIdOneTimeLogin tokens. Each opaque grant is hashed,
+/// short-lived and consumed atomically; reissue creates a different row/token.
+model VkLoginGrant {
+  id String @id @default(cuid())
+  tokenHash String @unique @db.VarChar(64)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose VkLoginGrantPurpose
+  expiresAt DateTime
+  consentCompletedAt DateTime?
+  consumedAt DateTime?
+  reissuedFromId String?
+  registrationContextId String?
+  registrationContext VkRegistrationContext? @relation(fields: [registrationContextId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@index([reissuedFromId])
+  @@index([registrationContextId])
 }
 
 model NpdConnection {
@@ -1071,6 +1234,9 @@ model AppSubscriptionPromoCode {
 
   events   AppSubscriptionPromoCodeEvent[]
   payments AppSubscriptionPayment[]
+  partnerProfile PartnerProfile? @relation("PartnerProfilePromoCode")
+  savedForRegistrationBy User[] @relation("UserSavedRegistrationPromoCode")
+  vkRegistrationContexts VkRegistrationContext[] @relation("VkRegistrationContextSelectedPromoCode")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1665,9 +1831,39 @@ enum RegistrationChannel {
 
 enum UserRole {
   USER
+  PARTNER
   TRAINER
   ADMIN
   MODERATOR
+}
+
+enum PartnerCommissionKind {
+  EARNED
+  REFUND_ADJUSTMENT
+}
+
+enum PartnerPayoutStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+enum RegistrationEmailAttemptResult {
+  SUCCEEDED
+  USERNAME_TAKEN
+  EMAIL_TAKEN
+  VALIDATION_ERROR
+}
+
+enum VkRegistrationContextPurpose {
+  REGISTER
+  LOGIN
+  LINK_ACCOUNT
+}
+
+enum VkLoginGrantPurpose {
+  LOGIN
+  REGISTRATION_CONSENT
 }
 
 enum PetType {

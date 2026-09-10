@@ -10,7 +10,7 @@ import styles from "./VkIdOneTap.module.css";
 /**
  * Кнопка «Войти через VK ID» — redirect flow на id.vk.ru.
  */
-export function VkIdOneTap() {
+export function VkIdOneTap({ promoCode }: { promoCode?: string }) {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,11 @@ export function VkIdOneTap() {
         typeof window !== "undefined"
           ? `${window.location.origin}/api/auth/callback/vk-id`
           : undefined;
-      const result = await initiateVkIdAuth(returnPath, redirectUri);
+      const result = await initiateVkIdAuth(
+        returnPath,
+        redirectUri,
+        promoCode?.trim() || undefined,
+      );
       if (result.success) {
         window.location.href = result.url;
       } else {
@@ -38,7 +42,7 @@ export function VkIdOneTap() {
       setError("Ошибка соединения. Обновите страницу.");
       setLoading(false);
     }
-  }, [returnPath]);
+  }, [promoCode, returnPath]);
 
   return (
     <div className={styles.wrapper}>

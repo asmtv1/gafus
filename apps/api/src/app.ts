@@ -37,6 +37,7 @@ import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 import { rewardedAdsRoutes } from "./routes/v1/rewarded-ads.js";
+import { partnersRoutes } from "./routes/v1/partners.js";
 import { shouldRateLimitAppSubscriptionPath } from "./middleware/app-subscription-rate-limit.js";
 
 export const app = new Hono();
@@ -148,6 +149,10 @@ app.use("/api/v1/rewarded-ads/*", (c, next) => {
   return apiRateLimiter(c, next);
 });
 app.route("/api/v1/rewarded-ads", rewardedAdsRoutes);
+
+app.use("/api/v1/partners/*", apiRateLimiter);
+app.use("/api/v1/partners/*", authMiddleware);
+app.route("/api/v1/partners", partnersRoutes);
 
 // Global error handler
 app.onError(errorHandler);

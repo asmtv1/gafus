@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -42,11 +42,7 @@ import { COLORS, FONTS, SPACING, API_BASE_URL } from "@/shared/config";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 
 const LOGO_PREFETCH_LIMIT = 12;
-/** Первые карточки (карточка высокая — не завышать, иначе FlashList может не смонтировать все ячейки). */
-const VIEWPORT_COURSE_LOGO_GATE_COUNT = 3;
-const VIEWPORT_OVERLAY_SETTLE_MS = 96;
-/** Если гейт не закрылся (сеть, баг нативного слоя) — не блокировать UI навсегда. */
-const VIEWPORT_GATE_FORCE_MS = 12_000;
+const INITIAL_COURSE_RENDER_BATCH_SIZE = 5;
 const TOUR_COURSES_SCROLL_FALLBACK_OFFSET = 680;
 const SHOW_COURSES_SEARCH = false;
 const DAILY_COURSE_LOGO = {
@@ -66,10 +62,6 @@ function getCourseLogoUri(
     : logoImg;
   const logoVersion = updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
   return `${baseLogoUri}${baseLogoUri.includes("?") ? "&" : "?"}v=${logoVersion}`;
-}
-
-function courseHasLogo(course: Course): boolean {
-  return getCourseLogoUri(course.logoImg, course.updatedAt) != null;
 }
 
 function getCourseLogoPrefetchUri(course: Course): string | null {
@@ -178,7 +170,6 @@ export default function CoursesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-  const [viewportReady, setViewportReady] = useState(false);
   const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
   const username = useAuthStore((s) => s.user?.username ?? null);
   const isTestUser = username?.toLowerCase() === "testuser";
@@ -208,57 +199,6 @@ export default function CoursesScreen() {
   const favoritesSet = useMemo(() => new Set(favorites), [favorites]);
   const pendingIdsSet = useMemo(() => new Set(pendingIds), [pendingIds]);
 
-  const gateCourses = useMemo(
-    () => filteredCourses.slice(0, VIEWPORT_COURSE_LOGO_GATE_COUNT),
-    [filteredCourses],
-  );
-
-  const viewportGateSyncKey = useMemo(
-    () => gateCourses.map((c) => `${c.id}:${new Date(c.updatedAt).getTime()}`).join("|"),
-    [gateCourses],
-  );
-
-  const viewportGatePendingIdsRef = useRef<Set<string>>(new Set());
-  const viewportGateKeyRef = useRef<string>("");
-
-  if (viewportGateKeyRef.current !== viewportGateSyncKey) {
-    viewportGateKeyRef.current = viewportGateSyncKey;
-    const next = new Set<string>();
-    for (const c of gateCourses) {
-      if (courseHasLogo(c)) next.add(c.id);
-    }
-    viewportGatePendingIdsRef.current = next;
-  }
-
-  useLayoutEffect(() => {
-    if (isLoading) {
-      setViewportReady(false);
-      return;
-    }
-    if (filteredCourses.length === 0) {
-      setViewportReady(true);
-      return;
-    }
-    setViewportReady(viewportGatePendingIdsRef.current.size === 0);
-  }, [isLoading, filteredCourses.length, viewportGateSyncKey]);
-
-  const handleViewportCoverReady = useCallback((courseId: string) => {
-    const pending = viewportGatePendingIdsRef.current;
-    if (!pending.has(courseId)) return;
-    pending.delete(courseId);
-    if (pending.size === 0) {
-      InteractionManager.runAfterInteractions(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              setViewportReady(true);
-            }, VIEWPORT_OVERLAY_SETTLE_MS);
-          });
-        });
-      });
-    }
-  }, []);
-
   useEffect(() => {
     if (isLoading || filteredCourses.length === 0) return;
     const uris = filteredCourses
@@ -268,14 +208,6 @@ export default function CoursesScreen() {
     if (uris.length === 0) return;
     void Image.prefetch(uris, { cachePolicy: "memory-disk" });
   }, [isLoading, filteredCourses]);
-
-  useEffect(() => {
-    if (isLoading || error || refreshing || filteredCourses.length === 0 || viewportReady) return;
-    const t = setTimeout(() => {
-      setViewportReady(true);
-    }, VIEWPORT_GATE_FORCE_MS);
-    return () => clearTimeout(t);
-  }, [isLoading, error, refreshing, filteredCourses.length, viewportReady, viewportGateSyncKey]);
 
   useEffect(() => {
     if (!tourIsActive || isLoading || error) return;
@@ -384,9 +316,6 @@ export default function CoursesScreen() {
           showIosRuCardPaymentHint={
             Platform.OS === "ios" && iosConfigLoaded && iosRuCardPaymentHintEnabled && !isTestUser
           }
-          listIndex={index}
-          viewportGateCount={VIEWPORT_COURSE_LOGO_GATE_COUNT}
-          onViewportCoverReady={handleViewportCoverReady}
           tourTargetId={index === 0 ? "courses-list" : undefined}
         />
       );
@@ -395,7 +324,6 @@ export default function CoursesScreen() {
     [
       favoritesSet,
       handleToggleFavorite,
-      handleViewportCoverReady,
       isTestUser,
       iosConfigLoaded,
       iosRuCardPaymentHintEnabled,
@@ -411,9 +339,6 @@ export default function CoursesScreen() {
     }),
     [favorites, pendingIds],
   );
-
-  const showViewportLoadingOverlay =
-    !error && !refreshing && !isLoading && filteredCourses.length > 0 && !viewportReady;
 
   const listHeader = (
     <View style={styles.headerFilters}>
@@ -460,11 +385,13 @@ export default function CoursesScreen() {
     );
   }
 
+  if (isLoading) {
+    return <Loading fullScreen message="Загрузка курсов..." />;
+  }
+
   return (
     <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-      {isLoading ? (
-        <Loading fullScreen embedded message="Загрузка курсов..." />
-      ) : error ? (
+      {error ? (
         <View style={styles.errorContainer}>
           {listHeader}
           <Text style={styles.errorText}>Ошибка загрузки курсов</Text>
@@ -482,7 +409,7 @@ export default function CoursesScreen() {
             extraData={listExtraData}
             overrideProps={{
               estimatedItemSize: 380,
-              initialDrawBatchSize: VIEWPORT_COURSE_LOGO_GATE_COUNT + 2,
+              initialDrawBatchSize: INITIAL_COURSE_RENDER_BATCH_SIZE,
             }}
             ListHeaderComponent={listHeader}
             contentContainerStyle={styles.listContent}
@@ -497,11 +424,6 @@ export default function CoursesScreen() {
               </View>
             }
           />
-          {showViewportLoadingOverlay ? (
-            <View style={styles.viewportLoadingOverlay} pointerEvents="auto">
-              <Loading message="Загрузка курсов..." size="large" />
-            </View>
-          ) : null}
         </View>
       )}
 
@@ -519,18 +441,10 @@ export default function CoursesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   listWrap: {
     flex: 1,
     position: "relative",
-  },
-  viewportLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
-    justifyContent: "center",
   },
   headerFilters: {
     paddingBottom: SPACING.sm,

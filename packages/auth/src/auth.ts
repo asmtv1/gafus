@@ -52,10 +52,11 @@ export const authOptions: NextAuthOptions = {
         const username = credentials.username.toLowerCase().trim();
         const user = await prisma.user.findUnique({
           where: { username },
-          select: { id: true, username: true, role: true, password: true, passwordSetAt: true },
+          select: { id: true, username: true, role: true, password: true, passwordSetAt: true, registrationPending: true },
         });
 
         if (!user) throw new Error("Неверный логин или пароль");
+        if (user.registrationPending) throw new Error("Завершите регистрацию через VK ID");
         if (user.passwordSetAt === null) {
           throw new Error("Войдите через VK ID или установите пароль в профиле");
         }
@@ -66,7 +67,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user.id,
           username: user.username,
-          role: user.role as "USER" | "ADMIN" | "MODERATOR" | "TRAINER",
+          role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
         };
       },
     }),
@@ -101,21 +102,27 @@ export const authOptions: NextAuthOptions = {
         session.user.id = userId;
         session.user.username = String(t.username ?? "");
 
+        let currentUser: { role: string; passwordSetAt: Date | null; phone: string | null; email: string | null; registrationPending: boolean } | null;
         try {
-          const user = await prisma.user.findUnique({
+          currentUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { role: true, passwordSetAt: true, phone: true, email: true },
+            select: { role: true, passwordSetAt: true, phone: true, email: true, registrationPending: true },
           });
-          session.user.role = (user?.role as AuthUser["role"]) ?? (t.role as AuthUser["role"]);
-          session.user.passwordSetAt = user?.passwordSetAt ?? null;
-          session.user.needsPhone = user?.phone?.startsWith("vk_") ?? false;
-          session.user.email = user?.email ?? null;
         } catch {
-          session.user.role = t.role as AuthUser["role"];
-          session.user.passwordSetAt = null;
-          session.user.needsPhone = false;
-          session.user.email = null;
+          // A database outage must not turn into an authorization decision here;
+          // retain the existing JWT fallback for already authenticated users.
+          currentUser = null;
         }
+        // This is intentionally outside the catch: a provisional, deleted or
+        // currently unverifiable account must never acquire a usable NextAuth
+        // session through the JWT fallback branch.
+        if (!currentUser || currentUser.registrationPending) {
+          throw new Error("Pending registration session denied");
+        }
+        session.user.role = currentUser.role as AuthUser["role"];
+        session.user.passwordSetAt = currentUser.passwordSetAt;
+        session.user.needsPhone = currentUser.phone?.startsWith("vk_") ?? false;
+        session.user.email = currentUser.email;
 
         try {
           const profile = await prisma.userProfile.findUnique({

@@ -1,0 +1,68 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - status "Загрузка"
+    - main [ref=e3]:
+      - main [ref=e4]:
+        - heading "Гафус!" [level=1] [ref=e5]
+        - generic [ref=e6]:
+          - img "Logo" [ref=e7]
+          - heading "регистрация" [level=2] [ref=e8]
+        - generic [ref=e9]:
+          - generic [ref=e10]:
+            - generic [ref=e11]: Имя пользователя
+            - textbox "Имя пользователя" [ref=e12]
+          - generic [ref=e13]:
+            - generic [ref=e14]: Email
+            - textbox "Email" [ref=e15]:
+              - /placeholder: email@example.com
+          - generic [ref=e16]:
+            - generic [ref=e17]: Промокод
+            - generic [ref=e18]:
+              - textbox "Промокод" [ref=e19]:
+                - /placeholder: Промокод (необязательно)
+              - button "Применить" [disabled] [ref=e20]
+            - status [ref=e21]: Введите код и нажмите «Применить».
+          - generic [ref=e22]:
+            - generic [ref=e23]: Пароль
+            - generic [ref=e24]:
+              - textbox "Пароль" [ref=e25]
+              - button "Показать пароль" [ref=e26] [cursor=pointer]:
+                - img "Показать пароль" [ref=e27]
+          - generic [ref=e28]:
+            - generic [ref=e29]: Повторите пароль
+            - generic [ref=e30]:
+              - textbox "Повторите пароль" [ref=e31]
+              - button "Показать пароль" [ref=e32] [cursor=pointer]:
+                - img "Показать пароль" [ref=e33]
+          - generic [ref=e34] [cursor=pointer]:
+            - checkbox "Даю согласие на обработку персональных данных" [ref=e35]
+            - generic [ref=e36]:
+              - text: Даю
+              - link "согласие на обработку персональных данных" [ref=e37]:
+                - /url: /personal.html
+          - generic [ref=e38] [cursor=pointer]:
+            - checkbox "Ознакомлен(а) с Политикой конфиденциальности" [ref=e39]
+            - generic [ref=e40]:
+              - text: Ознакомлен(а) с
+              - link "Политикой конфиденциальности" [ref=e41]:
+                - /url: /policy.html
+          - generic [ref=e42] [cursor=pointer]:
+            - checkbox "Даю согласие на размещение данных в публичном профиле" [ref=e43]
+            - generic [ref=e44]:
+              - text: Даю
+              - link "согласие на размещение данных в публичном профиле" [ref=e45]:
+                - /url: /personal-distribution.html
+          - button "зарегистрироваться" [disabled] [ref=e46]
+          - button "Войти через VK" [ref=e48] [cursor=pointer]
+    - button "Open Tanstack query devtools" [ref=e102] [cursor=pointer]
+    - dialog [ref=e151]:
+      - generic [ref=e152]:
+        - heading "Использование cookies" [level=6] [ref=e153]
+        - paragraph [ref=e154]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=e155] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=e156]:
+        - button "Принять" [active] [ref=e157] [cursor=pointer]
+        - button "Отклонить" [ref=e158] [cursor=pointer]
+  - alert [ref=e159]

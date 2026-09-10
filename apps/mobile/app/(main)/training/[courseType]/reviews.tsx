@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 import { useState } from "react";
 
 import { COLORS, SPACING, FONTS } from "@/shared/config";
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { coursesApi, type CourseReview } from "@/shared/lib/api/courses";
 import { useAuthStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -201,10 +201,13 @@ export default function ReviewsScreen() {
           <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
           <Text style={styles.backRowText}>Назад</Text>
         </Pressable>
-        <View style={styles.loadingContainer}>
-          <MascotSpinner size="large" style={{ marginBottom: SPACING.md }} />
-          <Text style={styles.loadingText}>Загрузка отзывов...</Text>
-        </View>
+        <Loading
+          variant="inline"
+          fullScreen
+          embedded
+          message="Загрузка отзывов..."
+          style={styles.loadingContainer}
+        />
       </SafeAreaView>
     );
   }
@@ -398,11 +401,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: COLORS.text,
-    fontFamily: FONTS.montserrat,
   },
   title: {
     fontSize: 24,

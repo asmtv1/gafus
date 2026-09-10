@@ -11,7 +11,7 @@ import {
   type SurveyResponseDto,
 } from "@gafus/types";
 
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { COLORS, SPACING } from "@/shared/config";
 import { surveyApi } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -176,9 +176,9 @@ export function SurveyBlock({
     enabled: Boolean(surveySlug && stepId),
   });
 
-  const template = surveyQuery.data?.success ? surveyQuery.data.data?.template ?? null : null;
+  const template = surveyQuery.data?.success ? (surveyQuery.data.data?.template ?? null) : null;
   const response: SurveyResponseDto | null = surveyQuery.data?.success
-    ? surveyQuery.data.data?.response ?? null
+    ? (surveyQuery.data.data?.response ?? null)
     : null;
   const editable = !response || response.canEdit;
 
@@ -188,11 +188,9 @@ export function SurveyBlock({
     enabled: template?.phase === "FINAL",
   });
   const comparison: SurveyComparisonDto | null = comparisonQuery.data?.success
-    ? comparisonQuery.data.data ?? null
+    ? (comparisonQuery.data.data ?? null)
     : null;
-  const screeningResult = response
-    ? getSurveyScreeningResult(surveySlug, response.answers)
-    : null;
+  const screeningResult = response ? getSurveyScreeningResult(surveySlug, response.answers) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -253,10 +251,12 @@ export function SurveyBlock({
 
   if (surveyQuery.isLoading || !draftLoaded) {
     return (
-      <View style={styles.loadingWrap}>
-        <MascotSpinner size="small" />
-        <Text style={styles.loadingText}>Загрузка анкеты...</Text>
-      </View>
+      <Loading
+        variant="inline"
+        size="small"
+        message="Загрузка анкеты..."
+        style={styles.loadingWrap}
+      />
     );
   }
 
@@ -389,10 +389,6 @@ const styles = StyleSheet.create({
   loadingWrap: {
     alignItems: "center",
     padding: SPACING.md,
-  },
-  loadingText: {
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
   },
   title: {
     color: COLORS.text,

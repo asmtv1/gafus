@@ -20,6 +20,7 @@ interface User {
   email: string | null;
   phone: string | null;
   role: string;
+  partnerProfile?: { promoCodeId: string | null; promoCode: { id: string; code: string; discountPercent: number } | null } | null;
 }
 
 interface EditUserFormProps {
@@ -27,16 +28,18 @@ interface EditUserFormProps {
   actorRole: string;
   open: boolean;
   onClose: () => void;
+  freePartnerPromoCodes: { id: string; code: string; discountPercent: number }[];
 }
 
 const roleOptions = [
   { value: "USER", label: "Пользователь" },
   { value: "TRAINER", label: "Тренер" },
+  { value: "PARTNER", label: "Партнёр" },
   { value: "MODERATOR", label: "Модератор" },
   { value: "ADMIN", label: "Администратор" },
 ];
 
-export default function EditUserForm({ user, actorRole, open, onClose }: EditUserFormProps) {
+export default function EditUserForm({ user, actorRole, open, onClose, freePartnerPromoCodes }: EditUserFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [formState, setFormState] = useState<{ success?: boolean; error?: string }>({});
@@ -48,6 +51,7 @@ export default function EditUserForm({ user, actorRole, open, onClose }: EditUse
       phone: user.phone ?? "",
       role: user.role,
       newPassword: "",
+      partnerPromoCodeId: user.partnerProfile?.promoCodeId ?? "",
     },
   });
 
@@ -57,6 +61,7 @@ export default function EditUserForm({ user, actorRole, open, onClose }: EditUse
     phone: string;
     role: string;
     newPassword: string;
+    partnerPromoCodeId: string;
   }) => {
     setIsPending(true);
     setFormState({});
@@ -78,6 +83,7 @@ export default function EditUserForm({ user, actorRole, open, onClose }: EditUse
           phone: data.phone !== (user.phone ?? "") ? data.phone : undefined,
           role: data.role !== user.role ? data.role : undefined,
           newPassword: data.newPassword.trim() ? data.newPassword : undefined,
+          partnerPromoCodeId: data.role === "PARTNER" && data.partnerPromoCodeId ? data.partnerPromoCodeId : undefined,
         }),
       });
 
@@ -167,9 +173,31 @@ export default function EditUserForm({ user, actorRole, open, onClose }: EditUse
             label="Роль"
             form={form}
             options={roleOptions}
-            disabled={isPending}
+            disabled={isPending || actorRole !== "ADMIN"}
             className="mb-2"
           />
+
+          {form.watch("role") === "PARTNER" && (
+            <SelectField
+              id="partnerPromoCodeId"
+              name="partnerPromoCodeId"
+              label="Промокод партнёра"
+              form={form}
+              options={[
+                { value: "", label: "Выберите свободный активный промокод" },
+                ...(user.partnerProfile?.promoCode ? [{
+                  value: user.partnerProfile.promoCode.id,
+                  label: `${user.partnerProfile.promoCode.code} — скидка ${user.partnerProfile.promoCode.discountPercent}%`,
+                }] : []),
+                ...freePartnerPromoCodes.map((promoCode) => ({
+                  value: promoCode.id,
+                  label: `${promoCode.code} — скидка ${promoCode.discountPercent}%`,
+                })),
+              ]}
+              disabled={isPending || actorRole !== "ADMIN"}
+              className="mb-2"
+            />
+          )}
 
           <PasswordField
             id="newPassword"

@@ -37,7 +37,7 @@ export async function getAppSubscriptionOffer(
     },
   });
 
-  const [appAccountToken, iosRuCardPaymentEnabled, promoCode] = await Promise.all([
+  const [appAccountToken, iosRuCardPaymentEnabled, promoCode, user] = await Promise.all([
     ensureAppleAppAccountToken(userId),
     getMobileFeatureFlagEnabled(
       APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
@@ -46,6 +46,7 @@ export async function getAppSubscriptionOffer(
       false,
     ),
     getAppSubscriptionPromoCodeOfferState({ userId, clientContext }),
+    prisma.user.findUnique({ where: { id: userId }, select: { savedRegistrationPromoCode: { select: { code: true, isActive: true, archivedAt: true } } } }),
   ]);
 
   const monthlyPlan = getAppSubscriptionPlanConfig(settings, "MONTHLY");
@@ -62,5 +63,15 @@ export async function getAppSubscriptionOffer(
     appleAppAccountToken: appAccountToken,
     iosRuCardPaymentEnabled,
     promoCode,
+    savedRegistrationPromoCode: user?.savedRegistrationPromoCode
+      ? {
+          code: user.savedRegistrationPromoCode.code,
+          status: user.savedRegistrationPromoCode.archivedAt
+            ? "ARCHIVED"
+            : user.savedRegistrationPromoCode.isActive
+              ? "ACTIVE"
+              : "INACTIVE",
+        }
+      : null,
   };
 }

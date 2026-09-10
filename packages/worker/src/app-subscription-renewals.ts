@@ -7,7 +7,7 @@ import {
   incrementRenewalFailedTotal,
 } from "./app-subscription-metrics";
 import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
-import { ensureNpdReceiptForSucceededPayment } from "@gafus/core/services/appSubscription";
+import { ensureNpdReceiptForSucceededPayment, recordPartnerCommissionForPayment } from "@gafus/core/services/appSubscription";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
@@ -504,6 +504,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 renewalReminderSentForPeriodEnd: null,
               },
             });
+            await recordPartnerCommissionForPayment(tx, payment);
             await ensureNpdReceiptForSucceededPayment(tx, payment.id);
           });
         }

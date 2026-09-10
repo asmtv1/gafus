@@ -64,4 +64,13 @@ export type AppSubscriptionOfferDto = {
     entryEnabled: boolean;
     eligible: boolean;
   };
+  /**
+   * Registration selection retained for the first eligible checkout.  Keep the
+   * lifecycle state too: hiding an expired selection as `null` would make a
+   * buyer unknowingly continue at the full price.
+   */
+  savedRegistrationPromoCode: {
+    code: string;
+    status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+  } | null;
 };

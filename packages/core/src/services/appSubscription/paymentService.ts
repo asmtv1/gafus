@@ -35,6 +35,7 @@ import {
 } from "./promoCodeService";
 import { calculateAppSubscriptionPromoPrice, parseAppSubscriptionPromoCode } from "./promoCode";
 import { ensureNpdReceiptForSucceededPayment, queueNpdReceiptCancellation } from "./npdReceiptService";
+import { recordPartnerCommissionForPayment, reversePartnerCommissionForRefund } from "./partnerService";
 import type { ClientAppContext } from "../appFeatureFlags";
 
 const logger = createWebLogger("app-subscription-payment-service");
@@ -2494,6 +2495,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     }
     await prisma.$transaction(async (tx) => {
       await tx.appSubscriptionPayment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } });
+      await reversePartnerCommissionForRefund(tx, payment);
       await queueNpdReceiptCancellation(tx, payment.id);
       if (payment.subscriptionId && payment.periodEnd) {
         const newerPaid = await tx.appSubscriptionPayment.findFirst({
@@ -2680,6 +2682,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
             data: { subscriptionId: created.id },
           });
         }
+        await recordPartnerCommissionForPayment(tx, payment);
         await ensureNpdReceiptForSucceededPayment(tx, payment.id);
       });
     } else if (params.event === "payment.canceled") {

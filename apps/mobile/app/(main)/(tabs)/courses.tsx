@@ -114,11 +114,13 @@ export default function FavoritesScreen() {
     );
   }
 
+  if (isLoading) {
+    return <Loading fullScreen message="Загрузка избранных курсов..." />;
+  }
+
   return (
     <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-      {isLoading ? (
-        <Loading fullScreen embedded message="Загрузка избранных курсов..." />
-      ) : error ? (
+      {error ? (
         <View style={styles.errorContainer}>
           {renderHeader()}
           <Text style={styles.errorText}>

@@ -55,6 +55,7 @@ export const authRegisterBodySchema = z.object({
   tempSessionId: z.string().uuid("tempSessionId должен быть UUID"),
   consentPayload: coreRegisterConsentPayloadSchema,
   registrationChannel: registrationChannelRequestSchema.optional(),
+  promoCode: z.string().trim().min(1).max(64).optional(),
 });
 
 export type AuthRegisterBody = z.infer<typeof authRegisterBodySchema>;

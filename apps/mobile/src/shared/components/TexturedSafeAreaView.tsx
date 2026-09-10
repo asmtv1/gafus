@@ -2,6 +2,7 @@ import { type ComponentProps } from "react";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { COLORS } from "@/shared/config";
 import { PaperTextureBackground } from "./PaperTextureBackground";
 
 type TexturedSafeAreaViewProps = ComponentProps<typeof SafeAreaView>;
@@ -27,5 +28,6 @@ export function TexturedSafeAreaView({
 const styles = StyleSheet.create({
   container: {
     position: "relative",
+    backgroundColor: COLORS.background,
   },
 });

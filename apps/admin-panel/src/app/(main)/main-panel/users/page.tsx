@@ -2,6 +2,7 @@ import UsersClient from "./UsersClient";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@gafus/prisma";
 
 import { getAllUsers } from "@/features/users/lib/getAllUsers";
 
@@ -12,6 +13,11 @@ export default async function UsersPage() {
     redirect("/main-panel");
   }
   const users = await getAllUsers();
+  const freePartnerPromoCodes = await prisma.appSubscriptionPromoCode.findMany({
+    where: { isActive: true, archivedAt: null, partnerProfile: null },
+    select: { id: true, code: true, discountPercent: true },
+    orderBy: { code: "asc" },
+  });
 
-  return <UsersClient users={users} actorRole={role} />;
+  return <UsersClient users={users} actorRole={role} freePartnerPromoCodes={freePartnerPromoCodes} />;
 }

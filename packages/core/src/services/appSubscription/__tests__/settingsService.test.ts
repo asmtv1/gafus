@@ -4,8 +4,12 @@ import { getAppSubscriptionOffer } from "../settingsService";
 
 const mockSettingsFindUnique = vi.fn();
 const mockPaymentFindFirst = vi.fn();
+const mockUserFindUnique = vi.fn();
 vi.mock("@gafus/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
     appSubscriptionSettings: {
       findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
     },
@@ -39,6 +43,7 @@ describe("getAppSubscriptionOffer", () => {
       monthlyAppleProductId: "premium-month",
     });
     mockPaymentFindFirst.mockResolvedValue(null);
+    mockUserFindUnique.mockResolvedValue(null);
   });
 
   it("returns only the monthly plan", async () => {

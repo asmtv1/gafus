@@ -32,8 +32,10 @@ const mockTxUserProfileCreate = vi.fn();
 const mockTxUserProfileFindUnique = vi.fn();
 const mockTxUserProfileUpsert = vi.fn();
 const mockTxAccountCreate = vi.fn();
+const mockTxAccountFindUnique = vi.fn();
 
 const vkTxStub = {
+  $executeRaw: vi.fn(),
   user: {
     create: (...args: unknown[]) => mockTxUserCreate(...args),
   },
@@ -43,6 +45,7 @@ const vkTxStub = {
     upsert: (...args: unknown[]) => mockTxUserProfileUpsert(...args),
   },
   account: {
+    findUnique: (...args: unknown[]) => mockTxAccountFindUnique(...args),
     create: (...args: unknown[]) => mockTxAccountCreate(...args),
   },
 };
@@ -241,6 +244,7 @@ describe("exchangeVkCodeAndGetUser", () => {
     });
     mockTxUserProfileCreate.mockResolvedValue({});
     mockTxAccountCreate.mockResolvedValue({});
+    mockTxAccountFindUnique.mockResolvedValue(null);
   });
 
   it("цепочка: токен → профиль → findOrCreate (новый пользователь)", async () => {

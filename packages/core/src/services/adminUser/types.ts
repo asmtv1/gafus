@@ -9,9 +9,10 @@ export interface AdminUserRow {
   createdAt: Date;
   profile: { fullName: string | null; avatarUrl: string | null } | null;
   _count: { pushSubscriptions: number };
+  partnerProfile?: { promoCodeId: string | null; promoCode: { id: string; code: string; discountPercent: number } | null } | null;
 }
 
-export type AdminUserRole = "ADMIN" | "MODERATOR" | "TRAINER" | "USER";
+export type AdminUserRole = "ADMIN" | "MODERATOR" | "TRAINER" | "PARTNER" | "USER";
 
 export interface UpdateUserAdminInput {
   username?: string;
@@ -19,6 +20,8 @@ export interface UpdateUserAdminInput {
   phone?: string;
   role?: AdminUserRole;
   newPassword?: string;
+  /** Existing active promo selected when appointing or changing a partner. */
+  partnerPromoCodeId?: string;
 }
 
 export type AdminUserActionResult =

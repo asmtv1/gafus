@@ -14,6 +14,7 @@ import {
   Flag,
   CardMembership,
   AdsClick,
+  Handshake,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -49,6 +50,12 @@ export default async function MainPanelLayout({ children }: { children: React.Re
           <AdminPanelSettings sx={{ mr: 1.5, fontSize: 20 }} />
           Администрирование
         </Link>
+        {session.user.role === "ADMIN" && (
+          <Link href="/main-panel/partners" className={styles.button}>
+            <Handshake sx={{ mr: 1.5, fontSize: 20 }} />
+            Партнёрская программа
+          </Link>
+        )}
         <Link href="/main-panel/feature-flags" className={styles.button}>
           <Flag sx={{ mr: 1.5, fontSize: 20 }} />
           Мобильный релиз

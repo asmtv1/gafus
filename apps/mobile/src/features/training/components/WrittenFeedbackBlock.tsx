@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 
 const MIN_FEEDBACK_LENGTH = 10;
@@ -74,10 +74,12 @@ export function WrittenFeedbackBlock({
 
   if (isLoading) {
     return (
-      <View style={styles.loadingWrap}>
-        <MascotSpinner size="small" />
-        <Text style={styles.loadingText}>Загрузка данных...</Text>
-      </View>
+      <Loading
+        variant="inline"
+        size="small"
+        message="Загрузка данных..."
+        style={styles.loadingWrap}
+      />
     );
   }
 
@@ -165,11 +167,6 @@ const styles = StyleSheet.create({
   loadingWrap: {
     padding: SPACING.md,
     alignItems: "center",
-  },
-  loadingText: {
-    marginTop: SPACING.sm,
-    fontSize: 14,
-    color: COLORS.textSecondary,
   },
   title: {
     fontSize: 16,

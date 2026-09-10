@@ -1,4 +1,5 @@
 export { apiClient, type ApiResponse } from "./client";
+export { partnersApi, type PartnerDashboard } from "./partners";
 export { isSubscriptionRequiredCode } from "./subscriptionRequired";
 export { articlesApi } from "./articles";
 export {

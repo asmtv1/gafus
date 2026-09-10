@@ -5,6 +5,7 @@ export { resetPasswordByToken } from "./resetPasswordByToken";
 export { resetPasswordByShortCode } from "./resetPasswordByShortCode";
 export {
   consumeVkIdOneTimeUser,
+  completeVkIdOneTimeConsent,
   getVkIdUserFromToken,
   storeVkIdOneTimeUser,
 } from "./vkIdOneTimeStore";

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { usePathname } from "expo-router";
+import { useLocalSearchParams, usePathname } from "expo-router";
 import {
   View,
   StyleSheet,
@@ -20,6 +20,7 @@ import { suggestRegisterEmailDomain } from "@gafus/core/validation/email-domain-
 import * as Crypto from "expo-crypto";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
+import { authApi } from "@/shared/lib/api";
 import { useLayout } from "@/shared/hooks";
 import { getOtaRuntimeFingerprintText } from "@/shared/lib/otaRuntimeFingerprint";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -64,12 +65,23 @@ type FormErrors = {
   api?: string;
 };
 
+type PromoPreviewState = "idle" | "checking" | "applied" | "invalid" | "temporary";
+
+function registrationPromoMessage(state: PromoPreviewState): string | null {
+  if (state === "checking") return "Проверяем промокод…";
+  if (state === "applied") return "Промокод применён.";
+  if (state === "invalid") return "Промокод не найден, отключён или истёк. Его можно исправить или удалить.";
+  if (state === "temporary") return "Не удалось проверить промокод. Проверьте подключение и повторите.";
+  return null;
+}
+
 /**
  * Страница регистрации
  */
 export default function RegisterScreen() {
   const layout = useLayout();
   const pathname = usePathname() ?? "/register";
+  const promoCodeParam = useLocalSearchParams<{ promoCode?: string | string[] }>().promoCode;
   const register = useAuthStore((s) => s.register);
 
   const formWidth = layout.contentWidth(SPACING.md * 4, 320);
@@ -79,6 +91,7 @@ export default function RegisterScreen() {
     email: "",
     password: "",
     confirmPassword: "",
+    promoCode: typeof promoCodeParam === "string" ? promoCodeParam : "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -87,6 +100,7 @@ export default function RegisterScreen() {
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [tempSessionId] = useState<string>(() => Crypto.randomUUID());
   const [emailTypoFull, setEmailTypoFull] = useState<string | null>(null);
+  const [promoPreviewState, setPromoPreviewState] = useState<PromoPreviewState>("idle");
   /** Актуальный email для blur/onEndEditing (state в RN может отставать от события). */
   const emailTextRef = useRef("");
   const submittingRef = useRef(false);
@@ -140,6 +154,7 @@ export default function RegisterScreen() {
       emailTextRef.current = value;
       setEmailTypoFull(null);
     }
+    if (field === "promoCode") setPromoPreviewState("idle");
     setErrors((prev) => {
       const next = { ...prev, [field]: undefined, api: undefined };
       return next;
@@ -193,10 +208,34 @@ export default function RegisterScreen() {
     setErrors((prev) => ({ ...prev, consent: undefined, api: undefined }));
   };
 
+  const applyPromoCode = async () => {
+    const rawCode = form.promoCode.trim();
+    if (!rawCode) {
+      setPromoPreviewState("idle");
+      return;
+    }
+    setPromoPreviewState("checking");
+    const result = await authApi.previewRegistrationPromoCode(rawCode);
+    if (result.success && result.data) {
+      setForm((previous) => ({ ...previous, promoCode: result.data!.code }));
+      setPromoPreviewState("applied");
+      return;
+    }
+    setPromoPreviewState(
+      result.code === "PROMO_INVALID" || result.code?.startsWith("PROMO_") ? "invalid" : "temporary",
+    );
+  };
+
   const handleRegister = async () => {
     if (submittingRef.current) return;
     applyEmailTypoHint(emailTextRef.current || form.email);
     if (!validateRegisterForm()) return;
+    if (form.promoCode.trim() && promoPreviewState !== "applied") {
+      const message = "Сначала примените промокод или удалите его.";
+      setErrors((previous) => ({ ...previous, api: message }));
+      setSnackbar({ visible: true, message });
+      return;
+    }
 
     trackEvent({
       eventName: "button_click",
@@ -230,6 +269,7 @@ export default function RegisterScreen() {
         form.password,
         tempSessionId,
         consentPayload,
+        form.promoCode.trim() || undefined,
       );
 
       if (__DEV__) console.log("[Register] register result", result);
@@ -244,7 +284,13 @@ export default function RegisterScreen() {
         await hapticFeedback.success();
         setSnackbar({ visible: true, message: "Регистрация успешна" });
       } else {
-        const msg = result.error || "Ошибка регистрации";
+        const msg =
+          result.code === "PROMO_INVALID"
+            ? "Промокод не найден, отключён или истёк. Исправьте или удалите его."
+            : result.code === "ATTEMPT_MISMATCH"
+              ? "Данные регистрации изменились. Обновите страницу и попробуйте снова."
+              : result.error || "Ошибка регистрации";
+        if (result.code === "PROMO_INVALID") setPromoPreviewState("invalid");
         setErrors((prev) => ({ ...prev, api: msg }));
         setSnackbar({ visible: true, message: msg });
       }
@@ -349,6 +395,39 @@ export default function RegisterScreen() {
                 </Pressable>
               </View>
             )}
+
+            <TextInput
+              style={[
+                styles.input,
+                { width: formWidth },
+                Platform.OS === "android" && styles.inputAndroid,
+              ]}
+              value={form.promoCode}
+              onChangeText={(v) => updateField("promoCode", v)}
+              placeholder="Промокод (необязательно)"
+              placeholderTextColor={COLORS.placeholder}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            {registrationPromoMessage(promoPreviewState) ? (
+              <Text
+                style={[
+                  styles.promoMessage,
+                  (promoPreviewState === "invalid" || promoPreviewState === "temporary") &&
+                    styles.promoError,
+                ]}
+                accessibilityRole={promoPreviewState === "invalid" ? "alert" : "text"}
+              >
+                {registrationPromoMessage(promoPreviewState)}
+              </Text>
+            ) : null}
+            <Button
+              label={promoPreviewState === "checking" ? "Проверяем…" : "Применить промокод"}
+              onPress={() => void applyPromoCode()}
+              loading={promoPreviewState === "checking"}
+              disabled={!form.promoCode.trim() || promoPreviewState === "checking" || isLoading}
+              style={styles.promoApplyButton}
+            />
 
             {/* Password Input */}
             <View style={[styles.passwordInputWrapper, { width: formWidth }]}>
@@ -685,6 +764,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
     fontSize: 11,
+  },
+  promoMessage: {
+    marginTop: 4,
+    color: COLORS.success,
+    fontFamily: FONTS.montserrat,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  promoError: {
+    color: COLORS.error,
+  },
+  promoApplyButton: {
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   infoBlock: {
     gap: 4,

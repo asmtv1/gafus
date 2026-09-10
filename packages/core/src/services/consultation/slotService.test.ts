@@ -18,6 +18,7 @@ const {
   txSlotUpdate,
   txSlotDelete,
   txSlotUpdateMany,
+  txExecuteRaw,
 } = vi.hoisted(() => ({
   cynologistFindUnique: vi.fn(),
   slotFindMany: vi.fn(),
@@ -31,6 +32,7 @@ const {
   txSlotUpdate: vi.fn(),
   txSlotDelete: vi.fn(),
   txSlotUpdateMany: vi.fn(),
+  txExecuteRaw: vi.fn(),
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -84,6 +86,7 @@ describe("getAvailableSlots", () => {
     txSlotUpdateMany.mockResolvedValue({ count: 0 });
     prismaTransaction.mockImplementation(async (fn) =>
       fn({
+        $executeRaw: txExecuteRaw,
         consultationSlot: {
           findMany: txSlotFindMany,
           findFirst: txSlotFindFirst,
@@ -155,6 +158,8 @@ describe("getAvailableSlots", () => {
   });
 
   it("getCalendarSlots пересобирает протухший горизонт перед чтением", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T00:00:00.000Z"));
     const from = new Date("2026-06-29T21:00:00.000Z");
     const to = new Date("2026-07-14T20:59:59.999Z");
     const rebuiltStart = new Date("2026-06-30T07:00:00.000Z");
@@ -213,5 +218,6 @@ describe("getAvailableSlots", () => {
     );
     expect(out).toHaveLength(1);
     expect(out[0]?.id).toBe("sl-rebuilt");
+    vi.useRealTimers();
   });
 });

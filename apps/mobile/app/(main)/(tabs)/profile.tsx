@@ -152,6 +152,11 @@ function MobileAppSubscriptionCard() {
     ? formatMskDateTime(status.trialEndsAt)
     : formatMskDateTime(status?.paidAt);
 
+  const isPartnerAccess =
+    status?.provider === "MANUAL" &&
+    status?.isLifetime &&
+    status.paymentMethodTitle === "Партнёрская программа";
+
   return (
     <View style={styles.subscriptionCard}>
       <View style={styles.subscriptionHeader}>
@@ -161,6 +166,11 @@ function MobileAppSubscriptionCard() {
         </View>
       </View>
 
+      {isPartnerAccess ? (
+        <Text style={styles.subscriptionMuted}>
+          Бесплатный бессрочный доступ участника партнёрской программы.
+        </Text>
+      ) : <>
       <View style={styles.subscriptionGrid}>
         <View style={styles.subscriptionInfoCell}>
           <Text style={styles.subscriptionLabel}>{paidLabel}</Text>
@@ -184,6 +194,7 @@ function MobileAppSubscriptionCard() {
             : (status?.paymentMethodTitle ?? "—")}
         </Text>
       </View>
+      </>}
 
       {canUnlink ? (
         <>
@@ -308,6 +319,7 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
     }, [queryClient]),
   );
 
@@ -862,6 +874,23 @@ export default function ProfileScreen() {
           </Pressable>
 
           <MobileAppSubscriptionCard />
+
+          {user?.role === "PARTNER" ? (
+            <Pressable
+              style={styles.remindersCard}
+              onPress={() => {
+                trackProfileClick("partner-dashboard-open");
+                router.push("/partner" as Href);
+              }}
+            >
+              <MaterialCommunityIcons name="account-group-outline" size={22} color={COLORS.primary} />
+              <View style={styles.remindersCardContent}>
+                <Text style={styles.remindersCardTitle}>Партнёрская программа</Text>
+                <Text style={styles.remindersCardSubtitle}>Ссылка, вознаграждения и выплаты</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
+            </Pressable>
+          ) : null}
 
           <Pressable style={styles.remindersCard} onPress={handleRepeatOnboardingTour}>
             <MaterialCommunityIcons name="map-search-outline" size={22} color={COLORS.primary} />

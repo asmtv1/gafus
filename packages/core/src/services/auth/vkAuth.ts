@@ -219,6 +219,8 @@ export interface FindOrCreateVkResult {
   needsPhone: boolean;
   /** true, если пользователь только что создан (нужно собрать согласия) */
   isNewUser?: boolean;
+  /** Existing OAuth identities can still be pending after a lost consent flow. */
+  requiresConsent: boolean;
 }
 
 export interface ExchangeVkCodeParams {
@@ -230,6 +232,8 @@ export interface ExchangeVkCodeParams {
   clientId: string;
   /** Канал первой регистрации при создании нового пользователя VK */
   registrationChannel?: RegistrationChannel;
+  /** Kept for source compatibility; promo selection belongs to the durable context. */
+  promoCode?: string;
 }
 
 async function exchangeVkCodeForToken(
@@ -265,10 +269,7 @@ async function exchangeVkCodeForToken(
   if (!data.access_token) {
     logger.warn("VK ID token exchange failed", {
       error: data.error,
-      errorDescription: data.error_description,
       deviceIdLen: deviceId?.length,
-      redirectUri,
-      clientId,
     });
     throw new Error("VK token exchange failed");
   }
@@ -346,6 +347,7 @@ export async function findOrCreateVkUser(
           username: true,
           role: true,
           phone: true,
+          registrationPending: true,
           profile: { select: { fullName: true, birthDate: true, avatarUrl: true } },
         },
       },
@@ -383,7 +385,8 @@ export async function findOrCreateVkUser(
         role: account.user.role,
       },
       needsPhone: !account.user.phone || account.user.phone.startsWith("vk_"),
-      isNewUser: false,
+      isNewUser: account.user.registrationPending === true,
+      requiresConsent: account.user.registrationPending === true,
     };
   }
 
@@ -419,17 +422,27 @@ export async function findOrCreateVkUser(
     }
   }
 
-  const { user } = await prisma.$transaction(async (tx) => {
-    const u = await tx.user.create({
+  async function createPendingUser() {
+    return prisma.$transaction(async (tx) => {
+      // Lock an existing account if a concurrent callback won the race before
+      // attempting any create; never continue a transaction after P2002.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`vk:${providerAccountId}`}, 0))`;
+      const linked = await tx.account.findUnique({
+        where: { provider_providerAccountId: { provider: "vk", providerAccountId } },
+        include: { user: { select: { id: true, username: true, role: true, phone: true, registrationPending: true } } },
+      });
+      if (linked) return { user: linked.user, created: false };
+      const u = await tx.user.create({
       data: {
         username,
         phone,
         password,
         passwordSetAt: null,
         registrationChannel,
+        registrationPending: true,
         ...(emailForCreate ? { email: emailForCreate } : {}),
       },
-    });
+      });
     await tx.userProfile.create({
       data: {
         userId: u.id,
@@ -446,15 +459,33 @@ export async function findOrCreateVkUser(
         providerAccountId,
       },
     });
-    return { user: u };
-  });
+      return { user: u, created: true };
+    });
+  }
 
-  logger.success("findOrCreateVkUser: user created", { userId: user.id, username });
+  let created: { user: { id: string; username: string; role: string; phone?: string | null; registrationPending?: boolean }; created: boolean };
+  try {
+    created = await createPendingUser();
+  } catch (error) {
+    // A unique collision (e.g. email/username from an unrelated request) aborts
+    // its transaction. Start a new transaction instead of querying in it.
+    const isUnique = error instanceof Error && "code" in error && (error as { code?: string }).code === "P2002";
+    if (!isUnique) throw error;
+    username = `${username.slice(0, Math.max(1, 100 - 9))}_${crypto.randomInt(100000, 999999)}`;
+    // If a simultaneous account claimed the VK email, a retry must not reuse
+    // that optional field. The OAuth identity itself is still the authority.
+    emailForCreate = undefined;
+    created = await createPendingUser();
+  }
+  const { user } = created;
+
+  if (created.created) logger.success("findOrCreateVkUser: pending user created", { userId: user.id, username: user.username });
 
   return {
     user: { id: user.id, username: user.username, role: user.role },
-    needsPhone: true,
-    isNewUser: true,
+    needsPhone: !user.phone || user.phone.startsWith("vk_"),
+    isNewUser: user.registrationPending !== false,
+    requiresConsent: user.registrationPending !== false,
   };
 }
 

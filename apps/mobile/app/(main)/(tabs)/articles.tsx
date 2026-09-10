@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, RefreshControl, Pressable, InteractionManager } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "react-native-paper";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,20 +13,14 @@ import { Button, Loading } from "@/shared/components/ui";
 import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import { articlesApi } from "@/shared/lib/api";
 import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
-import { trackEvent } from "@/shared/lib/analytics";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { COLORS, SPACING, FONTS, UI_TIMEOUTS } from "@/shared/config";
+import { COLORS, SPACING, FONTS } from "@/shared/config";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 /** Сколько обложек префетчим в фоне (ускорение без привязки к снятию оверлея). */
 const ARTICLE_COVER_PREFETCH_LIMIT = 12;
-/** Сколько первых карточек считаем «видимым вьюпортом»: пока их обложки не готовы — полный оверлей. */
-const VIEWPORT_ARTICLE_COVER_GATE_COUNT = 6;
-/** После onDisplay у expo-image — короткая пауза, чтобы не было «вспышки» между оверлеем и списком. */
-const VIEWPORT_OVERLAY_SETTLE_MS = 96;
-/** Failsafe: если события обложек не пришли, не держим оверлей бесконечно. */
-const VIEWPORT_GATE_FAILSAFE_MS = UI_TIMEOUTS.articleViewportGateFailsafe;
+const INITIAL_ARTICLE_RENDER_BATCH_SIZE = 10;
 
 function formatViews(n: number): string {
   const last = n % 10;
@@ -45,11 +39,6 @@ function getVersionedImageUrl(
   if (!resolved) return null;
   const version = updatedAt != null ? new Date(updatedAt).getTime().toString() : "no-version";
   return `${resolved}${resolved.includes("?") ? "&" : "?"}v=${version}`;
-}
-
-function articleHasCover(a: ArticleListDto): boolean {
-  const rawCover = a.logoImg || a.imageUrls?.[0];
-  return getVersionedImageUrl(rawCover, a.updatedAt) != null;
 }
 
 function getArticleCoverPrefetchUris(
@@ -72,18 +61,12 @@ interface ArticleCardProps {
   article: ArticleListDto;
   onLike: (articleId: string) => void;
   isLikePending: boolean;
-  listIndex: number;
-  viewportGateCount: number;
-  onViewportCoverReady?: (articleId: string) => void;
 }
 
 const ArticleCard = memo(function ArticleCard({
   article,
   onLike,
   isLikePending,
-  listIndex,
-  viewportGateCount,
-  onViewportCoverReady,
 }: ArticleCardProps) {
   const router = useRouter();
   const rawCover = article.logoImg || article.imageUrls?.[0];
@@ -96,21 +79,6 @@ const ArticleCard = memo(function ArticleCard({
   const [isCoverLoading, setIsCoverLoading] = useState(false);
   const [showCoverPlaceholder, setShowCoverPlaceholder] = useState(false);
   const coverPlaceholderDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const viewportReadyReportedRef = useRef(false);
-
-  const isInViewportGate =
-    listIndex < viewportGateCount && typeof onViewportCoverReady === "function";
-
-  const maybeReportViewportCoverReady = useCallback(() => {
-    if (!isInViewportGate || viewportReadyReportedRef.current) return;
-    viewportReadyReportedRef.current = true;
-    onViewportCoverReady?.(article.id);
-  }, [article.id, isInViewportGate, onViewportCoverReady]);
-
-  useEffect(() => {
-    viewportReadyReportedRef.current = false;
-  }, [article.id]);
-
   useEffect(() => {
     setCoverCandidateIndex(0);
   }, [coverUrl]);
@@ -129,16 +97,10 @@ const ArticleCard = memo(function ArticleCard({
 
     setIsCoverLoading(true);
     setShowCoverPlaceholder(false);
-    if (isInViewportGate) return;
     coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
       setShowCoverPlaceholder(true);
     }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
-  }, [article.id, currentCoverUrl, isInViewportGate]);
-
-  useEffect(() => {
-    if (!isInViewportGate || currentCoverUrl) return;
-    maybeReportViewportCoverReady();
-  }, [currentCoverUrl, isInViewportGate, maybeReportViewportCoverReady]);
+  }, [article.id, currentCoverUrl]);
 
   useEffect(() => {
     return () => {
@@ -182,7 +144,7 @@ const ArticleCard = memo(function ArticleCard({
                   contentFit="cover"
                   recyclingKey={coverCacheKey}
                   cachePolicy="memory-disk"
-                  priority={isInViewportGate ? "high" : "normal"}
+                  priority="normal"
                   transition={0}
                   accessibilityLabel={`Обложка статьи «${article.title}»`}
                   onLoadStart={() => {
@@ -192,7 +154,6 @@ const ArticleCard = memo(function ArticleCard({
                     }
                     setIsCoverLoading(true);
                     setShowCoverPlaceholder(false);
-                    if (isInViewportGate) return;
                     coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
                       setShowCoverPlaceholder(true);
                     }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
@@ -204,9 +165,6 @@ const ArticleCard = memo(function ArticleCard({
                     }
                     setIsCoverLoading(false);
                     setShowCoverPlaceholder(false);
-                    if (!hasNextCoverFallback) {
-                      maybeReportViewportCoverReady();
-                    }
                   }}
                   onDisplay={() => {
                     if (coverPlaceholderDelayTimeoutRef.current) {
@@ -215,7 +173,6 @@ const ArticleCard = memo(function ArticleCard({
                     }
                     setIsCoverLoading(false);
                     setShowCoverPlaceholder(false);
-                    maybeReportViewportCoverReady();
                   }}
                   onError={() => {
                     if (hasNextCoverFallback) {
@@ -226,19 +183,16 @@ const ArticleCard = memo(function ArticleCard({
                       setCoverCandidateIndex((prev) => prev + 1);
                       setIsCoverLoading(true);
                       setShowCoverPlaceholder(false);
-                      if (!isInViewportGate) {
-                        coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
-                          setShowCoverPlaceholder(true);
-                        }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
-                      }
+                      coverPlaceholderDelayTimeoutRef.current = setTimeout(() => {
+                        setShowCoverPlaceholder(true);
+                      }, ARTICLE_COVER_PLACEHOLDER_DELAY_MS);
                       return;
                     }
                     setIsCoverLoading(false);
                     setShowCoverPlaceholder(false);
-                    maybeReportViewportCoverReady();
                   }}
                 />
-                {isCoverLoading && showCoverPlaceholder && !isInViewportGate && (
+                {isCoverLoading && showCoverPlaceholder && (
                   <View style={styles.logoLoadingPlaceholder}>
                     <MaterialCommunityIcons
                       name="image-outline"
@@ -319,9 +273,7 @@ const ArticleCard = memo(function ArticleCard({
 
 export default function ArticlesScreen() {
   const [refreshing, setRefreshing] = useState(false);
-  const [viewportReady, setViewportReady] = useState(false);
   const queryClient = useQueryClient();
-  const viewportFailsafeTrackedKeyRef = useRef<string>("");
 
   const { data, isPending, error, refetch } = useQuery(articlesQueryOptions);
 
@@ -333,80 +285,12 @@ export default function ArticlesScreen() {
 
   const articles = useMemo(() => data?.data ?? [], [data?.data]);
 
-  const gateArticles = useMemo(
-    () => articles.slice(0, VIEWPORT_ARTICLE_COVER_GATE_COUNT),
-    [articles],
-  );
-
-  const viewportGateSyncKey = useMemo(
-    () => gateArticles.map((a) => `${a.id}:${a.updatedAt}`).join("|"),
-    [gateArticles],
-  );
-
-  const viewportGatePendingIdsRef = useRef<Set<string>>(new Set());
-  const viewportGateKeyRef = useRef<string>("");
-
-  if (viewportGateKeyRef.current !== viewportGateSyncKey) {
-    viewportGateKeyRef.current = viewportGateSyncKey;
-    const next = new Set<string>();
-    for (const a of gateArticles) {
-      if (articleHasCover(a)) next.add(a.id);
-    }
-    viewportGatePendingIdsRef.current = next;
-  }
-
-  useLayoutEffect(() => {
-    if (isPending) {
-      setViewportReady(false);
-      return;
-    }
-    if (articles.length === 0) {
-      setViewportReady(true);
-      return;
-    }
-    setViewportReady(viewportGatePendingIdsRef.current.size === 0);
-  }, [isPending, articles.length, viewportGateSyncKey]);
-
-  const handleViewportCoverReady = useCallback((articleId: string) => {
-    const pending = viewportGatePendingIdsRef.current;
-    if (!pending.has(articleId)) return;
-    pending.delete(articleId);
-    if (pending.size === 0) {
-      InteractionManager.runAfterInteractions(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              setViewportReady(true);
-            }, VIEWPORT_OVERLAY_SETTLE_MS);
-          });
-        });
-      });
-    }
-  }, []);
-
   useEffect(() => {
     if (isPending || articles.length === 0) return;
     const uris = getArticleCoverPrefetchUris(articles, ARTICLE_COVER_PREFETCH_LIMIT);
     if (uris.length === 0) return;
     void Image.prefetch(uris, { cachePolicy: "memory-disk" });
   }, [isPending, articles]);
-
-  useEffect(() => {
-    if (isPending || articles.length === 0 || viewportReady) return;
-    const timeout = setTimeout(() => {
-      if (viewportFailsafeTrackedKeyRef.current !== viewportGateSyncKey) {
-        viewportFailsafeTrackedKeyRef.current = viewportGateSyncKey;
-        trackEvent({
-          eventName: "button_click",
-          platform: "mobile",
-          pathOrScreen: "/(main)/(tabs)/articles",
-          elementId: "articles-viewport-gate-failsafe",
-        });
-      }
-      setViewportReady(true);
-    }, VIEWPORT_GATE_FAILSAFE_MS);
-    return () => clearTimeout(timeout);
-  }, [articles.length, isPending, viewportReady, viewportGateSyncKey]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -427,17 +311,10 @@ export default function ArticlesScreen() {
   const handleLike = useCallback((id: string) => likeMutation.mutate(id), [likeMutation]);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: ArticleListDto; index: number }) => (
-      <ArticleCard
-        article={item}
-        onLike={handleLike}
-        isLikePending={likeMutation.isPending}
-        listIndex={index}
-        viewportGateCount={VIEWPORT_ARTICLE_COVER_GATE_COUNT}
-        onViewportCoverReady={handleViewportCoverReady}
-      />
+    ({ item }: { item: ArticleListDto }) => (
+      <ArticleCard article={item} onLike={handleLike} isLikePending={likeMutation.isPending} />
     ),
-    [handleLike, handleViewportCoverReady, likeMutation.isPending],
+    [handleLike, likeMutation.isPending],
   );
 
   const listHeader = (
@@ -446,15 +323,13 @@ export default function ArticlesScreen() {
     </View>
   );
 
-  const showInitialLoading = !error && !refreshing && isPending;
-  const showViewportLoadingOverlay =
-    !error && !refreshing && !isPending && articles.length > 0 && !viewportReady;
+  if (!error && !refreshing && isPending) {
+    return <Loading fullScreen message="Загрузка статей..." />;
+  }
 
   return (
     <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-      {showInitialLoading ? (
-        <Loading fullScreen embedded message="Загрузка статей..." />
-      ) : error ? (
+      {error ? (
         <View style={styles.errorContainer}>
           {listHeader}
           <Text style={styles.errorText}>
@@ -472,8 +347,7 @@ export default function ArticlesScreen() {
             keyExtractor={(item) => item.id}
             overrideProps={{
               estimatedItemSize: 150,
-              /** Чтобы первые карточки смонтировались и отдали onDisplay обложек до снятия оверлея. */
-              initialDrawBatchSize: VIEWPORT_ARTICLE_COVER_GATE_COUNT + 4,
+              initialDrawBatchSize: INITIAL_ARTICLE_RENDER_BATCH_SIZE,
             }}
             ListHeaderComponent={listHeader}
             contentContainerStyle={styles.listContent}
@@ -484,11 +358,6 @@ export default function ArticlesScreen() {
               </View>
             }
           />
-          {showViewportLoadingOverlay ? (
-            <View style={styles.viewportLoadingOverlay} pointerEvents="auto">
-              <Loading message="Загрузка статей..." size="large" />
-            </View>
-          ) : null}
         </View>
       )}
     </TexturedSafeAreaView>
@@ -498,18 +367,10 @@ export default function ArticlesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   listWrap: {
     flex: 1,
     position: "relative",
-  },
-  viewportLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
-    justifyContent: "center",
   },
   header: {
     paddingBottom: SPACING.sm,

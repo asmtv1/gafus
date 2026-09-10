@@ -11,17 +11,12 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { after } from "next/server";
 
-import { authOptions, getVkIdUserFromToken } from "@gafus/auth";
+import { authOptions } from "@gafus/auth";
 import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
 import { RegistrationChannel } from "@gafus/prisma";
 import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
 import { getErrorMessage } from "@gafus/core/errors";
-import {
-  createConsentLogs,
-  linkConsentLogsToUser,
-  markConsentLogsFailed,
-} from "@gafus/core/services/consent";
 import { createWebLogger } from "@gafus/logger";
 import {
   generateCodeChallenge,
@@ -43,9 +38,9 @@ import {
   usernameSchema,
 } from "@shared/lib/validation/authSchemas";
 
-import { prisma } from "@gafus/prisma";
 import { CONSENT_VERSION } from "@shared/constants/consent";
 import type { ConsentPayload } from "@shared/constants/consent";
+import { prisma, VkRegistrationContextPurpose } from "@gafus/prisma";
 
 const logger = createWebLogger("auth-actions");
 
@@ -129,6 +124,7 @@ export async function prepareVkIdOneTap(
 export async function initiateVkIdAuth(
   returnPath?: string,
   redirectUriOverride?: string,
+  promoCode?: string,
 ): Promise<{ success: true; url: string } | { success: false; error: string }> {
   const vkIdDebug =
     process.env.NODE_ENV === "development" ||
@@ -143,12 +139,31 @@ export async function initiateVkIdAuth(
   }
 
   const safeReturn = returnPath === "/" ? "/" : returnPath === "/register" ? "/register" : "/login";
+  const contextToken = crypto.randomBytes(32).toString("base64url");
+  try {
+    await prisma.$transaction(async (tx) => {
+      const selected = promoCode?.trim()
+        ? await authService.resolveRegistrationPromoCodeInTransaction(tx, promoCode)
+        : null;
+      await authService.createVkRegistrationContextInTransaction(tx, {
+        contextToken,
+        state: prepared.state,
+        codeVerifier: prepared.codeVerifier,
+        purpose: VkRegistrationContextPurpose.REGISTER,
+        selectedPromoCodeId: selected?.id,
+        selectedPromoCodeValue: selected?.normalizedCode,
+      });
+    });
+  } catch (error) {
+    logger.warn("VK ID registration context rejected", { code: error instanceof authService.RegistrationContractError ? error.code : "VK_CONTEXT_CREATE_FAILED" });
+    return { success: false, error: "Промокод недействителен или временно недоступен" };
+  }
   const cookieStore = await cookies();
   cookieStore.set(
     "vk_id_state",
     JSON.stringify({
+      contextToken,
       state: prepared.state,
-      codeVerifier: prepared.codeVerifier,
       returnPath: safeReturn,
       redirectUri: prepared.redirectUri,
     }),
@@ -161,7 +176,7 @@ export async function initiateVkIdAuth(
     },
   );
 
-  const codeChallenge = generateCodeChallenge(prepared.codeVerifier);
+  const codeChallenge = prepared.codeChallenge;
   const url =
     `https://id.vk.ru/authorize` +
     `?response_type=code` +
@@ -282,6 +297,7 @@ export async function registerUserAction(
   password: string,
   tempSessionId: string,
   consentPayload: ConsentPayload,
+  promoCode?: string,
 ): Promise<{ success?: true; error?: string }> {
   const ip = await getClientIpFromHeaders();
   if (!checkAuthRateLimit(ip, "register")) {
@@ -294,6 +310,7 @@ export async function registerUserAction(
     password,
     tempSessionId,
     consentPayload,
+    promoCode: promoCode?.trim() || undefined,
   });
   if (!parsed.success) {
     const message = parsed.error.errors.map((issue) => issue.message).join(", ");
@@ -306,40 +323,26 @@ export async function registerUserAction(
     password: safePassword,
     tempSessionId: safeSessionId,
     consentPayload: safeConsent,
+    promoCode: safePromoCode,
   } = parsed.data;
   const userAgent = (await headers()).get("user-agent") ?? undefined;
 
-  let consentCreated = false;
   try {
-    await createConsentLogs({
-      tempSessionId: safeSessionId,
-      consentPayload: safeConsent,
-      formData: { name: safeName, email: safeEmail },
-      ipAddress: ip,
-      userAgent,
-      defaultVersion: CONSENT_VERSION,
-    });
-    consentCreated = true;
-
     const result = await authService.registerUserService(
       safeName,
       safeEmail,
       safePassword,
       RegistrationChannel.WEB,
+      safePromoCode,
+      { tempSessionId: safeSessionId, consentPayload: safeConsent, formData: { name: safeName, email: safeEmail }, ipAddress: ip, userAgent, defaultVersion: CONSENT_VERSION },
     );
 
     if ("error" in result) {
-      await markConsentLogsFailed(safeSessionId);
       return { error: result.error };
     }
-
-    await linkConsentLogsToUser(safeSessionId, result.userId);
     return { success: true };
   } catch (error) {
     unstable_rethrow(error);
-    if (consentCreated) {
-      await markConsentLogsFailed(safeSessionId).catch(() => undefined);
-    }
     logger.error(
       "Error in registerUserAction",
       error instanceof Error ? error : new Error(String(error)),
@@ -348,22 +351,36 @@ export async function registerUserAction(
   }
 }
 
+/** Unauthenticated registration-code check: no user id and no checkout price. */
+export async function previewRegistrationPromoAction(promoCode: string): Promise<
+  { success: true; code: string } | { success: false; code: string; error: string }
+> {
+  const ip = await getClientIpFromHeaders();
+  if (!checkAuthRateLimit(ip, "register")) {
+    return { success: false, code: "RATE_LIMITED", error: "Слишком много запросов. Попробуйте позже." };
+  }
+  try {
+    const promo = await prisma.$transaction((tx) => authService.resolveRegistrationPromoCodeInTransaction(tx, promoCode));
+    return { success: true, code: promo!.normalizedCode };
+  } catch (error) {
+    const code = error instanceof authService.RegistrationContractError ? error.code : "PROMO_INVALID";
+    return { success: false, code, error: "Промокод недействителен или недоступен" };
+  }
+}
+
 /**
  * Согласия для новых VK-пользователей. Создаёт ConsentLog, привязывает к userId.
  * Токен не потребляется — клиент вызовет signIn после успеха.
  */
 export async function submitVkConsentAction(
-  vkIdToken: string,
+  contextToken: string,
   consentPayload: ConsentPayload,
-): Promise<{ success: true } | { success: false; error: string }> {
+  promoCode?: string,
+  tempSessionId?: string,
+): Promise<{ success: true; loginGrantToken: string } | { success: false; error: string }> {
   const ip = await getClientIpFromHeaders();
   if (!checkAuthRateLimit(ip, "register")) {
     return { success: false, error: "Слишком много запросов. Попробуйте через 15 минут." };
-  }
-
-  const vkUser = await getVkIdUserFromToken(vkIdToken);
-  if (!vkUser) {
-    return { success: false, error: "Ссылка устарела. Повторите вход через VK." };
   }
 
   const consentParsed = consentPayloadSchema.safeParse(consentPayload);
@@ -371,36 +388,51 @@ export async function submitVkConsentAction(
     return { success: false, error: "Необходимо принять все согласия" };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: vkUser.userId },
-    select: { phone: true, email: true },
-  });
-  if (!user) {
-    return { success: false, error: "Пользователь не найден." };
-  }
-
-  const tempSessionId = crypto.randomUUID();
+  const stableTempSessionId = tempSessionId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tempSessionId)
+    ? tempSessionId
+    : crypto.randomUUID();
   const userAgent = (await headers()).get("user-agent") ?? undefined;
 
   try {
-    await createConsentLogs({
-      tempSessionId,
-      consentPayload: consentParsed.data,
-      formData: {
-        name: vkUser.username,
-        phone: user.phone ?? undefined,
-        email: user.email ?? undefined,
-      },
-      ipAddress: ip,
-      userAgent,
-      defaultVersion: CONSENT_VERSION,
+    // State is retained server-side in the context; callers pass the opaque
+    // context token only. The callback has already claimed the user.
+    const grant = authService.createVkLoginGrantToken();
+    const state = (await cookies()).get("vk_registration_state")?.value;
+    if (!state) return { success: false, error: "Сессия VK истекла. Повторите вход через VK." };
+    const context = await authService.completeVkRegistration({
+      contextToken,
+      state,
+      promoCode,
+      consent: { tempSessionId: stableTempSessionId, consentPayload: consentParsed.data, formData: { name: "VK ID" }, ipAddress: ip, userAgent, defaultVersion: CONSENT_VERSION },
+      transport: "WEB",
+      loginGrantToken: grant,
     });
-    await linkConsentLogsToUser(tempSessionId, vkUser.userId);
-    return { success: true };
+    if (!context.loginGrantToken) return { success: false, error: "Временная ошибка. Повторите попытку." };
+    return { success: true, loginGrantToken: context.loginGrantToken };
   } catch (error) {
     logger.error("submitVkConsentAction failed", error as Error);
     return { success: false, error: "Не удалось сохранить согласия. Попробуйте снова." };
   }
+}
+
+/** Read only the selected promo for a claimed, still-live context.  OAuth state
+ * remains in the HttpOnly cookie and is never put in the consent URL. */
+export async function getVkConsentPromoAction(
+  contextToken: string,
+): Promise<{ success: true; promoCode: string | null } | { success: false; error: string }> {
+  const state = (await cookies()).get("vk_registration_state")?.value;
+  if (!state) return { success: false, error: "Сессия VK истекла. Повторите вход через VK." };
+  const context = await prisma.vkRegistrationContext.findFirst({
+    where: {
+      contextTokenHash: authService.hashRegistrationOpaqueValue(contextToken),
+      stateHash: authService.hashRegistrationOpaqueValue(state),
+      purpose: VkRegistrationContextPurpose.REGISTER,
+      expiresAt: { gt: new Date() },
+    },
+    select: { selectedPromoCodeValue: true, completedAt: true },
+  });
+  if (!context || context.completedAt) return { success: false, error: "Сессия VK истекла. Повторите вход через VK." };
+  return { success: true, promoCode: context.selectedPromoCodeValue };
 }
 
 /**
@@ -574,4 +606,3 @@ export async function checkUsernameAvailableAction(
     return { error: "Ошибка проверки" };
   }
 }
-

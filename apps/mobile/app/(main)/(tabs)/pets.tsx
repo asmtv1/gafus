@@ -73,6 +73,9 @@ const PREVENTION_TYPES: { value: PetPreventionType; label: string }[] = [
 const TOUR_TARGET_TOP_INSET = 116;
 const TOUR_TARGET_BOTTOM_RESERVED = 320;
 const TOUR_TARGET_SCROLL_RETRY_MS = 120;
+// Keeps the full label visible with Android font scaling while its right edge
+// remains anchored by the section header's space-between layout.
+const PET_SECTION_ADD_BUTTON_WIDTH = 148;
 
 const declOfNum = (n: number, forms: [string, string, string]) => {
   const cases = [2, 0, 1, 1, 1, 2];
@@ -595,7 +598,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
           </View>
           <Button
             label="Добавить"
-            width={124}
+            width={PET_SECTION_ADD_BUTTON_WIDTH}
             fullWidth={false}
             height={44}
             fontFamily={FONTS.montserrat}
@@ -1083,7 +1086,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
           </View>
           <Button
             label="Добавить"
-            width={124}
+            width={PET_SECTION_ADD_BUTTON_WIDTH}
             fullWidth={false}
             height={44}
             fontFamily={FONTS.montserrat}

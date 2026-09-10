@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo
 import { getInfoAsync } from "expo-file-system/legacy";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading, MascotSpinner } from "@/shared/components/ui";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -275,9 +275,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
         keys: { operation: "exam_video_submit" },
       });
       setStatusMessage(null);
-      setSubmitError(
-        error instanceof Error ? error.message : "Ошибка при сохранении видеоотчёта",
-      );
+      setSubmitError(error instanceof Error ? error.message : "Ошибка при сохранении видеоотчёта");
     } finally {
       setIsSubmitting(false);
     }
@@ -309,9 +307,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
           return;
         }
         setIsSubmitted(false);
-        setExamResult((prev) =>
-          prev ? { ...prev, videoReportUrl: null } : prev,
-        );
+        setExamResult((prev) => (prev ? { ...prev, videoReportUrl: null } : prev));
         await loadResult();
       } catch (error) {
         reportClientError(error, {
@@ -330,10 +326,12 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
 
   if (isLoading) {
     return (
-      <View style={styles.loadingWrap}>
-        <MascotSpinner size="small" style={{ marginBottom: SPACING.sm }} />
-        <Text style={styles.loadingText}>Загрузка данных...</Text>
-      </View>
+      <Loading
+        variant="inline"
+        size="small"
+        message="Загрузка данных..."
+        style={styles.loadingWrap}
+      />
     );
   }
 
@@ -524,11 +522,6 @@ const styles = StyleSheet.create({
   loadingWrap: {
     padding: SPACING.md,
     alignItems: "center",
-  },
-  loadingText: {
-    marginTop: SPACING.sm,
-    fontSize: 14,
-    color: COLORS.textSecondary,
   },
   title: {
     fontSize: 16,

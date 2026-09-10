@@ -33,12 +33,25 @@ const CONSENT_TYPE_MAP: {
 ];
 
 export async function createConsentLogs(params: CreateConsentLogsParams): Promise<void> {
+  await prisma.$transaction((tx) => createCompletedConsentLogsInTransaction(tx, params, ConsentLogStatus.PENDING));
+}
+
+/**
+ * Writes accepted consent records through the caller's transaction. Registration
+ * uses COMPLETED so a committed account can never be separated from its consents.
+ */
+export async function createCompletedConsentLogsInTransaction(
+  tx: Prisma.TransactionClient,
+  params: CreateConsentLogsParams,
+  status: ConsentLogStatus = ConsentLogStatus.COMPLETED,
+): Promise<void> {
   const now = new Date();
   const records = CONSENT_TYPE_MAP.filter(({ accepted }) =>
     accepted(params.consentPayload),
   ).map(({ type, url }) => ({
     tempSessionId: params.tempSessionId,
     consentType: type,
+    userId: params.userId ?? null,
     consentVersion:
       params.consentVersions?.[type] ?? params.defaultVersion,
     consentText: { url } as Prisma.InputJsonValue,
@@ -46,13 +59,13 @@ export async function createConsentLogs(params: CreateConsentLogsParams): Promis
     ipAddress: params.ipAddress,
     userAgent: params.userAgent?.slice(0, 500),
     formData: params.formData as unknown as Prisma.InputJsonValue,
-    status: ConsentLogStatus.PENDING,
+    status,
   }));
 
   try {
-    await prisma.$transaction(
+    await Promise.all(
       records.map((data) =>
-        prisma.consentLog.upsert({
+        tx.consentLog.upsert({
           where: {
             tempSessionId_consentType: {
               tempSessionId: params.tempSessionId,
@@ -64,10 +77,11 @@ export async function createConsentLogs(params: CreateConsentLogsParams): Promis
             consentVersion: data.consentVersion,
             consentText: data.consentText,
             consentDate: data.consentDate,
+            userId: data.userId,
             ipAddress: data.ipAddress,
             userAgent: data.userAgent,
             formData: data.formData,
-            status: ConsentLogStatus.PENDING,
+            status,
           },
         }),
       ),

@@ -21,6 +21,7 @@ export {
   confirmEmailChangeByTokenAction,
   initiateVkIdAuth,
   initiateVkIdLink,
+  getVkConsentPromoAction,
   prepareVkIdOneTap,
   registerUserAction,
   requestEmailChangeAction,

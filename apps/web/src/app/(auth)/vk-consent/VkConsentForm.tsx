@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { trackEvent } from "@gafus/analytics";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { reportClientError } from "@gafus/error-handling";
 import { useZodForm } from "@shared/hooks/useZodForm";
-import { submitVkConsentAction } from "@shared/server-actions";
+import { getVkConsentPromoAction, submitVkConsentAction } from "@shared/server-actions";
 import { vkConsentFormSchema } from "@shared/lib/validation/authSchemas";
 import type { ConsentPayload } from "@shared/constants/consent";
 
@@ -17,7 +17,11 @@ export function VkConsentForm() {
   const router = useRouter();
   const pathname = usePathname() ?? "/vk-consent";
   const searchParams = useSearchParams();
-  const vkToken = searchParams.get("vk_id_token");
+  const contextToken = searchParams.get("context");
+  // The context, not the URL, is authoritative for the initial selection.
+  // The transport currently has no safe read-model for it, so this starts empty
+  // and the completion transaction keeps the server-side value when unchanged.
+  const [promoCode, setPromoCode] = useState("");
 
   const {
     form,
@@ -35,8 +39,26 @@ export function VkConsentForm() {
   );
 
   const [isPending, setIsPending] = useState(false);
+  const [loginGrantToken, setLoginGrantToken] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [tempSessionId] = useState(() => {
+    if (typeof window === "undefined") return crypto.randomUUID();
+    const key = `gafus.vk-consent.attempt.${contextToken ?? "missing"}`;
+    const existing = window.sessionStorage.getItem(key);
+    if (existing) return existing;
+    const next = crypto.randomUUID();
+    window.sessionStorage.setItem(key, next);
+    return next;
+  });
 
-  if (!vkToken) {
+  useEffect(() => {
+    if (!contextToken) return;
+    void getVkConsentPromoAction(contextToken).then((result) => {
+      if (result.success) setPromoCode(result.promoCode ?? "");
+    });
+  }, [contextToken]);
+
+  if (!contextToken) {
     return (
       <div className={styles.form}>
         <p className={styles.info}>Ссылка устарела или недействительна.</p>
@@ -47,35 +69,41 @@ export function VkConsentForm() {
     );
   }
 
+  const completeLogin = async (grant: string) => {
+    setLoginError(null);
+    const res = await signIn("credentials", {
+      username: "__vk_id__",
+      password: grant,
+      redirect: false,
+    });
+    if (res?.error) {
+      setLoginError("Регистрация завершена, но войти не удалось. Повторите вход.");
+      return;
+    }
+    trackEvent({
+      eventName: "login_success",
+      platform: "web",
+      pathOrScreen: pathname,
+      method: "vk",
+    });
+    router.replace("/courses", { scroll: false });
+    router.refresh();
+  };
+
   const onSubmit = async (data: ConsentPayload) => {
     setIsPending(true);
     try {
-      const result = await submitVkConsentAction(vkToken, data);
+      const result = await submitVkConsentAction(contextToken, data, promoCode.trim() || undefined, tempSessionId);
       if (result.success) {
-        const res = await signIn("credentials", {
-          username: "__vk_id__",
-          password: vkToken,
-          redirect: false,
-        });
-        if (res?.error) {
-          router.replace("/login?error=vk_id_auth_failed");
-        } else {
-          trackEvent({
-            eventName: "login_success",
-            platform: "web",
-            pathOrScreen: pathname,
-            method: "vk",
-          });
-          router.replace("/courses", { scroll: false });
-          router.refresh();
-        }
+        setLoginGrantToken(result.loginGrantToken);
+        await completeLogin(result.loginGrantToken);
       } else {
         setError("acceptPersonalData", { message: result.error });
-        setIsPending(false);
       }
     } catch (err) {
       reportClientError(err, { issueKey: "VkConsentForm", keys: { operation: "submit" } });
       setError("acceptPersonalData", { message: "Ошибка. Попробуйте снова." });
+    } finally {
       setIsPending(false);
     }
   };
@@ -147,6 +175,35 @@ export function VkConsentForm() {
         <span className={styles.errorText}>{errors.acceptDataDistribution.message}</span>
       )}
 
+      <label className="sr-only" htmlFor="promoCode">
+        Промокод
+      </label>
+      <input
+        id="promoCode"
+        className={styles.input}
+        value={promoCode}
+        onChange={(event) => setPromoCode(event.target.value)}
+        placeholder="Промокод (необязательно)"
+        autoComplete="off"
+        autoCapitalize="characters"
+        maxLength={64}
+      />
+
+      {loginError ? (
+        <p className={styles.errorText} role="alert">
+          {loginError}
+        </p>
+      ) : null}
+      {loginGrantToken ? (
+        <button
+          className={styles.button}
+          type="button"
+          disabled={isPending}
+          onClick={() => void completeLogin(loginGrantToken)}
+        >
+          Повторить вход
+        </button>
+      ) : null}
       <button className={styles.button} type="submit" disabled={isPending || !isValid}>
         {isPending ? "Сохранение..." : "Принять и продолжить"}
       </button>

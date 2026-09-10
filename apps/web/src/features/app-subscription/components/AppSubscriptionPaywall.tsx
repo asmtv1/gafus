@@ -71,6 +71,7 @@ type AppSubscriptionOffer = {
     entryEnabled: boolean;
     eligible: boolean;
   };
+  savedRegistrationPromoCode?: { code: string; status: "ACTIVE" | "INACTIVE" | "ARCHIVED" } | null;
 };
 
 type AppSubscriptionPaywallProps = {
@@ -124,6 +125,7 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
   const promoMessageId = useId();
   const promoInputRef = useRef<HTMLInputElement>(null);
   const promoRequestIdRef = useRef(0);
+  const savedPromoPrefillAttemptedRef = useRef(false);
   const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -293,14 +295,13 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
     setError(null);
   };
 
-  const onApplyPromo = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const applyPromoCode = useCallback(async (rawInput: string) => {
     if (!selectedPlan || !isPromoEligiblePlanCode(selectedPlan.code)) {
       setPromoState("network-error");
       return;
     }
 
-    if (!isAppSubscriptionPromoCodeInputValid(promoInput)) {
+    if (!isAppSubscriptionPromoCodeInputValid(rawInput)) {
       setPromoPreview(null);
       setPromoState("invalid-format");
       return;
@@ -317,7 +318,7 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
       if (!token) throw new AppSubscriptionApiError("CSRF token unavailable", null, 0);
       const preview = await previewAppSubscriptionPromoCode({
         planCode: selectedPlan.code,
-        promoCode: promoInput,
+        promoCode: rawInput,
         csrfToken: token,
       });
       if (promoRequestIdRef.current !== requestId) return;
@@ -337,7 +338,32 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
         keys: { operation: "preview_promo_code", code: apiError.code ?? "NETWORK" },
       });
     }
+  }, [ensureCsrfToken, selectedPlan]);
+
+  const onApplyPromo = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void applyPromoCode(promoInput);
   };
+
+  useEffect(() => {
+    const savedCode = offer?.savedRegistrationPromoCode?.status === "ACTIVE"
+      ? offer.savedRegistrationPromoCode.code.trim()
+      : null;
+    if (
+      savedPromoPrefillAttemptedRef.current ||
+      !savedCode ||
+      !promoEntryVisible ||
+      !selectedPlan ||
+      !isPromoEligiblePlanCode(selectedPlan.code)
+    ) {
+      return;
+    }
+    // The authorized offer may refresh (for example after a payment return).
+    // Only this first appropriate checkout receives the saved selection.
+    savedPromoPrefillAttemptedRef.current = true;
+    setPromoInput(savedCode);
+    void applyPromoCode(savedCode);
+  }, [applyPromoCode, offer?.savedRegistrationPromoCode, promoEntryVisible, selectedPlan]);
 
   const onStart = async () => {
     if (!selectedPlan) {
@@ -538,6 +564,11 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
               <div
                 className={`${styles.promoBlock} ${promoState === "applied" ? styles.promoBlockApplied : ""}`}
               >
+                {offer?.savedRegistrationPromoCode && offer.savedRegistrationPromoCode.status !== "ACTIVE" ? (
+                  <p className={`${styles.promoMessage} ${styles.promoMessageError}`} role="alert">
+                    Сохранённый при регистрации промокод {offer.savedRegistrationPromoCode.code} больше не действует. Оплата по полной цене не начнётся, пока вы не очистите поле или не примените другой промокод.
+                  </p>
+                ) : null}
                 <form className={styles.promoForm} onSubmit={onApplyPromo} noValidate>
                   <label className={styles.promoLabel} htmlFor={promoInputId}>
                     Промокод

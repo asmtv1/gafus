@@ -1,6 +1,6 @@
 import { initAnalyticsMobile } from "@gafus/analytics/mobile";
 import Constants from "expo-constants";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
@@ -29,6 +29,7 @@ import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
 import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
+import { warmUpLoadingMascot } from "@/shared/components/ui/loadingMascotAssets";
 
 // Initialize before React mounts so startup and provider errors are captured.
 initializeMobileJsTracer();
@@ -107,12 +108,24 @@ export default function RootLayout() {
 
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const { fontsReady, fontError } = useAppFonts();
+  const [loadingMascotReady, setLoadingMascotReady] = useState(false);
 
   useEffect(() => {
-    if (fontsReady || fontError) {
+    void warmUpLoadingMascot()
+      .catch((error) => {
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          severity: "warning",
+          issueKey: "LoadingMascotWarmUp",
+        });
+      })
+      .finally(() => setLoadingMascotReady(true));
+  }, []);
+
+  useEffect(() => {
+    if ((fontsReady || fontError) && loadingMascotReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsReady, fontError]);
+  }, [fontsReady, fontError, loadingMascotReady]);
 
   useEffect(() => {
     void checkAuth();
@@ -146,7 +159,7 @@ export default function RootLayout() {
   }, []);
 
   // Native fonts are embedded at build time; this gate only matters on web.
-  if (!fontsReady && !fontError) {
+  if ((!fontsReady && !fontError) || !loadingMascotReady) {
     return null;
   }
 

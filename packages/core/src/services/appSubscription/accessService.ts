@@ -7,6 +7,20 @@ export async function getAppSubscriptionAccess(
   userId: string,
   now = new Date(),
 ): Promise<AppSubscriptionStatusDto> {
+  // Partner access follows the current database role, rather than a stale JWT claim.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === "PARTNER") {
+    return {
+      hasActiveSubscription: true, paidAt: null, activeUntil: null, isTrial: false, trialEndsAt: null,
+      isLifetime: true, provider: "MANUAL", planCode: "MONTHLY", status: "ACTIVE",
+      cancelAtPeriodEnd: false, hasSavedPaymentMethod: false, paymentMethodLast4: null,
+      paymentMethodTitle: "Партнёрская программа", nextChargeAt: null,
+      yookassaTrialAvailable: false, yookassaTrialDays: 0, yookassaTrialUnavailableReason: null,
+    };
+  }
   const rows = await prisma.appSubscription.findMany({
     where: {
       userId,

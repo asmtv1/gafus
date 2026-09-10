@@ -73,6 +73,7 @@ export default function MainLayout() {
           }}
         >
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="partner" options={{ headerShown: true, title: "Партнёрская программа" }} />
           <Stack.Screen name="training/[courseType]/index" options={{ headerShown: false }} />
           <Stack.Screen name="training/[courseType]/[dayId]" options={{ headerShown: false }} />
           <Stack.Screen name="daily-course/[scheduleId]" options={{ headerShown: false }} />

@@ -4,6 +4,7 @@
  */
 import { createMiddleware } from "hono/factory";
 import { verifyAccessToken, type AuthUser } from "@gafus/auth/jwt";
+import { prisma } from "@gafus/prisma";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -49,6 +50,14 @@ export const authMiddleware = createMiddleware(async (c, next) => {
 
   if (!user) {
     return c.json({ success: false, error: "Недействительный токен" }, 401);
+  }
+
+  // A JWT predating a failed/incomplete VK registration must not authorize a
+  // provisional account. This is deliberately checked on every protected API
+  // request, not just at token creation.
+  const current = await prisma.user.findUnique({ where: { id: user.id }, select: { registrationPending: true } });
+  if (!current || current.registrationPending) {
+    return c.json({ success: false, code: "REGISTRATION_PENDING", error: "Завершите регистрацию через VK ID" }, 401);
   }
 
   c.set("user", user);

@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
@@ -31,11 +31,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    shadowColor: "#4A4A1E",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#4A4A1E",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+      },
+    }),
   },
   title: {
     color: COLORS.text,

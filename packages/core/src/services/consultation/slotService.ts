@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { Prisma, prisma } from "@gafus/prisma";
 import { DateTime } from "luxon";
 import { createWebLogger } from "@gafus/logger";
 
@@ -191,6 +191,13 @@ export async function rebuildSlotsForCynologist(
   const desiredKeys = new Set(desired.map((d) => `${d.startAt.toISOString()}|${d.endAt.toISOString()}`));
 
   await prisma.$transaction(async (tx) => {
+    // Calendar reads, the worker horizon and trainer edits can all request a
+    // rebuild.  Serialize a whole rebuild per cynologist: the read-then-create
+    // below would otherwise let concurrent requests collide on the unique
+    // (cynologistId, startAt) constraint and return a 500 to one visitor.
+    await tx.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`consultation-slots:${cynologistId}`}, 0))`,
+    );
     const existing = await tx.consultationSlot.findMany({
       where: {
         cynologistId,

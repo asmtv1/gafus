@@ -17,6 +17,7 @@ import {
   registerUserWithCredentials,
   type RegisterCredentialsConflictCode,
 } from "./registerUserWithCredentials";
+import type { CreateConsentLogsParams } from "../consent";
 import {
   sendPasswordChangedNoticeEmail,
   sendUsernameChangedNoticeEmail,
@@ -79,6 +80,8 @@ export async function registerUserService(
   email: string,
   password: string,
   registrationChannel?: RegistrationChannel,
+  promoCode?: string,
+  registrationContext?: CreateConsentLogsParams,
 ): Promise<{ success: true; userId: string } | { error: string }> {
   logger.info("Registering new user (email)");
   const result = await registerUserWithCredentials({
@@ -86,6 +89,8 @@ export async function registerUserService(
     email,
     password,
     registrationChannel,
+    promoCode,
+    registrationContext,
   });
   if (!result.ok) {
     const maskedCodes: RegisterCredentialsConflictCode[] = [
@@ -97,7 +102,9 @@ export async function registerUserService(
     }
     return { error: result.messageRu };
   }
-  void sendWelcomeEmailAfterRegistration(email);
+  if (result.wasCreated) {
+    void sendWelcomeEmailAfterRegistration(email);
+  }
   return { success: true, userId: result.userId };
 }
 
@@ -231,9 +238,9 @@ export async function validateCredentials(
   const normalized = username.toLowerCase().trim();
   const user = await prisma.user.findUnique({
     where: { username: normalized },
-    select: { id: true, username: true, role: true, password: true },
+    select: { id: true, username: true, role: true, password: true, registrationPending: true },
   });
-  if (!user) return { success: false };
+  if (!user || user.registrationPending) return { success: false };
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return { success: false };
   return { success: true, user };
@@ -249,6 +256,8 @@ export async function createRefreshSession(
   tokenHash: string,
   metadata: RefreshSessionMetadata,
 ): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
+  if (!user || user.registrationPending) throw new Error("Registration is not completed");
   await prisma.refreshToken.create({
     data: {
       id: tokenId,
@@ -270,7 +279,7 @@ export async function validateRefreshToken(
 ): Promise<ValidateRefreshSuccess | ValidateRefreshFailure> {
   const stored = await prisma.refreshToken.findUnique({
     where: { tokenHash },
-    include: { user: { select: { id: true, username: true, role: true } } },
+    include: { user: { select: { id: true, username: true, role: true, registrationPending: true } } },
   });
   if (!stored) return { valid: false, reason: "not_found" };
   if (stored.revokedAt) {
@@ -279,6 +288,7 @@ export async function validateRefreshToken(
   if (stored.expiresAt < new Date()) {
     return { valid: false, reason: "expired" };
   }
+  if (stored.user.registrationPending) return { valid: false, reason: "revoked" };
   return {
     valid: true,
     userId: stored.userId,
@@ -298,6 +308,8 @@ export async function rotateRefreshToken(
   metadata: RefreshSessionMetadata,
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
+    if (!user || user.registrationPending) throw new Error("Registration is not completed");
     await tx.refreshToken.updateMany({
       where: { tokenHash: oldTokenHash },
       data: { revokedAt: new Date() },
@@ -447,4 +459,3 @@ export async function changePassword(
     );
   }
 }
-

@@ -3,6 +3,7 @@ import bcryptjs from "bcryptjs";
 import { prisma } from "@gafus/prisma";
 import type { UserRole } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
+import { bindPartnerPromoCodeInTransaction } from "../appSubscription/partnerService";
 
 import { handlePrismaError } from "../../errors/prismaErrorHandler";
 import { ServiceError } from "../../errors/ServiceError";
@@ -31,6 +32,7 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
         createdAt: true,
         profile: { select: { fullName: true, avatarUrl: true } },
         _count: { select: { pushSubscriptions: true } },
+        partnerProfile: { select: { promoCodeId: true, promoCode: { select: { id: true, code: true, discountPercent: true } } } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -46,6 +48,9 @@ export async function updateUserAdmin(
   input: UpdateUserAdminInput,
 ): Promise<AdminUserUpdateResult> {
   try {
+    if (input.role === "PARTNER" && !input.partnerPromoCodeId) {
+      return { success: false, error: "Для назначения партнёра выберите свободный активный промокод" };
+    }
     const updateData: {
       username?: string;
       email?: string | null;
@@ -61,7 +66,12 @@ export async function updateUserAdmin(
     if (input.newPassword && input.newPassword.trim()) {
       updateData.password = await bcryptjs.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
     }
-    await prisma.user.update({ where: { id: userId }, data: updateData });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: updateData });
+      if (input.partnerPromoCodeId !== undefined) {
+        await bindPartnerPromoCodeInTransaction(tx, { userId, promoCodeId: input.partnerPromoCodeId });
+      }
+    });
     logger.info("Пользователь обновлён", { userId });
     return { success: true };
   } catch (error) {

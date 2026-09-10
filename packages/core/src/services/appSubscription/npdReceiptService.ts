@@ -35,7 +35,7 @@ export async function ensureNpdReceiptForSucceededPayment(
   tx: TransactionClient,
   paymentId: string,
 ) {
-  const client = tx as TransactionClient & Record<string, any>;
+  const client = tx;
   const payment = await client.appSubscriptionPayment.findUnique({
     where: { id: paymentId },
     select: {
@@ -98,7 +98,7 @@ export async function queueNpdReceiptCancellation(
   tx: TransactionClient,
   paymentId: string,
 ) {
-  const client = tx as TransactionClient & Record<string, any>;
+  const client = tx;
   const receipt = await client.npdReceipt.findUnique({
     where: { paymentId },
     select: { id: true, status: true, operations: { select: { id: true, type: true, status: true } } },

@@ -9,6 +9,7 @@
  */
 import { SignJWT, jwtVerify } from "jose";
 import { createSecretKey, type KeyObject } from "crypto";
+import { prisma } from "@gafus/prisma";
 
 const JWT_ISSUER = "https://api.gafus.ru";
 const JWT_AUDIENCE = "gafus-app";
@@ -42,7 +43,13 @@ function getRefreshSecret(): KeyObject {
 export interface AuthUser {
   id: string;
   username: string;
-  role: "USER" | "ADMIN" | "MODERATOR" | "TRAINER";
+  role: "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER";
+}
+
+/** Call this before issuing tokens from a transport-specific flow. */
+export async function assertCompletedUser(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
+  if (!user || user.registrationPending) throw new Error("Registration is not completed");
 }
 
 /**

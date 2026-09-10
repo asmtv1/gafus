@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Snackbar, Text } from "react-native-paper";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { FontAwesome5 } from "@expo/vector-icons";
@@ -16,6 +16,8 @@ import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
  */
 export default function WelcomeScreen() {
   const router = useRouter();
+  const promoCodeParam = useLocalSearchParams<{ promoCode?: string | string[] }>().promoCode;
+  const selectedPromoCode = typeof promoCodeParam === "string" ? promoCodeParam : undefined;
   const layout = useLayout();
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
@@ -85,7 +87,7 @@ export default function WelcomeScreen() {
                 pressed && styles.vkButtonPressed,
                 isVkLoading && styles.vkButtonDisabled,
               ]}
-              onPress={handleVkLogin}
+              onPress={() => void handleVkLogin(selectedPromoCode)}
               disabled={isVkLoading}
               accessibilityRole="button"
               accessibilityLabel="Регистрация и вход через VK"

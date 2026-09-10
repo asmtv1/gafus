@@ -44,7 +44,11 @@ const mockRefreshTokenUpdateMany = vi.fn();
 
 const mockTxRefreshUpdateMany = vi.fn();
 const mockTxRefreshCreate = vi.fn();
+const mockTxUserFindUnique = vi.fn();
 const refreshTxStub = {
+  user: {
+    findUnique: (...args: unknown[]) => mockTxUserFindUnique(...args),
+  },
   refreshToken: {
     updateMany: (...args: unknown[]) => mockTxRefreshUpdateMany(...args),
     create: (...args: unknown[]) => mockTxRefreshCreate(...args),
@@ -105,21 +109,32 @@ const validNewPassword = "Password1x";
 describe("registerUserService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTxUserFindUnique.mockResolvedValue({ registrationPending: false });
   });
 
   it("успех: делегирует в registerUserWithCredentials", async () => {
-    mockRegisterUserWithCredentials.mockResolvedValue({ ok: true, userId: "user-1" });
+    mockRegisterUserWithCredentials.mockResolvedValue({ ok: true, userId: "user-1", wasCreated: true });
 
-    const result = await registerUserService("ivan", "ivan@example.com", "Password1x");
+    const result = await registerUserService("ivan", "ivan@example.com", "Password1x", undefined, "PARTNER1");
 
     expect(mockRegisterUserWithCredentials).toHaveBeenCalledWith({
       username: "ivan",
       email: "ivan@example.com",
       password: "Password1x",
       registrationChannel: undefined,
+      promoCode: "PARTNER1",
     });
     expect(mockSendWelcomeEmailAfterRegistration).toHaveBeenCalledWith("ivan@example.com");
     expect(result).toEqual({ success: true, userId: "user-1" });
+  });
+
+  it("не отправляет welcome повторно при idempotent replay", async () => {
+    mockRegisterUserWithCredentials.mockResolvedValue({ ok: true, userId: "user-1", wasCreated: false });
+
+    await expect(registerUserService("ivan", "ivan@example.com", "Password1x"))
+      .resolves.toEqual({ success: true, userId: "user-1" });
+
+    expect(mockSendWelcomeEmailAfterRegistration).not.toHaveBeenCalled();
   });
 
   it("маскирует конфликт username/email", async () => {
@@ -425,6 +440,7 @@ describe("refresh token session", () => {
   });
 
   it("rotateRefreshToken вызывает транзакцию", async () => {
+    mockTxUserFindUnique.mockResolvedValue({ registrationPending: false });
     await rotateRefreshToken("old", "u1", "newh", "newid", { expiresAt });
 
     expect(mockTransaction).toHaveBeenCalled();

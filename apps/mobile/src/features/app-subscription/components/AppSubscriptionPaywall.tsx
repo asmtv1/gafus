@@ -124,6 +124,9 @@ export function AppSubscriptionPaywall() {
     useState<AppSubscriptionPlanCode | null>("MONTHLY");
   const promoInputRef = useRef<ComponentRef<typeof PaperTextInput>>(null);
   const promoInputValueRef = useRef("");
+  const promoInputEditedRef = useRef(false);
+  const savedPromoPrefilledRef = useRef(false);
+  const [promoInputValue, setPromoInputValue] = useState("");
   const [hasPromoText, setHasPromoText] = useState(false);
   const [promoState, setPromoState] = useState<PromoCodeUiState>("idle");
   const [promoPreview, setPromoPreview] = useState<AppSubscriptionPromoCodePreviewDto | null>(null);
@@ -224,9 +227,10 @@ export function AppSubscriptionPaywall() {
     }) => appSubscriptionApi.previewPromoCode(planCode, promoCode),
   });
   const resetPromoPreviewMutation = promoPreviewMutation.reset;
+  const previewPromoCode = promoPreviewMutation.mutateAsync;
 
   const resetPromoQuote = useCallback(() => {
-    promoInputRef.current?.clear();
+    setPromoInputValue("");
     promoInputValueRef.current = "";
     setHasPromoText(false);
     setPromoPreview(null);
@@ -270,7 +274,9 @@ export function AppSubscriptionPaywall() {
   };
 
   const handlePromoChange = (text: string) => {
+    promoInputEditedRef.current = true;
     promoInputValueRef.current = text;
+    setPromoInputValue(text);
     setHasPromoText(text.trim().length > 0);
     if (promoPreview || promoState !== "idle") {
       setPromoPreview(null);
@@ -279,13 +285,13 @@ export function AppSubscriptionPaywall() {
     }
   };
 
-  const handlePromoApply = async () => {
+  const handlePromoApply = useCallback(async () => {
     if (!selectedYookassaPlan || isPaymentBlocked) return;
     const promoCode = promoInputValueRef.current.trim();
     if (!promoCode) return resetPromoQuote();
     setPromoPreview(null);
     setPromoState("checking");
-    const result = await promoPreviewMutation.mutateAsync({
+    const result = await previewPromoCode({
       planCode: selectedYookassaPlan.code,
       promoCode,
     });
@@ -295,7 +301,27 @@ export function AppSubscriptionPaywall() {
       return;
     }
     setPromoState(promoCodeStateFromErrorCode(result.code));
-  };
+  }, [isPaymentBlocked, previewPromoCode, resetPromoQuote, selectedYookassaPlan]);
+
+  useEffect(() => {
+    const savedCode = effectiveOffer?.savedRegistrationPromoCode?.status === "ACTIVE"
+      ? effectiveOffer.savedRegistrationPromoCode.code.trim()
+      : null;
+    if (
+      savedPromoPrefilledRef.current ||
+      promoInputEditedRef.current ||
+      !showPromoCode ||
+      !selectedYookassaPlan ||
+      !savedCode
+    ) {
+      return;
+    }
+    savedPromoPrefilledRef.current = true;
+    promoInputValueRef.current = savedCode;
+    setPromoInputValue(savedCode);
+    setHasPromoText(true);
+    void handlePromoApply();
+  }, [effectiveOffer?.savedRegistrationPromoCode, handlePromoApply, selectedYookassaPlan, showPromoCode]);
 
   const handleYookassaPay = async () => {
     if (isPaymentBlocked || !selectedYookassaPlan) return;
@@ -454,6 +480,11 @@ export function AppSubscriptionPaywall() {
                     style={[styles.promoCard, promoState === "applied" && styles.promoCardApplied]}
                     accessibilityLabel="Промокод для первого платежа через ЮKassa"
                   >
+                    {effectiveOffer?.savedRegistrationPromoCode && effectiveOffer.savedRegistrationPromoCode.status !== "ACTIVE" ? (
+                      <Text style={[styles.promoMessage, styles.promoErrorMessage]} accessibilityRole="alert">
+                        Сохранённый при регистрации промокод {effectiveOffer.savedRegistrationPromoCode.code} больше не действует. Оплата по полной цене не начнётся, пока вы не очистите поле или не примените другой промокод.
+                      </Text>
+                    ) : null}
                     <View style={styles.promoHeadingRow}>
                       <Text style={styles.promoTitle}>Промокод</Text>
                       {promoPrice ? (
@@ -464,7 +495,7 @@ export function AppSubscriptionPaywall() {
                     </View>
                     <Input
                       ref={promoInputRef}
-                      defaultValue=""
+                      value={promoInputValue}
                       label="Промокод"
                       placeholder="Например, GAFUS"
                       autoCorrect={false}

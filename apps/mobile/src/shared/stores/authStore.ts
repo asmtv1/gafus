@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import * as Crypto from "expo-crypto";
 import { Platform } from "react-native";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -20,6 +21,10 @@ interface AuthState {
   /** Новый VK-пользователь — нужно собрать согласия */
   pendingVkConsent: boolean;
   vkConsentToken: string | null;
+  vkConsentState: string | null;
+  vkConsentTempSessionId: string | null;
+  vkConsentPromoCode: string | null;
+  vkConsentExpiresAt: number | null;
 }
 
 interface AuthActions {
@@ -30,24 +35,28 @@ interface AuthActions {
     password: string,
     tempSessionId: string,
     consentPayload: ConsentPayload,
-  ) => Promise<{ success: boolean; error?: string }>;
+    promoCode?: string,
+  ) => Promise<{ success: boolean; error?: string; code?: string }>;
   loginViaVk: (params: {
     code: string;
     code_verifier: string;
     device_id: string;
     state: string;
     platform?: "ios" | "android";
-  }) => Promise<{ success: boolean; error?: string; needsPhone?: boolean; needsConsent?: boolean }>;
+    promoCode?: string;
+  }) => Promise<{ success: boolean; error?: string; code?: string; needsPhone?: boolean; needsConsent?: boolean }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
   handleSessionExpired: () => void;
   clearPendingVkPhone: () => void;
   setVkPhoneComplete: (phone: string) => Promise<{ success: boolean; error?: string }>;
-  clearPendingVkConsent: () => void;
+  clearPendingVkConsent: () => Promise<void>;
+  updateVkConsentPromoCode: (promoCode: string) => Promise<void>;
   submitVkConsentComplete: (
     consentPayload: ConsentPayload,
-  ) => Promise<{ success: boolean; error?: string }>;
+    promoCode?: string,
+  ) => Promise<{ success: boolean; error?: string; code?: string }>;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -63,6 +72,53 @@ function isTransientAuthCheckError(response: { code?: string; error?: string }):
 
 let authCheckPromise: Promise<void> | null = null;
 let authSessionGeneration = 0;
+const VK_REGISTRATION_CONTEXT_KEY = "vk_registration_context";
+const VK_REGISTRATION_CONTEXT_TTL_MS = 5 * 60 * 1000;
+
+type PersistedVkRegistrationContext = {
+  contextToken: string;
+  state: string;
+  tempSessionId: string;
+  promoCode: string | null;
+  expiresAt: number;
+};
+
+async function saveVkRegistrationContext(context: PersistedVkRegistrationContext): Promise<void> {
+  await SecureStore.setItemAsync(VK_REGISTRATION_CONTEXT_KEY, JSON.stringify(context));
+}
+
+async function readVkRegistrationContext(): Promise<PersistedVkRegistrationContext | null> {
+  const raw = await SecureStore.getItemAsync(VK_REGISTRATION_CONTEXT_KEY);
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<PersistedVkRegistrationContext>;
+    if (
+      typeof value.contextToken !== "string" ||
+      typeof value.state !== "string" ||
+      typeof value.tempSessionId !== "string" ||
+      typeof value.expiresAt !== "number" ||
+      !Number.isFinite(value.expiresAt) ||
+      value.expiresAt <= Date.now()
+    ) {
+      await clearVkRegistrationContext();
+      return null;
+    }
+    return {
+      contextToken: value.contextToken,
+      state: value.state,
+      tempSessionId: value.tempSessionId,
+      promoCode: typeof value.promoCode === "string" ? value.promoCode : null,
+      expiresAt: value.expiresAt,
+    };
+  } catch {
+    await clearVkRegistrationContext();
+    return null;
+  }
+}
+
+async function clearVkRegistrationContext(): Promise<void> {
+  await SecureStore.deleteItemAsync(VK_REGISTRATION_CONTEXT_KEY);
+}
 
 async function waitForAuthHydration(): Promise<void> {
   if (useAuthStore.persist.hasHydrated()) return;
@@ -92,6 +148,10 @@ export const useAuthStore = create<AuthStore>()(
       pendingVkPhone: false,
       pendingVkConsent: false,
       vkConsentToken: null,
+      vkConsentState: null,
+      vkConsentTempSessionId: null,
+      vkConsentPromoCode: null,
+      vkConsentExpiresAt: null,
 
       /**
        * Авторизация пользователя
@@ -124,7 +184,18 @@ export const useAuthStore = create<AuthStore>()(
             console.log("[authStore] profile", { id: user.id });
           }
 
-          set({ user, isAuthenticated: true, pendingVkPhone: false });
+          set({
+            user,
+            isAuthenticated: true,
+            pendingVkPhone: false,
+            pendingVkConsent: false,
+            vkConsentToken: null,
+            vkConsentState: null,
+            vkConsentTempSessionId: null,
+            vkConsentPromoCode: null,
+            vkConsentExpiresAt: null,
+          });
+          await clearVkRegistrationContext();
           identifyUser(user.id);
           if (__DEV__) console.log("[authStore] login → isAuthenticated: true");
           return { success: true };
@@ -146,19 +217,38 @@ export const useAuthStore = create<AuthStore>()(
             return { success: false, error: response.error || "Ошибка авторизации VK" };
           }
 
-          const { accessToken, refreshToken, needsPhone, needsConsent, vkConsentToken, user } =
+          const { accessToken, refreshToken, needsPhone, needsConsent, contextToken, vkConsentToken, savedPromoCode, user } =
             response.data;
 
-          if (needsConsent && vkConsentToken) {
+          const pendingContextToken = contextToken ?? vkConsentToken;
+          if (needsConsent && pendingContextToken) {
+            const tempSessionId = Crypto.randomUUID();
+            const promoCode = savedPromoCode?.trim() || params.promoCode?.trim() || null;
+            const expiresAt = Date.now() + VK_REGISTRATION_CONTEXT_TTL_MS;
+            await saveVkRegistrationContext({
+              contextToken: pendingContextToken,
+              state: params.state,
+              tempSessionId,
+              promoCode,
+              expiresAt,
+            });
             resetUserStores();
             set({
               user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
               pendingVkPhone: false,
               pendingVkConsent: true,
-              vkConsentToken,
+              vkConsentToken: pendingContextToken,
+              vkConsentState: params.state,
+              vkConsentTempSessionId: tempSessionId,
+              vkConsentPromoCode: promoCode,
+              vkConsentExpiresAt: expiresAt,
             });
             return { success: true, needsConsent: true };
+          }
+
+          if (!accessToken || !refreshToken) {
+            return { success: false, error: "VK ID не завершил вход. Повторите попытку.", code: "VK_TOKENS_MISSING" };
           }
 
           resetUserStores();
@@ -184,7 +274,14 @@ export const useAuthStore = create<AuthStore>()(
             user: profileRes.data,
             isAuthenticated: true,
             pendingVkPhone: false,
+            pendingVkConsent: false,
+            vkConsentToken: null,
+            vkConsentState: null,
+            vkConsentTempSessionId: null,
+            vkConsentPromoCode: null,
+            vkConsentExpiresAt: null,
           });
+          await clearVkRegistrationContext();
           identifyUser(profileRes.data.id);
           return { success: true };
         } catch (error) {
@@ -196,7 +293,7 @@ export const useAuthStore = create<AuthStore>()(
       /**
        * Регистрация нового пользователя
        */
-      register: async (name, email, password, tempSessionId, consentPayload) => {
+      register: async (name, email, password, tempSessionId, consentPayload, promoCode) => {
         try {
           if (__DEV__) console.log("[authStore] register start", { name, email, tempSessionId });
           const registrationChannel =
@@ -212,17 +309,13 @@ export const useAuthStore = create<AuthStore>()(
             tempSessionId,
             consentPayload,
             registrationChannel,
+            promoCode,
           );
 
-          if (__DEV__) console.log("[authStore] register API response", {
-            success: response.success,
-            error: response.error,
-            code: response.code,
-            hasData: !!response.data,
-          });
+          if (__DEV__) console.log("[authStore] register API response", { success: response.success });
 
-          if (!response.success || !response.data) {
-            return { success: false, error: response.error || "Ошибка регистрации" };
+          if (!response.success) {
+            return { success: false, error: response.error || "Ошибка регистрации", code: response.code };
           }
 
           const { accessToken, refreshToken } = response.data;
@@ -231,18 +324,20 @@ export const useAuthStore = create<AuthStore>()(
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
 
-          const profileRes = await authApi.getProfile();
-          if (!profileRes.success || !profileRes.data) {
-            return { success: false, error: "Ошибка загрузки профиля" };
-          }
-
           set({
-            user: profileRes.data,
+            user: response.data.user,
             isAuthenticated: true,
             pendingVkPhone: false,
+            pendingVkConsent: false,
+            vkConsentToken: null,
+            vkConsentState: null,
+            vkConsentTempSessionId: null,
+            vkConsentPromoCode: null,
+            vkConsentExpiresAt: null,
           });
-          identifyUser(profileRes.data.id);
-          if (__DEV__) console.log("[authStore] register success, userId:", profileRes.data.id);
+          await clearVkRegistrationContext();
+          identifyUser(response.data.user.id);
+          if (__DEV__) console.log("[authStore] register success");
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthRegister" });
@@ -278,7 +373,12 @@ export const useAuthStore = create<AuthStore>()(
           pendingVkPhone: false,
           pendingVkConsent: false,
           vkConsentToken: null,
+          vkConsentState: null,
+          vkConsentTempSessionId: null,
+          vkConsentPromoCode: null,
+          vkConsentExpiresAt: null,
         });
+        await clearVkRegistrationContext();
         resetAnalyticsUser();
       },
 
@@ -300,12 +400,57 @@ export const useAuthStore = create<AuthStore>()(
             const token = await SecureStore.getItemAsync("auth_token");
 
             if (!token) {
+              const pendingContext = await readVkRegistrationContext();
+              if (pendingContext) {
+                const contextResponse = await authApi.getVkConsentContext(
+                  pendingContext.contextToken,
+                  pendingContext.state,
+                );
+                if (contextResponse.success && contextResponse.data && !contextResponse.data.completed) {
+                  set({
+                    isLoading: false,
+                    isAuthenticated: false,
+                    user: null,
+                    pendingVkPhone: false,
+                    pendingVkConsent: true,
+                    vkConsentToken: pendingContext.contextToken,
+                    vkConsentState: pendingContext.state,
+                    vkConsentTempSessionId: pendingContext.tempSessionId,
+                    vkConsentPromoCode: contextResponse.data.savedPromoCode ?? pendingContext.promoCode,
+                    vkConsentExpiresAt: pendingContext.expiresAt,
+                  });
+                  return;
+                }
+                if (!contextResponse.success && isTransientAuthCheckError(contextResponse)) {
+                  // The persisted context is still inside its local five-minute TTL.
+                  // Keep it resumable instead of discarding a consent form because of
+                  // a transient launch-time connectivity failure.
+                  set({
+                    isLoading: false,
+                    isAuthenticated: false,
+                    user: null,
+                    pendingVkPhone: false,
+                    pendingVkConsent: true,
+                    vkConsentToken: pendingContext.contextToken,
+                    vkConsentState: pendingContext.state,
+                    vkConsentTempSessionId: pendingContext.tempSessionId,
+                    vkConsentPromoCode: pendingContext.promoCode,
+                    vkConsentExpiresAt: pendingContext.expiresAt,
+                  });
+                  return;
+                }
+                if (contextResponse.success || !isTransientAuthCheckError(contextResponse)) {
+                  await clearVkRegistrationContext();
+                }
+              }
               if (__DEV__) console.log("[authStore] checkAuth: no token");
               set({
                 isLoading: false,
                 isAuthenticated: false,
                 user: null,
                 pendingVkPhone: false,
+                pendingVkConsent: false,
+                vkConsentExpiresAt: null,
               });
               return;
             }
@@ -353,6 +498,8 @@ export const useAuthStore = create<AuthStore>()(
                 isAuthenticated: true,
                 isLoading: false,
                 pendingVkPhone: false,
+                pendingVkConsent: false,
+                vkConsentExpiresAt: null,
               });
               identifyUser(userData.id);
               if (__DEV__) console.log("[authStore] checkAuth: isAuthenticated: true");
@@ -409,7 +556,12 @@ export const useAuthStore = create<AuthStore>()(
           pendingVkPhone: false,
           pendingVkConsent: false,
           vkConsentToken: null,
+          vkConsentState: null,
+          vkConsentTempSessionId: null,
+          vkConsentPromoCode: null,
+          vkConsentExpiresAt: null,
         });
+        void clearVkRegistrationContext();
         resetAnalyticsUser();
       },
 
@@ -418,18 +570,92 @@ export const useAuthStore = create<AuthStore>()(
        */
       setUser: (user) => set({ user }),
       clearPendingVkPhone: () => set({ pendingVkPhone: false }),
-      clearPendingVkConsent: () =>
-        set({ pendingVkConsent: false, vkConsentToken: null }),
+      clearPendingVkConsent: async () => {
+        await clearVkRegistrationContext();
+        set({
+          pendingVkConsent: false,
+          vkConsentToken: null,
+          vkConsentState: null,
+          vkConsentTempSessionId: null,
+          vkConsentPromoCode: null,
+          vkConsentExpiresAt: null,
+        });
+      },
+      updateVkConsentPromoCode: async (promoCode) => {
+        const { vkConsentToken, vkConsentState, vkConsentTempSessionId, vkConsentExpiresAt } = useAuthStore.getState();
+        if (!vkConsentToken || !vkConsentState || !vkConsentTempSessionId || !vkConsentExpiresAt) return;
+        if (vkConsentExpiresAt <= Date.now()) {
+          await clearVkRegistrationContext();
+          set({
+            pendingVkConsent: false,
+            vkConsentToken: null,
+            vkConsentState: null,
+            vkConsentTempSessionId: null,
+            vkConsentPromoCode: null,
+            vkConsentExpiresAt: null,
+          });
+          return;
+        }
+        const normalizedPromoCode = promoCode.trim() || null;
+        await saveVkRegistrationContext({
+          contextToken: vkConsentToken,
+          state: vkConsentState,
+          tempSessionId: vkConsentTempSessionId,
+          promoCode: normalizedPromoCode,
+          expiresAt: vkConsentExpiresAt,
+        });
+        set({ vkConsentPromoCode: normalizedPromoCode });
+      },
 
-      submitVkConsentComplete: async (consentPayload) => {
-        const token = useAuthStore.getState().vkConsentToken;
-        if (!token) {
-          return { success: false, error: "Токен устарел. Повторите вход через VK." };
+      submitVkConsentComplete: async (consentPayload, promoCode) => {
+        const {
+          vkConsentToken: token,
+          vkConsentState: state,
+          vkConsentTempSessionId: tempSessionId,
+          vkConsentExpiresAt: expiresAt,
+        } = useAuthStore.getState();
+        if (!token || !state || !tempSessionId || !expiresAt || expiresAt <= Date.now()) {
+          await clearVkRegistrationContext();
+          set({
+            user: null,
+            isAuthenticated: false,
+            pendingVkPhone: false,
+            pendingVkConsent: false,
+            vkConsentToken: null,
+            vkConsentState: null,
+            vkConsentTempSessionId: null,
+            vkConsentPromoCode: null,
+            vkConsentExpiresAt: null,
+          });
+          return { success: false, error: "Токен устарел. Повторите вход через VK.", code: "CONTEXT_EXPIRED" };
         }
         try {
-          const response = await authApi.submitVkConsent(token, consentPayload);
+          await saveVkRegistrationContext({
+            contextToken: token,
+            state,
+            tempSessionId,
+            promoCode: promoCode?.trim() || null,
+            expiresAt,
+          });
+          const response = await authApi.submitVkConsent(token, state, tempSessionId, consentPayload, promoCode);
           if (!response.success || !response.data) {
-            return { success: false, error: response.error || "Ошибка сохранения согласий" };
+            if (["CONTEXT_INVALID", "CONTEXT_EXPIRED", "VK_CONTEXT_PURPOSE_INVALID"].includes(response.code ?? "")) {
+              // The form keeps its locally entered promo code; the opaque context
+              // itself is no longer reusable and must never be restored.
+              await clearVkRegistrationContext();
+              set({
+                user: null,
+                isAuthenticated: false,
+                pendingVkPhone: false,
+                pendingVkConsent: false,
+                vkConsentToken: null,
+                vkConsentState: null,
+                vkConsentTempSessionId: null,
+                vkConsentPromoCode: null,
+                vkConsentExpiresAt: null,
+              });
+            }
+            return { success: false, error: response.error || "Ошибка сохранения согласий", code: response.code };
           }
           const { accessToken, refreshToken, needsPhone, user } = response.data;
           resetUserStores();
@@ -442,21 +668,26 @@ export const useAuthStore = create<AuthStore>()(
               pendingVkPhone: true,
               pendingVkConsent: false,
               vkConsentToken: null,
+              vkConsentState: null,
+              vkConsentTempSessionId: null,
+              vkConsentPromoCode: null,
+              vkConsentExpiresAt: null,
             });
           } else {
-            const profileRes = await authApi.getProfile();
-            if (!profileRes.success || !profileRes.data) {
-              return { success: false, error: "Ошибка загрузки профиля" };
-            }
             set({
-              user: profileRes.data,
+              user: user as User,
               isAuthenticated: true,
               pendingVkPhone: false,
               pendingVkConsent: false,
               vkConsentToken: null,
+              vkConsentState: null,
+              vkConsentTempSessionId: null,
+              vkConsentPromoCode: null,
+              vkConsentExpiresAt: null,
             });
-            identifyUser(profileRes.data.id);
+            identifyUser(user.id);
           }
+          await clearVkRegistrationContext();
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkConsent" });

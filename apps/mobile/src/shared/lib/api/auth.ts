@@ -10,7 +10,7 @@ export interface User {
   username: string;
   phone: string | null;
   email: string | null;
-  role: "USER" | "TRAINER" | "ADMIN" | "MODERATOR";
+  role: "USER" | "PARTNER" | "TRAINER" | "ADMIN" | "MODERATOR";
   /** Совпадает с passwordSetAt на сервере (GET /user/profile) */
   hasAppPassword?: boolean;
   hasVkLinked?: boolean;
@@ -38,8 +38,24 @@ export interface VkLoginResponse {
   needsPhone?: boolean;
   /** Новый пользователь — нужно собрать согласия (mobile) */
   needsConsent?: boolean;
+  /** Opaque durable registration context; never log or put in a route. */
+  contextToken?: string;
   vkConsentToken?: string;
+  savedPromoCode?: string | null;
 }
+
+export type VkConsentContextResponse = {
+  savedPromoCode: string | null;
+  completed: boolean;
+};
+
+/**
+ * Auth transports always return a machine-readable code on failure.  Screens
+ * use it for retry/expiry decisions and must not have to infer it from UI copy.
+ */
+export type AuthApiResponse<T> =
+  | { success: true; data: T }
+  | { success: false; error: string; code: string };
 
 export interface RegisterData {
   name: string;
@@ -47,6 +63,7 @@ export interface RegisterData {
   password: string;
   tempSessionId: string;
   consentPayload: ConsentPayload;
+  promoCode?: string;
 }
 
 /**
@@ -127,7 +144,8 @@ export const authApi = {
     tempSessionId: string,
     consentPayload: ConsentPayload,
     registrationChannel: "IOS" | "ANDROID" | "WEB",
-  ): Promise<ApiResponse<LoginResponse>> => {
+    promoCode?: string,
+  ): Promise<AuthApiResponse<LoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
         method: "POST",
@@ -139,6 +157,7 @@ export const authApi = {
           tempSessionId,
           consentPayload,
           registrationChannel,
+          promoCode: promoCode?.trim() || undefined,
         }),
       });
 
@@ -148,11 +167,6 @@ export const authApi = {
           const contentType = response.headers.get("content-type");
           if (contentType?.includes("application/json")) {
             errorData = await response.json();
-            if (__DEV__)
-              console.log("[authApi] register error response", {
-                status: response.status,
-                errorData,
-              });
           }
         } catch {
           reportClientError(new Error("register_error_response_parse"), {
@@ -178,6 +192,31 @@ export const authApi = {
       if (error instanceof TypeError && error.message.includes("fetch")) {
         return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
       }
+      return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
+    }
+  },
+
+  /** Public normalization/validity check only; eligibility stays server-authoritative. */
+  previewRegistrationPromoCode: async (
+    promoCode: string,
+  ): Promise<ApiResponse<{ code: string }>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/registration-promo-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
+        body: JSON.stringify({ promoCode }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({} as { error?: string; code?: string }));
+        return {
+          success: false,
+          error: errorData.error || "Промокод не удалось проверить",
+          code: errorData.code || `HTTP_${response.status}`,
+        };
+      }
+      const result = await response.json();
+      return { success: true, data: result.data };
+    } catch {
       return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
     }
   },
@@ -292,12 +331,16 @@ export const authApi = {
     device_id: string;
     state: string;
     platform?: "ios" | "android";
+    promoCode?: string;
   }): Promise<ApiResponse<VkLoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          ...params,
+          promoCode: params.promoCode?.trim() || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -355,19 +398,52 @@ export const authApi = {
    * Отправка согласий для новых VK-пользователей (mobile).
    * Возвращает токены после успешного сохранения согласий.
    */
+  getVkConsentContext: async (
+    contextToken: string,
+    state: string,
+  ): Promise<ApiResponse<VkConsentContextResponse>> => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/auth/vk-consent/${encodeURIComponent(contextToken)}?state=${encodeURIComponent(state)}`,
+        { headers: getMobileClientHeaders() },
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({} as { error?: string; code?: string }));
+        return {
+          success: false,
+          error: errorData.error || "Не удалось проверить сессию VK.",
+          code: errorData.code || `HTTP_${response.status}`,
+        };
+      }
+      const result = await response.json();
+      return { success: true, data: result.data };
+    } catch {
+      return { success: false, error: "Ошибка подключения к серверу", code: "NETWORK_ERROR" };
+    }
+  },
+
   submitVkConsent: async (
-    vkConsentToken: string,
+    contextToken: string,
+    state: string,
+    tempSessionId: string,
     consentPayload: ConsentPayload,
+    promoCode?: string,
   ): Promise<ApiResponse<VkLoginResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/vk-consent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
-        body: JSON.stringify({ vkConsentToken, consentPayload }),
+        body: JSON.stringify({
+          contextToken,
+          state,
+          tempSessionId,
+          consentPayload,
+          promoCode: promoCode?.trim() || undefined,
+        }),
       });
 
       if (!response.ok) {
-        let errorData: { error?: string } = {};
+        let errorData: { error?: string; code?: string } = {};
         try {
           const contentType = response.headers.get("content-type");
           if (contentType?.includes("application/json")) {
@@ -383,6 +459,7 @@ export const authApi = {
         return {
           success: false,
           error: errorData.error || "Ошибка сохранения согласий",
+          code: errorData.code || `HTTP_${response.status}`,
         };
       }
 

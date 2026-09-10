@@ -29,6 +29,9 @@ export type {
   AppSubscriptionPromoCodeEvent,
   AppSubscriptionSettings,
   AppSubscriptionTrial,
+  RegistrationEmailAttempt,
+  VkRegistrationContext,
+  VkLoginGrant,
   RewardedAdEvent,
   RewardedAdSession,
   RewardedAdSettings,
@@ -74,6 +77,9 @@ export {
   RewardedTargetAccessSource,
   RewardedTargetAccessType,
   RewardedTargetType,
+  RegistrationEmailAttemptResult,
+  VkRegistrationContextPurpose,
+  VkLoginGrantPurpose,
 } from "@prisma/client";
 
 // Экспортируем пространство имён Prisma (для JsonNull, Decimal и т.д.)

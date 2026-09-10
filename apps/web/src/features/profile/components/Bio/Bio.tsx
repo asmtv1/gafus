@@ -26,6 +26,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           ADMIN: "Администратор",
           MODERATOR: "Модератор",
           TRAINER: "Кинолог",
+          PARTNER: "Партнёр",
         }[publicData.role]
       : null;
 

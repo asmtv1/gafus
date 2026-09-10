@@ -8,6 +8,8 @@ export interface ConsentPayload {
 
 export interface CreateConsentLogsParams {
   tempSessionId: string;
+  /** Set by an atomic registration transaction; transports must not link these later. */
+  userId?: string;
   consentPayload: ConsentPayload;
   /** Данные формы для аудита: телефон и/или email (после регистрации по email phone может отсутствовать). */
   formData: { name: string; phone?: string; email?: string };

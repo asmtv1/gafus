@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { Prisma, prisma } from "@gafus/prisma";
 import { DateTime } from "luxon";
 
 import type { AppSubscriptionPlanCode } from "./plans";
@@ -20,19 +20,19 @@ export type NpdAdminPage = {
   page: number;
   pageSize: number;
   totalPages: number;
-  items: Array<{
+  items: {
     id: string; paymentId: string; user: { id: string; username: string; fullName: string | null; email: string | null };
     planCode: string; amountRub: number; currency: string; status: NpdAdminReceiptStatus;
     emailDelivery: string | null; retryAt: string | null; printUrl: string | null; lastErrorRedacted: string | null;
     operationAt: string;
-  }>;
+  }[];
 };
 
 export async function getNpdAdminPage(params: { page: number; pageSize: number; role?: "ADMIN" | "MODERATOR"; status?: NpdAdminReceiptStatus; from?: Date; to?: Date; search?: string }): Promise<NpdAdminPage> {
   const page = Math.max(1, Math.floor(params.page));
   const pageSize = Math.min(100, Math.max(10, Math.floor(params.pageSize)));
   const search = params.search?.trim();
-  const where: any = {
+  const where: Prisma.NpdReceiptWhereInput = {
     ...(params.status ? { status: params.status } : {}),
     ...(params.from || params.to ? { operationAt: { ...(params.from ? { gte: params.from } : {}), ...(params.to ? { lt: params.to } : {}) } } : {}),
     ...(search ? { OR: [
@@ -52,16 +52,16 @@ export async function getNpdAdminPage(params: { page: number; pageSize: number; 
     emailDelivery: { select: { status: true, nextAttemptAt: true, lastErrorRedacted: true } },
   } as const;
   const [connection, total, rows, backlog] = await Promise.all([
-    (prisma as any).npdConnection.findUnique({ where: { id: "default" }, select: { status: true, fiscalizationStartedAt: true, lastAuthorizedAt: true, lastSuccessfulOperationAt: true, lastErrorCode: true, lastErrorRedacted: true } }),
-    (prisma as any).npdReceipt.count({ where }),
-    (prisma as any).npdReceipt.findMany({ where, orderBy: [{ operationAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize, select }),
-    (prisma as any).npdReceiptOperation.count({ where: { status: { in: ["PENDING", "PROCESSING", "RETRY"] } } }),
+    prisma.npdConnection.findUnique({ where: { id: "default" }, select: { status: true, fiscalizationStartedAt: true, lastAuthorizedAt: true, lastSuccessfulOperationAt: true, lastErrorCode: true, lastErrorRedacted: true } }),
+    prisma.npdReceipt.count({ where }),
+    prisma.npdReceipt.findMany({ where, orderBy: [{ operationAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize, select }),
+    prisma.npdReceiptOperation.count({ where: { status: { in: ["PENDING", "PROCESSING", "RETRY"] } } }),
   ]);
   return {
     connection: connection ? { ...connection, fiscalizationStartedAt: connection.fiscalizationStartedAt?.toISOString() ?? null, lastAuthorizedAt: connection.lastAuthorizedAt?.toISOString() ?? null, lastSuccessfulOperationAt: connection.lastSuccessfulOperationAt?.toISOString() ?? null } : null,
     backlog, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)),
-    items: rows.map((row: any) => {
-      const op = row.operations.find((item: any) => item.status !== "NOT_REQUIRED") ?? row.operations[0];
+    items: rows.map((row) => {
+      const op = row.operations.find((item) => item.status !== "NOT_REQUIRED") ?? row.operations[0];
       const retryAt = op?.nextAttemptAt ?? row.emailDelivery?.nextAttemptAt ?? null;
       return { id: row.id, paymentId: row.paymentId, user: { id: row.payment.user.id, username: row.payment.user.username, fullName: row.payment.user.profile?.fullName ?? null, email: params.role === "ADMIN" ? row.payment.user.email : null }, planCode: row.planCode, amountRub: row.amountKopecks / 100, currency: row.currency, status: row.status, emailDelivery: row.emailDelivery?.status ?? null, retryAt: retryAt?.toISOString() ?? null, printUrl: params.role === "ADMIN" ? row.printUrl : null, lastErrorRedacted: op?.lastErrorRedacted ?? row.emailDelivery?.lastErrorRedacted ?? null, operationAt: row.operationAt.toISOString() };
     }),
@@ -69,21 +69,21 @@ export async function getNpdAdminPage(params: { page: number; pageSize: number; 
 }
 
 export async function adminRetryNpdReceiptOperation(receiptId: string) {
-  const receipt = await (prisma as any).npdReceipt.findUnique({ where: { id: receiptId }, select: { status: true, operations: { select: { id: true, type: true, status: true } } } });
+  const receipt = await prisma.npdReceipt.findUnique({ where: { id: receiptId }, select: { status: true, operations: { select: { id: true, type: true, status: true } } } });
   if (!receipt) return { ok: false as const, code: "NOT_FOUND" };
   if (receipt.status === "RECONCILIATION_REQUIRED") return { ok: false as const, code: "RECONCILIATION_REQUIRED" };
-  const operation = receipt.operations.find((item: any) => ["FAILED", "RETRY"].includes(item.status));
+  const operation = receipt.operations.find((item) => ["FAILED", "RETRY"].includes(item.status));
   if (!operation) return { ok: false as const, code: "NOT_RETRYABLE" };
-  await (prisma as any).npdReceiptOperation.updateMany({ where: { id: operation.id, status: { in: ["FAILED", "RETRY"] } }, data: { status: "RETRY", nextAttemptAt: new Date(), completedAt: null, lastErrorCode: null, lastErrorRedacted: null } });
+  await prisma.npdReceiptOperation.updateMany({ where: { id: operation.id, status: { in: ["FAILED", "RETRY"] } }, data: { status: "RETRY", nextAttemptAt: new Date(), completedAt: null, lastErrorCode: null, lastErrorRedacted: null } });
   return { ok: true as const };
 }
 
 export async function adminQueueNpdReconciliation(receiptId: string) {
-  const receipt = await (prisma as any).npdReceipt.findUnique({ where: { id: receiptId }, select: { status: true, operations: { select: { id: true, status: true } } } });
+  const receipt = await prisma.npdReceipt.findUnique({ where: { id: receiptId }, select: { status: true, operations: { select: { id: true, status: true } } } });
   if (!receipt || receipt.status !== "RECONCILIATION_REQUIRED") return { ok: false as const, code: "NOT_AMBIGUOUS" };
-  const operation = receipt.operations.find((item: any) => item.status === "RECONCILIATION_REQUIRED");
+  const operation = receipt.operations.find((item) => item.status === "RECONCILIATION_REQUIRED");
   if (!operation) return { ok: false as const, code: "NOT_AMBIGUOUS" };
-  await (prisma as any).npdReceiptOperation.updateMany({ where: { id: operation.id, status: "RECONCILIATION_REQUIRED" }, data: { lastErrorCode: "ADMIN_RECONCILIATION_REQUESTED", lastErrorRedacted: "Сверка запрошена администратором; внешняя проверка недоступна" } });
+  await prisma.npdReceiptOperation.updateMany({ where: { id: operation.id, status: "RECONCILIATION_REQUIRED" }, data: { lastErrorCode: "ADMIN_RECONCILIATION_REQUESTED", lastErrorRedacted: "Сверка запрошена администратором; внешняя проверка недоступна" } });
   return { ok: true as const };
 }
 

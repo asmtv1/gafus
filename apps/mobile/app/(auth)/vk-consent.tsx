@@ -3,12 +3,13 @@ import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { usePathname, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
 
-import { Button } from "@/shared/components/ui";
+import { Button, Input } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
+import { useVkLogin } from "@/shared/hooks";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";
 import { COLORS, SPACING } from "@/shared/config";
@@ -16,11 +17,14 @@ import { COLORS, SPACING } from "@/shared/config";
 export default function VkConsentScreen() {
   const router = useRouter();
   const pathname = usePathname() ?? "/vk-consent";
-  const { vkConsentToken, submitVkConsentComplete, clearPendingVkConsent } = useAuthStore(
+  const promoCodeParam = useLocalSearchParams<{ promoCode?: string | string[] }>().promoCode;
+  const { vkConsentToken, vkConsentPromoCode, submitVkConsentComplete, clearPendingVkConsent, updateVkConsentPromoCode } = useAuthStore(
     useShallow((s) => ({
       vkConsentToken: s.vkConsentToken,
+      vkConsentPromoCode: s.vkConsentPromoCode,
       submitVkConsentComplete: s.submitVkConsentComplete,
       clearPendingVkConsent: s.clearPendingVkConsent,
+      updateVkConsentPromoCode: s.updateVkConsentPromoCode,
     })),
   );
   const [consents, setConsents] = useState({
@@ -29,7 +33,14 @@ export default function VkConsentScreen() {
     acceptDataDistribution: false,
   });
   const [loading, setLoading] = useState(false);
+  const [promoCode, setPromoCode] = useState(
+    typeof promoCodeParam === "string" ? promoCodeParam : vkConsentPromoCode ?? "",
+  );
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [contextExpired, setContextExpired] = useState(false);
+  const { handleVkLogin, isVkLoading } = useVkLogin({
+    onError: (message) => setSnackbar({ visible: true, message }),
+  });
 
   const toggleConsent = (key: keyof typeof consents) => {
     setConsents((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -58,7 +69,7 @@ export default function VkConsentScreen() {
 
     setLoading(true);
     setSnackbar({ visible: false, message: "" });
-    const result = await submitVkConsentComplete(consentPayload);
+    const result = await submitVkConsentComplete(consentPayload, promoCode.trim() || undefined);
     setLoading(false);
 
     if (result.success) {
@@ -73,13 +84,22 @@ export default function VkConsentScreen() {
       }
       // AuthProvider перенаправит (pendingVkPhone → vk-set-phone или isAuthenticated → main)
     } else {
+      if (["CONTEXT_INVALID", "CONTEXT_EXPIRED", "VK_CONTEXT_PURPOSE_INVALID"].includes(result.code ?? "")) {
+        setContextExpired(true);
+      }
       setSnackbar({ visible: true, message: result.error || "Ошибка сохранения" });
     }
   };
 
-  const handleBack = () => {
-    clearPendingVkConsent();
+  const handleBack = async () => {
+    await clearPendingVkConsent();
     router.replace("/welcome");
+  };
+
+  const restartVk = async () => {
+    await clearPendingVkConsent();
+    setContextExpired(false);
+    await handleVkLogin(promoCode.trim() || undefined);
   };
 
   if (!vkConsentToken) {
@@ -91,7 +111,8 @@ export default function VkConsentScreen() {
         <Text variant="bodyLarge" style={styles.hint}>
           Повторите вход через VK ID.
         </Text>
-        <Button label="На главную" onPress={handleBack} style={styles.button} />
+        <Button label="Повторить вход через VK" onPress={() => void restartVk()} loading={isVkLoading} style={styles.button} />
+        <Button label="На главную" variant="outline" onPress={() => void handleBack()} style={styles.button} />
       </SafeAreaView>
     );
   }
@@ -188,6 +209,18 @@ export default function VkConsentScreen() {
             </Text>
           </View>
         </View>
+        <Input
+          label="Промокод"
+          value={promoCode}
+          onChangeText={(value) => {
+            setPromoCode(value);
+            void updateVkConsentPromoCode(value);
+          }}
+          placeholder="Необязательно"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          style={styles.promoCodeInput}
+        />
 
         <Button
           label="Принять и продолжить"
@@ -196,6 +229,15 @@ export default function VkConsentScreen() {
           disabled={loading || !allAccepted}
           style={styles.button}
         />
+        {contextExpired ? (
+          <Button
+            label="Повторить вход через VK"
+            variant="outline"
+            onPress={() => void restartVk()}
+            loading={isVkLoading}
+            style={styles.button}
+          />
+        ) : null}
       </ScrollView>
       <Snackbar
         visible={snackbar.visible}
@@ -255,5 +297,8 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: SPACING.md,
+  },
+  promoCodeInput: {
+    marginBottom: SPACING.sm,
   },
 });

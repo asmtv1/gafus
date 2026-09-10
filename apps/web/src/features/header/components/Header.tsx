@@ -1,7 +1,7 @@
 "use client";
 
 import { resetAnalyticsUser, trackEvent } from "@gafus/analytics";
-import { ArrowBack, Article as ArticleIcon, Pets as PetsIcon } from "@mui/icons-material";
+import { ArrowBack, Article as ArticleIcon, Groups as GroupsIcon, Pets as PetsIcon } from "@mui/icons-material";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
@@ -14,7 +14,7 @@ import styles from "./Header.module.css";
 
 import type { HeaderProps } from "../types";
 
-export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: HeaderProps) {
+export default React.memo(function Header({ userName, avatarUrl, trainerOnly, partnerOnly }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const burgerRef = useRef<HTMLButtonElement>(null);
@@ -123,6 +123,23 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly }: 
                   />
                 </span>
                 <span className={styles.menuLabel}>Панель тренера</span>
+              </Link>
+            )}
+            {partnerOnly && (
+              <Link
+                href="/partner"
+                onClick={() => {
+                  trackMenuClick("tab-partner");
+                  setMenuOpen(false);
+                }}
+                onMouseEnter={() => router.prefetch("/partner")}
+                className={`${styles.menuButton} ${isCurrentRoute("/partner") ? styles.menuButtonActive : ""}`}
+                aria-current={isCurrentRoute("/partner") ? "page" : undefined}
+              >
+                <span className={styles.menuIconSlot} aria-hidden="true">
+                  <GroupsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+                </span>
+                <span className={styles.menuLabel}>Партнёрская программа</span>
               </Link>
             )}
             <Link

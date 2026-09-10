@@ -11,3 +11,4 @@ export * from "./paymentService";
 export * from "./npdReceiptService";
 export * from "./promoCode";
 export * from "./promoCodeService";
+export * from "./partnerService";

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
 import { updateUserAdmin } from "@gafus/core/services/adminUser";
+import { prisma } from "@gafus/prisma";
 import { getServerSession } from "next-auth";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -24,9 +25,23 @@ const updateUserBodySchema = z.object({
       return v.toLowerCase().trim();
     }),
   phone: z.string().optional(),
-  role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "USER"]).optional(),
+  role: z.enum(["ADMIN", "MODERATOR", "TRAINER", "PARTNER", "USER"]).optional(),
   newPassword: z.string().min(6).optional(),
+  partnerPromoCodeId: z.string().min(1).optional(),
 });
+
+async function partnerChangeRequiresAdmin(actorId: string, userId: string, input: z.infer<typeof updateUserBodySchema>) {
+  if (input.partnerPromoCodeId === undefined && input.role === undefined) return false;
+
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+  ]);
+  const changesPartnerRole = input.role !== undefined && input.role !== target?.role &&
+    (input.role === "PARTNER" || target?.role === "PARTNER");
+
+  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) && actor?.role !== "ADMIN";
+}
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -56,6 +71,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         { success: false, error: errorMsg || "Невалидные данные" },
         { status: 400 },
       );
+    }
+
+    if (await partnerChangeRequiresAdmin(session.user.id, userId, parsed.data)) {
+      return NextResponse.json({ success: false, error: "Только администратор может управлять ролью и промокодом партнёра" }, { status: 403 });
     }
 
     const result = await updateUserAdmin(userId, parsed.data);

@@ -44,7 +44,7 @@ import { updateMobileReleaseControlAction } from "./mobileAppFeatureFlagsActions
 
 const validPayload = {
   revision: 1,
-  iosReviewVersion: "1.6.7",
+  iosReviewVersion: "1.6.8",
   released: {
     vkLogin: true,
     iosRuCardPayment: true,

@@ -5,9 +5,13 @@ import { getAppSubscriptionAccess } from "../accessService";
 const mockFindMany = vi.fn();
 const mockPaymentFindFirst = vi.fn();
 const mockTrialFindUnique = vi.fn();
+const mockUserFindUnique = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
     appSubscription: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
     },
@@ -25,6 +29,7 @@ describe("getAppSubscriptionAccess", () => {
     vi.clearAllMocks();
     mockPaymentFindFirst.mockResolvedValue(null);
     mockTrialFindUnique.mockResolvedValue(null);
+    mockUserFindUnique.mockResolvedValue(null);
   });
 
   it("returns inactive dto when no rows", async () => {

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { Prisma } from "@gafus/prisma";
+
 import { queueNpdReceiptCancellation } from "../npdReceiptService";
 
 describe("queueNpdReceiptCancellation", () => {
@@ -17,7 +19,7 @@ describe("queueNpdReceiptCancellation", () => {
           }),
         },
         npdReceiptOperation: { updateMany, upsert: operationUpsert, findUnique: vi.fn() },
-      } as any;
+      } as unknown as Prisma.TransactionClient;
 
       await expect(queueNpdReceiptCancellation(tx, "payment-1")).resolves.toBe("not_required");
       expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -41,7 +43,7 @@ describe("queueNpdReceiptCancellation", () => {
         update: receiptUpdate,
       },
       npdReceiptOperation: { updateMany, upsert: operationUpsert, findUnique: vi.fn() },
-    } as any;
+    } as unknown as Prisma.TransactionClient;
 
     await expect(queueNpdReceiptCancellation(tx, "payment-1")).resolves.toBe("cancel_pending");
     expect(updateMany).not.toHaveBeenCalled();

@@ -22,12 +22,10 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
         updateMany: (...args: unknown[]) => mockConsentLogUpdateMany(...args),
       },
       $transaction: (arg: unknown) => {
-        if (Array.isArray(arg)) {
-          return Promise.all(arg as Promise<unknown>[]);
-        }
-        return (mod.prisma as { $transaction: (a: unknown) => Promise<unknown> }).$transaction(
-          arg,
-        );
+        if (Array.isArray(arg)) return Promise.all(arg as Promise<unknown>[]);
+        return (arg as (tx: { consentLog: { upsert: typeof mockConsentLogUpsert } }) => Promise<unknown>)({
+          consentLog: { upsert: (...args: unknown[]) => mockConsentLogUpsert(...args) },
+        });
       },
     },
   };

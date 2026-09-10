@@ -1,24 +1,29 @@
-import { useState } from "react";
-import { Image } from "expo-image";
-import { ActivityIndicator, View, StyleSheet } from "react-native";
+import { View, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { Text } from "react-native-paper";
 
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from "@/shared/config";
 import { TexturedSafeAreaView } from "../TexturedSafeAreaView";
-
-import listLoadingMascot from "../../../../assets/images/hf_20260417_153650_6b4ae03c-6655-475d-9d52-c7da89fe4b2e.gif";
+import { LoadingMascot } from "./LoadingMascot";
 
 const MASCOT_PX = {
   large: 168,
   small: 112,
 } as const;
 
+const INLINE_MASCOT_PX = {
+  large: 56,
+  small: 32,
+} as const;
+
 interface LoadingProps {
   message?: string;
   size?: "small" | "large";
+  /** Компактная загрузка внутри уже открытого блока, без дополнительной карточки. */
+  variant?: "card" | "inline";
   fullScreen?: boolean;
   /** Экран уже предоставляет фон и safe-area: загрузка только заполняет его содержимое. */
   embedded?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -27,33 +32,30 @@ interface LoadingProps {
 export function Loading({
   message,
   size = "large",
+  variant = "card",
   fullScreen = false,
   embedded = false,
+  style,
 }: LoadingProps) {
-  const [mascotLoaded, setMascotLoaded] = useState(false);
-  const mascotPx = MASCOT_PX[size];
+  const mascotPx = (variant === "inline" ? INLINE_MASCOT_PX : MASCOT_PX)[size];
   const content = (
     <View
-      style={[styles.container, fullScreen && styles.containerFullScreen]}
+      style={[
+        styles.container,
+        variant === "inline" && styles.inlineContainer,
+        fullScreen && styles.containerFullScreen,
+        style,
+      ]}
       accessibilityRole="progressbar"
       accessibilityLabel={message ?? "Загрузка"}
     >
-      <View style={styles.card}>
-        <View style={{ width: mascotPx, height: mascotPx }}>
-          <Image
-            source={listLoadingMascot}
-            style={StyleSheet.absoluteFill}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            onLoad={() => setMascotLoaded(true)}
-          />
-          {!mascotLoaded ? (
-            <View style={styles.mascotFallback}>
-              <ActivityIndicator color={COLORS.primary} size="large" />
-            </View>
-          ) : null}
-        </View>
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+      <View style={variant === "card" ? styles.card : styles.inlineContent}>
+        <LoadingMascot pixelSize={mascotPx} />
+        {message ? (
+          <Text style={[styles.message, variant === "inline" && styles.inlineMessage]}>
+            {message}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -82,6 +84,13 @@ const styles = StyleSheet.create({
   containerFullScreen: {
     flex: 1,
   },
+  inlineContainer: {
+    padding: 0,
+  },
+  inlineContent: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   card: {
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
@@ -95,15 +104,13 @@ const styles = StyleSheet.create({
     minWidth: 200,
     boxShadow: "0 8px 18px rgba(53, 52, 16, 0.20)",
   },
-  mascotFallback: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   message: {
     marginTop: SPACING.md,
     color: COLORS.text,
     fontSize: 15,
     fontFamily: FONTS.montserrat,
+  },
+  inlineMessage: {
+    marginTop: SPACING.sm,
   },
 });

@@ -25,17 +25,19 @@ interface User {
   _count: {
     pushSubscriptions: number;
   };
+  partnerProfile?: { promoCodeId: string | null; promoCode: { id: string; code: string; discountPercent: number } | null } | null;
 }
 
 interface UsersClientProps {
   users: User[];
   actorRole: string;
+  freePartnerPromoCodes: { id: string; code: string; discountPercent: number }[];
 }
 
 type SortField = "role" | "createdAt" | "notifications" | null;
 type SortDirection = "asc" | "desc";
 
-export default function UsersClient({ users, actorRole }: UsersClientProps) {
+export default function UsersClient({ users, actorRole, freePartnerPromoCodes }: UsersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -177,6 +179,7 @@ export default function UsersClient({ users, actorRole }: UsersClientProps) {
         <EditUserForm
           user={editingUser}
           actorRole={actorRole}
+          freePartnerPromoCodes={freePartnerPromoCodes}
           open={isEditFormOpen}
           onClose={() => {
             setIsEditFormOpen(false);
