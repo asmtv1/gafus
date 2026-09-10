@@ -5,7 +5,6 @@ import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { FormField } from "@shared/components/ui/FormField";
 import { PasswordInput } from "@shared/components/ui/PasswordInput";
-import { PrimaryButton } from "@shared/components/ui";
 import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { loginFormSchema } from "@shared/lib/validation/authSchemas";
@@ -118,13 +117,9 @@ export default function LoginForm() {
           Забыли пароль?
         </Link>
       </div>
-      <PrimaryButton className={styles.button} type="submit" disabled={csrfLoading} fullWidth>
-        {csrfLoading ? (
-          "Загрузка..."
-        ) : (
-          <Image src="/uploads/login-paw.png" alt="Войти" width={140} height={135} />
-        )}
-      </PrimaryButton>
+      <button className={styles.button} type="submit" disabled={csrfLoading} aria-label="Войти">
+        {csrfLoading ? "Загрузка..." : <Image src="/uploads/login-paw.png" alt="" width={140} height={135} />}
+      </button>
     </form>
   );
 }

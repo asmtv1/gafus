@@ -1,6 +1,7 @@
 /* Mobile-first responsive design - базовые стили для мобильных устройств */
 .container {
-  background-color: var(--bg-1);
+  /* The paper surface is defined globally on <body>; keep it visible here. */
+  background-color: transparent;
   width: 100%;
   min-height: 100dvh;
   display: flex;

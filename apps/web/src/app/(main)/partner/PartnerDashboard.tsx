@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useCSRFStore } from "@gafus/csrf";
+import { reportClientError } from "@gafus/error-handling";
 import { PrimaryButton, SecondaryButton } from "@shared/components/ui";
 
 import styles from "./partner.module.css";
@@ -47,6 +48,10 @@ export default function PartnerDashboard() {
       }
       setDashboard(json.data as PartnerDashboardDto);
     } catch (caught) {
+      reportClientError(caught, {
+        issueKey: "PartnerDashboard",
+        keys: { operation: "load" },
+      });
       setError(caught instanceof Error ? caught.message : "Не удалось загрузить кабинет партнёра");
     } finally {
       setLoading(false);
@@ -71,6 +76,11 @@ export default function PartnerDashboard() {
       await navigator.clipboard.writeText(referralLink);
       setCopyMessage("Ссылка скопирована");
     } catch {
+      reportClientError(new Error("clipboard_write_failed"), {
+        issueKey: "PartnerDashboard",
+        keys: { operation: "copy_referral_link" },
+        severity: "warning",
+      });
       setCopyMessage("Не удалось скопировать ссылку. Скопируйте её из поля выше.");
     }
   };
@@ -103,6 +113,10 @@ export default function PartnerDashboard() {
       setPayoutMessage("Заявка на выплату принята.");
       await loadDashboard();
     } catch (caught) {
+      reportClientError(caught, {
+        issueKey: "PartnerDashboard",
+        keys: { operation: "request_payout" },
+      });
       setPayoutMessage(
         caught instanceof Error ? caught.message : "Не удалось создать заявку на выплату",
       );
@@ -115,8 +129,12 @@ export default function PartnerDashboard() {
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="partner-dashboard-title">
         <p className={styles.kicker}>Gafus Premium</p>
-        <h1 id="partner-dashboard-title" className={styles.title}>Партнёрская программа</h1>
-        <p className={styles.lede}>Приглашайте новых учеников и получайте вознаграждение за их оплаченные подписки.</p>
+        <h1 id="partner-dashboard-title" className={styles.title}>
+          Партнёрская программа
+        </h1>
+        <p className={styles.lede}>
+          Приглашайте новых учеников и получайте вознаграждение за их оплаченные подписки.
+        </p>
 
         {loading ? <p className={styles.info}>Загрузка кабинета...</p> : null}
         {error ? <p className={styles.error}>{error}</p> : null}
@@ -127,24 +145,45 @@ export default function PartnerDashboard() {
               <h2 id="partner-link-title">Ваша ссылка для приглашения</h2>
               <p>Новый ученик зарегистрируется по ней, а приглашение закрепится за вами.</p>
               <div className={styles.linkControls}>
-                <input className={styles.linkInput} value={referralLink} readOnly aria-label="Ваша партнёрская ссылка" />
-                <SecondaryButton onClick={() => void copyReferralLink()}>Скопировать</SecondaryButton>
+                <input
+                  className={styles.linkInput}
+                  value={referralLink}
+                  readOnly
+                  aria-label="Ваша партнёрская ссылка"
+                />
+                <SecondaryButton onClick={() => void copyReferralLink()}>
+                  Скопировать
+                </SecondaryButton>
               </div>
               {copyMessage ? <p className={styles.feedback} role="status">{copyMessage}</p> : null}
             </section>
 
             <dl className={styles.stats}>
-              <div><dt>Приглашено учеников</dt><dd>{dashboard.referrals}</dd></div>
-              <div><dt>Начислено</dt><dd>{formatRubles(dashboard.earnedKopecks)}</dd></div>
-              <div><dt>В заявках</dt><dd>{formatRubles(dashboard.reservedKopecks)}</dd></div>
-              <div className={styles.available}><dt>Доступно к выплате</dt><dd>{formatRubles(dashboard.availableKopecks)}</dd></div>
+              <div>
+                <dt>Приглашено учеников</dt>
+                <dd>{dashboard.referrals}</dd>
+              </div>
+              <div>
+                <dt>Начислено</dt>
+                <dd>{formatRubles(dashboard.earnedKopecks)}</dd>
+              </div>
+              <div>
+                <dt>В заявках</dt>
+                <dd>{formatRubles(dashboard.reservedKopecks)}</dd>
+              </div>
+              <div className={styles.available}>
+                <dt>Доступно к выплате</dt>
+                <dd>{formatRubles(dashboard.availableKopecks)}</dd>
+              </div>
             </dl>
 
             <section className={styles.payoutCard} aria-labelledby="partner-payout-title">
               <h2 id="partner-payout-title">Заявка на выплату</h2>
               <p>Укажите сумму в рублях. Мы свяжемся с вами для выплаты.</p>
               <div className={styles.payoutControls}>
-                <label className={styles.amountLabel} htmlFor="partner-payout-amount">Сумма, ₽</label>
+                <label className={styles.amountLabel} htmlFor="partner-payout-amount">
+                  Сумма, ₽
+                </label>
                 <input
                   id="partner-payout-amount"
                   className={styles.amountInput}
@@ -153,7 +192,10 @@ export default function PartnerDashboard() {
                   placeholder="Например, 500"
                   onChange={(event) => setAmount(event.target.value)}
                 />
-                <PrimaryButton disabled={payoutPending || csrfLoading || dashboard.availableKopecks <= 0} onClick={() => void requestPayout()}>
+                <PrimaryButton
+                  disabled={payoutPending || csrfLoading || dashboard.availableKopecks <= 0}
+                  onClick={() => void requestPayout()}
+                >
                   {payoutPending ? "Отправляем..." : "Запросить выплату"}
                 </PrimaryButton>
               </div>

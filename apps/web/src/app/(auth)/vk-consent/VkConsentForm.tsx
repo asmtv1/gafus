@@ -93,7 +93,12 @@ export function VkConsentForm() {
   const onSubmit = async (data: ConsentPayload) => {
     setIsPending(true);
     try {
-      const result = await submitVkConsentAction(contextToken, data, promoCode.trim() || undefined, tempSessionId);
+      const result = await submitVkConsentAction(
+        contextToken,
+        data,
+        promoCode.trim() || undefined,
+        tempSessionId,
+      );
       if (result.success) {
         setLoginGrantToken(result.loginGrantToken);
         await completeLogin(result.loginGrantToken);
@@ -101,7 +106,10 @@ export function VkConsentForm() {
         setError("acceptPersonalData", { message: result.error });
       }
     } catch (err) {
-      reportClientError(err, { issueKey: "VkConsentForm", keys: { operation: "submit" } });
+      reportClientError(err, {
+        issueKey: "VkConsentForm",
+        keys: { operation: "submit" },
+      });
       setError("acceptPersonalData", { message: "Ошибка. Попробуйте снова." });
     } finally {
       setIsPending(false);

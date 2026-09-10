@@ -41,7 +41,10 @@ export default function ChangeEmailForm({ username }: ChangeEmailFormProps) {
       await showEmailChangeRequestSentAlert();
       router.push(`${profilePagePath(username)}&emailChange=sent`);
     } catch (err) {
-      reportClientError(err, { issueKey: "ChangeEmailForm", keys: { operation: "submit" } });
+      reportClientError(err, {
+        issueKey: "ChangeEmailForm",
+        keys: { operation: "submit" },
+      });
       setRootError("Не удалось отправить письмо. Попробуйте позже.");
     } finally {
       setIsSubmitting(false);
@@ -65,7 +68,9 @@ export default function ChangeEmailForm({ username }: ChangeEmailFormProps) {
         </p>
         <ul className={styles.steps}>
           <li>Введите новый адрес и нажмите «Отправить письмо».</li>
-          <li>Откройте письмо и подтвердите смену по ссылке (ссылка действует ограниченное время).</li>
+          <li>
+            Откройте письмо и подтвердите смену по ссылке (ссылка действует ограниченное время).
+          </li>
         </ul>
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className={styles.field}>
