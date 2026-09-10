@@ -30,15 +30,13 @@ jobs:
         id: pnpm-cache-key
         run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store" >> $GITHUB_OUTPUT
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Cache pnpm store
         uses: actions/cache@v5
@@ -123,15 +121,13 @@ jobs:
             ~/.pnpm-store
           key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Restore pnpm store cache
         uses: actions/cache@v5
@@ -193,15 +189,13 @@ jobs:
             ~/.pnpm-store
           key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "24"
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Restore pnpm store cache
         uses: actions/cache@v5
