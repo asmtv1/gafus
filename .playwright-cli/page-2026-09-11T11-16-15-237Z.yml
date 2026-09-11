@@ -1,0 +1,30 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - status "Загрузка"
+    - main [ref=f8e3]:
+      - main [ref=f8e4]:
+        - generic [ref=f8e5]:
+          - paragraph [ref=f8e6]: учимся
+          - img "paw" [ref=f8e7]
+          - paragraph [ref=f8e8]: вместе
+        - heading "Гафус!" [level=1] [ref=f8e9]
+        - generic [ref=f8e10]:
+          - img "logo" [ref=f8e11]
+          - paragraph [ref=f8e13]: Добро ГАФ пожаловать!Я - мудрый Гафус!А это - приложение с полезностями для собак!
+        - generic [ref=f8e14]:
+          - link "Войти" [ref=f8e15] [cursor=pointer]:
+            - /url: /login
+          - link "Регистрация" [ref=f8e16] [cursor=pointer]:
+            - /url: /register
+          - button "Войти через VK" [ref=f8e18] [cursor=pointer]
+        - region "Скачать мобильное приложение" [ref=f8e22]:
+          - paragraph [ref=f8e23]: Удобнее в приложении
+          - generic [ref=f8e24]:
+            - link [ref=f8e25] [cursor=pointer]:
+              - /url: https://apps.apple.com/ru/app/gafus/id6760964612
+              - img "Загрузите в App Store" [ref=f8e26]
+            - link [ref=f8e27] [cursor=pointer]:
+              - /url: https://www.rustore.ru/catalog/app/ru.gafus.app
+              - img "Скачайте из RuStore" [ref=f8e28]
+    - button "Open Tanstack query devtools" [ref=f8e79] [cursor=pointer]
+  - alert [ref=f8e128]

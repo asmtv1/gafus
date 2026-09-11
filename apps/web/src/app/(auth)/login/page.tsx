@@ -20,8 +20,8 @@ export default function LoginPage() {
       <h1 className={styles.title}>Гафус!</h1>
 
       <Image
-        src="/uploads/logo.png"
-        alt="logo"
+        src="/auth-login-dog.png"
+        alt="Гафус читает книгу"
         className={styles.logo}
         width={303}
         height={303}

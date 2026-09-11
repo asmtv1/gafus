@@ -56,9 +56,35 @@ export default function AuthPage() {
         <VkErrorBanner />
         <MainAuthButtons />
       </Suspense>
-      <p className={styles.subtitle}>
-        Умные пошаговые тренировки, отдых и обучение — всё в одном месте.
-      </p>
+      <section className={styles.mobileApps} aria-label="Скачать мобильное приложение">
+        <p>Удобнее в приложении</p>
+        <div className={styles.storeLinks}>
+          <a
+            href="https://apps.apple.com/ru/app/gafus/id6760964612"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Image
+              src="/download-on-app-store.svg"
+              alt="Загрузите в App Store"
+              width={120}
+              height={40}
+            />
+          </a>
+          <a
+            href="https://www.rustore.ru/catalog/app/ru.gafus.app"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Image
+              src="/download-from-rustore.svg"
+              alt="Скачайте из RuStore"
+              width={111}
+              height={40}
+            />
+          </a>
+        </div>
+      </section>
     </main>
   );
 }
