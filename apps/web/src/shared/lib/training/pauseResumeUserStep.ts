@@ -1,7 +1,7 @@
 "use server";
 
 import { after } from "next/server";
-import { updateStepAndDay } from "@gafus/core/services/training";
+import { requireCourseStepOperationAccess, updateStepAndDay } from "@gafus/core/services/training";
 import { z } from "zod";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
@@ -37,6 +37,13 @@ export async function pauseUserStepServerAction(
 
   try {
     const remaining = Math.max(Math.floor(Number(safeInput.timeLeftSec) || 0), 0);
+    await requireCourseStepOperationAccess({
+      userId,
+      platform: "WEB_DESKTOP",
+      expectedCourseId: safeInput.courseId,
+      dayOnCourseId: safeInput.dayOnCourseId,
+      stepIndex: safeInput.stepIndex,
+    });
     await updateStepAndDay(userId, safeInput.dayOnCourseId, safeInput.stepIndex, {
       type: "pause",
       remainingSec: remaining,
@@ -79,6 +86,13 @@ export async function resumeUserStepServerAction(
   const userId = await getCurrentUserId();
 
   try {
+    await requireCourseStepOperationAccess({
+      userId,
+      platform: "WEB_DESKTOP",
+      expectedCourseId: safeInput.courseId,
+      dayOnCourseId: safeInput.dayOnCourseId,
+      stepIndex: safeInput.stepIndex,
+    });
     await updateStepAndDay(userId, safeInput.dayOnCourseId, safeInput.stepIndex, {
       type: "resume",
     });

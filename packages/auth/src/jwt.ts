@@ -60,6 +60,7 @@ export async function generateAccessToken(user: AuthUser): Promise<string> {
     sub: user.id,
     username: user.username,
     role: user.role,
+    authenticatedAt: Date.now(),
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuer(JWT_ISSUER)
@@ -73,7 +74,7 @@ export async function generateAccessToken(user: AuthUser): Promise<string> {
  * Генерирует refresh token (30 дней)
  */
 export async function generateRefreshToken(userId: string, tokenId: string): Promise<string> {
-  return new SignJWT({ sub: userId, jti: tokenId })
+  return new SignJWT({ sub: userId, jti: tokenId, authenticatedAt: Date.now() })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuer(JWT_ISSUER)
     .setAudience(JWT_AUDIENCE)
@@ -94,6 +95,7 @@ export async function verifyAccessToken(token: string): Promise<AuthUser | null>
       clockTolerance: "30s", // Защита от расхождения времени между серверами
     });
 
+    if (!(await sessionIsCurrent(payload))) return null;
     return {
       id: payload.sub as string,
       username: payload.username as string,
@@ -118,6 +120,7 @@ export async function verifyRefreshToken(
       clockTolerance: "30s",
     });
 
+    if (!(await sessionIsCurrent(payload))) return null;
     return {
       userId: payload.sub as string,
       tokenId: payload.jti as string,
@@ -125,4 +128,16 @@ export async function verifyRefreshToken(
   } catch {
     return null;
   }
+}
+
+async function sessionIsCurrent(payload: { sub?: string; iat?: number; authenticatedAt?: unknown }) {
+  if (!payload.sub) return false;
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { sessionsRevokedAt: true, registrationPending: true },
+  });
+  if (!user || user.registrationPending) return false;
+  const issuedAt = typeof payload.authenticatedAt === "number"
+    ? payload.authenticatedAt : (payload.iat ?? 0) * 1000;
+  return !user.sessionsRevokedAt || issuedAt > user.sessionsRevokedAt.getTime();
 }

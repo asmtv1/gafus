@@ -50,7 +50,7 @@ async function claimOne(db: Db, owner: string, now: Date): Promise<{ operation: 
       ],
     },
     orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
-    select: { id: true },
+    select: { id: true, status: true },
   });
   if (!candidate) return { operation: null, lockAcquired: true };
   // This is an atomic compare-and-set claim. It is safe across replicas even
@@ -66,10 +66,11 @@ async function claimOne(db: Db, owner: string, now: Date): Promise<{ operation: 
     data: { status: "PROCESSING", leaseOwner: owner, leaseExpiresAt: new Date(now.getTime() + LEASE_MS), lastAttemptAt: now, attemptCount: { increment: 1 } },
   });
   if (claimed.count !== 1) return { operation: null, lockAcquired: true };
-  return { operation: await tx.npdReceiptOperation.findUnique({
+  const operation = await tx.npdReceiptOperation.findUnique({
     where: { id: candidate.id },
     include: { receipt: { include: { connection: true, payment: { select: { status: true } } } } },
-  }), lockAcquired: true };
+  });
+  return { operation: operation ? { ...operation, recoveredLease: candidate.status === "PROCESSING" } : null, lockAcquired: true };
   });
 }
 
@@ -94,7 +95,8 @@ async function requireGateway(db: Db, op: Operation) {
 
 async function markReconciliation(db: Db, op: Operation, code: string, message: string) {
   await db.$transaction(async (tx: any) => {
-    await tx.npdReceiptOperation.updateMany({ where: { id: op.id, status: "PROCESSING", leaseOwner: op.leaseOwner }, data: { status: "RECONCILIATION_REQUIRED", completedAt: new Date(), lastErrorCode: code, lastErrorRedacted: message, leaseOwner: null, leaseExpiresAt: null } });
+    const owned = await tx.npdReceiptOperation.updateMany({ where: { id: op.id, status: "PROCESSING", leaseOwner: op.leaseOwner }, data: { status: "RECONCILIATION_REQUIRED", completedAt: new Date(), lastErrorCode: code, lastErrorRedacted: message, leaseOwner: null, leaseExpiresAt: null } });
+    if (owned.count !== 1) return;
     await tx.npdReceipt.update({ where: { id: op.receiptId }, data: { status: "RECONCILIATION_REQUIRED" } });
   });
 }
@@ -145,6 +147,13 @@ export function reconciliationMatches(op: Operation, receipts: Array<{ receiptUu
 }
 
 async function executeCreate(db: Db, op: Operation) {
+  // The previous owner may have died after the provider accepted the write.
+  // Even a refunded payment must be reconciled here: its receipt may need cancelling.
+  if (op.recoveredLease) {
+    try { if (await reconcileAmbiguousCreate(db, op)) return; }
+    catch { /* Fail closed; never turn an unknown provider write into a retry. */ }
+    return markReconciliation(db, op, "AMBIGUOUS_WRITE", "Expired CREATE lease requires reconciliation");
+  }
   if (op.receipt.payment.status === "REFUNDED") {
     await finish(db, op, { status: "NOT_REQUIRED", completedAt: new Date() });
     return;

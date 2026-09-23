@@ -60,4 +60,16 @@ describe("POST /api/v1/payments/create", () => {
       code: "VALIDATION_ERROR",
     });
   });
+
+  it("returns 410 for authenticated legacy purchases", async () => {
+    getServerSessionMock.mockResolvedValueOnce({ user: { id: "user-1" } });
+
+    const response = await POST(jsonRequest({ courseId: "course-1" }));
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      code: "LEGACY_PURCHASES_DISABLED",
+    });
+  });
 });

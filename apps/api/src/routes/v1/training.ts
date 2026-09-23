@@ -9,13 +9,13 @@ import { zValidator } from "@hono/zod-validator";
 import {
   getTrainingDays,
   getTrainingDayWithMonetizedSteps,
-  requireCourseStepPremiumOrRewardedUnlock,
+  requireCourseStepOperationAccess,
   syncUserCourseStatusFromDays,
   updateStepAndDay,
   validateTheoryStepForCompletion,
 } from "@gafus/core/services/training";
 import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
-import { checkCourseAccess, checkCourseAccessById } from "@gafus/core/services/course";
+import { checkCourseAccess } from "@gafus/core/services/course";
 import {
   requirePremiumOrRewardedAccessForVideoUrl,
   SubscriptionOrCreditsRequiredError,
@@ -173,6 +173,18 @@ function subscriptionOrCreditsResponse(c: Context): Response {
   );
 }
 
+function invalidStepStateResponse(c: Context, error: unknown): Response | null {
+  if (!(error instanceof Error) || !error.message.startsWith("INVALID_STATE")) return null;
+  return c.json(
+    {
+      success: false,
+      error: "Состояние шага уже изменилось. Обновите страницу.",
+      code: "INVALID_STATE",
+    },
+    409,
+  );
+}
+
 function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
   const candidate =
     platform ??
@@ -183,36 +195,32 @@ function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
   return parsed.success ? parsed.data : "ANDROID";
 }
 
-async function requireRewardedStepAccess(
+async function requireStepMutationAccess(
   c: Context,
-  input: { dayOnCourseId: string; stepIndex: number },
+  input: { courseId: string; dayOnCourseId: string; stepIndex: number },
 ): Promise<Response | null> {
   const user = c.get("user");
   try {
-    await requireCourseStepPremiumOrRewardedUnlock({
+    await requireCourseStepOperationAccess({
       userId: user.id,
       platform: getRewardedPlatform(c),
+      expectedCourseId: input.courseId,
       dayOnCourseId: input.dayOnCourseId,
       stepIndex: input.stepIndex,
     });
     return null;
   } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === "COURSE_ACCESS_DENIED" || error.message === "COURSE_DAY_MISMATCH")
+    ) {
+      return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
+    }
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
     }
     throw error;
   }
-}
-
-async function requireCourseAccessByCourseId(
-  c: Context,
-  courseId: string,
-): Promise<Response | null> {
-  const user = c.get("user");
-  const access = await checkCourseAccessById(courseId, user.id);
-  if (access.hasAccess) return null;
-
-  return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
 }
 
 const courseIdSchema = z
@@ -308,10 +316,12 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex, durationSec } = c.req.valid("json");
-    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-    if (courseAccessResponse) return courseAccessResponse;
-    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
-    if (rewardedAccessResponse) return rewardedAccessResponse;
+    const accessResponse = await requireStepMutationAccess(c, {
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+    });
+    if (accessResponse) return accessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
       type: "start",
@@ -336,6 +346,8 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
 
     return c.json({ success: true });
   } catch (error) {
+    const invalidState = invalidStepStateResponse(c, error);
+    if (invalidState) return invalidState;
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
       return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
     }
@@ -362,10 +374,12 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex, timeLeftSec } = c.req.valid("json");
-    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-    if (courseAccessResponse) return courseAccessResponse;
-    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
-    if (rewardedAccessResponse) return rewardedAccessResponse;
+    const accessResponse = await requireStepMutationAccess(c, {
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+    });
+    if (accessResponse) return accessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
       type: "pause",
@@ -391,6 +405,8 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
 
     return c.json({ success: true });
   } catch (error) {
+    const invalidState = invalidStepStateResponse(c, error);
+    if (invalidState) return invalidState;
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
       return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
     }
@@ -416,10 +432,12 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-    if (courseAccessResponse) return courseAccessResponse;
-    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
-    if (rewardedAccessResponse) return rewardedAccessResponse;
+    const accessResponse = await requireStepMutationAccess(c, {
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+    });
+    if (accessResponse) return accessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "resume" });
     try {
@@ -442,6 +460,8 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
 
     return c.json({ success: true });
   } catch (error) {
+    const invalidState = invalidStepStateResponse(c, error);
+    if (invalidState) return invalidState;
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
       return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
     }
@@ -468,10 +488,12 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-    const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-    if (courseAccessResponse) return courseAccessResponse;
-    const rewardedAccessResponse = await requireRewardedStepAccess(c, { dayOnCourseId, stepIndex });
-    if (rewardedAccessResponse) return rewardedAccessResponse;
+    const accessResponse = await requireStepMutationAccess(c, {
+      courseId,
+      dayOnCourseId,
+      stepIndex,
+    });
+    if (accessResponse) return accessResponse;
 
     const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "reset" });
     try {
@@ -494,6 +516,8 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
 
     return c.json({ success: true });
   } catch (error) {
+    const invalidState = invalidStepStateResponse(c, error);
+    if (invalidState) return invalidState;
     if (error instanceof Error && error.message === "DayOnCourse or day not found") {
       return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
     }
@@ -536,13 +560,12 @@ trainingRoutes.post(
     try {
       const user = c.get("user");
       const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-      const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-      if (courseAccessResponse) return courseAccessResponse;
-      const rewardedAccessResponse = await requireRewardedStepAccess(c, {
+      const accessResponse = await requireStepMutationAccess(c, {
+        courseId,
         dayOnCourseId,
         stepIndex,
       });
-      if (rewardedAccessResponse) return rewardedAccessResponse;
+      if (accessResponse) return accessResponse;
 
       const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
         type: "complete",
@@ -555,6 +578,8 @@ trainingRoutes.post(
 
       return c.json({ success: true });
     } catch (error) {
+      const invalidState = invalidStepStateResponse(c, error);
+      if (invalidState) return invalidState;
       if (error instanceof Error && error.message === "DayOnCourse or day not found") {
         return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
       }
@@ -585,13 +610,12 @@ trainingRoutes.post(
     try {
       const user = c.get("user");
       const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
-      const courseAccessResponse = await requireCourseAccessByCourseId(c, courseId);
-      if (courseAccessResponse) return courseAccessResponse;
-      const rewardedAccessResponse = await requireRewardedStepAccess(c, {
+      const accessResponse = await requireStepMutationAccess(c, {
+        courseId,
         dayOnCourseId,
         stepIndex,
       });
-      if (rewardedAccessResponse) return rewardedAccessResponse;
+      if (accessResponse) return accessResponse;
 
       const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
       if (!validation.valid) {
@@ -606,6 +630,8 @@ trainingRoutes.post(
 
       return c.json({ success: true });
     } catch (error) {
+      const invalidState = invalidStepStateResponse(c, error);
+      if (invalidState) return invalidState;
       if (error instanceof Error && error.message === "DayOnCourse or day not found") {
         return c.json({ success: false, error: "День не найден", code: "NOT_FOUND" }, 404);
       }

@@ -985,6 +985,61 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
   });
 }
 
+/**
+ * Authorizes a mutation of a course step against the course that actually owns
+ * the supplied day. `courseId` from an HTTP request is only an assertion and
+ * must never determine the entitlement being checked.
+ */
+export async function requireCourseStepOperationAccess(input: {
+  userId: string;
+  platform: MonetizedAccessPlatform;
+  dayOnCourseId: string;
+  stepIndex: number;
+  expectedCourseId?: string;
+}): Promise<{ courseId: string; courseType: string }> {
+  const dayOnCourse = await prisma.dayOnCourse.findUnique({
+    where: { id: input.dayOnCourseId },
+    select: {
+      course: { select: { id: true, type: true, isPaid: true, isPrivate: true } },
+      day: {
+        select: {
+          stepLinks: {
+            orderBy: { order: "asc" },
+            select: { id: true, step: { select: { type: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  if (!dayOnCourse?.day) throw new Error("DayOnCourse or day not found");
+  if (input.expectedCourseId && input.expectedCourseId !== dayOnCourse.course.id) {
+    throw new Error("COURSE_DAY_MISMATCH");
+  }
+
+  const stepLink = dayOnCourse.day.stepLinks[input.stepIndex];
+  if (!stepLink) throw new Error("Step not found");
+
+  const access = await checkCourseAccessById(dayOnCourse.course.id, input.userId);
+  if (!access.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
+
+  // Paid/private courses are governed solely by the course entitlement. For a
+  // public course, monetized step types may additionally require subscription
+  // or rewarded access.
+  if (dayOnCourse.course.isPaid || dayOnCourse.course.isPrivate) {
+    return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
+  }
+  if (isRewardedMonetizedStepType(stepLink.step.type)) {
+    await requirePremiumOrRewardedUnlock({
+      userId: input.userId,
+      platform: input.platform,
+      target: { targetType: "COURSE_STEP", targetId: stepLink.id },
+    });
+  }
+
+  return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
+}
+
 /** Операция над шагом тренировки (дискриминант по type). */
 export type StepOperation =
   | { type: "start"; remainingSec?: number }
@@ -1260,45 +1315,83 @@ export async function updateStepAndDay(
         case "start": {
           const remainingSec = operation.remainingSec ?? 0;
           if (existingStep) {
-            await tx.userStep.update({
-              where: { id: existingStep.id },
+            const result = await tx.userStep.updateMany({
+              where: {
+                id: existingStep.id,
+                status: {
+                  in: [
+                    TrainingStatus.NOT_STARTED,
+                    TrainingStatus.RESET,
+                    TrainingStatus.IN_PROGRESS,
+                  ],
+                },
+              },
               data: {
                 status: TrainingStatus.IN_PROGRESS,
                 paused: false,
                 remainingSec,
               },
             });
+            if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
           } else {
-            await tx.userStep.create({
-              data: {
-                userTrainingId: userTraining.id,
-                stepOnDayId,
-                status: TrainingStatus.IN_PROGRESS,
-                paused: false,
-                remainingSec,
-              },
-            });
+            try {
+              await tx.userStep.create({
+                data: {
+                  userTrainingId: userTraining.id,
+                  stepOnDayId,
+                  status: TrainingStatus.IN_PROGRESS,
+                  paused: false,
+                  remainingSec,
+                },
+              });
+            } catch (error) {
+              if (!isPrismaUniqueConstraintError(error)) throw error;
+              const result = await tx.userStep.updateMany({
+                where: {
+                  userTrainingId: userTraining.id,
+                  stepOnDayId,
+                  status: {
+                    in: [
+                      TrainingStatus.NOT_STARTED,
+                      TrainingStatus.RESET,
+                      TrainingStatus.IN_PROGRESS,
+                    ],
+                  },
+                },
+                data: { status: TrainingStatus.IN_PROGRESS, paused: false, remainingSec },
+              });
+              if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
+            }
           }
           break;
         }
-        case "pause":
-          await tx.userStep.update({
-            where: { id: existingStep!.id },
+        case "pause": {
+          const result = await tx.userStep.updateMany({
+            where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: false },
             data: { paused: true, remainingSec: operation.remainingSec },
           });
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot pause step");
           break;
-        case "resume":
-          await tx.userStep.update({
-            where: { id: existingStep!.id },
+        }
+        case "resume": {
+          const result = await tx.userStep.updateMany({
+            where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
             data: { paused: false },
           });
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
           break;
-        case "reset":
-          await tx.userStep.update({
-            where: { id: existingStep!.id },
+        }
+        case "reset": {
+          const result = await tx.userStep.updateMany({
+            where: {
+              id: existingStep!.id,
+              status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
+            },
             data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
           });
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot reset step");
           break;
+        }
         case "complete":
           if (existingStep) {
             const result = await tx.userStep.updateMany({
@@ -1306,7 +1399,7 @@ export async function updateStepAndDay(
                 id: existingStep.id,
                 status: { not: TrainingStatus.COMPLETED },
               },
-              data: { status: TrainingStatus.COMPLETED },
+              data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
             });
             stepJustCompleted = result.count > 0;
           } else {
@@ -1327,7 +1420,7 @@ export async function updateStepAndDay(
                     stepOnDayId,
                     status: { not: TrainingStatus.COMPLETED },
                   },
-                  data: { status: TrainingStatus.COMPLETED },
+                  data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
                 });
                 stepJustCompleted = result.count > 0;
               } else {
@@ -1353,8 +1446,8 @@ export async function updateStepAndDay(
       const correctedDayStatus = calculateDayStatusFromStatuses(allStepStatuses);
       const allCompleted = correctedDayStatus === TrainingStatus.COMPLETED;
 
-      const firstNotCompletedIndex = userSteps.findIndex(
-        (s) => s.status !== TrainingStatus.COMPLETED,
+      const firstNotCompletedIndex = allStepStatuses.findIndex(
+        (status) => status !== TrainingStatus.COMPLETED,
       );
       const nextCurrentStepIndex = allCompleted
         ? stepOnDayIds.length - 1

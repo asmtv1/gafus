@@ -1,0 +1,77 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - status "Загрузка"
+    - main [ref=e3]:
+      - main [ref=e4]:
+        - region [ref=e5]:
+          - generic [ref=e6]:
+            - link "Гафус, на главную" [ref=e7] [cursor=pointer]:
+              - /url: /
+              - text: ГАФУС
+            - navigation "Основная навигация" [ref=e8]:
+              - link "Как это работает" [ref=e9] [cursor=pointer]:
+                - /url: "#path"
+              - link "Войти" [ref=e10] [cursor=pointer]:
+                - /url: /login
+          - generic [ref=e11]:
+            - generic [ref=e12]:
+              - heading "Собака рядом. Вы уверены в каждом шаге." [level=1] [ref=e13]: Собака рядом.Вы уверены в каждом шаге.
+              - paragraph [ref=e14]: GAFUS - сервис, который помогает выстроить занятия с собакой без хаоса и ощущения, что вы остались с проблемой одни.
+              - link "Начать заниматься" [ref=e15] [cursor=pointer]:
+                - /url: /register
+              - generic [ref=e16]: Курсы, занятия и поддержка кинолога в одном месте
+            - img "Гафус приглашает начать занятие" [ref=e18]
+        - region [ref=e19]:
+          - generic [ref=e20]:
+            - generic [ref=e21]:
+              - heading "Знакомое чувство?" [level=2] [ref=e22]
+              - paragraph [ref=e23]: Любая сложность с собакой начинается не с плохого хозяина. Чаще всего просто не хватает ясного плана.
+            - list [ref=e24]:
+              - listitem [ref=e25]: На прогулке сложно удержать внимание собаки
+              - listitem [ref=e26]: Хочется понять, с чего начать занятия
+              - listitem [ref=e27]: Советов много, а понятной системы нет
+        - region [ref=e28]:
+          - generic [ref=e29]:
+            - img "Гафус составляет план занятия" [ref=e30]
+            - generic [ref=e31]: Маленькие действияменяют привычки
+          - generic [ref=e33]:
+            - heading "Уверенность появляется из практики, а не из бесконечного чтения советов" [level=2] [ref=e34]
+            - list [ref=e35]:
+              - listitem [ref=e36]:
+                - heading "Выбираете задачу" [level=3] [ref=e37]
+                - paragraph [ref=e38]: Щенок, прогулки, фокус или другая ситуация, которая важна сейчас.
+              - listitem [ref=e39]:
+                - heading "Занимаетесь по шагам" [level=3] [ref=e40]
+                - paragraph [ref=e41]: Короткие упражнения из курса удобно делать дома и на прогулке.
+              - listitem [ref=e42]:
+                - heading "Видите свой путь" [level=3] [ref=e43]
+                - paragraph [ref=e44]: Отмечайте занятия, возвращайтесь к программе и двигайтесь дальше в своём темпе.
+        - region [ref=e45]:
+          - generic [ref=e47]:
+            - heading "Начните с того, что важно вашей собаке сегодня" [level=2] [ref=e48]
+            - paragraph [ref=e49]: После регистрации вы сможете выбрать направление, открыть первое занятие и идти по программе в своём ритме.
+            - generic [ref=e50]:
+              - link "Создать аккаунт" [ref=e51] [cursor=pointer]:
+                - /url: /register
+              - button "Войти через VK" [ref=e53] [cursor=pointer]
+        - generic [ref=e57]:
+          - paragraph [ref=e58]: GAFUS - учимся вместе с собакой
+          - generic [ref=e59]:
+            - link [ref=e60] [cursor=pointer]:
+              - /url: https://apps.apple.com/ru/app/gafus/id6760964612
+              - img "Загрузите GAFUS в App Store" [ref=e61]
+            - link [ref=e62] [cursor=pointer]:
+              - /url: https://www.rustore.ru/catalog/app/ru.gafus.app
+              - img "Скачайте GAFUS из RuStore" [ref=e63]
+    - button "Open Tanstack query devtools" [ref=e114] [cursor=pointer]
+    - dialog [ref=e163]:
+      - generic [ref=e164]:
+        - heading "Использование cookies" [level=6] [ref=e165]
+        - paragraph [ref=e166]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=e167] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=e168]:
+        - button "Принять" [active] [ref=e169] [cursor=pointer]
+        - button "Отклонить" [ref=e170] [cursor=pointer]
+  - alert [ref=e171]

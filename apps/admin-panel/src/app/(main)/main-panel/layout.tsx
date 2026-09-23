@@ -15,6 +15,7 @@ import {
   CardMembership,
   AdsClick,
   Handshake,
+  Slideshow,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -76,6 +77,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <Link href="/main-panel/rewarded-ads" className={styles.button}>
               <AdsClick sx={{ mr: 1.5, fontSize: 20 }} />
               Мониторинг рекламы
+            </Link>
+            <Link href="/main-panel/mobile-intro" className={styles.button}>
+              <Slideshow sx={{ mr: 1.5, fontSize: 20 }} />
+              Презентация приложения
             </Link>
           </>
         )}

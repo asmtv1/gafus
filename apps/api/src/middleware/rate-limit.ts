@@ -46,21 +46,10 @@ const store = new RedisStore({
 /**
  * Извлекает IP адрес клиента с учётом прокси
  */
-function getClientIp(c: Context): string {
-  // Cloudflare
-  const cfIp = c.req.header("cf-connecting-ip");
-  if (cfIp) return cfIp;
-
-  // X-Forwarded-For (первый IP — клиент)
-  const xff = c.req.header("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-
-  // X-Real-IP (nginx)
-  const realIp = c.req.header("x-real-ip");
-  if (realIp) return realIp;
-
-  // Fallback — не идеально, но лучше чем "unknown" для всех
-  return "unknown-" + Date.now();
+export function getClientIp(c: Context): string {
+  // nginx overwrites X-Real-IP; application ports must not be publicly exposed.
+  // Never trust a caller-supplied Cloudflare header or the head of an XFF chain.
+  return c.req.header("x-real-ip")?.trim() || "unknown";
 }
 
 /**

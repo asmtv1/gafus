@@ -1,0 +1,164 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - main [ref=e3]:
+      - main [ref=e4]:
+        - region [ref=e5]:
+          - generic [ref=e6]:
+            - link "Гафус, на главную" [ref=e7] [cursor=pointer]:
+              - /url: /
+              - img "Гафус" [ref=e8]
+            - navigation "Основная навигация" [ref=e9]:
+              - link "Начать заниматься" [ref=e10] [cursor=pointer]:
+                - /url: /register
+              - link "Войти" [ref=e11] [cursor=pointer]:
+                - /url: /login
+          - generic [ref=e12]:
+            - generic [ref=e13]:
+              - generic [ref=e14]:
+                - heading "ГАФУС - Уверенность в каждом шаге!" [level=1] [ref=e15]
+                - paragraph [ref=e16]: Лёгкое обучение начинается с понятной программы.В ГАФУСе вы всегда понимаете, какойрезультат ожидать сегодня и что делать завтра.
+              - link "Как это работает?" [ref=e17] [cursor=pointer]:
+                - /url: "#concerns"
+            - img "Гафус приглашает начать занятие" [ref=e20]
+        - region [ref=e21]:
+          - generic [ref=e22]:
+            - generic [ref=e23]:
+              - generic [ref=e24]:
+                - heading "От проблемы к результату." [level=2] [ref=e25]
+                - paragraph [ref=e26]: Не нужно самостоятельно искать советы и пытаться собрать из них систему. Выберите то, что беспокоит сейчас, а ГАФУС поможет выстроить понятный маршрут занятий.
+              - img "Гафус помогает найти маршрут занятия" [ref=e29]
+            - list [ref=e30]:
+              - listitem [ref=e31]: На прогулке контакт быстро теряется
+              - listitem [ref=e32]: Непонятно, за что взяться сначала
+              - listitem [ref=e33]: Советы есть. Порядка действий нет
+              - listitem [ref=e34]: Собака не может оставаться дома одна
+              - listitem [ref=e35]: Постоянно тянет поводок
+              - listitem [ref=e36]: Подбирает всё подряд с земли
+              - listitem [ref=e37]: Отдельные программы для лая, тревожности, перевозбуждения, агрессии и других сложностей...
+          - link "Как заниматься?" [ref=e39] [cursor=pointer]:
+            - /url: "#path"
+        - region [ref=e40]:
+          - figure [ref=e41]:
+            - img "Гафус составляет план занятия" [ref=e44]
+            - generic [ref=e45]: Маленькие действияменяют привычки
+          - generic [ref=e46]:
+            - generic [ref=e47]:
+              - heading "Начните заниматься по 15 минут уже сейчас, и результат не заставит себя ждать" [level=2] [ref=e48]
+              - paragraph [ref=e49]: Уверенность появляется из практики, а не из бесконечного чтения советов.
+            - list [ref=e50]:
+              - listitem [ref=e51]:
+                - heading "Выбираете задачу" [level=3] [ref=e52]
+                - paragraph [ref=e53]: Щенок, прогулки, фокус или другая ситуация, которая важна сейчас.
+              - listitem [ref=e54]:
+                - heading "Занимайтесь когда удобно и где удобно" [level=3] [ref=e55]
+                - paragraph [ref=e56]: Всё для занятий — в одном приложении, которое всегда под рукой.
+              - listitem [ref=e57]:
+                - heading "Видите прогресс" [level=3] [ref=e58]
+                - paragraph [ref=e59]: Наглядная демонстрация прогресса — лучший мотиватор не бросать.
+              - listitem [ref=e60]:
+                - heading "Двигайтесь в своём темпе" [level=3] [ref=e61]
+                - paragraph [ref=e62]: Проходите занятия тогда, когда удобно вам и вашему хвостику. Отмечайте пройденное, делайте перерывы и возвращайтесь к программе, когда будете готовы.
+          - link "А кто автор курсов?" [ref=e64] [cursor=pointer]:
+            - /url: "#expert"
+        - region [ref=e65]:
+          - generic [ref=e66]:
+            - heading "Не советы из интернета, а система от кинолога." [level=2] [ref=e67]
+            - paragraph [ref=e68]: Курсы разработаны профессиональным специалистом.
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - img "Лана Петренко" [ref=e73]
+              - paragraph [ref=e74]: Доброта - часть метода
+            - generic [ref=e75]:
+              - paragraph [ref=e76]: Курсы составлены профессиональным кинологом
+              - heading "Лана Петренко" [level=3] [ref=e77]
+              - paragraph [ref=e78]: Специалист по поведению и благополучию собак и кошек. Помогает выстраивать занятия эффективно, понятно и с вниманием к состоянию животного.
+              - list [ref=e79]:
+                - listitem [ref=e80]: Член ассоциации поведенческой медицины RVBA
+                - listitem [ref=e81]: "Сертифицированный специалист Fear Free: без боли и стресса"
+                - listitem [ref=e82]: Основатель и руководитель сервиса Campdog
+                - listitem [ref=e83]: Лектор самарских информационных площадок и газет
+                - listitem [ref=e84]: Участвует в приютских мероприятиях и обучает детей в центрах
+          - link "А какая цена?" [ref=e86] [cursor=pointer]:
+            - /url: "#pricing"
+        - region [ref=e87]:
+          - generic [ref=e88]:
+            - heading "Не десятки тысяч, а по адекватной цене." [level=2] [ref=e89]
+            - paragraph [ref=e90]:
+              - strong [ref=e91]: Целая система обучения по цене дешевле одного занятия с кинологом.
+              - text: Курсы, пошаговые занятия и поддержка специалиста стоят меньше одной индивидуальной встречи и большинства онлайн-курсов.
+          - generic [ref=e92]:
+            - generic [ref=e93]:
+              - article [ref=e94]:
+                - paragraph [ref=e95]: 2 недели
+                - paragraph [ref=e96]:
+                  - text: 1 490
+                  - generic [ref=e97]: ₽
+                  - superscript [aria-hidden] [ref=e98]: "*"
+                - paragraph [ref=e99]: Чтобы познакомиться с форматом занятий
+                - list [ref=e100]:
+                  - listitem [ref=e101]:
+                    - generic [ref=e104]: Доступ к курсам и пошаговым занятиям
+                  - listitem [ref=e105]:
+                    - generic [ref=e108]: Практика дома и на прогулках
+              - article [ref=e109]:
+                - paragraph [ref=e110]: 1 месяц
+                - paragraph [ref=e111]:
+                  - text: 2 500
+                  - generic [ref=e112]: ₽
+                  - superscript [aria-hidden] [ref=e113]: "*"
+                - paragraph [ref=e114]: Полный ритм занятий в своём темпе
+                - list [ref=e115]:
+                  - listitem [ref=e116]:
+                    - generic [ref=e119]: Полный доступ к курсам и занятиям
+                  - listitem [ref=e120]:
+                    - generic [ref=e123]: Поддержка кинолога и запись на консультацию
+                  - listitem [ref=e124]:
+                    - generic [ref=e127]: Скачивание курсов без интернета
+                - generic [ref=e128]:
+                  - strong [ref=e129]: Кинолог всегда рядом.
+                  - generic [ref=e130]: Можно написать специалисту или разобрать ситуацию на созвоне, если нужна поддержка.
+              - article [ref=e131]:
+                - paragraph [ref=e132]: 3 месяца
+                - paragraph [ref=e133]:
+                  - text: 6 490
+                  - generic [ref=e134]: ₽
+                  - superscript [aria-hidden] [ref=e135]: "*"
+                - paragraph [ref=e136]: Чтобы идти к устойчивому результату в своём темпе
+                - list [ref=e137]:
+                  - listitem [ref=e138]:
+                    - generic [ref=e141]: Доступ к программе на весь период
+                  - listitem [ref=e142]:
+                    - generic [ref=e145]: Время закрепить новые привычки
+            - paragraph [ref=e146]:
+              - generic [aria-hidden] [ref=e147]: "*"
+              - generic [ref=e148]:
+                - strong [ref=e149]: Есть промокод?
+                - text: При оформлении первый платёж будет ещё выгоднее.
+          - link "А где скачать приложение?" [ref=e151] [cursor=pointer]:
+            - /url: "#invitation"
+        - region [ref=e152]:
+          - generic [ref=e155]:
+            - generic [ref=e156]:
+              - heading "Начните с того, что важно вашей собаке сегодня" [level=2] [ref=e157]
+              - paragraph [ref=e158]: После регистрации вы сможете выбрать направление, открыть первое занятие и идти по программе в своём ритме.
+            - paragraph [ref=e159]:
+              - generic [aria-hidden] [ref=e160]: С нами уже учатся
+              - strong [aria-hidden] [ref=e161]:
+                - generic [ref=e162]: "579"
+                - text: хвостиков
+            - generic "Скачать приложение GAFUS" [ref=e163]:
+              - paragraph [ref=e164]: Присоединяйся и ты!
+              - generic [ref=e165]:
+                - link [ref=e166] [cursor=pointer]:
+                  - /url: https://apps.apple.com/ru/app/gafus/id6760964612
+                  - img "Загрузите GAFUS в App Store" [ref=e167]
+                - link [ref=e168] [cursor=pointer]:
+                  - /url: https://www.rustore.ru/catalog/app/ru.gafus.app
+                  - img "Скачайте GAFUS из RuStore" [ref=e169]
+            - generic [ref=e170]:
+              - paragraph [ref=e171]: Или начните в браузере
+              - link "Начать заниматься" [ref=e172] [cursor=pointer]:
+                - /url: /register
+              - button "Войти через VK" [ref=e174] [cursor=pointer]
+    - button "Open Tanstack query devtools" [ref=e229] [cursor=pointer]
+  - alert [ref=e286]

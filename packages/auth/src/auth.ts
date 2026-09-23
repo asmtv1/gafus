@@ -88,6 +88,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.username = user.username;
         token.role = user.role;
+        token.authenticatedAt = Date.now();
       }
       if (trigger === "update" && session && "username" in session && session.username != null) {
         token.username = session.username;
@@ -102,11 +103,11 @@ export const authOptions: NextAuthOptions = {
         session.user.id = userId;
         session.user.username = String(t.username ?? "");
 
-        let currentUser: { role: string; passwordSetAt: Date | null; phone: string | null; email: string | null; registrationPending: boolean } | null;
+        let currentUser: { role: string; passwordSetAt: Date | null; sessionsRevokedAt: Date | null; phone: string | null; email: string | null; registrationPending: boolean } | null;
         try {
           currentUser = await prisma.user.findUnique({
             where: { id: userId },
-            select: { role: true, passwordSetAt: true, phone: true, email: true, registrationPending: true },
+            select: { role: true, passwordSetAt: true, sessionsRevokedAt: true, phone: true, email: true, registrationPending: true },
           });
         } catch {
           // A database outage must not turn into an authorization decision here;
@@ -118,6 +119,12 @@ export const authOptions: NextAuthOptions = {
         // session through the JWT fallback branch.
         if (!currentUser || currentUser.registrationPending) {
           throw new Error("Pending registration session denied");
+        }
+        // Never refresh this timestamp when NextAuth rolls the JWT expiration.
+        // Legacy cookies without it are denied after the first password reset.
+        if (currentUser.sessionsRevokedAt &&
+          (typeof t.authenticatedAt !== "number" || t.authenticatedAt <= currentUser.sessionsRevokedAt.getTime())) {
+          throw new Error("Session revoked");
         }
         session.user.role = currentUser.role as AuthUser["role"];
         session.user.passwordSetAt = currentUser.passwordSetAt;

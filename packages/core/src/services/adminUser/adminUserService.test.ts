@@ -66,6 +66,13 @@ describe("getAllUsers", () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
+    expect(mockUserFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          savedRegistrationPromoCode: { select: { code: true } },
+        }),
+      }),
+    );
   });
 
   it("returns error on prisma failure", async () => {

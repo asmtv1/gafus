@@ -38,6 +38,7 @@ import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 import { rewardedAdsRoutes } from "./routes/v1/rewarded-ads.js";
 import { partnersRoutes } from "./routes/v1/partners.js";
+import { mobileIntroRoutes } from "./routes/v1/mobile-intro.js";
 import { shouldRateLimitAppSubscriptionPath } from "./middleware/app-subscription-rate-limit.js";
 
 export const app = new Hono();
@@ -64,6 +65,11 @@ app.use("/api/v1/auth/*", (c, next) => {
   return authRateLimiter(c, next);
 });
 app.route("/api/v1/auth", authRoutes);
+
+app.use("/api/v1/mobile-intro/events", apiRateLimiter);
+app.use("/api/v1/mobile-intro/auth-outcome", authMiddleware, apiRateLimiter);
+app.use("/api/v1/mobile-intro/admin/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/mobile-intro", mobileIntroRoutes);
 
 // Protected routes - require auth
 app.use("/api/v1/user/*", apiRateLimiter);

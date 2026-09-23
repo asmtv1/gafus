@@ -18,12 +18,12 @@ function telemostConferencesUrl(): string {
   return `${base}/telemost-api/conferences`;
 }
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise((r) => setTimeout(r, ms));
-}
-
 /**
- * Создать конференцию Телемост. Ретраи только на 429/502/503/504.
+ * Создать конференцию Телемост.
+ *
+ * POST не повторяется автоматически: после timeout или сетевой ошибки
+ * провайдер мог уже создать конференцию, а API не даёт нам подтверждённого
+ * идемпотентного ключа для безопасного повтора.
  */
 export async function createTelemostConference(options?: {
   requestId?: string;
@@ -48,58 +48,35 @@ export async function createTelemostConference(options?: {
     waiting_room_level: waitingRoom,
   });
 
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      const backoff = attempt === 1 ? 500 : 1500;
-      await sleep(backoff);
-    }
-
-    let res: Response;
-    try {
-      res = await fetch(telemostConferencesUrl(), {
-        method: "POST",
-        headers,
-        body,
-        signal: AbortSignal.timeout(10_000),
-      });
-    } catch (e) {
-      logger.warn("Telemost fetch error", { attempt, error: String(e) });
-      lastStatus = 0;
-      continue;
-    }
-
-    lastStatus = res.status;
-    if (res.status === 401 || res.status === 403) {
-      logger.error("Telemost auth error", new Error(`HTTP ${res.status}`));
-      throw new TelemostUnavailableError("Ошибка авторизации Телемост");
-    }
-
-    if ([429, 502, 503, 504].includes(res.status)) {
-      continue;
-    }
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      logger.warn("Telemost HTTP error", { status: res.status, text: text.slice(0, 200) });
-      throw new TelemostUnavailableError("Не удалось создать видеоконференцию");
-    }
-
-    const json = (await res.json()) as TelemostConferenceResponse;
-    const id = json.id;
-    const joinUrl = json.join_url;
-    if (!id || !joinUrl) {
-      logger.error("Telemost unexpected body", new Error("missing id or join_url in response"));
-      throw new TelemostUnavailableError("Не удалось создать видеоконференцию");
-    }
-
-    return {
-      id,
-      joinUrl,
-      watchUrl: json.watch_url ?? null,
-    };
+  let res: Response;
+  try {
+    res = await fetch(telemostConferencesUrl(), {
+      method: "POST",
+      headers,
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (e) {
+    logger.warn("Telemost fetch error", { error: String(e) });
+    throw new TelemostUnavailableError("Не удалось создать видеоконференцию, попробуйте позже");
   }
 
-  logger.warn("Telemost retries exhausted", { lastStatus });
-  throw new TelemostUnavailableError("Не удалось создать видеоконференцию, попробуйте позже");
+  if (res.status === 401 || res.status === 403) {
+    logger.error("Telemost auth error", new Error(`HTTP ${res.status}`));
+    throw new TelemostUnavailableError("Ошибка авторизации Телемост");
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    logger.warn("Telemost HTTP error", { status: res.status, text: text.slice(0, 200) });
+    throw new TelemostUnavailableError("Не удалось создать видеоконференцию");
+  }
+
+  const json = (await res.json()) as TelemostConferenceResponse;
+  const id = json.id;
+  const joinUrl = json.join_url;
+  if (!id || !joinUrl) {
+    logger.error("Telemost unexpected body", new Error("missing id or join_url in response"));
+    throw new TelemostUnavailableError("Не удалось создать видеоконференцию");
+  }
+  return { id, joinUrl, watchUrl: json.watch_url ?? null };
 }

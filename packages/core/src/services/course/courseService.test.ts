@@ -72,7 +72,7 @@ function minimalCourse(overrides: Record<string, unknown> = {}) {
     reviews: [],
     favoritedBy: [],
     access: [],
-    userCourses: [],
+    _count: { userCourses: 0 },
     dayLinks: [],
     ...overrides,
   };
@@ -137,21 +137,10 @@ describe("getCoursesWithProgress", () => {
     expect(rows[0].hasAccess).toBe(true);
   });
 
-  it("считает начавшими только пользователей со статусом в процессе или завершён", async () => {
+  it("использует агрегированное число начавших, не загружая участников курса", async () => {
     mockCourseFindMany.mockResolvedValue([
       minimalCourse({
-        userCourses: [
-          TrainingStatus.NOT_STARTED,
-          TrainingStatus.IN_PROGRESS,
-          TrainingStatus.COMPLETED,
-          TrainingStatus.RESET,
-        ].map((status, index) => ({
-          userId: `participant-${index}`,
-          status,
-          startedAt: null,
-          completedAt: null,
-          user: { username: `participant-${index}`, profile: null },
-        })),
+        _count: { userCourses: 2 },
       }),
     ]);
     mockUserCourseFindMany.mockResolvedValue([]);

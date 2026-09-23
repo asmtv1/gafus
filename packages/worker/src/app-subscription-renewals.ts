@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { acquireRenewalLock } from "./renewalLock";
 
 import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
@@ -74,11 +75,8 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
     return { processed: 0, skipped: 0, lockAcquired: false as const };
   }
 
-  const lockRows = (await (prisma as any).$queryRawUnsafe(
-    `SELECT pg_try_advisory_lock(${RENEWALS_LOCK_KEY}) AS locked`,
-  )) as Array<{ locked: boolean }>;
-  const locked = Boolean(lockRows?.[0]?.locked);
-  if (!locked) {
+  const lock = await acquireRenewalLock(RENEWALS_LOCK_KEY);
+  if (!lock) {
     logger.info("Renewal batch skipped: advisory lock not acquired");
     return { processed: 0, skipped: 0, lockAcquired: false as const };
   }
@@ -273,7 +271,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               payment?.idempotenceKey ??
               buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd, attemptCountForThisRun);
           }
-        } else if (payment.status === "SUCCEEDED") {
+        } else if (payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
           processed += 1;
           continue;
         } else if (payment.status === "CANCELED") {
@@ -360,11 +358,20 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
           continue;
         }
 
+        await lock.assertHeld();
+        // Re-read immediately before dispatch; the batch snapshot can predate cancellation.
+        const eligible = await prisma.appSubscription.findFirst({
+          where: { id: row.id, status: { in: ["ACTIVE", "PAST_DUE"] }, cancelAtPeriodEnd: false,
+            currentPeriodEnd: row.currentPeriodEnd, yookassaPaymentMethodId: row.yookassaPaymentMethodId },
+          select: { id: true },
+        });
+        if (!eligible) { skipped += 1; continue; }
         const auth = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
         let res: Awaited<ReturnType<typeof fetch>>;
         try {
           res = await fetch(YOOKASSA_API, {
             method: "POST",
+            signal: AbortSignal.timeout(15_000),
             headers: {
               "Content-Type": "application/json",
               Authorization: `Basic ${auth}`,
@@ -481,8 +488,8 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             continue;
           }
           await (prisma as any).$transaction(async (tx: any) => {
-            await tx.appSubscriptionPayment.update({
-              where: { id: payment.id },
+            const claimed = await tx.appSubscriptionPayment.updateMany({
+              where: { id: payment.id, status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
               data: {
                 status: "SUCCEEDED",
                 planCode: plan.code,
@@ -493,6 +500,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 succeededAt: new Date(),
               },
             });
+            if (claimed.count !== 1) return;
             await tx.appSubscription.update({
               where: { id: row.id },
               data: {
@@ -500,7 +508,6 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 planCode: plan.code,
                 currentPeriodStart: periodStart,
                 currentPeriodEnd: periodEnd,
-                yookassaPaymentMethodId: data.payment_method?.id ?? row.yookassaPaymentMethodId,
                 renewalReminderSentForPeriodEnd: null,
               },
             });
@@ -523,6 +530,6 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
     logger.info("Renewal batch processed", { processed, skipped, batchSize });
     return { processed, skipped, lockAcquired: true as const };
   } finally {
-    await (prisma as any).$queryRawUnsafe(`SELECT pg_advisory_unlock(${RENEWALS_LOCK_KEY})`);
+    await lock.release();
   }
 }

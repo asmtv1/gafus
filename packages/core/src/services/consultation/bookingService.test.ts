@@ -61,6 +61,7 @@ const {
   txFindUnique,
   txCreateBooking,
   prismaUpdateBooking,
+  prismaUpdateManyBooking,
   prismaUpsertIdem,
   prismaFindUniqueBooking,
   prismaFindManyBooking,
@@ -72,6 +73,7 @@ const {
   txFindUnique: vi.fn(),
   txCreateBooking: vi.fn(),
   prismaUpdateBooking: vi.fn(),
+  prismaUpdateManyBooking: vi.fn(),
   prismaUpsertIdem: vi.fn(),
   prismaFindUniqueBooking: vi.fn(),
   prismaFindManyBooking: vi.fn(),
@@ -93,6 +95,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
       consultationBooking: {
         ...mod.prisma.consultationBooking,
         update: prismaUpdateBooking,
+        updateMany: prismaUpdateManyBooking,
         findUnique: prismaFindUniqueBooking,
         findMany: prismaFindManyBooking,
       },
@@ -102,6 +105,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 });
 
 beforeEach(() => {
+  prismaUpdateManyBooking.mockResolvedValue({ count: 1 });
   sendImmediatePushNotification.mockResolvedValue({ success: true });
   getAppSubscriptionAccess.mockResolvedValue({ hasActiveSubscription: false });
 });
@@ -132,11 +136,11 @@ describe("processBookingSlaTimeout", () => {
   });
 
   it("переводит в CANCELLED_BY_SLA, освобождает слот и ставит письмо в очередь", async () => {
-    const txBookingUpdate = vi.fn();
+    const txBookingUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
     const txSlotUpdate = vi.fn();
-    prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      await cb({
-        consultationBooking: { update: txBookingUpdate },
+    prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
+      return cb({
+        consultationBooking: { updateMany: txBookingUpdateMany },
         consultationSlot: { update: txSlotUpdate },
       });
     });
@@ -149,7 +153,7 @@ describe("processBookingSlaTimeout", () => {
     });
     const { processBookingSlaTimeout } = await import("./bookingService");
     await processBookingSlaTimeout("b1");
-    expect(txBookingUpdate).toHaveBeenCalled();
+    expect(txBookingUpdateMany).toHaveBeenCalled();
     expect(txSlotUpdate).toHaveBeenCalled();
     expect(enqueueConsultationEmail).toHaveBeenCalled();
   });
@@ -274,8 +278,8 @@ describe("markBookingNoShowByTrainer", () => {
     await markBookingNoShowByTrainer("trainer-1", "TRAINER", "b-no-show");
 
     expect(removeConsultationReminderJob).toHaveBeenCalledWith("b-no-show");
-    expect(prismaUpdateBooking).toHaveBeenCalledWith({
-      where: { id: "b-no-show" },
+    expect(prismaUpdateManyBooking).toHaveBeenCalledWith({
+      where: { id: "b-no-show", status: ConsultationBookingStatus.CONFIRMED },
       data: { status: ConsultationBookingStatus.NO_SHOW },
     });
     expect(enqueueConsultationEmail).toHaveBeenCalledWith(
@@ -651,7 +655,7 @@ describe("bookSlot", () => {
     txCreateBooking.mockResolvedValue({ id: bookingId });
     createTelemostConference.mockRejectedValue(new Error("telemost down"));
 
-    const compBookingUpdate = vi.fn();
+    const compBookingUpdate = vi.fn().mockResolvedValue({ count: 1 });
     const compSlotUpdate = vi.fn();
     let txPhase = 0;
     prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
@@ -667,7 +671,7 @@ describe("bookSlot", () => {
         return cb(tx);
       }
       const tx = {
-        consultationBooking: { update: compBookingUpdate },
+        consultationBooking: { updateMany: compBookingUpdate },
         consultationSlot: { update: compSlotUpdate },
       };
       return cb(tx);
@@ -724,10 +728,9 @@ describe("subscription-only consultation access", () => {
       provider: "YOOKASSA",
       planCode: "TWO_WEEKS",
     });
-    const {
-      bookSlotWithSubscription,
-      requireConsultationSlotsSubscriptionAccess,
-    } = await import("./bookingService");
+    const { bookSlotWithSubscription, requireConsultationSlotsSubscriptionAccess } = await import(
+      "./bookingService"
+    );
 
     await expect(
       requireConsultationSlotsSubscriptionAccess({ userId: "client-1" }),

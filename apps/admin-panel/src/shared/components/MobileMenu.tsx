@@ -16,6 +16,7 @@ import {
   Flag,
   CardMembership,
   AdsClick,
+  Slideshow,
   Menu,
   Close,
 } from "@mui/icons-material";
@@ -70,6 +71,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       href: "/main-panel/rewarded-ads",
       icon: AdsClick,
       label: "Мониторинг рекламы",
+      show: userRole === "ADMIN",
+    },
+    {
+      href: "/main-panel/mobile-intro",
+      icon: Slideshow,
+      label: "Презентация приложения",
       show: userRole === "ADMIN",
     },
     {

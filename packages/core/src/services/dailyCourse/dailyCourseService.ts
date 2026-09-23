@@ -740,44 +740,88 @@ export async function updateDailyCourseStepAndDay(
       switch (operation.type) {
         case "start":
           if (existingStep) {
-            await tx.dailyCourseUserStep.update({
-              where: { id: existingStep.id },
-              data: {
-                status: TrainingStatus.IN_PROGRESS,
-                paused: false,
-                remainingSec: operation.remainingSec ?? 0,
-              },
-            });
+            {
+              const result = await tx.dailyCourseUserStep.updateMany({
+                where: {
+                  id: existingStep.id,
+                  status: {
+                    in: [
+                      TrainingStatus.NOT_STARTED,
+                      TrainingStatus.RESET,
+                      TrainingStatus.IN_PROGRESS,
+                    ],
+                  },
+                },
+                data: {
+                  status: TrainingStatus.IN_PROGRESS,
+                  paused: false,
+                  remainingSec: operation.remainingSec ?? 0,
+                },
+              });
+              if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
+            }
           } else {
-            await tx.dailyCourseUserStep.create({
-              data: {
-                dailyCourseUserTrainingId: userTraining.id,
-                bundleStepId: stepLink.id,
-                status: TrainingStatus.IN_PROGRESS,
-                paused: false,
-                remainingSec: operation.remainingSec ?? 0,
-              },
-            });
+            try {
+              await tx.dailyCourseUserStep.create({
+                data: {
+                  dailyCourseUserTrainingId: userTraining.id,
+                  bundleStepId: stepLink.id,
+                  status: TrainingStatus.IN_PROGRESS,
+                  paused: false,
+                  remainingSec: operation.remainingSec ?? 0,
+                },
+              });
+            } catch (error) {
+              if (!isPrismaUniqueConstraintError(error)) throw error;
+              const result = await tx.dailyCourseUserStep.updateMany({
+                where: {
+                  dailyCourseUserTrainingId: userTraining.id,
+                  bundleStepId: stepLink.id,
+                  status: {
+                    in: [
+                      TrainingStatus.NOT_STARTED,
+                      TrainingStatus.RESET,
+                      TrainingStatus.IN_PROGRESS,
+                    ],
+                  },
+                },
+                data: {
+                  status: TrainingStatus.IN_PROGRESS,
+                  paused: false,
+                  remainingSec: operation.remainingSec ?? 0,
+                },
+              });
+              if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
+            }
           }
           break;
-        case "pause":
-          await tx.dailyCourseUserStep.update({
-            where: { id: existingStep!.id },
+        case "pause": {
+          const result = await tx.dailyCourseUserStep.updateMany({
+            where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: false },
             data: { paused: true, remainingSec: operation.remainingSec },
           });
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot pause step");
           break;
-        case "resume":
-          await tx.dailyCourseUserStep.update({
-            where: { id: existingStep!.id },
+        }
+        case "resume": {
+          const result = await tx.dailyCourseUserStep.updateMany({
+            where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
             data: { paused: false },
           });
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
           break;
-        case "reset":
-          await tx.dailyCourseUserStep.update({
-            where: { id: existingStep!.id },
+        }
+        case "reset": {
+          const result = await tx.dailyCourseUserStep.updateMany({
+            where: {
+              id: existingStep!.id,
+              status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
+            },
             data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
           });
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot reset step");
           break;
+        }
         case "complete":
           if (existingStep) {
             const result = await tx.dailyCourseUserStep.updateMany({

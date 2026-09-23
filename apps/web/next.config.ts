@@ -115,6 +115,10 @@ const gafusAliases = {
 
 // 3. основной конфиг Next.js
 const nextConfig = {
+  // Bypass dev chunks cached by older configurations after a Next.js upgrade.
+  ...(process.env.NODE_ENV === "development" && {
+    deploymentId: `dev-next-${require("next/package.json").version}`,
+  }),
   // В dev выключен: один рендер вместо двух — быстрее отклик на ввод
   reactStrictMode: process.env.NODE_ENV !== "development",
 
@@ -248,10 +252,42 @@ const nextConfig = {
 
   async headers() {
     return [
+      ...[
+        "gafus-landing-target-v2.webp",
+        "gafus-landing-map-v2.webp",
+        "gafus-landing-plan-v2.webp",
+      ].map((image) => ({
+        source: `/images/${image}`,
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      })),
+      {
+        source: "/images/gafus-mascot-hero-v2.webp",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      {
+        source: "/images/gafus-mascot-map-background-v1.webp",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
       {
         source: "/_next/static/:path*",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          {
+            key: "Cache-Control",
+            // Dev chunks reuse their URLs across rebuilds and dependency upgrades.
+            // Caching them as immutable mixes old modules with the new runtime.
+            value: process.env.NODE_ENV === "production"
+              ? "public, max-age=31536000, immutable"
+              : "no-store, must-revalidate",
+          },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },

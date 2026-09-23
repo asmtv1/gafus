@@ -1665,7 +1665,7 @@ export async function cancelYookassaAppSubscription(userId: string) {
     where: {
       userId,
       provider: "YOOKASSA",
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "PAST_DUE", "PENDING"] },
     },
     data: {
       cancelAtPeriodEnd: true,
@@ -2551,7 +2551,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     });
     return { userId: null };
   }
-  if (payment.status === "SUCCEEDED") {
+  if (payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
     if (eventId) {
       await prisma.appSubscriptionEvent
         .update({
@@ -2618,8 +2618,8 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       }
 
       await prisma.$transaction(async (tx) => {
-        await tx.appSubscriptionPayment.update({
-          where: { id: payment.id },
+        const claimed = await tx.appSubscriptionPayment.updateMany({
+          where: { id: payment.id, status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
           data: {
             status: "SUCCEEDED",
             planCode: payment.planCode,
@@ -2632,6 +2632,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
             succeededAt: now,
           },
         });
+        if (claimed.count !== 1) return;
 
         if (payment.subscriptionId) {
           await tx.appSubscription.update({
@@ -2642,17 +2643,16 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
               currentPeriodStart: periodStart,
               currentPeriodEnd: periodEnd,
               pendingExpiresAt: null,
-              cancelAtPeriodEnd: false,
-              ...(providerPaymentMethodId
-                ? { yookassaPaymentMethodId: providerPaymentMethodId }
-                : {}),
-              ...(providerPaymentMethodLast4
-                ? { yookassaPaymentMethodLast4: providerPaymentMethodLast4 }
-                : {}),
-              ...(providerPaymentMethodTitle
-                ? { yookassaPaymentMethodTitle: providerPaymentMethodTitle }
-                : {}),
               renewalReminderSentForPeriodEnd: null,
+            },
+          });
+          // A late payment must not undo a cancellation made while it was in flight.
+          await tx.appSubscription.updateMany({
+            where: { id: payment.subscriptionId, cancelAtPeriodEnd: false },
+            data: {
+              ...(providerPaymentMethodId ? { yookassaPaymentMethodId: providerPaymentMethodId } : {}),
+              ...(providerPaymentMethodLast4 ? { yookassaPaymentMethodLast4: providerPaymentMethodLast4 } : {}),
+              ...(providerPaymentMethodTitle ? { yookassaPaymentMethodTitle: providerPaymentMethodTitle } : {}),
             },
           });
         } else {
@@ -2756,18 +2756,37 @@ export async function handleAppleAppSubscriptionNotification(params: { signedPay
           },
         },
       });
-    } catch {
-      logger.warn("Duplicate app-subscription Apple notification", {
-        metric: "webhook_duplicate_total",
-        source: "APPLE",
-        providerEventKey: notificationUUID,
+    } catch (error) {
+      if (!isPrismaUniqueViolation(error)) throw error;
+      const previous = await prisma.appSubscriptionEvent.findUnique({
+        where: { providerEventKey: notificationUUID },
+        select: { processingStatus: true },
       });
-      return { success: true as const, duplicate: true };
+      if (previous?.processingStatus === "PROCESSED" || previous?.processingStatus === "PROCESSING") {
+        return { success: true as const, duplicate: true };
+      }
     }
+    const claimed = await prisma.appSubscriptionEvent.updateMany({
+      where: {
+        providerEventKey: notificationUUID,
+        processingStatus: { in: ["RECEIVED", "FAILED"] },
+      },
+      data: { processingStatus: "PROCESSING", processingAttempts: { increment: 1 }, lastProcessingError: null },
+    });
+    if (claimed.count !== 1) return { success: true as const, duplicate: true };
   }
 
+  const markProcessed = async () => {
+    if (notificationUUID) await prisma.appSubscriptionEvent.update({
+      where: { providerEventKey: notificationUUID },
+      data: { processingStatus: "PROCESSED", processedAt: new Date(), lastProcessingError: null },
+    });
+  };
+
+  try {
   let originalTransactionId: string | null = null;
   let signedTransactionAppAccountToken: string | null = null;
+  let signedTransactionWasRevoked = false;
   if (signedTransactionInfo) {
     const tx = await verifierOrErr.verifyAndDecodeTransaction(signedTransactionInfo);
     originalTransactionId = tx.originalTransactionId?.trim() || null;
@@ -2775,6 +2794,7 @@ export async function handleAppleAppSubscriptionNotification(params: { signedPay
       typeof (tx as { appAccountToken?: unknown }).appAccountToken === "string"
         ? ((tx as { appAccountToken?: string }).appAccountToken ?? "").trim() || null
         : null;
+    signedTransactionWasRevoked = Number((tx as { revocationDate?: unknown }).revocationDate ?? 0) > 0;
   }
   if (!originalTransactionId && signedRenewalInfo) {
     const renewal = await verifierOrErr.verifyAndDecodeRenewalInfo(signedRenewalInfo);
@@ -2787,33 +2807,41 @@ export async function handleAppleAppSubscriptionNotification(params: { signedPay
       select: { id: true },
     });
     if (user?.id) {
-      await verifyAppleAppSubscription({
+      const verified = await verifyAppleAppSubscription({
         userId: user.id,
         signedTransactionInfo,
       });
+      if (!verified.success && verified.code !== "APPLE_SUBSCRIPTION_INACTIVE") {
+        throw new Error(`Apple notification verification failed: ${verified.code}`);
+      }
+      // A normal signed transaction is fully verified above. For a revocation,
+      // fetch the authoritative subscription status before acknowledging it.
+      if (originalTransactionId && signedTransactionWasRevoked) {
+        const synced = await syncAppleAppSubscriptionFromServer({ originalTransactionId });
+        if (!synced.success) throw new Error("Apple notification synchronization failed");
+      }
+      await markProcessed();
       return { success: true as const };
     }
   }
 
   if (originalTransactionId) {
     const syncResult = await syncAppleAppSubscriptionFromServer({ originalTransactionId });
-    if (!syncResult.success && signedTransactionInfo) {
-      const candidate = await prisma.appSubscription.findFirst({
-        where: {
-          provider: "APPLE",
-          appleOriginalTransactionId: originalTransactionId,
-        },
-        select: { userId: true },
-      });
-
-      if (candidate?.userId) {
-        await verifyAppleAppSubscription({
-          userId: candidate.userId,
-          signedTransactionInfo,
-        });
-      }
+    if (!syncResult.success) {
+      throw new Error("Apple notification synchronization failed");
     }
   }
 
+  await markProcessed();
   return { success: true as const };
+  } catch (error) {
+    if (notificationUUID) await prisma.appSubscriptionEvent.update({
+      where: { providerEventKey: notificationUUID },
+      data: {
+        processingStatus: "FAILED",
+        lastProcessingError: error instanceof Error ? error.message.slice(0, 512) : "Apple notification failed",
+      },
+    }).catch(() => undefined);
+    throw error;
+  }
 }

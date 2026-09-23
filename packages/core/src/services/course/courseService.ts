@@ -4,7 +4,7 @@
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  */
 
-import { prisma } from "@gafus/prisma";
+import { Prisma, prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { ActionResult, CourseWithExtras, CourseWithProgressData } from "@gafus/types";
@@ -44,10 +44,11 @@ const courseSelect = {
     },
   },
   favoritedBy: true,
-  access: { include: { user: { select: { id: true } } } },
-  userCourses: {
-    include: {
-      user: { include: { profile: { select: { avatarUrl: true } } } },
+  _count: {
+    select: {
+      userCourses: {
+        where: { status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] } },
+      },
     },
   },
   dayLinks: {
@@ -59,7 +60,7 @@ const courseSelect = {
       },
     },
   },
-} as const;
+} satisfies Prisma.CourseSelect;
 
 /**
  * Получает курсы, доступные пользователю для отображения на /courses:
@@ -68,7 +69,15 @@ const courseSelect = {
  */
 export async function getCoursesWithProgress(userId?: string): Promise<CourseWithProgressData[]> {
   const allCourses = await prisma.course.findMany({
-    select: courseSelect,
+    select: {
+      ...courseSelect,
+      // The catalog only needs the current viewer's entitlement. Selecting all
+      // CourseAccess rows leaks member identifiers and scales with every buyer.
+      access: {
+        where: { userId: userId ?? "" },
+        select: { userId: true },
+      },
+    },
   });
 
   // Фильтруем курсы для отображения на /courses:
@@ -79,7 +88,7 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
     // Приватные курсы только с доступом в CourseAccess
     if (course.isPrivate) {
       if (!userId) return false;
-      return course.access.some((a: { user: { id: string } }) => a.user.id === userId);
+      return course.access.length > 0;
     }
     // Публичные курсы (платные и бесплатные) показываем всем
     return true;
@@ -113,10 +122,10 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       : TrainingStatus.NOT_STARTED;
 
     const hasAccess = course.isPaid
-      ? !!(userId && course.access.some((a: { user: { id: string } }) => a.user.id === userId))
+      ? course.access.length > 0
       : !course.isPrivate
         ? true
-        : !!(userId && course.access.some((a: { user: { id: string } }) => a.user.id === userId));
+        : course.access.length > 0;
 
     return {
       id: course.id,
@@ -147,25 +156,14 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
           profile: review.user.profile,
         },
       })),
-      access: course.access,
       userStatus,
       startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
       completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
-      startedUsersCount: course.userCourses.filter(
-        (uc: CourseWithExtras["userCourses"][0]) =>
-          uc.status === TrainingStatus.IN_PROGRESS || uc.status === TrainingStatus.COMPLETED,
-      ).length,
+      startedUsersCount: course._count.userCourses,
       isFavorite: favoriteCourseIds.has(course.id),
-      userCourses: course.userCourses.map((uc: CourseWithExtras["userCourses"][0]) => ({
-        userId: uc.userId,
-        status: uc.status as TrainingStatus,
-        startedAt: uc.startedAt ? new Date(uc.startedAt) : null,
-        completedAt: uc.completedAt ? new Date(uc.completedAt) : null,
-        user: {
-          username: uc.user.username,
-          profile: uc.user.profile,
-        },
-      })),
+      // Kept as an empty legacy field for older clients. Per-user progress is
+      // represented by userStatus/startedAt/completedAt above.
+      userCourses: [],
       dayLinks: course.dayLinks.map((dl: CourseWithExtras["dayLinks"][0]) => ({
         order: dl.order,
         day: {

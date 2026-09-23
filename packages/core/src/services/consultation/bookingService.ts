@@ -343,10 +343,11 @@ export async function bookSlot(
       telemost = await createTelemostConference({ requestId });
     } catch (e) {
       await prisma.$transaction(async (tx) => {
-        await tx.consultationBooking.update({
-          where: { id: result.bookingId },
+        const cancelled = await tx.consultationBooking.updateMany({
+          where: { id: result.bookingId, status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION },
           data: { status: ConsultationBookingStatus.CANCELLED_BY_SYSTEM },
         });
+        if (cancelled.count !== 1) return;
         await tx.consultationSlot.update({
           where: { id: input.slotId },
           data: { status: ConsultationSlotStatus.FREE },
@@ -504,15 +505,18 @@ export async function confirmBookingByTrainer(
     throw new ConsultationForbiddenError("Некорректный статус");
   }
 
-  await removeSlaJob(bookingId);
-
-  await prisma.consultationBooking.update({
-    where: { id: bookingId },
+  const transitioned = await prisma.consultationBooking.updateMany({
+    where: { id: bookingId, status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION },
     data: {
       status: ConsultationBookingStatus.CONFIRMED,
       trainerConfirmedAt: new Date(),
     },
   });
+  if (transitioned.count !== 1) {
+    throw new ConsultationForbiddenError("Статус бронирования уже изменился");
+  }
+
+  await removeSlaJob(bookingId);
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CONFIRMED);
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.TRAINER_BOOKING_CONFIRMED);
@@ -550,22 +554,33 @@ export async function rejectBookingByTrainer(
     throw new ConsultationForbiddenError("Некорректный статус");
   }
 
-  await removeSlaJob(bookingId);
-  await removeConsultationRemindJobSafe(bookingId);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.consultationBooking.update({
-      where: { id: bookingId },
+  const cancelled = await prisma.$transaction(async (tx) => {
+    const transitioned = await tx.consultationBooking.updateMany({
+      where: {
+        id: bookingId,
+        status: {
+          in: [
+            ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+            ConsultationBookingStatus.CONFIRMED,
+          ],
+        },
+      },
       data: {
         status: ConsultationBookingStatus.CANCELLED_BY_TRAINER,
         cancelReason: reason?.trim() || null,
       },
     });
+    if (transitioned.count !== 1) return false;
     await tx.consultationSlot.update({
       where: { id: b.slotId },
       data: { status: ConsultationSlotStatus.FREE },
     });
+    return true;
   });
+  if (!cancelled) throw new ConsultationForbiddenError("Статус бронирования уже изменился");
+
+  await removeSlaJob(bookingId);
+  await removeConsultationRemindJobSafe(bookingId);
 
   await enqueueConsultationEmail(
     bookingId,
@@ -603,14 +618,16 @@ export async function completeBookingByTrainer(
     );
   }
 
-  await removeConsultationRemindJobSafe(bookingId);
-
-  await prisma.consultationBooking.update({
-    where: { id: bookingId },
+  const transitioned = await prisma.consultationBooking.updateMany({
+    where: { id: bookingId, status: ConsultationBookingStatus.CONFIRMED },
     data: {
       status: ConsultationBookingStatus.COMPLETED,
     },
   });
+  if (transitioned.count !== 1) {
+    throw new ConsultationForbiddenError("Статус бронирования уже изменился");
+  }
+  await removeConsultationRemindJobSafe(bookingId);
 }
 
 export async function markBookingNoShowByTrainer(
@@ -634,14 +651,16 @@ export async function markBookingNoShowByTrainer(
     );
   }
 
-  await removeConsultationRemindJobSafe(bookingId);
-
-  await prisma.consultationBooking.update({
-    where: { id: bookingId },
+  const transitioned = await prisma.consultationBooking.updateMany({
+    where: { id: bookingId, status: ConsultationBookingStatus.CONFIRMED },
     data: {
       status: ConsultationBookingStatus.NO_SHOW,
     },
   });
+  if (transitioned.count !== 1) {
+    throw new ConsultationForbiddenError("Статус бронирования уже изменился");
+  }
+  await removeConsultationRemindJobSafe(bookingId);
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_CONSULTATION_NO_SHOW);
 }
@@ -666,21 +685,33 @@ export async function cancelBookingByUser(clientId: string, bookingId: string): 
 
   const wasConfirmed = b.status === ConsultationBookingStatus.CONFIRMED;
 
-  await removeSlaJob(bookingId);
-  await removeConsultationRemindJobSafe(bookingId);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.consultationBooking.update({
-      where: { id: bookingId },
+  const cancelled = await prisma.$transaction(async (tx) => {
+    const transitioned = await tx.consultationBooking.updateMany({
+      where: {
+        id: bookingId,
+        clientId,
+        status: {
+          in: [
+            ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+            ConsultationBookingStatus.CONFIRMED,
+          ],
+        },
+      },
       data: {
         status: ConsultationBookingStatus.CANCELLED_BY_USER,
       },
     });
+    if (transitioned.count !== 1) return false;
     await tx.consultationSlot.update({
       where: { id: b.slotId },
       data: { status: ConsultationSlotStatus.FREE },
     });
+    return true;
   });
+  if (!cancelled) throw new ConsultationForbiddenError("Статус бронирования уже изменился");
+
+  await removeSlaJob(bookingId);
+  await removeConsultationRemindJobSafe(bookingId);
 
   await enqueueConsultationEmail(
     bookingId,
@@ -715,16 +746,23 @@ export async function processBookingSlaTimeout(bookingId: string): Promise<void>
 
   const clientId = b.clientId;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.consultationBooking.update({
-      where: { id: bookingId },
+  const cancelled = await prisma.$transaction(async (tx) => {
+    const transitioned = await tx.consultationBooking.updateMany({
+      where: {
+        id: bookingId,
+        status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
+        confirmationDeadlineAt: { lte: new Date() },
+      },
       data: { status: ConsultationBookingStatus.CANCELLED_BY_SLA },
     });
+    if (transitioned.count !== 1) return false;
     await tx.consultationSlot.update({
       where: { id: b.slotId },
       data: { status: ConsultationSlotStatus.FREE },
     });
+    return true;
   });
+  if (!cancelled) return;
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_BOOKING_CANCELLED_BY_SLA);
   await tryConsultationPush(

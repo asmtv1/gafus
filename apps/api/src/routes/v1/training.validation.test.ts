@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { trainingRoutes } from "./training";
 
 const {
-  checkCourseAccessByIdMock,
   checkVideoAccessMock,
   downloadFileFromCDNMock,
   extractVideoIdFromCdnUrlMock,
@@ -15,14 +14,13 @@ const {
   getAppSubscriptionAccessMock,
   getTrainingDayWithMonetizedStepsMock,
   requirePremiumOrRewardedAccessForVideoUrlMock,
-  requireCourseStepPremiumOrRewardedUnlockMock,
+  requireCourseStepOperationAccessMock,
   saveProgressMock,
   streamFileFromCDNMock,
   updateStepAndDayMock,
   syncUserCourseStatusFromDaysMock,
   verifyTokenMock,
 } = vi.hoisted(() => ({
-  checkCourseAccessByIdMock: vi.fn(),
   checkVideoAccessMock: vi.fn(),
   downloadFileFromCDNMock: vi.fn(),
   extractVideoIdFromCdnUrlMock: vi.fn(),
@@ -33,7 +31,7 @@ const {
   getAppSubscriptionAccessMock: vi.fn(),
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
   requirePremiumOrRewardedAccessForVideoUrlMock: vi.fn(),
-  requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
+  requireCourseStepOperationAccessMock: vi.fn(),
   saveProgressMock: vi.fn(),
   streamFileFromCDNMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
@@ -45,7 +43,7 @@ vi.mock("@gafus/core/services/training", () => ({
   getTrainingDays: vi.fn(),
   getTrainingDayWithMonetizedSteps: getTrainingDayWithMonetizedStepsMock,
   getTrainingDayWithUserSteps: vi.fn(),
-  requireCourseStepPremiumOrRewardedUnlock: requireCourseStepPremiumOrRewardedUnlockMock,
+  requireCourseStepOperationAccess: requireCourseStepOperationAccessMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
   updateStepAndDay: updateStepAndDayMock,
   validateTheoryStepForCompletion: vi.fn(),
@@ -63,7 +61,6 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
 
 vi.mock("@gafus/core/services/course", () => ({
   checkCourseAccess: vi.fn(),
-  checkCourseAccessById: checkCourseAccessByIdMock,
 }));
 
 vi.mock("@gafus/core/services/appFeatureFlags", () => ({
@@ -132,12 +129,11 @@ describe("training route validation", () => {
     vi.clearAllMocks();
     invalidateVideoPlaybackAccessCache();
     process.env.VIDEO_ACCESS_SECRET = "test-video-access-secret-that-is-long-enough";
-    checkCourseAccessByIdMock.mockResolvedValue({ hasAccess: true });
     getAppFeatureFlagEnabledMock.mockResolvedValue(false);
     getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
     getTrainingDayWithMonetizedStepsMock.mockResolvedValue({ trainingDayId: "day-1", steps: [] });
     requirePremiumOrRewardedAccessForVideoUrlMock.mockResolvedValue(null);
-    requireCourseStepPremiumOrRewardedUnlockMock.mockResolvedValue(null);
+    requireCourseStepOperationAccessMock.mockResolvedValue(null);
     updateStepAndDayMock.mockResolvedValue({
       courseId: "7b9e6c3a-321f-40de-ada8-11309951b181",
       allCompleted: false,

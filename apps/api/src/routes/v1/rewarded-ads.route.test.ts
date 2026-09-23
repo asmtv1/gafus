@@ -45,7 +45,7 @@ import { rewardedAdsRoutes } from "./rewarded-ads";
 
 const MOBILE_HEADERS = {
   "x-client-platform": "android",
-  "x-client-version": "1.6.8",
+  "x-client-version": "1.6.9",
 };
 const ARTICLE_TARGET = { targetType: "ARTICLE", targetId: "article-1" } as const;
 
@@ -76,7 +76,7 @@ describe("rewarded ads routes", () => {
       userId: "user-1",
       platform: "ANDROID",
       target: ARTICLE_TARGET,
-      clientContext: { platform: "android", version: "1.6.8" },
+      clientContext: { platform: "android", version: "1.6.9" },
     });
   });
 
@@ -101,7 +101,7 @@ describe("rewarded ads routes", () => {
       "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=ARTICLE&targetId=article-1";
     const web = await app.request(url);
     const mismatched = await app.request(url, {
-      headers: { "x-client-platform": "ios", "x-client-version": "1.6.8" },
+      headers: { "x-client-platform": "ios", "x-client-version": "1.6.9" },
     });
     const old = await app.request(url, {
       headers: { "x-client-platform": "android", "x-client-version": "1.6.5" },
@@ -136,7 +136,7 @@ describe("rewarded ads routes", () => {
       userId: "user-1",
       platform: "ANDROID",
       target: ARTICLE_TARGET,
-      clientContext: { platform: "android", version: "1.6.8" },
+      clientContext: { platform: "android", version: "1.6.9" },
     });
 
     const grantResponse = await app.request(

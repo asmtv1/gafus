@@ -1,0 +1,43 @@
+- generic:
+  - generic [active]:
+    - generic [ref=f7e3]:
+      - generic [ref=f7e4]:
+        - navigation [ref=f7e6]:
+          - button [disabled] [ref=f7e7]:
+            - img "previous" [ref=f7e8]
+          - generic [ref=f7e10]:
+            - generic [ref=f7e11]: 1/
+            - text: "1"
+          - button [disabled] [ref=f7e12]:
+            - img "next" [ref=f7e13]
+        - link "Next.js 15.5.24 (outdated) Webpack" [ref=f7e16] [cursor=pointer]:
+          - /url: https://nextjs.org/docs/messages/version-staleness
+          - generic "An outdated version detected (latest is 16.3.5), upgrade is highly recommended!" [ref=f7e19]: Next.js 15.5.24 (outdated)
+          - generic [ref=f7e20]: Webpack
+      - dialog "Build Error" [ref=f7e22]:
+        - generic [ref=f7e25]:
+          - generic [ref=f7e26]:
+            - generic [ref=f7e27]:
+              - generic [ref=f7e28]: Build Error
+              - generic [ref=f7e30]:
+                - button "Copy Error Info" [ref=f7e31] [cursor=pointer]
+                - button "No related documentation found" [disabled] [ref=f7e34]
+                - link "Learn more about enabling Node.js inspector for server code with Chrome DevTools" [ref=f7e37] [cursor=pointer]:
+                  - /url: https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code
+            - paragraph [ref=f7e47]: "Syntax error: /Users/asmtv1/Desktop/gafus1/apps/web/src/app/page.module.css Unclosed block"
+          - generic [ref=f7e49]:
+            - generic [ref=f7e51]:
+              - generic [ref=f7e55]: ./src/app/page.module.css (692:1)
+              - button "Open in editor" [ref=f7e56] [cursor=pointer]
+            - generic [ref=f7e60]: "Syntax error: /Users/asmtv1/Desktop/gafus1/apps/web/src/app/page.module.css Unclosed block 690 | transform: translateY(-18px); 691 | } > 692 | .planPopular:hover { | ^ 693 | transform: translateY(-24px); 694 | .planPopular .planPeriod {"
+        - generic [ref=f7e63]:
+          - generic [ref=f7e64]: "1"
+          - generic [ref=f7e65]: "2"
+    - generic [ref=f7e70] [cursor=pointer]:
+      - button "Open Next.js Dev Tools" [ref=f7e71]
+      - button "Open issues overlay" [ref=f7e76]:
+        - generic [ref=f7e77]:
+          - generic [aria-hidden] [ref=f7e78]: "0"
+          - generic [ref=f7e79]: "1"
+        - generic [ref=f7e80]: Issue
+  - alert [ref=f7e81]

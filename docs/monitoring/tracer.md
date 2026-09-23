@@ -108,13 +108,13 @@ AppTracer сопоставляет source maps по `versionName` и пути ф
 pnpm --filter @gafus/mobile update:ota:production -- --message "описание"
 ```
 
-Команда сначала получает маскируемый `TRACER_SOURCEMAP_TOKEN_MOBILE` через `eas env:exec`, затем вызывает `eas update --emit-metadata --json`, извлекает отдельные iOS/Android update ID и загружает `dist/**/*.map` для каждой версии вида `1.6.8-ota.<12 символов updateId>`. Runtime отправляет в AppTracer ровно такой же `versionName`.
+Команда сначала получает маскируемый `TRACER_SOURCEMAP_TOKEN_MOBILE` через `eas env:exec`, затем вызывает `eas update --emit-metadata --json`, извлекает отдельные iOS/Android update ID и загружает `dist/**/*.map` для каждой версии вида `1.6.9-ota.<12 символов updateId>`. Runtime отправляет в AppTracer ровно такой же `versionName`.
 
 Для ручной загрузки карты embedded build:
 
 ```bash
-TRACER_SOURCEMAP_VERSION_NAME=1.6.8-build.9 \
-TRACER_SOURCEMAP_VERSION_CODE=9 \
+TRACER_SOURCEMAP_VERSION_NAME=1.6.9-build.14 \
+TRACER_SOURCEMAP_VERSION_CODE=14 \
 pnpm --filter @gafus/mobile tracer:sourcemaps
 ```
 

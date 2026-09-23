@@ -11,11 +11,19 @@ const mockSettingsFindUnique = vi.fn();
 const mockQueryRawUnsafe = vi.fn();
 const mockTransaction = vi.fn();
 const mockUserFindUnique = vi.fn();
+const mockSubscriptionFindFirst = vi.fn();
+vi.mock("./renewalLock", () => ({
+  acquireRenewalLock: async () => {
+    const rows = await mockQueryRawUnsafe();
+    return rows?.[0]?.locked ? { assertHeld: vi.fn(), release: () => mockQueryRawUnsafe() } : null;
+  },
+}));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     appSubscription: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
+      findFirst: (...args: unknown[]) => mockSubscriptionFindFirst(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
       updateMany: (...args: unknown[]) => mockUpdateMany(...args),
     },
@@ -38,12 +46,14 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     vi.clearAllMocks();
     vi.stubEnv("YOOKASSA_SHOP_ID", "shop-id");
     vi.stubEnv("YOOKASSA_SECRET_KEY", "secret-key");
+    mockQueryRawUnsafe.mockResolvedValue([{ locked: true }]);
     mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockSubscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
     mockUpdate.mockResolvedValue({});
     mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
         appSubscription: { update: mockUpdate },
-        appSubscriptionPayment: { update: mockUpdate },
+        appSubscriptionPayment: { update: mockUpdate, updateMany: mockUpdateMany },
       }),
     );
     mockSettingsFindUnique.mockResolvedValue({
@@ -299,7 +309,7 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
 
     await processDueYookassaAppSubscriptionRenewals({ batchSize: 10 });
 
-    const succeededUpdate = mockUpdate.mock.calls.find(
+    const succeededUpdate = mockUpdateMany.mock.calls.find(
       ([call]) => call?.where?.id === "pay-succeeded" && call?.data?.status === "SUCCEEDED",
     )?.[0];
     expect(succeededUpdate?.data).not.toHaveProperty("amount");

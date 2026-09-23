@@ -9,6 +9,8 @@ export interface AdminUserRow {
   createdAt: Date;
   profile: { fullName: string | null; avatarUrl: string | null } | null;
   _count: { pushSubscriptions: number };
+  /** Промокод, выбранный пользователем во время регистрации. */
+  savedRegistrationPromoCode: { code: string } | null;
   partnerProfile?: { promoCodeId: string | null; promoCode: { id: string; code: string; discountPercent: number } | null } | null;
 }
 

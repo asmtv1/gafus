@@ -310,10 +310,11 @@ export async function rotateRefreshToken(
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
     if (!user || user.registrationPending) throw new Error("Registration is not completed");
-    await tx.refreshToken.updateMany({
-      where: { tokenHash: oldTokenHash },
+    const consumed = await tx.refreshToken.updateMany({
+      where: { tokenHash: oldTokenHash, userId, revokedAt: null, expiresAt: { gt: new Date() } },
       data: { revokedAt: new Date() },
     });
+    if (consumed.count !== 1) throw new Error("Refresh token already consumed or expired");
     await tx.refreshToken.create({
       data: {
         id: newTokenId,

@@ -18,7 +18,12 @@ export async function resetPasswordByToken(token: string, newPassword: string) {
 
     await tx.user.update({
       where: { id: record.userId },
-      data: { password: hashed },
+      data: { password: hashed, passwordSetAt: new Date(), sessionsRevokedAt: new Date() },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: { userId: record.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
 
     await tx.passwordResetToken.delete({

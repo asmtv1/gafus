@@ -197,6 +197,7 @@ export const useAuthStore = create<AuthStore>()(
           });
           await clearVkRegistrationContext();
           identifyUser(user.id);
+          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("LOGGED_IN", user.id)).catch(() => undefined);
           if (__DEV__) console.log("[authStore] login → isAuthenticated: true");
           return { success: true };
         } catch (error) {
@@ -283,6 +284,7 @@ export const useAuthStore = create<AuthStore>()(
           });
           await clearVkRegistrationContext();
           identifyUser(profileRes.data.id);
+          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("LOGGED_IN", profileRes.data!.id)).catch(() => undefined);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkLogin" });
@@ -337,6 +339,7 @@ export const useAuthStore = create<AuthStore>()(
           });
           await clearVkRegistrationContext();
           identifyUser(response.data.user.id);
+          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("REGISTERED", response.data.user.id)).catch(() => undefined);
           if (__DEV__) console.log("[authStore] register success");
           return { success: true };
         } catch (error) {
@@ -688,6 +691,7 @@ export const useAuthStore = create<AuthStore>()(
             identifyUser(user.id);
           }
           await clearVkRegistrationContext();
+          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("REGISTERED", user.id)).catch(() => undefined);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkConsent" });
@@ -717,6 +721,7 @@ export const useAuthStore = create<AuthStore>()(
             pendingVkPhone: false,
           });
           identifyUser(user.id);
+          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("LOGGED_IN", user.id)).catch(() => undefined);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkPhoneSet" });

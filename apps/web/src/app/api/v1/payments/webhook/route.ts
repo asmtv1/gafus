@@ -1,15 +1,9 @@
 /**
  * API: POST /api/v1/payments/webhook — уведомления ЮKassa о статусе платежа
  */
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
-import {
-  confirmPaymentFromWebhook,
-  cancelPaymentFromWebhook,
-  refundPaymentFromWebhook,
-  getUserIdByYookassaPaymentId,
-} from "@gafus/core/services/payments";
 import { handleYookassaAppSubscriptionWebhook } from "@gafus/core/services/appSubscription";
 import { invalidateUserProgressCache } from "@shared/lib/actions/invalidateCoursesCache";
 import { invalidateCoursesCache } from "@shared/server-actions/cache";
@@ -31,7 +25,8 @@ function isYooKassaIP(ip: string | null): boolean {
 
 function shouldSkipIpCheck(request: NextRequest): boolean {
   void request;
-  const skipByEnv = process.env.YOOKASSA_SKIP_IP_CHECK === "1" || process.env.YOOKASSA_SKIP_IP_CHECK === "true";
+  const skipByEnv =
+    process.env.YOOKASSA_SKIP_IP_CHECK === "1" || process.env.YOOKASSA_SKIP_IP_CHECK === "true";
   return skipByEnv && process.env.NODE_ENV !== "production";
 }
 
@@ -47,13 +42,15 @@ function verifyWebhookSignature(
   const hash = createHmac("sha256", secretKey).update(body).digest("hex");
   const left = Buffer.from(hash, "hex");
   const right = Buffer.from(signature, "hex");
-  return left.length === right.length && timingSafeEqual(new Uint8Array(left), new Uint8Array(right));
+  return (
+    left.length === right.length && timingSafeEqual(new Uint8Array(left), new Uint8Array(right))
+  );
 }
 
 export async function POST(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
   const ip = forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? null;
-  
+
   if (!shouldSkipIpCheck(request) && !isYooKassaIP(ip)) {
     console.warn("[payments/webhook] IP not in whitelist:", ip);
     return NextResponse.json({}, { status: 403 });
@@ -89,28 +86,32 @@ export async function POST(request: NextRequest) {
 
   const type = (body as { type?: string }).type;
   const event = (body as { event?: string }).event;
-  const obj = (body as {
-    object?: {
-      id?: string;
-      payment_id?: string;
-      amount?: { value?: string };
-      status?: string;
-      saved?: boolean;
-      card?: { last4?: string };
-      title?: string;
-      payment_method?: {
+  const obj = (
+    body as {
+      object?: {
         id?: string;
-        title?: string;
+        payment_id?: string;
+        amount?: { value?: string };
+        status?: string;
+        saved?: boolean;
         card?: { last4?: string };
+        title?: string;
+        payment_method?: {
+          id?: string;
+          title?: string;
+          card?: { last4?: string };
+        };
+        metadata?: Record<string, string | undefined>;
       };
-      metadata?: Record<string, string | undefined>;
-    };
-  }).object;
+    }
+  ).object;
   const refundId = event === "refund.succeeded" ? obj?.id : undefined;
   const yookassaPaymentId = event === "refund.succeeded" ? obj?.payment_id : obj?.id;
   const amount = obj?.amount?.value;
   const isPaymentMethodEvent = typeof event === "string" && event.startsWith("payment_method.");
-  const paymentMethodId = isPaymentMethodEvent ? (obj?.id ?? null) : (obj?.payment_method?.id ?? null);
+  const paymentMethodId = isPaymentMethodEvent
+    ? (obj?.id ?? null)
+    : (obj?.payment_method?.id ?? null);
   const paymentMethodLast4 = isPaymentMethodEvent
     ? (obj?.card?.last4 ?? null)
     : (obj?.payment_method?.card?.last4 ?? null);
@@ -144,26 +145,14 @@ export async function POST(request: NextRequest) {
         secretKey: process.env.YOOKASSA_SECRET_KEY,
       });
       userIdToInvalidate = result.userId;
-      // Refund objects do not reliably include payment metadata. The Premium
-      // handler has already fetched and checked the canonical refund/payment;
-      // only a verified non-Premium payment continues through the legacy path.
-      if (event === "refund.succeeded" && !userIdToInvalidate) {
-        await refundPaymentFromWebhook(yookassaPaymentId);
-        userIdToInvalidate = await getUserIdByYookassaPaymentId(yookassaPaymentId);
-      }
     } else {
-      // Обработка разных событий платежа
-      if (event === "payment.succeeded") {
-        await confirmPaymentFromWebhook(yookassaPaymentId, amount);
-      } else if (event === "payment.canceled") {
-        await cancelPaymentFromWebhook(yookassaPaymentId);
-      } else if (event === "refund.succeeded") {
-        await refundPaymentFromWebhook(yookassaPaymentId);
-      } else {
-        // Неизвестное событие — игнорируем
-        return NextResponse.json({}, { status: 200 });
-      }
-      userIdToInvalidate = await getUserIdByYookassaPaymentId(yookassaPaymentId);
+      // Разовые покупки курсов и статей больше не обслуживаются. Не выполняем
+      // никаких мутаций по входящему payload, включая исторические webhook'и.
+      console.warn("[payments/webhook] ignored legacy payment event", {
+        event,
+        yookassaPaymentId,
+      });
+      return NextResponse.json({}, { status: 200 });
     }
 
     if (userIdToInvalidate) {

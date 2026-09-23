@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const VALID_ACCESS_SECRET = "a".repeat(32);
+const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
+vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: userFindUnique } } }));
 const VALID_REFRESH_SECRET = "b".repeat(32);
 
 const authUser = {
@@ -11,6 +13,7 @@ const authUser = {
 
 describe("jwt", () => {
   beforeEach(() => {
+    userFindUnique.mockResolvedValue({ registrationPending: false, sessionsRevokedAt: null });
     vi.stubEnv("JWT_SECRET", VALID_ACCESS_SECRET);
     vi.stubEnv("JWT_REFRESH_SECRET", VALID_REFRESH_SECRET);
     vi.resetModules();
@@ -21,6 +24,14 @@ describe("jwt", () => {
   });
 
   describe("generateAccessToken / verifyAccessToken", () => {
+    it("rejects access and refresh tokens after password-reset revocation", async () => {
+      const jwt = await import("./jwt");
+      const access = await jwt.generateAccessToken(authUser);
+      const refresh = await jwt.generateRefreshToken(authUser.id, "old-session");
+      userFindUnique.mockResolvedValue({ registrationPending: false, sessionsRevokedAt: new Date(Date.now() + 1) });
+      expect(await jwt.verifyAccessToken(access)).toBeNull();
+      expect(await jwt.verifyRefreshToken(refresh)).toBeNull();
+    });
     it("roundtrip: generateAccessToken → verifyAccessToken", async () => {
       const { generateAccessToken, verifyAccessToken } = await import("./jwt");
       const token = await generateAccessToken(authUser);

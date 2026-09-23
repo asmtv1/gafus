@@ -52,9 +52,8 @@ function prune(timestamps: number[]): number[] {
   return timestamps.filter((t) => t > cutoff);
 }
 
-function isDevOrLocalhost(ip: string): boolean {
-  if (process.env.NODE_ENV === "development") return true;
-  return ["127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost"].includes(ip);
+function isDevelopment(): boolean {
+  return process.env.NODE_ENV === "development";
 }
 
 /**
@@ -62,7 +61,6 @@ function isDevOrLocalhost(ip: string): boolean {
  */
 export function getClientIp(request: NextRequest): string {
   const raw =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "";
   return raw || "unknown";
@@ -74,7 +72,7 @@ export function getClientIp(request: NextRequest): string {
 export async function getClientIpFromHeaders(): Promise<string> {
   const h = await headers();
   const raw =
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "";
+    h.get("x-real-ip") || "";
   return raw || "unknown";
 }
 
@@ -83,7 +81,7 @@ export async function getClientIpFromHeaders(): Promise<string> {
  * При разрешённом запросе учитывает текущий запрос (инкремент).
  */
 export function checkAuthRateLimit(ip: string, path: AuthRateLimitPath): boolean {
-  if (isDevOrLocalhost(ip)) return true;
+  if (isDevelopment()) return true;
 
   const key = `${ip}:${path}`;
   const max = LIMITS[path];

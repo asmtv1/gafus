@@ -1069,13 +1069,13 @@ export default function ProfileScreen() {
         <Card style={styles.infoCard}>
           <Text style={styles.infoCardTitle}>Информация</Text>
 
-          <View style={styles.infoItem}>
+          <Pressable style={styles.infoItem} onPress={() => router.push("/(auth)/intro?manual=1" as Href)}>
             <Text style={styles.infoIcon}>ℹ️</Text>
             <View style={styles.infoContent}>
               <Text style={styles.infoItemTitle}>О приложении</Text>
               <Text style={styles.infoItemDesc}>Версия {Constants.expoConfig?.version ?? "—"}</Text>
             </View>
-          </View>
+          </Pressable>
 
           <View style={styles.infoDivider} />
 

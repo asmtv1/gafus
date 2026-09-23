@@ -5,7 +5,7 @@ import { TrainingStatus } from "@gafus/types";
 import {
   updateStepAndDay,
   getCourseTypeByDayOnCourseId,
-  requireCourseStepPremiumOrRewardedUnlock,
+  requireCourseStepOperationAccess,
   type StepOperation,
 } from "@gafus/core/services/training/trainingService";
 import { createImmediatePushNotification } from "@gafus/core/services/notifications";
@@ -17,7 +17,12 @@ import { checkAndCompleteCourse, syncUserCourseStatusFromDays } from "../user/us
 import { invalidateUserProgressCache } from "../actions/invalidateCoursesCache";
 
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
-import { courseIdSchema, dayOnCourseIdSchema, stepIndexSchema, userIdSchema } from "../validation/schemas";
+import {
+  courseIdSchema,
+  dayOnCourseIdSchema,
+  stepIndexSchema,
+  userIdSchema,
+} from "../validation/schemas";
 
 const logger = createWebLogger("web");
 const statusSchema = z.nativeEnum(TrainingStatus, {
@@ -77,9 +82,10 @@ export async function updateUserStepStatus(
   });
   try {
     const operation = statusToOperation(safeStatus);
-    await requireCourseStepPremiumOrRewardedUnlock({
+    await requireCourseStepOperationAccess({
       userId: safeUserId,
       platform: "WEB_DESKTOP",
+      expectedCourseId: safeCourseId,
       dayOnCourseId: safeDayOnCourseId,
       stepIndex: safeStepIndex,
     });

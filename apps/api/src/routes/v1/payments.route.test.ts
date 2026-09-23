@@ -100,7 +100,7 @@ describe("payments route contracts", () => {
     expect(response.status).toBe(400);
   });
 
-  it("maps missing YooKassa credentials to a configuration error", async () => {
+  it("disables legacy payment creation before loading YooKassa credentials", async () => {
     delete process.env.YOOKASSA_SECRET_KEY;
     const app = createAuthenticatedTestApp();
 
@@ -110,16 +110,16 @@ describe("payments route contracts", () => {
       }),
     );
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(410);
     await expect(response.json()).resolves.toEqual({
       success: false,
-      error: "Платежи недоступны",
-      code: "CONFIG_YOOKASSA",
+      error: "Разовые покупки больше недоступны. Оформите Premium-подписку.",
+      code: "LEGACY_PURCHASES_DISABLED",
     });
     expect(createPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("requires Apple IAP for iOS course payments before creating YooKassa payment", async () => {
+  it("disables legacy iOS course payments", async () => {
     const app = createAuthenticatedTestApp();
     getCourseByIdOrTypeMock.mockResolvedValueOnce({ id: "course-1", type: "obedience" });
 
@@ -132,15 +132,15 @@ describe("payments route contracts", () => {
       ),
     );
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(410);
     await expect(response.json()).resolves.toMatchObject({
       success: false,
-      code: "APPLE_IAP_REQUIRED",
+      code: "LEGACY_PURCHASES_DISABLED",
     });
     expect(createPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("creates a course payment with mobile acceptance context", async () => {
+  it("does not create a legacy course payment", async () => {
     const app = createAuthenticatedTestApp();
     getCourseByIdOrTypeMock.mockResolvedValueOnce({ id: "course-1", type: "obedience" });
     createPaymentMock.mockResolvedValueOnce({
@@ -161,29 +161,11 @@ describe("payments route contracts", () => {
       ),
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      success: true,
-      data: {
-        paymentId: "payment-1",
-        confirmationUrl: "https://pay.test/confirm",
-      },
-    });
-    expect(createPaymentMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      courseId: "course-1",
-      shopId: "shop-id",
-      secretKey: "secret-key",
-      returnUrl: "https://gafus.test/trainings/obedience?paid=1&from=app",
-      acceptanceContext: {
-        ipAddress: "203.0.113.10",
-        userAgent: "GafusApp/1.0",
-        source: "mobile",
-      },
-    });
+    expect(response.status).toBe(410);
+    expect(createPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("maps Apple transaction conflicts to HTTP 409", async () => {
+  it("disables legacy Apple course verification", async () => {
     const app = createAuthenticatedTestApp();
     verifyAppleCoursePurchaseMock.mockResolvedValueOnce({
       success: false,
@@ -197,11 +179,11 @@ describe("payments route contracts", () => {
       }),
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(410);
     await expect(response.json()).resolves.toEqual({
       success: false,
-      error: "Транзакция уже использована",
-      code: "APPLE_TRANSACTION_CONFLICT",
+      error: "Разовые покупки больше недоступны. Оформите Premium-подписку.",
+      code: "LEGACY_PURCHASES_DISABLED",
     });
   });
 

@@ -5,9 +5,12 @@ const mockEventCreate = vi.fn();
 const mockEventFindFirst = vi.fn();
 const mockEventFindUnique = vi.fn();
 const mockEventUpdate = vi.fn();
+const mockEventUpdateMany = vi.fn();
 const mockPaymentFindFirst = vi.fn();
 const mockPaymentFindUnique = vi.fn();
 const mockPaymentUpdate = vi.fn();
+const mockPaymentUpdateMany = vi.fn();
+const mockSubscriptionUpdateMany = vi.fn();
 const mockPaymentCreate = vi.fn();
 const mockSubscriptionFindFirst = vi.fn();
 const mockSubscriptionFindMany = vi.fn();
@@ -37,16 +40,19 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
         findFirst: (...args: unknown[]) => mockEventFindFirst(...args),
         findUnique: (...args: unknown[]) => mockEventFindUnique(...args),
         update: (...args: unknown[]) => mockEventUpdate(...args),
+        updateMany: (...args: unknown[]) => mockEventUpdateMany(...args),
       },
       appSubscriptionPayment: {
         create: (...args: unknown[]) => mockPaymentCreate(...args),
         findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
         findUnique: (...args: unknown[]) => mockPaymentFindUnique(...args),
         update: (...args: unknown[]) => mockPaymentUpdate(...args),
+        updateMany: (...args: unknown[]) => mockPaymentUpdateMany(...args),
       },
       appSubscription: {
         create: (...args: unknown[]) => mockSubscriptionCreate(...args),
         update: (...args: unknown[]) => mockSubscriptionUpdate(...args),
+        updateMany: (...args: unknown[]) => mockSubscriptionUpdateMany(...args),
         findFirst: (...args: unknown[]) => mockSubscriptionFindFirst(...args),
         findMany: (...args: unknown[]) => mockSubscriptionFindMany(...args),
       },
@@ -116,6 +122,7 @@ describe("app subscription payment service", () => {
     mockEventFindFirst.mockResolvedValue(null);
     mockEventFindUnique.mockResolvedValue(null);
     mockEventUpdate.mockResolvedValue({});
+    mockEventUpdateMany.mockResolvedValue({ count: 1 });
     mockPaymentCreate.mockImplementation(async ({ data }: { data?: Record<string, unknown> }) => ({
       id: "pay-1",
       idempotenceKey: data?.idempotenceKey ?? "appsub-init:test",
@@ -126,6 +133,8 @@ describe("app subscription payment service", () => {
     mockPaymentFindFirst.mockResolvedValue(null);
     mockPaymentFindUnique.mockResolvedValue(null);
     mockPaymentUpdate.mockResolvedValue({});
+    mockPaymentUpdateMany.mockResolvedValue({ count: 1 });
+    mockSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
     mockPromoFindUnique.mockResolvedValue(null);
     mockSubscriptionFindFirst.mockResolvedValue(null);
     mockSubscriptionFindMany.mockResolvedValue([]);
@@ -172,6 +181,7 @@ describe("app subscription payment service", () => {
           findFirst: mockPaymentFindFirst,
           findUnique: mockPaymentFindUnique,
           update: mockPaymentUpdate,
+          updateMany: mockPaymentUpdateMany,
         },
         user: { findUnique: mockUserFindUnique },
         npdConnection: { findUnique: mockNpdConnectionFindUnique },
@@ -184,6 +194,8 @@ describe("app subscription payment service", () => {
           create: mockSubscriptionCreate,
           findFirst: mockSubscriptionFindFirst,
           update: mockSubscriptionUpdate,
+          updateMany: mockSubscriptionUpdateMany,
+          updateMany: mockSubscriptionUpdateMany,
         },
         appSubscriptionEvent: {
           create: mockEventCreate,
@@ -359,8 +371,8 @@ describe("app subscription payment service", () => {
       },
     });
 
-    expect(mockPaymentUpdate).toHaveBeenCalledWith({
-      where: { id: frozenPayment.id },
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
+      where: { id: frozenPayment.id, status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
       data: expect.objectContaining({ status: "SUCCEEDED", planCode: "MONTHLY" }),
     });
     expect(mockPromoFindUnique).toHaveBeenCalledTimes(1);
@@ -1395,8 +1407,8 @@ describe("app subscription payment service", () => {
       },
     });
 
-    expect(mockPaymentUpdate).toHaveBeenCalledWith({
-      where: { id: "pay-month" },
+    expect(mockPaymentUpdateMany).toHaveBeenCalledWith({
+      where: { id: "pay-month", status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
       data: expect.objectContaining({
         status: "SUCCEEDED",
         planCode: "MONTHLY",
@@ -1411,7 +1423,6 @@ describe("app subscription payment service", () => {
         planCode: "MONTHLY",
         currentPeriodStart: new Date("2026-05-30T10:00:00.000Z"),
         currentPeriodEnd: new Date("2026-06-29T10:00:00.000Z"),
-        yookassaPaymentMethodId: "pm-month",
       }),
     });
   });

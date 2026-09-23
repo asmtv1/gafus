@@ -82,9 +82,9 @@ export function Button({
   const [isPressed, setIsPressed] = useState(false);
   const pressProgress = useSharedValue(0);
 
-  const handlePress = async (e: Parameters<NonNullable<PaperButtonProps["onPress"]>>[0]) => {
+  const handlePress = (e: Parameters<NonNullable<PaperButtonProps["onPress"]>>[0]) => {
     if (haptic) {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     }
     onPress?.(e);
   };

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRootNavigationState } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { AppState, ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -8,6 +8,8 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { resetUserStores } from "@/shared/stores/resetAll";
+import { flushMobileIntroEvents } from "@/shared/lib/api/mobile-intro";
+import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
 import { COLORS } from "@/shared/config";
 
 interface AuthProviderProps {
@@ -23,9 +25,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const navState = useRootNavigationState();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const userId = useAuthStore((state) => state.user?.id);
+  const isOffline = useNetworkStatusStore((state) => state.isOffline);
   const isLoading = useAuthStore((state) => state.isLoading);
   const prevAuthRef = useRef<boolean | null>(null);
   const favoritesLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoading || isOffline) return;
+    const retry = () => { void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined); };
+    retry();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") retry();
+    });
+    return () => subscription.remove();
+  }, [isAuthenticated, isLoading, isOffline, userId]);
 
   useEffect(() => {
     if (isLoading) return;

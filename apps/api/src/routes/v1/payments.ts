@@ -14,6 +14,7 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("api-payments");
 
 export const paymentsRoutes = new Hono();
+const LEGACY_PURCHASES_ENABLED = false;
 
 const verifyAppleBody = z.object({
   signedTransactionInfo: z.string().min(1).max(10000),
@@ -61,6 +62,15 @@ function resolveWebBaseUrl(): { success: true; baseUrl: string } | { success: fa
 }
 
 paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c) => {
+  if (!LEGACY_PURCHASES_ENABLED)
+    return c.json(
+      {
+        success: false,
+        error: "Разовые покупки больше недоступны. Оформите Premium-подписку.",
+        code: "LEGACY_PURCHASES_DISABLED",
+      },
+      410,
+    );
   try {
     const user = c.get("user");
     const { courseId, courseType, articleId } = c.req.valid("json");
@@ -70,7 +80,10 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
       logger.error(
         `Payments config error: WEB_APP_URL is invalid (WEB_APP_URL=${process.env.WEB_APP_URL ?? "undefined"}, NEXT_PUBLIC_WEB_APP_URL=${process.env.NEXT_PUBLIC_WEB_APP_URL ?? "undefined"})`,
       );
-      return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" }, 500);
+      return c.json(
+        { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" },
+        500,
+      );
     }
 
     const shopId = process.env.YOOKASSA_SHOP_ID;
@@ -103,10 +116,7 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
       });
       if (!result.success) {
         const status = result.error.includes("не найден") ? 404 : 400;
-        return c.json(
-          { success: false, error: result.error, code: "PAYMENT_ERROR" },
-          status,
-        );
+        return c.json({ success: false, error: result.error, code: "PAYMENT_ERROR" }, status);
       }
       return c.json({
         success: true,
@@ -148,10 +158,7 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
 
     if (!result.success) {
       const status = result.error.includes("не найден") ? 404 : 400;
-      return c.json(
-        { success: false, error: result.error, code: "PAYMENT_ERROR" },
-        status,
-      );
+      return c.json({ success: false, error: result.error, code: "PAYMENT_ERROR" }, status);
     }
 
     return c.json({
@@ -190,6 +197,15 @@ function statusForAppleVerifyCode(code: string): AppleVerifyHttpStatus {
 }
 
 paymentsRoutes.post("/apple/verify", zValidator("json", verifyAppleBody), async (c) => {
+  if (!LEGACY_PURCHASES_ENABLED)
+    return c.json(
+      {
+        success: false,
+        error: "Разовые покупки больше недоступны. Оформите Premium-подписку.",
+        code: "LEGACY_PURCHASES_DISABLED",
+      },
+      410,
+    );
   try {
     const user = c.get("user");
     const { signedTransactionInfo } = c.req.valid("json");
@@ -204,10 +220,7 @@ paymentsRoutes.post("/apple/verify", zValidator("json", verifyAppleBody), async 
 
     if (!result.success) {
       const status = statusForAppleVerifyCode(result.code);
-      return c.json(
-        { success: false, error: result.error, code: result.code },
-        status,
-      );
+      return c.json({ success: false, error: result.error, code: result.code }, status);
     }
 
     return c.json({ success: true, data: { courseId: result.courseId } }, 200);

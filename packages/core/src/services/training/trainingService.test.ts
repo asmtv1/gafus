@@ -4,6 +4,7 @@ import {
   getTrainingDays,
   getTrainingDayWithMonetizedSteps,
   getTrainingDayWithUserSteps,
+  requireCourseStepOperationAccess,
   resolveCourseStepRewardedTarget,
 } from "./trainingService.ts";
 import { checkCourseAccess } from "../course";
@@ -13,6 +14,7 @@ const mockCheckCourseAccessById = vi.fn();
 
 // Mocks для getTrainingDayWithUserSteps и syncUserCourseStatusFromDays
 const mockDayOnCourseFindFirst = vi.fn();
+const mockDayOnCourseFindUnique = vi.fn();
 const mockDayOnCourseFindMany = vi.fn();
 const mockUserTrainingUpsert = vi.fn();
 const mockUserTrainingFindUnique = vi.fn();
@@ -39,6 +41,7 @@ vi.mock("@gafus/prisma", () => ({
     },
     dayOnCourse: {
       findFirst: (...args: unknown[]) => mockDayOnCourseFindFirst(...args),
+      findUnique: (...args: unknown[]) => mockDayOnCourseFindUnique(...args),
       findMany: (...args: unknown[]) => mockDayOnCourseFindMany(...args),
     },
     userTraining: {
@@ -482,6 +485,51 @@ describe("getTrainingDays", () => {
     const summaryDay = result.trainingDays.find((d) => d.type === "summary");
     expect(summaryDay).toBeDefined();
     expect(summaryDay?.isLocked).toBe(true);
+  });
+});
+
+describe("requireCourseStepOperationAccess", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: true });
+  });
+
+  it("rejects a client courseId that does not own the target day", async () => {
+    mockDayOnCourseFindUnique.mockResolvedValue({
+      course: { id: "course-real", type: "real", isPaid: false, isPrivate: false },
+      day: { stepLinks: [{ id: "step-link-1", step: { type: "BREAK" } }] },
+    });
+
+    await expect(
+      requireCourseStepOperationAccess({
+        userId: "user-1",
+        platform: "ANDROID",
+        expectedCourseId: "course-from-client",
+        dayOnCourseId: "day-1",
+        stepIndex: 0,
+      }),
+    ).rejects.toThrow("COURSE_DAY_MISMATCH");
+
+    expect(mockCheckCourseAccessById).not.toHaveBeenCalled();
+  });
+
+  it("checks access against the course resolved from the day", async () => {
+    mockDayOnCourseFindUnique.mockResolvedValue({
+      course: { id: "course-real", type: "real", isPaid: true, isPrivate: false },
+      day: { stepLinks: [{ id: "step-link-1", step: { type: "PRACTICE" } }] },
+    });
+
+    await expect(
+      requireCourseStepOperationAccess({
+        userId: "user-1",
+        platform: "ANDROID",
+        expectedCourseId: "course-real",
+        dayOnCourseId: "day-1",
+        stepIndex: 0,
+      }),
+    ).resolves.toEqual({ courseId: "course-real", courseType: "real" });
+
+    expect(mockCheckCourseAccessById).toHaveBeenCalledWith("course-real", "user-1");
   });
 });
 

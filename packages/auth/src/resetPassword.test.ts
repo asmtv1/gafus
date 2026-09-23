@@ -29,10 +29,12 @@ describe("resetPasswordByToken", () => {
     const mockFindUnique = vi.fn();
     const mockUpdate = vi.fn();
     const mockDelete = vi.fn();
+    const mockRefreshUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
     mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
       const tx = {
         passwordResetToken: { findUnique: mockFindUnique, delete: mockDelete },
         user: { update: mockUpdate },
+        refreshToken: { updateMany: mockRefreshUpdateMany },
       };
       await cb(tx);
     });
@@ -53,6 +55,10 @@ describe("resetPasswordByToken", () => {
       include: { user: true },
     });
     expect(mockUpdate).toHaveBeenCalled();
+    expect(mockRefreshUpdateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
     expect(mockDelete).toHaveBeenCalled();
   });
 

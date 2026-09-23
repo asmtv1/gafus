@@ -2,6 +2,7 @@
  * Article Service — бизнес-логика статей.
  */
 import { prisma } from "@gafus/prisma";
+import { sanitizeArticleHtml } from "./sanitizeArticleHtml";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
@@ -153,7 +154,7 @@ export async function getArticleBySlug(
         } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
         userId,
       ),
-      content: hasAccess ? row.content : null,
+      content: hasAccess ? sanitizeArticleHtml(row.content) : null,
     };
 
     return { success: true, data: dto };
@@ -207,7 +208,7 @@ export async function getArticleBySlugForMonetizedAccess(input: {
           input.userId,
         ),
         hasAccess: hasExistingArticleAccess,
-        content: hasExistingArticleAccess ? row.content : null,
+        content: hasExistingArticleAccess ? sanitizeArticleHtml(row.content) : null,
         monetization: {
           locked: !hasExistingArticleAccess,
         },
@@ -247,7 +248,7 @@ export async function getArticleBySlugForMonetizedAccess(input: {
           input.userId,
         ),
         hasAccess: true,
-        content: row.content,
+        content: sanitizeArticleHtml(row.content),
         monetization: {
           locked: false,
         },
@@ -316,7 +317,7 @@ export async function getArticleForEdit(
     const data: CreateArticleSchemaInput = {
       title: row.title,
       contentType: row.contentType,
-      content: row.content,
+      content: sanitizeArticleHtml(row.content),
       visibility: row.visibility,
       priceRub: row.priceRub != null ? Number(row.priceRub) : null,
       videoUrl: row.videoUrl,
@@ -356,7 +357,7 @@ export async function createArticle(
         authorId: userId,
         title: data.title,
         contentType: data.contentType,
-        content: data.content,
+        content: sanitizeArticleHtml(data.content),
         visibility: data.visibility,
         priceRub: data.priceRub ?? null,
         videoUrl: data.videoUrl ?? null,
@@ -406,7 +407,7 @@ export async function updateArticle(
       data: {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.contentType !== undefined && { contentType: data.contentType }),
-        ...(data.content !== undefined && { content: data.content }),
+        ...(data.content !== undefined && { content: sanitizeArticleHtml(data.content) }),
         ...(data.visibility !== undefined && { visibility: data.visibility }),
         ...(data.priceRub !== undefined && { priceRub: data.priceRub }),
         ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),

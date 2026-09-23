@@ -1,6 +1,6 @@
 {
   "name": "@gafus/logger",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "description": "Единый логгер для всех приложений Gafus с интеграцией в error-dashboard",
   "type": "module",
   "main": "dist/index.js",

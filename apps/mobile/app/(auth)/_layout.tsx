@@ -20,7 +20,9 @@ export default function AuthLayout() {
   const pathname = usePathname();
 
   // Полностью авторизован → переходим в main; (auth) layout размонтируется, циклов нет
-  if (isAuthenticated && !pendingVkPhone && !pendingVkConsent) {
+  // Презентацию можно открыть вручную из профиля уже авторизованному пользователю.
+  // Для остальных auth-маршрутов сохраняем обычный редирект в приложение.
+  if (isAuthenticated && !pendingVkPhone && !pendingVkConsent && pathname !== "/intro") {
     return <Redirect href="/(main)/(tabs)" />;
   }
 
@@ -31,6 +33,7 @@ export default function AuthLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="welcome" />
+      <Stack.Screen name="intro" />
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
       <Stack.Screen name="reset-password" />

@@ -7,6 +7,7 @@ export const {
   getTrainingDayWithMonetizedSteps,
   getTrainingDayWithUserSteps,
   resolveCourseStepRewardedTarget,
+  requireCourseStepOperationAccess,
   requireCourseStepPremiumOrRewardedUnlock,
   syncUserCourseStatusFromDays,
   getCourseTypeByDayOnCourseId,

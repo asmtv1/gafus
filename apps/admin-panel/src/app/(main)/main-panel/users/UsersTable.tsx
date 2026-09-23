@@ -46,6 +46,7 @@ interface User {
   _count: {
     pushSubscriptions: number;
   };
+  savedRegistrationPromoCode: { code: string } | null;
 }
 
 type SortField = "role" | "createdAt" | "notifications" | null;
@@ -204,6 +205,11 @@ export default function UsersTable({
                 </Typography>
               </TableCell>
               <TableCell>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Промокод
+                </Typography>
+              </TableCell>
+              <TableCell>
                 <Box
                   sx={{
                     display: "flex",
@@ -277,6 +283,11 @@ export default function UsersTable({
                     color={roleColors[user.role as keyof typeof roleColors] || "default"}
                     size="small"
                   />
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">
+                    {user.savedRegistrationPromoCode?.code ?? "-"}
+                  </Typography>
                 </TableCell>
                 <TableCell>
                   <Typography
@@ -432,6 +443,15 @@ export default function UsersTable({
                     variant="outlined"
                   />
                 </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Промокод
+                </Typography>
+                <Typography variant="body2">
+                  {user.savedRegistrationPromoCode?.code ?? "-"}
+                </Typography>
               </Box>
 
               <Box>

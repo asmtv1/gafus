@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as Crypto from "expo-crypto";
@@ -47,9 +47,12 @@ export function useVkLogin(options?: UseVkLoginOptions): {
   isVkLoading: boolean;
 } {
   const loginViaVk = useAuthStore((s) => s.loginViaVk);
+  const inFlight = useRef(false);
   const [isVkLoading, setIsVkLoading] = useState(false);
 
   const handleVkLogin = useCallback(async (promoCode?: string) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setIsVkLoading(true);
     try {
       const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
@@ -187,6 +190,7 @@ export function useVkLogin(options?: UseVkLoginOptions): {
       });
       options?.onError?.("Ошибка подключения к серверу");
     } finally {
+      inFlight.current = false;
       setIsVkLoading(false);
     }
   }, [loginViaVk, options]);

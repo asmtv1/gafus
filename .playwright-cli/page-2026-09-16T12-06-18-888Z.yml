@@ -1,0 +1,95 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - status "Загрузка"
+    - main [ref=e3]:
+      - main [ref=e4]:
+        - region [ref=e5]:
+          - generic [ref=e6]:
+            - link "Гафус, на главную" [ref=e7] [cursor=pointer]:
+              - /url: /
+              - img "Гафус" [ref=e8]
+            - navigation "Основная навигация" [ref=e9]:
+              - link "Как это работает" [ref=e10] [cursor=pointer]:
+                - /url: "#path"
+              - link "Войти" [ref=e11] [cursor=pointer]:
+                - /url: /login
+          - generic [ref=e12]:
+            - generic [ref=e13]:
+              - heading "Собака рядом. Вы уверены в каждом шаге." [level=1] [ref=e14]:
+                - generic [ref=e15]: Собака рядом.
+                - generic [ref=e16]: Вы уверены
+                - generic [ref=e17]: в каждом шаге.
+              - paragraph [ref=e18]: ГАФУС - сервис, который помогает выстроить занятия с собакой без хаоса и ощущения, что вы остались с проблемой одни.
+              - link "Начать заниматься" [ref=e19] [cursor=pointer]:
+                - /url: /register
+            - img "Гафус приглашает начать занятие" [ref=e21]
+        - region [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - heading "Похоже, вы уже всё перепробовали?" [level=2] [ref=e25]
+              - paragraph [ref=e26]: С собакой не нужно справляться в одиночку. Когда есть понятный маршрут, заниматься спокойнее.
+              - img "Гафус помогает найти маршрут занятия" [ref=e27]
+            - list [ref=e28]:
+              - listitem [ref=e29]: На прогулке контакт быстро теряется
+              - listitem [ref=e30]: Непонятно, за что взяться сначала
+              - listitem [ref=e31]: Советы есть. Порядка действий нет
+        - region [ref=e32]:
+          - figure [ref=e33]:
+            - img "Гафус составляет план занятия" [ref=e34]
+            - generic [ref=e35]: Маленькие действияменяют привычки
+          - generic [ref=e37]:
+            - heading "Уверенность появляется из практики" [level=2] [ref=e38]
+            - paragraph [ref=e39]: А не из бесконечного чтения советов.
+            - list [ref=e40]:
+              - listitem [ref=e41]:
+                - heading "Выбираете задачу" [level=3] [ref=e42]
+                - paragraph [ref=e43]: Щенок, прогулки, фокус или другая ситуация, которая важна сейчас.
+              - listitem [ref=e44]:
+                - heading "Занимаетесь по шагам" [level=3] [ref=e45]
+                - paragraph [ref=e46]: Короткие упражнения из курса удобно делать дома и на прогулке.
+              - listitem [ref=e47]:
+                - heading "Видите свой путь" [level=3] [ref=e48]
+                - paragraph [ref=e49]: Отмечайте занятия, возвращайтесь к программе и двигайтесь дальше в своём темпе.
+        - region [ref=e50]:
+          - generic [ref=e51]:
+            - img "Лана Петренко" [ref=e52]
+            - paragraph [ref=e53]: Доброта - часть метода
+          - generic [ref=e54]:
+            - paragraph [ref=e55]: Курсы составлены профессиональным кинологом
+            - heading "Лана Петренко" [level=2] [ref=e56]
+            - paragraph [ref=e57]: Специалист по поведению и благополучию собак и кошек. Помогает выстраивать занятия бережно, понятно и с вниманием к состоянию животного.
+            - list [ref=e58]:
+              - listitem [ref=e59]: Член ассоциации поведенческой медицины RVBA
+              - listitem [ref=e60]: "Сертифицированный специалист Fear Free: без боли и стресса"
+              - listitem [ref=e61]: Основатель и руководитель сервиса Campdog
+              - listitem [ref=e62]: Лектор самарских информационных площадок и газет
+              - listitem [ref=e63]: Участвует в приютских мероприятиях и обучает детей в центрах
+        - region [ref=e64]:
+          - generic [ref=e66]:
+            - heading "Начните с того, что важно вашей собаке сегодня" [level=2] [ref=e67]
+            - paragraph [ref=e68]: После регистрации вы сможете выбрать направление, открыть первое занятие и идти по программе в своём ритме.
+            - generic [ref=e69]:
+              - link "Начать заниматься" [ref=e70] [cursor=pointer]:
+                - /url: /register
+              - button "Войти через VK" [ref=e72] [cursor=pointer]
+        - generic [ref=e76]:
+          - paragraph [ref=e77]: GAFUS - учимся вместе с собакой
+          - generic [ref=e78]:
+            - link [ref=e79] [cursor=pointer]:
+              - /url: https://apps.apple.com/ru/app/gafus/id6760964612
+              - img "Загрузите GAFUS в App Store" [ref=e80]
+            - link [ref=e81] [cursor=pointer]:
+              - /url: https://www.rustore.ru/catalog/app/ru.gafus.app
+              - img "Скачайте GAFUS из RuStore" [ref=e82]
+    - button "Open Tanstack query devtools" [ref=e133] [cursor=pointer]
+    - dialog [ref=e182]:
+      - generic [ref=e183]:
+        - heading "Использование cookies" [level=6] [ref=e184]
+        - paragraph [ref=e185]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=e186] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=e187]:
+        - button "Принять" [active] [ref=e188] [cursor=pointer]
+        - button "Отклонить" [ref=e189] [cursor=pointer]
+  - alert [ref=e190]

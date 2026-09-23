@@ -3,7 +3,7 @@
 import { reportClientError } from "@gafus/error-handling";
 import { initiateVkIdAuth } from "@shared/server-actions";
 import { usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./VkIdOneTap.module.css";
 
@@ -12,11 +12,19 @@ import styles from "./VkIdOneTap.module.css";
  */
 export function VkIdOneTap({ promoCode }: { promoCode?: string }) {
   const pathname = usePathname();
+  const inFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const returnPath = pathname === "/" ? "/" : pathname === "/register" ? "/register" : "/login";
 
   const handleClick = useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -29,17 +37,21 @@ export function VkIdOneTap({ promoCode }: { promoCode?: string }) {
         redirectUri,
         promoCode?.trim() || undefined,
       );
+      if (!mounted.current) return;
       if (result.success) {
         window.location.href = result.url;
       } else {
         setError(result.error);
+        inFlight.current = false;
         setLoading(false);
       }
     } catch (e) {
+      if (!mounted.current) return;
       reportClientError(e instanceof Error ? e : new Error("initiateVkIdAuth failed"), {
         issueKey: "VkIdAuthRedirect",
       });
       setError("Ошибка соединения. Обновите страницу.");
+      inFlight.current = false;
       setLoading(false);
     }
   }, [promoCode, returnPath]);

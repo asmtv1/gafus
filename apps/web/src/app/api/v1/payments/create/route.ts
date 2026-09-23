@@ -1,7 +1,7 @@
 /**
  * API: POST /api/v1/payments/create — создание платежа для платного курса
  */
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
@@ -17,13 +17,13 @@ const createSchema = z
     courseId: z.string().min(1).optional(),
     articleId: z.string().min(1).optional(),
   })
-  .refine(
-    (d) => (d.courseId && !d.articleId) || (!d.courseId && d.articleId),
-    { message: "Укажите courseId или articleId" }
-  );
+  .refine((d) => (d.courseId && !d.articleId) || (!d.courseId && d.articleId), {
+    message: "Укажите courseId или articleId",
+  });
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
+const LEGACY_PURCHASES_ENABLED = false;
 const rateLimitMap = new Map<string, number[]>();
 
 function checkRateLimit(userId: string): boolean {
@@ -70,6 +70,19 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
           code: "VALIDATION_ERROR",
         },
         { status: 400 },
+      );
+    }
+
+    if (!LEGACY_PURCHASES_ENABLED) {
+      // Разовые покупки курсов и статей выведены из эксплуатации: оплата доступна
+      // только через Premium-подписку. Исторические записи не удаляем.
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Разовые покупки больше недоступны. Оформите Premium-подписку.",
+          code: "LEGACY_PURCHASES_DISABLED",
+        },
+        { status: 410 },
       );
     }
 

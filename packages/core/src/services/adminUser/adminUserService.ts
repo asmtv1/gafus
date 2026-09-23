@@ -32,6 +32,7 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
         createdAt: true,
         profile: { select: { fullName: true, avatarUrl: true } },
         _count: { select: { pushSubscriptions: true } },
+        savedRegistrationPromoCode: { select: { code: true } },
         partnerProfile: { select: { promoCodeId: true, promoCode: { select: { id: true, code: true, discountPercent: true } } } },
       },
       orderBy: { createdAt: "desc" },

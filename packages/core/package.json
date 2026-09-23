@@ -1,6 +1,6 @@
 {
   "name": "@gafus/core",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -136,6 +136,10 @@
     "./services/adminRewardedAds": {
       "types": "./dist/core/src/services/adminRewardedAds/index.d.ts",
       "default": "./dist/core/src/services/adminRewardedAds/index.js"
+    },
+    "./services/mobileIntro": {
+      "types": "./dist/core/src/services/mobileIntro/index.d.ts",
+      "default": "./dist/core/src/services/mobileIntro/index.js"
     },
     "./services/adminStorage": {
       "types": "./dist/core/src/services/adminStorage/index.d.ts",
@@ -281,6 +285,7 @@
     "libphonenumber-js": "^1.12.8",
     "luxon": "^3.7.2",
     "petrovich": "^0.2.1",
+    "sanitize-html": "^2.17.7",
     "validator": "^13.15.26",
     "zod": "^3.24.1"
   },
@@ -288,6 +293,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/luxon": "^3.7.1",
     "@types/node": "20.4.8",
+    "@types/sanitize-html": "^2.16.1",
     "@types/validator": "^13.15.10",
     "@vitest/coverage-v8": "^4.0.17",
     "rimraf": "5.0.1",

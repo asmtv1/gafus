@@ -3,23 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   checkCourseAccessMock,
-  checkCourseAccessByIdMock,
   createStepNotificationForStepStartMock,
   getAppFeatureFlagEnabledMock,
   getAppSubscriptionAccessMock,
   getTrainingDayWithMonetizedStepsMock,
-  requireCourseStepPremiumOrRewardedUnlockMock,
+  requireCourseStepOperationAccessMock,
   saveDiaryEntryMock,
   syncUserCourseStatusFromDaysMock,
   updateStepAndDayMock,
 } = vi.hoisted(() => ({
   checkCourseAccessMock: vi.fn(),
-  checkCourseAccessByIdMock: vi.fn(),
   createStepNotificationForStepStartMock: vi.fn(),
   getAppFeatureFlagEnabledMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
   getTrainingDayWithMonetizedStepsMock: vi.fn(),
-  requireCourseStepPremiumOrRewardedUnlockMock: vi.fn(),
+  requireCourseStepOperationAccessMock: vi.fn(),
   saveDiaryEntryMock: vi.fn(),
   syncUserCourseStatusFromDaysMock: vi.fn(),
   updateStepAndDayMock: vi.fn(),
@@ -29,7 +27,7 @@ vi.mock("@gafus/core/services/training", () => ({
   getTrainingDays: vi.fn(),
   getTrainingDayWithMonetizedSteps: getTrainingDayWithMonetizedStepsMock,
   getTrainingDayWithUserSteps: vi.fn(),
-  requireCourseStepPremiumOrRewardedUnlock: requireCourseStepPremiumOrRewardedUnlockMock,
+  requireCourseStepOperationAccess: requireCourseStepOperationAccessMock,
   syncUserCourseStatusFromDays: syncUserCourseStatusFromDaysMock,
   updateStepAndDay: updateStepAndDayMock,
   validateTheoryStepForCompletion: vi.fn(),
@@ -51,7 +49,6 @@ vi.mock("@gafus/core/services/diary", () => ({
 
 vi.mock("@gafus/core/services/course", () => ({
   checkCourseAccess: checkCourseAccessMock,
-  checkCourseAccessById: checkCourseAccessByIdMock,
 }));
 
 vi.mock("@gafus/core/services/appFeatureFlags", () => ({
@@ -123,11 +120,10 @@ describe("training route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     checkCourseAccessMock.mockResolvedValue({ hasAccess: true });
-    checkCourseAccessByIdMock.mockResolvedValue({ hasAccess: true });
     getAppFeatureFlagEnabledMock.mockResolvedValue(false);
     getAppSubscriptionAccessMock.mockResolvedValue({ hasActiveSubscription: true });
     getTrainingDayWithMonetizedStepsMock.mockResolvedValue({ trainingDayId: "day-1", steps: [] });
-    requireCourseStepPremiumOrRewardedUnlockMock.mockResolvedValue(null);
+    requireCourseStepOperationAccessMock.mockResolvedValue(null);
     saveDiaryEntryMock.mockResolvedValue({ success: true });
   });
 
@@ -215,9 +211,10 @@ describe("training route contracts", () => {
       2,
       90,
     );
-    expect(requireCourseStepPremiumOrRewardedUnlockMock).toHaveBeenCalledWith({
+    expect(requireCourseStepOperationAccessMock).toHaveBeenCalledWith({
       userId: "user-1",
       platform: "ANDROID",
+      expectedCourseId: "clwcourse00000000000000001",
       dayOnCourseId: "clwdayoc0000000000000001",
       stepIndex: 2,
     });
@@ -275,7 +272,7 @@ describe("training route contracts", () => {
 
   it("rejects locked monetized step completion with subscription-or-credits required", async () => {
     const app = createAuthenticatedTestApp();
-    requireCourseStepPremiumOrRewardedUnlockMock.mockRejectedValueOnce(
+    requireCourseStepOperationAccessMock.mockRejectedValueOnce(
       Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
     );
 

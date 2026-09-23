@@ -1,0 +1,112 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - status "Загрузка"
+    - main [ref=f3e3]:
+      - main [ref=f3e4]:
+        - region [ref=f3e5]:
+          - generic [ref=f3e6]:
+            - link "Гафус, на главную" [ref=f3e7] [cursor=pointer]:
+              - /url: /
+              - img "Гафус" [ref=f3e8]
+            - navigation "Основная навигация" [ref=f3e9]:
+              - link "Войти" [ref=f3e10] [cursor=pointer]:
+                - /url: /login
+          - generic [ref=f3e11]:
+            - generic [ref=f3e12]:
+              - heading "Собака рядом. Вы уверены в каждом шаге." [level=1] [ref=f3e13]:
+                - generic [ref=f3e14]: Собака рядом.
+                - generic [ref=f3e15]: Вы уверены
+                - generic [ref=f3e16]: в каждом шаге.
+              - paragraph [ref=f3e17]: Лёгкое обучение начинается с понятной программы. В ГАФУСе вы всегда знаете, что делать дальше, и уверенно идёте к результату маленькими шагами.
+              - link "Начать заниматься" [ref=f3e18] [cursor=pointer]:
+                - /url: /register
+            - img "Гафус приглашает начать занятие" [ref=f3e20]
+        - region [ref=f3e21]:
+          - generic [ref=f3e22]:
+            - generic [ref=f3e23]:
+              - heading "От проблемы к результату." [level=2] [ref=f3e24]
+              - paragraph [ref=f3e25]: Похоже, вы уже всё перепробовали? Выберите то, что беспокоит сейчас, а ГАФУС поможет выстроить понятный маршрут занятий.
+              - img "Гафус помогает найти маршрут занятия" [ref=f3e26]
+            - list [ref=f3e27]:
+              - listitem [ref=f3e28]: На прогулке контакт быстро теряется
+              - listitem [ref=f3e29]: Непонятно, за что взяться сначала
+              - listitem [ref=f3e30]: Советы есть. Порядка действий нет
+        - region [ref=f3e31]:
+          - figure [ref=f3e32]:
+            - img "Гафус составляет план занятия" [ref=f3e33]
+            - generic [ref=f3e34]: Маленькие действияменяют привычки
+          - generic [ref=f3e36]:
+            - heading "Уверенность появляется из практики" [level=2] [ref=f3e37]
+            - paragraph [ref=f3e38]: А не из бесконечного чтения советов.
+            - list [ref=f3e39]:
+              - listitem [ref=f3e40]:
+                - heading "Выбираете задачу" [level=3] [ref=f3e41]
+                - paragraph [ref=f3e42]: Щенок, прогулки, фокус или другая ситуация, которая важна сейчас.
+              - listitem [ref=f3e43]:
+                - heading "Занимаетесь по шагам" [level=3] [ref=f3e44]
+                - paragraph [ref=f3e45]: Короткие упражнения из курса удобно делать дома и на прогулке.
+              - listitem [ref=f3e46]:
+                - heading "Видите свой путь" [level=3] [ref=f3e47]
+                - paragraph [ref=f3e48]: Отмечайте занятия, возвращайтесь к программе и двигайтесь дальше в своём темпе.
+        - region [ref=f3e49]:
+          - generic [ref=f3e50]:
+            - heading "Кинолог всегда рядом." [level=2] [ref=f3e51]
+            - paragraph [ref=f3e52]: Можно написать специалисту или разобрать ситуацию на созвоне, если нужна поддержка.
+          - generic [ref=f3e53]:
+            - generic [ref=f3e54]:
+              - img "Лана Петренко" [ref=f3e55]
+              - paragraph [ref=f3e56]: Доброта - часть метода
+            - generic [ref=f3e57]:
+              - paragraph [ref=f3e58]: Курсы составлены профессиональным кинологом
+              - heading "Лана Петренко" [level=3] [ref=f3e59]
+              - paragraph [ref=f3e60]: Специалист по поведению и благополучию собак и кошек. Помогает выстраивать занятия бережно, понятно и с вниманием к состоянию животного.
+              - list [ref=f3e61]:
+                - listitem [ref=f3e62]: Член ассоциации поведенческой медицины RVBA
+                - listitem [ref=f3e63]: "Сертифицированный специалист Fear Free: без боли и стресса"
+                - listitem [ref=f3e64]: Основатель и руководитель сервиса Campdog
+                - listitem [ref=f3e65]: Лектор самарских информационных площадок и газет
+                - listitem [ref=f3e66]: Участвует в приютских мероприятиях и обучает детей в центрах
+        - region [ref=f3e67]:
+          - generic [ref=f3e68]:
+            - heading "Доступная цена за целую систему." [level=2] [ref=f3e69]
+            - paragraph [ref=f3e70]: Вместо разрозненных советов вы получаете программу занятий, практику и поддержку специалиста в одном приложении.
+          - generic [ref=f3e71]:
+            - paragraph [ref=f3e72]: Гафус Premium
+            - paragraph [ref=f3e73]: 2 500 ₽
+            - paragraph [ref=f3e74]: в месяц
+            - list [ref=f3e75]:
+              - listitem [ref=f3e76]: Полный доступ к курсам и занятиям
+              - listitem [ref=f3e77]: Поддержка кинолога и запись на консультацию
+              - listitem [ref=f3e78]: Скачивание курсов для занятий без интернета
+            - link "Выбрать тариф" [ref=f3e79] [cursor=pointer]:
+              - /url: /register
+        - region [ref=f3e80]:
+          - generic [ref=f3e82]:
+            - heading "Начните с того, что важно вашей собаке сегодня" [level=2] [ref=f3e83]
+            - paragraph [ref=f3e84]: После регистрации вы сможете выбрать направление, открыть первое занятие и идти по программе в своём ритме.
+            - generic [ref=f3e85]:
+              - link "Начать заниматься" [ref=f3e86] [cursor=pointer]:
+                - /url: /register
+              - button "Войти через VK" [ref=f3e88] [cursor=pointer]
+        - generic [ref=f3e92]:
+          - paragraph [ref=f3e93]: GAFUS - учимся вместе с собакой
+          - generic [ref=f3e94]:
+            - link [ref=f3e95] [cursor=pointer]:
+              - /url: https://apps.apple.com/ru/app/gafus/id6760964612
+              - img "Загрузите GAFUS в App Store" [ref=f3e96]
+            - link [ref=f3e97] [cursor=pointer]:
+              - /url: https://www.rustore.ru/catalog/app/ru.gafus.app
+              - img "Скачайте GAFUS из RuStore" [ref=f3e98]
+    - button "Open Tanstack query devtools" [ref=f3e149] [cursor=pointer]
+    - dialog [ref=f3e198]:
+      - generic [ref=f3e199]:
+        - heading "Использование cookies" [level=6] [ref=f3e200]
+        - paragraph [ref=f3e201]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=f3e202] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=f3e203]:
+        - button "Принять" [active] [ref=f3e204] [cursor=pointer]
+        - button "Отклонить" [ref=f3e205] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f3e211] [cursor=pointer]
+  - alert [ref=f3e215]

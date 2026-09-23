@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -23,6 +23,7 @@
     "@appmetrica/react-native-analytics": "^3.6.0",
     "@expo-google-fonts/anton": "^0.4.2",
     "@expo-google-fonts/montserrat": "^0.4.2",
+    "@expo/env": "2.0.12",
     "@expo/vector-icons": "^15.0.3",
     "@gafus/analytics": "workspace:*",
     "@gafus/consultation-shared": "workspace:*",
@@ -33,20 +34,20 @@
     "@react-native-community/netinfo": "~11.4.1",
     "@shopify/flash-list": "^2.0.2",
     "@tanstack/react-query": "^5.62.16",
-    "expo": "54.0.34",
+    "expo": "54.0.37",
     "expo-application": "^7.0.8",
     "expo-asset": "~12.0.13",
     "expo-auth-session": "~7.0.11",
     "expo-build-properties": "^1.0.10",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.4",
-    "expo-constants": "~18.0.13",
+    "expo-constants": "~18.0.14",
     "expo-crypto": "^15.0.9",
     "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
     "expo-document-picker": "^14.0.8",
-    "expo-file-system": "~19.0.22",
-    "expo-font": "~14.0.10",
+    "expo-file-system": "~19.0.24",
+    "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
     "expo-iap": "^3.4.13",
     "expo-image": "~3.0.0",
@@ -54,13 +55,13 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-notifications": "~0.32.17",
-    "expo-router": "~6.0.21",
-    "expo-screen-capture": "~8.0.9",
+    "expo-router": "~6.0.24",
+    "expo-screen-capture": "~8.0.10",
     "expo-screen-orientation": "~9.0.9",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
-    "expo-updates": "~29.0.17",
+    "expo-updates": "~29.0.20",
     "expo-video": "~3.0.16",
     "expo-web-browser": "~15.0.11",
     "libphonenumber-js": "1.12.8",
@@ -93,6 +94,12 @@
       "exclude": [
         "@types/react"
       ]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": ["react-native-markdown-display"],
+        "listUnknownPackages": false
+      }
     }
   }
 }

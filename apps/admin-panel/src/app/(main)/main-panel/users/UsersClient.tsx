@@ -25,6 +25,7 @@ interface User {
   _count: {
     pushSubscriptions: number;
   };
+  savedRegistrationPromoCode: { code: string } | null;
   partnerProfile?: { promoCodeId: string | null; promoCode: { id: string; code: string; discountPercent: number } | null } | null;
 }
 
