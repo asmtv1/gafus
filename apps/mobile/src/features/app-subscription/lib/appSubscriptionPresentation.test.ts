@@ -36,7 +36,7 @@ const threeMonthsPlan = {
 
 describe("app subscription presentation", () => {
   it("uses immediate-payment copy without a trial", () => {
-    expect(getYookassaPrimaryCta(1490)).toBe("Оплатить 1 490 ₽ по СБП или картой");
+    expect(getYookassaPrimaryCta(1490)).toBe("Оплатить 1 490 ₽ по СБП");
     expect(getYookassaPaymentCaption()).toBe("Списание произойдёт при оформлении подписки.");
     expect(getYookassaLegalSuffix()).not.toContain("бесплат");
   });
