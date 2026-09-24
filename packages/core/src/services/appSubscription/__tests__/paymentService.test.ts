@@ -852,7 +852,6 @@ describe("app subscription payment service", () => {
       amount: { value: "1100.00", currency: "RUB" },
       capture: true,
       save_payment_method: true,
-      payment_method_data: { type: "sbp" },
       confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?paid=1" },
       metadata: expect.objectContaining({
         kind: "app_subscription",
@@ -1202,7 +1201,6 @@ describe("app subscription payment service", () => {
           amount: { value: "2500.00", currency: "RUB" },
           capture: true,
           save_payment_method: true,
-          payment_method_data: { type: "sbp" },
           confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?paid=1" },
           description: "Подписка Gafus Premium 2500.00 RUB/30 дн.",
           metadata: {
@@ -1294,7 +1292,6 @@ describe("app subscription payment service", () => {
     );
     expect(paymentRequestBody).toMatchObject({
       amount: { value: "1100.00", currency: "RUB" },
-      payment_method_data: { type: "sbp" },
       description: "Подписка Gafus Premium 1100.00 RUB/30 дн.",
       metadata: {
         kind: "app_subscription",

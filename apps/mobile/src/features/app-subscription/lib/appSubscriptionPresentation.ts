@@ -12,8 +12,8 @@ function formatRub(value: number): string {
 
 export function getYookassaPrimaryCta(priceRub?: number | null): string {
   return Number.isFinite(priceRub) && Number(priceRub) > 0
-    ? `Оплатить ${formatRub(Number(priceRub))} по СБП`
-    : "Оплатить по СБП";
+    ? `Оплатить ${formatRub(Number(priceRub))} по СБП или картой`
+    : "Оплатить по СБП или картой";
 }
 
 export function getYookassaPaymentCaption(): string {

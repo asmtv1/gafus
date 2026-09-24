@@ -824,8 +824,8 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
     amount: { value: chargedAmountRub.toFixed(2), currency: params.currency },
     capture: true,
     save_payment_method: true,
-    // Сохраняем именно счёт СБП для последующих рекуррентных списаний.
-    payment_method_data: { type: "sbp" as const },
+    // Do not force a method: YooKassa shows the methods enabled for the shop,
+    // including SBP and bank cards. A chosen card is saved for renewals.
     confirmation: { type: "redirect" as const, return_url: returnUrl },
     description:
       `Подписка Gafus Premium ${chargedAmountRub.toFixed(2)} ` +

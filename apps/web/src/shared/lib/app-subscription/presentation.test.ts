@@ -28,7 +28,7 @@ const monthlyPlan = {
 describe("web app subscription presentation", () => {
   it("uses immediate-payment copy without a trial", () => {
     expect(getYookassaPrimaryCta()).toBe("Оформить подписку");
-    expect(getYookassaPrimaryCta("2 490 ₽")).toBe("Оплатить 2 490 ₽ по СБП");
+    expect(getYookassaPrimaryCta("2 490 ₽")).toBe("Оплатить 2 490 ₽ по СБП или картой");
     expect(getYookassaPriceNote()).toBe("Автопродление по тарифу");
     expect(getYookassaReturnSuccessTitle()).toBe("Premium подключён");
     expect(getYookassaLegalText("2 500 ₽", "2 500 ₽/месяц")).toContain(

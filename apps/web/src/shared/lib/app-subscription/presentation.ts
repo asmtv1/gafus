@@ -15,7 +15,7 @@ const YOOKASSA_PLAN_ORDER: AppSubscriptionPlanPresentation["code"][] = [
 ];
 
 export function getYookassaPrimaryCta(amount: string | null = null): string {
-  return amount ? `Оплатить ${amount} по СБП` : "Оформить подписку";
+  return amount ? `Оплатить ${amount} по СБП или картой` : "Оформить подписку";
 }
 
 export function getYookassaPriceNote(): string {

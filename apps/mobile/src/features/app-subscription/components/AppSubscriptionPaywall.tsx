@@ -387,7 +387,7 @@ export function AppSubscriptionPaywall() {
 
             {showYookassa ? (
               <View style={styles.providerSection}>
-                <Text style={styles.sectionTitle}>Оплата по СБП</Text>
+                <Text style={styles.sectionTitle}>Оплата по СБП или картой</Text>
                 {yookassaPlans.length > 0 ? (
                   <View
                     accessibilityRole="radiogroup"
