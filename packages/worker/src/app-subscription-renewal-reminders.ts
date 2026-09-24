@@ -63,24 +63,41 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
     },
   });
 
+  // Prisma filters cannot compare one column with another. The former
+  // `not: prisma.appSubscription.fields.currentPeriodEnd` was serialized as an
+  // unsupported `_ref` argument and aborted the entire cron job. Select only
+  // unsent periods in SQL first, then load their full records normally.
+  const markerColumn = early
+    ? '"renewalEmailThreeDaysSentForPeriodEnd"'
+    : '"renewalReminderSentForPeriodEnd"';
+  const candidateIds = await (prisma as any).$queryRawUnsafe(
+    `SELECT subscription.id
+       FROM "AppSubscription" AS subscription
+       ${early ? 'INNER JOIN "User" AS "user" ON "user".id = subscription."userId"' : ""}
+      WHERE subscription.provider = 'YOOKASSA'
+        AND subscription.status = 'ACTIVE'
+        AND subscription."cancelAtPeriodEnd" = false
+        AND subscription."isLifetime" = false
+        AND subscription."yookassaPaymentMethodId" IS NOT NULL
+        AND subscription."currentPeriodEnd" > $1
+        AND subscription."currentPeriodEnd" <= $2
+        ${early ? 'AND "user".email IS NOT NULL' : ""}
+        AND (${markerColumn} IS NULL OR ${markerColumn} IS DISTINCT FROM subscription."currentPeriodEnd")
+      ORDER BY subscription."currentPeriodEnd" ASC, subscription.id ASC
+      LIMIT $3`,
+    early ? new Date(now.getTime() + 2 * HOUR_MS) : now,
+    chargeBefore,
+    batchSize,
+  ) as Array<{ id: string }>;
+
+  if (candidateIds.length === 0) {
+    logger.info("Renewal reminders processed", { sent: 0, skipped: 0, errors: 0, batchSize });
+    return { sent: 0, skipped: 0, errors: 0 };
+  }
+
   const rows = await (prisma as any).appSubscription.findMany({
     where: {
-      // Filter before take so already notified subscriptions cannot starve later batches.
-      OR: [
-        { [marker]: null },
-        { [marker]: { not: (prisma as any).appSubscription.fields.currentPeriodEnd } },
-      ],
-      ...(early ? { user: { email: { not: null } } } : {}),
-      provider: "YOOKASSA",
-      status: "ACTIVE",
-      cancelAtPeriodEnd: false,
-      isLifetime: false,
-      yookassaPaymentMethodId: { not: null },
-      currentPeriodEnd: {
-        // Catch up after downtime, but avoid two emails in the final two hours.
-        gt: early ? new Date(now.getTime() + 2 * HOUR_MS) : now,
-        lte: chargeBefore,
-      },
+      id: { in: candidateIds.map((candidate) => candidate.id) },
     },
     include: {
       user: {
@@ -90,7 +107,6 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
       },
     },
     orderBy: [{ currentPeriodEnd: "asc" }, { id: "asc" }],
-    take: batchSize,
   });
 
   let sent = 0;

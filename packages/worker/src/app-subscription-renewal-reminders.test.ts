@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  findMany: vi.fn(), update: vi.fn(), settings: vi.fn(), mail: vi.fn(), push: vi.fn(),
+  findMany: vi.fn(), queryRawUnsafe: vi.fn(), update: vi.fn(), settings: vi.fn(), mail: vi.fn(), push: vi.fn(),
 }));
 vi.mock("@gafus/prisma", () => ({ prisma: {
   appSubscriptionSettings: { findUnique: mocks.settings },
-  appSubscription: { findMany: mocks.findMany, update: mocks.update, fields: { currentPeriodEnd: "period-end-field" } },
+  appSubscription: { findMany: mocks.findMany, update: mocks.update },
+  $queryRawUnsafe: mocks.queryRawUnsafe,
 } }));
 vi.mock("@gafus/mailer", () => ({ sendTransactionalMail: mocks.mail }));
 vi.mock("@gafus/webpush", () => ({ sendImmediatePushNotification: mocks.push }));
@@ -21,6 +22,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-06T12:00:00Z"));
   mocks.settings.mockResolvedValue({ yookassaMonthlyPriceRub: 2500 });
+  mocks.queryRawUnsafe.mockResolvedValue([{ id: row.id }]);
   mocks.findMany.mockResolvedValue([]);
   mocks.mail.mockResolvedValue(undefined);
   mocks.push.mockResolvedValue(undefined);
@@ -44,15 +46,11 @@ describe("subscription renewal reminders", () => {
 
   it("filters eligible upcoming auto renewals and excludes sent periods before applying batch limit", async () => {
     await sendYookassaAppSubscriptionRenewalReminders({ batchSize: 10 });
-    expect(mocks.findMany.mock.calls[0][0]).toMatchObject({
-      take: 10,
-      where: {
-        provider: "YOOKASSA", status: "ACTIVE", cancelAtPeriodEnd: false, isLifetime: false,
-        yookassaPaymentMethodId: { not: null }, user: { email: { not: null } },
-        currentPeriodEnd: { gt: new Date("2026-09-06T14:00:00Z"), lte: periodEnd },
-        OR: [{ renewalEmailThreeDaysSentForPeriodEnd: null }, { renewalEmailThreeDaysSentForPeriodEnd: { not: "period-end-field" } }],
-      },
-    });
+    expect(mocks.queryRawUnsafe.mock.calls[0][0]).toContain('"renewalEmailThreeDaysSentForPeriodEnd" IS DISTINCT FROM subscription."currentPeriodEnd"');
+    expect(mocks.queryRawUnsafe.mock.calls[0].slice(1)).toEqual([
+      new Date("2026-09-06T14:00:00Z"), periodEnd, 10,
+    ]);
+    expect(mocks.findMany.mock.calls[0][0]).toMatchObject({ where: { id: { in: [row.id] } } });
   });
 
   it("does not resend the same period, but sends for a new period", async () => {
@@ -78,7 +76,8 @@ describe("subscription renewal reminders", () => {
   });
 
   it("preserves the two hour email and push independently of the early email marker", async () => {
-    mocks.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([{ ...row, renewalEmailThreeDaysSentForPeriodEnd: periodEnd }]);
+    mocks.queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: row.id }]);
+    mocks.findMany.mockResolvedValueOnce([{ ...row, renewalEmailThreeDaysSentForPeriodEnd: periodEnd }]);
     expect(await sendYookassaAppSubscriptionRenewalReminders()).toMatchObject({ sent: 1 });
     expect(mocks.mail.mock.calls[0][0].text).toContain("Через 2 часа");
     expect(mocks.push).toHaveBeenCalledTimes(1);
