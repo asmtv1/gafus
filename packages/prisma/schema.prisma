@@ -1037,7 +1037,7 @@ model PartnerCommission {
   partner PartnerProfile @relation("PartnerCommissionPartner", fields: [partnerId], references: [id], onDelete: Restrict)
   paymentId String
   payment AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  /// Signed amount: +25000 for a successful paid period, -25000 for its full refund.
+  /// Signed partner reward determined by plan (for example, +25000 for MONTHLY and +75000 for THREE_MONTHS), reversed in full on refund.
   amountKopecks Int
   kind PartnerCommissionKind
   createdAt DateTime @default(now())

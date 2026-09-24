@@ -3,6 +3,14 @@ import { prisma, type Prisma } from "@gafus/prisma";
 import { parseAppSubscriptionPromoCode } from "./promoCode";
 
 export const PARTNER_COMMISSION_KOPECKS = 25_000;
+export const THREE_MONTH_PARTNER_COMMISSION_KOPECKS = PARTNER_COMMISSION_KOPECKS * 3;
+
+export function partnerCommissionKopecksForPlan(planCode: unknown): number {
+  if (planCode === "TWO_WEEKS") return 0;
+  return planCode === "THREE_MONTHS"
+    ? THREE_MONTH_PARTNER_COMMISSION_KOPECKS
+    : PARTNER_COMMISSION_KOPECKS;
+}
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "P2002";
@@ -155,14 +163,26 @@ export async function attributePartnerReferral(buyerId: string, rawCode: string)
 }
 
 /** Called inside the payment-success transaction. The unique ledger key makes retries harmless. */
-export async function recordPartnerCommissionForPayment(tx: Prisma.TransactionClient, payment: { id: string; userId: string }) {
+export async function recordPartnerCommissionForPayment(
+  tx: Prisma.TransactionClient,
+  payment: { id: string; userId: string; planCode: unknown },
+) {
   const partnerReferral = (tx as Partial<Prisma.TransactionClient>).partnerReferral;
   const partnerCommission = (tx as Partial<Prisma.TransactionClient>).partnerCommission;
   if (!partnerReferral || !partnerCommission) return null;
+  const amountKopecks = partnerCommissionKopecksForPlan(payment.planCode);
+  if (amountKopecks === 0) return null;
   const referral = await partnerReferral.findUnique({ where: { buyerId: payment.userId }, select: { partnerId: true } });
   if (!referral) return null;
   try {
-    return await partnerCommission.create({ data: { partnerId: referral.partnerId, paymentId: payment.id, amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" } });
+    return await partnerCommission.create({
+      data: {
+        partnerId: referral.partnerId,
+        paymentId: payment.id,
+        amountKopecks,
+        kind: "EARNED",
+      },
+    });
   } catch (error) {
     if (isUniqueViolation(error)) return null;
     throw error;
@@ -173,10 +193,20 @@ export async function recordPartnerCommissionForPayment(tx: Prisma.TransactionCl
 export async function reversePartnerCommissionForRefund(tx: Prisma.TransactionClient, payment: { id: string }) {
   const partnerCommission = (tx as Partial<Prisma.TransactionClient>).partnerCommission;
   if (!partnerCommission) return null;
-  const earned = await partnerCommission.findUnique({ where: { paymentId_kind: { paymentId: payment.id, kind: "EARNED" } }, select: { partnerId: true } });
+  const earned = await partnerCommission.findUnique({
+    where: { paymentId_kind: { paymentId: payment.id, kind: "EARNED" } },
+    select: { partnerId: true, amountKopecks: true },
+  });
   if (!earned) return null;
   try {
-    return await partnerCommission.create({ data: { partnerId: earned.partnerId, paymentId: payment.id, amountKopecks: -PARTNER_COMMISSION_KOPECKS, kind: "REFUND_ADJUSTMENT" } });
+    return await partnerCommission.create({
+      data: {
+        partnerId: earned.partnerId,
+        paymentId: payment.id,
+        amountKopecks: -earned.amountKopecks,
+        kind: "REFUND_ADJUSTMENT",
+      },
+    });
   } catch (error) {
     if (isUniqueViolation(error)) return null;
     throw error;

@@ -30,6 +30,7 @@ vi.mock("@gafus/prisma", () => ({
 
 import {
   PARTNER_COMMISSION_KOPECKS,
+  THREE_MONTH_PARTNER_COMMISSION_KOPECKS,
   PartnerProgramError,
   attributePartnerReferralIfCurrentPartnerInTransaction,
   bindPartnerPromoCodeInTransaction,
@@ -50,21 +51,41 @@ describe("partner commission ledger", () => {
     partnerReferralFindUnique.mockResolvedValue({ partnerId: "partner-1" });
     partnerCommissionCreate.mockResolvedValue({ id: "commission-1" });
 
-    await recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1" });
+    await recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1", planCode: "MONTHLY" });
 
     expect(partnerCommissionCreate).toHaveBeenCalledWith({
       data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
     });
   });
 
+  it("writes 75,000 kopecks for an attributed three-month payment", async () => {
+    partnerReferralFindUnique.mockResolvedValue({ partnerId: "partner-1" });
+    partnerCommissionCreate.mockResolvedValue({ id: "commission-1" });
+
+    await recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1", planCode: "THREE_MONTHS" });
+
+    expect(partnerCommissionCreate).toHaveBeenCalledWith({
+      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: THREE_MONTH_PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
+    });
+  });
+
+  it("does not create a commission for a two-week payment", async () => {
+    await expect(
+      recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1", planCode: "TWO_WEEKS" }),
+    ).resolves.toBeNull();
+
+    expect(partnerReferralFindUnique).not.toHaveBeenCalled();
+    expect(partnerCommissionCreate).not.toHaveBeenCalled();
+  });
+
   it("writes exactly one negative adjustment after a full refund", async () => {
-    partnerCommissionFindUnique.mockResolvedValue({ partnerId: "partner-1" });
+    partnerCommissionFindUnique.mockResolvedValue({ partnerId: "partner-1", amountKopecks: THREE_MONTH_PARTNER_COMMISSION_KOPECKS });
     partnerCommissionCreate.mockResolvedValue({ id: "adjustment-1" });
 
     await reversePartnerCommissionForRefund(tx, { id: "payment-1", userId: "buyer-1" });
 
     expect(partnerCommissionCreate).toHaveBeenCalledWith({
-      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: -PARTNER_COMMISSION_KOPECKS, kind: "REFUND_ADJUSTMENT" },
+      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: -THREE_MONTH_PARTNER_COMMISSION_KOPECKS, kind: "REFUND_ADJUSTMENT" },
     });
   });
 
@@ -72,7 +93,7 @@ describe("partner commission ledger", () => {
     partnerReferralFindUnique.mockResolvedValue({ partnerId: "partner-1" });
     partnerCommissionCreate.mockRejectedValue({ code: "P2002" });
 
-    await expect(recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1" })).resolves.toBeNull();
+    await expect(recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1", planCode: "MONTHLY" })).resolves.toBeNull();
   });
 });
 
