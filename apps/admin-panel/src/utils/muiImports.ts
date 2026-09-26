@@ -34,6 +34,7 @@ export { default as TableContainer } from "@mui/material/TableContainer";
 export { default as TableHead } from "@mui/material/TableHead";
 export { default as TablePagination } from "@mui/material/TablePagination";
 export { default as TableRow } from "@mui/material/TableRow";
+export { default as TableSortLabel } from "@mui/material/TableSortLabel";
 
 // Material-UI иконки
 export { default as DeleteIcon } from "@mui/icons-material/Delete";

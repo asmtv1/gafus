@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 import UsersTable from "@/app/(main)/main-panel/users/UsersTable";
+import {
+  filterAndSortUsers,
+  type SortDirection,
+  type UserSortField,
+} from "@/app/(main)/main-panel/users/usersListUtils";
 import EditUserForm from "@/features/users/components/EditUserForm";
 import PageLayout from "@shared/components/PageLayout";
 import { deleteUser } from "@/features/users/lib/deleteUser";
@@ -35,74 +40,31 @@ interface UsersClientProps {
   freePartnerPromoCodes: { id: string; code: string; discountPercent: number }[];
 }
 
-type SortField = "role" | "createdAt" | "notifications" | null;
-type SortDirection = "asc" | "desc";
-
 export default function UsersClient({ users, actorRole, freePartnerPromoCodes }: UsersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "");
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortField, setSortField] = useState<UserSortField>("createdAt");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
   const [, startTransition] = useTransition();
 
-  const filteredAndSortedUsers = useMemo(() => {
-    let result = [...users];
+  const filteredAndSortedUsers = useMemo(
+    () => filterAndSortUsers(users, searchQuery, sortField, sortDirection),
+    [users, searchQuery, sortField, sortDirection],
+  );
 
-    // Фильтрация по нику
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter((user) => user.username.toLowerCase().includes(query));
-    }
-
-    // Сортировка
-    if (sortField) {
-      result.sort((a, b) => {
-        let aValue: string | number | boolean;
-        let bValue: string | number | boolean;
-
-        switch (sortField) {
-          case "role":
-            aValue = a.role;
-            bValue = b.role;
-            break;
-          case "createdAt":
-            aValue = new Date(a.createdAt).getTime();
-            bValue = new Date(b.createdAt).getTime();
-            break;
-          case "notifications":
-            aValue = a._count.pushSubscriptions > 0 ? 1 : 0;
-            bValue = b._count.pushSubscriptions > 0 ? 1 : 0;
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) {
-          return sortDirection === "asc" ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortDirection === "asc" ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return result;
-  }, [users, searchQuery, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: UserSortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection("asc");
+      setSortDirection(field === "createdAt" ? "desc" : "asc");
     }
   };
 

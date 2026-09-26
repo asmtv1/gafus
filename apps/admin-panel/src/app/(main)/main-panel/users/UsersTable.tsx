@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 
+import type { SortDirection, UserSortField } from "@/app/(main)/main-panel/users/usersListUtils";
+
 import {
   Avatar,
   Box,
@@ -11,6 +13,7 @@ import {
   Chip,
   IconButton,
   InputAdornment,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -19,6 +22,7 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from "@/utils/muiImports";
@@ -28,7 +32,6 @@ import {
   DeleteIcon,
   EditIcon,
   SearchIcon,
-  UnfoldMoreIcon,
 } from "@/utils/muiImports";
 
 interface User {
@@ -49,16 +52,13 @@ interface User {
   savedRegistrationPromoCode: { code: string } | null;
 }
 
-type SortField = "role" | "createdAt" | "notifications" | null;
-type SortDirection = "asc" | "desc";
-
 interface UsersTableProps {
   users: User[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  sortField: SortField;
+  sortField: UserSortField;
   sortDirection: SortDirection;
-  onSort: (field: SortField) => void;
+  onSort: (field: Exclude<UserSortField, null>) => void;
   onEditUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
 }
@@ -119,15 +119,9 @@ export default function UsersTable({
     return trimmed ? trimmed : USER_EMAIL_MISSING_HINT;
   };
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <UnfoldMoreIcon sx={{ fontSize: 16, opacity: 0.5 }} />;
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUpwardIcon sx={{ fontSize: 16 }} />
-    ) : (
-      <ArrowDownwardIcon sx={{ fontSize: 16 }} />
-    );
+  const handleSort = (field: Exclude<UserSortField, null>) => {
+    setPage(0);
+    onSort(field);
   };
 
   const handlePageChange = (_event: unknown, newPage: number) => {
@@ -141,7 +135,7 @@ export default function UsersTable({
         <TextField
           fullWidth
           variant="outlined"
-          placeholder="Поиск по нику..."
+          placeholder="Поиск: ник, имя, email, ID или промокод"
           value={searchQuery}
           onChange={(e) => {
             onSearchChange(e.target.value);
@@ -167,9 +161,14 @@ export default function UsersTable({
           <TableHead>
             <TableRow>
               <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Пользователь
-                </Typography>
+                <TableSortLabel
+                  active={sortField === "username"}
+                  direction={sortField === "username" ? sortDirection : "asc"}
+                  onClick={() => handleSort("username")}
+                  hideSortIcon={false}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">Пользователь</Typography>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
                 <Typography variant="subtitle2" fontWeight="bold">
@@ -177,73 +176,64 @@ export default function UsersTable({
                 </Typography>
               </TableCell>
               <TableCell>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    "&:hover": { opacity: 0.7 },
-                  }}
-                  onClick={() => onSort("role")}
+                <TableSortLabel
+                  active={sortField === "role"}
+                  direction={sortField === "role" ? sortDirection : "asc"}
+                  onClick={() => handleSort("role")}
+                  hideSortIcon={false}
                 >
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    Роль
-                  </Typography>
-                  {getSortIcon("role")}
-                </Box>
+                  <Typography variant="subtitle2" fontWeight="bold">Роль</Typography>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Email
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Регистрация
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Промокод
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    "&:hover": { opacity: 0.7 },
-                  }}
-                  onClick={() => onSort("notifications")}
+                <TableSortLabel
+                  active={sortField === "email"}
+                  direction={sortField === "email" ? sortDirection : "asc"}
+                  onClick={() => handleSort("email")}
+                  hideSortIcon={false}
                 >
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    Уведомления
-                  </Typography>
-                  {getSortIcon("notifications")}
-                </Box>
+                  <Typography variant="subtitle2" fontWeight="bold">Email</Typography>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    "&:hover": { opacity: 0.7 },
-                  }}
-                  onClick={() => onSort("createdAt")}
+                <TableSortLabel
+                  active={sortField === "registrationChannel"}
+                  direction={sortField === "registrationChannel" ? sortDirection : "asc"}
+                  onClick={() => handleSort("registrationChannel")}
+                  hideSortIcon={false}
                 >
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    Дата регистрации
-                  </Typography>
-                  {getSortIcon("createdAt")}
-                </Box>
+                  <Typography variant="subtitle2" fontWeight="bold">Платформа</Typography>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortField === "promoCode"}
+                  direction={sortField === "promoCode" ? sortDirection : "asc"}
+                  onClick={() => handleSort("promoCode")}
+                  hideSortIcon={false}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">Промокод</Typography>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortField === "notifications"}
+                  direction={sortField === "notifications" ? sortDirection : "asc"}
+                  onClick={() => handleSort("notifications")}
+                  hideSortIcon={false}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">Уведомления</Typography>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortField === "createdAt"}
+                  direction={sortField === "createdAt" ? sortDirection : "desc"}
+                  onClick={() => handleSort("createdAt")}
+                  hideSortIcon={false}
+                >
+                  <Typography variant="subtitle2" fontWeight="bold">Дата регистрации</Typography>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
                 <Typography variant="subtitle2" fontWeight="bold">
@@ -253,7 +243,15 @@ export default function UsersTable({
             </TableRow>
           </TableHead>
           <TableBody>
-            {users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((user) => (
+            {users.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <Typography color="text.secondary">
+                    По этому запросу пользователей не найдено
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((user) => (
               <TableRow hover key={user.id}>
                 <TableCell>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -298,7 +296,8 @@ export default function UsersTable({
                 <TableCell>
                   <Chip
                     label={
-                      registrationChannelLabels[user.registrationChannel] ?? user.registrationChannel
+                      registrationChannelLabels[user.registrationChannel] ??
+                      user.registrationChannel
                     }
                     size="small"
                     variant="outlined"
@@ -366,7 +365,38 @@ export default function UsersTable({
 
       {/* Мобильный вид - карточки */}
       <Box sx={{ display: { xs: "block", sm: "none" }, p: 2 }}>
-        {users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((user) => (
+        <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Сортировка"
+            value={sortField ?? "createdAt"}
+            onChange={(event) => handleSort(event.target.value as Exclude<UserSortField, null>)}
+          >
+            <MenuItem value="username">По пользователю</MenuItem>
+            <MenuItem value="role">По роли</MenuItem>
+            <MenuItem value="email">По email</MenuItem>
+            <MenuItem value="registrationChannel">По платформе</MenuItem>
+            <MenuItem value="promoCode">По промокоду</MenuItem>
+            <MenuItem value="notifications">По уведомлениям</MenuItem>
+            <MenuItem value="createdAt">По дате регистрации</MenuItem>
+          </TextField>
+          <Button
+            variant="outlined"
+            onClick={() => handleSort(sortField ?? "createdAt")}
+            aria-label="Сменить направление сортировки"
+            sx={{ minWidth: 44, flexShrink: 0 }}
+          >
+            {sortDirection === "asc" ? <ArrowUpwardIcon /> : <ArrowDownwardIcon />}
+          </Button>
+        </Box>
+
+        {users.length === 0 ? (
+          <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+            По этому запросу пользователей не найдено
+          </Typography>
+        ) : users.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((user) => (
           <Paper
             key={user.id}
             sx={{
@@ -432,12 +462,13 @@ export default function UsersTable({
 
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Регистрация
+                  Платформа регистрации
                 </Typography>
                 <Box sx={{ mt: 0.5 }}>
                   <Chip
                     label={
-                      registrationChannelLabels[user.registrationChannel] ?? user.registrationChannel
+                      registrationChannelLabels[user.registrationChannel] ??
+                      user.registrationChannel
                     }
                     size="small"
                     variant="outlined"

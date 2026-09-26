@@ -16,6 +16,7 @@ import {
   Flag,
   CardMembership,
   AdsClick,
+  Handshake,
   Slideshow,
   Menu,
   Close,
@@ -48,6 +49,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       icon: AdminPanelSettings,
       label: "Администрирование",
       show: true,
+    },
+    {
+      href: "/main-panel/partners",
+      icon: Handshake,
+      label: "Партнёрская программа",
+      show: userRole === "ADMIN",
     },
     {
       href: "/main-panel/feature-flags",
