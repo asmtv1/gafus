@@ -285,11 +285,6 @@ export default function UsersTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2">
-                    {user.savedRegistrationPromoCode?.code ?? "-"}
-                  </Typography>
-                </TableCell>
-                <TableCell>
                   <Typography
                     variant="body2"
                     sx={{
@@ -308,6 +303,11 @@ export default function UsersTable({
                     size="small"
                     variant="outlined"
                   />
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">
+                    {user.savedRegistrationPromoCode?.code ?? "-"}
+                  </Typography>
                 </TableCell>
                 <TableCell>
                   <Chip
