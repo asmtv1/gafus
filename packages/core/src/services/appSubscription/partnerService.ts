@@ -3,14 +3,6 @@ import { prisma, type Prisma } from "@gafus/prisma";
 import { parseAppSubscriptionPromoCode } from "./promoCode";
 
 export const PARTNER_COMMISSION_KOPECKS = 25_000;
-export const THREE_MONTH_PARTNER_COMMISSION_KOPECKS = PARTNER_COMMISSION_KOPECKS * 3;
-
-export function partnerCommissionKopecksForPlan(planCode: unknown): number {
-  if (planCode === "TWO_WEEKS") return 0;
-  return planCode === "THREE_MONTHS"
-    ? THREE_MONTH_PARTNER_COMMISSION_KOPECKS
-    : PARTNER_COMMISSION_KOPECKS;
-}
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "P2002";
@@ -165,21 +157,45 @@ export async function attributePartnerReferral(buyerId: string, rawCode: string)
 /** Called inside the payment-success transaction. The unique ledger key makes retries harmless. */
 export async function recordPartnerCommissionForPayment(
   tx: Prisma.TransactionClient,
-  payment: { id: string; userId: string; planCode: unknown },
+  payment: { id: string; userId: string; subscriptionId?: string | null; promoCodeId?: string | null; kind?: string },
 ) {
-  const partnerReferral = (tx as Partial<Prisma.TransactionClient>).partnerReferral;
-  const partnerCommission = (tx as Partial<Prisma.TransactionClient>).partnerCommission;
-  if (!partnerReferral || !partnerCommission) return null;
-  const amountKopecks = partnerCommissionKopecksForPlan(payment.planCode);
-  if (amountKopecks === 0) return null;
-  const referral = await partnerReferral.findUnique({ where: { buyerId: payment.userId }, select: { partnerId: true } });
-  if (!referral) return null;
+  let promoCodeId = payment.promoCodeId;
+  if (!promoCodeId && payment.kind === "RENEWAL" && payment.subscriptionId) {
+    const initialPayment = await tx.appSubscriptionPayment.findFirst({
+      where: {
+        subscriptionId: payment.subscriptionId,
+        provider: "YOOKASSA",
+        kind: "INITIAL",
+        status: "SUCCEEDED",
+        promoCodeId: { not: null },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { promoCodeId: true },
+    });
+    promoCodeId = initialPayment?.promoCodeId;
+  }
+
+  const partner = promoCodeId
+    ? await tx.partnerProfile.findUnique({ where: { promoCodeId }, select: { id: true } })
+    : null;
+  if (partner && payment.kind !== "RENEWAL") {
+    await tx.partnerReferral.createMany({
+      data: { partnerId: partner.id, buyerId: payment.userId },
+      skipDuplicates: true,
+    });
+  }
+  const referral = partner ? null : await tx.partnerReferral.findUnique({
+    where: { buyerId: payment.userId },
+    select: { partnerId: true },
+  });
+  const partnerId = partner?.id ?? referral?.partnerId;
+  if (!partnerId) return null;
   try {
-    return await partnerCommission.create({
+    return await tx.partnerCommission.create({
       data: {
-        partnerId: referral.partnerId,
+        partnerId,
         paymentId: payment.id,
-        amountKopecks,
+        amountKopecks: PARTNER_COMMISSION_KOPECKS,
         kind: "EARNED",
       },
     });

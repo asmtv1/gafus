@@ -28,7 +28,7 @@ function summarize(profile: PartnerProfileRecord) {
     fullName: profile.user.profile?.fullName ?? null,
     email: profile.user.email,
     isActive: profile.isActive,
-    referralCode: profile.referralCode,
+    referralCode: profile.promoCode?.code ?? profile.referralCode,
     referrals: profile.referrals.length,
     earnedKopecks: earned,
     reservedKopecks: reserved,
@@ -41,6 +41,7 @@ function summarize(profile: PartnerProfileRecord) {
 
 const include = {
   user: { select: { id: true, username: true, email: true, profile: { select: { fullName: true } } } },
+  promoCode: { select: { code: true } },
   referrals: { select: { id: true, buyerId: true, createdAt: true }, orderBy: { createdAt: "desc" } },
   commissions: { select: { id: true, amountKopecks: true, kind: true, paymentId: true, createdAt: true }, orderBy: { createdAt: "desc" } },
   payouts: { select: { id: true, amountKopecks: true, status: true, requestedAt: true, processedAt: true, note: true }, orderBy: { requestedAt: "desc" } },

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   partnerReferralFindUnique,
+  partnerProfileByPromoFindUnique,
+  initialPaymentFindFirst,
   partnerCommissionCreate,
   partnerCommissionFindUnique,
   appSubscriptionPromoCodeFindUnique,
@@ -12,6 +14,8 @@ const {
   prismaTransaction,
 } = vi.hoisted(() => ({
   partnerReferralFindUnique: vi.fn(),
+  partnerProfileByPromoFindUnique: vi.fn(),
+  initialPaymentFindFirst: vi.fn(),
   partnerCommissionCreate: vi.fn(),
   partnerCommissionFindUnique: vi.fn(),
   appSubscriptionPromoCodeFindUnique: vi.fn(),
@@ -30,7 +34,6 @@ vi.mock("@gafus/prisma", () => ({
 
 import {
   PARTNER_COMMISSION_KOPECKS,
-  THREE_MONTH_PARTNER_COMMISSION_KOPECKS,
   PartnerProgramError,
   attributePartnerReferralIfCurrentPartnerInTransaction,
   bindPartnerPromoCodeInTransaction,
@@ -41,7 +44,9 @@ import {
 
 describe("partner commission ledger", () => {
   const tx = {
-    partnerReferral: { findUnique: partnerReferralFindUnique },
+    partnerReferral: { findUnique: partnerReferralFindUnique, createMany: partnerReferralCreateMany },
+    partnerProfile: { findUnique: partnerProfileByPromoFindUnique },
+    appSubscriptionPayment: { findFirst: initialPaymentFindFirst },
     partnerCommission: { create: partnerCommissionCreate, findUnique: partnerCommissionFindUnique },
   };
 
@@ -58,34 +63,88 @@ describe("partner commission ledger", () => {
     });
   });
 
-  it("writes 75,000 kopecks for an attributed three-month payment", async () => {
+  it("writes the same 25,000 kopecks for a three-month payment", async () => {
     partnerReferralFindUnique.mockResolvedValue({ partnerId: "partner-1" });
     partnerCommissionCreate.mockResolvedValue({ id: "commission-1" });
 
     await recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1", planCode: "THREE_MONTHS" });
 
     expect(partnerCommissionCreate).toHaveBeenCalledWith({
-      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: THREE_MONTH_PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
+      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
     });
   });
 
-  it("does not create a commission for a two-week payment", async () => {
-    await expect(
-      recordPartnerCommissionForPayment(tx, { id: "payment-1", userId: "buyer-1", planCode: "TWO_WEEKS" }),
-    ).resolves.toBeNull();
+  it("credits a two-week payment with a partner code even without registration attribution", async () => {
+    partnerProfileByPromoFindUnique.mockResolvedValue({ id: "partner-1" });
+    partnerCommissionCreate.mockResolvedValue({ id: "commission-1" });
+
+    await recordPartnerCommissionForPayment(tx as never, {
+      id: "payment-1", userId: "buyer-1", kind: "INITIAL", promoCodeId: "promo-1",
+    });
+
+    expect(partnerProfileByPromoFindUnique).toHaveBeenCalledWith({ where: { promoCodeId: "promo-1" }, select: { id: true } });
+    expect(partnerReferralCreateMany).toHaveBeenCalledWith({
+      data: { partnerId: "partner-1", buyerId: "buyer-1" }, skipDuplicates: true,
+    });
+    expect(partnerCommissionCreate).toHaveBeenCalledWith({
+      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
+    });
+  });
+
+  it("credits renewal to the partner code on the initial payment", async () => {
+    initialPaymentFindFirst.mockResolvedValue({ promoCodeId: "promo-1" });
+    partnerProfileByPromoFindUnique.mockResolvedValue({ id: "partner-1" });
+    partnerCommissionCreate.mockResolvedValue({ id: "commission-2" });
+
+    await recordPartnerCommissionForPayment(tx as never, {
+      id: "renewal-1", userId: "buyer-1", subscriptionId: "subscription-1", kind: "RENEWAL",
+    });
+
+    expect(initialPaymentFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ subscriptionId: "subscription-1", kind: "INITIAL", status: "SUCCEEDED" }),
+    }));
+    expect(partnerReferralCreateMany).not.toHaveBeenCalled();
+    expect(partnerCommissionCreate).toHaveBeenCalledWith({
+      data: { partnerId: "partner-1", paymentId: "renewal-1", amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
+    });
+  });
+
+  it("uses the code from the payment when registration attributed another partner", async () => {
+    partnerProfileByPromoFindUnique.mockResolvedValue({ id: "code-partner" });
+    partnerCommissionCreate.mockResolvedValue({ id: "commission-3" });
+
+    await recordPartnerCommissionForPayment(tx as never, {
+      id: "payment-2", userId: "buyer-1", kind: "INITIAL", promoCodeId: "promo-2",
+    });
 
     expect(partnerReferralFindUnique).not.toHaveBeenCalled();
-    expect(partnerCommissionCreate).not.toHaveBeenCalled();
+    expect(partnerCommissionCreate).toHaveBeenCalledWith({
+      data: { partnerId: "code-partner", paymentId: "payment-2", amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
+    });
+  });
+
+  it("uses registration attribution for a renewal without a checkout code", async () => {
+    initialPaymentFindFirst.mockResolvedValue(null);
+    partnerReferralFindUnique.mockResolvedValue({ partnerId: "registration-partner" });
+    partnerCommissionCreate.mockResolvedValue({ id: "commission-4" });
+
+    await recordPartnerCommissionForPayment(tx as never, {
+      id: "renewal-2", userId: "buyer-1", subscriptionId: "subscription-2", kind: "RENEWAL",
+    });
+
+    expect(partnerCommissionCreate).toHaveBeenCalledWith({
+      data: { partnerId: "registration-partner", paymentId: "renewal-2", amountKopecks: PARTNER_COMMISSION_KOPECKS, kind: "EARNED" },
+    });
   });
 
   it("writes exactly one negative adjustment after a full refund", async () => {
-    partnerCommissionFindUnique.mockResolvedValue({ partnerId: "partner-1", amountKopecks: THREE_MONTH_PARTNER_COMMISSION_KOPECKS });
+    partnerCommissionFindUnique.mockResolvedValue({ partnerId: "partner-1", amountKopecks: PARTNER_COMMISSION_KOPECKS });
     partnerCommissionCreate.mockResolvedValue({ id: "adjustment-1" });
 
     await reversePartnerCommissionForRefund(tx, { id: "payment-1", userId: "buyer-1" });
 
     expect(partnerCommissionCreate).toHaveBeenCalledWith({
-      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: -THREE_MONTH_PARTNER_COMMISSION_KOPECKS, kind: "REFUND_ADJUSTMENT" },
+      data: { partnerId: "partner-1", paymentId: "payment-1", amountKopecks: -PARTNER_COMMISSION_KOPECKS, kind: "REFUND_ADJUSTMENT" },
     });
   });
 

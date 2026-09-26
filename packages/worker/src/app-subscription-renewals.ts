@@ -511,7 +511,12 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 renewalReminderSentForPeriodEnd: null,
               },
             });
-            await recordPartnerCommissionForPayment(tx, payment);
+            await recordPartnerCommissionForPayment(tx, {
+              id: payment.id,
+              userId: row.userId,
+              subscriptionId: row.id,
+              kind: paymentKind,
+            });
             await ensureNpdReceiptForSucceededPayment(tx, payment.id);
           });
         }

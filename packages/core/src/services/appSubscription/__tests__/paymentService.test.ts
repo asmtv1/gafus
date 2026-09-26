@@ -17,6 +17,10 @@ const mockSubscriptionFindMany = vi.fn();
 const mockSubscriptionCreate = vi.fn();
 const mockSubscriptionUpdate = vi.fn();
 const mockPromoFindUnique = vi.fn();
+const mockPartnerFindUnique = vi.fn();
+const mockReferralFindUnique = vi.fn();
+const mockReferralCreateMany = vi.fn();
+const mockCommissionCreate = vi.fn();
 const mockSettingsFindUnique = vi.fn();
 const mockTrialFindFirst = vi.fn();
 const mockTrialFindUnique = vi.fn();
@@ -136,6 +140,10 @@ describe("app subscription payment service", () => {
     mockPaymentUpdateMany.mockResolvedValue({ count: 1 });
     mockSubscriptionUpdateMany.mockResolvedValue({ count: 1 });
     mockPromoFindUnique.mockResolvedValue(null);
+    mockPartnerFindUnique.mockResolvedValue(null);
+    mockReferralFindUnique.mockResolvedValue(null);
+    mockReferralCreateMany.mockResolvedValue({ count: 1 });
+    mockCommissionCreate.mockResolvedValue({ id: "commission-1" });
     mockSubscriptionFindFirst.mockResolvedValue(null);
     mockSubscriptionFindMany.mockResolvedValue([]);
     mockSubscriptionCreate.mockImplementation(
@@ -190,6 +198,9 @@ describe("app subscription payment service", () => {
         appSubscriptionPromoCode: {
           findUnique: mockPromoFindUnique,
         },
+        partnerProfile: { findUnique: mockPartnerFindUnique },
+        partnerReferral: { findUnique: mockReferralFindUnique, createMany: mockReferralCreateMany },
+        partnerCommission: { create: mockCommissionCreate },
         appSubscription: {
           create: mockSubscriptionCreate,
           findFirst: mockSubscriptionFindFirst,
@@ -334,6 +345,8 @@ describe("app subscription payment service", () => {
       userId: "user-1",
       subscriptionId: "sub-promo-flow",
       status: "PENDING",
+      kind: "INITIAL",
+      promoCodeId: "promo-1",
       planCode: "MONTHLY",
       amount: frozenPayment.amount,
       currency: "RUB",
@@ -341,6 +354,7 @@ describe("app subscription payment service", () => {
       periodEnd: new Date("2026-09-11T10:00:00.000Z"),
       subscription: { currentPeriodEnd: null },
     });
+    mockPartnerFindUnique.mockResolvedValueOnce({ id: "partner-1" });
     (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -376,6 +390,9 @@ describe("app subscription payment service", () => {
       data: expect.objectContaining({ status: "SUCCEEDED", planCode: "MONTHLY" }),
     });
     expect(mockPromoFindUnique).toHaveBeenCalledTimes(1);
+    expect(mockCommissionCreate).toHaveBeenCalledWith({ data: {
+      partnerId: "partner-1", paymentId: frozenPayment.id, amountKopecks: 25_000, kind: "EARNED",
+    } });
   });
 
   it("rejects a webhook amount that differs from the frozen discounted snapshot", async () => {
