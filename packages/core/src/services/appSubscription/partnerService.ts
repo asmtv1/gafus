@@ -3,6 +3,13 @@ import { prisma, type Prisma } from "@gafus/prisma";
 import { parseAppSubscriptionPromoCode } from "./promoCode";
 
 export const PARTNER_COMMISSION_KOPECKS = 25_000;
+export const THREE_MONTH_PARTNER_COMMISSION_KOPECKS = 75_000;
+
+export function partnerCommissionKopecksForPlan(planCode: unknown): number {
+  if (planCode === "TWO_WEEKS") return 0;
+  if (planCode === "THREE_MONTHS") return THREE_MONTH_PARTNER_COMMISSION_KOPECKS;
+  return planCode === "MONTHLY" ? PARTNER_COMMISSION_KOPECKS : 0;
+}
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "P2002";
@@ -157,8 +164,10 @@ export async function attributePartnerReferral(buyerId: string, rawCode: string)
 /** Called inside the payment-success transaction. The unique ledger key makes retries harmless. */
 export async function recordPartnerCommissionForPayment(
   tx: Prisma.TransactionClient,
-  payment: { id: string; userId: string; subscriptionId?: string | null; promoCodeId?: string | null; kind?: string },
+  payment: { id: string; userId: string; planCode: unknown; subscriptionId?: string | null; promoCodeId?: string | null; kind?: string },
 ) {
+  const amountKopecks = partnerCommissionKopecksForPlan(payment.planCode);
+  if (amountKopecks === 0) return null;
   let promoCodeId = payment.promoCodeId;
   if (!promoCodeId && payment.kind === "RENEWAL" && payment.subscriptionId) {
     const initialPayment = await tx.appSubscriptionPayment.findFirst({
@@ -195,7 +204,7 @@ export async function recordPartnerCommissionForPayment(
       data: {
         partnerId,
         paymentId: payment.id,
-        amountKopecks: PARTNER_COMMISSION_KOPECKS,
+        amountKopecks,
         kind: "EARNED",
       },
     });

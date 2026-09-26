@@ -1037,7 +1037,7 @@ model PartnerCommission {
   partner PartnerProfile @relation("PartnerCommissionPartner", fields: [partnerId], references: [id], onDelete: Restrict)
   paymentId String
   payment AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  /// Signed partner reward of +25000 kopecks per successful YooKassa payment, reversed in full on refund.
+  /// Signed reward per successful payment: +25000 monthly, +75000 three-month, 0 two-week; reversed in full on refund.
   amountKopecks Int
   kind PartnerCommissionKind
   createdAt DateTime @default(now())

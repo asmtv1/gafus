@@ -514,6 +514,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             await recordPartnerCommissionForPayment(tx, {
               id: payment.id,
               userId: row.userId,
+              planCode: plan.code,
               subscriptionId: row.id,
               kind: paymentKind,
             });
