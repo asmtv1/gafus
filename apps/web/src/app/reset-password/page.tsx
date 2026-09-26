@@ -72,10 +72,10 @@ export default function ResetPasswordPage({
       </Suspense>
       <Image
         className={styles.logo}
-        src="/uploads/passwordReset-logo.png"
+        src="/images/password-reset-wizard.png"
         alt=""
-        width={307}
-        height={224}
+        width={1536}
+        height={1024}
         priority
         aria-hidden
       />

@@ -51,10 +51,10 @@ export default function PasswordResetPage() {
       </Suspense>
       <Image
         className={styles.logo}
-        src="/uploads/passwordReset-logo.png"
-        alt="Logo"
-        width={307}
-        height={224}
+        src="/images/password-reset-wizard.png"
+        alt="Собака-волшебник ищет пароль"
+        width={1536}
+        height={1024}
         priority
       />
       <Image

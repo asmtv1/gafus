@@ -18,10 +18,10 @@ export default function VkConsentPage() {
       <div className={styles.logoContainer}>
         <Image
           className={styles.logo}
-          src="/uploads/register-logo.png"
-          alt="Logo"
-          width={400}
-          height={400}
+          src="/images/register-wizard.png"
+          alt="Собака-волшебник"
+          width={1374}
+          height={1145}
           priority
         />
         <h2 className={styles.subtitle}>согласия</h2>
