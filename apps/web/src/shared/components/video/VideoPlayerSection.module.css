@@ -16,6 +16,8 @@
 .videoWrapper {
   position: relative;
   width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #d5d0bb;
@@ -34,6 +36,8 @@
 .videoIframe {
   width: 100%;
   height: auto;
+  max-height: min(70vh, 540px);
+  object-fit: contain;
   display: block;
   border: none;
 }
