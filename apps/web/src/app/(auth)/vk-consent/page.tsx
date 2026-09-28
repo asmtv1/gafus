@@ -18,7 +18,7 @@ export default function VkConsentPage() {
       <div className={styles.logoContainer}>
         <Image
           className={styles.logo}
-          src="/images/register-wizard.png"
+          src="/uploads/site/web/0fbffae6c663dbda-register-wizard.webp"
           alt="Собака-волшебник"
           width={1374}
           height={1145}

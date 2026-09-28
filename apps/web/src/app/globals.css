@@ -28,7 +28,7 @@ body {
   background-color: var(--bg-1);
   background-image:
     linear-gradient(rgba(255, 248, 229, 0.62), rgba(255, 248, 229, 0.62)),
-    url("/paper-texture.jpg");
+    url("/uploads/site/web/ddde7dfddced012e-paper-texture.webp");
   background-position: center;
   background-size: auto, cover;
   background-attachment: fixed;

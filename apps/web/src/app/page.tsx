@@ -165,7 +165,7 @@ export default async function AuthPage() {
         <div className={styles.heroPhotoWrap}>
           <div className={styles.artFrame}>
             <Image
-              src="/images/gafus-landing-target-v2.webp"
+              src="/uploads/site/web/ddfd260bcfdf3386-gafus-landing-target-v2.webp"
               alt="Гафус приглашает начать занятие"
               className={styles.heroPhoto}
               width={2400}
@@ -178,7 +178,7 @@ export default async function AuthPage() {
         <header className={styles.header}>
           <Link className={styles.wordmark} href="/" aria-label="Гафус, на главную">
             <Image
-              src="/images/gafus-logo-mascot.png"
+              src="/uploads/site/web/56253ba39b23eef1-gafus-logo-mascot.webp"
               alt="Гафус"
               className={styles.wordmarkImage}
               width={144}
@@ -228,7 +228,7 @@ export default async function AuthPage() {
       <section id="concerns" className={styles.concernsBand} aria-labelledby="concerns-title">
         <div className={styles.concernsBackdrop} aria-hidden="true">
           <Image
-            src="/images/gafus-landing-map-v2.webp"
+            src="/uploads/site/web/6659511aec981ba5-gafus-landing-map-v2.webp"
             alt=""
             className={styles.concernsBackdropImage}
             width={2400}
@@ -271,7 +271,7 @@ export default async function AuthPage() {
       <section id="path" className={styles.path} aria-labelledby="path-title">
         <div className={styles.pathBackdrop} aria-hidden="true">
           <Image
-            src="/images/gafus-landing-plan-v2.webp"
+            src="/uploads/site/web/97dbe90fd8bdb08a-gafus-landing-plan-v2.webp"
             alt=""
             className={styles.pathBackdropImage}
             width={2400}
@@ -311,7 +311,7 @@ export default async function AuthPage() {
       <section id="expert" className={styles.expertSection} aria-labelledby="support-title">
         <div className={styles.expertBackdrop} aria-hidden="true">
           <Image
-            src="/images/gafus-landing-expert-v1.webp"
+            src="/uploads/site/web/3146d1e0be30c44e-gafus-landing-expert-v1.webp"
             alt=""
             className={styles.expertBackdropImage}
             width={1536}
@@ -329,7 +329,7 @@ export default async function AuthPage() {
           </div>
           <div className={styles.expertSupportArt}>
             <Image
-              src="/images/gafus-cynologist-support.png"
+              src="/uploads/site/web/2365dbaf88064da0-gafus-cynologist-support.webp"
               alt="Кинолог и Гафус"
               width={1214}
               height={1295}
@@ -342,7 +342,7 @@ export default async function AuthPage() {
             <div className={styles.expertArt}>
               <div className={styles.artFrame}>
                 <Image
-                  src="/images/lana-petrenko.webp"
+                  src="/uploads/site/web/c280a2ddd8b6e2b1-lana-petrenko.webp"
                   alt="Лана Петренко"
                   className={styles.expertPortrait}
                   width={800}
@@ -377,7 +377,7 @@ export default async function AuthPage() {
         <div className={styles.pricingStage}>
           <div className={styles.pricingBackdrop} aria-hidden="true">
             <Image
-              src="/images/gafus-landing-pricing-v1.webp"
+              src="/uploads/site/web/98af082690eec7c9-gafus-landing-pricing-v1.webp"
               alt=""
               className={styles.pricingBackdropImage}
               fill
@@ -449,7 +449,7 @@ export default async function AuthPage() {
       <section id="invitation" className={styles.invitation} aria-labelledby="invitation-title">
         <div className={styles.invitationBackdrop} aria-hidden="true">
           <Image
-            src="/images/gafus-landing-final-v1.webp"
+            src="/uploads/site/web/3ca64f7533de718e-gafus-landing-final-v1.webp"
             alt=""
             className={styles.invitationBackdropImage}
             fill

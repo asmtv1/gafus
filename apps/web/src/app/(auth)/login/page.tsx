@@ -20,7 +20,7 @@ export default function LoginPage() {
       <h1 className={styles.title}>Гафус!</h1>
 
       <Image
-        src="/auth-login-dog.png"
+        src="/uploads/site/web/14f9383582432709-auth-login-dog.webp"
         alt="Гафус читает книгу"
         className={styles.logo}
         width={303}
