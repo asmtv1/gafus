@@ -45,7 +45,10 @@ export default function PasswordResetPage() {
         height={136}
       />
       <h1 className={styles.title}>Сброс пароля</h1>
-      <p className={styles.subtitle}>Укажите email аккаунта — пришлём письмо со ссылкой.</p>
+      <p className={styles.subtitle}>
+        Укажите email аккаунта. Если запросите новое письмо, ссылка из предыдущего перестанет
+        работать.
+      </p>
       <Suspense fallback={<p>Загрузка...</p>}>
         <PasswordResetForm />
       </Suspense>

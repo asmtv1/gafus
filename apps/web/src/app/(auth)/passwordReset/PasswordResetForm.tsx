@@ -35,7 +35,7 @@ export function PasswordResetForm() {
     try {
       await sendPasswordResetRequestAction(data.email);
       setStatus(
-        "Если аккаунт с таким email есть, на него отправлено письмо со ссылкой для сброса пароля.",
+        "Если аккаунт с таким email есть, проверьте почту. Повторный запрос возможен через 2 минуты и отменит предыдущую ссылку.",
       );
     } catch (error) {
       reportClientError(error, {
@@ -70,7 +70,12 @@ export function PasswordResetForm() {
         errorClassName={styles.errorText}
       />
 
-      <PrimaryButton className={styles.button} type="submit" disabled={isPending || !isValid} fullWidth>
+      <PrimaryButton
+        className={styles.button}
+        type="submit"
+        disabled={isPending || !isValid}
+        fullWidth
+      >
         {isPending ? "отправка..." : "восстановить пароль"}
       </PrimaryButton>
 

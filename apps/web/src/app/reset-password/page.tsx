@@ -65,7 +65,7 @@ export default function ResetPasswordPage({
       />
       <h1 className={styles.title}>Сброс пароля</h1>
       <p className={styles.subtitle}>
-        Перейдите по ссылке из письма или вставьте токен из ссылки и задайте новый пароль.
+        Откройте последнее письмо со ссылкой или вставьте токен из него и задайте новый пароль.
       </p>
       <Suspense fallback={<p className={styles.subtitle}>Загрузка...</p>}>
         <ResetPasswordWithToken searchParams={searchParams} />

@@ -14,6 +14,7 @@ import {
   resolveRegistrationChannelFromBody,
 } from "@gafus/core/validation/auth-register";
 import { assertCompletedUser, generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@gafus/auth/jwt";
+import { InvalidPasswordResetTokenError } from "@gafus/auth";
 import {
   changePassword,
   changeUsername,
@@ -28,6 +29,7 @@ import {
   registerUserService,
   requestEmailChange,
   resetPassword,
+  PASSWORD_RESET_REQUEST_MESSAGE,
   revokeAllUserTokens,
   revokeRefreshToken,
   rotateRefreshToken,
@@ -401,10 +403,7 @@ authRoutes.post(
     try {
       const { email } = c.req.valid("json");
       await sendPasswordResetRequestByEmail(email);
-      return c.json({
-        success: true,
-        message: "Если этот email зарегистрирован, мы отправили письмо со ссылкой",
-      });
+      return c.json({ success: true, message: PASSWORD_RESET_REQUEST_MESSAGE });
     } catch (error) {
       logger.error("Password reset request error", error as Error);
       const message = error instanceof Error ? error.message : "Ошибка отправки запроса";
@@ -431,6 +430,9 @@ authRoutes.post(
       return c.json({ success: true });
     } catch (error) {
       logger.error("Reset password error", error as Error);
+      if (error instanceof InvalidPasswordResetTokenError) {
+        return c.json({ success: false, error: error.message }, 400);
+      }
       return c.json({ success: false, error: "Не удалось сбросить пароль" }, 400);
     }
   },

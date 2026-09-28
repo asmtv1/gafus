@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { InvalidPasswordResetTokenError } from "@gafus/auth";
 import { resetPassword } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
@@ -34,12 +35,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = resetPasswordSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ success: false, error: "Неверные данные запроса" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Неверные данные запроса" },
+        { status: 400 },
+      );
     }
     await resetPassword(parsed.data.token, parsed.data.password);
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Error in reset-password API", error as Error);
-    return NextResponse.json({ success: false, error: "Не удалось сбросить пароль" }, { status: 400 });
+    if (error instanceof InvalidPasswordResetTokenError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+    return NextResponse.json(
+      { success: false, error: "Не удалось сбросить пароль" },
+      { status: 400 },
+    );
   }
 }

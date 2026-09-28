@@ -39,7 +39,11 @@ export default function ResetPasswordForm({ initialToken }: ResetPasswordFormPro
     setError("");
     setIsPending(true);
     try {
-      await resetPasswordAction(data.token, data.password);
+      const result = await resetPasswordAction(data.token, data.password);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: unknown) {

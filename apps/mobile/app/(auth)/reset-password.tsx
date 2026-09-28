@@ -110,7 +110,8 @@ export default function ResetPasswordScreen() {
       await hapticFeedback.success();
       setSnackbar({
         visible: true,
-        message: "Если аккаунт есть, на email отправлено письмо со ссылкой.",
+        message:
+          "Если аккаунт есть, проверьте почту. Новый запрос возможен через 2 минуты и отменит старую ссылку.",
       });
       setPhase("token");
     } catch (err) {
@@ -210,8 +211,8 @@ export default function ResetPasswordScreen() {
 
           <Text style={styles.subtitle}>
             {phase === "request"
-              ? "Укажите email аккаунта — пришлём письмо со ссылкой."
-              : "Скопируйте токен из ссылки в письме (часть после token=) и задайте новый пароль."}
+              ? "Укажите email аккаунта. Новый запрос отменит предыдущую ссылку."
+              : "Скопируйте токен из последнего письма (часть ссылки после token=) и задайте новый пароль."}
           </Text>
 
           {phase === "request" && (

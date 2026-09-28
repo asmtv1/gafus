@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { after } from "next/server";
 
-import { authOptions } from "@gafus/auth";
+import { authOptions, InvalidPasswordResetTokenError } from "@gafus/auth";
 import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
 import { RegistrationChannel } from "@gafus/prisma";
 import { getCurrentUserId } from "@gafus/auth/server";
@@ -438,7 +438,7 @@ export async function getVkConsentPromoAction(
 /**
  * Сбрасывает пароль по токену
  */
-export async function resetPasswordAction(token: string, password: string) {
+export async function resetPasswordAction(token: string, password: string): Promise<{ success: true } | { success: false; error: string }> {
   try {
     const { token: safeToken, password: safePassword } = resetPasswordSchema.parse({
       token,
@@ -449,7 +449,12 @@ export async function resetPasswordAction(token: string, password: string) {
     return { success: true };
   } catch (error) {
     logger.error("Error in resetPasswordAction", error as Error);
-    throw new Error("Что-то пошло не так при сбросе пароля");
+    return {
+      success: false,
+      error: error instanceof InvalidPasswordResetTokenError
+        ? error.message
+        : "Что-то пошло не так при сбросе пароля",
+    };
   }
 }
 

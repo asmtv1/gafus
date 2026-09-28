@@ -20,6 +20,9 @@ const PASSWORD_RESET_THROTTLE_MS = 120_000;
 const PASSWORD_RESET_TOKEN_HOURS = 1;
 const EMAIL_CHANGE_TOKEN_HOURS = 24;
 
+export const PASSWORD_RESET_REQUEST_MESSAGE =
+  "Если аккаунт с таким email есть, проверьте почту. Повторный запрос возможен через 2 минуты и отменит предыдущую ссылку.";
+
 /**
  * Запрос сброса пароля по email. При неизвестном email — без ошибки (антиперечисление).
  * Некорректный формат email — ошибка валидации для клиента.
@@ -50,12 +53,13 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string): Promise
   }
 
   const token = crypto.randomBytes(32).toString("base64url");
+  const tokenHash = `sha256:${crypto.createHash("sha256").update(token).digest("hex")}`;
   const expiresAt = new Date(now + PASSWORD_RESET_TOKEN_HOURS * 3600 * 1000);
 
   await prisma.$transaction(async (tx) => {
     await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
     await tx.passwordResetToken.create({
-      data: { userId: user.id, token, expiresAt },
+      data: { userId: user.id, token: tokenHash, expiresAt },
     });
     await tx.user.update({
       where: { id: user.id },
@@ -147,7 +151,10 @@ export async function confirmEmailChangeByToken(rawToken: string): Promise<void>
     if (error instanceof Error && error.message.includes("недействительна")) {
       throw error;
     }
-    const code = error && typeof error === "object" && "code" in error ? String((error as { code: string }).code) : "";
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: string }).code)
+        : "";
     if (code === "P2002") {
       throw new Error("Этот email уже занят");
     }

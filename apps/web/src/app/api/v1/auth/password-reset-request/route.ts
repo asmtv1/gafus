@@ -6,7 +6,10 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { sendPasswordResetRequestByEmail } from "@gafus/core/services/auth";
+import {
+  PASSWORD_RESET_REQUEST_MESSAGE,
+  sendPasswordResetRequestByEmail,
+} from "@gafus/core/services/auth";
 import { coreRegisterEmailSchema } from "@gafus/core/validation/auth-register";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
     await sendPasswordResetRequestByEmail(email);
     return NextResponse.json({
       success: true,
-      message: "Если этот email зарегистрирован, мы отправили письмо со ссылкой",
+      message: PASSWORD_RESET_REQUEST_MESSAGE,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -54,7 +57,10 @@ export async function POST(request: NextRequest) {
     logger.error("Error in password-reset-request API", error as Error);
     const message = error instanceof Error ? error.message : "Внутренняя ошибка сервера";
     if (message.includes("не настроена") || message.includes("Не удалось отправить письмо")) {
-      return NextResponse.json({ success: false, error: "Отправка писем временно недоступна" }, { status: 503 });
+      return NextResponse.json(
+        { success: false, error: "Отправка писем временно недоступна" },
+        { status: 503 },
+      );
     }
     return NextResponse.json({ success: false, error: "Ошибка отправки запроса" }, { status: 500 });
   }
