@@ -1,8 +1,10 @@
 .shareButton {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
+  justify-content: center;
+  max-width: 100%;
+  padding: 12px 56px;
   background: var(--bg-2);
   border: 2px solid var(--bg-3);
   border-radius: 12px;
@@ -13,7 +15,6 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  white-space: nowrap;
 }
 
 .shareButton:hover {
@@ -28,22 +29,28 @@
 }
 
 .shareIcon {
-  color: var(--text-secondary);
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fff;
   flex-shrink: 0;
 }
 
 .shareText {
-  color: var(--text-primary);
+  color: #fff;
+  text-align: center;
 }
 
 /* Мобильная адаптация */
 @media (max-width: 768px) {
   .shareButton {
-    padding: 10px 16px;
+    padding: 10px 42px;
     font-size: 14px;
   }
 
   .shareIcon {
+    left: 14px;
     width: 18px;
     height: 18px;
   }
@@ -51,12 +58,12 @@
 
 @media (max-width: 480px) {
   .shareButton {
-    padding: 8px 12px;
+    padding: 8px 36px;
     font-size: 13px;
-    gap: 6px;
   }
 
   .shareIcon {
+    left: 12px;
     width: 16px;
     height: 16px;
   }
