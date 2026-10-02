@@ -135,7 +135,6 @@ const nextConfig = {
   // Исправляем проблемы с React 19 и Next.js 14
   transpilePackages: [
     "@gafus/auth",
-    "@gafus/prisma",
     "@gafus/logger",
     "@gafus/types",
     "@gafus/error-handling",
@@ -198,6 +197,12 @@ const nextConfig = {
       config.externals = config.externals || [];
       config.externals.push({
         sharp: "commonjs sharp",
+        // Keep the workspace client's generated engine and dependencies resolved together.
+        "@gafus/prisma": "commonjs @gafus/prisma",
+        // Pino's transports start real worker files relative to its installed package.
+        pino: "commonjs pino",
+        "pino-pretty": "commonjs pino-pretty",
+        "thread-stream": "commonjs thread-stream",
       });
     }
 

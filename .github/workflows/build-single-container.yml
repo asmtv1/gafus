@@ -451,6 +451,10 @@ jobs:
                 echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
                 echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
                 echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
+                echo "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}"
+                echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
+                echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
+                echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
               } > ci-cd/docker/.env
               chmod 600 ci-cd/docker/.env
               echo "✅ .env file created"
@@ -486,6 +490,10 @@ jobs:
               ensure_env_var "SMTP_PASS" "${{ secrets.SMTP_PASS }}"
               ensure_env_var "MAIL_FROM" "${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
               ensure_env_var "MAIL_FROM_NAME" "${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
+              ensure_env_var "STREAM_API_KEY" "${{ secrets.STREAM_API_KEY }}"
+              ensure_env_var "STREAM_API_SECRET" "${{ secrets.STREAM_API_SECRET }}"
+              ensure_env_var "CYNOLOGIST_CHAT_ENABLED" "${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
+              ensure_env_var "COMMUNITY_CHAT_ENABLED" "${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
               chmod 600 ci-cd/docker/.env
 
               # Обновляем VIDEO_ACCESS_SECRET, если его нет или он пустой

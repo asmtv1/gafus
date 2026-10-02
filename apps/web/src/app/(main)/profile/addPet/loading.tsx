@@ -1,3 +1,4 @@
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import styles from "./AddPetForm.module.css";
 
 export default function AddPetLoading() {
@@ -5,7 +6,7 @@ export default function AddPetLoading() {
     <main className={styles.page}>
       <section className={styles.card} aria-busy>
         <h1 className={styles.title}>Добавить питомца</h1>
-        <p className={styles.loadingHint}>Загрузка…</p>
+        <LoadingState message="Загрузка…" />
       </section>
     </main>
   );

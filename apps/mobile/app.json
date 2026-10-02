@@ -26,11 +26,18 @@
       "supportsTablet": true,
       "bundleIdentifier": "ru.gafus.app",
       "buildNumber": "14",
-      "associatedDomains": ["applinks:gafus.ru"],
+      "associatedDomains": [
+        "applinks:gafus.ru"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "appleTeamId": "PJQ8PP666S"
+      "appleTeamId": "PJQ8PP666S",
+      "splash": {
+        "image": "./assets/images/startup-splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#B5E5EB"
+      }
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -51,10 +58,20 @@
               "pathPrefix": "/training"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
-      "permissions": ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -69,7 +86,9 @@
         {
           "android": {
             "minSdkVersion": 24,
-            "extraMavenRepos": ["https://artifactory-external.vkpartner.ru/artifactory/maven"]
+            "extraMavenRepos": [
+              "https://artifactory-external.vkpartner.ru/artifactory/maven"
+            ]
           }
         }
       ],

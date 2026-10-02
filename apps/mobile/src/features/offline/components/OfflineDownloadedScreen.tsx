@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS, SPACING, FONTS } from "@/shared/config";
-import { MascotSpinner } from "@/shared/components/ui";
+import { Loading } from "@/shared/components/ui";
 import { getOfflineCourseTypes, getCourseMeta } from "@/shared/lib/offline";
 import { reportClientError } from "@/shared/lib/tracer";
 
@@ -64,12 +64,7 @@ export function OfflineDownloadedScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <MascotSpinner size="large" style={{ marginBottom: SPACING.sm }} />
-        <Text style={styles.loadingText}>Загрузка списка...</Text>
-      </View>
-    );
+    return <Loading fullScreen message="Загрузка списка..." />;
   }
 
   return (
@@ -130,18 +125,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.lg,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-    gap: SPACING.md,
-  },
-  loadingText: {
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
-    color: COLORS.textSecondary,
   },
   title: {
     fontSize: 28,

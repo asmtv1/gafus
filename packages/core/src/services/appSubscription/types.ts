@@ -16,6 +16,8 @@ export type AppSubscriptionStatusCode =
 
 export type AppSubscriptionStatusDto = {
   hasActiveSubscription: boolean;
+  canUseCynologistChat?: boolean;
+  canBookConsultations?: boolean;
   paidAt: string | null;
   activeUntil: string | null;
   isTrial: boolean;
@@ -48,6 +50,7 @@ export type AppSubscriptionPlanOfferDto = {
   appleProductId: string | null;
   offlineCourseDownloadIncluded: boolean;
   consultationBookingIncluded: boolean;
+  cynologistChatIncluded: boolean;
   promoCodeEligible: boolean;
   badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
   savingsRub: number | null;

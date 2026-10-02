@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GAFUS · Карточки питомцев · актуальный дизайн v2</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { font-family: Arial, sans-serif; color: #302b21; background: #eee6d6; }
+    body { margin: 0; }
+    .board { width: 2390px; min-height: 1790px; padding: 42px; background: #eee6d6; }
+    .board-title { font-size: 33px; font-weight: 800; letter-spacing: -1px; margin: 0 0 9px; }
+    .board-subtitle { color: #706957; font-size: 15px; margin: 0 0 30px; }
+    .columns { display: flex; gap: 64px; align-items: flex-start; }
+    .web { width: 1340px; flex: none; }
+    .mobile { width: 870px; flex: none; }
+    h2 { margin: 0 0 17px; font-size: 19px; letter-spacing: -.4px; }
+    .pair { display: flex; gap: 22px; align-items: flex-start; }
+    .web-card { width: 659px; flex: none; }
+    .compact, .expanded { overflow: hidden; background: #fffaf0; border-radius: 25px; box-shadow: 0 14px 28px rgba(61,47,24,.16), 0 3px 7px rgba(61,47,24,.05); }
+    .compact { height: 224px; display: flex; flex-direction: column; margin-bottom: 25px; }
+    .compact-main { display: flex; flex: 1; min-height: 0; background: linear-gradient(115deg,#e1eacb,#fffaf0 65%); }
+    .compact.cat .compact-main { background: linear-gradient(115deg,#f4d6c9,#fffaf0 65%); }
+    .compact-art { width: 238px; flex: none; position: relative; overflow: hidden; }
+    .compact-art img { width: 164px; height: 164px; position: absolute; top: 12px; left: 37px; object-fit: cover; border-radius: 50%; filter: drop-shadow(0 9px 9px rgba(51,43,29,.12)); }
+    .compact-copy { flex: 1; min-width: 0; padding: 20px 22px 12px 20px; }
+    .eyeline { display: flex; justify-content: space-between; align-items: center; }
+    .species { display: inline-block; border-radius: 20px; padding: 5px 9px; background: #ecf0da; color: #466035; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+    .cat .species { background: #fae6dd; color: #8e533d; }
+    .chevron { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border-radius: 50%; background: #fffdf5; border: 1px solid #d8dcc8; color: #40532e; box-shadow: 0 4px 9px rgba(61,54,33,.13); }
+    .chevron svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .hero { position: relative; }
+    .hero-toggle { position: absolute; top: 17px; right: 17px; }
+    .hero-toggle svg { transform: rotate(180deg); }
+    .name { font-size: 30px; font-weight: 800; letter-spacing: -1.3px; margin: 8px 0 2px; }
+    .breed { font-size: 14px; color: #696354; }
+    .facts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
+    .fact { display: inline-flex; gap: 5px; align-items: center; padding: 6px 8px; background: #f0ecdc; border-radius: 9px; color: #3f4b31; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .fact img { width: 15px; height: 15px; object-fit: contain; }
+    .fact svg { width: 15px; height: 15px; }
+    .compact-foot { height: 36px; border-top: 1px solid #e8e2d2; padding: 10px 17px; display: flex; align-items: center; gap: 16px; font-size: 11px; color: #5f6551; background: #fffdf7; }
+    .compact-foot strong { margin-left: auto; color: #40592e; }
+    .expanded { min-height: 1125px; }
+    .hero { display: flex; height: 243px; background: linear-gradient(115deg,#e1eacb,#fffaf0 54%); }
+    .cat .hero { background: linear-gradient(115deg,#f4d6c9,#fffaf0 54%); }
+    .hero-art { width: 255px; flex: none; position: relative; overflow: hidden; }
+    .hero-art img { width: 220px; height: 220px; object-fit: cover; border-radius: 50%; position: absolute; left: 17px; top: 11px; filter: drop-shadow(0 10px 10px rgba(62,43,20,.14)); }
+    .hero-copy { padding: 30px 20px 20px 18px; flex: 1; }
+    .hero-copy .name { font-size: 38px; margin: 16px 0 4px; }
+    .hero-copy .facts { margin-top: 22px; }
+    .hero-copy .fact { font-size: 13px; padding: 7px 9px; }
+    .hero-actions { display: flex; gap: 10px; padding: 16px 20px 4px; }
+    .button { height: 39px; padding: 0 16px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; white-space: nowrap; }
+    .button.primary { color: #fff; background: #4d5c2d; box-shadow: 0 5px 10px rgba(51,59,30,.18); }
+    .button.danger { color: #a33732; background: #f7dfd6; }
+    .button.light { color: #455a33; background: #ecebdc; }
+    .hero-actions .button { flex: 1; }
+    .section { margin: 12px 18px; padding: 17px 16px; border-radius: 19px; background: #fffdf8; box-shadow: 0 5px 13px rgba(67,51,23,.07); }
+    .section-head { display: flex; align-items: center; gap: 11px; min-height: 50px; }
+    .section-icon { width: 45px; height: 45px; object-fit: contain; flex: none; }
+    .section-title { font-size: 20px; font-weight: 800; letter-spacing: -.5px; }
+    .section-sub { margin-top: 3px; color: #726e60; font-size: 12px; }
+    .section-head .button { margin-left: auto; }
+    .section-body { margin: 13px 0 0 56px; padding-top: 11px; border-top: 1px solid #ebe8dc; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
+    .row:first-child { margin-top: 0; }
+    .row-main { font-weight: 700; }
+    .row-sub { font-size: 11px; color: #787366; margin-top: 3px; }
+    .mini-actions { display: flex; gap: 6px; align-items: center; }
+    .mini { background: #efeddf; border-radius: 8px; padding: 6px 7px; color: #40552f; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .mini.red { color: #a8453e; background: #f8e6df; }
+    .filters { display: flex; gap: 5px; margin: 12px 0 0 56px; }
+    .filter { padding: 6px 10px; background: #efeddf; border-radius: 8px; font-size: 11px; color: #5b5d4b; }
+    .filter.active { background: #4c5c2e; color: #fff; }
+    .hint { margin: 11px 0 0 56px; font-size: 11px; color: #746e60; }
+    .mobile-pair { display: flex; gap: 18px; }
+    .phone { width: 426px; padding: 11px; border: 6px solid #272a21; border-radius: 39px; background: #fffdf7; min-height: 1586px; }
+    .notch { width: 83px; height: 19px; margin: -11px auto 13px; border-radius: 0 0 13px 13px; background: #272a21; }
+    .status { text-align: center; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+    .phone-title { font-size: 24px; font-weight: 800; letter-spacing: -.8px; margin: 0 11px 14px; }
+    .phone .compact { height: 200px; margin-bottom: 15px; border-radius: 20px; }
+    .phone .compact-art { width: 140px; }
+    .phone .compact-art img { width: 124px; height: 124px; left: 8px; top: 20px; }
+    .phone .compact-copy { padding: 14px 8px 7px 5px; }
+    .phone .name { font-size: 23px; margin-top: 7px; }
+    .phone .chevron { width: 40px; height: 40px; }
+    .phone .hero-toggle { top: 11px; right: 10px; }
+    .phone .breed { font-size: 11px; }
+    .phone .facts { gap: 4px; margin-top: 9px; }
+    .phone .fact { padding: 5px 6px; font-size: 10px; gap: 3px; }
+    .phone .fact img, .phone .fact svg { width: 12px; height: 12px; }
+    .phone .compact-foot { font-size: 10px; padding: 8px 9px; gap: 7px; }
+    .phone .expanded { min-height: 1235px; border-radius: 20px; }
+    .phone .hero { height: 173px; }
+    .phone .hero-art { width: 158px; }
+    .phone .hero-art img { width: 140px; height: 140px; left: 9px; top: 16px; }
+    .phone .hero-copy { padding: 18px 8px 6px 5px; }
+    .phone .hero-copy .name { font-size: 27px; margin-top: 11px; }
+    .phone .hero-copy .facts { gap: 4px; margin-top: 12px; }
+    .phone .hero-copy .fact { font-size: 10px; padding: 5px; }
+    .phone .hero-actions { gap: 6px; padding: 11px 11px 2px; }
+    .phone .button { height: 34px; font-size: 11px; padding: 0 10px; border-radius: 10px; }
+    .phone .section { margin: 9px 9px; padding: 12px 10px; border-radius: 15px; }
+    .phone .section-head { gap: 7px; min-height: 38px; }
+    .phone .section-icon { width: 35px; height: 35px; }
+    .phone .section-title { font-size: 15px; }
+    .phone .section-sub { font-size: 10px; }
+    .phone .section-body { margin-left: 0; padding-top: 9px; }
+    .phone .row { font-size: 11px; align-items: flex-start; }
+    .phone .row-sub { font-size: 10px; }
+    .phone .mini { font-size: 9px; padding: 5px; }
+    .phone .filters { margin-left: 0; }
+    .phone .filter { font-size: 10px; }
+    .phone .hint { margin-left: 0; font-size: 10px; }
+    .legend { margin-top: 13px; color: #716b5e; font-size: 12px; line-height: 1.4; }
+  </style>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+</head>
+<body>
+  <div class="board">
+    <h1 class="board-title">GAFUS · Карточки питомцев · актуальный дизайн v2</h1>
+    <p class="board-subtitle">Web и mobile · свёрнутое и полное состояния · показаны действия и примеры записей</p>
+    <div class="columns">
+      <div class="web"><h2>Web · 2 состояния для каждого питомца</h2><div class="pair" id="web-pair"></div></div>
+      <div class="mobile"><h2>Mobile · весь функционал в карточке</h2><div class="mobile-pair" id="mobile-pair"></div></div>
+    </div>
+  </div>
+  <script>
+    const icons = {
+      weight: 'assets/weight_icon.svg', docs: 'assets/documents_icon.svg', proc: 'assets/procedures_icon.svg'
+    };
+    const pets = [
+      {kind:'dog', species:'Собака', name:'Пузенок', breed:'Ретривер', age:'2 года 4 мес', weight:'25 кг', height:'62 см', avatar:'../../apps/web/public/images/pet-avatar-dog.png', date:'14.08.2026', doc:'Ветпаспорт.pdf'},
+      {kind:'cat', species:'Кошка', name:'Пузенок', breed:'Порода не указана', age:'1 год 3 мес', weight:'4,2 кг', height:'25 см', avatar:'../../apps/web/public/images/pet-avatar-cat.png', date:'12.07.2026', doc:'Справка.pdf'}
+    ];
+    const calendar = '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="4" width="15" height="13" rx="2.5" stroke="#53653A" stroke-width="2"/><path d="M6 2v4m8-4v4M3 8.5h14" stroke="#53653A" stroke-width="2" stroke-linecap="round"/><circle cx="7" cy="12" r="1" fill="#53653A"/><circle cx="11" cy="12" r="1" fill="#53653A"/></svg>';
+    const facts = p => `<div class="facts"><span class="fact">${calendar}${p.age}</span><span class="fact"><img src="${icons.weight}" alt=""/>${p.weight}</span><span class="fact">↗ ${p.height}</span></div>`;
+    const toggleIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 9 7 7 7-7"/></svg>';
+    const compact = p => `<div class="compact ${p.kind}"><div class="compact-main"><div class="compact-art"><img src="${p.avatar}" alt=""/></div><div class="compact-copy"><div class="eyeline"><span class="species">${p.species}</span><span class="chevron" aria-label="Развернуть карточку">${toggleIcon}</span></div><div class="name">${p.name}</div><div class="breed">${p.breed}</div>${facts(p)}</div></div><div class="compact-foot"><span>Процедуры · 1</span><span>Документы · 1</span><strong>Подробнее</strong></div></div>`;
+    const section = (icon,title,sub,button,body) => `<div class="section"><div class="section-head"><img class="section-icon" src="${icon}" alt=""/><div><div class="section-title">${title}</div><div class="section-sub">${sub}</div></div><span class="button primary">＋ ${button}</span></div>${body}</div>`;
+    const details = p => {
+      const procBody = `<div class="section-body"><div class="row"><div><div class="row-main">Вакцинация</div><div class="row-sub">${p.date} · ежегодно</div></div><div class="mini-actions"><span class="mini">Изменить</span><span class="mini red">Удалить</span></div></div></div>`;
+      const weightBody = `<div class="filters"><span class="filter">3 мес</span><span class="filter active">Год</span><span class="filter">Всё</span></div><div class="section-body"><div class="row"><div><div class="row-main">${p.weight}</div><div class="row-sub">Последнее измерение · ${p.date}</div></div><span class="mini">История измерений</span></div></div>`;
+      const docsBody = `<div class="section-body"><div class="row"><div><div class="row-main">${p.doc}</div><div class="row-sub">Загружен ${p.date}</div></div><div class="mini-actions"><span class="mini">Открыть</span><span class="mini">Скачать</span></div></div><div class="row"><span class="row-sub">Фото и PDF питомца</span><div class="mini-actions"><span class="mini">Переименовать</span><span class="mini red">Удалить</span></div></div></div>`;
+      return `<div class="expanded ${p.kind}"><div class="hero"><div class="hero-art"><img src="${p.avatar}" alt=""/></div><div class="hero-copy"><span class="species">${p.species}</span><div class="name">${p.name}</div><div class="breed">${p.breed}</div>${facts(p)}</div><span class="chevron hero-toggle" aria-label="Свернуть карточку">${toggleIcon}</span></div><div class="hero-actions"><span class="button primary">✎ Изменить питомца</span><span class="button danger">⌫ Удалить питомца</span></div>${section(icons.proc,'Записи о процедурах','Прививки и профилактика','Добавить',procBody)}${section(icons.weight,'Вес','Измерения за выбранный период','Записать',weightBody)}${section(icons.docs,'Документы','Ветпаспорт, справки и другие файлы','Добавить',docsBody)}<p class="hint">Фото питомца меняется нажатием на аватар · при удалении требуется подтверждение</p></div>`;
+    };
+    document.getElementById('web-pair').innerHTML = pets.map(p => `<div class="web-card">${compact(p)}${details(p)}</div>`).join('');
+    document.getElementById('mobile-pair').innerHTML = pets.map(p => `<div class="phone"><div class="notch"></div><div class="status">9:41</div><div class="phone-title">Мои питомцы</div>${compact(p)}${details(p)}<p class="legend">Пример заполненной карточки · доступные действия видны в каждом разделе</p></div>`).join('');
+  </script>
+</body>
+</html>

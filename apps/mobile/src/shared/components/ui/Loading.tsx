@@ -37,22 +37,25 @@ export function Loading({
   embedded = false,
   style,
 }: LoadingProps) {
-  const mascotPx = (variant === "inline" ? INLINE_MASCOT_PX : MASCOT_PX)[size];
+  // Полноэкранная загрузка всегда использует общую карточку и крупного маскота.
+  const resolvedVariant = fullScreen ? "card" : variant;
+  const resolvedSize = fullScreen ? "large" : size;
+  const mascotPx = (resolvedVariant === "inline" ? INLINE_MASCOT_PX : MASCOT_PX)[resolvedSize];
   const content = (
     <View
       style={[
         styles.container,
-        variant === "inline" && styles.inlineContainer,
+        resolvedVariant === "inline" && styles.inlineContainer,
         fullScreen && styles.containerFullScreen,
         style,
       ]}
       accessibilityRole="progressbar"
       accessibilityLabel={message ?? "Загрузка"}
     >
-      <View style={variant === "card" ? styles.card : styles.inlineContent}>
+      <View style={resolvedVariant === "card" ? styles.card : styles.inlineContent}>
         <LoadingMascot pixelSize={mascotPx} />
         {message ? (
-          <Text style={[styles.message, variant === "inline" && styles.inlineMessage]}>
+          <Text style={[styles.message, resolvedVariant === "inline" && styles.inlineMessage]}>
             {message}
           </Text>
         ) : null}
@@ -92,7 +95,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   card: {
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: "#FBF9E6",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.72)",
     borderRadius: BORDER_RADIUS.lg,

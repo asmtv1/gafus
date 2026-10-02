@@ -36,6 +36,11 @@ services:
     image: ghcr.io/asmtv1/gafus-web:latest
     container_name: gafus-web
     environment:
+      - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
+      - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
+      - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
+      - STREAM_API_KEY=${STREAM_API_KEY:-}
+      - STREAM_API_SECRET=${STREAM_API_SECRET:-}
       - NODE_ENV=production
       - PORT=3000
       - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
@@ -206,6 +211,11 @@ services:
     image: ghcr.io/asmtv1/gafus-worker:latest
     container_name: gafus-worker
     environment:
+      - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
+      - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
+      - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
+      - STREAM_API_KEY=${STREAM_API_KEY:-}
+      - STREAM_API_SECRET=${STREAM_API_SECRET:-}
       - NODE_ENV=production
       - WORKER_HEALTH_PORT=3003
       - DATABASE_URL=${DATABASE_URL}
@@ -295,6 +305,11 @@ services:
     image: ghcr.io/asmtv1/gafus-api:latest
     container_name: gafus-api
     environment:
+      - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
+      - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
+      - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
+      - STREAM_API_KEY=${STREAM_API_KEY:-}
+      - STREAM_API_SECRET=${STREAM_API_SECRET:-}
       - NODE_ENV=production
       - API_PORT=3001
       - DATABASE_URL=${DATABASE_URL}

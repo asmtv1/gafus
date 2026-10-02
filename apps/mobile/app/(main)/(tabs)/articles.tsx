@@ -1,3 +1,4 @@
+import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
@@ -6,11 +7,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 
 import type { ArticleListDto } from "@gafus/types";
 
 import { Button, Loading } from "@/shared/components/ui";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { articlesApi } from "@/shared/lib/api";
 import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
@@ -272,6 +274,7 @@ const ArticleCard = memo(function ArticleCard({
 });
 
 export default function ArticlesScreen() {
+  const tabContentBottomPadding = useTabContentBottomPadding();
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -319,7 +322,13 @@ export default function ArticlesScreen() {
 
   const listHeader = (
     <View style={styles.header}>
-      <PageHeader title="Статьи" description="Полезные материалы о заботе и воспитании питомца" />
+      <Image
+        source={require("../../../assets/images/articles-header.png")}
+        style={styles.headerImage}
+        contentFit="cover"
+        accessible
+        accessibilityLabel="Статьи. Полезные материалы о заботе и воспитании питомца"
+      />
     </View>
   );
 
@@ -328,7 +337,8 @@ export default function ArticlesScreen() {
   }
 
   return (
-    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       {error ? (
         <View style={styles.errorContainer}>
           {listHeader}
@@ -350,7 +360,7 @@ export default function ArticlesScreen() {
               initialDrawBatchSize: INITIAL_ARTICLE_RENDER_BATCH_SIZE,
             }}
             ListHeaderComponent={listHeader}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: tabContentBottomPadding }]}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -375,9 +385,13 @@ const styles = StyleSheet.create({
   header: {
     paddingBottom: SPACING.sm,
   },
+  headerImage: {
+    height: 180,
+    marginHorizontal: -SPACING.md,
+    marginBottom: SPACING.md,
+  },
   listContent: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
     paddingBottom: SPACING.xxl,
   },
   card: {
@@ -394,7 +408,7 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
     borderRadius: 16,
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
   },
   cardPressed: {
     opacity: 0.94,

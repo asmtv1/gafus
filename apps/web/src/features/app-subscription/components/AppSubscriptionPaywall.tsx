@@ -58,6 +58,7 @@ type AppSubscriptionPlanOffer = {
   appleProductId: string | null;
   offlineCourseDownloadIncluded?: boolean;
   consultationBookingIncluded: boolean;
+  cynologistChatIncluded?: boolean;
   promoCodeEligible: boolean;
   badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
   savingsRub: number | null;
@@ -89,7 +90,8 @@ const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
     enabled: true,
     appleProductId: null,
     offlineCourseDownloadIncluded: true,
-    consultationBookingIncluded: true,
+    consultationBookingIncluded: false,
+    cynologistChatIncluded: true,
     promoCodeEligible: true,
     badge: "POPULAR",
     savingsRub: null,
@@ -539,6 +541,7 @@ export function AppSubscriptionPaywall({ mode = "page", onClose }: AppSubscripti
                             Скачивание курсов в мобильном приложении
                             {includesOfflineCourseDownload(plan) ? "" : " — недоступно"}
                           </span>
+                          <span className={`${styles.planBenefit} ${plan.cynologistChatIncluded ? "" : styles.planBenefitUnavailable}`}><span aria-hidden="true">{plan.cynologistChatIncluded ? "✓" : "—"}</span>Чат с кинологом{plan.cynologistChatIncluded ? "" : " — недоступен"}</span>
                           <span
                             className={`${styles.planBenefit} ${
                               plan.consultationBookingIncluded ? "" : styles.planBenefitUnavailable

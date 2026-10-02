@@ -22,6 +22,10 @@ const getAppSubscriptionAccess = vi.fn();
 vi.mock("../appSubscription", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../appSubscription")>()),
   getAppSubscriptionAccess: (...args: unknown[]) => getAppSubscriptionAccess(...args),
+  getCynologistEntitlements: async (...args: unknown[]) => {
+    const status = await getAppSubscriptionAccess(...args);
+    return { canUseCynologistChat: Boolean(status?.hasActiveSubscription), canBookConsultations: Boolean(status?.hasActiveSubscription && status?.planCode !== "TWO_WEEKS") };
+  },
 }));
 
 vi.mock("./notificationService", () => ({
@@ -744,7 +748,7 @@ describe("subscription-only consultation access", () => {
     expect(prismaTransaction).not.toHaveBeenCalled();
   });
 
-  it("keeps booking enabled for monthly, Apple, manual, lifetime and legacy weekly access", async () => {
+  it("restricts new consultation bookings to the three-month plan", async () => {
     const { canBookConsultations } = await import("./bookingService");
 
     for (const subscription of [
@@ -755,7 +759,7 @@ describe("subscription-only consultation access", () => {
       { hasActiveSubscription: true, provider: "MANUAL", planCode: "MONTHLY" },
       { hasActiveSubscription: true, provider: "MANUAL", planCode: "TWO_WEEKS" },
     ]) {
-      expect(canBookConsultations(subscription)).toBe(true);
+      expect(canBookConsultations(subscription)).toBe(subscription.planCode === "THREE_MONTHS");
     }
   });
 

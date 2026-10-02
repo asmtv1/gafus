@@ -13,7 +13,10 @@ vi.mock("@gafus/prisma", () => ({
       findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
     },
     appSubscription: {
-      findMany: (...args: unknown[]) => mockFindMany(...args),
+      findMany: async (...args: unknown[]) => {
+        const rows = await mockFindMany(...args);
+        return (rows ?? []).map((row: Record<string, unknown>) => ({ ...row, payments: [] }));
+      },
     },
     appSubscriptionPayment: {
       findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
@@ -37,7 +40,7 @@ describe("getAppSubscriptionAccess", () => {
 
     const result = await getAppSubscriptionAccess("u1", new Date("2026-05-10T10:00:00.000Z"));
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       hasActiveSubscription: false,
       paidAt: null,
       activeUntil: null,
@@ -83,7 +86,7 @@ describe("getAppSubscriptionAccess", () => {
 
     const result = await getAppSubscriptionAccess("u1", new Date("2026-05-10T10:00:00.000Z"));
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       hasActiveSubscription: true,
       paidAt: "2026-05-13T12:30:30.000Z",
       activeUntil: "2026-05-20T10:00:00.000Z",

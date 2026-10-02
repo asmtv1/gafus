@@ -1,5 +1,6 @@
 import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyticsLink";
 
+import { ProfileIcon } from "../ProfileIcon";
 import styles from "./Bio.module.css";
 import { primaryButtonClassName } from "@/shared/components/ui";
 import EditableAvatar from "../EditableAvatar";
@@ -17,8 +18,7 @@ import { InstagramIcon, TelegramIcon, WebsiteIcon } from "../SocialIcons";
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
   const profile = publicData.profile;
   const diplomas = publicData.diplomas;
-  const safeWebsite =
-    profile?.website?.startsWith("http") ? profile.website : null;
+  const safeWebsite = profile?.website?.startsWith("http") ? profile.website : null;
 
   const displayRole =
     publicData.role && publicData.role !== "USER"
@@ -95,7 +95,11 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
             {declOfNum(getAge(profile.birthDate), ["год", "года", "лет"])}
           </p>
         )}
-        {profile?.about && <p>О себе: {profile.about}</p>}
+        {profile?.about && (
+          <p>
+            <ProfileIcon name="about" /> О себе: {profile.about}
+          </p>
+        )}
 
         {/* Социальные сети */}
         {(profile?.instagram || profile?.telegram || safeWebsite) && (

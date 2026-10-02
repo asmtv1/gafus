@@ -3,7 +3,7 @@ import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { ProfileIcon } from "@/features/profile";
 
 import { Button, Input, Card } from "@/shared/components/ui";
 import { userApi } from "@/shared/lib/api/user";
@@ -64,7 +64,7 @@ export default function ChangeEmailScreen() {
           <Card mode="contained" style={styles.card}>
             <Card.Content>
               <View style={styles.iconWrap}>
-                <MaterialCommunityIcons name="email-outline" size={28} color={COLORS.primaryDark} />
+                <ProfileIcon name="email" size={28} />
               </View>
               <Text variant="titleMedium" style={styles.cardTitle}>
                 Новый адрес

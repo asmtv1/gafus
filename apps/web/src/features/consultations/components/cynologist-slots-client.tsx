@@ -1,7 +1,8 @@
 "use client";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useCallback, useEffect, useMemo, useState, useTransition, type MouseEvent } from "react";
-import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Alert, Box, Button, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { trackEvent } from "@gafus/analytics";
@@ -311,7 +312,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
         <AppSubscriptionPaywall mode="embedded" />
       ) : loading ? (
         <div className={styles.loading}>
-          <CircularProgress size={28} />
+          <LoadingState message="Загрузка свободного времени…" />
         </div>
       ) : (
         <div className={styles.layout}>

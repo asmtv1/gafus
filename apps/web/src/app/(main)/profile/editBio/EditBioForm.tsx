@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { reportClientError } from "@gafus/error-handling";
 import { trackEvent } from "@gafus/analytics";
@@ -79,7 +80,7 @@ export default function EditBioForm() {
     return (
       <div className={styles.loading_container}>
         <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
-        <div className={styles.loading_content}>Загрузка формы...</div>
+        <LoadingState message="Загрузка формы…" />
       </div>
     );
   }
@@ -88,7 +89,7 @@ export default function EditBioForm() {
     return (
       <div className={styles.loading_container}>
         <h1 className={styles.loading_title}>Редактировать «О себе»</h1>
-        <div className={styles.loading_content}>Загрузка профиля...</div>
+        <LoadingState message="Загрузка профиля…" />
       </div>
     );
   }

@@ -3,7 +3,7 @@ import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar, TextInput as PaperTextInput } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { ProfileIcon } from "@/features/profile";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
@@ -81,7 +81,7 @@ export default function ChangePasswordScreen() {
           <Card mode="contained" style={styles.card}>
             <Card.Content>
               <View style={styles.iconWrap}>
-                <MaterialCommunityIcons name="lock-outline" size={28} color={COLORS.primaryDark} />
+                <ProfileIcon name="password" size={28} />
               </View>
               <Text variant="titleMedium" style={styles.cardTitle}>
                 Новый пароль

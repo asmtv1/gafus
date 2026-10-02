@@ -106,8 +106,8 @@ export function Button({
     ((isPrimary && (buttonColor === undefined || buttonColor === COLORS.primary)) ||
       (isSecondary && buttonColor === undefined));
   const depthColors = isSecondary
-    ? ["#E8B1A8", "#DE988F", "#D7837B", "#D0716B", "#C7615D"]
-    : ["#96914D", "#817D40", "#666429", "#59581F", "#4A4917"];
+    ? ["#D0776D", "#C9695E", "#C56255", "#B95145", "#B45044"]
+    : ["#71804B", "#62743B", "#4D5C2D", "#465429", "#3B4822"];
   const resolvedBorderRadius = borderRadius ?? (size === "large" ? 22 : 18);
 
   const handlePressIn = (event: Parameters<NonNullable<PaperButtonProps["onPressIn"]>>[0]) => {
@@ -196,6 +196,8 @@ export function Button({
         fontWeight !== undefined && { fontWeight },
         styles.centeredLabel,
         labelStyle,
+        // Единое начертание для всех переиспользуемых кнопок, включая локальные настройки.
+        { fontFamily: FONTS.montserratBold, fontWeight: "700" },
       ]}
       buttonColor={
         onGradient
@@ -204,7 +206,7 @@ export function Button({
             (isPrimary
               ? COLORS.primary
               : isSecondary
-                ? "#D7837B"
+                ? "#C56255"
                 : isSelected
                   ? "#E9E2CF"
                   : isDanger
@@ -216,7 +218,7 @@ export function Button({
         (isPrimary || isDanger
           ? "#F6F0DF"
           : isSecondary
-            ? "#241010"
+            ? "#FFFFFF"
             : isSelected
               ? COLORS.primaryDark
               : COLORS.primary)
@@ -231,6 +233,7 @@ export function Button({
       <Animated.View
         style={[
           styles.gradientShell,
+          isSecondary && styles.secondaryGradientShell,
           isPressed && styles.gradientShellPressed,
           pressMotionStyle,
           fullWidth ? styles.fullWidth : styles.fitContent,
@@ -302,6 +305,9 @@ const styles = StyleSheet.create({
     boxShadow: "0 7px 12px rgba(53, 52, 16, 0.30)",
     elevation: 7,
   },
+  secondaryGradientShell: {
+    boxShadow: "0 7px 12px rgba(135, 51, 42, 0.28)",
+  },
   gradientShellPressed: {
     boxShadow: "0 2px 4px rgba(53, 52, 16, 0.20)",
     elevation: 2,
@@ -311,7 +317,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   secondaryGradientSurface: {
-    backgroundColor: "#D7837B",
+    backgroundColor: "#C56255",
   },
   gradientSurfacePressed: {
     opacity: 0.94,
@@ -334,9 +340,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   secondaryButton: {
-    borderWidth: 1,
-    borderColor: "rgba(99, 35, 35, 0.24)",
-    backgroundColor: "#D7837B",
+    backgroundColor: "#C56255",
     boxShadow: "0 5px 10px rgba(123, 53, 49, 0.28)",
   },
   selectedButton: {
@@ -360,7 +364,7 @@ const styles = StyleSheet.create({
   outlineButton: {
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
   },
   content: {
     minHeight: 52,
@@ -387,7 +391,7 @@ const styles = StyleSheet.create({
     color: "#F6F0DF",
   },
   secondaryLabel: {
-    color: "#241010",
+    color: "#FFFFFF",
   },
   outlineLabel: {
     color: COLORS.primary,

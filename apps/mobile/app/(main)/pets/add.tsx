@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Image } from "expo-image";
 import {
   View,
   StyleSheet,
@@ -26,8 +27,8 @@ import { trackEvent } from "@/shared/lib/analytics";
 const LOG_PREFIX = "[AddPetScreen]";
 
 const PET_TYPES = [
-  { value: "DOG" as const, label: "Собака", icon: "dog" as const },
-  { value: "CAT" as const, label: "Кошка", icon: "cat" as const },
+  { value: "DOG" as const, label: "Собака", image: require("../../../assets/images/pet-type-dog.webp") },
+  { value: "CAT" as const, label: "Кошка", image: require("../../../assets/images/pet-type-cat.webp") },
 ];
 
 /**
@@ -51,7 +52,6 @@ export default function AddPetScreen() {
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
   const [neckGirthCm, setNeckGirthCm] = useState("");
   const [muzzleGirthCm, setMuzzleGirthCm] = useState("");
   const [bellyGirthCm, setBellyGirthCm] = useState("");
@@ -117,7 +117,6 @@ export default function AddPetScreen() {
         breed,
         birthDate,
         hasHeight: !!heightCm,
-        hasWeight: !!weightKg,
         hasNeckGirth: !!neckGirthCm,
         hasMuzzleGirth: !!muzzleGirthCm,
         hasBellyGirth: !!bellyGirthCm,
@@ -130,7 +129,6 @@ export default function AddPetScreen() {
       breed,
       birthDate,
       heightCm,
-      weightKg,
       neckGirthCm,
       muzzleGirthCm,
       bellyGirthCm,
@@ -150,7 +148,6 @@ export default function AddPetScreen() {
       breed: validation.values.breed,
       birthDate: validation.values.birthDate,
       heightCm: validation.values.heightCm,
-      weightKg: validation.values.weightKg,
       neckGirthCm: validation.values.neckGirthCm,
       muzzleGirthCm: validation.values.muzzleGirthCm,
       bellyGirthCm: validation.values.bellyGirthCm,
@@ -218,7 +215,14 @@ export default function AddPetScreen() {
                   <Button
                     key={t.value}
                     label={t.label}
-                    icon={t.icon}
+                    icon={() => (
+                        <Image
+                          source={t.image}
+                          style={{ width: 28, height: 28 }}
+                          contentFit="contain"
+                          accessible={false}
+                        />
+                      )}
                     variant={type === t.value ? "selected" : "primary"}
                     flex={1}
                     fullWidth={false}
@@ -280,17 +284,6 @@ export default function AddPetScreen() {
                     keyboardType="decimal-pad"
                   />
                   {errors.heightCm ? <Text style={styles.errorText}>{errors.heightCm}</Text> : null}
-
-                  <Text style={styles.fieldLabel}>Вес (кг)</Text>
-                  <TextInput
-                    value={weightKg}
-                    onChangeText={(value) => updateField("weightKg", value, setWeightKg)}
-                    style={[styles.input, errors.weightKg && styles.inputError]}
-                    placeholder="Необязательно"
-                    placeholderTextColor={COLORS.disabled}
-                    keyboardType="decimal-pad"
-                  />
-                  {errors.weightKg ? <Text style={styles.errorText}>{errors.weightKg}</Text> : null}
 
                   <Text style={styles.fieldLabel}>Обхват шеи (см)</Text>
                   <TextInput
@@ -421,7 +414,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxl,
   },
   formCard: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     padding: SPACING.md,
     gap: SPACING.sm,

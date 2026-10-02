@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useCourseStore, useCourseStoreActions } from "@shared/stores";
 import { useFavoritesStore } from "@shared/stores/favoritesStore";
@@ -126,7 +127,7 @@ export default function FavoritesCourseList({
 
   // Показываем загрузку при первой загрузке
   if ((loading.favorites || !initialized) && computedCourses.length === 0) {
-    return <div style={{ textAlign: "center", padding: "20px" }}>Загрузка избранных курсов...</div>;
+    return <LoadingState message="Загрузка избранных курсов…" />;
   }
 
   // Показываем ошибку если есть (серверная или клиентская)

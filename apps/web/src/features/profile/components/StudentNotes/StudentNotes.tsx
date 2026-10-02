@@ -1,4 +1,5 @@
 "use client";
+import { ProfileIcon } from "../ProfileIcon";
 
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -23,7 +24,10 @@ export default function StudentNotes() {
         const data = await getStudentNotes();
         setNotes(data);
       } catch (err) {
-        reportClientError(err, { issueKey: "StudentNotes", keys: { operation: "load_student_notes" } });
+        reportClientError(err, {
+          issueKey: "StudentNotes",
+          keys: { operation: "load_student_notes" },
+        });
         setError(err instanceof Error ? err.message : "Ошибка при загрузке заметок");
       } finally {
         setIsLoading(false);
@@ -36,7 +40,9 @@ export default function StudentNotes() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <h2 className={styles.title}>Заметки тренера</h2>
+        <h2 className={styles.title}>
+          <ProfileIcon name="trainer-notes" /> Заметки тренера
+        </h2>
         <p className={styles.loading}>Загрузка заметок...</p>
       </div>
     );
@@ -45,7 +51,9 @@ export default function StudentNotes() {
   if (error) {
     return (
       <div className={styles.container}>
-        <h2 className={styles.title}>Заметки тренера</h2>
+        <h2 className={styles.title}>
+          <ProfileIcon name="trainer-notes" /> Заметки тренера
+        </h2>
         <p className={styles.error}>Ошибка: {error}</p>
       </div>
     );
@@ -54,7 +62,12 @@ export default function StudentNotes() {
   if (notes.length === 0) {
     return (
       <div className={styles.container}>
-        <h2 className={styles.title}>Заметки тренера</h2>
+        <h2 className={styles.title}>
+          <ProfileIcon name="trainer-notes" /> Заметки тренера
+        </h2>
+        <div style={{ textAlign: "center" }}>
+          <ProfileIcon name="notes-empty" size={64} />
+        </div>
         <p className={styles.empty}>Пока нет заметок от тренера</p>
       </div>
     );
@@ -62,12 +75,14 @@ export default function StudentNotes() {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Заметки тренера</h2>
+      <h2 className={styles.title}>
+        <ProfileIcon name="trainer-notes" /> Заметки тренера
+      </h2>
       <div className={styles.notesList}>
         {notes.map((note) => (
           <div key={note.id} className={styles.noteCard}>
             {note.title && <h3 className={styles.noteTitle}>{note.title}</h3>}
-            
+
             <div className={styles.noteMeta}>
               <span className={styles.trainerInfo}>
                 Тренер: {note.trainer.profile?.fullName || note.trainer.username}
@@ -83,21 +98,13 @@ export default function StudentNotes() {
                   <div className={styles.entryContent}>{entry.content}</div>
                   <div className={styles.entryMeta}>
                     <span className={styles.entryDate}>
-                      {format(
-                        new Date(entry.createdAt),
-                        "d MMMM yyyy, HH:mm",
-                        { locale: ru },
-                      )}
+                      {format(new Date(entry.createdAt), "d MMMM yyyy, HH:mm", { locale: ru })}
                       {new Date(entry.updatedAt).getTime() !==
                         new Date(entry.createdAt).getTime() && (
                         <>
                           {" "}
                           • Изменено:{" "}
-                          {format(
-                            new Date(entry.updatedAt),
-                            "d MMMM yyyy, HH:mm",
-                            { locale: ru },
-                          )}
+                          {format(new Date(entry.updatedAt), "d MMMM yyyy, HH:mm", { locale: ru })}
                         </>
                       )}
                     </span>

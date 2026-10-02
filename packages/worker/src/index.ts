@@ -72,6 +72,8 @@ export async function startWorkers(): Promise<void> {
     logger.error("Failed to setup pet prevention reminder schedule", error as Error);
   });
 
+  const { startCynologistChatWorker } = await import("./cynologist-chat-worker");
+  await startCynologistChatWorker();
   startConsultationSlaWorker();
   startConsultationMailWorker();
   startConsultationReminderWorker();

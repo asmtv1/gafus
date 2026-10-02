@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   formCard: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   listCard: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalSheet: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: SPACING.xl,

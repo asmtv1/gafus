@@ -1,4 +1,5 @@
 "use client";
+import { ProfileIcon } from "../ProfileIcon";
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -215,7 +216,9 @@ export default function NotificationStatus() {
   if (mounted && !isSupported()) {
     return (
       <div className={styles.container}>
-        <h3>Уведомления</h3>
+        <h3>
+          <ProfileIcon name="notifications" /> Уведомления
+        </h3>
         <p>Этот браузер не поддерживает уведомления.</p>
       </div>
     );
@@ -223,7 +226,9 @@ export default function NotificationStatus() {
 
   return (
     <div className={styles.container}>
-      <h3>Уведомления</h3>
+      <h3>
+        <ProfileIcon name="notifications" /> Уведомления
+      </h3>
 
       {error && (
         <div

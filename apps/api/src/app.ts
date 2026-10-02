@@ -1,3 +1,5 @@
+import { communityChatRoutes } from "./routes/v1/community-chat.js";
+import { cynologistChatRoutes, streamChatWebhookRoutes } from "./routes/v1/cynologist-chat.js";
 /**
  * Hono App Setup
  * Конфигурация middleware и маршрутов
@@ -70,6 +72,14 @@ app.use("/api/v1/mobile-intro/events", apiRateLimiter);
 app.use("/api/v1/mobile-intro/auth-outcome", authMiddleware, apiRateLimiter);
 app.use("/api/v1/mobile-intro/admin/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/mobile-intro", mobileIntroRoutes);
+
+app.use("/api/v1/cynologist-chat", authMiddleware, apiRateLimiter);
+app.use("/api/v1/cynologist-chat/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/cynologist-chat", cynologistChatRoutes);
+app.use("/api/v1/community-chat", authMiddleware, apiRateLimiter);
+app.use("/api/v1/community-chat/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/community-chat", communityChatRoutes);
+app.route("/api/v1/stream-chat/webhook", streamChatWebhookRoutes);
 
 // Protected routes - require auth
 app.use("/api/v1/user/*", apiRateLimiter);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,7 +21,7 @@ import type { Href } from "expo-router";
 import { useNavigation, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { Button } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { consultationsApi, isSubscriptionRequiredCode } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -256,7 +256,7 @@ export function ConsultationSlotsCalendar({
       </View>
 
       {slotsQuery.isLoading ? (
-        <ActivityIndicator color={COLORS.primary} style={styles.loader} />
+        <Loading message="Загрузка свободного времени…" />
       ) : null}
       {slotsQuery.isError ? <Text style={styles.error}>Не удалось загрузить слоты.</Text> : null}
 
@@ -421,7 +421,6 @@ export function ConsultationSlotsCalendar({
 
 const styles = StyleSheet.create({
   scroll: { padding: SPACING.md, paddingBottom: SPACING.xl },
-  loader: { marginVertical: SPACING.lg },
   topMeta: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm, marginBottom: SPACING.md },
   metaPill: {
     fontFamily: FONTS.montserrat,
@@ -435,7 +434,7 @@ const styles = StyleSheet.create({
   },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },
   accessRequired: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
@@ -458,7 +457,7 @@ const styles = StyleSheet.create({
   },
   layout: { gap: SPACING.lg },
   calendarPanel: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
@@ -521,7 +520,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   slotsPanel: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,

@@ -45,6 +45,7 @@ export type AppSubscriptionPlanConfig = {
   appleProductId: string | null;
   offlineCourseDownloadIncluded: boolean;
   consultationBookingIncluded: boolean;
+  cynologistChatIncluded: boolean;
   promoCodeEligible: boolean;
   badge: "TRY" | "POPULAR" | "MAX_SAVINGS" | null;
   savingsRub: number | null;
@@ -133,13 +134,15 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
       return {
         offlineCourseDownloadIncluded: false,
         consultationBookingIncluded: false,
+        cynologistChatIncluded: false,
         promoCodeEligible: false,
         badge: "TRY" as const,
       };
     case "MONTHLY":
       return {
         offlineCourseDownloadIncluded: true,
-        consultationBookingIncluded: true,
+        consultationBookingIncluded: false,
+        cynologistChatIncluded: true,
         promoCodeEligible: true,
         badge: "POPULAR" as const,
       };
@@ -147,13 +150,15 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
       return {
         offlineCourseDownloadIncluded: true,
         consultationBookingIncluded: true,
+        cynologistChatIncluded: true,
         promoCodeEligible: true,
         badge: "MAX_SAVINGS" as const,
       };
     case "WEEKLY":
       return {
         offlineCourseDownloadIncluded: false,
-        consultationBookingIncluded: true,
+        consultationBookingIncluded: false,
+        cynologistChatIncluded: false,
         promoCodeEligible: false,
         badge: null,
       };

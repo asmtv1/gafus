@@ -5,9 +5,9 @@
   min-height: 52px;
   border: 0;
   border-radius: 18px;
-  background: linear-gradient(180deg, #96914d 0%, #817d40 18%, #666429 56%, #59581f 84%, #4a4917 100%);
+  background: linear-gradient(180deg, #71804b 0%, #62743b 18%, #4d5c2d 56%, #465429 84%, #3b4822 100%);
   color: #f6f0df;
-  box-shadow: 0 7px 12px rgba(53, 52, 16, 0.3);
+  box-shadow: 0 7px 12px rgba(45, 56, 27, 0.3);
   cursor: pointer;
   font-family: var(--font-montserrat, var(--font-sans-fallback));
   font-size: 16px;
@@ -19,12 +19,12 @@
 }
 
 .root:hover:not(:disabled) {
-  box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34);
+  box-shadow: 0 9px 16px rgba(45, 56, 27, 0.34);
   transform: translateY(-2px);
 }
 
 .root:active:not(:disabled) {
-  box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2);
+  box-shadow: 0 2px 4px rgba(45, 56, 27, 0.2);
   opacity: 0.94;
   transform: translateY(2px);
 }

@@ -8,9 +8,11 @@ import * as Linking from "expo-linking";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { Stack, useRouter } from "expo-router";
+import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -64,13 +66,18 @@ export default function ConsultationsMineScreen() {
   }, [router]);
 
   return (
-    <TexturedSafeAreaView style={styles.root} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.root} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Stack.Screen options={{ headerBackVisible: false }} />
-        <PageHeader
-          title="Мои консультации"
-          description="Все встречи и изменения по записи собраны в одном месте"
+        <Image
+          source={require("../../../assets/images/consultations-mine-header.png")}
+          style={styles.headerImage}
+          contentFit="cover"
+          accessible
+          accessibilityLabel="Мои консультации. Все встречи и изменения по записи собраны в одном месте"
         />
+        <View style={styles.content}>
 
         <View style={styles.subNav}>
           <Button
@@ -204,6 +211,7 @@ export default function ConsultationsMineScreen() {
             </View>
           );
         })}
+        </View>
       </ScrollView>
     </TexturedSafeAreaView>
   );
@@ -224,7 +232,9 @@ function badgeToneStyle(tone: "pending" | "success" | "danger" | "neutral") {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.xxl },
+  scroll: { paddingBottom: SPACING.xxl },
+  headerImage: { width: "100%", height: 180 },
+  content: { padding: SPACING.md },
   subNav: {
     flexDirection: "row",
     gap: SPACING.xs,
@@ -245,7 +255,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   card: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -317,7 +327,7 @@ const styles = StyleSheet.create({
   cancelText: { color: COLORS.error, fontFamily: FONTS.montserratMedium, fontSize: 14 },
   emptyCard: {
     alignItems: "center",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     padding: SPACING.lg,
     shadowColor: "#4A4A1E",

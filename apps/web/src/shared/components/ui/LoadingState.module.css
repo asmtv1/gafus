@@ -1,0 +1,27 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 24px 16px;
+  color: #352e2e;
+}
+.container img {
+  object-fit: contain;
+}
+.container p {
+  margin: 12px 0 0;
+  text-align: center;
+}
+.poster {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animated {
+    display: none;
+  }
+  .poster {
+    display: block;
+  }
+}

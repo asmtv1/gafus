@@ -20,3 +20,5 @@ export {
   removeConsultationReminderJob,
 } from "./consultation-reminder-queue.js";
 export type { ConsultationReminderKind } from "./consultation-reminder-queue.js";
+
+export * from "./cynologist-chat-queue.js";

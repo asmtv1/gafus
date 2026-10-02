@@ -1,3 +1,4 @@
+import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
@@ -5,12 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import { cynologistDisplayInitials, plainConsultationAboutHtml } from "@gafus/consultation-shared";
 import type { ListedCynologistCardDto } from "@gafus/consultation-shared";
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { TourTarget } from "@/shared/lib/tour-targets";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -22,6 +24,7 @@ import { trackEvent } from "@/shared/lib/analytics";
  * Каталог кинологов — паритет с web (карточки, поднавигация, тексты).
  */
 export default function ConsultationsCynologistsListScreen() {
+  const tabContentBottomPadding = useTabContentBottomPadding();
   const router = useRouter();
   const query = useQuery({
     queryKey: ["consultations", "cynologists"],
@@ -64,14 +67,21 @@ export default function ConsultationsCynologistsListScreen() {
   );
 
   return (
-    <TexturedSafeAreaView style={styles.root} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <TexturedSafeAreaView style={styles.root} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: tabContentBottomPadding }]}
+      >
         <TourTarget id="consultations-list">
-          <PageHeader
-            title="Консультации"
-            description="Выберите кинолога и удобное время для встречи"
+          <Image
+            source={require("../../../../assets/images/consultations-catalog-header.png")}
+            style={styles.headerImage}
+            contentFit="cover"
+            accessible
+            accessibilityLabel="Консультации. Выберите кинолога и удобное время для встречи"
           />
         </TourTarget>
+        <View style={styles.content}>
 
         <View style={styles.subNav}>
           <Button
@@ -187,6 +197,7 @@ export default function ConsultationsCynologistsListScreen() {
             </View>
           );
         })}
+        </View>
       </ScrollView>
     </TexturedSafeAreaView>
   );
@@ -194,7 +205,12 @@ export default function ConsultationsCynologistsListScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.xxl },
+  scroll: { paddingBottom: SPACING.xxl },
+  headerImage: {
+    width: "100%",
+    height: 180,
+  },
+  content: { padding: SPACING.md },
   subNav: {
     flexDirection: "row",
     gap: SPACING.xs,
@@ -217,7 +233,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   card: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     marginBottom: SPACING.md,
     overflow: "hidden",

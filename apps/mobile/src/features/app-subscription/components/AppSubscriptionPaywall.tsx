@@ -462,6 +462,7 @@ export function AppSubscriptionPaywall() {
                               label={OFFLINE_DOWNLOAD_BENEFIT}
                               included={includesOfflineCourseDownload(plan)}
                             />
+                            <BenefitRow label="Чат с кинологом" included={Boolean(plan.cynologistChatIncluded)} />
                             <BenefitRow
                               label="Запись к кинологу"
                               included={plan.consultationBookingIncluded}
@@ -624,6 +625,7 @@ export function AppSubscriptionPaywall() {
                     label={OFFLINE_DOWNLOAD_BENEFIT}
                     included={includesOfflineCourseDownload(applePlan)}
                   />
+                  <BenefitRow label="Чат с кинологом" included={Boolean(applePlan?.cynologistChatIncluded)} />
                   <BenefitRow
                     label="Запись к кинологу"
                     included={Boolean(applePlan?.consultationBookingIncluded)}

@@ -1,11 +1,7 @@
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 
-/**
-* Единая бумажная фактура для выразительных экранов приложения.
- * Базовый кремовый цвет остаётся под изображением, поэтому текст и карточки
- * не зависят от яркости или деталей текстуры.
- */
+/** Общий фон экранов мобильного приложения. */
 export function PaperTextureBackground() {
   return (
     <View
@@ -16,8 +12,9 @@ export function PaperTextureBackground() {
       style={styles.layer}
     >
       <Image
-        source={require("../../../assets/images/paper-texture.jpg")}
-        contentFit="fill"
+        source={require("../../../assets/images/sky-background.png")}
+        contentFit="cover"
+        blurRadius={8}
         style={styles.image}
       />
     </View>
@@ -32,6 +29,6 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-    opacity: 0.4,
+    opacity: 0.27,
   },
 });

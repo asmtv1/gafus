@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { RegistrationChannel } from "@gafus/prisma";
+import type { RegistrationChannel } from "@gafus/prisma";
 
 import { coreRegisterEmailSchema } from "./registerEmailDomain";
 
@@ -64,8 +64,5 @@ export type AuthRegisterBody = z.infer<typeof authRegisterBodySchema>;
 export function resolveRegistrationChannelFromBody(
   v: z.infer<typeof registrationChannelRequestSchema> | undefined,
 ): RegistrationChannel {
-  if (v === "WEB") return RegistrationChannel.WEB;
-  if (v === "IOS") return RegistrationChannel.IOS;
-  if (v === "ANDROID") return RegistrationChannel.ANDROID;
-  return RegistrationChannel.UNKNOWN;
+  return v ?? "UNKNOWN";
 }

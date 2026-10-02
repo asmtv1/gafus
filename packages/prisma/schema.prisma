@@ -286,6 +286,10 @@ model DailyCourseUserStep {
 }
 
 model User {
+  clientCynologistChat CynologistChat? @relation("ChatClient")
+  trainerCynologistChats CynologistChat[] @relation("ChatTrainer")
+  communityChatOperations CommunityChatSendOperation[]
+  communityChatAttachments CommunityChatAttachment[]
   id                               String                           @id @default(cuid())
   username                         String                           @unique
   email                            String?                          @unique
@@ -570,6 +574,7 @@ model Pet {
   birthDate         DateTime
   heightCm          Float?
   weightKg          Float?
+  targetWeightKg    Float?
   neckGirthCm       Float?
   muzzleGirthCm     Float?
   bellyGirthCm      Float?
@@ -581,9 +586,23 @@ model Pet {
   documents         PetDocument[]        @relation("PetDocumentsByOwner")
   owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   preventionEntries PetPreventionEntry[]
+  weightEntries     PetWeightEntry[]
   surveyResponses   SurveyResponse[]
 
   @@unique([id, ownerId])
+}
+
+model PetWeightEntry {
+  id         String   @id @default(cuid())
+  petId      String
+  ownerId    String
+  weightKg   Float
+  measuredAt DateTime
+  createdAt  DateTime @default(now())
+  pet        Pet      @relation(fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+
+  @@index([petId, measuredAt])
+  @@index([ownerId])
 }
 
 model PetDocument {
@@ -2432,4 +2451,98 @@ model ConsultationBookingIdempotency {
 
   @@id([clientId, key])
   @@index([expiresAt])
+}
+
+
+model CynologistChat {
+  id String @id @default(cuid())
+  clientUserId String @unique
+  trainerUserId String
+  streamChannelId String @unique
+  intake Json
+  provisionStatus String @default("PENDING")
+  firstMessageId String @unique
+  lastMessageAt DateTime?
+  lastClientMessageAt DateTime?
+  trainerReadAt DateTime?
+  unreadSince DateTime?
+  nextReminderAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client User @relation("ChatClient", fields: [clientUserId], references: [id], onDelete: Cascade)
+  trainer User @relation("ChatTrainer", fields: [trainerUserId], references: [id], onDelete: Restrict)
+  operations ChatSendOperation[]
+  attachments ChatAttachment[]
+  notifications ChatNotification[]
+  @@index([trainerUserId, lastMessageAt])
+  @@index([nextReminderAt])
+}
+model ChatSendOperation {
+  id String @id @default(cuid())
+  chatId String
+  senderUserId String
+  clientMessageId String
+  streamMessageId String @unique
+  payloadHash String
+  state String @default("PENDING")
+  createdAt DateTime @default(now())
+  chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@unique([senderUserId, clientMessageId])
+}
+model ChatAttachment {
+  id String @id @default(cuid())
+  operationId String?
+  chatId String
+  ownerUserId String
+  kind String
+  url String
+  mime String
+  size Int
+  name String
+  state String @default("READY")
+  createdAt DateTime @default(now())
+  chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@index([state, createdAt])
+}
+model ChatWebhookEvent {
+  id String @id
+  payload Json
+  processedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([processedAt, createdAt])
+}
+model ChatNotification {
+  id String @id
+  chatId String
+  userId String
+  notificationId String? @unique
+  createdAt DateTime @default(now())
+  chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
+
+model CommunityChatSendOperation {
+  id String @id @default(cuid())
+  senderUserId String
+  clientMessageId String
+  streamMessageId String @unique
+  payloadHash String
+  state String @default("PENDING")
+  createdAt DateTime @default(now())
+  sender User @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  @@unique([senderUserId, clientMessageId])
+}
+
+model CommunityChatAttachment {
+  id String @id @default(cuid())
+  operationId String?
+  ownerUserId String
+  kind String
+  url String
+  mime String
+  size Int
+  name String
+  state String @default("READY")
+  createdAt DateTime @default(now())
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  @@index([state, createdAt])
 }

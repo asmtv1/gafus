@@ -147,3 +147,6 @@ apps/mobile/rustore-signing/
 # Локальные артефакты мобильных сборок
 apps/mobile/Gafus.app/
 apps/mobile/build-*.tar.gz
+
+# Local production Stream credentials
+/.env.stream-chat-prod

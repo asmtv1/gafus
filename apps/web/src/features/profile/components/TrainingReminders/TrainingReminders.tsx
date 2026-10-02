@@ -1,9 +1,10 @@
 "use client";
+import { ProfileIcon } from "../ProfileIcon";
 
 import { reportClientError } from "@gafus/error-handling";
 import { trackEvent } from "@gafus/analytics";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import {
   getTrainingReminders,
   createTrainingReminder,
@@ -12,7 +13,7 @@ import {
   type TrainingReminderData,
 } from "@shared/lib/actions/trainingReminders";
 import styles from "./TrainingReminders.module.css";
-import { PrimaryButton } from "@/shared/components/ui";
+import { PrimaryButton } from "@/shared/components/ui/PrimaryButton";
 
 const DAYS_OF_WEEK = [
   { id: "1", label: "Пн" },
@@ -29,6 +30,8 @@ const MAX_REMINDERS = 5;
 
 export default function TrainingReminders() {
   const pathname = usePathname() ?? "/profile";
+  const adding = useRef(false);
+  const [creating, setCreating] = useState(false);
   const [reminders, setReminders] = useState<TrainingReminderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{
@@ -65,6 +68,7 @@ export default function TrainingReminders() {
   }, [loadReminders]);
 
   const handleAddReminder = useCallback(async () => {
+    if (adding.current) return;
     if (reminders.length >= MAX_REMINDERS) {
       setMessage({
         type: "error",
@@ -73,6 +77,8 @@ export default function TrainingReminders() {
       return;
     }
 
+    adding.current = true;
+    setCreating(true);
     try {
       trackEvent({
         eventName: "button_click",
@@ -107,45 +113,51 @@ export default function TrainingReminders() {
         type: "error",
         text: "Произошла ошибка",
       });
+    } finally {
+      adding.current = false;
+      setCreating(false);
     }
   }, [reminders.length, browserTimezone, pathname]);
 
-  const handleDeleteReminder = useCallback(async (id: string) => {
-    try {
-      trackEvent({
-        eventName: "button_click",
-        platform: "web",
-        pathOrScreen: pathname,
-        elementId: "profile-reminder-delete-click",
-      });
-      const result = await deleteTrainingReminder(id);
-
-      if (result.success) {
+  const handleDeleteReminder = useCallback(
+    async (id: string) => {
+      try {
         trackEvent({
           eventName: "button_click",
           platform: "web",
           pathOrScreen: pathname,
-          elementId: "profile-reminder-delete-success",
+          elementId: "profile-reminder-delete-click",
         });
-        setReminders((prev) => prev.filter((r) => r.id !== id));
-        setMessage({
-          type: "success",
-          text: "Напоминание удалено",
-        });
-      } else {
+        const result = await deleteTrainingReminder(id);
+
+        if (result.success) {
+          trackEvent({
+            eventName: "button_click",
+            platform: "web",
+            pathOrScreen: pathname,
+            elementId: "profile-reminder-delete-success",
+          });
+          setReminders((prev) => prev.filter((r) => r.id !== id));
+          setMessage({
+            type: "success",
+            text: "Напоминание удалено",
+          });
+        } else {
+          setMessage({
+            type: "error",
+            text: result.error || "Не удалось удалить",
+          });
+        }
+      } catch (err) {
+        reportClientError(err, { issueKey: "TrainingReminders", keys: { operation: "delete" } });
         setMessage({
           type: "error",
-          text: result.error || "Не удалось удалить",
+          text: "Произошла ошибка",
         });
       }
-    } catch (err) {
-      reportClientError(err, { issueKey: "TrainingReminders", keys: { operation: "delete" } });
-      setMessage({
-        type: "error",
-        text: "Произошла ошибка",
-      });
-    }
-  }, [pathname]); // Пустой массив благодаря функциональному обновлению
+    },
+    [pathname],
+  ); // Пустой массив благодаря функциональному обновлению
 
   const handleUpdateReminder = useCallback(
     async (id: string, data: Partial<Omit<TrainingReminderData, "id">>) => {
@@ -208,7 +220,9 @@ export default function TrainingReminders() {
 
   return (
     <div className={styles.container}>
-      <h3 className={styles.title}>Напоминания о тренировках</h3>
+      <h3 className={styles.title}>
+        <ProfileIcon name="reminders" /> Напоминания о тренировках
+      </h3>
 
       <p className={styles.description}>
         Создайте до {MAX_REMINDERS} напоминаний в разное время (утро, день, вечер и т.д.)
@@ -235,7 +249,12 @@ export default function TrainingReminders() {
       </div>
 
       {reminders.length < MAX_REMINDERS && (
-        <PrimaryButton onClick={handleAddReminder} className={styles.addButton} fullWidth>
+        <PrimaryButton
+          disabled={creating}
+          onClick={handleAddReminder}
+          className={styles.addButton}
+          fullWidth
+        >
           + Добавить напоминание ({reminders.length}/{MAX_REMINDERS})
         </PrimaryButton>
       )}
@@ -276,43 +295,50 @@ const ReminderItem = memo(function ReminderItem({
     setAllDays(!reminder.reminderDays);
   }, [reminder.id, reminder.name, reminder.enabled, reminder.reminderTime, reminder.reminderDays]);
 
-  const handleToggleEnabled = async () => {
+  const updating = useRef(false);
+  const save = async (data: Partial<Omit<TrainingReminderData, "id">>) => {
+    if (updating.current) return false;
+    updating.current = true;
     setSaving(true);
-    const success = await onUpdate(reminder.id, { enabled: !enabled });
-    if (success) setEnabled(!enabled);
-    setSaving(false);
+    try {
+      return await onUpdate(reminder.id, data);
+    } finally {
+      updating.current = false;
+      setSaving(false);
+    }
   };
-
+  const handleToggleEnabled = async () => {
+    const next = !enabled;
+    if (await save({ enabled: next })) setEnabled(next);
+  };
   const handleNameChange = async (newName: string) => {
-    if (!newName.trim()) return;
-    setName(newName);
-    await onUpdate(reminder.id, { name: newName });
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === reminder.name) {
+      setName(reminder.name);
+      return;
+    }
+    if (!(await save({ name: trimmed }))) setName(reminder.name);
   };
-
   const handleTimeChange = async (time: string) => {
-    if (!time) return;
-    setReminderTime(time);
-    await onUpdate(reminder.id, { reminderTime: time });
+    if (time && (await save({ reminderTime: time }))) setReminderTime(time);
   };
-
   const handleDayToggle = async (dayId: string) => {
-    const newSelectedDays = selectedDays.includes(dayId)
+    const next = selectedDays.includes(dayId)
       ? selectedDays.filter((d) => d !== dayId)
       : [...selectedDays, dayId];
-
-    setSelectedDays(newSelectedDays);
-    await onUpdate(reminder.id, {
-      reminderDays: newSelectedDays.length > 0 ? newSelectedDays.join(",") : undefined,
-    });
+    if (await save({ reminderDays: next.length ? next.join(",") : null })) {
+      setSelectedDays(next);
+      setAllDays(next.length === 0);
+    }
   };
-
   const handleAllDaysToggle = async () => {
-    const newAllDays = !allDays;
-    setAllDays(newAllDays);
-
-    if (newAllDays) {
+    if (allDays) {
+      setAllDays(false);
+      return;
+    }
+    if (await save({ reminderDays: null })) {
+      setAllDays(true);
       setSelectedDays([]);
-      await onUpdate(reminder.id, { reminderDays: null });
     }
   };
 
@@ -350,6 +376,7 @@ const ReminderItem = memo(function ReminderItem({
         </button>
 
         <button
+          disabled={saving}
           onClick={() => onDelete(reminder.id)}
           className={styles.deleteButton}
           aria-label="Удалить"

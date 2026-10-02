@@ -28,6 +28,7 @@ export interface Pet {
   birthDate: string | null;
   heightCm: number | null;
   weightKg: number | null;
+  targetWeightKg?: number | null;
   neckGirthCm: number | null;
   muzzleGirthCm: number | null;
   bellyGirthCm: number | null;
@@ -35,6 +36,35 @@ export interface Pet {
   notes: string | null;
   createdAt: string;
 }
+
+export interface PetWeightEntry {
+  id: string;
+  weightKg: number;
+  measuredAt: string;
+  createdAt: string;
+}
+
+export interface PetWeightHistory {
+  currentWeightKg: number | null;
+  targetWeightKg: number | null;
+  entries: PetWeightEntry[];
+}
+
+export const petWeightApi = {
+  get: (petId: string) => apiClient<PetWeightHistory>(`/api/v1/pets/${petId}/weight`),
+  add: (petId: string, weightKg: number, measuredAt: string) =>
+    apiClient<PetWeightEntry>(`/api/v1/pets/${petId}/weight`, {
+      method: "POST",
+      body: { weightKg, measuredAt },
+    }),
+  setTarget: (petId: string, targetWeightKg: number | null) =>
+    apiClient<void>(`/api/v1/pets/${petId}/weight/target`, {
+      method: "PUT",
+      body: { targetWeightKg },
+    }),
+  remove: (petId: string, entryId: string) =>
+    apiClient<void>(`/api/v1/pets/${petId}/weight/${entryId}`, { method: "DELETE" }),
+};
 
 export interface CreatePetData {
   name: string;

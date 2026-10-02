@@ -613,3 +613,5 @@
 .title { font-family: var(--font-montserrat), var(--font-sans-fallback); }
 .reminderItem { background: var(--surface-muted); border: 1px solid rgba(var(--accent-primary-rgb), 0.18); border-radius: 14px; }
 .expandButton:focus-visible, .deleteButton:focus-visible, .switchInput:focus-visible + .switchSlider, .nameInput:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 2px; }
+
+.title { display: flex; gap: 12px; align-items: center; }

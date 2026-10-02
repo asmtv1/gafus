@@ -1,3 +1,4 @@
+import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -14,12 +15,14 @@ import {
   View,
 } from "react-native";
 import { Text } from "react-native-paper";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -35,7 +38,11 @@ import {
   type PetDocumentDto,
 } from "@gafus/types";
 
-import petAvatarImage from "../../../assets/images/pet-avatar.png";
+import petDogAvatarImage from "../../../assets/images/pet-avatar-dog.png";
+import petCatAvatarImage from "../../../assets/images/pet-avatar-cat.png";
+import petProceduresIcon from "../../../assets/images/pet-procedures-icon.png";
+import petDocumentsIcon from "../../../assets/images/pet-documents-icon.png";
+import petWeightIcon from "../../../assets/images/pet-weight-icon.png";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import {
   useMobileOnboardingTourStore,
@@ -43,10 +50,11 @@ import {
 } from "@/features/onboarding-tour";
 import { TourTarget, useTourTargets } from "@/shared/lib/tour-targets";
 import { Button, Input } from "@/shared/components/ui";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet, type PetDocument } from "@/shared/lib/api/pets";
+import { PetWeightSection } from "@/features/pets/PetWeightSection";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -590,6 +598,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
     <TourTarget id="pet-documents-section">
       <View style={styles.documentsSection}>
         <View style={styles.documentsHeader}>
+          <Image source={petDocumentsIcon} style={styles.sectionIcon} contentFit="contain" />
           <View style={styles.documentsTitleWrap}>
             <Text style={styles.documentsTitle}>Документы</Text>
             <Text style={styles.documentHint}>
@@ -617,7 +626,9 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
         {isLoading ? <Text style={styles.documentHint}>Загрузка документов...</Text> : null}
         {isError ? <Text style={styles.documentError}>Не удалось загрузить документы</Text> : null}
         {!isLoading && !isError && documents.length === 0 ? (
-          <Text style={styles.documentHint}>Документов пока нет</Text>
+          <View style={styles.sectionEmptyState}>
+            <Text style={styles.sectionEmptyText}>Документов пока нет</Text>
+          </View>
         ) : null}
 
         {documents.map((document) => (
@@ -1078,11 +1089,9 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
     <TourTarget id="pet-prevention-section">
       <View style={styles.preventionSection}>
         <View style={styles.preventionHeader}>
+          <Image source={petProceduresIcon} style={styles.sectionIcon} contentFit="contain" />
           <View style={styles.preventionTitleWrap}>
             <Text style={styles.preventionTitle}>Записи о процедурах</Text>
-            <Text style={styles.preventionHint}>
-              Справочно: не заменяет консультацию ветеринара.
-            </Text>
           </View>
           <Button
             label="Добавить"
@@ -1106,48 +1115,64 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
           <Text style={styles.documentError}>Не удалось загрузить записи о процедурах</Text>
         ) : null}
         {!isLoading && !isError && entries.length === 0 ? (
-          <Text style={styles.documentHint}>Записей пока нет</Text>
+          <View style={styles.sectionEmptyState}>
+            <Text style={styles.sectionEmptyText}>Записей пока нет</Text>
+          </View>
         ) : null}
 
-        {entries.map((entry) => (
-          <View key={entry.id} style={styles.preventionItem}>
-            <Text style={styles.preventionItemTitle}>
-              {PREVENTION_TYPES.find((item) => item.value === entry.type)?.label ?? entry.type}
-            </Text>
-            <Text style={styles.documentHint}>
-              Дата: {new Date(entry.performedAt).toLocaleDateString("ru-RU")}
-            </Text>
-            {entry.productName ? (
-              <Text style={styles.documentHint}>Препарат: {entry.productName}</Text>
-            ) : null}
-            {entry.notes ? (
-              <Text style={styles.documentHint} numberOfLines={2}>
-                {entry.notes}
-              </Text>
-            ) : null}
-            <View style={styles.documentActions}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.documentSecondaryButton,
-                  pressed && styles.documentActionPressed,
-                ]}
-                onPress={() => handleOpenEdit(entry)}
+        {entries.length > 0 ? (
+          <View style={styles.preventionList}>
+            {entries.map((entry, index) => (
+              <View
+                key={entry.id}
+                style={[styles.preventionItem, index > 0 && styles.preventionItemSeparated]}
               >
-                <Text style={styles.documentSecondaryText}>Изменить</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.documentSecondaryButton,
-                  styles.documentDeleteButton,
-                  pressed && styles.documentActionPressed,
-                ]}
-                onPress={() => handleDelete(entry)}
-              >
-                <Text style={styles.documentDeleteText}>Удалить</Text>
-              </Pressable>
-            </View>
+                <View style={styles.preventionItemDetails}>
+                  <Text style={styles.preventionItemTitle}>
+                    {PREVENTION_TYPES.find((item) => item.value === entry.type)?.label ?? entry.type}
+                  </Text>
+                  <Text style={styles.preventionItemMeta}>
+                    Дата: {new Date(entry.performedAt).toLocaleDateString("ru-RU")}
+                  </Text>
+                  {entry.reminderEnabled && entry.remindAt ? (
+                    <Text style={styles.preventionItemMeta}>
+                      Напоминание: {entry.remindAt.slice(0, 10).split("-").reverse().join(".")}
+                      {entry.reminderTimes?.length ? ` в ${entry.reminderTimes.join(", ")}` : ""}
+                    </Text>
+                  ) : null}
+                  {entry.productName ? (
+                    <Text style={styles.preventionItemMeta}>Препарат: {entry.productName}</Text>
+                  ) : null}
+                  {entry.notes ? (
+                    <Text style={styles.preventionItemMeta} numberOfLines={2}>
+                      {entry.notes}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.preventionItemActions}>
+                  <Button
+                    label="Изменить"
+                    variant="primary"
+                    flex={1}
+                    fullWidth={false}
+                    height={44}
+                    fontSize={13}
+                    onPress={() => handleOpenEdit(entry)}
+                  />
+                  <Button
+                    label="Удалить"
+                    variant="secondary"
+                    flex={1}
+                    fullWidth={false}
+                    height={44}
+                    fontSize={13}
+                    onPress={() => handleDelete(entry)}
+                  />
+                </View>
+              </View>
+            ))}
           </View>
-        ))}
+        ) : null}
 
         <Modal
           visible={showModal}
@@ -1341,6 +1366,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
 }
 
 export default function PetsTabScreen() {
+  const tabContentBottomPadding = useTabContentBottomPadding();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { measureTarget } = useTourTargets();
@@ -1351,6 +1377,19 @@ export default function PetsTabScreen() {
   const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
   const { data: petsData } = useQuery(petsQueryOptions);
   const pets = petsData?.data || [];
+  const [expandedPetIds, setExpandedPetIds] = useState<string[]>([]);
+  const preventionSummaries = useQueries({
+    queries: pets.map((pet) => ({
+      queryKey: ["petPrevention", pet.id],
+      queryFn: () => petsApi.getPreventionEntries(pet.id),
+    })),
+  });
+  const documentSummaries = useQueries({
+    queries: pets.map((pet) => ({
+      queryKey: ["pets", "documents", pet.id],
+      queryFn: () => petsApi.getDocuments(pet.id),
+    })),
+  });
 
   const trackPetsClick = useCallback((elementId: string) => {
     trackEvent({
@@ -1519,7 +1558,8 @@ export default function PetsTabScreen() {
   }, [pets.length, scrollToTourTarget, tourIsActive]);
 
   return (
-    <TexturedSafeAreaView style={styles.safeArea} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.safeArea} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <ScrollView
         ref={scrollRef}
         onLayout={(event) => {
@@ -1536,16 +1576,26 @@ export default function PetsTabScreen() {
           }
         }}
         scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabContentBottomPadding }]}
         keyboardShouldPersistTaps="handled"
       >
-        <PageHeader title="Питомцы" description="Здоровье, документы и важные записи питомцев" />
+        <Image
+          source={require("../../../assets/images/pets-header.png")}
+          style={styles.headerImage}
+          contentFit="cover"
+          accessible
+          accessibilityLabel="Питомцы. Здоровье, документы и важные записи питомцев"
+        />
+        <View style={styles.petsContent}>
         {pets.length === 0 ? (
           <View style={styles.emptyStateWrap}>
             <View style={styles.emptyCard}>
-              <View style={styles.emptyIcon}>
-                <MaterialCommunityIcons name="paw-outline" size={31} color={COLORS.primary} />
-              </View>
+              <Image
+                source={require("../../../assets/images/pets-empty.webp")}
+                style={styles.emptyIcon}
+                contentFit="contain"
+                accessible={false}
+              />
               <Text style={styles.noPets}>Питомцы пока не добавлены</Text>
               <Text style={styles.emptyStateHint}>
                 Добавьте питомца, чтобы записывать прививки, ставить напоминания и хранить документы
@@ -1565,9 +1615,19 @@ export default function PetsTabScreen() {
           </View>
         ) : (
           <View style={styles.petsList}>
-            {pets.map((pet) => (
-              <View key={pet.id} style={styles.petItem}>
-                <View style={styles.petMainInfo}>
+            {pets.map((pet, index) => {
+              const isExpanded = expandedPetIds.includes(pet.id) ||
+                (index === 0 && tourIsActive && (tourStepId === "prevention" || tourStepId === "documents"));
+              const age = getAgeWithMonths(pet.birthDate);
+              const ageLabel = age
+                ? `${age.years ? `${age.years} ${declOfNum(age.years, ["год", "года", "лет"])} ` : ""}${age.months ? `${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}` : ""}`.trim()
+                : null;
+              return (<View key={pet.id} style={styles.petItem}>
+                <LinearGradient
+                  colors={pet.type === "CAT" ? ["#F4D6C9", "#FFFAF0"] : ["#E1EACB", "#FFFAF0"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.55 }}
+                  style={styles.petMainInfo}
+                >
                   <Pressable
                     onPress={() => pickImageAndUploadPetPhoto(pet.id)}
                     disabled={petPhotoUploadMutation.isPending}
@@ -1582,45 +1642,63 @@ export default function PetsTabScreen() {
                         contentFit="cover"
                       />
                     ) : (
-                      <Image source={petAvatarImage} style={styles.petAvatar} contentFit="cover" />
+                      <Image
+                        source={pet.type === "CAT" ? petCatAvatarImage : petDogAvatarImage}
+                        style={styles.petAvatar}
+                        contentFit="cover"
+                        contentPosition="center"
+                      />
                     )}
                     <View style={styles.petAvatarEditBadge}>
                       <MaterialCommunityIcons name="pencil-outline" size={14} color="#F6F0DF" />
                     </View>
                   </Pressable>
                   <View style={styles.petInfo}>
-                    <Text style={styles.petName}>
-                      {pet.name} ({getPetTypeLabel(pet.type)})
+                    <View style={styles.petHeroTop}>
+                      <Text style={[styles.petSpecies, pet.type === "CAT" && styles.petSpeciesCat]}>
+                        {getPetTypeLabel(pet.type)}
+                      </Text>
+                      <Pressable
+                        onPress={() => setExpandedPetIds((ids) =>
+                          ids.includes(pet.id)
+                            ? ids.filter((id) => id !== pet.id)
+                            : [...ids, pet.id],
+                        )}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${isExpanded ? "Свернуть" : "Развернуть"} карточку питомца ${pet.name}`}
+                        accessibilityState={{ expanded: isExpanded }}
+                        style={styles.petToggle}
+                      >
+                        <MaterialCommunityIcons name={isExpanded ? "chevron-up" : "chevron-down"} size={25} color="#40532E" />
+                      </Pressable>
+                    </View>
+                    <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
+                    <Text style={styles.petBreed} numberOfLines={1}>{pet.breed || "Порода не указана"}</Text>
+                    <View style={styles.petFacts}>
+                      {ageLabel ? <View style={styles.petFact}><MaterialCommunityIcons name="calendar-month-outline" size={14} color="#53653A" /><Text style={styles.petFactText}>{ageLabel}</Text></View> : null}
+                      {pet.weightKg != null ? <View style={styles.petFact}><Image source={petWeightIcon} style={styles.factIcon} contentFit="contain" /><Text style={styles.petFactText}>{pet.weightKg} кг</Text></View> : null}
+                      {pet.heightCm != null ? <View style={styles.petFact}><MaterialCommunityIcons name="arrow-top-right" size={14} color="#53653A" /><Text style={styles.petFactText}>{pet.heightCm} см</Text></View> : null}
+                    </View>
+                  </View>
+                </LinearGradient>
+                {!isExpanded ? (
+                  <Pressable
+                    style={styles.petCompactFoot}
+                    onPress={() => setExpandedPetIds((ids) => [...ids, pet.id])}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Подробнее о питомце ${pet.name}`}
+                  >
+                    <Text style={styles.petCompactMeta}>
+                      Процедуры · {preventionSummaries[index]?.data?.data?.length ?? "…"}{"   "}
+                      Документы · {documentSummaries[index]?.data?.data?.length ?? "…"}
                     </Text>
-                    {pet.breed ? <Text style={styles.petDetail}>Порода: {pet.breed}</Text> : null}
-                    {pet.birthDate
-                      ? (() => {
-                          const age = getAgeWithMonths(pet.birthDate);
-                          if (!age) return null;
-                          if (age.years === 0) {
-                            return (
-                              <Text style={styles.petDetail}>
-                                Возраст: {age.months}{" "}
-                                {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                              </Text>
-                            );
-                          }
-                          return (
-                            <Text style={styles.petDetail}>
-                              Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                              {age.months > 0
-                                ? ` ${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}`
-                                : ""}
-                            </Text>
-                          );
-                        })()
-                      : null}
-                    {pet.heightCm ? (
-                      <Text style={styles.petDetail}>Рост: {pet.heightCm} см</Text>
-                    ) : null}
-                    {pet.weightKg ? (
-                      <Text style={styles.petDetail}>Вес: {pet.weightKg} кг</Text>
-                    ) : null}
+                    <Text style={styles.petCompactMore}>Подробнее</Text>
+                  </Pressable>
+                ) : (
+                <View style={styles.petExpandedContent}>
+                  {(pet.neckGirthCm || pet.muzzleGirthCm || pet.bellyGirthCm || pet.notes) ? (
+                  <View style={styles.petExtra}>
+                    <Text style={styles.petExtraTitle}>Параметры и заметки</Text>
                     {pet.neckGirthCm ? (
                       <Text style={styles.petDetail}>Обхват шеи: {pet.neckGirthCm} см</Text>
                     ) : null}
@@ -1636,15 +1714,15 @@ export default function PetsTabScreen() {
                       </Text>
                     ) : null}
                   </View>
-                </View>
+                  ) : null}
                 <View style={styles.petCardActions}>
                   <View style={styles.petManageActions}>
                     <Button
-                      label="Изменить питомца"
+                      label="Изменить данные"
                       variant="primary"
                       flex={1}
                       fullWidth={false}
-                      height={56}
+                      height={44}
                       fontSize={11}
                       lineHeight={15}
                       fontFamily={FONTS.montserrat}
@@ -1664,7 +1742,7 @@ export default function PetsTabScreen() {
                       variant="secondary"
                       flex={1}
                       fullWidth={false}
-                      height={56}
+                      height={44}
                       fontSize={11}
                       lineHeight={15}
                       fontFamily={FONTS.montserrat}
@@ -1679,10 +1757,13 @@ export default function PetsTabScreen() {
                     />
                   </View>
                   <PetPreventionSection pet={pet} />
+                  <PetWeightSection petId={pet.id} />
                   <PetDocumentsSection pet={pet} />
                 </View>
-              </View>
-            ))}
+                </View>
+                )}
+              </View>);
+            })}
           </View>
         )}
         {pets.length > 0 ? (
@@ -1697,6 +1778,7 @@ export default function PetsTabScreen() {
             />
           </TourTarget>
         ) : null}
+        </View>
       </ScrollView>
     </TexturedSafeAreaView>
   );
@@ -1709,12 +1791,19 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: SPACING.md,
     paddingBottom: SPACING.xxl,
+  },
+  headerImage: {
+    width: "100%",
+    height: 180,
+  },
+  petsContent: {
+    flexGrow: 1,
+    padding: SPACING.md,
   },
   emptyCard: {
     alignItems: "center",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
@@ -1725,12 +1814,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   emptyIcon: {
-    width: 60,
+    width: 84,
     height: 60,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(99, 97, 40, 0.12)",
     marginBottom: SPACING.md,
   },
   emptyStateWrap: {
@@ -1759,11 +1844,9 @@ const styles = StyleSheet.create({
   },
   petItem: {
     flexDirection: "column",
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xs,
-    backgroundColor: "#FFF8E5",
-    borderRadius: 22,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 20,
+    overflow: "hidden",
     marginBottom: SPACING.xs,
     shadowColor: "#4A4A1E",
     shadowOffset: { width: 0, height: 8 },
@@ -1774,15 +1857,17 @@ const styles = StyleSheet.create({
   petMainInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.md,
+    gap: 6,
+    minHeight: 164,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   petAvatarPressable: {
     position: "relative",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "#F5F0E8",
-    padding: 4,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
+    backgroundColor: "transparent",
     shadowColor: "#4A4A1E",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.14,
@@ -1790,9 +1875,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   petAvatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
   },
   petAvatarEditBadge: {
     position: "absolute",
@@ -1812,16 +1897,46 @@ const styles = StyleSheet.create({
   },
   petInfo: {
     flex: 1,
-    paddingTop: 2,
-    gap: 2,
+    alignSelf: "stretch",
+    paddingTop: 1,
+    gap: 1,
   },
   petName: {
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 23,
+    lineHeight: 28,
     fontFamily: FONTS.montserratBold,
     color: COLORS.text,
-    marginBottom: 6,
+    marginTop: 5,
+    marginBottom: 1,
   },
+  petHeroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
+  petSpecies: { overflow: "hidden", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 20, backgroundColor: "#ECF0DA", color: "#466035", fontFamily: FONTS.montserratBold, fontSize: 10, textTransform: "uppercase" },
+  petSpeciesCat: { backgroundColor: "#FAE6DD", color: "#8E533D" },
+  petToggle: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: "#D8DCC8", backgroundColor: "#FFFDF5", alignItems: "center", justifyContent: "center", shadowColor: "#3D3621", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.13, shadowRadius: 9, elevation: 2 },
+  petBreed: { fontSize: 11, lineHeight: 16, color: "#696354", fontFamily: FONTS.montserrat },
+  petFacts: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 9 },
+  petFact: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 5, paddingVertical: 5, borderRadius: 8, backgroundColor: "#F0ECDC" },
+  factIcon: { width: 14, height: 14 },
+  petFactText: { fontSize: 10, color: "#3F4B31", fontFamily: FONTS.montserratBold },
+  petCompactFoot: { minHeight: 36, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: "#E8E2D2", flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFFDF7" },
+  petCompactMeta: { fontSize: 10, color: "#5F6551", fontFamily: FONTS.montserrat },
+  petCompactMore: { fontSize: 10, color: "#40592E", fontFamily: FONTS.montserratBold },
+  petExpandedContent: { paddingHorizontal: 9, paddingTop: 11, paddingBottom: 12 },
+  petExtra: {
+    gap: SPACING.xs,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderRadius: 12,
+    backgroundColor: COLORS.cardBackground,
+  },
+  petExtraTitle: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: COLORS.primaryDark,
+    fontFamily: FONTS.montserratBold,
+    marginBottom: SPACING.xs,
+  },
+  sectionIcon: { width: 35, height: 35 },
   petDetail: {
     fontSize: 13,
     lineHeight: 18,
@@ -1837,16 +1952,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
   },
   petCardActions: {
-    marginTop: SPACING.lg,
+    marginTop: SPACING.xs,
+    gap: 9,
   },
   documentsSection: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(99, 97, 40, 0.18)",
-    paddingVertical: SPACING.md,
+    backgroundColor: "#FFFDF8",
+    borderRadius: 15,
+    padding: 11,
     gap: SPACING.xs,
+    shadowColor: "#433317",
+    shadowOpacity: 0.07,
+    shadowRadius: 13,
+    elevation: 2,
   },
   documentsHeader: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
     gap: SPACING.sm,
@@ -1882,7 +2003,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
   },
   documentPreviewFile: {
     height: 72,
@@ -1937,7 +2058,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#D4C4A8",
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     alignItems: "center",
     justifyContent: "center",
     minWidth: 108,
@@ -1976,7 +2097,7 @@ const styles = StyleSheet.create({
   documentModalCard: {
     width: "100%",
     maxWidth: 360,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
@@ -2079,13 +2200,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   preventionSection: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(99, 97, 40, 0.18)",
-    paddingVertical: SPACING.md,
+    backgroundColor: "#FFFDF8",
+    borderRadius: 15,
+    padding: 11,
     gap: SPACING.xs,
+    shadowColor: "#433317",
+    shadowOpacity: 0.07,
+    shadowRadius: 13,
+    elevation: 2,
   },
   preventionHeader: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     alignItems: "center",
     gap: SPACING.sm,
@@ -2100,21 +2226,52 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: FONTS.montserratBold,
   },
-  preventionHint: {
-    fontSize: 11,
-    lineHeight: 15,
+  preventionList: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginTop: SPACING.xs,
+  },
+  sectionEmptyState: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.xs,
+    alignItems: "center",
+  },
+  sectionEmptyText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.montserratMedium,
+    textAlign: "center",
+  },
+  preventionItem: {
+    gap: SPACING.sm,
+    padding: SPACING.md,
+  },
+  preventionItemSeparated: {
+    borderTopWidth: 1,
+    borderTopColor: "#DED4BE",
+  },
+  preventionItemDetails: {
+    gap: SPACING.xs,
+  },
+  preventionItemTitle: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontFamily: FONTS.montserratBold,
+  },
+  preventionItemMeta: {
+    fontSize: 13,
+    lineHeight: 19,
     color: COLORS.textSecondary,
     fontFamily: FONTS.montserrat,
   },
-  preventionItem: {
-    gap: 2,
-    paddingVertical: 4,
-  },
-  preventionItemTitle: {
-    fontSize: 12,
-    color: COLORS.text,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
+  preventionItemActions: {
+    flexDirection: "row",
+    gap: SPACING.sm,
   },
   preventionModalOverlay: {
     flex: 1,
@@ -2125,7 +2282,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   preventionModalSheet: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "92%",
@@ -2178,7 +2335,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#D4C4A8",

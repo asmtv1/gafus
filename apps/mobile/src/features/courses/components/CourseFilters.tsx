@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.borderLight,
   },
   sortOptionActive: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
   },
   sortOptionText: {
     flex: 1,

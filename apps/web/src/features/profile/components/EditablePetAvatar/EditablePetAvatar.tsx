@@ -17,9 +17,11 @@ const logger = createWebLogger("web-editable-pet-avatar");
 export default function EditablePetAvatar({
   petId,
   avatarUrl,
+  petType,
 }: {
   petId: string;
   avatarUrl: string | null;
+  petType: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -89,26 +91,35 @@ export default function EditablePetAvatar({
     ? cacheBuster
       ? `${currentAvatarUrl}${currentAvatarUrl.includes("?") ? "&" : "?"}cb=${cacheBuster}`
       : currentAvatarUrl
-    : "/uploads/pet-avatar.jpg";
+    : petType === "CAT"
+      ? "/images/pet-avatar-cat.png"
+      : "/images/pet-avatar-dog.png";
 
   return (
     <Box
       sx={{
         position: "relative",
-        display: "inline-block",
-        width: 120,
-        height: 120,
+        display: "block",
+        width: "100%",
+        height: "100%",
       }}
     >
-      <Avatar alt="Аватар питомца" src={displayedUrl} sx={{ width: 120, height: 120 }} />
+      <Avatar
+        alt="Аватар питомца"
+        src={displayedUrl}
+        sx={{
+          width: "100%",
+          height: "100%",
+          "& img": { objectPosition: "center" },
+        }}
+      />
       <Tooltip title="Изменить аватар">
         <IconButton
           onClick={() => fileInputRef.current?.click()}
           sx={{
             position: "absolute",
-            bottom: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
+            bottom: 5,
+            right: 5,
             backgroundColor: "background.paper",
             boxShadow: 1,
           }}

@@ -46,7 +46,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "libphonenumber-js": "^1.12.8"
+    "libphonenumber-js": "^1.12.8",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

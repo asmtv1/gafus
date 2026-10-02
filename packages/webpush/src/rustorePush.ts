@@ -62,6 +62,10 @@ export async function sendRustorePushNotifications(
         message: {
           notification: { title: payload.title, body: payload.body },
           data: { url: payload.url },
+          ...(/^\/cynologist-chat(?:s\/[\w-]+)?$/.test(payload.url) ? {
+            android: { notification: { title: payload.title, body: payload.body,
+              click_action: `gafus://${payload.url}`, click_action_type: 1 } },
+          } : {}),
         },
       }),
     });

@@ -5,3 +5,6 @@ export * from "./consultation-msk-format";
 export * from "./consultation-slots-presentation";
 export * from "./ru-phone";
 export * from "./types";
+
+export * from "./intake";
+export * from "./cynologist-chat";

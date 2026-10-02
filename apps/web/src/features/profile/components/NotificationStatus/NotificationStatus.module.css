@@ -303,3 +303,5 @@
 .statusItem, .help { border-radius: 12px; }
 .button, .allowButton, .denyButton { min-height: 44px; border-radius: 12px; font-family: var(--font-montserrat), var(--font-sans-fallback); box-shadow: var(--shadow-button); }
 .button:focus-visible, .allowButton:focus-visible, .denyButton:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
+
+.container h3 { display: flex; gap: 12px; align-items: center; }

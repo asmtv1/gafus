@@ -18,6 +18,10 @@ import {
   renamePetDocument,
   uploadPetDocument,
   updatePetPhoto,
+  getPetWeightHistory,
+  addPetWeightEntry,
+  deletePetWeightEntry,
+  setPetTargetWeight,
 } from "@gafus/core/services/pets";
 import { createWebLogger } from "@gafus/logger";
 import {
@@ -98,6 +102,18 @@ const updatePetSchema = z.object({
   notes: z.string().optional(),
 });
 
+const weightValueSchema = z.number().finite().min(0.1).max(200);
+const weightEntrySchema = z.object({
+  weightKg: weightValueSchema,
+  measuredAt: z.string().datetime({ offset: true }),
+});
+const targetWeightSchema = z.object({ targetWeightKg: weightValueSchema.nullable() });
+
+function validMeasurementDate(value: string): boolean {
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now() + 60_000;
+}
+
 const renamePetDocumentSchema = z.object({
   name: z.string().trim().min(1, "Название документа не может быть пустым"),
 });
@@ -165,6 +181,52 @@ petsRoutes.post("/", zValidator("json", createPetSchema), async (c) => {
 });
 
 // ==================== GET /pets/:petId ====================
+// История веса и цель доступны только владельцу питомца.
+petsRoutes.get("/:petId/weight", async (c) => {
+  const user = c.get("user") as { id: string };
+  const data = await getPetWeightHistory(c.req.param("petId"), user.id);
+  return data
+    ? c.json({ success: true, data })
+    : c.json({ success: false, error: "Питомец не найден" }, 404);
+});
+
+petsRoutes.post("/:petId/weight", zValidator("json", weightEntrySchema), async (c) => {
+  const user = c.get("user") as { id: string };
+  const { weightKg, measuredAt } = c.req.valid("json");
+  if (!validMeasurementDate(measuredAt)) {
+    return c.json({ success: false, error: "Укажите прошедшую дату измерения" }, 400);
+  }
+  const data = await addPetWeightEntry(
+    c.req.param("petId"),
+    user.id,
+    weightKg,
+    new Date(measuredAt),
+  );
+  return data
+    ? c.json({ success: true, data }, 201)
+    : c.json({ success: false, error: "Питомец не найден" }, 404);
+});
+
+petsRoutes.delete("/:petId/weight/:entryId", async (c) => {
+  const user = c.get("user") as { id: string };
+  const deleted = await deletePetWeightEntry(c.req.param("petId"), user.id, c.req.param("entryId"));
+  return deleted
+    ? c.json({ success: true })
+    : c.json({ success: false, error: "Измерение не найдено" }, 404);
+});
+
+petsRoutes.put("/:petId/weight/target", zValidator("json", targetWeightSchema), async (c) => {
+  const user = c.get("user") as { id: string };
+  const saved = await setPetTargetWeight(
+    c.req.param("petId"),
+    user.id,
+    c.req.valid("json").targetWeightKg,
+  );
+  return saved
+    ? c.json({ success: true })
+    : c.json({ success: false, error: "Питомец не найден" }, 404);
+});
+
 // Получить питомца по ID
 petsRoutes.get("/:petId", async (c) => {
   try {
@@ -208,20 +270,14 @@ petsRoutes.post("/:petId/photo", async (c) => {
     }
 
     if (f.size > MAX_PET_PHOTO_SIZE) {
-      return c.json(
-        { success: false, error: "Файл слишком большой. Максимум 2 МБ" },
-        400,
-      );
+      return c.json({ success: false, error: "Файл слишком большой. Максимум 2 МБ" }, 400);
     }
 
     const photoUrl = await updatePetPhoto(petId, user.id, f);
     return c.json({ success: true, data: { photoUrl } });
   } catch (error) {
     logger.error("Error uploading pet photo", error as Error);
-    return c.json(
-      { success: false, error: "Ошибка загрузки фото питомца" },
-      500,
-    );
+    return c.json({ success: false, error: "Ошибка загрузки фото питомца" }, 500);
   }
 });
 
@@ -258,7 +314,11 @@ petsRoutes.post("/:petId/documents", async (c) => {
     }
 
     const uploadedFile = file as File;
-    if (!PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(uploadedFile.type as (typeof PET_DOCUMENT_ALLOWED_MIME_TYPES)[number])) {
+    if (
+      !PET_DOCUMENT_ALLOWED_MIME_TYPES.includes(
+        uploadedFile.type as (typeof PET_DOCUMENT_ALLOWED_MIME_TYPES)[number],
+      )
+    ) {
       return c.json(
         {
           success: false,

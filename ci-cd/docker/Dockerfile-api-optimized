@@ -50,7 +50,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 hono
 
 # Устанавливаем только необходимые пакеты
-RUN apk add --no-cache curl wget
+RUN apk add --no-cache curl wget ffmpeg
 
 # Копируем production-ready структуру из deploy
 COPY --from=base --chown=hono:nodejs /app/deploy/ ./

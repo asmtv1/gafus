@@ -192,6 +192,10 @@ jobs:
               echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
               echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
               echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
+              echo "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}"
+              echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
+              echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
+              echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
             } > ci-cd/docker/.env
 
             # Set secure permissions for .env file

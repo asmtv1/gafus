@@ -229,7 +229,7 @@ export async function createPet(userId: string, data: CreatePetInput) {
         breed: data.breed,
         birthDate: new Date(data.birthDate),
         heightCm: data.heightCm ?? null,
-        weightKg: data.weightKg ?? null,
+        weightKg: null,
         neckGirthCm: data.neckGirthCm ?? null,
         muzzleGirthCm: data.muzzleGirthCm ?? null,
         bellyGirthCm: data.bellyGirthCm ?? null,
@@ -271,7 +271,6 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   if (data.breed !== undefined) updateData.breed = data.breed;
   if (data.birthDate !== undefined) updateData.birthDate = new Date(data.birthDate);
   if (data.heightCm !== undefined) updateData.heightCm = data.heightCm ?? null;
-  if (data.weightKg !== undefined) updateData.weightKg = data.weightKg ?? null;
   if (data.neckGirthCm !== undefined) updateData.neckGirthCm = data.neckGirthCm ?? null;
   if (data.muzzleGirthCm !== undefined) updateData.muzzleGirthCm = data.muzzleGirthCm ?? null;
   if (data.bellyGirthCm !== undefined) updateData.bellyGirthCm = data.bellyGirthCm ?? null;
@@ -279,12 +278,13 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   if (data.notes !== undefined) updateData.notes = data.notes ?? null;
 
   try {
-    const pet = await prisma.pet.update({
-      where: { id: petId },
-      data: updateData,
-      include: {
-        awards: true,
-      },
+    const pet = await prisma.$transaction(async (tx) => {
+      const updated = await tx.pet.update({
+        where: { id: petId },
+        data: updateData,
+        include: { awards: true },
+      });
+      return updated;
     });
 
     return pet;
@@ -297,11 +297,7 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
 /**
  * Обновить фото питомца (загрузка в CDN и сохранение URL в БД)
  */
-export async function updatePetPhoto(
-  petId: string,
-  userId: string,
-  file: File,
-): Promise<string> {
+export async function updatePetPhoto(petId: string, userId: string, file: File): Promise<string> {
   const existingPet = await prisma.pet.findFirst({
     where: { id: petId, ownerId: userId },
     select: { photoUrl: true },

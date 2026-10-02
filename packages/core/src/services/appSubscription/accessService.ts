@@ -3,7 +3,7 @@ import { prisma } from "@gafus/prisma";
 import type { AppSubscriptionStatusDto } from "./types";
 const ACTIVE_CANDIDATE_STATUSES = ["ACTIVE", "PENDING", "PAST_DUE"] as const;
 
-export async function getAppSubscriptionAccess(
+async function getBaseAppSubscriptionAccess(
   userId: string,
   now = new Date(),
 ): Promise<AppSubscriptionStatusDto> {
@@ -111,4 +111,25 @@ export async function getAppSubscriptionAccess(
     yookassaTrialDays: 0,
     yookassaTrialUnavailableReason: null,
   };
+}
+
+/** Entitlements inspect every active period; an overlapping trial never hides paid access. */
+export async function getCynologistEntitlements(userId: string, now = new Date()) {
+  const [user, rows] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    prisma.appSubscription.findMany({
+      where: { userId, status: "ACTIVE", OR: [{ isLifetime: true }, { currentPeriodEnd: { gt: now } }] },
+      include: { payments: { where: { status: "SUCCEEDED" }, take: 1, select: { id: true } } },
+    }),
+  ]);
+  const nonTrial = rows.filter((row) => row.isLifetime || row.provider !== "YOOKASSA" || !row.yookassaPaymentMethodId || row.payments.length > 0);
+  return {
+    canUseCynologistChat: Boolean(user) && (user?.role === "PARTNER" || nonTrial.some((row) => row.isLifetime || row.planCode === "MONTHLY" || row.planCode === "THREE_MONTHS")),
+    canBookConsultations: Boolean(user) && nonTrial.some((row) => !row.isLifetime && row.planCode === "THREE_MONTHS"),
+  };
+}
+
+export async function getAppSubscriptionAccess(userId: string, now = new Date()): Promise<AppSubscriptionStatusDto> {
+  const [status, rights] = await Promise.all([getBaseAppSubscriptionAccess(userId, now), getCynologistEntitlements(userId, now)]);
+  return { ...status, ...rights };
 }

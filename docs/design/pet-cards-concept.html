@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Карточки питомцев · дизайн web и mobile</title>
+    <style>
+      :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #302c22; background: #f2ecde; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; }
+      .stage { max-width: 1510px; margin: auto; padding: 52px 42px 90px; }
+      h1 { font-size: clamp(30px, 4vw, 52px); line-height: 1.06; letter-spacing: -.035em; margin: 0 0 12px; max-width: 830px; }
+      .intro { color: #635e50; font-size: 17px; line-height: 1.5; margin: 0 0 42px; }
+      .layouts { display: grid; grid-template-columns: minmax(0, 1fr) 410px; align-items: start; gap: 52px; }
+      h2 { font-size: 18px; letter-spacing: -.02em; margin: 0 0 18px; }
+      .desktop-cards { display: grid; gap: 24px; }
+      .mobile-shell { background: #fffdf7; padding: 21px 15px 24px; border: 8px solid #272920; border-radius: 40px; box-shadow: 0 28px 54px rgba(51, 39, 21, .2); }
+      .mobile-top { height: 36px; text-align: center; font-weight: 700; font-size: 14px; }
+      .mobile-top::before { content: ""; display: block; width: 75px; height: 19px; background: #272920; border-radius: 0 0 16px 16px; margin: -21px auto 17px; }
+      .mobile-shell h3 { font-size: 26px; letter-spacing: -.025em; margin: 21px 8px 15px; }
+      .mobile-cards { display: grid; gap: 15px; }
+      .card { --pet-tint: #e1e9cd; --pet-art: #c9d6b1; position: relative; min-width: 0; isolation: isolate; overflow: hidden; border-radius: 26px; background: #fffbf2; box-shadow: 0 16px 32px rgba(67, 53, 28, .16), 0 4px 8px rgba(67, 53, 28, .07); transition: transform .25s ease, box-shadow .25s ease; }
+      .card:hover { transform: translateY(-3px); box-shadow: 0 22px 38px rgba(67, 53, 28, .19), 0 5px 9px rgba(67, 53, 28, .08); }
+      .card.cat { --pet-tint: #f3d9ce; --pet-art: #efc4b1; }
+      .card-main { display: block; cursor: pointer; list-style: none; }
+      .card-main::-webkit-details-marker { display: none; }
+      .card-main:focus-visible { outline: 3px solid #475b2b; outline-offset: -4px; border-radius: 26px; }
+      .card-row { min-height: 226px; display: grid; grid-template-columns: 42% 1fr; background: linear-gradient(115deg, var(--pet-tint), #fffbf2 65%); }
+      .art { position: relative; min-width: 0; overflow: hidden; }
+      .art img { position: absolute; width: 205px; height: 205px; max-width: none; top: 10px; left: calc(50% - 102.5px); object-fit: cover; border-radius: 50%; filter: drop-shadow(0 12px 12px rgba(67, 55, 29, .14)); }
+      .info { padding: 25px 29px 22px 19px; min-width: 0; display: flex; flex-direction: column; }
+      .topline { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+      .species { color: #4f6539; background: #edf1de; border-radius: 20px; padding: 6px 11px; font-size: 12px; font-weight: 750; letter-spacing: .035em; text-transform: uppercase; }
+      .cat .species { color: #8f5a42; background: #fae8df; }
+      .chevron { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #d8dcc8; border-radius: 50%; background: #fffdf5; color: #40532e; box-shadow: 0 4px 9px rgba(61,54,33,.13); flex: none; }
+      .chevron svg { width: 21px; height: 21px; transition: transform .25s ease; }
+      details[open] .chevron svg { transform: rotate(180deg); }
+      .name { font-size: clamp(27px, 2.7vw, 38px); letter-spacing: -.04em; font-weight: 800; line-height: 1; margin: 13px 0 6px; }
+      .breed { font-size: 15px; color: #666253; margin: 0; }
+      .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 17px; }
+      .fact { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; background: #f0eddf; border-radius: 12px; color: #3c432d; font-size: 13px; font-weight: 700; white-space: nowrap; }
+      .fact svg { width: 16px; height: 16px; stroke: #566642; }
+      .card-bottom { display: flex; align-items: center; gap: 14px; padding: 11px 23px 12px; border-top: 1px solid rgba(77, 77, 49, .1); background: #fffdf7; color: #686453; font-size: 12px; }
+      .card-bottom strong { color: #465a34; }
+      .card-bottom .open-label { margin-left: auto; color: #425a30; font-weight: 750; white-space: nowrap; }
+      .expanded { padding: 18px 23px 22px; background: #fffdf7; border-top: 1px solid rgba(77, 77, 49, .1); color: #5d5a4e; font-size: 14px; line-height: 1.5; }
+      .expanded b { color: #332f23; }
+      .expanded-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+      .expanded-grid span { padding: 12px; background: #f3f0e5; border-radius: 12px; }
+      .mobile-shell .card { border-radius: 21px; box-shadow: 0 9px 20px rgba(67, 53, 28, .15), 0 2px 5px rgba(67, 53, 28, .07); }
+      .mobile-shell .card-row { min-height: 178px; grid-template-columns: 42% 1fr; }
+      .mobile-shell .art img { width: 126px; height: 126px; top: 26px; left: calc(50% - 63px); }
+      .mobile-shell .info { padding: 16px 12px 14px 9px; }
+      .mobile-shell .species { font-size: 10px; padding: 5px 8px; }
+      .mobile-shell .chevron { width: 40px; height: 40px; }
+      .mobile-shell .name { font-size: 25px; margin: 10px 0 5px; }
+      .mobile-shell .breed { font-size: 12px; }
+      .mobile-shell .facts { gap: 5px; padding-top: 10px; }
+      .mobile-shell .fact { font-size: 11px; gap: 4px; padding: 6px 7px; border-radius: 9px; }
+      .mobile-shell .fact svg { width: 13px; height: 13px; }
+      .mobile-shell .card-bottom { gap: 7px; padding: 9px 12px; font-size: 10px; }
+      .mobile-shell .expanded { padding: 12px; }
+      .mobile-shell .expanded-grid { grid-template-columns: 1fr; gap: 6px; }
+      .note { color: #706b5e; font-size: 12px; line-height: 1.5; margin: 13px 4px 0; }
+      @media (max-width: 1050px) { .layouts { grid-template-columns: 1fr; } .mobile-shell { max-width: 410px; } }
+      @media (max-width: 620px) { .stage { padding: 30px 18px 60px; } .intro { margin-bottom: 30px; } .desktop-cards { display: none; } .desktop-heading { display: none; } .layouts { gap: 0; } .mobile-shell { margin: auto; width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <svg aria-hidden="true" width="0" height="0" style="position:absolute"><symbol id="calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 3v4m10-4v4M3 10h18" fill="none" stroke="currentColor" stroke-width="2"/></symbol><symbol id="scale" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 9a4 4 0 0 1 8 0m-4 0 2 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol><symbol id="ruler" viewBox="0 0 24 24"><path d="M3 17 17 3l4 4L7 21l-4-4Zm4-4 2 2m1-5 2 2m1-5 2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol><symbol id="arrow" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol></svg>
+    <main class="stage">
+      <h1>Питомцев узнаёшь с первого взгляда</h1>
+      <p class="intro">Свернутая карточка показывает характер и главные данные. Нажатие раскрывает привычные разделы питомца.</p>
+      <div class="layouts">
+        <section><h2 class="desktop-heading">Web · свернутые карточки</h2><div class="desktop-cards" id="desktop"></div></section>
+        <section><h2>Mobile · свернутые карточки</h2><div class="mobile-shell"><div class="mobile-top">9:41</div><h3>Мои питомцы</h3><div class="mobile-cards" id="mobile"></div><p class="note">Нажмите карточку, чтобы увидеть раскрытое состояние.</p></div></section>
+      </div>
+    </main>
+    <script>
+      const pets = [
+        { kind: "dog", species: "Собака", name: "Пузенок", breed: "Ретривер", age: "2 года 4 мес", weight: "25 кг", height: "62 см", image: "../../apps/web/public/images/pet-avatar-dog.png" },
+        { kind: "cat", species: "Кошка", name: "Пузенок", breed: "Порода не указана", age: "1 год 3 мес", weight: "4,2 кг", height: "25 см", image: "../../apps/web/public/images/pet-avatar-cat.png" }
+      ];
+      const icon = name => `<svg aria-hidden="true"><use href="#${name}"/></svg>`;
+      const card = p => `<details class="card ${p.kind}"><summary class="card-main"><div class="card-row"><div class="art"><img src="${p.image}" alt="" /></div><div class="info"><div class="topline"><span class="species">${p.species}</span><span class="chevron">${icon("arrow")}</span></div><div class="name">${p.name}</div><p class="breed">${p.breed}</p><div class="facts"><span class="fact">${icon("calendar")}${p.age}</span><span class="fact">${icon("scale")}${p.weight}</span><span class="fact">${icon("ruler")}${p.height}</span></div></div></div><div class="card-bottom"><span>Процедуры · <strong>0</strong></span><span>Документы · <strong>0</strong></span><span class="open-label">Подробнее</span></div></summary><div class="expanded"><b>Профиль ${p.name}</b><div class="expanded-grid"><span>Записи о процедурах</span><span>История веса</span><span>Документы</span></div></div></details>`;
+      document.getElementById("desktop").innerHTML = pets.map(card).join("");
+      document.getElementById("mobile").innerHTML = pets.map(card).join("");
+    </script>
+  </body>
+</html>

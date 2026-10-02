@@ -1,3 +1,4 @@
+import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking, Platform } from "react-native";
 import { Text } from "react-native-paper";
@@ -9,9 +10,12 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
+import { StatusBar } from "expo-status-bar";
+
+import { ProfileIcon } from "@/features/profile/components/profile-icon";
 
 import { Button, Card } from "@/shared/components/ui";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { TexturedSafeAreaView } from "@/shared/components";
 import {
   appSubscriptionApi,
   requestAppSubscriptionPaywall,
@@ -103,7 +107,10 @@ function MobileAppSubscriptionCard() {
   if (isLoading) {
     return (
       <View style={styles.subscriptionCard}>
-        <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
+        <View style={styles.subscriptionHeader}>
+          <ProfileIcon name="premium" />
+          <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
+        </View>
         <Text style={styles.subscriptionMuted}>Загружаем данные подписки...</Text>
       </View>
     );
@@ -113,14 +120,34 @@ function MobileAppSubscriptionCard() {
     return (
       <View style={styles.subscriptionCard}>
         <View style={styles.subscriptionHeader}>
+          <ProfileIcon name="premium" />
           <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
           <View style={[styles.subscriptionStatusBadge, styles.subscriptionStatusInactive]}>
             <Text style={styles.subscriptionStatusText}>Не активна</Text>
           </View>
         </View>
         <Text style={styles.subscriptionMuted}>
-          Откройте курсы, тренировки, документы питомца и консультации с кинологом.
+          Откройте больше возможностей для вас и вашего питомца.
         </Text>
+        <View style={styles.subscriptionBenefits}>
+          {[
+            "Все курсы и тренировки",
+            "Консультации с кинологом",
+            "Документы питомца",
+            "Эксклюзивные материалы",
+          ].map((benefit) => (
+            <View key={benefit} style={styles.subscriptionBenefit}>
+              <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.primary} />
+              <Text style={styles.subscriptionBenefitText}>{benefit}</Text>
+            </View>
+          ))}
+        </View>
+        <Image
+          source={require("../../../assets/images/profile-premium-mascot.png")}
+          style={styles.subscriptionArt}
+          contentFit="contain"
+          accessible={false}
+        />
         <Button
           label="Оформить подписку"
           height={48}
@@ -132,11 +159,12 @@ function MobileAppSubscriptionCard() {
           borderRadius={14}
           onPress={() => requestAppSubscriptionPaywall("required")}
         />
-        {statusResponse && !statusResponse.success ? (
-          <Pressable style={styles.subscriptionGhostButton} onPress={() => void refetch()}>
-            <Text style={styles.subscriptionGhostButtonText}>Обновить статус</Text>
-          </Pressable>
-        ) : null}
+        <Button
+          label="Обновить статус"
+          variant="outline"
+          height={48}
+          onPress={() => void refetch()}
+        />
       </View>
     );
   }
@@ -160,6 +188,7 @@ function MobileAppSubscriptionCard() {
   return (
     <View style={styles.subscriptionCard}>
       <View style={styles.subscriptionHeader}>
+        <ProfileIcon name="premium" />
         <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
         <View style={styles.subscriptionStatusBadge}>
           <Text style={styles.subscriptionStatusText}>Активна</Text>
@@ -170,31 +199,33 @@ function MobileAppSubscriptionCard() {
         <Text style={styles.subscriptionMuted}>
           Бесплатный бессрочный доступ участника партнёрской программы.
         </Text>
-      ) : <>
-      <View style={styles.subscriptionGrid}>
-        <View style={styles.subscriptionInfoCell}>
-          <Text style={styles.subscriptionLabel}>{paidLabel}</Text>
-          <Text style={styles.subscriptionValue}>{paidValue}</Text>
-        </View>
-        <View style={styles.subscriptionInfoCell}>
-          <Text style={styles.subscriptionLabel}>Доступ до</Text>
-          <Text style={styles.subscriptionValue}>{formatMskDateTime(status?.activeUntil)}</Text>
-        </View>
-        <View style={styles.subscriptionInfoCell}>
-          <Text style={styles.subscriptionLabel}>Следующее списание</Text>
-          <Text style={styles.subscriptionValue}>{nextChargeLabel}</Text>
-        </View>
-      </View>
+      ) : (
+        <>
+          <View style={styles.subscriptionGrid}>
+            <View style={styles.subscriptionInfoCell}>
+              <Text style={styles.subscriptionLabel}>{paidLabel}</Text>
+              <Text style={styles.subscriptionValue}>{paidValue}</Text>
+            </View>
+            <View style={styles.subscriptionInfoCell}>
+              <Text style={styles.subscriptionLabel}>Доступ до</Text>
+              <Text style={styles.subscriptionValue}>{formatMskDateTime(status?.activeUntil)}</Text>
+            </View>
+            <View style={styles.subscriptionInfoCell}>
+              <Text style={styles.subscriptionLabel}>Следующее списание</Text>
+              <Text style={styles.subscriptionValue}>{nextChargeLabel}</Text>
+            </View>
+          </View>
 
-      <View style={styles.subscriptionInfoCell}>
-        <Text style={styles.subscriptionLabel}>Способ оплаты</Text>
-        <Text style={styles.subscriptionValue}>
-          {status?.paymentMethodLast4
-            ? `•••• ${status.paymentMethodLast4}`
-            : (status?.paymentMethodTitle ?? "—")}
-        </Text>
-      </View>
-      </>}
+          <View style={styles.subscriptionInfoCell}>
+            <Text style={styles.subscriptionLabel}>Способ оплаты</Text>
+            <Text style={styles.subscriptionValue}>
+              {status?.paymentMethodLast4
+                ? `•••• ${status.paymentMethodLast4}`
+                : (status?.paymentMethodTitle ?? "—")}
+            </Text>
+          </View>
+        </>
+      )}
 
       {canUnlink ? (
         <>
@@ -217,24 +248,26 @@ function MobileAppSubscriptionCard() {
               Подтверждаю отвязку способа оплаты и отключение автоплатежей по подписке.
             </Text>
           </Pressable>
-          <Pressable
-            style={[
-              styles.subscriptionDangerButton,
-              (!unlinkConfirmed || cancelMutation.isPending) && styles.subscriptionButtonDisabled,
-            ]}
+          <Button
+            label={cancelMutation.isPending ? "Удаляем..." : "Удалить способ оплаты"}
+            variant="secondary"
+            height={48}
             onPress={handleUnlink}
             disabled={!unlinkConfirmed || cancelMutation.isPending}
-          >
-            <Text style={styles.subscriptionDangerButtonText}>
-              {cancelMutation.isPending ? "Удаляем..." : "Удалить способ оплаты"}
-            </Text>
-          </Pressable>
+            loading={cancelMutation.isPending}
+          />
         </>
       ) : (
         <Text style={styles.subscriptionMuted}>
           Автопродление включится после сохранения способа оплаты.
         </Text>
       )}
+      <Button
+        label="Обновить статус"
+        variant="outline"
+        height={48}
+        onPress={() => void refetch()}
+      />
     </View>
   );
 }
@@ -300,6 +333,7 @@ const getRoleColor = (role?: string) => {
  * Страница профиля пользователя (точный дизайн как в веб-версии)
  */
 export default function ProfileScreen() {
+  const tabContentBottomPadding = useTabContentBottomPadding();
   const router = useRouter();
   const queryClient = useQueryClient();
   const startOnboardingTour = useMobileOnboardingTourStore((s) => s.startTour);
@@ -473,8 +507,6 @@ export default function ProfileScreen() {
 
   const profileUser = profileData?.data;
   const profile = profileUser?.profile;
-  const cachedFullName = user?.profile?.fullName?.trim() || null;
-  const currentFullName = profile?.fullName?.trim() || null;
   const cachedAvatarUrl = user?.profile?.avatarUrl?.trim() || null;
   const displayEmail = profileUser?.email?.trim() || user?.email?.trim() || "";
   const hasAppPassword = profileData?.data?.hasAppPassword ?? user?.hasAppPassword ?? false;
@@ -492,7 +524,7 @@ export default function ProfileScreen() {
     onError: (msg) => Alert.alert("Ошибка", msg),
   });
   const avatarUrl = profile?.avatarUrl?.trim() || cachedAvatarUrl;
-  const greetingName = currentFullName || cachedFullName || user?.username || "пользователь";
+  const greetingName = user?.username || "пользователь";
   const avatarCacheKey = avatarUrl
     ? `user-avatar-${profileUser?.id ?? user?.id ?? "me"}-${avatarUrl}`
     : "user-avatar-placeholder";
@@ -598,583 +630,558 @@ export default function ProfileScreen() {
   };
 
   return (
-    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <PageHeader title="Профиль" description="Ваш аккаунт и персональные настройки" />
+    <TexturedSafeAreaView style={styles.container} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabContentBottomPadding }]}
+      >
+        <Image
+          source={require("../../../assets/images/profile-header.png")}
+          style={styles.headerImage}
+          contentFit="cover"
+          contentPosition="center"
+          accessible
+          accessibilityLabel="Профиль. Ваш аккаунт и персональные настройки"
+        />
+        <View style={styles.profileContent}>
+          {/* Аватарка и компактная подложка с приветствием */}
+          <View style={styles.profileBanner}>
+            <Pressable
+              style={styles.avatarContainer}
+              onPress={pickImageAndUploadAvatar}
+              disabled={avatarUploadMutation.isPending}
+            >
+              <View style={styles.avatarWrapper}>
+                <Image
+                  source={
+                    avatarUrl
+                      ? { uri: avatarUrl, cacheKey: avatarCacheKey }
+                      : require("../../../assets/images/avatar.png")
+                  }
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                  recyclingKey={avatarCacheKey}
+                  transition={0}
+                />
+              </View>
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditText}>✏️</Text>
+              </View>
+            </Pressable>
+            <LinearGradient
+              colors={["#777631", COLORS.primary, "#4C4B20"]}
+              locations={[0, 0.7, 1]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.profileInfo}
+            >
+              <Text style={styles.greeting}>Привет, {greetingName}!</Text>
+              {displayRole && (
+                <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
+                  <Text style={styles.roleText}>{displayRole}</Text>
+                </View>
+              )}
+            </LinearGradient>
+          </View>
 
-        {/* Баннер профиля (оливковый фон) */}
-        <LinearGradient
-          colors={["#777631", COLORS.primary, "#4C4B20"]}
-          locations={[0, 0.55, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.profileBanner}
-        >
-          <Pressable
-            style={styles.avatarContainer}
-            onPress={pickImageAndUploadAvatar}
-            disabled={avatarUploadMutation.isPending}
-          >
-            <View style={styles.avatarWrapper}>
-              <Image
-                source={
-                  avatarUrl
-                    ? { uri: avatarUrl, cacheKey: avatarCacheKey }
-                    : require("../../../assets/images/avatar.png")
-                }
-                style={styles.avatarImage}
-                contentFit="cover"
-                recyclingKey={avatarCacheKey}
-                transition={0}
+          {/* Контейнер с информацией о себе */}
+          <View style={styles.infoContainer}>
+            <View style={styles.bioCard}>
+              {age !== null && (
+                <Text style={styles.infoText}>
+                  Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
+                </Text>
+              )}
+
+              {/* О себе */}
+              {(profile?.about || !age) && (
+                <View style={styles.aboutContainer}>
+                  <View style={styles.sectionHeading}>
+                    <ProfileIcon name="about" />
+                    <Text style={styles.aboutTitle}>О себе</Text>
+                  </View>
+                  {profile?.about ? (
+                    <View style={styles.aboutCard}>
+                      <Text style={styles.aboutText}>{profile.about}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.emptyNotice}>Информация о себе не внесена</Text>
+                  )}
+                </View>
+              )}
+
+              {/* Социальные сети */}
+              {hasSocialLinks && (
+                <View style={styles.socialLinksContainer}>
+                  <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
+                  <View style={styles.socialLinksList}>
+                    {profile?.instagram && (
+                      <Pressable
+                        style={styles.socialLink}
+                        onPress={() =>
+                          Linking.openURL(`https://instagram.com/${profile.instagram}`)
+                        }
+                      >
+                        <Text style={styles.socialIcon}>📷</Text>
+                        <Text style={styles.socialLabel}>Instagram</Text>
+                        <Text style={styles.socialUsername}>{profile.instagram}</Text>
+                      </Pressable>
+                    )}
+                    {profile?.telegram && (
+                      <Pressable
+                        style={styles.socialLink}
+                        onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
+                      >
+                        <Text style={styles.socialIcon}>✈️</Text>
+                        <Text style={styles.socialLabel}>Telegram</Text>
+                        <Text style={styles.socialUsername}>{profile.telegram}</Text>
+                      </Pressable>
+                    )}
+                    {profile?.website && (
+                      <Pressable
+                        style={styles.socialLink}
+                        onPress={() => Linking.openURL(profile.website!)}
+                      >
+                        <Text style={styles.socialIcon}>🌐</Text>
+                        <Text style={styles.socialLabel}>Сайт</Text>
+                        <Text style={styles.socialUsername}>{profile.website}</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              <Button
+                label="Внести/Изменить «О себе»"
+                height={48}
+                fontFamily={FONTS.impact}
+                fontWeight="600"
+                fontSize={13}
+                lineHeight={18}
+                horizontalPadding={16}
+                verticalPadding={8}
+                borderRadius={12}
+                style={styles.editBioButtonLayout}
+                onPress={() => {
+                  trackProfileClick("profile-edit-open");
+                  router.push({ pathname: "/profile/edit" });
+                }}
               />
             </View>
-            <View style={styles.avatarEditBadge}>
-              <Text style={styles.avatarEditText}>✏️</Text>
-            </View>
-          </Pressable>
-          <View style={styles.profileInfo}>
-            <Text style={styles.greeting}>Привет, {greetingName}!</Text>
-            <Text style={[styles.contactInfo, !displayEmail ? styles.contactInfoMissing : null]}>
-              {displayEmail || USER_EMAIL_MISSING_HINT}
-            </Text>
-            {displayRole && (
-              <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
-                <Text style={styles.roleText}>{displayRole}</Text>
+            <View style={styles.notificationsCard}>
+              <View style={styles.sectionHeading}>
+                <ProfileIcon name="notifications" />
+                <Text style={styles.notificationsTitle}>Уведомления</Text>
               </View>
-            )}
-          </View>
-        </LinearGradient>
-
-        {/* Контейнер с информацией о себе */}
-        <View style={styles.infoContainer}>
-          {age !== null && (
-            <Text style={styles.infoText}>
-              Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
-            </Text>
-          )}
-
-          {/* О себе */}
-          {(profile?.about || !age) && (
-            <View style={styles.aboutContainer}>
-              <Text style={styles.aboutTitle}>О СЕБЕ</Text>
-              {profile?.about ? (
-                <View style={styles.aboutCard}>
-                  <Text style={styles.aboutText}>{profile.about}</Text>
+              <Pressable
+                style={[styles.notifyStatusRow, styles.notifyStatusDivider]}
+                accessibilityRole="button"
+                accessibilityLabel="Разрешение телефона. Настроить уведомления"
+                disabled={enablePushMutation.isPending || disablePushMutation.isPending}
+                onPress={() => {
+                  if (osPermission === "undetermined") enablePushMutation.mutate();
+                  else void Linking.openSettings();
+                }}
+              >
+                <MaterialCommunityIcons name="cellphone" size={25} color={COLORS.primary} />
+                <View style={styles.notifyRowContent}>
+                  <Text style={styles.notifyStatusLabel}>Разрешение телефона</Text>
+                  <Text style={styles.notifyRowSubtitle}>Чтобы получать уведомления</Text>
                 </View>
-              ) : (
-                <Text style={styles.emptyNotice}>Информация о себе не внесена</Text>
-              )}
-            </View>
-          )}
-
-          {/* Социальные сети */}
-          {hasSocialLinks && (
-            <View style={styles.socialLinksContainer}>
-              <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
-              <View style={styles.socialLinksList}>
-                {profile?.instagram && (
-                  <Pressable
-                    style={styles.socialLink}
-                    onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram}`)}
-                  >
-                    <Text style={styles.socialIcon}>📷</Text>
-                    <Text style={styles.socialLabel}>Instagram</Text>
-                    <Text style={styles.socialUsername}>{profile.instagram}</Text>
-                  </Pressable>
-                )}
-                {profile?.telegram && (
-                  <Pressable
-                    style={styles.socialLink}
-                    onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
-                  >
-                    <Text style={styles.socialIcon}>✈️</Text>
-                    <Text style={styles.socialLabel}>Telegram</Text>
-                    <Text style={styles.socialUsername}>{profile.telegram}</Text>
-                  </Pressable>
-                )}
-                {profile?.website && (
-                  <Pressable
-                    style={styles.socialLink}
-                    onPress={() => Linking.openURL(profile.website!)}
-                  >
-                    <Text style={styles.socialIcon}>🌐</Text>
-                    <Text style={styles.socialLabel}>Сайт</Text>
-                    <Text style={styles.socialUsername}>{profile.website}</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          )}
-
-          <Button
-            label="Внести/Изменить «О себе»"
-            height={48}
-            fontFamily={FONTS.impact}
-            fontWeight="600"
-            fontSize={13}
-            lineHeight={18}
-            horizontalPadding={16}
-            verticalPadding={8}
-            borderRadius={12}
-            style={styles.editBioButtonLayout}
-            onPress={() => {
-              trackProfileClick("profile-edit-open");
-              router.push({ pathname: "/profile/edit" });
-            }}
-          />
-
-          <View style={styles.notificationsCard}>
-            <Text style={styles.notificationsTitle}>Уведомления</Text>
-
-            <View style={styles.notifyStatusRow}>
-              <Text style={styles.notifyStatusLabel}>Разрешение телефона:</Text>
-              <View
-                style={[
-                  styles.notifyStatusBadge,
-                  osPermission === "granted"
-                    ? styles.notifyBadgeOk
-                    : osPermission === "denied"
-                      ? styles.notifyBadgeFail
-                      : styles.notifyBadgeWarn,
-                ]}
+                <View style={[styles.notifyStatusBadge,
+                  osPermission === "granted" ? styles.notifyBadgeOk
+                    : osPermission === "denied" ? styles.notifyBadgeFail : styles.notifyBadgeWarn]}>
+                  <Text style={styles.notifyBadgeText}>
+                    {enablePushMutation.isPending ? "Загрузка…" : osPermission === "granted"
+                      ? "Разрешено" : osPermission === "denied" ? "Запрещено" : "Не запрошено"}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={21} color="#352E2E" />
+              </Pressable>
+              <Pressable
+                style={styles.notifyStatusRow}
+                accessibilityRole="button"
+                accessibilityLabel="Подписка на этом устройстве. Настроить уведомления"
+                disabled={enablePushMutation.isPending || disablePushMutation.isPending || pushDeviceStatusPending}
+                onPress={() => {
+                  if (osPermission === "denied") void Linking.openSettings();
+                  else if (pushServerDetermined && hasThisDevicePushOnServer) disablePushMutation.mutate();
+                  else enablePushMutation.mutate();
+                }}
               >
-                <Text style={styles.notifyBadgeText}>
-                  {osPermission === "granted"
-                    ? "✅ Разрешено"
-                    : osPermission === "denied"
-                      ? "❌ Запрещено"
-                      : "⏳ Не запрошено"}
-                </Text>
-              </View>
+                <MaterialCommunityIcons name="email" size={25} color={COLORS.primary} />
+                <View style={styles.notifyRowContent}>
+                  <Text style={styles.notifyStatusLabel}>Подписка на этом устройстве</Text>
+                  <Text style={styles.notifyRowSubtitle}>Уведомления в приложении</Text>
+                </View>
+                <View style={[styles.notifyStatusBadge,
+                  pushDeviceStatusPending || enablePushMutation.isPending || disablePushMutation.isPending
+                    ? styles.notifyBadgeChecking : pushDeviceStatusError ? styles.notifyBadgeFail
+                    : !pushServerDetermined ? styles.notifyBadgeWarn
+                    : hasThisDevicePushOnServer ? styles.notifyBadgeOk : styles.notifyBadgeFail]}>
+                  <Text style={styles.notifyBadgeText}>
+                    {enablePushMutation.isPending || disablePushMutation.isPending ? "Загрузка…"
+                      : pushDeviceStatusPending ? "Проверка…" : pushDeviceStatusError ? "Ошибка"
+                      : !pushServerDetermined ? "Нет токена" : hasThisDevicePushOnServer ? "Активна" : "Неактивна"}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={21} color="#352E2E" />
+              </Pressable>
             </View>
 
-            <View style={styles.notifyStatusRow}>
-              <Text style={styles.notifyStatusLabel}>Подписка на этом устройстве:</Text>
-              <View
-                style={[
-                  styles.notifyStatusBadge,
-                  pushDeviceStatusPending
-                    ? styles.notifyBadgeWarn
-                    : pushDeviceStatusError
-                      ? styles.notifyBadgeFail
-                      : !pushServerDetermined
-                        ? styles.notifyBadgeWarn
-                        : hasThisDevicePushOnServer
-                          ? styles.notifyBadgeOk
-                          : styles.notifyBadgeFail,
-                ]}
-              >
-                <Text style={styles.notifyBadgeText}>
-                  {pushDeviceStatusPending
-                    ? "⏳ Проверка…"
-                    : pushDeviceStatusError
-                      ? "❌ Ошибка"
-                      : !pushServerDetermined
-                        ? "⚠️ Нет токена"
-                        : hasThisDevicePushOnServer
-                          ? "✅ Активна"
-                          : "❌ Неактивна"}
-                </Text>
-              </View>
-            </View>
-
-            {!pushDeviceStatusPending && !pushDeviceStatusError && !pushServerDetermined && (
-              <Text style={styles.notifyHintText}>
-                Разрешите уведомления, чтобы проверить и включить подписку на этом устройстве.
-              </Text>
-            )}
-
-            {osPermission === "denied" && pushServerDetermined && hasThisDevicePushOnServer && (
-              <View style={styles.notifyWarningBox}>
-                <MaterialCommunityIcons name="alert" size={14} color="#8B4513" />
-                <Text style={styles.notifyWarningText}>
-                  Сервер пытается отправлять пуши, но телефон их блокирует. Разрешите уведомления в
-                  настройках телефона.
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.notificationsActions}>
-              {osPermission === "denied" ? (
-                <Button
-                  label="Открыть настройки телефона"
-                  flex={1}
-                  height={48}
-                  fontFamily={FONTS.impact}
-                  fontSize={14}
-                  lineHeight={18}
-                  horizontalPadding={12}
-                  verticalPadding={6}
-                  borderRadius={12}
-                  icon="cog-outline"
-                  buttonColor="#352E2E"
-                  onPress={() => void Linking.openSettings()}
-                />
-              ) : osPermission === "undetermined" ? (
-                <Button
-                  label={enablePushMutation.isPending ? "Загрузка..." : "Включить уведомления"}
-                  flex={1}
-                  height={48}
-                  fontFamily={FONTS.impact}
-                  fontSize={14}
-                  lineHeight={18}
-                  horizontalPadding={12}
-                  verticalPadding={6}
-                  borderRadius={12}
-                  disabled={enablePushMutation.isPending}
-                  onPress={() => enablePushMutation.mutate()}
-                />
-              ) : pushServerDetermined && hasThisDevicePushOnServer ? (
-                <Button
-                  label={disablePushMutation.isPending ? "Загрузка..." : "Отключить уведомления"}
-                  variant="danger"
-                  flex={1}
-                  height={48}
-                  fontFamily={FONTS.impact}
-                  fontSize={14}
-                  lineHeight={18}
-                  horizontalPadding={12}
-                  verticalPadding={6}
-                  borderRadius={12}
-                  buttonColor="#8B4513"
-                  disabled={disablePushMutation.isPending}
-                  onPress={() => disablePushMutation.mutate()}
-                />
-              ) : (
-                <Button
-                  label={enablePushMutation.isPending ? "Загрузка..." : "Включить подписку"}
-                  flex={1}
-                  height={48}
-                  fontFamily={FONTS.impact}
-                  fontSize={14}
-                  lineHeight={18}
-                  horizontalPadding={12}
-                  verticalPadding={6}
-                  borderRadius={12}
-                  disabled={enablePushMutation.isPending}
-                  onPress={() => enablePushMutation.mutate()}
-                />
-              )}
-            </View>
-          </View>
-
-          <Pressable
-            style={styles.remindersCard}
-            onPress={() => {
-              trackProfileClick("training-reminders-open");
-              router.push({ pathname: "/reminders" });
-            }}
-          >
-            <MaterialCommunityIcons name="bell-ring-outline" size={22} color={COLORS.primary} />
-            <View style={styles.remindersCardContent}>
-              <Text style={styles.remindersCardTitle}>Напоминания о тренировках</Text>
-              <Text style={styles.remindersCardSubtitle}>Настроить время и дни</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
-          </Pressable>
-
-          <MobileAppSubscriptionCard />
-
-          {user?.role === "PARTNER" ? (
             <Pressable
               style={styles.remindersCard}
               onPress={() => {
-                trackProfileClick("partner-dashboard-open");
-                router.push("/partner" as Href);
+                trackProfileClick("training-reminders-open");
+                router.push({ pathname: "/reminders" });
               }}
             >
-              <MaterialCommunityIcons name="account-group-outline" size={22} color={COLORS.primary} />
+              <ProfileIcon name="reminders" />
               <View style={styles.remindersCardContent}>
-                <Text style={styles.remindersCardTitle}>Партнёрская программа</Text>
-                <Text style={styles.remindersCardSubtitle}>Ссылка, вознаграждения и выплаты</Text>
+                <Text style={styles.remindersCardTitle}>Напоминания о тренировках</Text>
+                <Text style={styles.remindersCardSubtitle}>Настроить время и дни</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
             </Pressable>
+
+            <MobileAppSubscriptionCard />
+
+            {user?.role === "PARTNER" ? (
+              <Pressable
+                style={styles.remindersCard}
+                onPress={() => {
+                  trackProfileClick("partner-dashboard-open");
+                  router.push("/partner" as Href);
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="account-group-outline"
+                  size={22}
+                  color={COLORS.primary}
+                />
+                <View style={styles.remindersCardContent}>
+                  <Text style={styles.remindersCardTitle}>Партнёрская программа</Text>
+                  <Text style={styles.remindersCardSubtitle}>Ссылка, вознаграждения и выплаты</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
+              </Pressable>
+            ) : null}
+
+            <Pressable style={styles.remindersCard} onPress={handleRepeatOnboardingTour}>
+              <ProfileIcon name="tour" />
+              <View style={styles.remindersCardContent}>
+                <Text style={styles.remindersCardTitle}>Повторить экскурсию</Text>
+                <Text style={styles.remindersCardSubtitle}>Коротко показать основные разделы</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
+            </Pressable>
+
+            {canShowTracerSelfTest ? (
+              <Pressable
+                style={styles.remindersCard}
+                onPress={handleTracerSelfTest}
+                disabled={tracerSelfTestPending}
+              >
+                <MaterialCommunityIcons name="bug-check-outline" size={22} color={COLORS.primary} />
+                <View style={styles.remindersCardContent}>
+                  <Text style={styles.remindersCardTitle}>Проверить AppTracer</Text>
+                  <Text style={styles.remindersCardSubtitle}>
+                    {tracerSelfTestPending ? "Отправка…" : "Отправить тестовую JS-ошибку"}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="send-outline" size={20} color={COLORS.primary} />
+              </Pressable>
+            ) : null}
+
+            {user?.role === "USER" && (
+              <View style={styles.notesCard}>
+                <View style={[styles.sectionHeading, styles.notesHeading]}>
+                  <ProfileIcon name="trainer-notes" />
+                  <Text style={styles.notesTitle}>Заметки тренера</Text>
+                </View>
+                {studentNotes.length === 0 ? (
+                  <View style={styles.notesEmptyState}>
+                    <ProfileIcon name="notes-empty" size={50} />
+                    <Text style={styles.notesEmpty}>Пока нет заметок от тренера</Text>
+                  </View>
+                ) : (
+                  studentNotes.map((note) => (
+                    <View key={note.id} style={styles.noteItem}>
+                      <Text style={styles.noteTitle}>{note.title}</Text>
+                      <Text style={styles.noteMeta}>
+                        {note.trainer?.profile?.fullName ?? "Тренер"} •{" "}
+                        {new Date(note.createdAt).toLocaleDateString("ru-RU")}
+                      </Text>
+                      {note.entries.map((entry) => (
+                        <Text key={entry.id} style={styles.noteContent}>
+                          • {entry.content}
+                        </Text>
+                      ))}
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+
+            {user?.role === "TRAINER" && (
+              <View style={styles.notesCard}>
+                <Text style={styles.notesTitle}>Курсы кинолога</Text>
+                {trainerCourses.length === 0 ? (
+                  <Text style={styles.notesEmpty}>Курсы не найдены</Text>
+                ) : (
+                  trainerCourses.map((course) => (
+                    <Pressable
+                      key={course.id}
+                      style={styles.trainerCourseItem}
+                      onPress={() => router.push(`/training/${course.type}`)}
+                    >
+                      <Text style={styles.trainerCourseTitle}>{course.name}</Text>
+                      <Text style={styles.trainerCourseMeta}>{course.shortDesc}</Text>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
+
+          {!hasVkLinked && canLinkVk ? (
+            <Button
+              label={isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
+              height={48}
+              fontFamily={FONTS.impact}
+              fontWeight="600"
+              fontSize={15}
+              lineHeight={20}
+              horizontalPadding={28}
+              verticalPadding={14}
+              borderRadius={12}
+              style={styles.profileActionButtonLayout}
+              onPress={handleVkLink}
+              disabled={isVkLinkLoading}
+            />
+          ) : hasVkLinked ? (
+            <View style={styles.vkLinkedBadge}>
+              <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
+              <Text style={styles.vkLinkedBadgeText}>VK подключён</Text>
+            </View>
           ) : null}
 
-          <Pressable style={styles.remindersCard} onPress={handleRepeatOnboardingTour}>
-            <MaterialCommunityIcons name="map-search-outline" size={22} color={COLORS.primary} />
-            <View style={styles.remindersCardContent}>
-              <Text style={styles.remindersCardTitle}>Повторить экскурсию</Text>
-              <Text style={styles.remindersCardSubtitle}>Коротко показать основные разделы</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
-          </Pressable>
-
-          {canShowTracerSelfTest ? (
+          <Text style={styles.groupTitle}>Данные аккаунта</Text>
+          <View style={styles.menuGroup}>
             <Pressable
-              style={styles.remindersCard}
-              onPress={handleTracerSelfTest}
-              disabled={tracerSelfTestPending}
+              accessibilityRole="button"
+              style={styles.infoItem}
+              onPress={() => router.push({ pathname: "/profile/change-username" })}
             >
-              <MaterialCommunityIcons name="bug-check-outline" size={22} color={COLORS.primary} />
-              <View style={styles.remindersCardContent}>
-                <Text style={styles.remindersCardTitle}>Проверить AppTracer</Text>
-                <Text style={styles.remindersCardSubtitle}>
-                  {tracerSelfTestPending ? "Отправка…" : "Отправить тестовую JS-ошибку"}
+              <ProfileIcon name="login" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Логин</Text>
+                <Text style={styles.infoItemDesc}>{user?.username}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
+            <View style={styles.infoDivider} />
+            <Pressable
+              accessibilityRole="button"
+              style={styles.infoItem}
+              onPress={() => router.push("/profile/change-email" as Href)}
+            >
+              <ProfileIcon name="email" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Email</Text>
+                <Text style={styles.infoItemDesc}>{displayEmail || USER_EMAIL_MISSING_HINT}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
+            <View style={styles.infoDivider} />
+            <Pressable
+              accessibilityRole="button"
+              style={styles.infoItem}
+              onPress={() =>
+                router.push(
+                  hasAppPassword ? ("/profile/change-password" as Href) : "/profile/set-password",
+                )
+              }
+            >
+              <ProfileIcon name="password" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>
+                  {hasAppPassword ? "Сменить пароль" : "Установить пароль"}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="send-outline" size={20} color={COLORS.primary} />
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
             </Pressable>
-          ) : null}
-
-          {user?.role === "USER" && (
-            <View style={styles.notesCard}>
-              <Text style={styles.notesTitle}>Заметки тренера</Text>
-              {studentNotes.length === 0 ? (
-                <Text style={styles.notesEmpty}>Пока нет заметок от тренера</Text>
-              ) : (
-                studentNotes.map((note) => (
-                  <View key={note.id} style={styles.noteItem}>
-                    <Text style={styles.noteTitle}>{note.title}</Text>
-                    <Text style={styles.noteMeta}>
-                      {note.trainer?.profile?.fullName ?? "Тренер"} •{" "}
-                      {new Date(note.createdAt).toLocaleDateString("ru-RU")}
-                    </Text>
-                    {note.entries.map((entry) => (
-                      <Text key={entry.id} style={styles.noteContent}>
-                        • {entry.content}
-                      </Text>
-                    ))}
-                  </View>
-                ))
-              )}
-            </View>
-          )}
-
-          {user?.role === "TRAINER" && (
-            <View style={styles.notesCard}>
-              <Text style={styles.notesTitle}>Курсы кинолога</Text>
-              {trainerCourses.length === 0 ? (
-                <Text style={styles.notesEmpty}>Курсы не найдены</Text>
-              ) : (
-                trainerCourses.map((course) => (
-                  <Pressable
-                    key={course.id}
-                    style={styles.trainerCourseItem}
-                    onPress={() => router.push(`/training/${course.type}`)}
-                  >
-                    <Text style={styles.trainerCourseTitle}>{course.name}</Text>
-                    <Text style={styles.trainerCourseMeta}>{course.shortDesc}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
-          )}
-        </View>
-
-        {!hasVkLinked && canLinkVk ? (
-          <Button
-            label={isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
-            height={48}
-            fontFamily={FONTS.impact}
-            fontWeight="600"
-            fontSize={15}
-            lineHeight={20}
-            horizontalPadding={28}
-            verticalPadding={14}
-            borderRadius={12}
-            style={styles.profileActionButtonLayout}
-            onPress={handleVkLink}
-            disabled={isVkLinkLoading}
-          />
-        ) : hasVkLinked ? (
-          <View style={styles.vkLinkedBadge}>
-            <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
-            <Text style={styles.vkLinkedBadgeText}>VK подключён</Text>
           </View>
-        ) : null}
 
-        {hasAppPassword ? (
-          <Button
-            label="🔐 Сменить пароль"
-            height={48}
-            fontFamily={FONTS.impact}
-            fontWeight="600"
-            fontSize={15}
-            lineHeight={20}
-            horizontalPadding={28}
-            verticalPadding={14}
-            borderRadius={12}
-            style={styles.profileActionButtonLayout}
-            onPress={() => router.push("/profile/change-password" as Href)}
-          />
-        ) : (
-          <Button
-            label="🔐 Установить пароль"
-            height={48}
-            fontFamily={FONTS.impact}
-            fontWeight="600"
-            fontSize={15}
-            lineHeight={20}
-            horizontalPadding={28}
-            verticalPadding={14}
-            borderRadius={12}
-            style={styles.profileActionButtonLayout}
-            onPress={() => router.push("/profile/set-password")}
-          />
-        )}
+          {/* Информация (в самом низу) */}
+          <Card style={styles.infoCard}>
+            <Text style={styles.infoCardTitle}>Информация</Text>
 
-        <Button
-          label="✉️ Сменить email"
-          height={48}
-          fontFamily={FONTS.impact}
-          fontWeight="600"
-          fontSize={15}
-          lineHeight={20}
-          horizontalPadding={28}
-          verticalPadding={14}
-          borderRadius={12}
-          style={styles.profileActionButtonLayout}
-          onPress={() => router.push("/profile/change-email" as Href)}
-        />
+            <Pressable
+              style={styles.infoItem}
+              onPress={() => router.push("/(auth)/intro?manual=1" as Href)}
+            >
+              <ProfileIcon name="app-info" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>О приложении</Text>
+                <Text style={styles.infoItemDesc}>
+                  Версия {Constants.expoConfig?.version ?? "—"}
+                </Text>
+              </View>
+            </Pressable>
 
-        <Button
-          label="👤 Сменить логин"
-          height={48}
-          fontFamily={FONTS.impact}
-          fontWeight="600"
-          fontSize={15}
-          lineHeight={20}
-          horizontalPadding={28}
-          verticalPadding={14}
-          borderRadius={12}
-          style={styles.profileActionButtonLayout}
-          onPress={() => router.push({ pathname: "/profile/change-username" })}
-        />
+            <View style={styles.infoDivider} />
 
-        <Pressable
-          style={styles.deleteAccountButton}
-          onPress={() => router.push("/profile/delete-account")}
-        >
-          <Text style={styles.deleteAccountButtonText}>Удалить аккаунт</Text>
-        </Pressable>
+            <Pressable style={styles.infoItem} onPress={() => Linking.openURL(GAFUS_TELEGRAM_URL)}>
+              <ProfileIcon name="telegram" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Наш Telegram</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
 
-        {/* Выход */}
-        <Button
-          label="Выйти из аккаунта"
-          height={48}
-          fontFamily={FONTS.impact}
-          fontWeight="600"
-          fontSize={15}
-          lineHeight={20}
-          horizontalPadding={28}
-          verticalPadding={14}
-          borderRadius={12}
-          style={styles.profileActionButtonLayout}
-          onPress={handleLogout}
-        />
+            <View style={styles.infoDivider} />
 
-        {/* Информация (в самом низу) */}
-        <Card style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>Информация</Text>
+            <Pressable
+              style={styles.infoItem}
+              onPress={() => Linking.openURL(DOCUMENT_URLS.policy)}
+            >
+              <ProfileIcon name="privacy" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Политика конфиденциальности</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
 
-          <Pressable style={styles.infoItem} onPress={() => router.push("/(auth)/intro?manual=1" as Href)}>
-            <Text style={styles.infoIcon}>ℹ️</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>О приложении</Text>
-              <Text style={styles.infoItemDesc}>Версия {Constants.expoConfig?.version ?? "—"}</Text>
-            </View>
-          </Pressable>
+            <View style={styles.infoDivider} />
 
-          <View style={styles.infoDivider} />
+            <Pressable
+              style={styles.infoItem}
+              onPress={() => Linking.openURL(DOCUMENT_URLS.oferta)}
+            >
+              <ProfileIcon name="offer" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Оферта</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
 
-          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(GAFUS_TELEGRAM_URL)}>
-            <Text style={styles.infoIcon}>📢</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>Наш Telegram</Text>
-            </View>
-            <Text style={styles.infoArrow}>→</Text>
-          </Pressable>
+            <View style={styles.infoDivider} />
 
-          <View style={styles.infoDivider} />
+            <Pressable
+              style={styles.infoItem}
+              onPress={() => Linking.openURL(DOCUMENT_URLS.personal)}
+            >
+              <ProfileIcon name="consent" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Согласие на обработку персональных данных</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
 
-          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(DOCUMENT_URLS.policy)}>
-            <Text style={styles.infoIcon}>🔒</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>Политика конфиденциальности</Text>
-            </View>
-            <Text style={styles.infoArrow}>→</Text>
-          </Pressable>
+            <View style={styles.infoDivider} />
 
-          <View style={styles.infoDivider} />
+            <Pressable
+              style={styles.infoItem}
+              onPress={() => Linking.openURL(DOCUMENT_URLS.personalDistribution)}
+            >
+              <ProfileIcon name="distribution" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Согласие на распространение данных</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
 
-          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(DOCUMENT_URLS.oferta)}>
-            <Text style={styles.infoIcon}>📄</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>Оферта</Text>
-            </View>
-            <Text style={styles.infoArrow}>→</Text>
-          </Pressable>
+            <View style={styles.infoDivider} />
 
-          <View style={styles.infoDivider} />
-
-          <Pressable
-            style={styles.infoItem}
-            onPress={() => Linking.openURL(DOCUMENT_URLS.personal)}
-          >
-            <Text style={styles.infoIcon}>📋</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>Согласие на обработку персональных данных</Text>
-            </View>
-            <Text style={styles.infoArrow}>→</Text>
-          </Pressable>
-
-          <View style={styles.infoDivider} />
-
-          <Pressable
-            style={styles.infoItem}
-            onPress={() => Linking.openURL(DOCUMENT_URLS.personalDistribution)}
-          >
-            <Text style={styles.infoIcon}>📋</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>Согласие на распространение данных</Text>
-            </View>
-            <Text style={styles.infoArrow}>→</Text>
-          </Pressable>
-
-          <View style={styles.infoDivider} />
-
-          <Pressable style={styles.infoItem} onPress={() => Linking.openURL(SUPPORT_TELEGRAM_URL)}>
-            <Text style={styles.infoIcon}>💬</Text>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoItemTitle}>Связаться с поддержкой</Text>
-            </View>
-            <Text style={styles.infoArrow}>→</Text>
-          </Pressable>
-        </Card>
+            <Pressable
+              style={styles.infoItem}
+              onPress={() => Linking.openURL(SUPPORT_TELEGRAM_URL)}
+            >
+              <ProfileIcon name="support" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoItemTitle}>Связаться с поддержкой</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
+            </Pressable>
+          </Card>
+          <Text style={styles.groupTitle}>Действия с аккаунтом</Text>
+          <View style={styles.accountActions}>
+            <Button
+              label="Выйти из аккаунта"
+              variant="secondary"
+              height={52}
+              onPress={handleLogout}
+              icon={() => <ProfileIcon name="logout" size={30} />}
+            />
+            <Button
+              label="Удалить аккаунт"
+              variant="secondary"
+              height={52}
+              onPress={() => router.push("/profile/delete-account")}
+              icon={() => <ProfileIcon name="delete-account" size={30} />}
+            />
+          </View>
+        </View>
       </ScrollView>
     </TexturedSafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+  bioCard: {
+    padding: SPACING.md,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#E5DDC9",
+  },
+  groupTitle: {
+    fontFamily: FONTS.impact,
+    fontSize: 18,
+    color: COLORS.text,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  menuGroup: { backgroundColor: COLORS.cardBackground, borderRadius: 22, paddingVertical: 4 },
+  accountActions: { gap: 12, padding: SPACING.md, backgroundColor: COLORS.cardBackground, borderRadius: 22 },
+  notesHeading: { marginBottom: 6 },
+  notesEmptyState: { alignItems: "center", gap: 12, paddingTop: 4, paddingBottom: 16 },
+  subscriptionBenefits: { gap: 12, paddingVertical: 8 },
+  subscriptionBenefit: { flexDirection: "row", alignItems: "center", gap: 10 },
+  subscriptionBenefitText: {
+    flex: 1,
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    lineHeight: 20,
+    color: COLORS.text,
+  },
+  subscriptionArt: { width: "100%", height: 210 },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   scrollContent: {
-    padding: SPACING.md,
     paddingBottom: SPACING.xxl,
   },
-  // Баннер профиля (оливковый фон)
+  headerImage: {
+    width: "100%",
+    height: 180,
+  },
+  profileContent: {
+    padding: SPACING.md,
+  },
+  // Полоска начинается под аватаркой и выходит из-за неё вправо.
   profileBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
     width: "100%",
-    borderRadius: 20,
-    paddingVertical: SPACING.sm + 10,
-    paddingHorizontal: SPACING.md,
     marginBottom: SPACING.md,
-    shadowColor: "#4A4A1E",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 6,
   },
   avatarContainer: {
     position: "relative",
+    zIndex: 1,
     width: 108,
     height: 108,
     flexShrink: 0,
@@ -1199,8 +1206,9 @@ const styles = StyleSheet.create({
   },
   avatarEditBadge: {
     position: "absolute",
-    right: 0,
-    bottom: 0,
+    left: "50%",
+    marginLeft: -14,
+    bottom: 5,
     backgroundColor: "rgba(246, 240, 223, 0.24)",
     borderRadius: 14,
     width: 28,
@@ -1217,22 +1225,24 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "column",
     gap: 4,
+    marginLeft: -54,
+    alignSelf: "flex-end",
+    marginBottom: 5,
+    minHeight: 56,
+    justifyContent: "center",
+    paddingVertical: SPACING.sm,
+    paddingLeft: 54 + SPACING.sm,
+    paddingRight: SPACING.md,
+    borderTopRightRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: "hidden",
   },
   greeting: {
     fontSize: 19,
     color: "#ECE5D2",
     fontFamily: FONTS.impact,
     lineHeight: 20,
-  },
-  contactInfo: {
-    fontSize: 13,
-    color: "rgba(246, 240, 223, 0.84)",
-    fontFamily: FONTS.montserrat,
-    opacity: 0.9,
-  },
-  contactInfoMissing: {
-    fontStyle: "italic",
-    opacity: 0.85,
+    textAlign: "center",
   },
   roleBadge: {
     paddingVertical: 4,
@@ -1248,18 +1258,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
   },
   // Контейнер с информацией о себе
-  infoContainer: {
-    width: "100%",
-    padding: SPACING.md,
-    backgroundColor: "#FFF8E5",
-    borderRadius: 16,
-    marginBottom: SPACING.lg,
-    shadowColor: "#4A4A1E",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.13,
-    shadowRadius: 12,
-    elevation: 4,
-  },
+  infoContainer: { width: "100%", marginBottom: SPACING.md },
   infoText: {
     fontSize: 14,
     color: "#352E2E",
@@ -1273,7 +1272,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserrat,
   },
   emptyNotice: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     color: "#636128",
     padding: SPACING.md,
     borderRadius: 8,
@@ -1291,41 +1290,49 @@ const styles = StyleSheet.create({
   },
   notificationsCard: {
     marginTop: SPACING.md,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    borderRadius: 12,
-    backgroundColor: "#ECE5D2",
+    paddingHorizontal: SPACING.sm + 2,
+    paddingTop: SPACING.sm,
+    borderRadius: 16,
+    backgroundColor: COLORS.cardBackground,
   },
   notificationsTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#352E2E",
     fontFamily: FONTS.impact,
-    marginBottom: SPACING.sm,
-  },
-  notificationsStatus: {
-    marginTop: 6,
-    color: "#636128",
-    fontFamily: FONTS.montserrat,
   },
   notifyStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
+    minHeight: 64,
+  },
+  notifyStatusDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#EAE2D2",
+  },
+  notifyRowContent: {
+    flex: 1,
+    gap: 3,
   },
   notifyStatusLabel: {
     fontFamily: FONTS.montserrat,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#352E2E",
-    flex: 1,
+  },
+  notifyRowSubtitle: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 11,
+    color: "#756F63",
   },
   notifyStatusBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 96,
+    alignItems: "center",
   },
   notifyBadgeOk: {
     backgroundColor: "#D4EDDA",
@@ -1334,41 +1341,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8D7DA",
   },
   notifyBadgeWarn: {
-    backgroundColor: "#FFF3CD",
+    backgroundColor: "#FCEBC5",
+  },
+  notifyBadgeChecking: {
+    backgroundColor: "#D3E0F2",
   },
   notifyBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
     color: "#352E2E",
-  },
-  notifyWarningBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: "#FFF3CD",
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 8,
-  },
-  notifyWarningText: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: FONTS.montserrat,
-    color: "#8B4513",
-    lineHeight: 17,
-  },
-  notifyHintText: {
-    fontSize: 12,
-    fontFamily: FONTS.montserrat,
-    color: "#6B6560",
-    lineHeight: 17,
-    marginBottom: 6,
-  },
-  notificationsActions: {
-    marginTop: SPACING.sm,
-    flexDirection: "row",
-    gap: SPACING.sm,
   },
   remindersCard: {
     flexDirection: "row",
@@ -1377,9 +1359,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: "#D4C4A8",
-    borderRadius: 12,
-    backgroundColor: "#ECE5D2",
+    borderColor: "#E5DDC9",
+    borderRadius: 22,
+    backgroundColor: COLORS.cardBackground,
   },
   remindersCardContent: {
     flex: 1,
@@ -1399,9 +1381,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     padding: SPACING.md,
     borderWidth: 1.5,
-    borderColor: "#A9A77A",
-    borderRadius: 18,
-    backgroundColor: "#F6F0DF",
+    borderColor: "#E5DDC9",
+    borderRadius: 22,
+    backgroundColor: COLORS.cardBackground,
     gap: SPACING.sm,
   },
   subscriptionHeader: {
@@ -1523,9 +1505,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: "#D4C4A8",
-    borderRadius: 12,
-    backgroundColor: "#ECE5D2",
+    borderColor: "#E5DDC9",
+    borderRadius: 22,
+    backgroundColor: COLORS.cardBackground,
     gap: SPACING.sm,
   },
   notesTitle: {
@@ -1575,15 +1557,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   // О себе
-  aboutContainer: {
-    width: "100%",
-    marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: "#ECE5D2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-  },
+  aboutContainer: { width: "100%", marginBottom: SPACING.sm },
   aboutTitle: {
     fontSize: 14,
     fontWeight: "600",
@@ -1613,10 +1587,10 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: "#ECE5D2",
-    borderRadius: 12,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#D4C4A8",
+    borderColor: "#E5DDC9",
   },
   socialLinksTitle: {
     fontSize: 14,
@@ -1668,7 +1642,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -1707,7 +1681,8 @@ const styles = StyleSheet.create({
   // Информация (в самом низу)
   infoCard: {
     marginTop: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 22,
   },
   infoCardTitle: {
     fontSize: 16,
@@ -1719,6 +1694,8 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
   },
   infoItem: {
+    minHeight: 64,
+    gap: 12,
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: SPACING.sm,
@@ -1731,6 +1708,7 @@ const styles = StyleSheet.create({
   },
   infoContent: {
     flex: 1,
+    minWidth: 0,
   },
   infoItemTitle: {
     fontSize: 14,

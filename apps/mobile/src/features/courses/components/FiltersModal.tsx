@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderLight,
   },
   optionButtonActive: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderColor: COLORS.primary,
     borderWidth: 3,
   },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: SPACING.lg,
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 3,
     borderColor: COLORS.primary,

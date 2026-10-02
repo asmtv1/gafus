@@ -9,7 +9,6 @@ import {
   petMuzzleGirthSchema,
   petNeckGirthSchema,
   petHeightSchema,
-  petWeightSchema,
 } from "@shared/lib/validation/petSchemas";
 
 /** Экранирование для подстановки в HTML (value="...") — защита от XSS */
@@ -318,11 +317,6 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         </div>
         
         <div style="margin-bottom: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Вес (кг)</label>
-          <input id="pet-weightKg" type="number" value="${escapeHtml(String(pet.weightKg ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите вес">
-        </div>
-
-        <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #352E2E;">Обхват шеи (см)</label>
           <input id="pet-neckGirthCm" type="number" value="${escapeHtml(String(pet.neckGirthCm ?? ""))}" style="width: 100%; padding: 8px; border: 2px solid #636128; border-radius: 6px; font-size: 14px;" placeholder="Введите обхват шеи">
         </div>
@@ -367,7 +361,6 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
       const birthDateRaw =
         (document.getElementById("pet-birthDate") as HTMLInputElement)?.value?.trim() ?? "";
       const heightCm = (document.getElementById("pet-heightCm") as HTMLInputElement)?.value;
-      const weightKg = (document.getElementById("pet-weightKg") as HTMLInputElement)?.value;
       const neckGirthCm = (document.getElementById("pet-neckGirthCm") as HTMLInputElement)?.value;
       const muzzleGirthCm =
         (document.getElementById("pet-muzzleGirthCm") as HTMLInputElement)?.value;
@@ -404,11 +397,6 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         Swal.showValidationMessage(heightParsed.error.issues[0]?.message ?? "Рост заполнен некорректно");
         return false;
       }
-      const weightParsed = petWeightSchema.safeParse(weightKg);
-      if (!weightParsed.success) {
-        Swal.showValidationMessage(weightParsed.error.issues[0]?.message ?? "Вес заполнен некорректно");
-        return false;
-      }
       const neckGirthParsed = petNeckGirthSchema.safeParse(neckGirthCm);
       if (!neckGirthParsed.success) {
         Swal.showValidationMessage(
@@ -438,7 +426,6 @@ export const showEditPetAlert = async (pet: PetFormData): Promise<PetFormData | 
         breed: breed || undefined,
         birthDate,
         heightCm: heightParsed.data,
-        weightKg: weightParsed.data,
         neckGirthCm: neckGirthParsed.data,
         muzzleGirthCm: muzzleGirthParsed.data,
         bellyGirthCm: bellyGirthParsed.data,

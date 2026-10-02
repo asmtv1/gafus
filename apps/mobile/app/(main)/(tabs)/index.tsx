@@ -1,3 +1,4 @@
+import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
@@ -15,9 +16,10 @@ import { Text, Snackbar } from "react-native-paper";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 
 import { Loading } from "@/shared/components/ui";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { getMobileMoscowDateKey, useTodayDailyCourse } from "@/shared/hooks/useDailyCourse";
@@ -149,6 +151,7 @@ function DailyCourseCard({
  * При офлайне показывается экран «Скачанные курсы».
  */
 export default function CoursesScreen() {
+  const tabContentBottomPadding = useTabContentBottomPadding();
   const isOffline = useIsOffline();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -342,7 +345,15 @@ export default function CoursesScreen() {
 
   const listHeader = (
     <View style={styles.headerFilters}>
-      <PageHeader title="Курсы" description="Занятия и ежедневная практика для вашего питомца" />
+      <View style={styles.headerArtwork}>
+        <Image
+          source={require("../../../assets/images/courses-header.png")}
+          style={styles.headerImage}
+          contentFit="cover"
+          accessible
+          accessibilityLabel="Курсы. Занятия и ежедневная практика для вашего питомца"
+        />
+      </View>
       <DailyCourseCard
         data={dailyCourseData?.data ?? null}
         onPress={(scheduleId) => router.push(`/daily-course/${scheduleId}`)}
@@ -390,7 +401,8 @@ export default function CoursesScreen() {
   }
 
   return (
-    <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+    <TexturedSafeAreaView style={styles.container} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       {error ? (
         <View style={styles.errorContainer}>
           {listHeader}
@@ -412,7 +424,7 @@ export default function CoursesScreen() {
               initialDrawBatchSize: INITIAL_COURSE_RENDER_BATCH_SIZE,
             }}
             ListHeaderComponent={listHeader}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: tabContentBottomPadding }]}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -449,11 +461,22 @@ const styles = StyleSheet.create({
   headerFilters: {
     paddingBottom: SPACING.sm,
   },
+  headerArtwork: {
+    height: 180,
+    marginHorizontal: -SPACING.sm,
+    marginBottom: SPACING.md,
+    position: "relative",
+    zIndex: 1,
+  },
+  headerImage: {
+    width: "100%",
+    height: "100%",
+  },
   dailyCourseCard: {
     position: "relative",
     width: "100%",
     alignSelf: "stretch",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 18,
     marginBottom: SPACING.lg,
     shadowColor: "#4A4917",
@@ -564,12 +587,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING.xs,
     paddingBottom: SPACING.xl,
   },
   errorContainer: {
     flex: 1,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
   },
   errorText: {
     color: COLORS.error,

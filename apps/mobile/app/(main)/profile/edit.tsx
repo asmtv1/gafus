@@ -16,7 +16,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { userApi, type UpdateProfileData } from "@/shared/lib/api";
 import {
   formatIsoBirthDateToDdMmYyyy,
@@ -161,10 +161,7 @@ export default function EditProfileScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           {isLoading ? (
-            <View style={styles.centerBlock}>
-              <MascotSpinner size="large" style={{ marginBottom: SPACING.sm }} />
-              <Text style={styles.mutedText}>Загрузка профиля…</Text>
-            </View>
+            <Loading fullScreen embedded message="Загрузка профиля…" />
           ) : error ? (
             <ScrollView contentContainerStyle={styles.scrollContent}>
               <View style={styles.formCard}>
@@ -330,20 +327,8 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: SPACING.xl,
   },
-  centerBlock: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: SPACING.md,
-    padding: SPACING.lg,
-  },
-  mutedText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
   formCard: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",

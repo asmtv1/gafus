@@ -1,0 +1,141 @@
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.page h1 {
+  color: var(--color-primary, #636b32);
+}
+.intake {
+  max-width: 540px;
+  display: grid;
+  gap: 16px;
+}
+.intake label {
+  display: grid;
+  gap: 6px;
+}
+.intake textarea,
+.intake select,
+.composer textarea {
+  font: inherit;
+  padding: 12px;
+  border: 1px solid #b4ae9f;
+  border-radius: 12px;
+  background: #fffdf7;
+  width: 100%;
+  box-sizing: border-box;
+}
+.dialog {
+  display: flex;
+  flex-direction: column;
+  height: 70dvh;
+  min-height: 420px;
+}
+.dialog > :first-child {
+  flex: 1;
+  min-height: 0;
+}
+.composer {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+}
+.composer textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+.list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+.list a {
+  display: block;
+  padding: 18px;
+  border-radius: 16px;
+  background: #fffdf7;
+  color: inherit;
+  border: 1px solid #ded9cb;
+}
+
+.dialog :global(.str-chat) {
+  --str-chat__accent-primary: #636128;
+  --str-chat__chat-bg-outgoing: #eeeedf;
+  --str-chat__background-core-app: #fffdf7;
+  --str-chat__background-core-surface-default: #fffdf7;
+  --str-chat__background-core-surface-subtle: #f5f0e8;
+  font-family: inherit;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 16px 0;
+}
+.tabs button {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #b4ae9f;
+  border-radius: 12px;
+  font: inherit;
+  color: #4d5c2d;
+  background: #fffdf7;
+  cursor: pointer;
+}
+.tabs button[aria-selected="true"] {
+  background: #4d5c2d;
+  color: #fffdf7;
+  border-color: #4d5c2d;
+}
+.tabs button:focus-visible {
+  outline: 2px solid #4d5c2d;
+  outline-offset: 3px;
+}
+
+.rules {
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid #4d5c2d;
+  border-radius: 12px;
+  background: #fff8e5;
+}
+.rules h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #4d5c2d;
+}
+.rules p {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.rules button {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #4d5c2d;
+  background: #fffdf7;
+  color: #4d5c2d;
+  cursor: pointer;
+  margin: 4px;
+}
+.rules button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.moderationList {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+  max-height: 420px;
+  overflow: auto;
+}
+.moderationList li {
+  padding: 12px;
+  border: 1px solid #ded9cb;
+  border-radius: 8px;
+}

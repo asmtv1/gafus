@@ -1,30 +1,57 @@
+import { useEffect, useState } from "react";
+import { useAuthStore } from "@/shared/stores";
+import { chatApi } from "@/shared/lib/api/cynologistChat";
+import type { CynologistChatStateDto } from "@gafus/consultation-shared";
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, FONTS } from "@/shared/config";
 import type { MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { trackEvent } from "@/shared/lib/analytics";
-import { getMainTabBarSafeAreaStyle } from "@/shared/lib/tabBarSafeArea";
 import { TourTarget } from "@/shared/lib/tour-targets";
+import { GardenTabBarBackground } from "@/shared/components/GardenTabBarBackground";
+import { AnimatedTabBarButton } from "@/shared/components/AnimatedTabBarButton";
+import { SharedSkyBackground } from "@/shared/components/SharedSkyBackground";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const TAB_ICON_SIZE = 24;
+const TAB_IMAGES: Partial<Record<IconName, number>> = {
+  "book-open-variant": require("../../../assets/images/tab-icons/courses.webp"),
+  chat: require("../../../assets/images/tab-icons/chat.webp"),
+  "dog-side": require("../../../assets/images/tab-icons/cynologist.webp"),
+  account: require("../../../assets/images/tab-icons/profile.webp"),
+  "newspaper-variant-outline": require("../../../assets/images/tab-icons/articles.webp"),
+  paw: require("../../../assets/images/tab-icons/pets.webp"),
+};
 const TAB_LABEL_FONT_SIZE = 12;
 const SHOW_FAVORITES_TAB = false;
 
 /** Цвет неактивного таба (иконка и подпись) */
-const TAB_INACTIVE = "#6A6A6A";
-/** Фон нижней панели табов */
-const TAB_BAR_BG = "#F5F0E8";
+const TAB_INACTIVE = "#655034";
 
 /**
  * Layout нижней навигации — цвета из дизайна приложения, не зависят от темы.
  */
 export default function TabsLayout() {
+  const userId = useAuthStore((s) => s.user?.id);
+  const [assignedTrainer, setAssignedTrainer] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setAssignedTrainer(false);
+    if (userId) {
+      chatApi<CynologistChatStateDto>()
+        .then((state) => { if (alive) setAssignedTrainer(state.isAssignedTrainer); })
+        .catch(() => undefined);
+    }
+    return () => { alive = false; };
+  }, [userId]);
   const insets = useSafeAreaInsets();
-  const androidSafeAreaStyle = getMainTabBarSafeAreaStyle(Platform.OS, insets.bottom);
+  const { width } = useWindowDimensions();
+  const gardenImageHeight = width * (783 / 2009);
+  const bottomInset = Math.max(8, insets.bottom);
 
   const trackTabClick = (tabName: string) => {
     trackEvent({
@@ -37,11 +64,20 @@ export default function TabsLayout() {
 
   const renderIcon = (name: IconName, color: string, focused: boolean) => (
     <View style={styles.tabIconWrap}>
-      <MaterialCommunityIcons
-        name={name}
-        size={TAB_ICON_SIZE}
-        color={focused ? COLORS.primary : color}
-      />
+      {TAB_IMAGES[name] ? (
+        <Image
+          source={TAB_IMAGES[name]}
+          style={{ width: TAB_ICON_SIZE, height: TAB_ICON_SIZE }}
+          contentFit="contain"
+          accessible={false}
+        />
+      ) : (
+        <MaterialCommunityIcons
+          name={name}
+          size={TAB_ICON_SIZE}
+          color={focused ? COLORS.primary : color}
+        />
+      )}
     </View>
   );
   const renderTargetedIcon = (
@@ -62,12 +98,17 @@ export default function TabsLayout() {
   );
 
   return (
+    <SharedSkyBackground>
     <Tabs
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: "transparent" },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: TAB_INACTIVE,
         tabBarAllowFontScaling: false,
+        tabBarBackground: () => (
+          <GardenTabBarBackground imageHeight={gardenImageHeight} />
+        ),
         tabBarLabelStyle: {
           fontFamily: FONTS.montserrat,
           fontSize: TAB_LABEL_FONT_SIZE,
@@ -75,42 +116,22 @@ export default function TabsLayout() {
           textAlign: "center",
           includeFontPadding: false,
         },
-        tabBarButton: ({ children, style, ref: _ref, ...props }) => {
-          const isSelected =
-            props["aria-selected"] === true || props.accessibilityState?.selected === true;
-
-          return (
-            <Pressable
-              {...props}
-              style={({ pressed }) => [
-                style,
-                styles.tabButton,
-                isSelected && styles.tabButtonSelected,
-                pressed && styles.tabButtonPressed,
-              ]}
-            >
-              {children}
-            </Pressable>
-          );
-        },
+        tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
         tabBarItemStyle: {
-          minHeight: 58,
-          marginVertical: 6,
-          paddingHorizontal: 2,
-          paddingVertical: 3,
+          height: 48,
+          paddingHorizontal: 0,
+          paddingVertical: 2,
         },
         tabBarStyle: {
-          backgroundColor: TAB_BAR_BG,
+          position: "absolute",
+          backgroundColor: "transparent",
           borderTopWidth: 0,
-          gap: 6,
-          paddingHorizontal: 16,
-          paddingTop: 5,
-          shadowColor: "#4A4A1E",
-          shadowOffset: { width: 0, height: -5 },
-          shadowOpacity: 0.12,
-          shadowRadius: 14,
-          elevation: 14,
-          ...androidSafeAreaStyle,
+          height: gardenImageHeight * 0.58 + bottomInset,
+          paddingHorizontal: width * 0.02,
+          paddingTop: Math.max(0, gardenImageHeight * 0.58 - 48),
+          paddingBottom: bottomInset,
+          shadowOpacity: 0,
+          elevation: 0,
         },
         headerStyle: {
           backgroundColor: COLORS.surface,
@@ -177,6 +198,32 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="cynologist-chat"
+        options={{
+          title: "Чат с кинологом",
+          href: assignedTrainer ? null : undefined,
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Чат", color, focused),
+          tabBarIcon: ({ color, focused }) =>
+            renderIcon("chat", color, focused),
+        }}
+        listeners={{
+          tabPress: () => trackTabClick("cynologist-chat"),
+        }}
+      />
+      <Tabs.Screen
+        name="cynologist-chats"
+        options={{
+          title: "Чат",
+          href: assignedTrainer ? undefined : null,
+          tabBarLabel: ({ color, focused }) => renderTabLabel("Чат", color, focused),
+          tabBarIcon: ({ color, focused }) =>
+            renderIcon("chat", color, focused),
+        }}
+        listeners={{
+          tabPress: () => trackTabClick("cynologist-chats"),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Профиль",
@@ -196,31 +243,11 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </SharedSkyBackground>
   );
 }
 
 const styles = {
-  tabButton: {
-    backgroundColor: "#FBF7EF",
-    borderRadius: 18,
-    borderCurve: "continuous" as const,
-    boxShadow: "0 4px 8px rgba(74, 74, 30, 0.18)",
-    elevation: 5,
-  },
-  tabButtonSelected: {
-    backgroundColor: "#E9E2CF",
-    boxShadow:
-      "inset 0 2px 5px rgba(74, 74, 30, 0.22), 0 1px 2px rgba(74, 74, 30, 0.10)",
-    elevation: 1,
-    transform: [{ translateY: 3 }],
-  },
-  tabButtonPressed: {
-    backgroundColor: "#E3DCC8",
-    boxShadow:
-      "inset 0 3px 6px rgba(74, 74, 30, 0.24), 0 1px 1px rgba(74, 74, 30, 0.08)",
-    elevation: 0,
-    transform: [{ translateY: 4 }, { scale: 0.98 }],
-  },
   tabIconWrap: {
     minWidth: 36,
     height: 28,

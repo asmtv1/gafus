@@ -1,0 +1,205 @@
+.section {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 18px;
+  border-radius: 19px;
+  background: #fffdf8;
+  box-shadow: 0 5px 13px rgba(67, 51, 23, .07);
+  color: #352e2e;
+  font-family: var(--font-montserrat), sans-serif;
+}
+.title { display: flex; align-items: center; gap: 11px; }
+.title img { width: 45px; height: 45px; object-fit: contain; }
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.heading h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.heading strong {
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.heading small {
+  font-size: 0.8rem;
+}
+.periods {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  margin: 14px 0 4px;
+  background: #ece5d2;
+  border-radius: 11px;
+}
+.periods button {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #352e2e;
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.periods button[aria-pressed="true"] {
+  background: #fff;
+  font-weight: 700;
+}
+.chart {
+  width: 100%;
+  max-width: 700px;
+}
+.chart svg {
+  width: 100%;
+  height: 190px;
+  overflow: visible;
+}
+.goalLine {
+  stroke: #79964a;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+.goalLabel {
+  fill: #4b672a;
+  font:
+    600 13px Montserrat,
+    sans-serif;
+}
+.axis {
+  stroke: #d5cbb2;
+  stroke-width: 1;
+}
+.line {
+  fill: none;
+  stroke: #636128;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.point {
+  fill: #fff8e5;
+  stroke: #636128;
+  stroke-width: 3;
+}
+.lastPoint {
+  fill: #b98b25;
+  stroke: #fff8e5;
+  stroke-width: 3;
+}
+.axisLabels {
+  display: flex;
+  justify-content: space-between;
+  color: #706b60;
+  font-size: 0.75rem;
+}
+.summary {
+  color: #4b672a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.hint {
+  color: #706b60;
+  font-size: 0.85rem;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+.actions button:last-child {
+  border: 1px solid #636128;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.actions > :first-child { flex: 1; }
+.actions button:last-child {
+  background: transparent;
+  color: #4a4a1e;
+}
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-top: 15px;
+}
+.form label {
+  display: grid;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.form input {
+  min-height: 40px;
+  max-width: 200px;
+  border: 1px solid #b9b09b;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  color: #352e2e;
+  background: white;
+}
+.form span {
+  width: 100%;
+  font-size: 0.75rem;
+  color: #706b60;
+}
+.error {
+  color: #a23b32;
+  font-size: 0.8rem;
+}
+.history {
+  margin-top: 22px;
+}
+.history h5 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+.history > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #e7dfcc;
+  padding: 9px 0;
+  font-size: 0.78rem;
+}
+.history span {
+  flex: 1;
+}
+.history strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.history button {
+  border: 0;
+  background: transparent;
+  color: #8a5446;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+.section button:focus-visible,
+.section input:focus-visible {
+  outline: 2px solid #009dcf;
+  outline-offset: 2px;
+}
+@media (max-width: 520px) {
+  .section {
+    padding: 14px;
+  }
+  .chart svg {
+    height: 165px;
+  }
+  .form label {
+    width: 100%;
+  }
+  .form input {
+    max-width: none;
+  }
+}

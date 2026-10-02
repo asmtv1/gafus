@@ -28,7 +28,7 @@ import { enqueueConsultationEmail } from "./notificationService";
 import { createTelemostConference } from "./telemostService";
 import type { BookSlotResult, ConsultationBookingDto } from "./types";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
-import { getAppSubscriptionAccess, SubscriptionRequiredError } from "../appSubscription";
+import { getAppSubscriptionAccess, getCynologistEntitlements, SubscriptionRequiredError } from "../appSubscription";
 
 const logger = createWebLogger("core-consultation-booking");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
@@ -457,33 +457,19 @@ export async function requireConsultationSlotsSubscriptionAccess(input: {
   throw new SubscriptionRequiredError();
 }
 
-/**
- * The 14-day YooKassa tariff can browse trainers and open slots, but cannot
- * create a new consultation. All other active and historical subscription
- * kinds retain the booking entitlement.
- */
+/** New bookings require an active, non-trial three-month paid period. */
 export function canBookConsultations(subscription: {
-  hasActiveSubscription: boolean;
-  provider: string | null;
-  planCode: string | null;
+  hasActiveSubscription: boolean; provider: string | null; planCode: string | null;
+  isTrial?: boolean; isLifetime?: boolean; canBookConsultations?: boolean;
 }): boolean {
-  return (
-    subscription.hasActiveSubscription &&
-    !(subscription.provider === "YOOKASSA" && subscription.planCode === "TWO_WEEKS")
-  );
+  return subscription.canBookConsultations ?? (subscription.hasActiveSubscription && !subscription.isTrial && !subscription.isLifetime && subscription.planCode === "THREE_MONTHS");
 }
-
-export async function requireConsultationBookingSubscriptionAccess(input: {
-  userId: string;
-  now?: Date;
-}): Promise<void> {
+export async function requireConsultationBookingSubscriptionAccess(input: { userId: string; now?: Date }): Promise<void> {
+  const rights = await getCynologistEntitlements(input.userId, input.now);
+  if (rights.canBookConsultations) return;
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
-  if (!subscription.hasActiveSubscription) {
-    throw new SubscriptionRequiredError();
-  }
-  if (!canBookConsultations(subscription)) {
-    throw new ConsultationBookingNotIncludedError();
-  }
+  if (!subscription.hasActiveSubscription) throw new SubscriptionRequiredError();
+  throw new ConsultationBookingNotIncludedError();
 }
 
 export async function confirmBookingByTrainer(

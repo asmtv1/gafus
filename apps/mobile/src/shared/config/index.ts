@@ -26,14 +26,14 @@ export const UI_TIMEOUTS = {
 // Цвета темы (соответствуют веб-версии)
 export const COLORS = {
   // Основные цвета бренда (как в web)
-  primary: "#636128", // оливковый - основной акцент
-  primaryDark: "#4a4a1e",
+  primary: "#4D5C2D", // оливковый - основной акцент
+  primaryDark: "#3B4822",
   secondary: "#009dcf", // голубой - ссылки и акценты
 
   // Фоны
-  background: "#DAD3C1", // основной фон страниц
+  background: "#E6E2D8", // основной фон страниц
   surface: "#ffffff", // белый - поверхности
-  cardBackground: "#FFF8E5", // кремовый фон карточек
+  cardBackground: "#F5F0E5", // общий цвет подложки карточек, меню и форм во всём приложении
 
   // Текст
   text: "#352E2E", // тёмно-коричневый
@@ -48,8 +48,8 @@ export const COLORS = {
   // UI элементы
   disabled: "#9e9e9e",
   placeholder: "#bdbdbd",
-  border: "#636128", // оливковый - границы
-  borderLight: "rgba(99, 97, 40, 0.2)",
+  border: "#4D5C2D", // оливковый - границы
+  borderLight: "rgba(77, 92, 45, 0.2)",
   /** Текст и иконки на оливковом фоне (как на web) */
   onPrimary: "#ECE5D2",
 } as const;

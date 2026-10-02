@@ -1,7 +1,9 @@
-import { PetType } from "@gafus/prisma";
+import type { PetType } from "@gafus/prisma";
 import { z } from "zod";
 
 const MIN_BIRTH_DATE = new Date("1990-01-01");
+// Shared client validation must not load Prisma's server runtime.
+const PET_TYPES = { DOG: "DOG", CAT: "CAT" } as const satisfies Record<PetType, PetType>;
 
 const optionalUrlSchema = z
   .string()
@@ -98,7 +100,7 @@ export const petNameSchema = z
   .max(50, "Имя не может быть длиннее 50 символов")
   .regex(/^[а-яёА-ЯЁa-zA-Z\s-]+$/, "Имя может содержать только буквы, пробелы и дефис");
 
-export const petTypeSchema = z.nativeEnum(PetType, {
+export const petTypeSchema = z.nativeEnum(PET_TYPES, {
   errorMap: () => ({ message: "Неверный тип питомца" }),
 });
 

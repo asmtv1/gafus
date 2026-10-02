@@ -20,7 +20,7 @@ export class ConsultationForbiddenError extends ServiceError {
 export class ConsultationBookingNotIncludedError extends ServiceError {
   constructor() {
     super(
-      "Запись к кинологу доступна в тарифах от 1 месяца",
+      "Запись к кинологу доступна по действующему трёхмесячному тарифу",
       "CONSULTATION_BOOKING_NOT_INCLUDED",
       403,
     );

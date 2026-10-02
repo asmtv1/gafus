@@ -13,11 +13,12 @@ import { Text } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { validatePetForm, type PetFormErrors } from "@/features/pets";
-import { Button, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { formatIsoBirthDateToDdMmYyyy } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
@@ -25,8 +26,8 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 const LOG_PREFIX = "[EditPetScreen]";
 
 const PET_TYPES = [
-  { value: "DOG" as const, label: "Собака", icon: "dog" as const },
-  { value: "CAT" as const, label: "Кошка", icon: "cat" as const },
+  { value: "DOG" as const, label: "Собака", image: require("../../../../assets/images/pet-type-dog.webp") },
+  { value: "CAT" as const, label: "Кошка", image: require("../../../../assets/images/pet-type-cat.webp") },
 ];
 
 /**
@@ -42,7 +43,6 @@ export default function EditPetScreen() {
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
   const [neckGirthCm, setNeckGirthCm] = useState("");
   const [muzzleGirthCm, setMuzzleGirthCm] = useState("");
   const [bellyGirthCm, setBellyGirthCm] = useState("");
@@ -79,7 +79,6 @@ export default function EditPetScreen() {
     setBreed(petData.breed || "");
     setBirthDate(formatIsoBirthDateToDdMmYyyy(petData.birthDate ?? ""));
     setHeightCm(petData.heightCm != null ? String(petData.heightCm) : "");
-    setWeightKg(petData.weightKg != null ? String(petData.weightKg) : "");
     setNeckGirthCm(petData.neckGirthCm != null ? String(petData.neckGirthCm) : "");
     setMuzzleGirthCm(petData.muzzleGirthCm != null ? String(petData.muzzleGirthCm) : "");
     setBellyGirthCm(petData.bellyGirthCm != null ? String(petData.bellyGirthCm) : "");
@@ -133,7 +132,6 @@ export default function EditPetScreen() {
       breed,
       birthDate,
       heightCm,
-      weightKg,
       neckGirthCm,
       muzzleGirthCm,
       bellyGirthCm,
@@ -150,7 +148,6 @@ export default function EditPetScreen() {
       breed: validation.values.breed,
       birthDate: validation.values.birthDate,
       heightCm: validation.values.heightCm,
-      weightKg: validation.values.weightKg,
       neckGirthCm: validation.values.neckGirthCm,
       muzzleGirthCm: validation.values.muzzleGirthCm,
       bellyGirthCm: validation.values.bellyGirthCm,
@@ -159,6 +156,15 @@ export default function EditPetScreen() {
 
     updateMutation.mutate({ id: petId, data: petPayload });
   };
+
+  if (isLoadingPet) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Loading fullScreen message="Загрузка данных питомца…" />
+      </>
+    );
+  }
 
   return (
     <>
@@ -173,12 +179,7 @@ export default function EditPetScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          {isLoadingPet ? (
-            <View style={styles.centerBlock}>
-              <MascotSpinner size="large" style={{ marginBottom: SPACING.sm }} />
-              <Text style={styles.mutedText}>Загрузка…</Text>
-            </View>
-          ) : !petData ? (
+          {!petData ? (
             <ScrollView contentContainerStyle={styles.scrollContent}>
               <View style={styles.formCard}>
                 <Text style={styles.screenTitle}>Редактировать питомца</Text>
@@ -212,7 +213,14 @@ export default function EditPetScreen() {
                     <Button
                       key={t.value}
                       label={t.label}
-                      icon={t.icon}
+                      icon={() => (
+                        <Image
+                          source={t.image}
+                          style={{ width: 28, height: 28 }}
+                          contentFit="contain"
+                          accessible={false}
+                        />
+                      )}
                       variant={type === t.value ? "selected" : "primary"}
                       flex={1}
                       fullWidth={false}
@@ -272,17 +280,6 @@ export default function EditPetScreen() {
                   keyboardType="decimal-pad"
                 />
                 {errors.heightCm ? <Text style={styles.errorText}>{errors.heightCm}</Text> : null}
-
-                <Text style={styles.fieldLabel}>Вес (кг)</Text>
-                <TextInput
-                  value={weightKg}
-                  onChangeText={(value) => updateField("weightKg", value, setWeightKg)}
-                  style={[styles.input, errors.weightKg && styles.inputError]}
-                  placeholder="Необязательно"
-                  placeholderTextColor={COLORS.disabled}
-                  keyboardType="decimal-pad"
-                />
-                {errors.weightKg ? <Text style={styles.errorText}>{errors.weightKg}</Text> : null}
 
                 <Text style={styles.fieldLabel}>Обхват шеи (см)</Text>
                 <TextInput
@@ -400,25 +397,13 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: "500",
   },
-  centerBlock: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: SPACING.md,
-    padding: SPACING.lg,
-  },
-  mutedText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.montserrat,
-  },
   scrollContent: {
     padding: SPACING.md,
     paddingTop: 0,
     paddingBottom: SPACING.xl,
   },
   formCard: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",

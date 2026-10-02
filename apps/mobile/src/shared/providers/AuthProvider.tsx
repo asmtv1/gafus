@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRootNavigationState } from "expo-router";
-import { AppState, ActivityIndicator, StyleSheet, View } from "react-native";
+import { AppState } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -10,7 +10,7 @@ import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { resetUserStores } from "@/shared/stores/resetAll";
 import { flushMobileIntroEvents } from "@/shared/lib/api/mobile-intro";
 import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
-import { COLORS } from "@/shared/config";
+import { Loading } from "@/shared/components/ui/Loading";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -84,21 +84,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [isAuthenticated, queryClient]);
 
   if (isLoading || !navState?.key) {
-    return (
-      <View style={styles.startupFallback}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <Loading fullScreen />;
   }
 
   return <>{children}</>;
 }
-
-const styles = StyleSheet.create({
-  startupFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.background,
-  },
-});

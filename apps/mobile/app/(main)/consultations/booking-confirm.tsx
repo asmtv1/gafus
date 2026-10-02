@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   },
   lead: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   metaBlock: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     paddingHorizontal: 4,
   },
-  field: { backgroundColor: "#F5F0E8" },
+  field: { backgroundColor: COLORS.cardBackground },
   fieldError: {
     color: COLORS.error,
     fontSize: 12,
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   genderRow: { flexDirection: "row", gap: SPACING.sm },
-  textArea: { backgroundColor: "#F5F0E8", minHeight: 100 },
+  textArea: { backgroundColor: COLORS.cardBackground, minHeight: 100 },
   notice: {
     fontFamily: FONTS.montserrat,
     fontSize: 13,

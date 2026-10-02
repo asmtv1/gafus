@@ -30,7 +30,8 @@
       "environment": "production",
       "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "credentialsSource": "local"
       },
       "env": {
         "JAVA_HOME": "/opt/homebrew/opt/openjdk@17",

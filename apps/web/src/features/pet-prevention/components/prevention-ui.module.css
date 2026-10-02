@@ -130,13 +130,12 @@
 }
 
 .emptyState {
-  padding: 1.5rem 1rem;
+  padding: 1rem;
   text-align: center;
-  color: #636128;
-  font-style: italic;
+  color: var(--text-secondary);
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  background: #fff8e5;
-  border: 2px dashed #d4c4a8;
+  font-size: 0.9rem;
+  background: #f5f0e8;
   border-radius: 12px;
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
@@ -191,65 +192,68 @@ export default function PetList({
     }
   }, [username]);
 
-  const handleEditClick = useCallback(async (pet: PetFromPublicProfile) => {
-    trackEvent({
-      eventName: "button_click",
-      platform: "web",
-      pathOrScreen,
-      elementId: "profile-pet-edit-open",
-    });
-    // Преобразуем PetFromPublicProfile в PetFormData для SweetAlert
-    const petForEdit: PetFormData = {
-      id: pet.id,
-      name: pet.name,
-      type: pet.type,
-      breed: pet.breed || "",
-      photoUrl: pet.photoUrl || "",
-      notes: pet.notes || "",
-      birthDate: formatIsoBirthDateToDdMmYyyy(
-        pet.birthDate instanceof Date
-          ? pet.birthDate.toISOString().split("T")[0]
-          : pet.birthDate || "",
-      ),
-      heightCm: pet.heightCm || undefined,
-      weightKg: pet.weightKg || undefined,
-      neckGirthCm: pet.neckGirthCm || undefined,
-      muzzleGirthCm: pet.muzzleGirthCm || undefined,
-      bellyGirthCm: pet.bellyGirthCm || undefined,
-    };
+  const handleEditClick = useCallback(
+    async (pet: PetFromPublicProfile) => {
+      trackEvent({
+        eventName: "button_click",
+        platform: "web",
+        pathOrScreen,
+        elementId: "profile-pet-edit-open",
+      });
+      // Преобразуем PetFromPublicProfile в PetFormData для SweetAlert
+      const petForEdit: PetFormData = {
+        id: pet.id,
+        name: pet.name,
+        type: pet.type,
+        breed: pet.breed || "",
+        photoUrl: pet.photoUrl || "",
+        notes: pet.notes || "",
+        birthDate: formatIsoBirthDateToDdMmYyyy(
+          pet.birthDate instanceof Date
+            ? pet.birthDate.toISOString().split("T")[0]
+            : pet.birthDate || "",
+        ),
+        heightCm: pet.heightCm || undefined,
+        weightKg: pet.weightKg || undefined,
+        neckGirthCm: pet.neckGirthCm || undefined,
+        muzzleGirthCm: pet.muzzleGirthCm || undefined,
+        bellyGirthCm: pet.bellyGirthCm || undefined,
+      };
 
-    try {
-      const updatedPetData = await showEditPetAlert(petForEdit);
+      try {
+        const updatedPetData = await showEditPetAlert(petForEdit);
 
-      if (updatedPetData) {
-        startTransition(async () => {
-          try {
-            await savePet(updatedPetData);
-            await invalidateProfileCache();
-            trackEvent({
-              eventName: "button_click",
-              platform: "web",
-              pathOrScreen,
-              elementId: "profile-pet-edit-success",
-            });
-            await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
-            router.refresh();
-          } catch (error) {
-            reportClientError(error, {
-              issueKey: "PetList",
-              keys: { operation: "update_pet" },
-            });
-            await showErrorAlert("Произошла ошибка при обновлении питомца");
-          }
+        if (updatedPetData) {
+          startTransition(async () => {
+            try {
+              await savePet(updatedPetData);
+              await invalidateProfileCache();
+              trackEvent({
+                eventName: "button_click",
+                platform: "web",
+                pathOrScreen,
+                elementId: "profile-pet-edit-success",
+              });
+              await showSuccessAlert(`Питомец "${updatedPetData.name}" успешно обновлен!`);
+              router.refresh();
+            } catch (error) {
+              reportClientError(error, {
+                issueKey: "PetList",
+                keys: { operation: "update_pet" },
+              });
+              await showErrorAlert("Произошла ошибка при обновлении питомца");
+            }
+          });
+        }
+      } catch (error) {
+        reportClientError(error, {
+          issueKey: "PetList",
+          keys: { operation: "show_edit_form" },
         });
       }
-    } catch (error) {
-      reportClientError(error, {
-        issueKey: "PetList",
-        keys: { operation: "show_edit_form" },
-      });
-    }
-  }, [invalidateProfileCache, pathOrScreen, router, startTransition]);
+    },
+    [invalidateProfileCache, pathOrScreen, router, startTransition],
+  );
 
   const handlePetDelete = useCallback(
     (petId: string, petName: string) => {
@@ -278,7 +282,16 @@ export default function PetList({
     <div className={styles.container}>
       <h2>Питомцы</h2>
       {pets.length === 0 ? (
-        <p className={styles.no_pets}>Питомцы не добавлены</p>
+        <div className={styles.no_pets}>
+          <Image
+            src="/images/pets-empty.webp"
+            alt=""
+            width={220}
+            height={180}
+            style={{ maxWidth: "100%", objectFit: "contain" }}
+          />
+          <p>Питомцы не добавлены</p>
+        </div>
       ) : (
         <ul className={styles.dog_list}>
           {pets.map((pet, index) => (

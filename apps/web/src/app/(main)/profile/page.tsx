@@ -1,3 +1,5 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@gafus/auth";
 import { getIsOwner } from "@gafus/auth/server";
 import { createWebLogger } from "@gafus/logger";
 import { getPublicProfile } from "@shared/lib/profile/getPublicProfile";
@@ -28,7 +30,7 @@ export default async function ProfilPage({
   }>;
 }) {
   const params = await searchParams;
-  const username = params?.username;
+  const username = params?.username || (await getServerSession(authOptions))?.user?.username;
   const linkFeedback = params?.linked
     ? "vk"
     : params?.error

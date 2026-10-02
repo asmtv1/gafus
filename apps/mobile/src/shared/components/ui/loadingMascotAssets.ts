@@ -1,8 +1,8 @@
 import { Asset } from "expo-asset";
 import { Image } from "expo-image";
 
-const animatedMascotModule = require("../../../../assets/images/hf_20260417_153650_6b4ae03c-6655-475d-9d52-c7da89fe4b2e.gif");
-const mascotPosterModule = require("../../../../assets/images/loading-mascot-poster.png");
+const animatedMascotModule = require("../../../../assets/images/loading-mascot-router.gif");
+const mascotPosterModule = require("../../../../assets/images/loading-mascot-router-poster.png");
 
 export const animatedMascotAsset = Asset.fromModule(animatedMascotModule);
 export const mascotPosterAsset = Asset.fromModule(mascotPosterModule);

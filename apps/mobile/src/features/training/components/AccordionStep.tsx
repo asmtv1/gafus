@@ -86,7 +86,7 @@ const STEP_STATUS_CONFIG: Record<
   },
   PAUSED: {
     icon: "pause-circle-outline",
-    backgroundColor: "#FFF8EA",
+    backgroundColor: COLORS.cardBackground,
     statusBackgroundColor: "rgba(143, 102, 38, 0.11)",
     foregroundColor: "#795A28",
   },

@@ -1183,7 +1183,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#636128",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
   },
   personalizationTitle: {
     fontSize: 28,
@@ -1200,7 +1200,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   personalizationInput: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     marginBottom: SPACING.sm,
   },
   personalizationLabel: {
@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#636128",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
   },
   paywallTitle: {
     fontSize: 32,
@@ -1451,14 +1451,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 4, // Немного толще, чем на web (там 2px, но визуально кажется толще из-за структуры)
     position: "relative",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     minHeight: 120,
   },
   dayCard: {
     paddingVertical: Math.round(14 * 0.75),
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     minHeight: 120,
   },
   dayCardLocked: {

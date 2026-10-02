@@ -12,10 +12,10 @@ import { type Course } from "@/shared/lib/api";
 import type { Achievement } from "@gafus/types";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 
-const CARD_BG = "#ECE5D2";
+const CARD_BG = COLORS.cardBackground;
 const CARD_BORDER = "#B6C582";
 const STAT_VALUE = "#007bff";
-const LOCKED_BG = "#FFF8E5";
+const LOCKED_BG = COLORS.cardBackground;
 
 function getCategoryTitle(category: string): string {
   const map: Record<string, string> = {

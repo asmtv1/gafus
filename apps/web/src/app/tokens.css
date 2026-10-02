@@ -9,17 +9,17 @@
 
 :root {
   --bg-1: #dad3c1;
-  --bg-2: #636128;
-  --surface: #fff8e5;
+  --bg-2: #4d5c2d;
+  --surface: #f5f0e5;
   --surface-muted: #eee7d2;
   --surface-strong: #e8e1cb;
   --text-primary: #352e2e;
   --text-secondary: #686540;
-  --accent-primary: #636128;
-  --accent-primary-rgb: 99, 97, 40;
-  --accent-secondary: #4a4917;
+  --accent-primary: #4d5c2d;
+  --accent-primary-rgb: 77, 92, 45;
+  --accent-secondary: #3b4822;
   --shadow-card: 0 10px 24px rgba(74, 73, 23, 0.17);
-  --shadow-button: 0 5px 0 #4a4917, 0 9px 16px rgba(74, 73, 23, 0.2);
+  --shadow-button: 0 5px 0 #3b4822, 0 9px 16px rgba(59, 72, 34, 0.2);
   /* Фоновые переменные для шрифтов */
   --font-impact: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   --font-moscow2024: "Moscow2024", monospace;

@@ -1,6 +1,6 @@
+import { cynologistIntakeSchema } from "@gafus/consultation-shared";
 import { z } from "zod";
 
-import { normalizeRuPhoneForStorage } from "./ruPhone";
 
 /** Литералы Prisma enum — не `z.nativeEnum` из @gafus/prisma: в server-бандлах Next именованные экспорты Prisma-enum иногда undefined. */
 const CONSULTATION_SLOT_STATUS = ["FREE", "BOOKED", "BLOCKED"] as const;
@@ -34,59 +34,9 @@ export const getSlotsQuerySchema = z.object({
   { message: "Интервал не более 60 дней и from ≤ to", path: ["to"] },
 );
 
-const CONSULTATION_PET_GENDER = ["MALE", "FEMALE"] as const;
-
-const trimNonEmpty = (max: number, label: string) =>
-  z
-    .string()
-    .trim()
-    .min(1, `Заполните поле «${label}»`)
-    .max(max, `Не длиннее ${max} символов`);
-
-/** Имя владельца и кличка питомца: 2–15 символов. */
-const shortName = (label: string) =>
-  z
-    .string()
-    .trim()
-    .min(2, `Минимум 2 символа в «${label}»`)
-    .max(15, `Не больше 15 символов в «${label}»`);
-
-const phoneForBooking = z
-  .string()
-  .min(1, "Введите номер телефона")
-  .transform((raw) => raw.trim())
-  .superRefine((raw, ctx) => {
-    const n = normalizeRuPhoneForStorage(raw);
-    if (!n) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Некорректный номер. Укажите с кодом страны (+7, +998, +375…).",
-      });
-    }
-  })
-  .transform((raw) => normalizeRuPhoneForStorage(raw)!);
-
-export const bookSlotInputSchema = z.object({
+export const bookSlotInputSchema = cynologistIntakeSchema.extend({
   slotId: z.string().min(1),
   idempotencyKey: uuidV4,
-  clientOwnerName: shortName("имя владельца"),
-  clientPhone: phoneForBooking,
-  petName: shortName("кличка питомца"),
-  petGender: z.enum(CONSULTATION_PET_GENDER, {
-    errorMap: () => ({ message: "Укажите пол питомца" }),
-  }),
-  petAge: trimNonEmpty(100, "возраст питомца"),
-  petBreed: trimNonEmpty(200, "породу питомца"),
-  clientProblem: z
-    .string()
-    .trim()
-    .min(10, "Опишите проблему не менее чем в 10 символах")
-    .max(1000, "Не длиннее 1000 символов"),
-  clientSelfHelpAttempt: z
-    .string()
-    .trim()
-    .min(1, "Заполните поле «как пытались решить проблему»")
-    .max(1000, "Не длиннее 1000 символов"),
 });
 
 interface BookSlotInputShape {
@@ -173,7 +123,7 @@ const consultationSlotDtoSchema = z.object({
   status: z.enum(CONSULTATION_SLOT_STATUS),
 });
 
-const consultationPetGenderDtoSchema = z.enum(CONSULTATION_PET_GENDER);
+const consultationPetGenderDtoSchema = z.enum(["MALE", "FEMALE"]);
 
 const consultationBookingDtoSchema = z.object({
   id: consultationEntityIdSchema,

@@ -21,7 +21,7 @@ import { useAuthStore } from "@/shared/stores";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
-import { Button, Loading, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
 import {
   getRewardedAccessPrompt,
@@ -423,7 +423,7 @@ export default function ArticleDetailScreen() {
           <View style={[styles.webviewWrapper, styles.webviewWrapperFlushBottom]}>
             {!webViewReady && (
               <View style={[styles.webviewSpinner, { height: articleWebViewBlockHeight }]}>
-                <MascotSpinner size="large" />
+                <Loading message="Загрузка статьи..." />
               </View>
             )}
             <View

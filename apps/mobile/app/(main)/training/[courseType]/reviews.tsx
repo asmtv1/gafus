@@ -202,11 +202,9 @@ export default function ReviewsScreen() {
           <Text style={styles.backRowText}>Назад</Text>
         </Pressable>
         <Loading
-          variant="inline"
           fullScreen
           embedded
           message="Загрузка отзывов..."
-          style={styles.loadingContainer}
         />
       </SafeAreaView>
     );
@@ -397,11 +395,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: SPACING.md,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   title: {
     fontSize: 24,
     fontWeight: "400",
@@ -411,7 +404,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.impact,
   },
   reviewForm: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -460,7 +453,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   textarea: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 8,
     padding: SPACING.sm,
     borderWidth: 1,
@@ -512,7 +505,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   reviewCard: {
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,

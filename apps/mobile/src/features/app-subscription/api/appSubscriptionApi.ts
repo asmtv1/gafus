@@ -48,6 +48,7 @@ export type AppSubscriptionPlanOfferDto = {
   /** Older API versions omit this field; clients derive it from planCode as a fallback. */
   offlineCourseDownloadIncluded?: boolean;
   consultationBookingIncluded: boolean;
+  cynologistChatIncluded?: boolean;
   promoCodeEligible: boolean;
   badge: AppSubscriptionPlanBadge;
   savingsRub: number | null;

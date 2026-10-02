@@ -3,7 +3,7 @@ import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { ProfileIcon } from "@/features/profile";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
@@ -77,11 +77,7 @@ export default function ChangeUsernameScreen() {
           <Card mode="contained" style={styles.card}>
             <Card.Content>
               <View style={styles.iconWrap}>
-                <MaterialCommunityIcons
-                  name="account-outline"
-                  size={28}
-                  color={COLORS.primaryDark}
-                />
+                <ProfileIcon name="login" size={28} />
               </View>
               <Text variant="titleMedium" style={styles.cardTitle}>
                 Новый логин

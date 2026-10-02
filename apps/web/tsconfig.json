@@ -17,6 +17,8 @@
     /* Пути и алиасы для web */
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/cynologistChat": ["../../packages/core/src/services/cynologistChat/index.ts"],
+      "@gafus/core/services/cynologistChat/http": ["../../packages/core/src/services/cynologistChat/http.ts"],
       "@/*": ["./src/*"],
       "@features/*": ["./src/features/*"],
       "@shared/*": ["./src/shared/*"],

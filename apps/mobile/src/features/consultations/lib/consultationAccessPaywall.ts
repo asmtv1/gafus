@@ -13,7 +13,7 @@ export function openConsultationAccessPaywall(): void {
 export function showConsultationBookingNotIncludedAlert(): void {
   Alert.alert(
     "Запись к кинологу недоступна",
-    "Запись к кинологу доступна в тарифах от 1 месяца.",
+    "Запись к кинологу доступна по действующему трёхмесячному тарифу.",
     [
       { text: "Понятно", style: "cancel" },
       { text: "Выбрать тариф", onPress: openConsultationAccessPaywall },

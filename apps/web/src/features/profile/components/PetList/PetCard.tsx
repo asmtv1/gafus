@@ -13,10 +13,14 @@ import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import FullscreenExitRoundedIcon from "@mui/icons-material/FullscreenExitRounded";
 import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
 import IosShareRoundedIcon from "@mui/icons-material/IosShareRounded";
+import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { getAgeWithMonths, declOfNum, getPetTypeLabel } from "@gafus/core/utils";
 import { Avatar, IconButton } from "@shared/utils/muiImports";
 import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
 import { PreventionEntryList } from "@/features/pet-prevention";
+import { PetWeight } from "./PetWeight";
+import { useWebOnboardingTourStore } from "@/features/onboarding-tour";
 import { PrimaryButton, primaryButtonClassName } from "@/shared/components/ui";
 
 import EditablePetAvatar from "../EditablePetAvatar";
@@ -83,6 +87,15 @@ const PetCard = memo(function PetCard({
   const [preventionEntries, setPreventionEntries] = useState<PreventionEntryDisplay[]>([]);
   const [preventionLoading, setPreventionLoading] = useState(false);
   const [preventionError, setPreventionError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const tourIsActive = useWebOnboardingTourStore((state) => state.isActive);
+  const tourStepId = useWebOnboardingTourStore((state) => state.currentStepId);
+
+  useEffect(() => {
+    if (index === 0 && tourIsActive && (tourStepId === "prevention" || tourStepId === "documents")) {
+      setIsExpanded(true);
+    }
+  }, [index, tourIsActive, tourStepId]);
 
   useEffect(() => {
     if (!csrfToken) {
@@ -466,67 +479,74 @@ const PetCard = memo(function PetCard({
     setPreventionLoading(false);
   }, [isOwner, pet.id]);
 
+  const age = pet.birthDate
+    ? getAgeWithMonths(pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate)
+    : null;
+  const ageLabel = age
+    ? `${age.years ? `${age.years} ${declOfNum(age.years, ["год", "года", "лет"])} ` : ""}${age.months ? `${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}` : ""}`.trim()
+    : null;
+
   return (
-    <li className={styles.dog_item}>
-      {isOwner ? (
+    <li className={`${styles.dog_item} ${pet.type === "CAT" ? styles.catCard : ""}`}>
+      <div className={styles.petHero}>
         <div className={styles.avatar_container}>
-          <EditablePetAvatar avatarUrl={pet.photoUrl} petId={pet.id} />
+          {isOwner ? (
+            <EditablePetAvatar avatarUrl={pet.photoUrl} petId={pet.id} petType={pet.type} />
+          ) : (
+            <Avatar
+              alt={`${pet.name} фото питомца`}
+              src={pet.photoUrl || (pet.type === "CAT" ? "/images/pet-avatar-cat.png" : "/images/pet-avatar-dog.png")}
+            />
+          )}
         </div>
-      ) : (
-        <div className={styles.avatar_container}>
-          <Avatar
-            alt={`${pet.name} фото питомца`}
-            src={pet.photoUrl || "/uploads/pet-avatar.jpg"}
-          />
+        <div className={styles.dog_info}>
+          <div className={styles.petHeroTop}>
+            <span className={styles.petSpecies}>{getPetTypeLabel(pet.type)}</span>
+            <button
+              type="button"
+              className={`${styles.petToggle} ${isExpanded ? styles.petToggleOpen : ""}`}
+              onClick={() => setIsExpanded((value) => !value)}
+              aria-label={`${isExpanded ? "Свернуть" : "Развернуть"} карточку питомца ${pet.name}`}
+              aria-expanded={isExpanded}
+              aria-controls={`pet-details-${pet.id}`}
+            >
+              <ExpandMoreRoundedIcon />
+            </button>
+          </div>
+          <h3>{pet.name}</h3>
+          <p className={styles.petBreed}>{pet.breed || "Порода не указана"}</p>
+          <div className={styles.petFacts}>
+            {ageLabel && <span className={styles.petFact}><CalendarMonthRoundedIcon />{ageLabel}</span>}
+            {pet.weightKg != null && <span className={styles.petFact}><img src="/images/pet-weight-icon.png" alt="" />{pet.weightKg} кг</span>}
+            {pet.heightCm != null && <span className={styles.petFact}><span aria-hidden="true">↗</span>{pet.heightCm} см</span>}
+          </div>
+        </div>
+      </div>
+      {!isExpanded && isOwner && (
+        <div className={styles.petCompactFoot}>
+          <span>Процедуры · {preventionLoading ? "…" : preventionEntries.length}</span>
+          <span>Документы · {documentsLoading ? "…" : documents.length}</span>
+          <button type="button" onClick={() => setIsExpanded(true)}>Подробнее</button>
         </div>
       )}
-
-      <div className={styles.dog_info}>
-        <h3>
-          {pet.name} ({getPetTypeLabel(pet.type)})
-        </h3>
-        <p>Порода: {pet.breed}</p>
-
-        {pet.birthDate &&
-          (() => {
-            const age = getAgeWithMonths(
-              pet.birthDate instanceof Date ? pet.birthDate.toISOString() : pet.birthDate,
-            );
-
-            if (age.years === 0) {
-              return (
-                <p>
-                  Возраст: {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                </p>
-              );
-            }
-            return (
-              <p>
-                Возраст: {age.years} {declOfNum(age.years, ["год", "года", "лет"])}
-                {age.months > 0 && (
-                  <>
-                    {age.months} {declOfNum(age.months, ["месяц", "месяца", "месяцев"])}
-                  </>
-                )}
-              </p>
-            );
-          })()}
-        {pet.heightCm && <p>Рост: {pet.heightCm} см</p>}
-        {pet.weightKg && <p>Вес: {pet.weightKg} кг</p>}
-        {pet.neckGirthCm && <p>Обхват шеи: {pet.neckGirthCm} см</p>}
-        {pet.muzzleGirthCm && <p>Обхват морды: {pet.muzzleGirthCm} см</p>}
-        {pet.bellyGirthCm && <p>Обхват живота: {pet.bellyGirthCm} см</p>}
-        {pet.notes && <p>Заметки: {pet.notes}</p>}
-      </div>
+      <div id={`pet-details-${pet.id}`} className={styles.petDetails} hidden={!isExpanded}>
+      {(pet.neckGirthCm || pet.muzzleGirthCm || pet.bellyGirthCm || pet.notes) && (
+        <div className={styles.petExtra}>
+          {pet.neckGirthCm && <span>Обхват шеи: {pet.neckGirthCm} см</span>}
+          {pet.muzzleGirthCm && <span>Обхват морды: {pet.muzzleGirthCm} см</span>}
+          {pet.bellyGirthCm && <span>Обхват живота: {pet.bellyGirthCm} см</span>}
+          {pet.notes && <span>Заметки: {pet.notes}</span>}
+        </div>
+      )}
       {isOwner ? (
         <div className={styles.dog_actions}>
           <button
             type="button"
             onClick={handleEditIconClick}
             className={`${styles.dogActionButton} ${styles.dogActionEdit} ${primaryButtonClassName}`}
-            aria-label="Редактировать питомца"
+            aria-label="Изменить данные питомца"
           >
-            <EditRoundedIcon fontSize="small" />
+            <EditRoundedIcon fontSize="small" /> Изменить данные
           </button>
           <button
             type="button"
@@ -535,7 +555,7 @@ const PetCard = memo(function PetCard({
             aria-label="Удалить питомца"
             disabled={isPending}
           >
-            <DeleteRoundedIcon fontSize="small" />
+            <DeleteRoundedIcon fontSize="small" /> Удалить питомца
           </button>
         </div>
       ) : null}
@@ -545,11 +565,9 @@ const PetCard = memo(function PetCard({
           data-tour-target={index === 0 ? "pet-prevention-section" : undefined}
         >
           <div className={styles.documentsHeader}>
+            <img src="/images/pet-procedures-icon.png" alt="" className={styles.sectionIcon} />
             <span className={styles.documentsTitle}>Записи о процедурах</span>
           </div>
-          <Alert severity="info" className={styles.preventionAlert}>
-            Данные носят справочный характер и не заменяют консультацию ветеринара.
-          </Alert>
           {preventionLoading ? (
             <p className={styles.documentsHint}>Загрузка записей...</p>
           ) : preventionError ? (
@@ -563,12 +581,14 @@ const PetCard = memo(function PetCard({
           )}
         </div>
       ) : null}
+      {isOwner ? <PetWeight petId={pet.id} petName={pet.name} /> : null}
       {isOwner ? (
         <div
           className={styles.documentsSection}
           data-tour-target={index === 0 ? "pet-documents-section" : undefined}
         >
           <div className={styles.documentsHeader}>
+            <img src="/images/pet-documents-icon.png" alt="" className={styles.sectionIcon} />
             <span className={styles.documentsTitle}>Документы</span>
           </div>
           <Alert severity="info" className={styles.preventionAlert}>
@@ -729,6 +749,7 @@ const PetCard = memo(function PetCard({
           })}
         </div>
       ) : null}
+      </div>
       <Dialog
         open={Boolean(openedDocument)}
         onClose={handleCloseDocumentPreview}

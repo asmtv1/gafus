@@ -672,7 +672,7 @@ const CARD_PADDING = 16;
 
 const styles = StyleSheet.create({
   courseCard: {
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 18,
     marginBottom: SPACING.md,
     shadowColor: "#4A4917",
@@ -965,7 +965,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e6e1ce",
     borderRadius: 28,
-    backgroundColor: "#fffdf8",
+    backgroundColor: COLORS.cardBackground,
     overflow: "visible",
     ...Platform.select({
       ios: {

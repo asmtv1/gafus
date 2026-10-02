@@ -183,11 +183,9 @@ export default function PublicProfileScreen() {
           <Text style={styles.backRowText}>Назад</Text>
         </Pressable>
         <Loading
-          variant="inline"
           fullScreen
           embedded
           message="Загрузка профиля..."
-          style={styles.loadingContainer}
         />
       </SafeAreaView>
     );
@@ -433,11 +431,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: SPACING.md,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -542,7 +535,7 @@ const styles = StyleSheet.create({
   infoContainer: {
     width: "100%",
     padding: SPACING.md,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#D4C4A8",
@@ -652,7 +645,7 @@ const styles = StyleSheet.create({
   coursesSection: {
     width: "100%",
     marginBottom: SPACING.lg,
-    backgroundColor: "#F5F0E8",
+    backgroundColor: COLORS.cardBackground,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D4C4A8",
@@ -700,7 +693,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 2,
     borderColor: "#636128",
-    backgroundColor: "#FFF8E5",
+    backgroundColor: COLORS.cardBackground,
     position: "relative",
   },
   courseImage: {

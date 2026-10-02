@@ -1,8 +1,9 @@
 "use client";
 
 import { resetAnalyticsUser, trackEvent } from "@gafus/analytics";
-import { ArrowBack, Article as ArticleIcon, Groups as GroupsIcon, Pets as PetsIcon } from "@mui/icons-material";
+import { ArrowBack, Groups as GroupsIcon } from "@mui/icons-material";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
+import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,15 +12,41 @@ import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
+import { chatApi } from "@/features/cynologist-chat/api";
+import type { CynologistChatStateDto } from "@gafus/consultation-shared";
 
 import type { HeaderProps } from "../types";
 
-export default React.memo(function Header({ userName, avatarUrl, trainerOnly, partnerOnly }: HeaderProps) {
+export default React.memo(function Header({
+  userName,
+  avatarUrl: _avatarUrl,
+  trainerOnly,
+  partnerOnly,
+}: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [assignedTrainer, setAssignedTrainer] = useState(false);
+  const accountId = useSession().data?.user?.id;
+  useEffect(() => {
+    let alive = true;
+    setAssignedTrainer(false);
+    if (accountId) {
+      chatApi<CynologistChatStateDto>()
+        .then((state) => {
+          if (alive) setAssignedTrainer(state.isAssignedTrainer);
+        })
+        .catch(() => undefined);
+    }
+    return () => {
+      alive = false;
+    };
+  }, [accountId]);
   const menuRef = useRef<HTMLDivElement>(null);
   const burgerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
   const isCurrentRoute = useCallback(
     (route: string) => pathname === route || pathname.startsWith(`${route}/`),
     [pathname],
@@ -52,8 +79,18 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
       }
     }
 
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        burgerRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKey);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, [menuOpen]);
 
   return (
@@ -92,18 +129,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
               }}
             >
               <div className={styles.menuIconSlot} aria-hidden="true">
-                {userName ? (
-                  <Image
-                    src={`${avatarUrl}`}
-                    alt=""
-                    width={24}
-                    height={24}
-                    className={styles.avatar}
-                    priority
-                  />
-                ) : (
-                  <div className={styles.avatarPlaceholder} />
-                )}
+                <Image src="/images/tab-icons/profile.webp" alt="" width={32} height={32} />
               </div>
               <span className={styles.menuLabel}>Профиль</span>
             </Link>
@@ -154,7 +180,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
               aria-current={isCurrentRoute("/pets") ? "page" : undefined}
             >
               <span className={styles.menuIconSlot} aria-hidden="true">
-                <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+                <Image src="/images/tab-icons/pets.webp" alt="" width={32} height={32} />
               </span>
               <span className={styles.menuLabel}>Питомцы</span>
             </Link>
@@ -170,7 +196,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
             >
               <span className={styles.menuIconSlot} aria-hidden="true">
                 <Image
-                  src="/uploads/header/home.svg"
+                  src="/images/tab-icons/courses.webp"
                   alt=""
                   width={24}
                   height={24}
@@ -178,6 +204,24 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
                 />
               </span>
               <span className={styles.menuLabel}>Курсы</span>
+            </Link>
+            <Link
+              href={assignedTrainer ? "/cynologist-chats" : "/cynologist-chat"}
+              className={`${styles.menuButton} ${isCurrentRoute(assignedTrainer ? "/cynologist-chats" : "/cynologist-chat") ? styles.menuButtonActive : ""}`}
+              aria-current={
+                isCurrentRoute(assignedTrainer ? "/cynologist-chats" : "/cynologist-chat")
+                  ? "page"
+                  : undefined
+              }
+              onClick={() => {
+                trackMenuClick("tab-cynologist-chat");
+                setMenuOpen(false);
+              }}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/chat.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>{assignedTrainer ? "Диалоги" : "Чат"}</span>
             </Link>
             <Link
               href="/consultations"
@@ -191,7 +235,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
               aria-current={isCurrentRoute("/consultations") ? "page" : undefined}
             >
               <span className={styles.menuIconSlot} aria-hidden="true">
-                <PetsIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+                <Image src="/images/tab-icons/cynologist.webp" alt="" width={32} height={32} />
               </span>
               <span className={styles.menuLabel}>Занятия с кинологом</span>
             </Link>
@@ -206,7 +250,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
               aria-current={isCurrentRoute("/articles") ? "page" : undefined}
             >
               <span className={styles.menuIconSlot} aria-hidden="true">
-                <ArticleIcon sx={{ fontSize: 24, color: "var(--bg-2, #636128)" }} />
+                <Image src="/images/tab-icons/articles.webp" alt="" width={32} height={32} />
               </span>
               <span className={styles.menuLabel}>Статьи</span>
             </Link>
@@ -222,7 +266,7 @@ export default React.memo(function Header({ userName, avatarUrl, trainerOnly, pa
             >
               <span className={styles.menuIconSlot} aria-hidden="true">
                 <Image
-                  src="/uploads/header/logout.svg"
+                  src="/images/profile-icons/logout.webp"
                   alt=""
                   width={24}
                   height={24}

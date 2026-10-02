@@ -287,14 +287,13 @@
 }
 
 .documentsEmptyState {
-  padding: 1.5rem 1rem;
+  padding: 1rem;
   margin: 0;
   text-align: center;
-  color: #636128;
-  font-style: italic;
+  color: var(--text-secondary);
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  background: #fff8e5;
-  border: 2px dashed #d4c4a8;
+  font-size: 0.9rem;
+  background: #f5f0e8;
   border-radius: 12px;
 }
 
@@ -690,3 +689,76 @@
 .dogActionButton, .preventionLink { border-radius: 12px; box-shadow: var(--shadow-button); }
 .dogActionButton:focus-visible, .preventionLink:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
 @media (max-width: 600px) { .dog_item { padding: 16px; gap: 12px; } .dog_actions { flex-direction: row; width: 100%; justify-content: flex-end; } }
+
+/* Figma pet cards: the same soft hero in both states. */
+.dog_item {
+  display: block;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 25px;
+  background: #fffaf0;
+  box-shadow: 0 14px 28px rgba(61, 47, 24, .16), 0 3px 7px rgba(61, 47, 24, .05);
+  overflow: hidden;
+  text-align: left;
+}
+.dog_item:hover { background: #fffaf0; border-color: transparent; }
+.petHero { display: flex; min-height: 188px; background: linear-gradient(115deg, #e1eacb, #fffaf0 68%); }
+.catCard .petHero { background: linear-gradient(115deg, #f4d6c9, #fffaf0 68%); }
+.avatar_container { width: 36%; max-width: 240px; min-width: 150px; display: grid; place-items: center; padding: 12px; box-sizing: border-box; }
+.avatar_container > div, .avatar_container > .MuiAvatar-root { width: min(164px, 100%) !important; height: auto !important; aspect-ratio: 1; flex-shrink: 0; }
+.avatar_container :global(.MuiAvatar-root) { width: 100% !important; height: 100% !important; border: 0; box-shadow: 0 9px 15px rgba(51, 43, 29, .15); }
+.avatar_container :global(.MuiAvatar-img) { object-fit: cover; }
+.dog_info { flex: 1; display: block; min-width: 0; padding: 19px 20px 16px 2px; box-sizing: border-box; text-align: left; }
+.petHeroTop { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.petSpecies { padding: 5px 10px; border-radius: 20px; background: #ecf0da; color: #466035; font: 800 11px var(--font-montserrat), sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.catCard .petSpecies { background: #fae6dd; color: #8e533d; }
+.petToggle { flex: none; width: 42px; height: 42px; display: grid; place-items: center; padding: 0; border: 1px solid #d8dcc8; border-radius: 50%; background: #fffdf5; color: #40532e; box-shadow: 0 4px 9px rgba(61, 54, 33, .13); cursor: pointer; }
+.petToggle svg { font-size: 26px; transition: transform .2s ease; }
+.petToggleOpen svg { transform: rotate(180deg); }
+.petToggle:hover { background: #f5f5e8; }
+.petToggle:focus-visible, .petCompactFoot button:focus-visible { outline: 3px solid #829f62; outline-offset: 2px; }
+.dog_info h3 { font: 800 clamp(25px, 3vw, 32px)/1.15 var(--font-montserrat), sans-serif; letter-spacing: -.04em; margin: 8px 0 2px; color: #332b21; }
+.dog_info .petBreed { font-size: 14px; color: #696354; }
+.petFacts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+.petFact { display: inline-flex; align-items: center; gap: 5px; padding: 6px 8px; border-radius: 9px; background: #f0ecdc; color: #3f4b31; font: 700 12px var(--font-montserrat), sans-serif; white-space: nowrap; }
+.petFact svg, .petFact img { width: 16px; height: 16px; object-fit: contain; color: #53653a; }
+.petCompactFoot { display: flex; align-items: center; gap: 15px; min-height: 38px; padding: 3px 17px; box-sizing: border-box; border-top: 1px solid #e8e2d2; background: #fffdf7; color: #5f6551; font: 500 11px var(--font-montserrat), sans-serif; }
+.petCompactFoot button { margin-left: auto; padding: 6px 0; border: 0; background: transparent; color: #40592e; font: 800 11px var(--font-montserrat), sans-serif; cursor: pointer; }
+.petDetails { padding: 15px 18px 18px; }
+.petDetails[hidden] { display: none; }
+.petDetails .dog_actions { width: 100%; flex-direction: row; gap: 10px; margin: 0 0 12px; }
+.petDetails .dogActionButton { flex: 1; width: auto; height: 44px; display: inline-flex; align-items: center; gap: 7px; border-radius: 12px; font: 700 13px var(--font-montserrat), sans-serif; }
+.petDetails .dogActionEdit { background: #4d5c2d; border-color: #4d5c2d; color: white; }
+.petDetails .dogActionDelete { background: #f7dfd6; border-color: #f7dfd6; color: #a33732; box-shadow: none; }
+.petDetails .dogActionDelete:hover { background: #f1cbbf; border-color: #f1cbbf; color: #8d2f29; }
+.petExtra { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 11px; color: #605c4d; font: 500 12px var(--font-montserrat), sans-serif; }
+.petExtra span { padding: 6px 9px; background: #f1ebda; border-radius: 8px; }
+.petDetails .preventionSection, .petDetails .documentsSection { margin: 11px 0 0; padding: 17px; border: 0; border-radius: 19px; background: #fffdf8; box-shadow: 0 5px 13px rgba(67, 51, 23, .07); }
+.petDetails > section { margin-top: 11px; }
+.petDetails .documentsHeader { gap: 11px; margin-bottom: 9px; }
+.petDetails .documentsTitle { font: 800 19px var(--font-montserrat), sans-serif; letter-spacing: -.03em; }
+.sectionIcon { width: 45px; height: 45px; object-fit: contain; flex: none; }
+.petDetails .preventionAlert { background: transparent; border: 0; padding: 0; color: #726e60; }
+.petDetails .documentUploadLabel { border-radius: 12px; background: #4d5c2d; color: white; }
+@media (max-width: 600px) {
+  .dog_item { padding: 0; gap: 0; border-radius: 20px; }
+  .petHero { min-height: 163px; }
+  .avatar_container { width: 39%; min-width: 123px; padding: 8px; }
+  .avatar_container > div, .avatar_container > .MuiAvatar-root { width: min(128px, 100%) !important; }
+  .dog_info { padding: 12px 10px 10px 0; align-items: stretch; }
+  .dog_info h3 { font-size: 23px; margin: 7px 0 2px; }
+  .dog_info .petBreed { font-size: 11px; }
+  .petToggle { width: 40px; height: 40px; }
+  .petFacts { margin-top: 9px; gap: 4px; }
+  .petFact { font-size: 10px; padding: 5px 6px; }
+  .petFact svg, .petFact img { width: 13px; height: 13px; }
+  .petCompactFoot { gap: 7px; padding: 4px 9px; font-size: 10px; }
+  .petCompactFoot button { font-size: 10px; }
+  .petDetails { padding: 11px 9px; }
+  .petDetails .dog_actions { justify-content: stretch; }
+  .petDetails .dogActionButton { min-height: 44px; font-size: 11px; padding: 5px; }
+  .petDetails .preventionSection, .petDetails .documentsSection { padding: 12px; border-radius: 15px; }
+  .sectionIcon { width: 35px; height: 35px; }
+  .petDetails .documentsTitle { font-size: 15px; }
+}

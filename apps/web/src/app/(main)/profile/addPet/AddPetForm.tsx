@@ -1,13 +1,14 @@
 "use client";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import PetsOutlinedIcon from "@mui/icons-material/PetsOutlined";
-import MenuItem from "@mui/material/MenuItem";
+import Image from "next/image";
+import petTypeStyles from "@/shared/components/ui/PetTypeSelector.module.css";
 import TextField from "@mui/material/TextField";
 import { trackEvent } from "@gafus/analytics";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Controller } from "react-hook-form";
 import { useSession } from "next-auth/react";
 
 import { reportClientError } from "@gafus/error-handling";
@@ -97,7 +98,6 @@ export default function AddPetForm() {
   const rBreed = form.register("breed");
   const rBirth = form.register("birthDate");
   const rHeight = form.register("heightCm");
-  const rWeight = form.register("weightKg");
   const rNeckGirth = form.register("neckGirthCm");
   const rMuzzleGirth = form.register("muzzleGirthCm");
   const rBellyGirth = form.register("bellyGirthCm");
@@ -107,7 +107,7 @@ export default function AddPetForm() {
     return (
       <main className={styles.page}>
         <section className={styles.card} aria-busy>
-          <p className={styles.loadingHint}>Загрузка формы…</p>
+          <LoadingState message="Загрузка формы…" />
         </section>
       </main>
     );
@@ -143,27 +143,19 @@ export default function AddPetForm() {
               onChange={rName.onChange}
               sx={textFieldSx}
             />
-            <Controller
-              name="type"
-              control={form.control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  id="type"
-                  label="Тип питомца"
-                  select
-                  fullWidth
-                  disabled={isSubmitting}
-                  error={!!errors.type}
-                  helperText={errors.type?.message}
-                  value={field.value ?? "DOG"}
-                  sx={textFieldSx}
-                >
-                  <MenuItem value="DOG">Собака</MenuItem>
-                  <MenuItem value="CAT">Кошка</MenuItem>
-                </TextField>
-              )}
-            />
+            <fieldset className={petTypeStyles.group} disabled={isSubmitting}>
+              <legend>Тип питомца</legend>
+              <div className={petTypeStyles.choices}>
+                {(["DOG", "CAT"] as const).map((type) => (
+                  <label key={type} className={petTypeStyles.choice}>
+                    <input type="radio" value={type} {...form.register("type")} />
+                    <Image src={`/images/pet-type-${type === "DOG" ? "dog" : "cat"}.webp`} alt="" width={48} height={48} />
+                    <span>{type === "DOG" ? "Собака" : "Кошка"}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.type && <p role="alert">{errors.type.message}</p>}
+            </fieldset>
             <TextField
               id="breed"
               label="Порода"
@@ -212,22 +204,6 @@ export default function AddPetForm() {
               name={rHeight.name}
               onBlur={rHeight.onBlur}
               onChange={rHeight.onChange}
-              sx={textFieldSx}
-            />
-            <TextField
-              id="weightKg"
-              label="Вес (кг)"
-              type="text"
-              inputMode="decimal"
-              placeholder="Необязательно"
-              fullWidth
-              disabled={isSubmitting}
-              error={!!errors.weightKg}
-              helperText={errors.weightKg?.message}
-              inputRef={rWeight.ref}
-              name={rWeight.name}
-              onBlur={rWeight.onBlur}
-              onChange={rWeight.onChange}
               sx={textFieldSx}
             />
             <TextField
