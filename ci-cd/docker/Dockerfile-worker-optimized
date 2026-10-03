@@ -77,6 +77,7 @@ COPY --from=base /app/packages/npd/package.json ./packages/npd/package.json
 RUN npm init -y && \
     npm install --production --no-optional \
     @apple/app-store-server-library@3.0.0 \
+    stream-chat@9.53.0 \
     bullmq@5.2.0 \
     ioredis@5.3.2 \
     web-push@3.6.6 \
@@ -116,6 +117,10 @@ RUN mkdir -p /app/node_modules/@gafus \
   && ln -s /app/packages/core /app/node_modules/@gafus/core \
   && ln -s /app/packages/mailer /app/node_modules/@gafus/mailer \
   && ln -s /app/packages/npd /app/node_modules/@gafus/npd
+
+# Проверяем импорт чат-сервиса в итоговом образе, чтобы отсутствующие runtime deps
+# останавливали сборку до выкладки.
+RUN node -e "import('./packages/core/dist/core/src/services/cynologistChat/stream.js')"
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
