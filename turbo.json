@@ -29,6 +29,7 @@
         "package.json",
         "tsconfig*.json",
         "next.config.*",
+        "tsup.config.*",
         "postcss.config.*",
         "tailwind.config.*",
         "prisma/**"
