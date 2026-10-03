@@ -737,9 +737,36 @@ jobs:
             # Database seeds are run manually when needed
             # docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
 
-                        # Health checks temporarily disabled - will be re-enabled later
-            echo "🏥 Health checks temporarily disabled for deployment stability"
-            echo "🎉 Deployment completed! Services are starting up..."
+            # A responding homepage/ping alone does not prove auth or worker readiness.
+            echo "🏥 Checking production readiness..."
+            for endpoint in https://gafus.ru/api/ping https://gafus.ru/api/csrf-token https://gafus.ru/api/auth/session https://api.gafus.ru/ready; do
+              ready=false
+              for attempt in $(seq 1 20); do
+                if curl --fail --silent --show-error --max-time 10 "$endpoint" > /dev/null; then
+                  ready=true
+                  break
+                fi
+                sleep 5
+              done
+              if [ "$ready" != true ]; then
+                echo "❌ Production endpoint failed: $endpoint"
+                exit 1
+              fi
+            done
+            worker_ready=false
+            for attempt in $(seq 1 20); do
+              if [ "$(docker inspect --format '{{.State.Health.Status}}' gafus-worker)" = healthy ] &&
+                 [ "$(docker inspect --format '{{.RestartCount}}' gafus-worker)" = 0 ]; then
+                worker_ready=true
+                break
+              fi
+              sleep 5
+            done
+            if [ "$worker_ready" != true ]; then
+              echo "❌ Worker is unhealthy or restarting"
+              exit 1
+            fi
+            echo "🎉 Deployment completed and readiness checks passed!"
 
             # Final cleanup
             docker image prune -f

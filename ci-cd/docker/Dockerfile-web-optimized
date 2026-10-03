@@ -65,6 +65,15 @@ COPY --from=base /app/apps/web/.next/standalone ./
 COPY --from=base /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=base /app/apps/web/public ./apps/web/public
 
+# Webpack externals for logger are not reliably included by standalone tracing.
+# Install them in an isolated prefix so npm cannot prune standalone workspace links.
+RUN npm install --prefix /opt/gafus-logger --omit=dev --no-audit --no-fund \
+      pino@9.14.0 pino-pretty@11.3.0 \
+  && ln -sfn /opt/gafus-logger/node_modules/pino /app/node_modules/pino \
+  && ln -sfn /opt/gafus-logger/node_modules/pino-pretty /app/node_modules/pino-pretty \
+  && ln -sfn /opt/gafus-logger/node_modules/thread-stream /app/node_modules/thread-stream \
+  && node -e "require('pino'); require.resolve('pino-pretty'); require.resolve('thread-stream')"
+
 # Копируем Prisma client и Query Engine (оставляем .pnpm из standalone)
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
