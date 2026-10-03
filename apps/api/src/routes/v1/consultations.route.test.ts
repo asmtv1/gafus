@@ -139,7 +139,7 @@ describe("consultations route contracts", () => {
     );
   });
 
-  it("returns the booking-included code for a 14-day YooKassa subscriber", async () => {
+  it("returns the booking-not-included code for a 14-day YooKassa subscriber", async () => {
     consultationMocks.requireConsultationBookingSubscriptionAccess.mockRejectedValueOnce(
       new ConsultationBookingNotIncludedError(),
     );
@@ -153,7 +153,7 @@ describe("consultations route contracts", () => {
     await expect(response.json()).resolves.toMatchObject({
       success: false,
       code: "CONSULTATION_BOOKING_NOT_INCLUDED",
-      error: "Запись к кинологу доступна в тарифах от 1 месяца",
+      error: "Запись к кинологу доступна по действующему трёхмесячному тарифу",
     });
   });
 });
