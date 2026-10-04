@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { prisma } from "@gafus/prisma";
-import { chatMessageSchema, sendOnce } from "./service";
+import { chatMessageSchema, sendOnce, validateChatQuote } from "./service";
 import {
   COMMUNITY_CHANNEL_TYPE,
   COMMUNITY_CHANNEL_ID,
@@ -17,7 +17,7 @@ export function communityChatEnabled() {
 export async function communityActor(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, username: true, role: true },
+    select: { id: true, username: true, role: true, profile: { select: { avatarUrl: true } } },
   });
   if (!user) throw new ChatError("CHAT_UNAUTHORIZED", "Войдите в приложение", 401);
   return user;
@@ -46,7 +46,12 @@ export async function getCommunityChatSession(userId: string) {
     throw new ChatError("CHAT_DISABLED", "Общий чат пока недоступен", 503);
   await verifyChatPermissions(COMMUNITY_CHANNEL_TYPE);
   const server = streamServer();
-  await server.upsertUser({ id: `gafus-${userId}`, role: CHAT_STREAM_ROLE, name: user.username });
+  await server.upsertUser({
+    id: `gafus-${userId}`,
+    role: CHAT_STREAM_ROLE,
+    name: user.username,
+    image: user.profile?.avatarUrl ?? "",
+  });
   // Read-only watchers keep a public room independent of private-dialog membership.
   const channel = server.channel(COMMUNITY_CHANNEL_TYPE, COMMUNITY_CHANNEL_ID, {
     created_by_id: `gafus-${userId}`,
@@ -65,6 +70,10 @@ export async function getCommunityChatSession(userId: string) {
 export async function sendCommunityChatMessage(userId: string, input: unknown) {
   const body = chatMessageSchema.parse(input);
   await requireCommunityCanSend(userId);
+  await validateChatQuote(
+    body.quotedMessageId,
+    `${COMMUNITY_CHANNEL_TYPE}:${COMMUNITY_CHANNEL_ID}`,
+  );
   const files = await prisma.communityChatAttachment.findMany({
     where: {
       id: { in: body.attachmentIds },
@@ -105,6 +114,18 @@ export async function sendCommunityChatMessage(userId: string, input: unknown) {
     });
   if (op.payloadHash !== payloadHash)
     throw new ChatError("CHAT_MESSAGE_CONFLICT", "Идентификатор уже занят другим сообщением", 409);
+  if (op.state === "DELETED")
+    throw new ChatError("CHAT_MESSAGE_DELETED", "Сообщение уже удалено", 409);
+  if (op.state === "SENT") {
+    // A completed send is never re-created after a hard deletion.
+    try {
+      return (await streamServer().getMessage(op.streamMessageId)).message;
+    } catch (error) {
+      if ((error as { code?: number }).code === 16)
+        throw new ChatError("CHAT_MESSAGE_DELETED", "Сообщение уже удалено", 409);
+      throw error;
+    }
+  }
   if (body.attachmentIds.length)
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.communityChatAttachment.updateMany({
@@ -128,6 +149,7 @@ export async function sendCommunityChatMessage(userId: string, input: unknown) {
       id: op.streamMessageId,
       user_id: `gafus-${userId}`,
       text: body.text,
+      ...(body.quotedMessageId ? { quoted_message_id: body.quotedMessageId } : {}),
       attachments: files.map((file) => ({
         type: file.kind,
         title: file.name,

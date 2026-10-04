@@ -1,3 +1,5 @@
+import { manageChatReaction } from "./reactions";
+import { manageOwnChatMessage } from "./messageManagement";
 import { connection } from "@gafus/queues";
 import { ZodError } from "zod";
 import {
@@ -88,7 +90,9 @@ export async function dispatchChatRequest(
   }
   if (
     request.method === "POST" &&
-    (action === "messages" ||
+    (action === "reactions" ||
+      action === "message-actions" ||
+      action === "messages" ||
       (community && action === "moderation") ||
       (!community && action === "start"))
   ) {
@@ -118,6 +122,8 @@ export async function dispatchChatRequest(
     } catch {
       throw new ChatError("INVALID_INPUT", "Неверный JSON");
     }
+    if (action === "reactions") return manageChatReaction(userId, body, chatId, community);
+    if (action === "message-actions") return manageOwnChatMessage(userId, body, chatId, community);
     if (community && action === "moderation") return moderateCommunityChat(userId, body);
     return community
       ? sendCommunityChatMessage(userId, body)

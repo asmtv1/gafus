@@ -1,8 +1,7 @@
-import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking, Platform } from "react-native";
 import { Text } from "react-native-paper";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
@@ -12,7 +11,7 @@ import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
 import { StatusBar } from "expo-status-bar";
 
-import { ProfileIcon } from "@/features/profile/components/profile-icon";
+import { ProfileIcon } from "@/features/profile";
 
 import { Button, Card } from "@/shared/components/ui";
 import { TexturedSafeAreaView } from "@/shared/components";
@@ -123,7 +122,9 @@ function MobileAppSubscriptionCard() {
           <ProfileIcon name="premium" />
           <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
           <View style={[styles.subscriptionStatusBadge, styles.subscriptionStatusInactive]}>
-            <Text style={styles.subscriptionStatusText}>Не активна</Text>
+            <Text style={[styles.subscriptionStatusText, { color: "#A83C24" }]}>
+              Не активна
+            </Text>
           </View>
         </View>
         <Text style={styles.subscriptionMuted}>
@@ -161,7 +162,8 @@ function MobileAppSubscriptionCard() {
         />
         <Button
           label="Обновить статус"
-          variant="outline"
+          variant="caramel"
+          animatedPress
           height={48}
           onPress={() => void refetch()}
         />
@@ -264,7 +266,8 @@ function MobileAppSubscriptionCard() {
       )}
       <Button
         label="Обновить статус"
-        variant="outline"
+        variant="caramel"
+        animatedPress
         height={48}
         onPress={() => void refetch()}
       />
@@ -333,7 +336,6 @@ const getRoleColor = (role?: string) => {
  * Страница профиля пользователя (точный дизайн как в веб-версии)
  */
 export default function ProfileScreen() {
-  const tabContentBottomPadding = useTabContentBottomPadding();
   const router = useRouter();
   const queryClient = useQueryClient();
   const startOnboardingTour = useMobileOnboardingTourStore((s) => s.startTour);
@@ -632,9 +634,7 @@ export default function ProfileScreen() {
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabContentBottomPadding }]}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <Image
           source={require("../../../assets/images/profile-header.png")}
           style={styles.headerImage}
@@ -946,7 +946,13 @@ export default function ProfileScreen() {
 
           {!hasVkLinked && canLinkVk ? (
             <Button
-              label={isVkLinkLoading ? "Подключение..." : "🔗 Подключить VK"}
+              label={isVkLinkLoading ? "Подключение..." : "Подключить VK"}
+              buttonColor="#0077FF"
+              textColor="#FFFFFF"
+              labelStyle={{ color: "#FFFFFF" }}
+              gradient={false}
+              icon={({ size }) => <FontAwesome5 name="vk" size={size} color="#FFFFFF" />}
+              loading={isVkLinkLoading}
               height={48}
               fontFamily={FONTS.impact}
               fontWeight="600"

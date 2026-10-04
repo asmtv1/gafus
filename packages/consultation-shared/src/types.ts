@@ -15,6 +15,7 @@ export type ConsultationPetGender = "MALE" | "FEMALE";
 export interface ListedCynologistCardDto {
   id: string;
   userId: string;
+  username: string;
   displayName: string | null;
   avatarUrl: string | null;
   about: string | null;

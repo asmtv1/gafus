@@ -81,6 +81,22 @@ describe("registered community access", () => {
     expect(m.upsert).toHaveBeenCalledWith({
       id: "gafus-user",
       name: "имя",
+      image: "",
+      role: "gafus_chat_reader",
+    });
+  });
+  it("syncs the Gafus nickname and profile avatar on each connection", async () => {
+    m.user.mockResolvedValue({
+      id: "user",
+      username: "новый-ник",
+      role: "USER",
+      profile: { avatarUrl: "https://cdn.gafus.ru/avatar.jpg" },
+    });
+    await getCommunityChatSession("user");
+    expect(m.upsert).toHaveBeenCalledWith({
+      id: "gafus-user",
+      name: "новый-ник",
+      image: "https://cdn.gafus.ru/avatar.jpg",
       role: "gafus_chat_reader",
     });
   });
@@ -110,6 +126,57 @@ describe("registered community access", () => {
     await sendCommunityChatMessage("user", body);
     const expected = `community-${createHash("sha256").update(`user/${body.clientMessageId}`).digest("hex")}`;
     expect(m.send.mock.calls.map((call) => call[1].id)).toEqual([expected, expected]);
+  });
+  it("never recreates a hard-deleted message on a repeated send", async () => {
+    m.op.mockImplementation(async ({ create }) => ({ id: "op", ...create, state: "DELETED" }));
+    await expect(sendCommunityChatMessage("user", body)).rejects.toMatchObject({
+      code: "CHAT_MESSAGE_DELETED",
+    });
+    expect(m.send).not.toHaveBeenCalled();
+  });
+  it("does not resend a completed message missing from Stream", async () => {
+    m.op.mockImplementation(async ({ create }) => ({ id: "op", ...create, state: "SENT" }));
+    m.getMessage.mockRejectedValueOnce({ code: 16 });
+    await expect(sendCommunityChatMessage("user", body)).rejects.toMatchObject({
+      code: "CHAT_MESSAGE_DELETED",
+    });
+    expect(m.send).not.toHaveBeenCalled();
+  });
+  it("sends a quoted reply to another author's message in the same room", async () => {
+    m.getMessage.mockResolvedValueOnce({
+      message: {
+        id: "original",
+        cid: "gafus_community:general",
+        user: { id: "gafus-other" },
+        type: "regular",
+      },
+    });
+    await sendCommunityChatMessage("user", { ...body, quotedMessageId: "original" });
+    expect(m.send.mock.calls[0][1]).toMatchObject({
+      quoted_message_id: "original",
+      user_id: "gafus-user",
+    });
+  });
+  it.each([
+    { cid: "gafus_cynologist:private" },
+    { cid: "gafus_community:general", deleted_at: new Date() },
+  ])("rejects quotes from another room or deleted messages", async (message) => {
+    m.getMessage.mockResolvedValueOnce({ message });
+    await expect(
+      sendCommunityChatMessage("user", { ...body, quotedMessageId: "original" }),
+    ).rejects.toMatchObject({ code: "CHAT_QUOTE_UNAVAILABLE" });
+    expect(m.send).not.toHaveBeenCalled();
+  });
+  it("binds reply identity into the retry payload", async () => {
+    m.getMessage.mockResolvedValueOnce({ message: { cid: "gafus_community:general" } });
+    m.op.mockResolvedValueOnce({
+      id: "op",
+      payloadHash: createHash("sha256").update(JSON.stringify(body)).digest("hex"),
+    });
+    await expect(
+      sendCommunityChatMessage("user", { ...body, quotedMessageId: "original" }),
+    ).rejects.toMatchObject({ code: "CHAT_MESSAGE_CONFLICT" });
+    expect(m.send).not.toHaveBeenCalled();
   });
   it("rejects a reused identifier with another payload", async () => {
     m.op.mockResolvedValue({ id: "op", payloadHash: "different" });

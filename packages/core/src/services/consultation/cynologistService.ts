@@ -23,6 +23,7 @@ export async function listListedCynologists(): Promise<ListedCynologistCardDto[]
       slotDurationMin: true,
       user: {
         select: {
+          username: true,
           profile: { select: { fullName: true, avatarUrl: true, about: true } },
         },
       },
@@ -33,6 +34,7 @@ export async function listListedCynologists(): Promise<ListedCynologistCardDto[]
   return rows.map((r) => ({
     id: r.id,
     userId: r.userId,
+    username: r.user.username,
     displayName: r.user.profile?.fullName ?? null,
     avatarUrl: r.user.profile?.avatarUrl ?? null,
     about: r.user.profile?.about ?? null,

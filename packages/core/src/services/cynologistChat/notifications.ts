@@ -9,7 +9,7 @@ import {
   ChatError,
   streamServer,
 } from "./stream";
-import { nextChatReminder } from "./reminder-time";
+import { isChatWorkingTime, nextChatReminder } from "./reminder-time";
 import { isAssignedChatTrainer } from "./service";
 
 const eventSchema = z.object({
@@ -266,12 +266,7 @@ export async function processChatSweep(now = new Date()) {
     )
       continue;
     // Re-roll a missed job outside the work window without sending overnight.
-    const msk = new Date(now.getTime() + 3 * 3600_000);
-    const inWindow =
-      msk.getUTCDay() > 0 &&
-      msk.getUTCDay() < 6 &&
-      msk.getUTCHours() >= 9 &&
-      msk.getUTCHours() < 21;
+    const inWindow = isChatWorkingTime(now);
     if (inWindow)
       await enqueuePush(
         `reminder-${chat.id}-${chat.nextReminderAt!.getTime()}`,

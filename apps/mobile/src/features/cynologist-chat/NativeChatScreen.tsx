@@ -1,23 +1,50 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChatQuotedReply } from "./ChatQuotedReply";
+import { useRouter } from "expo-router";
+import { ChatMessageTimestamp } from "./ChatMessageTimestamp";
+import { ChatMessageActionList } from "./ChatMessageActionList";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 import {
+  ChatReactionContext,
+  ChatReactionPicker,
+  ChatReactionList,
+  ChatReactionUsers,
+  supportedChatReactions,
+} from "./ChatReactions";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
   AppState,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
+import { userApi } from "@/shared/lib/api/user";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
-import { Chat, Channel, MessageList, OverlayProvider, useCreateChatClient } from "stream-chat-expo";
+import {
+  Chat,
+  Channel,
+  MessageList,
+  WithComponents,
+  MessageHeader,
+  MessageAuthor,
+  useMessageContext,
+  useCreateChatClient,
+} from "stream-chat-expo";
 import type { CynologistChatSessionDto, CynologistChatStateDto } from "@gafus/consultation-shared";
 import {
   cynologistIntakeSchema,
   INTAKE_FIELDS,
+  CHAT_ROLE_LABELS,
   CHAT_REPLY_COPY,
   CHAT_HOURS_COPY,
 } from "@gafus/consultation-shared";
@@ -27,6 +54,102 @@ import { Loading } from "@/shared/components/ui/Loading";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { chatApi, uploadChatFile } from "@/shared/lib/api/cynologistChat";
+
+function useChatAuthorProfile(username?: string) {
+  return useQuery({
+    queryKey: ["chat-public-profile", username],
+    enabled: !!username,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const result = await userApi.getPublicProfile(username!);
+      if (!result.success) throw new Error(result.error ?? "Не удалось загрузить профиль");
+      return result.data;
+    },
+  });
+}
+function GafusMessageAuthor(props: React.ComponentProps<typeof MessageAuthor>) {
+  const router = useRouter();
+  const { message: contextMessage } = useMessageContext();
+  const message = props.message ?? contextMessage;
+  const { data } = useChatAuthorProfile(message.user?.name);
+  const image = message.user?.image || data?.profile?.avatarUrl || undefined;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Открыть профиль ${message.user?.name ?? "пользователя"}`}
+      disabled={!message.user?.name}
+      onPress={() =>
+        message.user?.name &&
+        router.push({ pathname: "/profile/[username]", params: { username: message.user.name } })
+      }
+    >
+      <MessageAuthor
+        {...props}
+        message={{ ...message, user: message.user ? { ...message.user, image } : undefined }}
+      />
+    </Pressable>
+  );
+}
+function GafusMessageHeader() {
+  const router = useRouter();
+  const { message, alignment, groupStyles } = useMessageContext();
+  const { data } = useChatAuthorProfile(message.user?.name);
+  const role =
+    data?.role === "ADMIN" ? "admin" : data?.role === "TRAINER" ? "trainer" : data?.chatRole;
+  return (
+    <View style={{ alignItems: alignment === "left" ? "flex-start" : "flex-end" }}>
+      <MessageHeader />
+
+      {message.type !== "deleted" &&
+        message.user?.name &&
+        (!groupStyles.length || groupStyles.includes("top") || groupStyles.includes("single")) && (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: 4,
+              justifyContent: alignment === "right" ? "flex-end" : "flex-start",
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Открыть профиль ${message.user.name}`}
+              hitSlop={8}
+              onPress={() =>
+                router.push({
+                  pathname: "/profile/[username]",
+                  params: { username: message.user!.name! },
+                })
+              }
+            >
+              <Text
+                style={{ fontFamily: FONTS.montserratBold, fontSize: 12, color: COLORS.primary }}
+              >
+                {message.user.name}
+              </Text>
+            </Pressable>
+            {!!role && (
+              <Text
+                style={{
+                  fontFamily: FONTS.montserrat,
+                  fontSize: 10,
+                  color: COLORS.primary,
+                  backgroundColor: "#eeeedf",
+                  borderRadius: 6,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                }}
+              >
+                {CHAT_ROLE_LABELS[role]}
+              </Text>
+            )}
+          </View>
+        )}
+    </View>
+  );
+}
 
 export function Connected({
   state,
@@ -41,6 +164,8 @@ export function Connected({
   chatId?: string;
   community?: boolean;
 }) {
+  const containerRef = useRef<View>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const userData = useMemo(() => ({ id: session.userId }), [session.userId]);
   const tokenOrProvider = useCallback(
     async () =>
@@ -54,23 +179,62 @@ export function Connected({
     [client, session.channelType, session.channelId],
   );
   const [text, setText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const messageInputRef = useRef<TextInput>(null);
+  const [messageInputHeight, setMessageInputHeight] = useState(48);
+  const [reply, setReply] = useState<{ id: string; text: string; name: string } | null>(null);
+  function selectReply(message: {
+    id: string;
+    text?: string;
+    user?: { name?: string } | null;
+    type?: string;
+  }) {
+    if (!state.canSend || busy || retry || editingId || message.type === "deleted") return;
+    requestAnimationFrame(() => messageInputRef.current?.focus());
+    setReply({
+      id: message.id,
+      text: message.text || "Фото или видео",
+      name: message.user?.name || "Пользователь",
+    });
+  }
   const [files, setFiles] = useState<{ id: string; name: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [requestId, setRequestId] = useState(() => Crypto.randomUUID());
   const [retry, setRetry] = useState(false);
-  const router = useRouter();
   async function send() {
     setBusy(true);
     setError("");
     try {
+      if (editingId) {
+        await chatApi("message-actions", {
+          method: "POST",
+          chatId,
+          community,
+          body: { action: "edit", messageId: editingId, text },
+        });
+        setEditingId(null);
+        setText("");
+        setRetry(false);
+        return;
+      }
+      if (reply && channel?.getConfig()?.quotes !== true)
+        throw new Error(
+          "Ответы с цитатой пока недоступны: требуется обновление настроек чата. Ваш черновик сохранён.",
+        );
       await chatApi("messages", {
         method: "POST",
         chatId,
         community,
-        body: { clientMessageId: requestId, text, attachmentIds: files.map((f) => f.id) },
+        body: {
+          clientMessageId: requestId,
+          text,
+          attachmentIds: files.map((f) => f.id),
+          ...(reply ? { quotedMessageId: reply.id } : {}),
+        },
       });
       setText("");
+      setReply(null);
       setFiles([]);
       setRequestId(Crypto.randomUUID());
       setRetry(false);
@@ -80,6 +244,49 @@ export function Connected({
       await refresh().catch(() => undefined);
     } finally {
       setBusy(false);
+    }
+  }
+  async function removeMessage(messageId: string) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await chatApi("message-actions", {
+        method: "POST",
+        chatId,
+        community,
+        body: { action: "delete", messageId },
+      });
+      if (editingId === messageId) {
+        setEditingId(null);
+        setText("");
+        setRetry(false);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const reactionLock = useRef(false);
+  const [reactionPending, setReactionPending] = useState(false);
+  const lastMessageTap = useRef<{ id: string; time: number } | null>(null);
+  async function changeReaction(messageId: string, type: string, remove: boolean) {
+    if (!state.canSend || reactionLock.current) return;
+    reactionLock.current = true;
+    setReactionPending(true);
+    try {
+      await chatApi("reactions", {
+        method: "POST",
+        chatId,
+        community,
+        body: { messageId, type, action: remove ? "remove" : "set" },
+      });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      reactionLock.current = false;
+      setReactionPending(false);
     }
   }
   async function pick() {
@@ -119,79 +326,334 @@ export function Connected({
   }
   if (!client || !channel) return <Loading message="Загрузка сообщений…" fullScreen embedded />;
   return (
-    <OverlayProvider>
-      <Chat
-        client={client}
-        style={{
-          semantics: { accentPrimary: COLORS.primary, borderUtilityActive: COLORS.primary },
+    <View
+      ref={containerRef}
+      style={styles.flex}
+      onLayout={() => containerRef.current?.measureInWindow((_x, y) => setKeyboardOffset(y))}
+    >
+      <WithComponents
+        overrides={{
+          MessageHeader: GafusMessageHeader,
+          MessageTimestamp: ChatMessageTimestamp,
+          MessageActionList: ChatMessageActionList,
+          Reply: ChatQuotedReply,
+          MessageReactionPicker: ChatReactionPicker,
+          ReactionListBottom: ChatReactionList,
+          MessageUserReactions: ChatReactionUsers,
+          MessageAuthor: GafusMessageAuthor,
         }}
       >
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        <ChatReactionContext.Provider
+          value={{
+            enabled: state.canSend,
+            pending: reactionPending,
+            change: (id, type, remove) => {
+              void changeReaction(id, type, remove);
+            },
+          }}
         >
-          <Channel
-            channel={channel}
-            markReadOnMount={!community}
-            doMarkReadRequest={community ? () => undefined : undefined}
-            enableSwipeToReply={false}
-            hasFilePicker={false}
-            audioRecordingEnabled={false}
-            messageActions={() => []}
+          <Chat
+            client={client}
+            style={{
+              semantics: {
+                accentPrimary: COLORS.primary,
+                borderUtilityActive: COLORS.primary,
+                backgroundCoreApp: "transparent",
+                chatBgIncoming: "#1E2C3B",
+                chatBgOutgoing: "#1E2C3B",
+                chatTextIncoming: "#FFFFFF",
+                chatTextOutgoing: "#FFFFFF",
+                chatBgAttachmentIncoming: "#1E2C3B",
+                chatBgAttachmentOutgoing: "#1E2C3B",
+              },
+              messageList: { container: { backgroundColor: "transparent" } },
+            }}
           >
-            <View style={styles.flex}>
-              <MessageList />
-            </View>
-          </Channel>
-          {state.canSend ? (
-            <View style={styles.composer}>
-              <TextInput
-                style={styles.input}
-                accessibilityLabel="Сообщение"
-                placeholder="Напишите сообщение"
-                multiline
-                maxLength={5000}
-                value={text}
-                onChangeText={(value) => {
-                  setText(value);
-                  void channel?.keystroke().catch(() => undefined);
+            <KeyboardAvoidingView
+              style={styles.flex}
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              keyboardVerticalOffset={keyboardOffset}
+            >
+              <Channel
+                channel={channel}
+                supportedReactions={supportedChatReactions}
+                reactionListPosition="bottom"
+                onPressMessage={({ message, emitter, defaultHandler }) => {
+                  if (
+                    emitter !== "messageContent" ||
+                    !message ||
+                    !state.canSend ||
+                    message.type === "deleted" ||
+                    message.type === "system"
+                  ) {
+                    defaultHandler?.();
+                    return;
+                  }
+                  const now = Date.now();
+                  const previous = lastMessageTap.current;
+                  if (previous?.id === message.id && now - previous.time < 300) {
+                    lastMessageTap.current = null;
+                    void changeReaction(
+                      message.id,
+                      "like",
+                      message.own_reactions?.some((reaction) => reaction.type === "like") ?? false,
+                    );
+                  } else {
+                    lastMessageTap.current = { id: message.id, time: now };
+                    defaultHandler?.();
+                  }
                 }}
-                editable={!busy && !retry}
-              />
-              {files.map((f) => (
-                <Text key={f.id}>{f.name}</Text>
-              ))}
-              <Button
-                label={busy ? "Подождите…" : "Фото или видео"}
-                variant="outline"
-                disabled={busy || retry || files.length >= 5}
-                onPress={() => void pick()}
-              />
-              <Text style={styles.caption}>Фото до 10 МБ · видео H.264 до 100 МБ и двух минут</Text>
-              <Button
-                label={retry ? "Повторить отправку" : "Отправить"}
-                disabled={busy || (!text.trim() && !files.length)}
-                onPress={() => void send()}
-              />
-            </View>
-          ) : (
-            <View style={styles.composer}>
-              <Text>
-                {community
-                  ? "Общий чат временно недоступен."
-                  : "История доступна. Для отправки сообщений продлите тариф."}
-              </Text>
-              <Button
-                label="Открыть профиль"
-                onPress={() => router.push("/(main)/(tabs)/profile" as Href)}
-                style={community ? { display: "none" } : undefined}
-              />
-            </View>
-          )}
-          {error && <Text accessibilityRole="alert">{error}</Text>}
-        </KeyboardAvoidingView>
-      </Chat>
-    </OverlayProvider>
+                disableKeyboardCompatibleView
+                markReadOnMount={!community}
+                doMarkReadRequest={community ? () => undefined : undefined}
+                enableSwipeToReply={state.canSend && !busy && !retry && !editingId}
+                customMessageSwipeAction={({ message }) => selectReply(message)}
+                hasFilePicker={false}
+                audioRecordingEnabled={false}
+                messageActions={({
+                  message,
+                  editMessage,
+                  deleteMessage,
+                  quotedReply,
+                  dismissOverlay,
+                }) => {
+                  const replyActions =
+                    state.canSend &&
+                    !busy &&
+                    !retry &&
+                    !editingId &&
+                    message.type !== "deleted" &&
+                    message.type !== "system"
+                      ? [
+                          {
+                            ...quotedReply,
+                            title: "Ответить",
+                            action: () => {
+                              dismissOverlay();
+                              selectReply(message);
+                            },
+                          },
+                        ]
+                      : [];
+                  const age = Date.now() - new Date(message.created_at ?? "").getTime();
+                  if (
+                    busy ||
+                    retry ||
+                    message.user?.id !== session.userId ||
+                    message.id.startsWith("intake-") ||
+                    message.type === "deleted" ||
+                    message.type === "system" ||
+                    !Number.isFinite(age) ||
+                    age < 0 ||
+                    age >= 86400000
+                  )
+                    return replyActions;
+                  return [
+                    ...replyActions,
+                    ...(age < 900000
+                      ? [
+                          {
+                            ...editMessage,
+                            title: "Редактировать",
+                            action: () => {
+                              dismissOverlay();
+                              if (files.length || text.trim()) {
+                                Alert.alert(
+                                  "Черновик сообщения",
+                                  "Отправьте или очистите черновик перед редактированием.",
+                                );
+                                return;
+                              }
+                              setReply(null);
+                              setEditingId(message.id);
+                              setText(message.text ?? "");
+                            },
+                          },
+                        ]
+                      : []),
+                    {
+                      ...deleteMessage,
+                      title: "Удалить у всех",
+                      action: () => {
+                        dismissOverlay();
+                        Alert.alert(
+                          "Удалить сообщение?",
+                          "Сообщение будет удалено у всех участников чата.",
+                          [
+                            { text: "Отмена", style: "cancel" },
+                            {
+                              text: "Удалить",
+                              style: "destructive",
+                              onPress: () => {
+                                void removeMessage(message.id);
+                              },
+                            },
+                          ],
+                        );
+                      },
+                    },
+                  ];
+                }}
+              >
+                <View style={styles.flex}>
+                  <View style={styles.flex}>
+                    <MessageList />
+                  </View>
+                  {state.canSend || editingId ? (
+                    <View style={styles.composer}>
+                      {reply && (
+                        <View style={styles.replyPreview}>
+                          <MaterialCommunityIcons name="reply" size={24} color={COLORS.primary} />
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{ color: COLORS.primary, fontFamily: FONTS.montserratBold }}
+                              numberOfLines={1}
+                            >
+                              {reply.name}
+                            </Text>
+                            <Text style={styles.caption} numberOfLines={1}>
+                              {reply.text}
+                            </Text>
+                          </View>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Отменить ответ"
+                            disabled={busy || retry}
+                            onPress={() => setReply(null)}
+                            hitSlop={10}
+                          >
+                            <MaterialCommunityIcons name="close" size={24} color={COLORS.primary} />
+                          </Pressable>
+                        </View>
+                      )}
+                      {editingId && (
+                        <View style={styles.composerRow}>
+                          <Text style={{ flex: 1, color: COLORS.primary }}>
+                            Редактирование сообщения
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Отменить редактирование"
+                            disabled={busy}
+                            onPress={() => {
+                              setEditingId(null);
+                              setText("");
+                              setRetry(false);
+                            }}
+                          >
+                            <MaterialCommunityIcons name="close" size={24} color={COLORS.primary} />
+                          </Pressable>
+                        </View>
+                      )}
+                      <View style={styles.composerRow}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Прикрепить фото или видео"
+                          accessibilityHint="Фото до 10 МБ, видео до 100 МБ и двух минут"
+                          accessibilityState={{
+                            disabled: busy || retry || !!editingId || files.length >= 5,
+                          }}
+                          disabled={busy || retry || !!editingId || files.length >= 5}
+                          onPress={() => void pick()}
+                          style={({ pressed }) => [
+                            styles.attachmentButton,
+                            pressed && styles.attachmentPressed,
+                            (busy || retry || !!editingId || files.length >= 5) &&
+                              styles.attachmentDisabled,
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name="paperclip"
+                            size={26}
+                            color={COLORS.primary}
+                          />
+                        </Pressable>
+                        <TextInput
+                          ref={messageInputRef}
+                          style={[
+                            styles.input,
+                            styles.messageInput,
+                            { height: text.length ? messageInputHeight : 48 },
+                          ]}
+                          accessibilityLabel="Сообщение"
+                          placeholder="Напишите сообщение"
+                          multiline
+                          scrollEnabled={false}
+                          onContentSizeChange={({ nativeEvent }) =>
+                            setMessageInputHeight(
+                              Math.max(48, Math.ceil(nativeEvent.contentSize.height)),
+                            )
+                          }
+                          maxLength={5000}
+                          value={text}
+                          onChangeText={(value) => {
+                            setText(value);
+                            void channel?.keystroke().catch(() => undefined);
+                          }}
+                          editable={!busy && !retry}
+                        />
+                        {(text.trim().length > 0 || files.length > 0) && (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              retry
+                                ? "Повторить отправку"
+                                : editingId
+                                  ? "Сохранить изменения"
+                                  : "Отправить сообщение"
+                            }
+                            accessibilityState={{ disabled: busy, busy }}
+                            disabled={busy}
+                            onPress={() => void send()}
+                            style={({ pressed }) => [
+                              styles.sendButton,
+                              pressed && styles.attachmentPressed,
+                              busy && styles.attachmentDisabled,
+                            ]}
+                          >
+                            {busy ? (
+                              <ActivityIndicator size="small" color={COLORS.primary} />
+                            ) : (
+                              <MaterialCommunityIcons
+                                name={retry ? "reload" : editingId ? "check" : "send"}
+                                size={25}
+                                color={COLORS.primary}
+                              />
+                            )}
+                          </Pressable>
+                        )}
+                      </View>
+                      {files.map((f) => (
+                        <Text key={f.id}>{f.name}</Text>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.composer}>
+                      <Text>
+                        {community
+                          ? "Общий чат временно недоступен."
+                          : "История доступна. Для отправки сообщений продлите тариф."}
+                      </Text>
+                      <Button
+                        label="Выбрать тариф"
+                        onPress={() =>
+                          openAppSubscriptionPaywall({
+                            reason: "required",
+                            contentMode: "subscription",
+                          })
+                        }
+                        style={community ? { display: "none" } : undefined}
+                      />
+                    </View>
+                  )}
+                  {error && <Text accessibilityRole="alert">{error}</Text>}
+                </View>
+              </Channel>
+            </KeyboardAvoidingView>
+          </Chat>
+        </ChatReactionContext.Provider>
+      </WithComponents>
+    </View>
   );
 }
 export default function ChatScreen({
@@ -207,7 +669,6 @@ export default function ChatScreen({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [intake, setIntake] = useState<Record<string, string>>({ petGender: "" });
-  const router = useRouter();
   const refresh = useCallback(async () => {
     setState(await chatApi<CynologistChatStateDto>("", { chatId }));
   }, [chatId]);
@@ -263,7 +724,17 @@ export default function ChatScreen({
   if (!state && !error)
     return <Loading message="Загрузка сообщений…" fullScreen embedded={insideHub} />;
   return (
-    <TexturedSafeAreaView style={styles.flex} edges={insideHub ? ["bottom"] : ["top", "bottom"]}>
+    <TexturedSafeAreaView
+      style={styles.flex}
+      edges={insideHub ? [] : ["top", "bottom"]}
+      inheritBackground={insideHub}
+    >
+      {!insideHub && (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(252,245,226,0.6)" }]}
+        />
+      )}
       <View style={styles.header}>
         <Text style={styles.title}>Чат с кинологом</Text>
         <Text>{CHAT_REPLY_COPY}</Text>
@@ -279,7 +750,9 @@ export default function ChatScreen({
           <Text>Чат входит в месячный и трёхмесячный тариф.</Text>
           <Button
             label="Выбрать тариф"
-            onPress={() => router.push("/(main)/(tabs)/profile" as Href)}
+            onPress={() =>
+              openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" })
+            }
           />
         </View>
       )}
@@ -355,7 +828,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#fffdf7",
     minHeight: 48,
   },
-  composer: { padding: 12, gap: 6 },
+  replyPreview: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+  composer: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 16, gap: 6 },
+  composerRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  messageInput: { flex: 1, textAlignVertical: "top" },
+  attachmentButton: {
+    width: 44,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+  },
+  sendButton: {
+    width: 44,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+  },
+  attachmentPressed: { backgroundColor: COLORS.cardBackground },
+  attachmentDisabled: { opacity: 0.4 },
   gender: { flexDirection: "row", gap: 12, marginTop: 8 },
   error: { padding: 16, color: "#a32424" },
 });

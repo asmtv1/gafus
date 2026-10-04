@@ -9,6 +9,10 @@ export default function ChatHubScreen({ trainer = false }: { trainer?: boolean }
   const [community, setCommunity] = useState(false);
   return (
     <TexturedSafeAreaView style={styles.flex} edges={["top"]}>
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(252,245,226,0.6)" }]}
+      />
       <View style={styles.tabs}>
         <Button
           label="Чат с кинологом"

@@ -22,7 +22,7 @@ import { COLORS, FONTS, SPACING } from "@/shared/config";
 interface ButtonProps extends Omit<PaperButtonProps, "children" | "style"> {
   label: string;
   haptic?: boolean;
-  variant?: "primary" | "secondary" | "selected" | "outline" | "danger";
+  variant?: "primary" | "secondary" | "caramel" | "selected" | "outline" | "danger";
   size?: "regular" | "large";
   /**
    * Размеры задаются только для композиционных исключений. Обычная кнопка
@@ -41,7 +41,7 @@ interface ButtonProps extends Omit<PaperButtonProps, "children" | "style"> {
   verticalPadding?: number;
   borderRadius?: number;
   iconPosition?: "left" | "right";
-  /** По умолчанию включён для фирменной оливковой primary-кнопки. */
+  /** По умолчанию включён для primary, secondary и caramel. */
   gradient?: boolean;
   /** Небольшой физический отклик при касании для переключателей и компактных действий. */
   animatedPress?: boolean;
@@ -91,6 +91,7 @@ export function Button({
 
   const isPrimary = variant === "primary";
   const isSecondary = variant === "secondary";
+  const isCaramel = variant === "caramel";
   const isSelected = variant === "selected";
   const isDanger = variant === "danger";
   const pressTravel = isSelected ? 1 : 3;
@@ -104,10 +105,12 @@ export function Button({
   const usesDepthGradient =
     gradient ??
     ((isPrimary && (buttonColor === undefined || buttonColor === COLORS.primary)) ||
-      (isSecondary && buttonColor === undefined));
-  const depthColors = isSecondary
-    ? ["#D0776D", "#C9695E", "#C56255", "#B95145", "#B45044"]
-    : ["#71804B", "#62743B", "#4D5C2D", "#465429", "#3B4822"];
+      ((isSecondary || isCaramel) && buttonColor === undefined));
+  const depthColors = isCaramel
+    ? ["#E3CAA6", "#DCC096", "#D9BC91", "#CEAE7E", "#CAA574"]
+    : isSecondary
+      ? ["#D0776D", "#C9695E", "#C56255", "#B95145", "#B45044"]
+      : ["#71804B", "#62743B", "#4D5C2D", "#465429", "#3B4822"];
   const resolvedBorderRadius = borderRadius ?? (size === "large" ? 22 : 18);
 
   const handlePressIn = (event: Parameters<NonNullable<PaperButtonProps["onPressIn"]>>[0]) => {
@@ -143,7 +146,7 @@ export function Button({
       mode={
         onGradient
           ? "text"
-          : isPrimary || isSecondary || isSelected || isDanger
+          : isPrimary || isSecondary || isCaramel || isSelected || isDanger
             ? "contained"
             : "outlined"
       }
@@ -153,7 +156,7 @@ export function Button({
         onGradient && styles.buttonOnGradient,
         !onGradient && (hostedByAnimatedShell || fullWidth ? styles.fullWidth : styles.fitContent),
         !onGradient &&
-          (isPrimary
+          (isPrimary || isCaramel
             ? styles.primaryButton
             : isSecondary
               ? styles.secondaryButton
@@ -180,7 +183,9 @@ export function Button({
       ]}
       labelStyle={[
         styles.label,
-        isPrimary || isDanger
+        isCaramel
+          ? styles.caramelLabel
+          : isPrimary || isDanger
           ? styles.primaryLabel
           : isSecondary
             ? styles.secondaryLabel
@@ -203,7 +208,9 @@ export function Button({
         onGradient
           ? "transparent"
           : (buttonColor ??
-            (isPrimary
+            (isCaramel
+              ? "#D9BC91"
+              : isPrimary
               ? COLORS.primary
               : isSecondary
                 ? "#C56255"
@@ -215,7 +222,9 @@ export function Button({
       }
       textColor={
         textColor ??
-        (isPrimary || isDanger
+        (isCaramel
+          ? "#503C27"
+          : isPrimary || isDanger
           ? "#F6F0DF"
           : isSecondary
             ? "#FFFFFF"
@@ -248,6 +257,8 @@ export function Button({
           style={[
             styles.gradientSurface,
             isSecondary && styles.secondaryGradientSurface,
+            isCaramel && styles.caramelGradientSurface,
+            buttonColor !== undefined && { backgroundColor: buttonColor },
             isPressed && styles.gradientSurfacePressed,
             { borderRadius: resolvedBorderRadius },
           ]}
@@ -318,6 +329,12 @@ const styles = StyleSheet.create({
   },
   secondaryGradientSurface: {
     backgroundColor: "#C56255",
+  },
+  caramelGradientSurface: {
+    backgroundColor: "#D9BC91",
+  },
+  caramelLabel: {
+    color: "#503C27",
   },
   gradientSurfacePressed: {
     opacity: 0.94,

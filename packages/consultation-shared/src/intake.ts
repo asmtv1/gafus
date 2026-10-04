@@ -42,6 +42,7 @@ export const cynologistIntakeSchema = z.object({
     .trim()
     .min(10, "Опишите проблему не менее чем в 10 символах")
     .max(1000, "Не длиннее 1000 символов"),
+  clientProblemDuration: trimNonEmpty(1000, "Как давно появилась проблема?"),
   clientSelfHelpAttempt: z
     .string()
     .trim()
@@ -49,6 +50,10 @@ export const cynologistIntakeSchema = z.object({
     .max(1000, "Не длиннее 1000 символов"),
 });
 export type CynologistIntake = z.infer<typeof cynologistIntakeSchema>;
+/** Previously saved questionnaires remain readable after adding the new question. */
+export const storedCynologistIntakeSchema = cynologistIntakeSchema.extend({
+  clientProblemDuration: trimNonEmpty(1000, "Как давно появилась проблема?").default("Не указано"),
+});
 export const INTAKE_FIELDS = [
   ["clientOwnerName", "Имя владельца", 15],
   ["clientPhone", "Телефон", 32],
@@ -57,6 +62,7 @@ export const INTAKE_FIELDS = [
   ["petAge", "Возраст питомца", 100],
   ["petBreed", "Порода питомца", 200],
   ["clientProblem", "Проблема", 1000],
+  ["clientProblemDuration", "Как давно появилась проблема?", 1000],
   ["clientSelfHelpAttempt", "Как пытались решить проблему", 1000],
 ] as const;
 export function formatCynologistIntake(value: CynologistIntake): string {

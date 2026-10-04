@@ -6,7 +6,7 @@ export const CHAT_LIMITS = {
   textLength: 5000,
 } as const;
 export const CHAT_REPLY_COPY = "Ответ в течение суток";
-export const CHAT_HOURS_COPY = "Кинолог отвечает в рабочие дни с 10:00 до 19:00 МСК";
+export const CHAT_HOURS_COPY = "Кинолог отвечает с 14:00 до 20:00 МСК. Выходной — понедельник.";
 export interface CynologistChatDto {
   id: string;
   streamChannelId: string;
@@ -53,3 +53,38 @@ export interface CommunityChatStateDto {
   enabled: boolean;
   canSend: boolean;
 }
+
+/** Same reaction identifiers on the API and both chat clients. */
+export const CHAT_REACTIONS = [
+  { type: "like", emoji: "👍", label: "Нравится" },
+  { type: "love", emoji: "❤️", label: "Сердце" },
+  { type: "haha", emoji: "😂", label: "Смех" },
+  { type: "wow", emoji: "😮", label: "Удивление" },
+  { type: "sad", emoji: "😢", label: "Грусть" },
+  { type: "pray", emoji: "🙏", label: "Спасибо" },
+  { type: "fire", emoji: "🔥", label: "Огонь" },
+  { type: "clap", emoji: "👏", label: "Аплодисменты" },
+  { type: "party", emoji: "🎉", label: "Праздник" },
+  { type: "hundred", emoji: "💯", label: "Сто процентов" },
+  { type: "heart_eyes", emoji: "😍", label: "Восхищение" },
+  { type: "thinking", emoji: "🤔", label: "Размышление" },
+  { type: "dislike", emoji: "👎", label: "Не нравится" },
+  { type: "angry", emoji: "😡", label: "Злость" },
+  { type: "cry", emoji: "😭", label: "Слёзы" },
+  { type: "smile", emoji: "😁", label: "Улыбка" },
+  { type: "cool", emoji: "😎", label: "Круто" },
+  { type: "hug", emoji: "🤗", label: "Обнимаю" },
+  { type: "ok", emoji: "👌", label: "Хорошо" },
+  { type: "salute", emoji: "🫡", label: "Есть" },
+  { type: "dog", emoji: "🐶", label: "Собака" },
+  { type: "paw", emoji: "🐾", label: "Лапки" },
+  { type: "trophy", emoji: "🏆", label: "Победа" },
+  { type: "sparkles", emoji: "✨", label: "Волшебство" },
+] as const;
+
+export type ChatDisplayRole = "admin" | "trainer" | "subscriber";
+export const CHAT_ROLE_LABELS: Record<ChatDisplayRole, string> = {
+  admin: "Администратор",
+  trainer: "Кинолог",
+  subscriber: "Подписчик",
+};

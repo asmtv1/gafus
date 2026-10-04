@@ -44,14 +44,28 @@ export default function ChatDialogs() {
   }, []);
   useEffect(() => {
     void load();
+    const refresh = () => {
+      if (!document.hidden) void load();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
       request.current?.abort();
     };
   }, [load]);
   return (
     <main className={styles.page}>
       <h1>Диалоги</h1>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          <button type="button" disabled={busy} onClick={() => void load()}>
+            Повторить загрузку
+          </button>
+        </div>
+      )}
       {!data && !error && <LoadingState message="Загрузка диалогов…" />}
       {data?.items.length === 0 && <p>Пока нет диалогов. Здесь появятся сообщения клиентов.</p>}
       <ul className={styles.list}>

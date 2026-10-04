@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./api", () => ({ chatApi: mocks.api }));
 vi.mock("@gafus/error-handling", () => ({ reportClientError: mocks.report }));
 vi.mock("stream-chat-react", () => ({
+  Streami18n: class {},
   useCreateChatClient: () => ({ channel: () => mocks.channel }),
+  ComponentProvider: ({ children }: { children: React.ReactNode }) => children,
   Chat: ({ children }: { children: React.ReactNode }) => children,
   Channel: ({ children }: { children: React.ReactNode }) => children,
   Window: ({ children }: { children: React.ReactNode }) => children,
@@ -59,7 +61,7 @@ it("sends once on two immediate clicks and preserves the ID on retry", async () 
     .mockResolvedValueOnce({});
   await mount();
   await act(async () => enter("Сообщение"));
-  const button = host.querySelector("button")!;
+  const button = host.querySelector<HTMLButtonElement>('button[aria-label="Отправить"]')!;
   await act(async () => {
     button.click();
     button.click();
@@ -99,4 +101,33 @@ it("allows removing an uploaded attachment from the draft", async () => {
   expect(remove).not.toBeNull();
   await act(async () => remove.click());
   expect(host.textContent).not.toContain("photo.webp");
+});
+
+it("Enter sends while Shift+Enter keeps a multiline draft", async () => {
+  mocks.api.mockResolvedValue({});
+  await mount();
+  await act(async () => enter("Сообщение"));
+  const field = host.querySelector("textarea")!;
+  await act(async () =>
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(mocks.api).not.toHaveBeenCalled();
+  await act(async () =>
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(mocks.api).toHaveBeenCalledTimes(1);
+  expect(field.value).toBe("");
 });

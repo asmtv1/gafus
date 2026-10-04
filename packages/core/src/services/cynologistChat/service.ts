@@ -3,6 +3,7 @@ import { prisma, Prisma } from "@gafus/prisma";
 import { z } from "zod";
 import {
   cynologistIntakeSchema,
+  storedCynologistIntakeSchema,
   formatCynologistIntake,
   CHAT_LIMITS,
 } from "@gafus/consultation-shared";
@@ -24,6 +25,7 @@ export const chatMessageSchema = z
   .object({
     clientMessageId: z.string().uuid(),
     text: z.string().trim().max(CHAT_LIMITS.textLength).default(""),
+    quotedMessageId: z.string().min(1).max(128).optional(),
     attachmentIds: z.array(z.string().min(1).max(128)).max(5).default([]),
   })
   .refine(
@@ -65,13 +67,28 @@ export async function requireCanSend(userId: string, chatId?: string) {
   }
   return chat;
 }
+async function syncChatParticipants(clientUserId: string, trainerUserId: string) {
+  const users = await prisma.user.findMany({
+    where: { id: { in: [clientUserId, trainerUserId] } },
+    select: { id: true, username: true, profile: { select: { avatarUrl: true } } },
+  });
+  await streamServer().upsertUsers(
+    users.map((user) => ({
+      id: uid(user.id),
+      role: CHAT_STREAM_ROLE,
+      name: user.username,
+      image: user.profile?.avatarUrl ?? "",
+    })),
+  );
+}
+
 function dto(chat: Awaited<ReturnType<typeof chatForActor>>, unreadCount = 0): CynologistChatDto {
   return {
     id: chat.id,
     streamChannelId: chat.streamChannelId,
     clientUserId: chat.clientUserId,
     trainerUserId: chat.trainerUserId,
-    intake: cynologistIntakeSchema.parse(chat.intake),
+    intake: storedCynologistIntakeSchema.parse(chat.intake),
     provisionStatus: chat.provisionStatus,
     lastMessageAt: chat.lastMessageAt?.toISOString() ?? null,
     unreadCount,
@@ -137,10 +154,7 @@ export async function startChat(userId: string, input: unknown) {
   }
   await verifyChatPermissions();
   const server = streamServer();
-  await server.upsertUsers([
-    { id: uid(userId), role: CHAT_STREAM_ROLE },
-    { id: uid(chat.trainerUserId), role: CHAT_STREAM_ROLE },
-  ]);
+  await syncChatParticipants(chat.clientUserId, chat.trainerUserId);
   const channel = server.channel(CHAT_CHANNEL_TYPE, chat.streamChannelId, {
     members: [uid(userId), uid(chat.trainerUserId)],
     created_by_id: uid(chat.trainerUserId),
@@ -148,7 +162,7 @@ export async function startChat(userId: string, input: unknown) {
   await channel.create();
   await sendOnce(channel, {
     id: chat.firstMessageId,
-    text: formatCynologistIntake(cynologistIntakeSchema.parse(chat.intake)),
+    text: formatCynologistIntake(storedCynologistIntakeSchema.parse(chat.intake)),
     user_id: uid(userId),
   });
   await prisma.cynologistChat.update({
@@ -189,7 +203,7 @@ export async function getChatSession(userId: string, chatId?: string) {
     throw new ChatError("CHAT_NOT_READY", "Завершите создание диалога", 409);
   await verifyChatPermissions();
   const server = streamServer();
-  await server.upsertUser({ id: uid(userId), role: CHAT_STREAM_ROLE });
+  await syncChatParticipants(chat.clientUserId, chat.trainerUserId);
   const expires = Math.floor(Date.now() / 1000) + 3600;
   return {
     apiKey: server.key,
@@ -200,9 +214,21 @@ export async function getChatSession(userId: string, chatId?: string) {
     channelId: chat.streamChannelId,
   };
 }
+export async function validateChatQuote(messageId: string | undefined, cid: string) {
+  if (!messageId) return;
+  const { message } = await streamServer().getMessage(messageId);
+  if (message.cid !== cid || message.deleted_at || message.type === "deleted")
+    throw new ChatError(
+      "CHAT_QUOTE_UNAVAILABLE",
+      "Сообщение для ответа недоступно в этом чате",
+      403,
+    );
+}
+
 export async function sendChatMessage(userId: string, input: unknown, chatId?: string) {
   const body = chatMessageSchema.parse(input);
   const chat = await requireCanSend(userId, chatId);
+  await validateChatQuote(body.quotedMessageId, `${CHAT_CHANNEL_TYPE}:${chat.streamChannelId}`);
   const attachments = await prisma.chatAttachment.findMany({
     where: {
       id: { in: body.attachmentIds },
@@ -244,6 +270,18 @@ export async function sendChatMessage(userId: string, input: unknown, chatId?: s
     });
   if (op.chatId !== chat.id || op.payloadHash !== payloadHash)
     throw new ChatError("CHAT_MESSAGE_CONFLICT", "Идентификатор уже занят другим сообщением", 409);
+  if (op.state === "DELETED")
+    throw new ChatError("CHAT_MESSAGE_DELETED", "Сообщение уже удалено", 409);
+  if (op.state === "SENT") {
+    // A completed send is never re-created after a hard deletion.
+    try {
+      return (await streamServer().getMessage(op.streamMessageId)).message;
+    } catch (error) {
+      if ((error as { code?: number }).code === 16)
+        throw new ChatError("CHAT_MESSAGE_DELETED", "Сообщение уже удалено", 409);
+      throw error;
+    }
+  }
   if (body.attachmentIds.length)
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.chatAttachment.updateMany({
@@ -267,6 +305,7 @@ export async function sendChatMessage(userId: string, input: unknown, chatId?: s
     id: op.streamMessageId,
     user_id: uid(userId),
     text: body.text,
+    ...(body.quotedMessageId ? { quoted_message_id: body.quotedMessageId } : {}),
     attachments: attachments.map((a) => ({
       type: a.kind,
       title: a.name,

@@ -49,8 +49,9 @@ if (!process.argv.includes("--apply")) {
     typing_events: true,
     custom_events: !community,
     replies: false,
-    quotes: false,
-    reactions: false,
+    // Quotes and reactions are written through the GAFUS server, not reader tokens.
+    quotes: true,
+    reactions: true,
     polls: false,
     commands: [],
     push_notifications: false,

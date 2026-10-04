@@ -1,8 +1,7 @@
 // Типы для работы с пользователями
 
 /** Подсказка в UI, если в учётной записи нет email. */
-export const USER_EMAIL_MISSING_HINT =
-  "Email отсутствует, напишите в поддержку";
+export const USER_EMAIL_MISSING_HINT = "Email отсутствует, напишите в поддержку";
 
 export interface UpdateUserProfileInput {
   fullName: string;
@@ -32,6 +31,7 @@ export interface UserWithTrainings {
 }
 
 export interface PublicProfile {
+  chatRole?: "admin" | "trainer" | "subscriber" | null;
   username: string;
   role: "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER";
   profile: {

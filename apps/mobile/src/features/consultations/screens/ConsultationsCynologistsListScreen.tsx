@@ -1,14 +1,13 @@
-import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useEffect, useMemo } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
-import { cynologistDisplayInitials, plainConsultationAboutHtml } from "@gafus/consultation-shared";
+import { cynologistDisplayInitials } from "@gafus/consultation-shared";
 import type { ListedCynologistCardDto } from "@gafus/consultation-shared";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import type { Href } from "expo-router";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { TourTarget } from "@/shared/lib/tour-targets";
@@ -20,11 +19,12 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { trackEvent } from "@/shared/lib/analytics";
 
+const LANA_CYNOLOGIST_USER_ID = "cmhq7qk2s0000nn01jr2ptnil";
+
 /**
  * Каталог кинологов — паритет с web (карточки, поднавигация, тексты).
  */
 export default function ConsultationsCynologistsListScreen() {
-  const tabContentBottomPadding = useTabContentBottomPadding();
   const router = useRouter();
   const query = useQuery({
     queryKey: ["consultations", "cynologists"],
@@ -33,11 +33,13 @@ export default function ConsultationsCynologistsListScreen() {
       if (!res.success) {
         throw new Error(res.error ?? "Ошибка загрузки");
       }
-      return res.data ?? [];
+      return { items: res.data ?? [], bookingEligibility: res.bookingEligibility };
     },
   });
 
-  const items = useMemo(() => query.data ?? [], [query.data]);
+  const { refetch } = query;
+  useFocusEffect(useCallback(() => { void refetch(); }, [refetch]));
+  const items = useMemo(() => query.data?.items ?? [], [query.data]);
 
   useEffect(() => {
     if (query.isError && query.error) {
@@ -69,9 +71,7 @@ export default function ConsultationsCynologistsListScreen() {
   return (
     <TexturedSafeAreaView style={styles.root} edges={[]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: tabContentBottomPadding }]}
-      >
+      <ScrollView contentContainerStyle={styles.scroll}>
         <TourTarget id="consultations-list">
           <Image
             source={require("../../../../assets/images/consultations-catalog-header.png")}
@@ -126,6 +126,12 @@ export default function ConsultationsCynologistsListScreen() {
           />
         </View>
 
+        {query.data?.bookingEligibility && !query.data.bookingEligibility.canBook ? (
+          <Text accessibilityRole="alert" style={[styles.muted, { marginBottom: SPACING.md }]}>
+            {query.data.bookingEligibility.message}
+          </Text>
+        ) : null}
+
         {query.isError ? (
           <Text style={styles.error}>Не удалось загрузить список. Попробуйте позже.</Text>
         ) : null}
@@ -145,7 +151,6 @@ export default function ConsultationsCynologistsListScreen() {
 
         {items.map((c) => {
           const src = resolveImageUrl(c.avatarUrl);
-          const about = plainConsultationAboutHtml(c.about);
           const title = c.displayName ?? "Кинолог";
           return (
             <View key={c.id} style={styles.card}>
@@ -161,38 +166,61 @@ export default function ConsultationsCynologistsListScreen() {
                 </View>
                 <View style={styles.cardBody}>
                   <Text style={styles.title}>{title}</Text>
-                  {about ? (
-                    <Text style={styles.about}>{about}</Text>
-                  ) : (
-                    <Text style={styles.aboutEmpty}>
-                      Описание появится, когда кинолог заполнит профиль.
-                    </Text>
-                  )}
-                  <View style={styles.meta}>
-                    <Text style={styles.metaLine}>
-                      Длительность слота: {c.slotDurationMin} мин. · Часовой пояс: МСК (UTC+3)
-                    </Text>
-                    <Button
-                      label="Выбрать слот"
-                      icon="arrow-right"
-                      iconPosition="right"
-                      fullWidth={false}
-                      height={44}
-                      fontFamily={FONTS.montserratMedium}
-                      fontSize={14}
-                      lineHeight={18}
-                      horizontalPadding={14}
-                      verticalPadding={0}
-                      borderRadius={14}
-                      animatedPress
-                      haptic={false}
-                      style={styles.ctaButtonLayout}
-                      onPress={() => onOpen(c)}
-                      accessibilityLabel={`Выбрать слот у кинолога ${title}`}
-                      accessibilityHint="Открывает календарь свободных слотов"
-                    />
-                  </View>
+                  {c.userId === LANA_CYNOLOGIST_USER_ID ? (
+                    <View style={styles.badges}>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>Составитель курсов</Text>
+                      </View>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>Главный кинолог проекта</Text>
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
+              </View>
+              <View style={styles.meta}>
+                <Text style={styles.metaLine}>Длительность слота: {c.slotDurationMin} мин.</Text>
+                <Text style={styles.metaLine}>Часовой пояс: МСК (UTC+3)</Text>
+              </View>
+              <View style={styles.actions}>
+                <Button
+                  label="Подробнее о кинологе"
+                  variant="caramel"
+                  height={48}
+                  fontFamily={FONTS.montserratMedium}
+                  fontSize={14}
+                  lineHeight={20}
+                  borderRadius={14}
+                  animatedPress
+                  haptic={false}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    if (!c.username) {
+                      Alert.alert("Профиль кинолога", "Не удалось открыть профиль. Попробуйте позже.");
+                      return;
+                    }
+                    router.push({ pathname: "/profile/[username]", params: { username: c.username } });
+                  }}
+                  accessibilityLabel={`Подробнее о кинологе ${title}`}
+                  accessibilityHint="Открывает профиль кинолога"
+                />
+                <Button
+                  label="Выбрать время"
+                  icon="arrow-right"
+                  iconPosition="right"
+                  height={48}
+                  fontFamily={FONTS.montserratMedium}
+                  fontSize={14}
+                  lineHeight={18}
+                  horizontalPadding={14}
+                  verticalPadding={0}
+                  borderRadius={14}
+                  animatedPress
+                  haptic={false}
+                  onPress={() => onOpen(c)}
+                  accessibilityLabel={`Выбрать время у кинолога ${title}`}
+                  accessibilityHint="Открывает календарь свободных слотов"
+                />
               </View>
             </View>
           );
@@ -243,7 +271,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  cardInner: { flexDirection: "row", padding: SPACING.md, gap: SPACING.md },
+  cardInner: { flexDirection: "row", alignItems: "center", padding: SPACING.md, gap: SPACING.md },
   avatarFrame: {
     width: 88,
     height: 88,
@@ -261,26 +289,28 @@ const styles = StyleSheet.create({
   },
   cardBody: { flex: 1, minWidth: 0 },
   title: { fontFamily: FONTS.montserratBold, fontSize: 18, color: COLORS.text, lineHeight: 24 },
-  about: {
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
-    color: COLORS.text,
-    marginTop: SPACING.xs,
-    lineHeight: 20,
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: SPACING.xs },
+  badge: {
+    maxWidth: "100%",
+    borderRadius: 8,
+    backgroundColor: "#E7E9D7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  aboutEmpty: {
+  badgeText: {
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 10,
+    lineHeight: 15,
+    color: "#4A542E",
+  },
+  meta: { paddingHorizontal: SPACING.md, gap: 2 },
+  metaLine: {
     fontFamily: FONTS.montserrat,
-    fontSize: 14,
+    fontSize: 12,
+    lineHeight: 18,
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-    fontStyle: "italic",
   },
-  meta: { marginTop: SPACING.sm },
-  metaLine: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
-  ctaButtonLayout: {
-    alignSelf: "flex-start",
-    marginTop: SPACING.sm,
-  },
+  actions: { padding: SPACING.md, gap: SPACING.sm },
   muted: { fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.textSecondary },
   error: { color: COLORS.error, marginBottom: SPACING.md, fontFamily: FONTS.montserrat },
 });

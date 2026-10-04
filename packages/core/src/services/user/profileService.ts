@@ -1,3 +1,4 @@
+import { getChatDisplayRole } from "../cynologistChat/authorRole";
 /**
  * Profile Service - бизнес-логика работы с профилем пользователя
  */
@@ -122,6 +123,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
   const user = await prisma.user.findUnique({
     where: { username },
     select: {
+      id: true,
       username: true,
       role: true,
       profile: {
@@ -216,8 +218,10 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
         }))
       : undefined;
 
+  const { id: _id, ...publicUser } = user;
   const publicProfile: PublicProfile = {
-    ...user,
+    ...publicUser,
+    chatRole: await getChatDisplayRole(user),
     courses,
     diplomas: user.diplomas
       .filter((d) => d.issuedAt !== null)
@@ -416,9 +420,7 @@ export interface UserProfileForApi {
 /**
  * Получает профиль пользователя для API (GET /profile).
  */
-export async function getUserProfileForApi(
-  userId: string,
-): Promise<UserProfileForApi | null> {
+export async function getUserProfileForApi(userId: string): Promise<UserProfileForApi | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -461,9 +463,7 @@ export async function getUserProfileForApi(
       telegram: p?.telegram ?? null,
       instagram: p?.instagram ?? null,
       website: p?.website ?? null,
-      birthDate: p?.birthDate
-        ? p.birthDate.toISOString().split("T")[0]
-        : null,
+      birthDate: p?.birthDate ? p.birthDate.toISOString().split("T")[0] : null,
       avatarUrl: p?.avatarUrl ?? null,
     },
   };

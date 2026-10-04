@@ -31,6 +31,7 @@ export interface PublicProfileCourse {
 
 /** Публичный профиль (структура как в API / profile из web) */
 export interface PublicProfile {
+  chatRole?: "admin" | "trainer" | "subscriber" | null;
   username: string;
   role: string;
   profile: {
@@ -63,7 +64,9 @@ export const userApi = {
    * Получить публичный профиль по username
    */
   getPublicProfile: async (username: string): Promise<ApiResponse<PublicProfile>> => {
-    return apiClient<PublicProfile>(`/api/v1/user/profile/public?username=${username}`);
+    return apiClient<PublicProfile>(
+      `/api/v1/user/profile/public?username=${encodeURIComponent(username)}`,
+    );
   },
 
   /**

@@ -1,4 +1,6 @@
 "use client";
+import { useEffect, useState } from "react";
+import CloseIcon from "@mui/icons-material/Close";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { COMMUNITY_CHAT_RULES } from "@gafus/consultation-shared";
 import CommunityModeration from "./CommunityModeration";
@@ -10,12 +12,45 @@ export default function CommunityChat() {
   const { accountId, state, session, error, refresh } = useChatResource<CommunityChatStateDto>({
     community: true,
   });
+  const [rules, setRules] = useState<{ accountId: string; visible: boolean } | null>(null);
+  const showRules = !!accountId && rules?.accountId === accountId && rules.visible;
+  useEffect(() => {
+    if (!accountId) return;
+    let visible = true;
+    try {
+      visible = localStorage.getItem(`community-chat-rules:v1:${accountId}`) !== "dismissed";
+    } catch {
+      /* Storage can be unavailable in private browsing. */
+    }
+    setRules({ accountId, visible });
+  }, [accountId]);
+  function dismissRules() {
+    if (!accountId) return;
+    setRules({ accountId, visible: false });
+    try {
+      localStorage.setItem(`community-chat-rules:v1:${accountId}`, "dismissed");
+    } catch {
+      /* Keep rules dismissed for this visit. */
+    }
+  }
   return (
     <main className={styles.page}>
-      <section className={styles.rules} aria-label="Правила чата">
-        <h2>Правила чата</h2>
-        <p>{COMMUNITY_CHAT_RULES}</p>
-      </section>
+      {showRules && (
+        <section className={styles.rules} aria-label="Правила чата">
+          <div className={styles.rulesHeading}>
+            <h2>Правила чата</h2>
+            <button
+              type="button"
+              aria-label="Закрыть правила чата"
+              onClick={dismissRules}
+              className={styles.closeRules}
+            >
+              <CloseIcon fontSize="small" />
+            </button>
+          </div>
+          <p>{COMMUNITY_CHAT_RULES}</p>
+        </section>
+      )}
       {state?.isModerator && <CommunityModeration />}
       {state?.isBanned && (
         <p role="alert">Вы заблокированы в общем чате. Отправка сообщений недоступна.</p>

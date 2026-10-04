@@ -1,7 +1,9 @@
 import { COMMUNITY_CHAT_RULES } from "@gafus/consultation-shared";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import CommunityModeration from "./CommunityModeration";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import type { CommunityChatStateDto, CynologistChatSessionDto } from "@gafus/consultation-shared";
 import { Connected } from "./NativeChatScreen";
 import { chatApi } from "@/shared/lib/api/cynologistChat";
@@ -14,6 +16,30 @@ export default function NativeCommunityChatScreen() {
   const [state, setState] = useState<CommunityChatStateDto | null>(null);
   const [session, setSession] = useState<CynologistChatSessionDto | null>(null);
   const [error, setError] = useState("");
+  const [rules, setRules] = useState<{ accountId: string; visible: boolean } | null>(null);
+  const showRules = !!accountId && rules?.accountId === accountId && rules.visible;
+  useEffect(() => {
+    let alive = true;
+    if (accountId) {
+      AsyncStorage.getItem(`community-chat-rules:v1:${accountId}`)
+        .then((value) => {
+          if (alive) setRules({ accountId, visible: value !== "dismissed" });
+        })
+        .catch(() => {
+          if (alive) setRules({ accountId, visible: true });
+        });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [accountId]);
+  function dismissRules() {
+    if (!accountId) return;
+    setRules({ accountId, visible: false });
+    void AsyncStorage.setItem(`community-chat-rules:v1:${accountId}`, "dismissed").catch(
+      () => undefined,
+    );
+  }
   const refresh = useCallback(async () => {
     setState(await chatApi<CommunityChatStateDto>("", { community: true }));
   }, []);
@@ -49,19 +75,34 @@ export default function NativeCommunityChatScreen() {
   }, [refresh]);
   if (!state && !error) return <Loading message="Загрузка сообщений…" fullScreen embedded />;
   return (
-    <TexturedSafeAreaView style={styles.flex} edges={["bottom"]}>
-      <View style={styles.header}>
-        <View style={styles.rules}>
-          <Text style={styles.rulesTitle}>Правила чата</Text>
-          <Text style={styles.rulesText}>{COMMUNITY_CHAT_RULES}</Text>
+    <TexturedSafeAreaView style={styles.flex} edges={[]} inheritBackground>
+      {(showRules || state?.isModerator || state?.isBanned) && (
+        <View style={styles.header}>
+          {showRules && (
+            <View style={styles.rules}>
+              <View style={styles.rulesHeading}>
+                <Text style={styles.rulesTitle}>Правила чата</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Закрыть правила чата"
+                  onPress={dismissRules}
+                  hitSlop={10}
+                  style={styles.closeRules}
+                >
+                  <MaterialCommunityIcons name="close" size={20} color={COLORS.primary} />
+                </Pressable>
+              </View>
+              <Text style={styles.rulesText}>{COMMUNITY_CHAT_RULES}</Text>
+            </View>
+          )}
+          {state?.isModerator && <CommunityModeration />}
+          {state?.isBanned && (
+            <Text accessibilityRole="alert">
+              Вы заблокированы в общем чате. Отправка сообщений недоступна.
+            </Text>
+          )}
         </View>
-        {state?.isModerator && <CommunityModeration />}
-        {state?.isBanned && (
-          <Text accessibilityRole="alert">
-            Вы заблокированы в общем чате. Отправка сообщений недоступна.
-          </Text>
-        )}
-      </View>
+      )}
       {error && (
         <Text accessibilityRole="alert" style={styles.error}>
           {error}
@@ -82,14 +123,16 @@ const styles = StyleSheet.create({
   header: { padding: 16, gap: 6 },
   title: { fontFamily: FONTS.montserratBold, fontSize: 24, color: COLORS.primary },
   rules: {
-    padding: 14,
-    gap: 6,
+    padding: 7,
+    gap: 3,
     borderWidth: 1,
     borderColor: COLORS.primary,
     borderRadius: 12,
     backgroundColor: COLORS.cardBackground,
   },
-  rulesTitle: { fontFamily: FONTS.montserratBold, fontSize: 16, color: COLORS.primary },
-  rulesText: { fontFamily: FONTS.montserrat, fontSize: 14, lineHeight: 20, color: COLORS.text },
+  rulesHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  closeRules: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  rulesTitle: { fontFamily: FONTS.montserratBold, fontSize: 13, color: COLORS.primary },
+  rulesText: { fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 16, color: COLORS.text },
   error: { padding: 16, color: "#a32424" },
 });

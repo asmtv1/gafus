@@ -1,4 +1,3 @@
-import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
@@ -7,7 +6,6 @@ import { chatApi } from "@/shared/lib/api/cynologistChat";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { Loading } from "@/shared/components/ui/Loading";
 export default function DialogsScreen({ insideHub = false }: { insideHub?: boolean }) {
-  const tabContentBottomPadding = useTabContentBottomPadding();
   const [data, setData] = useState<{
     items: CynologistChatDto[];
     nextCursor: string | null;
@@ -39,7 +37,6 @@ export default function DialogsScreen({ insideHub = false }: { insideHub?: boole
       <Text style={{ fontSize: 24, padding: 16 }}>Диалоги</Text>
       {error && <Text accessibilityRole="alert">{error}</Text>}
       <FlatList
-        contentContainerStyle={{ paddingBottom: tabContentBottomPadding }}
         data={data?.items ?? []}
         keyExtractor={(c) => c.id}
         onRefresh={() => void load()}
