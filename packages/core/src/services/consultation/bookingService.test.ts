@@ -483,7 +483,8 @@ describe("bookSlot", () => {
           updateMany: txUpdateMany,
           findUnique: txFindUnique,
         },
-        consultationBooking: { create: txCreateBooking },
+        $queryRaw: vi.fn().mockResolvedValue([]),
+        consultationBooking: { create: txCreateBooking, findFirst: vi.fn().mockResolvedValue(null) },
       };
       return cb(tx);
     });
@@ -505,7 +506,8 @@ describe("bookSlot", () => {
           updateMany: txUpdateMany.mockResolvedValue({ count: 0 }),
           findUnique: txFindUnique,
         },
-        consultationBooking: { create: txCreateBooking },
+        $queryRaw: vi.fn().mockResolvedValue([]),
+        consultationBooking: { create: txCreateBooking, findFirst: vi.fn().mockResolvedValue(null) },
       };
       return cb(tx);
     });
@@ -540,7 +542,8 @@ describe("bookSlot", () => {
           updateMany: txUpdateMany,
           findUnique: txFindUnique,
         },
-        consultationBooking: { create: txCreateBooking },
+        $queryRaw: vi.fn().mockResolvedValue([]),
+        consultationBooking: { create: txCreateBooking, findFirst: vi.fn().mockResolvedValue(null) },
       };
       return cb(tx);
     });
@@ -579,7 +582,8 @@ describe("bookSlot", () => {
             updateMany: txUpdateMany,
             findUnique: txFindUnique,
           },
-          consultationBooking: { create: txCreateBooking },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        consultationBooking: { create: txCreateBooking, findFirst: vi.fn().mockResolvedValue(null) },
         };
         return cb(tx);
       });
@@ -670,7 +674,8 @@ describe("bookSlot", () => {
             updateMany: txUpdateMany,
             findUnique: txFindUnique,
           },
-          consultationBooking: { create: txCreateBooking },
+          $queryRaw: vi.fn().mockResolvedValue([]),
+        consultationBooking: { create: txCreateBooking, findFirst: vi.fn().mockResolvedValue(null) },
         };
         return cb(tx);
       }

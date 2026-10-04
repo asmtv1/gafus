@@ -1,0 +1,37 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - main [ref=f4e3]:
+      - generic [ref=f4e4]:
+        - generic [ref=f4e5]:
+          - button "Назад" [ref=f4e6] [cursor=pointer]
+          - button "Открыть меню" [ref=f4e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f4e14]: Меню
+        - main [ref=f4e15]:
+          - main [ref=f4e16]:
+            - heading "Диалоги" [level=1] [ref=f4e17]
+            - paragraph [ref=f4e18]: Загрузка…
+            - list
+        - generic [ref=f4e20]:
+          - generic [ref=f4e21]:
+            - link "Контакты" [ref=f4e22] [cursor=pointer]:
+              - /url: /contacts
+            - generic [ref=f4e23]: ·
+            - link "Оферта" [ref=f4e24] [cursor=pointer]:
+              - /url: /oferta.html
+          - generic [ref=f4e25]:
+            - generic [ref=f4e26]: "Все новости и обновления в нашем телеграм-канале:"
+            - link "GafusRu" [ref=f4e27] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+    - button "Open Tanstack query devtools" [ref=f4e81] [cursor=pointer]
+    - dialog [ref=f4e130]:
+      - generic [ref=f4e131]:
+        - heading "Использование cookies" [level=6] [ref=f4e132]
+        - paragraph [ref=f4e133]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=f4e134] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=f4e135]:
+        - button "Принять" [active] [ref=f4e136] [cursor=pointer]
+        - button "Отклонить" [ref=f4e137] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f4e143] [cursor=pointer]
+  - alert [ref=f4e147]

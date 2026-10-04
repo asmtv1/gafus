@@ -7,7 +7,7 @@ import {
   incrementRenewalAttemptTotal,
   incrementRenewalFailedTotal,
 } from "./app-subscription-metrics";
-import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
+import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
 import { ensureNpdReceiptForSucceededPayment, recordPartnerCommissionForPayment } from "@gafus/core/services/appSubscription";
 
 const logger = createWorkerLogger("app-subscription-renewals");
@@ -119,27 +119,6 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
       },
     });
 
-    const settings = await (prisma as any).appSubscriptionSettings.findUnique({
-      where: { key: "default" },
-      select: {
-        weeklyEnabled: true,
-        twoWeeksEnabled: true,
-        monthlyEnabled: true,
-        threeMonthsEnabled: true,
-        yookassaWeeklyPriceRub: true,
-        yookassaTwoWeeksPriceRub: true,
-        yookassaMonthlyPriceRub: true,
-        yookassaThreeMonthsPriceRub: true,
-        currency: true,
-        weeklyIntervalDays: true,
-        twoWeeksIntervalDays: true,
-        monthlyIntervalDays: true,
-        threeMonthsIntervalDays: true,
-        weeklyAppleProductId: true,
-        monthlyAppleProductId: true,
-      },
-    });
-
     let processed = 0;
     let skipped = 0;
 
@@ -162,11 +141,11 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         continue;
       }
 
-      const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
+      const plan = getWorkerSubscriptionRenewalPlan(row);
       if (!plan) {
         logger.error(
-          "Renewal skipped: unknown subscription plan code",
-          new Error("Unknown app subscription plan code"),
+          "Renewal skipped: missing or invalid subscription agreement",
+          new Error("Missing or invalid app subscription renewal terms"),
           { subscriptionId: row.id, userId: row.userId, planCode: row.planCode },
         );
         skipped += 1;
@@ -231,6 +210,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 kind: paymentKind,
                 status: "PENDING",
                 planCode: plan.code,
+                planTitle: row.planTitle,
                 amount: amountRub,
                 originalAmount: amountRub,
                 currency,
@@ -308,6 +288,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               kind: paymentKind,
               status: "PENDING",
               planCode: plan.code,
+              planTitle: row.planTitle,
               amount: amountRub,
               originalAmount: amountRub,
               currency,

@@ -1,0 +1,128 @@
+- generic [ref=f20e1]:
+  - main [ref=f20e3]:
+    - generic [ref=f20e4]:
+      - generic [ref=f20e5]:
+        - button "Назад" [ref=f20e6] [cursor=pointer]
+        - button "Закрыть меню" [expanded] [active] [ref=f20e133] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f20e14]: Меню
+        - navigation "Навигация" [ref=f20e135]:
+          - link "Профиль" [ref=f20e136] [cursor=pointer]:
+            - /url: /profile?username=webclientmurimb5m
+          - link "Питомцы" [ref=f20e139] [cursor=pointer]:
+            - /url: /pets
+          - link "Курсы" [ref=f20e142] [cursor=pointer]:
+            - /url: /courses
+          - link "Чат" [ref=f20e145] [cursor=pointer]:
+            - /url: /cynologist-chat
+          - link "Занятия с кинологом" [ref=f20e148] [cursor=pointer]:
+            - /url: /consultations
+          - link "Статьи" [ref=f20e151] [cursor=pointer]:
+            - /url: /articles
+          - button "Выход" [ref=f20e154] [cursor=pointer]
+      - main [ref=f20e15]:
+        - main [ref=f20e16]:
+          - generic [ref=f20e17]:
+            - heading "Профиль webclientmurimb5m" [level=2] [ref=f20e18]
+            - generic [ref=f20e19]:
+              - generic [ref=f20e21]:
+                - img "Аватар" [ref=f20e23]
+                - button "Изменить аватар" [ref=f20e24] [cursor=pointer]
+              - generic [ref=f20e27]:
+                - generic [ref=f20e28]: Привет, webclientmurimb5m!
+                - generic [ref=f20e29]: Email отсутствует, напишите в поддержку
+            - generic [ref=f20e30]:
+              - generic [ref=f20e31]: Информация о себе не внесена
+              - link "Внести/Изменить «О себе»" [ref=f20e32] [cursor=pointer]:
+                - /url: /profile/editBio
+            - generic [ref=f20e110]:
+              - heading "Уведомления" [level=3] [ref=f20e111]
+              - generic [ref=f20e112]:
+                - generic [ref=f20e113]:
+                  - strong [ref=f20e114]: "Разрешение браузера:"
+                  - generic [ref=f20e115]: ⏳ Не запрошено
+                - generic [ref=f20e116]:
+                  - strong [ref=f20e117]: "Серверная подписка:"
+                  - generic [ref=f20e118]: ❌ Неактивна
+              - button "Разрешить уведомления" [ref=f20e120] [cursor=pointer]
+          - generic [ref=f20e34]:
+            - heading "Заметки тренера" [level=2] [ref=f20e35]
+            - paragraph [ref=f20e122]: Пока нет заметок от тренера
+          - region [ref=f20e38]:
+            - generic [ref=f20e39]:
+              - heading "Подписка Gafus Premium" [level=2] [ref=f20e40]
+              - generic [ref=f20e123]: Неактивна
+            - paragraph [ref=f20e124]: Откройте больше возможностей для вас и вашего питомца.
+            - list [ref=f20e125]:
+              - listitem [ref=f20e126]: Все курсы и тренировки
+              - listitem [ref=f20e127]: Консультации с кинологом
+              - listitem [ref=f20e128]: Документы питомца
+              - listitem [ref=f20e129]: Эксклюзивные материалы
+            - link "Оформить подписку" [ref=f20e130] [cursor=pointer]:
+              - /url: /subscription
+            - button "Обновить статус" [ref=f20e42] [cursor=pointer]
+          - generic [ref=f20e44]:
+            - heading "Настройки" [level=2] [ref=f20e45]
+            - link "Напоминания о тренировках" [ref=f20e46] [cursor=pointer]:
+              - /url: /reminders
+              - generic [aria-hidden] [ref=f20e48]: ›
+            - button "Повторить экскурсию" [ref=f20e49] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f20e51]: ›
+            - button "Подключить VK" [ref=f20e52] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f20e54]: ›
+            - heading "Данные аккаунта" [level=2] [ref=f20e55]
+            - link "Логин webclientmurimb5m" [ref=f20e131] [cursor=pointer]:
+              - /url: /profile/change-username
+              - generic [ref=f20e57]:
+                - text: Логин
+                - generic [ref=f20e132]: webclientmurimb5m
+              - generic [aria-hidden] [ref=f20e58]: ›
+            - link "Email Укажите email для восстановления доступа" [ref=f20e59] [cursor=pointer]:
+              - /url: /profile/change-email
+              - generic [ref=f20e60]:
+                - text: Email
+                - generic [ref=f20e61]: Укажите email для восстановления доступа
+              - generic [aria-hidden] [ref=f20e62]: ›
+            - link "Установить пароль" [ref=f20e63] [cursor=pointer]:
+              - /url: /profile/set-password
+              - generic [aria-hidden] [ref=f20e65]: ›
+            - heading "Информация" [level=2] [ref=f20e66]
+            - link "О приложении" [ref=f20e67] [cursor=pointer]:
+              - /url: /
+              - generic [aria-hidden] [ref=f20e69]: ›
+            - link "Наш Telegram" [ref=f20e70] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+              - generic [aria-hidden] [ref=f20e72]: ›
+            - link "Политика конфиденциальности" [ref=f20e73] [cursor=pointer]:
+              - /url: /policy.html
+              - generic [aria-hidden] [ref=f20e75]: ›
+            - link "Оферта" [ref=f20e76] [cursor=pointer]:
+              - /url: /oferta.html
+              - generic [aria-hidden] [ref=f20e78]: ›
+            - link "Согласие на обработку персональных данных" [ref=f20e79] [cursor=pointer]:
+              - /url: /personal.html
+              - generic [aria-hidden] [ref=f20e81]: ›
+            - link "Согласие на распространение данных" [ref=f20e82] [cursor=pointer]:
+              - /url: /personal-distribution.html
+              - generic [aria-hidden] [ref=f20e84]: ›
+            - link "Связаться с поддержкой" [ref=f20e85] [cursor=pointer]:
+              - /url: https://t.me/gafus_support
+              - generic [aria-hidden] [ref=f20e87]: ›
+            - button "Управление cookies" [ref=f20e88] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f20e90]: ›
+            - heading "Действия с аккаунтом" [level=2] [ref=f20e91]
+            - button "Выйти из аккаунта" [ref=f20e92] [cursor=pointer]
+            - link "Удалить аккаунт" [ref=f20e94] [cursor=pointer]:
+              - /url: /profile/delete-account
+              - generic [aria-hidden] [ref=f20e96]: ›
+      - generic [ref=f20e98]:
+        - generic [ref=f20e99]:
+          - link "Контакты" [ref=f20e100] [cursor=pointer]:
+            - /url: /contacts
+          - generic [ref=f20e101]: ·
+          - link "Оферта" [ref=f20e102] [cursor=pointer]:
+            - /url: /oferta.html
+        - generic [ref=f20e103]:
+          - generic [ref=f20e104]: "Все новости и обновления в нашем телеграм-канале:"
+          - link "GafusRu" [ref=f20e105] [cursor=pointer]:
+            - /url: https://t.me/gafusRu
+  - alert [ref=f20e109]

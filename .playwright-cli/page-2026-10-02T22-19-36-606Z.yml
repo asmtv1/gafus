@@ -1,0 +1,70 @@
+- generic [active] [ref=f8e1]:
+  - main [ref=f8e3]:
+    - generic [ref=f8e4]:
+      - generic [ref=f8e5]:
+        - button "Назад" [ref=f8e73] [cursor=pointer]
+        - button "Открыть меню" [ref=f8e74] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f8e14]: Меню
+      - main [ref=f8e15]:
+        - main [ref=f8e89]:
+          - heading "Чат с кинологом" [level=1] [ref=f8e90]
+          - paragraph [ref=f8e91]: Ответ в течение суток
+          - paragraph [ref=f8e92]: Кинолог отвечает в рабочие дни с 10:00 до 19:00 МСК
+          - generic [ref=f8e93]:
+            - generic [ref=f8e97]:
+              - generic [ref=f8e98]:
+                - button "2 непрочитанных" [ref=f8e99] [cursor=pointer]
+                - button "Отметить сообщения как прочитанные" [ref=f8e103] [cursor=pointer]
+              - generic: Сегодня
+              - list [ref=f8e109]:
+                - listitem [ref=f8e110]:
+                  - generic [ref=f8e111]: Сегодня
+                - listitem [ref=f8e113]:
+                  - generic [ref=f8e114]:
+                    - generic [ref=f8e115]: 2 непрочитанных
+                    - button "Отметить сообщения как прочитанные" [ref=f8e116] [cursor=pointer]
+                - listitem [ref=f8e120]:
+                  - generic [ref=f8e122]:
+                    - button "Открыть меню действий с сообщениями" [ref=f8e124] [cursor=pointer]
+                    - 'generic "Сообщение от webclientmurimb5m, Анкета перед началом переписки Имя владельца: Тест Телефон: +79991234567 Кличка питомца: Боб Пол питомца: Мальчик Возраст питомца: 2 года Порода питомца: Метис Проблема: Синтетическая проверка интерфейса чата Как пытались решить проблему: Тестовая анкета" [ref=f8e131]':
+                      - generic [ref=f8e132]: Сообщение от webclientmurimb5m,
+                      - generic [ref=f8e134]:
+                        - paragraph [ref=f8e135]: Анкета перед началом переписки
+                        - list [ref=f8e136]:
+                          - listitem [ref=f8e137]: "Имя владельца: Тест"
+                          - listitem [ref=f8e138]: "Телефон: +79991234567"
+                          - listitem [ref=f8e139]: "Кличка питомца: Боб"
+                          - listitem [ref=f8e140]: "Пол питомца: Мальчик"
+                          - listitem [ref=f8e141]: "Возраст питомца: 2 года"
+                          - listitem [ref=f8e142]: "Порода питомца: Метис"
+                          - listitem [ref=f8e143]: "Проблема: Синтетическая проверка интерфейса чата"
+                          - listitem [ref=f8e144]: "Как пытались решить проблему: Тестовая анкета"
+                - listitem [ref=f8e145]:
+                  - generic [ref=f8e146]:
+                    - button "w" [ref=f8e147]
+                    - generic "Сообщение от webclientmurimb5m, Web parity live smoke 20261003" [ref=f8e151]:
+                      - generic [ref=f8e152]: Сообщение от webclientmurimb5m,
+                      - paragraph [ref=f8e155]: Web parity live smoke 20261003
+                    - time [ref=f8e157]: 02:17
+            - generic [ref=f8e158]:
+              - textbox "Сообщение" [ref=f8e159]
+              - generic [ref=f8e160]:
+                - text: Фото или видео
+                - button "Фото или видео" [ref=f8e161]
+              - generic [ref=f8e162]: Фото до 10 МБ · видео H.264 до 100 МБ и двух минут
+              - button "Отправить" [disabled] [ref=f8e163]
+      - generic [ref=f8e25]:
+        - generic [ref=f8e26]:
+          - link "Контакты" [ref=f8e81] [cursor=pointer]:
+            - /url: /contacts
+          - generic [ref=f8e28]: ·
+          - link "Оферта" [ref=f8e82] [cursor=pointer]:
+            - /url: /oferta.html
+        - generic [ref=f8e30]:
+          - generic [ref=f8e31]: "Все новости и обновления в нашем телеграм-канале:"
+          - link "GafusRu" [ref=f8e83] [cursor=pointer]:
+            - /url: https://t.me/gafusRu
+  - alert [ref=f8e44]
+  - generic [ref=f8e164]:
+    - status
+    - alert

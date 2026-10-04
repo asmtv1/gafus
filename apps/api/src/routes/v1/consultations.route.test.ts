@@ -9,6 +9,8 @@ import { consultationsRoutes } from "./consultations";
 
 const { consultationMocks } = vi.hoisted(() => ({
   consultationMocks: {
+    getConsultationBookingEligibility: vi.fn(),
+    requireConsultationBookingEligibility: vi.fn(),
     getAvailableSlots: vi.fn(),
     getCalendarSlots: vi.fn(),
     getCynologistDayOffDates: vi.fn(),
@@ -22,6 +24,8 @@ vi.mock("@gafus/core/services/consultation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@gafus/core/services/consultation")>();
   return {
     ...actual,
+    getConsultationBookingEligibility: consultationMocks.getConsultationBookingEligibility,
+    requireConsultationBookingEligibility: consultationMocks.requireConsultationBookingEligibility,
     getAvailableSlots: consultationMocks.getAvailableSlots,
     getCalendarSlots: consultationMocks.getCalendarSlots,
     getCynologistDayOffDates: consultationMocks.getCynologistDayOffDates,
@@ -54,6 +58,8 @@ function createAuthenticatedTestApp() {
 describe("consultations route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    consultationMocks.getConsultationBookingEligibility.mockResolvedValue({ canBook: true, reason: null, nextBookingAt: null, message: null });
+    consultationMocks.requireConsultationBookingEligibility.mockResolvedValue(undefined);
     consultationMocks.getAvailableSlots.mockResolvedValue([]);
     consultationMocks.getCalendarSlots.mockResolvedValue([]);
     consultationMocks.getCynologistDayOffDates.mockResolvedValue([]);
@@ -155,5 +161,20 @@ describe("consultations route contracts", () => {
       code: "CONSULTATION_BOOKING_NOT_INCLUDED",
       error: "Запись к кинологу доступна по действующему трёхмесячному тарифу",
     });
+  });
+});
+
+
+describe("consultation booking restriction response", () => {
+  it("returns cooldown date and message from slot verification", async () => {
+    const { ConsultationBookingRestrictedError } = await import("@gafus/core/services/consultation");
+    const eligibility = { canBook: false, reason: "WEEKLY_COOLDOWN" as const,
+      nextBookingAt: "2026-10-11T12:30:00.000Z", message: "Следующая запись 11 октября в 15:30 (МСК)" };
+    consultationMocks.requireConsultationBookingEligibility.mockRejectedValueOnce(new ConsultationBookingRestrictedError(eligibility));
+    const response = await createAuthenticatedTestApp().request(
+      "/api/v1/consultations/cynologists/trainer-1/slots/slot-1/verify",
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ success: false, code: "CONSULTATION_WEEKLY_COOLDOWN", error: eligibility.message, eligibility });
   });
 });

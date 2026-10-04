@@ -128,6 +128,7 @@ export interface AppSubscriptionAdminCheckoutAttempt {
 export interface AppSubscriptionAdminDashboardRow {
   id: string;
   planCode: AppSubscriptionPlanCode;
+  planTitle: string | null;
   user: {
     id: string;
     username: string;
@@ -295,6 +296,7 @@ export async function getAppSubscriptionAdminDashboard(
           provider: true,
           status: true,
           planCode: true,
+          planTitle: true,
           isLifetime: true,
           currentPeriodStart: true,
           currentPeriodEnd: true,
@@ -501,6 +503,7 @@ export async function getAppSubscriptionAdminDashboard(
     return {
       id: subscription.id,
       planCode: subscription.planCode,
+      planTitle: subscription.planTitle,
       user: {
         id: subscription.user.id,
         username: subscription.user.username,

@@ -2,7 +2,7 @@ import { sendTransactionalMail } from "@gafus/mailer";
 import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
 import { sendImmediatePushNotification } from "@gafus/webpush";
-import { getWorkerAppSubscriptionPlan } from "./app-subscription-plan";
+import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
 
 const logger = createWorkerLogger("app-subscription-renewal-reminders");
 const HOUR_MS = 60 * 60 * 1000;
@@ -41,27 +41,6 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
   const batchSize = params?.batchSize ?? 100;
   const now = new Date();
   const chargeBefore = new Date(now.getTime() + (early ? 72 : 2) * HOUR_MS);
-
-  const settings = await (prisma as any).appSubscriptionSettings.findUnique({
-    where: { key: "default" },
-    select: {
-      weeklyEnabled: true,
-      twoWeeksEnabled: true,
-      monthlyEnabled: true,
-      threeMonthsEnabled: true,
-      yookassaWeeklyPriceRub: true,
-      yookassaTwoWeeksPriceRub: true,
-      yookassaMonthlyPriceRub: true,
-      yookassaThreeMonthsPriceRub: true,
-      currency: true,
-      weeklyIntervalDays: true,
-      twoWeeksIntervalDays: true,
-      monthlyIntervalDays: true,
-      threeMonthsIntervalDays: true,
-      weeklyAppleProductId: true,
-      monthlyAppleProductId: true,
-    },
-  });
 
   // Prisma filters cannot compare one column with another. The former
   // `not: prisma.appSubscription.fields.currentPeriodEnd` was serialized as an
@@ -123,11 +102,11 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
       continue;
     }
 
-    const plan = getWorkerAppSubscriptionPlan(settings, row.planCode);
+    const plan = getWorkerSubscriptionRenewalPlan(row);
     if (!plan) {
       logger.error(
-        "Renewal reminder skipped: unknown subscription plan code",
-        new Error("Unknown app subscription plan code"),
+        "Renewal reminder skipped: missing or invalid subscription agreement",
+        new Error("Missing or invalid app subscription renewal terms"),
         { subscriptionId: row.id, userId: row.userId, planCode: row.planCode },
       );
       skipped += 1;

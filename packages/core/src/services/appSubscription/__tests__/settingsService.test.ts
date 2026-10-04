@@ -53,7 +53,7 @@ describe("getAppSubscriptionOffer", () => {
       plans: [
         {
           code: "MONTHLY",
-          title: "Месячный",
+          title: "Поддержка в чате",
           intervalDays: 30,
           yookassaPriceRub: 2500,
           appleProductId: "premium-month",

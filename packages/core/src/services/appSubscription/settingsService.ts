@@ -51,7 +51,9 @@ export async function getAppSubscriptionOffer(
 
   const monthlyPlan = getAppSubscriptionPlanConfig(settings, "MONTHLY");
   const yookassaPlans = getEnabledAppSubscriptionPlanConfigs(settings);
-  const applePlan = monthlyPlan.appleProductId ? monthlyPlan : null;
+  const applePlan = monthlyPlan.appleProductId
+    ? { ...monthlyPlan, label: "Месяц", title: "Месячный" }
+    : null;
 
   return {
     // Older mobile clients only understand the monthly YooKassa offer. Keep it until

@@ -1,7 +1,6 @@
 import { cynologistIntakeSchema } from "@gafus/consultation-shared";
 import { z } from "zod";
 
-
 /** Литералы Prisma enum — не `z.nativeEnum` из @gafus/prisma: в server-бандлах Next именованные экспорты Prisma-enum иногда undefined. */
 const CONSULTATION_SLOT_STATUS = ["FREE", "BOOKED", "BLOCKED"] as const;
 const CONSULTATION_BOOKING_STATUS = [
@@ -20,24 +19,28 @@ const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const uuidV4 = z.string().uuid("Нужен Idempotency-Key (UUID в заголовке или теле)");
 
 /** ISO-строки from/to; верхняя граница длины — защита от чрезмерного ввода в query. */
-export const getSlotsQuerySchema = z.object({
-  from: z.string().min(1).max(64),
-  to: z.string().min(1).max(64),
-  /** «1» — календарь со всеми статусами слотов (как web с includeBusy). */
-  includeBusy: z.enum(["0", "1"]).optional(),
-}).refine(
-  (d) => {
-    const a = new Date(d.from).getTime();
-    const b = new Date(d.to).getTime();
-    return !Number.isNaN(a) && !Number.isNaN(b) && b >= a && b - a <= 60 * 24 * 60 * 60 * 1000;
-  },
-  { message: "Интервал не более 60 дней и from ≤ to", path: ["to"] },
-);
+export const getSlotsQuerySchema = z
+  .object({
+    from: z.string().min(1).max(64),
+    to: z.string().min(1).max(64),
+    /** «1» — календарь со всеми статусами слотов (как web с includeBusy). */
+    includeBusy: z.enum(["0", "1"]).optional(),
+  })
+  .refine(
+    (d) => {
+      const a = new Date(d.from).getTime();
+      const b = new Date(d.to).getTime();
+      return !Number.isNaN(a) && !Number.isNaN(b) && b >= a && b - a <= 60 * 24 * 60 * 60 * 1000;
+    },
+    { message: "Интервал не более 60 дней и from ≤ to", path: ["to"] },
+  );
 
-export const bookSlotInputSchema = cynologistIntakeSchema.extend({
-  slotId: z.string().min(1),
-  idempotencyKey: uuidV4,
-});
+export const bookSlotInputSchema = cynologistIntakeSchema
+  .omit({ clientProblemDuration: true })
+  .extend({
+    slotId: z.string().min(1),
+    idempotencyKey: uuidV4,
+  });
 
 interface BookSlotInputShape {
   slotId: string;
@@ -71,19 +74,21 @@ export const cancelBookingBodySchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-const availabilityRuleRowSchema = z.object({
-  weekday: z.number().int().min(0).max(6),
-  startTime: z.string().regex(HH_MM, "Время начала HH:MM"),
-  endTime: z.string().regex(HH_MM, "Время окончания HH:MM"),
-  isWorkingDay: z.boolean().default(true),
-}).refine(
-  (r) => {
-    const [sh, sm] = r.startTime.split(":").map(Number);
-    const [eh, em] = r.endTime.split(":").map(Number);
-    return eh * 60 + em > sh * 60 + sm;
-  },
-  { message: "Конец интервала должен быть позже начала", path: ["endTime"] },
-);
+const availabilityRuleRowSchema = z
+  .object({
+    weekday: z.number().int().min(0).max(6),
+    startTime: z.string().regex(HH_MM, "Время начала HH:MM"),
+    endTime: z.string().regex(HH_MM, "Время окончания HH:MM"),
+    isWorkingDay: z.boolean().default(true),
+  })
+  .refine(
+    (r) => {
+      const [sh, sm] = r.startTime.split(":").map(Number);
+      const [eh, em] = r.endTime.split(":").map(Number);
+      return eh * 60 + em > sh * 60 + sm;
+    },
+    { message: "Конец интервала должен быть позже начала", path: ["endTime"] },
+  );
 
 export const trainerAvailabilityInputSchema = z.object({
   rules: z.array(availabilityRuleRowSchema).min(1),
@@ -94,14 +99,16 @@ export const dayOffInputSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-export const slotExceptionInputSchema = z.object({
-  startAt: z.string().datetime({ offset: true }),
-  endAt: z.string().datetime({ offset: true }),
-  reason: z.string().max(500).optional(),
-}).refine(
-  (d) => new Date(d.endAt).getTime() > new Date(d.startAt).getTime(),
-  { message: "endAt должен быть позже startAt", path: ["endAt"] },
-);
+export const slotExceptionInputSchema = z
+  .object({
+    startAt: z.string().datetime({ offset: true }),
+    endAt: z.string().datetime({ offset: true }),
+    reason: z.string().max(500).optional(),
+  })
+  .refine((d) => new Date(d.endAt).getTime() > new Date(d.startAt).getTime(), {
+    message: "endAt должен быть позже startAt",
+    path: ["endAt"],
+  });
 
 export const adminListedCynologistsInputSchema = z.object({
   cynologistUserIds: z.array(z.string().min(1)),

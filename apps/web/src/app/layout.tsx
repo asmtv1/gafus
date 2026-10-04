@@ -67,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className={montserrat.variable}>
       <head>
+        <link rel="stylesheet" href="/styles/site-background.css" />
         <link rel="manifest" href="/manifest.json" />
         {/* 
         Для разных страниц можно задавать разную тему, если использовать объект viewport или metadata на уровне каждой страницы (page.tsx) или layout.tsx в соответствующей папке.

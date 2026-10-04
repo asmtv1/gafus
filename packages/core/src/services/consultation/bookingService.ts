@@ -1,3 +1,4 @@
+import { lockConsultationClient, requireConsultationBookingEligibility } from "./bookingEligibility";
 import type { AuthRole } from "@gafus/auth";
 import {
   ConsultationBookingStatus,
@@ -257,6 +258,8 @@ export async function bookSlot(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      await lockConsultationClient(tx, clientId);
+      await requireConsultationBookingEligibility(clientId, tx);
       const locked = await tx.consultationSlot.updateMany({
         where: { id: input.slotId, status: ConsultationSlotStatus.FREE },
         data: { status: ConsultationSlotStatus.BOOKED },
@@ -604,11 +607,12 @@ export async function completeBookingByTrainer(
     );
   }
 
-  const transitioned = await prisma.consultationBooking.updateMany({
-    where: { id: bookingId, status: ConsultationBookingStatus.CONFIRMED },
-    data: {
-      status: ConsultationBookingStatus.COMPLETED,
-    },
+  const transitioned = await prisma.$transaction(async (tx) => {
+    await lockConsultationClient(tx, b.clientId);
+    return tx.consultationBooking.updateMany({
+      where: { id: bookingId, status: ConsultationBookingStatus.CONFIRMED },
+      data: { status: ConsultationBookingStatus.COMPLETED, completedAt: new Date() },
+    });
   });
   if (transitioned.count !== 1) {
     throw new ConsultationForbiddenError("Статус бронирования уже изменился");

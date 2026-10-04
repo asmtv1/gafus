@@ -60,21 +60,21 @@ const PLAN_DEFINITIONS = {
   },
   MONTHLY: {
     label: "Месяц",
-    title: "Месячный",
-    fallbackPriceRub: 2500,
+    title: "Поддержка в чате",
+    fallbackPriceRub: 1465,
     fallbackIntervalDays: 30,
   },
   TWO_WEEKS: {
     label: "2 недели",
-    title: "Две недели",
-    fallbackPriceRub: 1490,
-    fallbackIntervalDays: 14,
+    title: "Самостоятельный",
+    fallbackPriceRub: 1185,
+    fallbackIntervalDays: 30,
   },
   THREE_MONTHS: {
     label: "3 месяца",
-    title: "Три месяца",
-    fallbackPriceRub: 6490,
-    fallbackIntervalDays: 90,
+    title: "Полное сопровождение",
+    fallbackPriceRub: 2470,
+    fallbackIntervalDays: 30,
   },
 } as const satisfies Record<
   AppSubscriptionPlanCode,
@@ -136,7 +136,7 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
         consultationBookingIncluded: false,
         cynologistChatIncluded: false,
         promoCodeEligible: false,
-        badge: "TRY" as const,
+        badge: null,
       };
     case "MONTHLY":
       return {
@@ -152,7 +152,7 @@ function publicPlanPresentation(code: AppSubscriptionPlanCode) {
         consultationBookingIncluded: true,
         cynologistChatIncluded: true,
         promoCodeEligible: true,
-        badge: "MAX_SAVINGS" as const,
+        badge: null,
       };
     case "WEEKLY":
       return {
@@ -170,17 +170,6 @@ export function isOfflineCourseDownloadIncludedPlanCode(value: unknown): boolean
   return code === "MONTHLY" || code === "THREE_MONTHS";
 }
 
-function calculateRoundedSavingsRub(params: {
-  code: AppSubscriptionPlanCode;
-  priceRub: number;
-  twoWeeksPriceRub: number;
-}): number | null {
-  const multiplier = params.code === "MONTHLY" ? 2 : params.code === "THREE_MONTHS" ? 6 : 0;
-  if (multiplier === 0) return null;
-  const rounded = Math.round((multiplier * params.twoWeeksPriceRub - params.priceRub) / 500) * 500;
-  return rounded > 0 ? rounded : null;
-}
-
 export function getAppSubscriptionPlanConfig(
   settings: AppSubscriptionSettingsPlanSource,
   code: AppSubscriptionPlanCode,
@@ -188,10 +177,6 @@ export function getAppSubscriptionPlanConfig(
   const definition = PLAN_DEFINITIONS[code];
   const currency = settings?.currency === "RUB" ? "RUB" : "RUB";
   const presentation = publicPlanPresentation(code);
-  const twoWeeksPriceRub = numberOrDefault(
-    settings?.yookassaTwoWeeksPriceRub,
-    PLAN_DEFINITIONS.TWO_WEEKS.fallbackPriceRub,
-  );
 
   if (code === "WEEKLY") {
     return {
@@ -221,7 +206,7 @@ export function getAppSubscriptionPlanConfig(
     );
     return {
       code,
-      label: definition.label,
+      label: definition.title,
       title: definition.title,
       intervalDays: numberOrDefault(settings?.twoWeeksIntervalDays, definition.fallbackIntervalDays),
       currency,
@@ -240,7 +225,7 @@ export function getAppSubscriptionPlanConfig(
     );
     return {
       code,
-      label: definition.label,
+      label: definition.title,
       title: definition.title,
       intervalDays: numberOrDefault(settings?.threeMonthsIntervalDays, definition.fallbackIntervalDays),
       currency,
@@ -248,7 +233,7 @@ export function getAppSubscriptionPlanConfig(
       enabled: settings?.threeMonthsEnabled ?? false,
       appleProductId: null,
       ...presentation,
-      savingsRub: calculateRoundedSavingsRub({ code, priceRub: yookassaPriceRub, twoWeeksPriceRub }),
+      savingsRub: null,
     };
   }
 
@@ -258,7 +243,7 @@ export function getAppSubscriptionPlanConfig(
   );
   return {
     code,
-    label: definition.label,
+    label: definition.title,
     title: definition.title,
     intervalDays: numberOrDefault(settings?.monthlyIntervalDays, definition.fallbackIntervalDays),
     currency,
@@ -266,7 +251,7 @@ export function getAppSubscriptionPlanConfig(
     enabled: settings?.monthlyEnabled ?? true,
     appleProductId: nullableTrimmed(settings?.monthlyAppleProductId),
     ...presentation,
-    savingsRub: calculateRoundedSavingsRub({ code, priceRub: yookassaPriceRub, twoWeeksPriceRub }),
+    savingsRub: null,
   };
 }
 

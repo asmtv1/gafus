@@ -17,19 +17,18 @@ export const metadata = generateStaticPageMetadata(
 export default function LoginPage() {
   return (
     <main className={styles.container}>
-      <h1 className={styles.title}>Гафус!</h1>
+      <h1 className="sr-only">Авторизация</h1>
 
       <Image
-        src="/uploads/site/web/14f9383582432709-auth-login-dog.webp"
-        alt="Гафус читает книгу"
+        src="/images/auth-login-wizard.png"
+        alt="Авторизация — собака-волшебник"
         className={styles.logo}
-        width={303}
-        height={303}
+        width={1125}
+        height={1398}
         priority
       />
 
-      <h2 className={styles.subtitle}>Авторизация</h2>
-      <p className={styles.subtitle}>
+      <p className={styles.registerPrompt}>
         Если у Вас еще нет аккаунта -
         <Link href="/register" className={styles.link}>
           зарегистрируйтесь

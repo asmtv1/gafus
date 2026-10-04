@@ -91,7 +91,7 @@ VK_WEB_REDIRECT_URI=https://gafus.ru/api/auth/callback/vk-id
 ```
 VK_CLIENT_ID=54472652
 VK_CLIENT_ID_IOS=54472654
-VK_CLIENT_ID_ANDROID=54472653
+VK_CLIENT_ID_ANDROID=54804685
 ```
 
 redirect_uri формируется как `vk{client_id}://vk.ru/blank.html` из clientId.

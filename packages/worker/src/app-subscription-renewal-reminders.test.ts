@@ -15,13 +15,13 @@ vi.mock("@gafus/logger", () => ({ createWorkerLogger: () => ({ info: vi.fn(), wa
 import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-renewal-reminders";
 
 const periodEnd = new Date("2026-09-09T12:00:00Z");
-const row = { id: "sub-1", userId: "user-1", planCode: "MONTHLY", currentPeriodEnd: periodEnd, user: { email: "user@example.test" } };
+const row = { id: "sub-1", userId: "user-1", planCode: "MONTHLY", renewalPriceRub: 2500, renewalIntervalDays: 30, renewalCurrency: "RUB", currentPeriodEnd: periodEnd, user: { email: "user@example.test" } };
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-06T12:00:00Z"));
-  mocks.settings.mockResolvedValue({ yookassaMonthlyPriceRub: 2500 });
+  mocks.settings.mockResolvedValue({ yookassaMonthlyPriceRub: 1465 });
   mocks.queryRawUnsafe.mockResolvedValue([{ id: row.id }]);
   mocks.findMany.mockResolvedValue([]);
   mocks.mail.mockResolvedValue(undefined);

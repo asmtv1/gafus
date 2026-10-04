@@ -1,0 +1,100 @@
+- generic [active] [ref=f13e1]:
+  - generic [ref=f13e2]:
+    - status "Загрузка"
+    - main [ref=f13e3]:
+      - generic [ref=f13e4]:
+        - generic [ref=f13e5]:
+          - button "Назад" [ref=f13e6] [cursor=pointer]
+          - button "Открыть меню" [ref=f13e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f13e14]: Меню
+        - main [ref=f13e15]:
+          - main [ref=f13e16]:
+            - region [ref=f13e17]:
+              - heading "Добавить питомца" [level=1] [ref=f13e25]
+              - paragraph [ref=f13e26]: Заполните данные о питомце. Дату рождения укажите как ДД.ММ.ГГГГ (например, 15.03.2020).
+              - generic [ref=f13e27]:
+                - paragraph [ref=f13e28]: Основная информация
+                - generic [ref=f13e29]:
+                  - generic [ref=f13e30]:
+                    - generic: Имя питомца
+                    - generic [ref=f13e31]:
+                      - textbox "Имя питомца" [ref=f13e32]:
+                        - /placeholder: Кличка
+                      - group [aria-hidden]:
+                        - generic: Имя питомца
+                  - group "Тип питомца" [ref=f13e33]:
+                    - generic [ref=f13e35]:
+                      - generic [ref=f13e36] [cursor=pointer]:
+                        - radio "Собака" [checked] [ref=f13e37]
+                        - generic [ref=f13e38]: Собака
+                      - generic [ref=f13e39] [cursor=pointer]:
+                        - radio "Кошка" [ref=f13e40]
+                        - generic [ref=f13e41]: Кошка
+                  - generic [ref=f13e42]:
+                    - generic: Порода
+                    - generic [ref=f13e43]:
+                      - textbox "Порода" [ref=f13e44]:
+                        - /placeholder: Например, лабрадор
+                      - group [aria-hidden]:
+                        - generic: Порода
+                  - generic [ref=f13e45]:
+                    - generic: Дата рождения
+                    - generic [ref=f13e46]:
+                      - textbox "Дата рождения" [ref=f13e47]:
+                        - /placeholder: ДД.ММ.ГГГГ
+                      - group [aria-hidden]:
+                        - generic: Дата рождения
+                    - paragraph [ref=f13e48]: "Формат: ДД.ММ.ГГГГ"
+                - paragraph [ref=f13e49]: Физические характеристики
+                - generic [ref=f13e50]:
+                  - generic [ref=f13e51]:
+                    - generic: Рост (см)
+                    - generic [ref=f13e52]:
+                      - textbox "Рост (см)" [ref=f13e53]:
+                        - /placeholder: Необязательно
+                      - group [aria-hidden]:
+                        - generic: Рост (см)
+                  - generic [ref=f13e54]:
+                    - generic: Обхват шеи (см)
+                    - generic [ref=f13e55]:
+                      - textbox "Обхват шеи (см)" [ref=f13e56]:
+                        - /placeholder: Необязательно
+                      - group [aria-hidden]:
+                        - generic: Обхват шеи (см)
+                  - generic [ref=f13e57]:
+                    - generic: Обхват морды (см)
+                    - generic [ref=f13e58]:
+                      - textbox "Обхват морды (см)" [ref=f13e59]:
+                        - /placeholder: Необязательно
+                      - group [aria-hidden]:
+                        - generic: Обхват морды (см)
+                  - generic [ref=f13e60]:
+                    - generic: Обхват живота (см)
+                    - generic [ref=f13e61]:
+                      - textbox "Обхват живота (см)" [ref=f13e62]:
+                        - /placeholder: Необязательно
+                      - group [aria-hidden]:
+                        - generic: Обхват живота (см)
+                - paragraph [ref=f13e63]: Дополнительно
+                - generic [ref=f13e65]:
+                  - generic: Заметки
+                  - generic [ref=f13e66]:
+                    - textbox "Заметки" [ref=f13e67]:
+                      - /placeholder: По желанию
+                    - group [aria-hidden]:
+                      - generic: Заметки
+                - generic [ref=f13e68]:
+                  - button "Добавить питомца" [ref=f13e69] [cursor=pointer]
+                  - button "Отмена" [ref=f13e70] [cursor=pointer]
+        - generic [ref=f13e72]:
+          - generic [ref=f13e73]:
+            - link "Контакты" [ref=f13e74] [cursor=pointer]:
+              - /url: /contacts
+            - generic [ref=f13e75]: ·
+            - link "Оферта" [ref=f13e76] [cursor=pointer]:
+              - /url: /oferta.html
+          - generic [ref=f13e77]:
+            - generic [ref=f13e78]: "Все новости и обновления в нашем телеграм-канале:"
+            - link "GafusRu" [ref=f13e79] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+  - alert [ref=f13e83]

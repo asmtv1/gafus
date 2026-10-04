@@ -1,0 +1,16 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - status "Загрузка"
+    - main [ref=f8e3]:
+      - main [ref=f8e4]:
+        - heading "Сброс пароля" [level=1] [ref=f8e5]
+        - paragraph [ref=f8e6]: Укажите email аккаунта. Если запросите новое письмо, ссылка из предыдущего перестанет работать.
+        - generic [ref=f8e7]:
+          - generic [ref=f8e8]:
+            - generic [ref=f8e9]: Email
+            - textbox "Email" [ref=f8e10]
+          - button "восстановить пароль" [disabled] [ref=f8e11]
+        - img "Собака-волшебник ищет пароль" [ref=f8e12]
+        - img "Logo"
+    - button "Open Tanstack query devtools" [ref=f8e63] [cursor=pointer]
+  - alert [ref=f8e112]

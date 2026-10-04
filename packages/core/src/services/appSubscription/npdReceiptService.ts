@@ -65,7 +65,7 @@ export async function ensureNpdReceiptForSucceededPayment(
   const intervalDays = Math.round(
     (payment.periodEnd.getTime() - payment.periodStart.getTime()) / (24 * 60 * 60 * 1000),
   );
-  if (intervalDays !== NPD_INTERVAL_DAYS[planCode]) return null;
+  if (intervalDays !== NPD_INTERVAL_DAYS[planCode] && intervalDays !== 30) return null;
 
   const connection = await client.npdConnection.findUnique({
     where: { id: "default" },
@@ -84,7 +84,7 @@ export async function ensureNpdReceiptForSucceededPayment(
       currency: "RUB",
       planCode,
       intervalDays,
-      serviceName: NPD_SERVICE_NAMES[planCode],
+      serviceName: `Подписка Gafus Premium на ${intervalDays} дней`,
       buyerEmail,
       operationAt: payment.succeededAt,
       operations: { create: { type: "CREATE", status: "PENDING" } },

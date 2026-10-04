@@ -83,10 +83,10 @@ type AppSubscriptionPaywallProps = {
 const FALLBACK_APP_SUBSCRIPTION_PLANS: AppSubscriptionPlanOffer[] = [
   {
     code: "MONTHLY",
-    label: "monthly",
-    title: "Месячный",
+    label: "Поддержка в чате",
+    title: "Поддержка в чате",
     intervalDays: 30,
-    yookassaPriceRub: 2500,
+    yookassaPriceRub: 1465,
     enabled: true,
     appleProductId: null,
     offlineCourseDownloadIncluded: true,

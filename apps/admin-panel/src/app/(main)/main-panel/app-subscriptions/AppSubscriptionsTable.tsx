@@ -517,7 +517,7 @@ export default function AppSubscriptionsTable({
                         label={getAppSubscriptionStatusLabel(row)}
                       />
                       <Typography variant="caption" color="text.secondary">
-                        {providerLabels[row.provider] ?? row.provider} · {getAppSubscriptionPlanLabel(row.planCode)}
+                        {providerLabels[row.provider] ?? row.provider} · {row.planTitle ?? getAppSubscriptionPlanLabel(row.planCode)}
                       </Typography>
                       {row.attention ? (
                         <Chip
@@ -595,7 +595,7 @@ export default function AppSubscriptionsTable({
                 />
               </Box>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                {providerLabels[row.provider] ?? row.provider} · {getAppSubscriptionPlanLabel(row.planCode)} · купил {formatDate(row.boughtAt)}
+                {providerLabels[row.provider] ?? row.provider} · {row.planTitle ?? getAppSubscriptionPlanLabel(row.planCode)} · купил {formatDate(row.boughtAt)}
               </Typography>
               <Typography variant="body2">
                 До: {row.isLifetime ? "навсегда" : formatDate(row.activeUntil)}

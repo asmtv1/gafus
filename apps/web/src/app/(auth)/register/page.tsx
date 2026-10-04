@@ -14,16 +14,16 @@ export const metadata = generateStaticPageMetadata(
 export default function RegisterPage() {
   return (
     <main className={styles.container}>
+      <h1 className="sr-only">Регистрация</h1>
       <div className={styles.logoContainer}>
         <Image
           className={styles.logo}
-          src="/uploads/site/web/0fbffae6c663dbda-register-wizard.webp"
+          src="/images/auth-register-wizard.png"
           alt="Собака-волшебник"
-          width={1374}
-          height={1145}
+          width={1312}
+          height={1199}
           priority
         />
-        <h2 className={styles.subtitle}>регистрация</h2>
       </div>
       <Suspense fallback={null}>
         <RegisterForm />

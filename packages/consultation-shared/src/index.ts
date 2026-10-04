@@ -8,3 +8,5 @@ export * from "./types";
 
 export * from "./intake";
 export * from "./cynologist-chat";
+
+export * from "./booking-eligibility";

@@ -18,7 +18,7 @@ export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enab
 
 const RELEASE_POLICY_KEY = "default";
 const REWARDED_SETTINGS_KEY = "default";
-const CURRENT_MOBILE_VERSION = "1.6.9";
+const CURRENT_MOBILE_VERSION = "1.7.0";
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
@@ -100,7 +100,7 @@ function normalizeReviewVersion(value: string | null): string | null {
   const normalized = value?.trim() ?? "";
   if (!normalized) return null;
   if (!SEMANTIC_VERSION_PATTERN.test(normalized)) {
-    throw new Error("Версия iOS должна быть в формате 1.6.9");
+    throw new Error("Версия iOS должна быть в формате 1.7.0");
   }
   return normalized;
 }

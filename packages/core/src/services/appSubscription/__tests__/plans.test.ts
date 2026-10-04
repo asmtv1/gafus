@@ -29,3 +29,18 @@ describe("offline course download plan entitlement", () => {
     ).toBe(true);
   });
 });
+
+describe("new monthly offers with unchanged entitlements", () => {
+  it.each([
+    ["TWO_WEEKS", "Самостоятельный", 1185, false, false, false, false],
+    ["MONTHLY", "Поддержка в чате", 1465, true, true, false, true],
+    ["THREE_MONTHS", "Полное сопровождение", 2470, true, true, true, true],
+  ] as const)("offers %s for 30 days", (code, title, price, offline, chat, consultations, promo) => {
+    expect(getAppSubscriptionPlanConfig(null, code)).toMatchObject({
+      title, label: title, yookassaPriceRub: price, intervalDays: 30,
+      offlineCourseDownloadIncluded: offline, cynologistChatIncluded: chat,
+      consultationBookingIncluded: consultations, promoCodeEligible: promo,
+      savingsRub: null,
+    });
+  });
+});

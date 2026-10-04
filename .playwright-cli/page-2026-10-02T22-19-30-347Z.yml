@@ -1,0 +1,32 @@
+- generic [active] [ref=f8e1]:
+  - main [ref=f8e3]:
+    - generic [ref=f8e4]:
+      - generic [ref=f8e5]:
+        - button "Назад" [ref=f8e73] [cursor=pointer]
+        - button "Открыть меню" [ref=f8e74] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f8e14]: Меню
+      - main [ref=f8e15]:
+        - tablist "Чаты" [ref=f8e75]:
+          - tab "Чат с кинологом" [selected] [ref=f8e76] [cursor=pointer]
+          - tab "Общий чат" [ref=f8e77] [cursor=pointer]
+        - tabpanel "Чат с кинологом" [ref=f8e78]:
+          - main [ref=f8e51]:
+            - heading "Диалоги" [level=1] [ref=f8e79]
+            - list [ref=f8e53]:
+              - listitem [ref=f8e54]:
+                - link [ref=f8e80] [cursor=pointer]:
+                  - /url: /cynologist-chats/cmurixctl0001qzpnfz4aya4n
+                  - text: Тест · Боб
+                  - strong [ref=f8e56]: · 2 непрочитанных
+      - generic [ref=f8e25]:
+        - generic [ref=f8e26]:
+          - link "Контакты" [ref=f8e81] [cursor=pointer]:
+            - /url: /contacts
+          - generic [ref=f8e28]: ·
+          - link "Оферта" [ref=f8e82] [cursor=pointer]:
+            - /url: /oferta.html
+        - generic [ref=f8e30]:
+          - generic [ref=f8e31]: "Все новости и обновления в нашем телеграм-канале:"
+          - link "GafusRu" [ref=f8e83] [cursor=pointer]:
+            - /url: https://t.me/gafusRu
+  - alert [ref=f8e44]

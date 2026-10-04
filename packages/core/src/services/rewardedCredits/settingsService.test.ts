@@ -132,7 +132,7 @@ describe("rewarded ad settings", () => {
     await expect(
       resolveRewardedPlatformSettings("IOS", {
         platform: "ios",
-        version: "1.6.9",
+        version: "1.7.0",
       }),
     ).resolves.toMatchObject({
       platform: "IOS",
@@ -140,7 +140,7 @@ describe("rewarded ad settings", () => {
     });
     expect(getMobileFeatureFlagEnabledMock).toHaveBeenCalledWith(
       "mobile_rewarded_ads_ios",
-      { platform: "ios", version: "1.6.9" },
+      { platform: "ios", version: "1.7.0" },
       true,
       false,
     );

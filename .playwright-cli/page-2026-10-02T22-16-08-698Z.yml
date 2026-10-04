@@ -1,0 +1,97 @@
+- generic [active] [ref=f2e1]:
+  - generic [aria-hidden] [ref=f2e2]:
+    - main [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - generic [ref=f2e5]:
+          - button [ref=f2e6] [cursor=pointer]: Назад
+          - button [ref=f2e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f2e14]: Меню
+        - main [ref=f2e15]:
+          - generic [ref=f2e163]:
+            - generic [ref=f2e164]:
+              - generic [ref=f2e165]:
+                - paragraph [ref=f2e166]: Gafus Premium
+                - heading [level=1] [ref=f2e167]: Подписка, которая экономит время и деньги
+                - paragraph [ref=f2e168]: Откройте весь практический контент и поддержку специалистов в одном тарифе.
+              - generic [ref=f2e169]:
+                - paragraph [ref=f2e170]: Выбранный тариф
+                - paragraph [ref=f2e171]: 2 500 ₽/месяц
+                - paragraph [ref=f2e172]: Автопродление по тарифу
+            - generic [ref=f2e173]:
+              - generic [ref=f2e174]:
+                - paragraph [ref=f2e175]: Период оплаты
+                - heading [level=2] [ref=f2e176]: Выберите тариф
+                - paragraph [ref=f2e177]: Скачивание курсов в мобильном приложении и запись к кинологу включены в тарифы от месяца.
+              - radiogroup [ref=f2e178]:
+                - radio [checked] [ref=f2e179] [cursor=pointer]:
+                  - generic [ref=f2e180]: Популярный
+                  - generic [ref=f2e184]: Месячный
+                  - generic [ref=f2e185]: 2 500 ₽/месяц
+                  - generic [ref=f2e186]: Оплата каждые 30 дней
+                  - generic [ref=f2e187]: Экономия 500 ₽
+                  - generic [ref=f2e188]:
+                    - generic [ref=f2e189]:
+                      - generic [aria-hidden] [ref=f2e190]: ✓
+                      - text: Курсы, экзамены и статьи
+                    - generic [ref=f2e191]:
+                      - generic [aria-hidden] [ref=f2e192]: ✓
+                      - text: Документы и напоминания
+                    - generic [ref=f2e193]:
+                      - generic [aria-hidden] [ref=f2e194]: ✓
+                      - text: Скачивание курсов в мобильном приложении
+                    - generic [ref=f2e195]:
+                      - generic [aria-hidden] [ref=f2e196]: ✓
+                      - text: Чат с кинологом
+                    - generic [ref=f2e197]:
+                      - generic [aria-hidden] [ref=f2e198]: —
+                      - text: Запись к кинологу — недоступна
+            - generic [ref=f2e199]:
+              - generic [ref=f2e200]:
+                - generic [ref=f2e201]: Промокод
+                - generic [ref=f2e202]:
+                  - textbox [ref=f2e203]:
+                    - /placeholder: Например, KISA1488
+                  - button [disabled] [ref=f2e204]: Применить
+              - status [ref=f2e205]: Введите код и нажмите «Применить». Запрос отправится только после этого.
+            - button [ref=f2e206] [cursor=pointer]: Оплатить 2 500 ₽ по СБП
+            - paragraph [ref=f2e207]:
+              - text: Нажимая кнопку, вы принимаете
+              - link [ref=f2e208] [cursor=pointer]:
+                - /url: /oferta.html
+                - text: Оферту
+              - text: ": сейчас спишется 2 500 ₽, затем подписка продлевается автоматически по цене 2 500 ₽/месяц. Автопродление можно отключить в профиле."
+            - paragraph [ref=f2e209]: Безопасная оплата через ЮKassa • Способ оплаты сохранится для автопродления
+        - generic [ref=f2e124]:
+          - generic [ref=f2e125]:
+            - link [ref=f2e126] [cursor=pointer]:
+              - /url: /contacts
+              - text: Контакты
+            - generic [ref=f2e127]: ·
+            - link [ref=f2e128] [cursor=pointer]:
+              - /url: /oferta.html
+              - text: Оферта
+          - generic [ref=f2e129]:
+            - generic [ref=f2e130]: "Все новости и обновления в нашем телеграм-канале:"
+            - link [ref=f2e131] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+              - generic [ref=f2e134]: GafusRu
+    - dialog [ref=f2e144]:
+      - generic [ref=f2e145]:
+        - heading [level=6] [ref=f2e146]: Использование cookies
+        - paragraph [ref=f2e147]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link [ref=f2e148] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+            - text: Подробнее
+      - generic [ref=f2e149]:
+        - button [ref=f2e150] [cursor=pointer]: Принять
+        - button [ref=f2e151] [cursor=pointer]: Отклонить
+  - alert [ref=f2e152]
+  - dialog [ref=f2e154]:
+    - img "Гафус" [ref=f2e155]
+    - heading "Включить уведомления?" [level=2] [ref=f2e156]
+    - generic [ref=f2e157]: Включите уведомления, чтобы получать оповещения о завершении упражнения А так же для работы приложения без интернета. Отключить уведомления можно в настройках профиля.
+    - text: "!"
+    - generic [ref=f2e158]:
+      - button "Включить" [ref=f2e159] [cursor=pointer]
+      - button "Не сейчас" [ref=f2e160] [cursor=pointer]

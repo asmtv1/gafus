@@ -1,4 +1,3 @@
-import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
@@ -274,7 +273,6 @@ const ArticleCard = memo(function ArticleCard({
 });
 
 export default function ArticlesScreen() {
-  const tabContentBottomPadding = useTabContentBottomPadding();
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -360,7 +358,7 @@ export default function ArticlesScreen() {
               initialDrawBatchSize: INITIAL_ARTICLE_RENDER_BATCH_SIZE,
             }}
             ListHeaderComponent={listHeader}
-            contentContainerStyle={[styles.listContent, { paddingBottom: tabContentBottomPadding }]}
+            contentContainerStyle={styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>

@@ -730,14 +730,14 @@ model AppSubscriptionSettings {
   twoWeeksEnabled         Boolean @default(false)
   threeMonthsEnabled      Boolean @default(false)
   yookassaWeeklyPriceRub  Decimal @default(200.00) @db.Decimal(10, 2)
-  yookassaMonthlyPriceRub Decimal @default(2490.00) @db.Decimal(10, 2)
-  yookassaTwoWeeksPriceRub Decimal @default(1490.00) @db.Decimal(10, 2)
-  yookassaThreeMonthsPriceRub Decimal @default(6490.00) @db.Decimal(10, 2)
+  yookassaMonthlyPriceRub Decimal @default(1465.00) @db.Decimal(10, 2)
+  yookassaTwoWeeksPriceRub Decimal @default(1185.00) @db.Decimal(10, 2)
+  yookassaThreeMonthsPriceRub Decimal @default(2470.00) @db.Decimal(10, 2)
   currency                String  @default("RUB") @db.VarChar(3)
   weeklyIntervalDays      Int     @default(7)
   monthlyIntervalDays     Int     @default(30)
-  twoWeeksIntervalDays    Int     @default(14)
-  threeMonthsIntervalDays Int     @default(90)
+  twoWeeksIntervalDays    Int     @default(30)
+  threeMonthsIntervalDays Int     @default(30)
   weeklyAppleProductId    String? @unique
   monthlyAppleProductId   String? @unique
 
@@ -901,6 +901,11 @@ model AppSubscription {
   status   AppSubscriptionStatus   @default(PENDING)
   planCode AppSubscriptionPlanCode @default(WEEKLY)
 
+  renewalPriceRub Decimal? @db.Decimal(12, 3)
+  renewalIntervalDays Int?
+  renewalCurrency String? @db.VarChar(3)
+  planTitle String?
+
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
   pendingExpiresAt   DateTime?
@@ -974,6 +979,7 @@ model AppSubscriptionPayment {
   status   AppSubscriptionPaymentStatus @default(PENDING)
   planCode AppSubscriptionPlanCode      @default(WEEKLY)
 
+  planTitle String?
   amount     Decimal? @db.Decimal(12, 3)
   currency   String?  @db.VarChar(3)
   buyerEmail String?  @db.VarChar(320)
@@ -2407,6 +2413,8 @@ model ConsultationBooking {
   telemostConferenceId   String?
   telemostJoinUrl        String?
   telemostWatchUrl       String?
+  /// Set only on new COMPLETED transitions; legacy completions do not start a cooldown.
+  completedAt            DateTime?
   trainerConfirmedAt     DateTime?
   cancelReason           String?
   confirmationDeadlineAt DateTime
@@ -2421,6 +2429,7 @@ model ConsultationBooking {
   @@index([slotId])
   @@index([cynologistId, status])
   @@index([clientId, createdAt])
+  @@index([clientId, status, completedAt])
 }
 
 model ConsultationEmailLog {

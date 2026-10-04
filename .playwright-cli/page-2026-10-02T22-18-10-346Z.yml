@@ -1,0 +1,40 @@
+- generic [ref=f6e1]:
+  - main [ref=f6e3]:
+    - generic [ref=f6e4]:
+      - generic [ref=f6e5]:
+        - button "Назад" [ref=f6e6] [cursor=pointer]
+        - button "Открыть меню" [ref=f6e9] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f6e14]: Меню
+      - main [ref=f6e15]:
+        - tablist "Чаты" [ref=f6e16]:
+          - tab "Чат с кинологом" [ref=f6e17] [cursor=pointer]
+          - tab "Общий чат" [active] [selected] [ref=f6e18] [cursor=pointer]
+        - tabpanel "Общий чат" [ref=f6e99]:
+          - main [ref=f6e100]:
+            - region "Правила чата" [ref=f6e101]:
+              - heading "Правила чата" [level=2] [ref=f6e102]
+              - paragraph [ref=f6e103]: В чате запрещены оскорбления, реклама и нецензурные выражения. За нарушение правил — блокировка.
+            - generic [ref=f6e104]:
+              - listitem [ref=f6e113]: Отправьте сообщение, чтобы начать разговор
+              - generic [ref=f6e114]:
+                - textbox "Сообщение" [ref=f6e115]
+                - generic [ref=f6e116]:
+                  - text: Фото или видео
+                  - button "Фото или видео" [ref=f6e117]
+                - generic [ref=f6e118]: Фото до 10 МБ · видео H.264 до 100 МБ и двух минут
+                - button "Отправить" [disabled] [ref=f6e119]
+      - generic [ref=f6e23]:
+        - generic [ref=f6e24]:
+          - link "Контакты" [ref=f6e25] [cursor=pointer]:
+            - /url: /contacts
+          - generic [ref=f6e26]: ·
+          - link "Оферта" [ref=f6e27] [cursor=pointer]:
+            - /url: /oferta.html
+        - generic [ref=f6e28]:
+          - generic [ref=f6e29]: "Все новости и обновления в нашем телеграм-канале:"
+          - link "GafusRu" [ref=f6e30] [cursor=pointer]:
+            - /url: https://t.me/gafusRu
+  - alert [ref=f6e34]
+  - generic [ref=f6e120]:
+    - status
+    - alert

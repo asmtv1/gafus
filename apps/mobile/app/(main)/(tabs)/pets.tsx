@@ -1,4 +1,3 @@
-import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -1366,7 +1365,6 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
 }
 
 export default function PetsTabScreen() {
-  const tabContentBottomPadding = useTabContentBottomPadding();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { measureTarget } = useTourTargets();
@@ -1576,7 +1574,7 @@ export default function PetsTabScreen() {
           }
         }}
         scrollEventThrottle={16}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabContentBottomPadding }]}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <Image

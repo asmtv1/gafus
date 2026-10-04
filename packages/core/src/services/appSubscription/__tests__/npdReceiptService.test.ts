@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Prisma } from "@gafus/prisma";
 
-import { queueNpdReceiptCancellation } from "../npdReceiptService";
+import { ensureNpdReceiptForSucceededPayment, queueNpdReceiptCancellation } from "../npdReceiptService";
 
 describe("queueNpdReceiptCancellation", () => {
   it.each(["PENDING", "RETRY"]) (
@@ -49,5 +49,30 @@ describe("queueNpdReceiptCancellation", () => {
     expect(updateMany).not.toHaveBeenCalled();
     expect(receiptUpdate).toHaveBeenCalledWith({ where: { id: "receipt-1" }, data: { status: "CANCEL_PENDING" } });
     expect(operationUpsert).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("receipt periods for old and new tariff agreements", () => {
+  it.each([
+    ["TWO_WEEKS", 14], ["TWO_WEEKS", 30], ["MONTHLY", 30],
+    ["THREE_MONTHS", 90], ["THREE_MONTHS", 30],
+  ])("creates %s receipt for its purchased %s days", async (planCode, days) => {
+    const periodStart = new Date("2026-10-04T00:00:00Z");
+    const upsert = vi.fn().mockResolvedValue({ id: "receipt", status: "PENDING" });
+    const tx = {
+      appSubscriptionPayment: { findUnique: vi.fn().mockResolvedValue({
+        id: "payment", provider: "YOOKASSA", kind: "RENEWAL", status: "SUCCEEDED",
+        planCode, amount: 2470, currency: "RUB", buyerEmail: "buyer@gafus.test",
+        periodStart, periodEnd: new Date(periodStart.getTime() + Number(days) * 86400000),
+        succeededAt: periodStart,
+      }) },
+      npdConnection: { findUnique: vi.fn().mockResolvedValue({ id: "default", fiscalizationStartedAt: new Date("2026-01-01") }) },
+      npdReceipt: { upsert },
+    } as unknown as Prisma.TransactionClient;
+    await ensureNpdReceiptForSucceededPayment(tx, "payment");
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({
+      amountKopecks: 247000, intervalDays: days, serviceName: `Подписка Gafus Premium на ${days} дней`,
+    }) }));
   });
 });

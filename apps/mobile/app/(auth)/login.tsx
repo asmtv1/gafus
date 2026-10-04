@@ -131,32 +131,13 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Заголовок */}
-          <Text
-            style={[
-              styles.title,
-              { fontSize: Math.min(layout.moderateScale(100, 0.4), 100) },
-            ]}
-          >
-            Гафус!
-          </Text>
-
           {/* Логотип */}
           <Image
-            source={require("../../assets/images/login.png")}
-            style={[styles.logo, { width: logoSize, height: logoSize }]}
+            source={require("../../assets/images/login-wizard.png")}
+            style={[styles.logo, { width: logoSize, height: logoSize * (1398 / 1125) }]}
             contentFit="contain"
+            accessibilityLabel="Авторизация — собака-волшебник"
           />
-
-          {/* Подзаголовок */}
-          <Text
-            style={[
-              styles.subtitle,
-              { fontSize: layout.moderateScale(40), maxWidth: layout.scale(320) },
-            ]}
-          >
-            Авторизация
-          </Text>
 
           {/* Текст с ссылкой на регистрацию */}
           <View style={[styles.registerTextContainer, { maxWidth: layout.scale(320) }]}>
@@ -306,20 +287,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
     gap: 10,
   },
-  title: {
-    fontWeight: "400",
-    color: COLORS.primary,
-    textAlign: "center",
-    fontFamily: FONTS.impact,
-  },
-  logo: {},
-  subtitle: {
-    fontWeight: "400",
-    color: COLORS.primary,
-    textAlign: "left",
-    fontFamily: FONTS.impact,
-    marginTop: -SPACING.xl,
-  },
+  logo: { marginTop: 30 },
   registerTextContainer: {},
   // Текст "Если у Вас еще нет аккаунта"
   registerPrompt: {

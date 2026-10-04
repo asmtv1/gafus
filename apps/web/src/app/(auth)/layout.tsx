@@ -9,5 +9,5 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: SITE_CONFIG.name, statusBarStyle: "default" },
 };
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <div data-app-background="auth" style={{ display: "contents" }}>{children}</div>;
 }

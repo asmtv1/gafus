@@ -176,13 +176,13 @@ export function AppSubscriptionSettingsCard({
       <CardContent>
         <Stack spacing={3}>
           <PlanSettingsSection
-            title="2 недели"
+            title="Самостоятельный"
             draft={twoWeeks}
             disabled={controlsDisabled}
             onChange={setTwoWeeks}
           />
           <PlanSettingsSection
-            title="1 месяц"
+            title="Поддержка в чате"
             draft={monthly}
             disabled={controlsDisabled}
             onChange={setMonthly}
@@ -190,7 +190,7 @@ export function AppSubscriptionSettingsCard({
             onAppleProductIdChange={setMonthlyAppleProductId}
           />
           <PlanSettingsSection
-            title="3 месяца"
+            title="Полное сопровождение"
             draft={threeMonths}
             disabled={controlsDisabled}
             onChange={setThreeMonths}

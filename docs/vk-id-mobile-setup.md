@@ -8,7 +8,7 @@
 |-----------|---------------|--------------|
 | Web | 54472652 | `https://gafus.ru/api/auth/callback/vk-id` |
 | iOS | 54472654 | `gafus://auth/vk` |
-| Android | 54472653 | `gafus://auth/vk` |
+| Android | 54804685 | `gafus://auth/vk` |
 
 ## 1. Консоль VK ID (id.vk.com)
 
@@ -20,9 +20,9 @@
 3. **Universal link** (если используется): `https://gafus.ru/auth/vk`.
 4. **Изображение** — загрузите иконку приложения (коричневая кошка с жёлтой книгой). Если иконка белая на устройстве — проверьте формат и размеры в настройках VK.
 
-### Приложение Android (54472653)
+### Приложение Android (54804685)
 
-1. Выберите приложение Android (ID 54472653).
+1. Выберите приложение Android (ID 54804685).
 2. **Подключение авторизации**:
    - **Название пакета приложения:** `ru.gafus.app`
    - **SHA-1 хеш подписи** — добавлен для release/debug.
@@ -39,7 +39,7 @@ VK_CLIENT_ID=54472652
 
 # VK ID — Mobile (отдельные приложения)
 VK_CLIENT_ID_IOS=54472654
-VK_CLIENT_ID_ANDROID=54472653
+VK_CLIENT_ID_ANDROID=54804685
 VK_MOBILE_REDIRECT_URI=gafus://auth/vk
 ```
 

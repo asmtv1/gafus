@@ -1,6 +1,6 @@
 {
   "name": "@gafus/video-access",
-  "version": "1.6.9",
+  "version": "1.7.0",
   "type": "module",
   "exports": {
     ".": {

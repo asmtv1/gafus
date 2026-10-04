@@ -1,0 +1,23 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - main [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - generic [ref=f3e5]:
+          - button "Назад" [ref=f3e6] [cursor=pointer]
+          - button "Открыть меню" [ref=f3e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e14]: Меню
+        - main [ref=f3e15]:
+          - paragraph [ref=f3e16]: Загрузка диалога…
+        - generic [ref=f3e18]:
+          - generic [ref=f3e19]:
+            - link "Контакты" [ref=f3e20] [cursor=pointer]:
+              - /url: /contacts
+            - generic [ref=f3e21]: ·
+            - link "Оферта" [ref=f3e22] [cursor=pointer]:
+              - /url: /oferta.html
+          - generic [ref=f3e23]:
+            - generic [ref=f3e24]: "Все новости и обновления в нашем телеграм-канале:"
+            - link "GafusRu" [ref=f3e25] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+    - button "Open Tanstack query devtools" [ref=f3e79] [cursor=pointer]
+  - alert [ref=f3e128]

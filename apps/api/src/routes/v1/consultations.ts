@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import {
   ConsultationForbiddenError,
+  ConsultationBookingRestrictedError,
   ConsultationBookingNotIncludedError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
@@ -26,6 +27,8 @@ import {
   cursorPaginationSchema,
   dayOffInputSchema,
   getAvailableSlots,
+  getConsultationBookingEligibility,
+  requireConsultationBookingEligibility,
   getCalendarSlots,
   getCynologistDayOffDates,
   getSlotsQuerySchema,
@@ -77,6 +80,9 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
       402,
     );
   }
+  if (error instanceof ConsultationBookingRestrictedError) {
+    return c.json({ success: false, error: error.message, code: error.code, eligibility: error.eligibility }, 403);
+  }
   if (error instanceof ConsultationSlotTakenError) {
     return c.json({ success: false, error: error.message, code: error.code }, 409);
   }
@@ -103,7 +109,9 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
 consultationsRoutes.get("/cynologists", async (c) => {
   try {
     const data = await listListedCynologists();
-    return c.json({ success: true, data });
+    c.header("Cache-Control", "no-store");
+    const bookingEligibility = await getConsultationBookingEligibility(c.get("user").id);
+    return c.json({ success: true, data, bookingEligibility });
   } catch (error) {
     return handleConsultationError(c, error);
   }
@@ -116,6 +124,7 @@ consultationsRoutes.get("/cynologists/:cynologistUserId/slots/:slotId/verify", a
     await requireConsultationBookingSubscriptionAccess({
       userId: user.id,
     });
+    await requireConsultationBookingEligibility(user.id);
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
     return c.json({ success: true });
   } catch (error) {
@@ -141,11 +150,13 @@ consultationsRoutes.get(
       const data = includeBusy
         ? await getCalendarSlots(cynologistUserId, from, to)
         : await getAvailableSlots(cynologistUserId, from, to);
+      c.header("Cache-Control", "no-store");
+      const bookingEligibility = await getConsultationBookingEligibility(user.id);
       if (includeBusy) {
         const dayOffDates = await getCynologistDayOffDates(cynologistUserId, from, to);
-        return c.json({ success: true, data, dayOffDates });
+        return c.json({ success: true, data, dayOffDates, bookingEligibility });
       }
-      return c.json({ success: true, data });
+      return c.json({ success: true, data, bookingEligibility });
     } catch (error) {
       return handleConsultationError(c, error);
     }

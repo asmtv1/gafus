@@ -19,6 +19,7 @@ import {
   formatConsultationDayLabelMsk as formatDayLabel,
   formatConsultationTimeMsk as formatTime,
   type ConsultationSlotDto,
+  type ConsultationBookingEligibility,
   type ConsultationSlotsByDay,
   type ListedCynologistCardDto,
 } from "@gafus/consultation-shared";
@@ -32,12 +33,14 @@ import { primaryButtonClassName } from "@/shared/components/ui";
 
 interface CynologistSlotsClientProps {
   cynologist: ListedCynologistCardDto;
+  initialBookingEligibility?: ConsultationBookingEligibility;
 }
 
 interface SlotsResponse {
   success?: boolean;
   data?: ConsultationSlotDto[];
   dayOffDates?: string[];
+  bookingEligibility?: ConsultationBookingEligibility;
   error?: string;
 }
 
@@ -51,9 +54,14 @@ function formatCalendarMonthLabel(date: Date): string {
 /**
  * Загрузка свободных слотов и бронирование с Idempotency-Key и CSRF.
  */
-export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps) {
+export function CynologistSlotsClient({
+  cynologist, initialBookingEligibility,
+}: CynologistSlotsClientProps) {
   const router = useRouter();
   const pathname = usePathname() ?? `/consultations/${cynologist.userId}`;
+  const [bookingEligibility, setBookingEligibility] = useState<ConsultationBookingEligibility | null>(
+    initialBookingEligibility ?? null,
+  );
   const [slots, setSlots] = useState<ConsultationSlotDto[]>([]);
   const [dayOffDates, setDayOffDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +89,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
       const qs = new URLSearchParams({ from: fromIso, to: toIso, includeBusy: "1" });
       const res = await fetch(
         `/api/v1/consultations/cynologists/${encodeURIComponent(cynologist.userId)}/slots?${qs}`,
-        { credentials: "include" },
+        { credentials: "include", cache: "no-store" },
       );
       const json = (await res.json()) as SlotsResponse;
       if (res.status === 402) {
@@ -96,6 +104,7 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
         setDayOffDates([]);
         return;
       }
+      setBookingEligibility(json.bookingEligibility ?? null);
       setSlots(json.data.filter((slot) => slot.status !== "BLOCKED"));
       setDayOffDates(Array.isArray(json.dayOffDates) ? json.dayOffDates : []);
       setPaywallOpen(false);
@@ -119,6 +128,13 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
 
   useEffect(() => {
     void loadSlots();
+  }, [loadSlots]);
+
+  useEffect(() => {
+    const refresh = () => { void loadSlots(); };
+    const interval = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", refresh); };
   }, [loadSlots]);
 
   const rangeDays = useMemo(
@@ -293,6 +309,16 @@ export function CynologistSlotsClient({ cynologist }: CynologistSlotsClientProps
     },
     [cynologist.userId, loadSlots, openConfirm, pathname],
   );
+
+  if (bookingEligibility && !bookingEligibility.canBook) {
+    return (
+      <Box>
+        <Alert severity="info" sx={{ mb: 2 }}>{bookingEligibility.message}</Alert>
+        <Button onClick={() => router.push("/consultations/my")}>Мои консультации</Button>
+        <Button disabled={loading} onClick={() => void loadSlots()}>Обновить</Button>
+      </Box>
+    );
+  }
 
   return (
     <Box className={styles.container}>

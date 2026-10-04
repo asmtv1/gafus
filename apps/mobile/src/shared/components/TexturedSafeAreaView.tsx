@@ -1,12 +1,13 @@
-import { type ComponentProps, useContext } from "react";
+import { type ComponentProps } from "react";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "@/shared/config";
 import { PaperTextureBackground } from "./PaperTextureBackground";
-import { SharedSkyBackgroundContext } from "./SharedSkyBackground";
 
-type TexturedSafeAreaViewProps = ComponentProps<typeof SafeAreaView>;
+type TexturedSafeAreaViewProps = ComponentProps<typeof SafeAreaView> & {
+  inheritBackground?: boolean;
+};
 
 /**
  * Базовый корневой контейнер экранов основного приложения.
@@ -16,24 +17,21 @@ type TexturedSafeAreaViewProps = ComponentProps<typeof SafeAreaView>;
 export function TexturedSafeAreaView({
   children,
   style,
+  inheritBackground = false,
   ...safeAreaProps
 }: TexturedSafeAreaViewProps) {
-  const hasSharedSky = useContext(SharedSkyBackgroundContext);
   return (
     <SafeAreaView
       {...safeAreaProps}
-      style={[styles.container, style, hasSharedSky && styles.transparent]}
+      style={[styles.container, inheritBackground && { backgroundColor: "transparent" }, style]}
     >
-      {!hasSharedSky && <PaperTextureBackground />}
-      <SharedSkyBackgroundContext.Provider value={false}>
-        {children}
-      </SharedSkyBackgroundContext.Provider>
+      {!inheritBackground && <PaperTextureBackground />}
+      {children}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  transparent: { backgroundColor: "transparent" },
   container: {
     position: "relative",
     backgroundColor: COLORS.background,

@@ -1,0 +1,121 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - status "Загрузка"
+    - main [ref=f4e3]:
+      - generic [ref=f4e4]:
+        - generic [ref=f4e5]:
+          - button "Назад" [ref=f4e6] [cursor=pointer]
+          - button "Открыть меню" [ref=f4e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f4e14]: Меню
+        - main [ref=f4e15]:
+          - main [ref=f4e16]:
+            - generic [ref=f4e17]:
+              - heading "Профиль webclientmurimb5m" [level=2] [ref=f4e18]
+              - generic [ref=f4e19]:
+                - generic [ref=f4e21]:
+                  - img "Аватар" [ref=f4e23]
+                  - button "Изменить аватар" [ref=f4e24] [cursor=pointer]
+                - generic [ref=f4e27]:
+                  - generic [ref=f4e28]: Привет, webclientmurimb5m!
+                  - generic [ref=f4e29]: Email отсутствует, напишите в поддержку
+              - generic [ref=f4e30]:
+                - generic [ref=f4e31]: Информация о себе не внесена
+                - link "Внести/Изменить «О себе»" [ref=f4e32] [cursor=pointer]:
+                  - /url: /profile/editBio
+              - generic [ref=f4e34]:
+                - heading "Уведомления" [level=3] [ref=f4e35]
+                - generic [ref=f4e36]:
+                  - generic [ref=f4e37]:
+                    - strong [ref=f4e38]: "Разрешение браузера:"
+                    - generic [ref=f4e39]: ⏳ Не запрошено
+                  - generic [ref=f4e40]:
+                    - strong [ref=f4e41]: "Серверная подписка:"
+                    - generic [ref=f4e42]: ❌ Неактивна
+                - button "Разрешить уведомления" [ref=f4e44] [cursor=pointer]
+            - generic [ref=f4e45]:
+              - heading "Заметки тренера" [level=2] [ref=f4e46]
+              - paragraph [ref=f4e48]: Пока нет заметок от тренера
+            - region [ref=f4e50]:
+              - generic [ref=f4e51]:
+                - heading "Подписка Gafus Premium" [level=2] [ref=f4e52]
+                - generic [ref=f4e53]: Активна
+              - generic [ref=f4e54]:
+                - generic [ref=f4e55]:
+                  - term [ref=f4e56]: Оплачено
+                  - definition [ref=f4e57]: 03.10.2026, 01:09 МСК
+                - generic [ref=f4e58]:
+                  - term [ref=f4e59]: Следующее списание
+                  - definition [ref=f4e60]: —
+                - generic [ref=f4e61]:
+                  - term [ref=f4e62]: Способ оплаты
+                  - definition [ref=f4e63]: —
+                - generic [ref=f4e64]:
+                  - term [ref=f4e65]: Доступ до
+                  - definition [ref=f4e66]: 04.10.2026, 01:09 МСК
+              - button "Обновить статус" [ref=f4e67] [cursor=pointer]
+            - generic [ref=f4e69]:
+              - heading "Настройки" [level=2] [ref=f4e70]
+              - link "Напоминания о тренировках" [ref=f4e71] [cursor=pointer]:
+                - /url: /reminders
+                - generic [aria-hidden] [ref=f4e73]: ›
+              - button "Повторить экскурсию" [ref=f4e74] [cursor=pointer]:
+                - generic [aria-hidden] [ref=f4e76]: ›
+              - button "Подключить VK" [ref=f4e77] [cursor=pointer]:
+                - generic [aria-hidden] [ref=f4e79]: ›
+              - heading "Данные аккаунта" [level=2] [ref=f4e80]
+              - link "Логин webclientmurimb5m" [ref=f4e81] [cursor=pointer]:
+                - /url: /profile/change-username
+                - generic [ref=f4e82]:
+                  - text: Логин
+                  - generic [ref=f4e83]: webclientmurimb5m
+                - generic [aria-hidden] [ref=f4e84]: ›
+              - link "Email Укажите email для восстановления доступа" [ref=f4e85] [cursor=pointer]:
+                - /url: /profile/change-email
+                - generic [ref=f4e86]:
+                  - text: Email
+                  - generic [ref=f4e87]: Укажите email для восстановления доступа
+                - generic [aria-hidden] [ref=f4e88]: ›
+              - link "Установить пароль" [ref=f4e89] [cursor=pointer]:
+                - /url: /profile/set-password
+                - generic [aria-hidden] [ref=f4e91]: ›
+              - heading "Информация" [level=2] [ref=f4e92]
+              - link "О приложении" [ref=f4e93] [cursor=pointer]:
+                - /url: /
+                - generic [aria-hidden] [ref=f4e95]: ›
+              - link "Наш Telegram" [ref=f4e96] [cursor=pointer]:
+                - /url: https://t.me/gafusRu
+                - generic [aria-hidden] [ref=f4e98]: ›
+              - link "Политика конфиденциальности" [ref=f4e99] [cursor=pointer]:
+                - /url: /policy.html
+                - generic [aria-hidden] [ref=f4e101]: ›
+              - link "Оферта" [ref=f4e102] [cursor=pointer]:
+                - /url: /oferta.html
+                - generic [aria-hidden] [ref=f4e104]: ›
+              - link "Согласие на обработку персональных данных" [ref=f4e105] [cursor=pointer]:
+                - /url: /personal.html
+                - generic [aria-hidden] [ref=f4e107]: ›
+              - link "Согласие на распространение данных" [ref=f4e108] [cursor=pointer]:
+                - /url: /personal-distribution.html
+                - generic [aria-hidden] [ref=f4e110]: ›
+              - link "Связаться с поддержкой" [ref=f4e111] [cursor=pointer]:
+                - /url: https://t.me/gafus_support
+                - generic [aria-hidden] [ref=f4e113]: ›
+              - button "Управление cookies" [ref=f4e114] [cursor=pointer]:
+                - generic [aria-hidden] [ref=f4e116]: ›
+              - heading "Действия с аккаунтом" [level=2] [ref=f4e117]
+              - button "Выйти из аккаунта" [ref=f4e118] [cursor=pointer]
+              - link "Удалить аккаунт" [ref=f4e120] [cursor=pointer]:
+                - /url: /profile/delete-account
+                - generic [aria-hidden] [ref=f4e122]: ›
+        - generic [ref=f4e124]:
+          - generic [ref=f4e125]:
+            - link "Контакты" [ref=f4e126] [cursor=pointer]:
+              - /url: /contacts
+            - generic [ref=f4e127]: ·
+            - link "Оферта" [ref=f4e128] [cursor=pointer]:
+              - /url: /oferta.html
+          - generic [ref=f4e129]:
+            - generic [ref=f4e130]: "Все новости и обновления в нашем телеграм-канале:"
+            - link "GafusRu" [ref=f4e131] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+  - alert [ref=f4e135]

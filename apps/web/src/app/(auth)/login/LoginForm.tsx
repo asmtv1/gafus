@@ -118,7 +118,7 @@ export default function LoginForm() {
         </Link>
       </div>
       <button className={styles.button} type="submit" disabled={csrfLoading} aria-label="Войти">
-        {csrfLoading ? "Загрузка..." : <Image src="/uploads/login-paw.png" alt="" width={140} height={135} />}
+        {csrfLoading ? "Загрузка..." : <Image src="/images/auth-login-paw.png" alt="" width={120} height={125} />}
       </button>
     </form>
   );

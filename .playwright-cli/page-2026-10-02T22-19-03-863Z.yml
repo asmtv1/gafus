@@ -1,0 +1,41 @@
+- generic [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - status "Загрузка"
+    - main [ref=f8e3]:
+      - generic [ref=f8e4]:
+        - generic [ref=f8e5]:
+          - button "Назад" [ref=f8e6] [cursor=pointer]
+          - button "Открыть меню" [ref=f8e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f8e14]: Меню
+        - main [ref=f8e15]:
+          - tablist "Чаты" [ref=f8e16]:
+            - tab "Чат с кинологом" [selected] [ref=f8e17] [cursor=pointer]
+            - tab "Общий чат" [ref=f8e18] [cursor=pointer]
+          - tabpanel "Чат с кинологом" [ref=f8e19]:
+            - main [ref=f8e20]:
+              - heading "Диалоги" [level=1] [ref=f8e21]
+              - status [ref=f8e22]:
+                - paragraph [ref=f8e23]: Загрузка диалогов…
+              - list
+        - generic [ref=f8e25]:
+          - generic [ref=f8e26]:
+            - link "Контакты" [ref=f8e27] [cursor=pointer]:
+              - /url: /contacts
+            - generic [ref=f8e28]: ·
+            - link "Оферта" [ref=f8e29] [cursor=pointer]:
+              - /url: /oferta.html
+          - generic [ref=f8e30]:
+            - generic [ref=f8e31]: "Все новости и обновления в нашем телеграм-канале:"
+            - link "GafusRu" [ref=f8e32] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+    - dialog [ref=f8e36]:
+      - generic [ref=f8e37]:
+        - heading "Использование cookies" [level=6] [ref=f8e38]
+        - paragraph [ref=f8e39]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=f8e40] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=f8e41]:
+        - button "Принять" [active] [ref=f8e42] [cursor=pointer]
+        - button "Отклонить" [ref=f8e43] [cursor=pointer]
+  - alert [ref=f8e44]

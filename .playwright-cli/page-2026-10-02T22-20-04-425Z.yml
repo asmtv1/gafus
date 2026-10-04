@@ -1,0 +1,77 @@
+- generic [active] [ref=f10e1]:
+  - main [ref=f10e3]:
+    - generic [ref=f10e4]:
+      - generic [ref=f10e5]:
+        - button "Назад" [ref=f10e57] [cursor=pointer]
+        - button "Открыть меню" [ref=f10e58] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f10e14]: Меню
+      - main [ref=f10e15]:
+        - tablist "Чаты" [ref=f10e59]:
+          - tab "Чат с кинологом" [selected] [ref=f10e60] [cursor=pointer]
+          - tab "Общий чат" [ref=f10e61] [cursor=pointer]
+        - tabpanel "Чат с кинологом" [ref=f10e62]:
+          - main [ref=f10e20]:
+            - heading "Чат с кинологом" [level=1] [ref=f10e63]
+            - paragraph [ref=f10e22]: Ответ в течение суток
+            - paragraph [ref=f10e23]: Кинолог отвечает в рабочие дни с 10:00 до 19:00 МСК
+            - generic [ref=f10e64]:
+              - generic [ref=f10e68]:
+                - generic: Сегодня
+                - list [ref=f10e71]:
+                  - listitem [ref=f10e72]:
+                    - generic [ref=f10e73]: Сегодня
+                  - listitem [ref=f10e75]:
+                    - 'generic "Сообщение от webclientmurimb5m, Анкета перед началом переписки Имя владельца: Тест Телефон: +79991234567 Кличка питомца: Боб Пол питомца: Мальчик Возраст питомца: 2 года Порода питомца: Метис Проблема: Синтетическая проверка интерфейса чата Как пытались решить проблему: Тестовая анкета" [ref=f10e79]':
+                      - generic [ref=f10e80]: Сообщение от webclientmurimb5m,
+                      - generic [ref=f10e82]:
+                        - paragraph [ref=f10e83]: Анкета перед началом переписки
+                        - list [ref=f10e84]:
+                          - listitem [ref=f10e85]: "Имя владельца: Тест"
+                          - listitem [ref=f10e86]: "Телефон: +79991234567"
+                          - listitem [ref=f10e87]: "Кличка питомца: Боб"
+                          - listitem [ref=f10e88]: "Пол питомца: Мальчик"
+                          - listitem [ref=f10e89]: "Возраст питомца: 2 года"
+                          - listitem [ref=f10e90]: "Порода питомца: Метис"
+                          - listitem [ref=f10e91]: "Проблема: Синтетическая проверка интерфейса чата"
+                          - listitem [ref=f10e92]: "Как пытались решить проблему: Тестовая анкета"
+                  - listitem [ref=f10e93]:
+                    - generic [ref=f10e94]:
+                      - generic "Сообщение от webclientmurimb5m, Web parity live smoke 20261003" [ref=f10e104]:
+                        - generic [ref=f10e105]: Сообщение от webclientmurimb5m,
+                        - paragraph [ref=f10e108]: Web parity live smoke 20261003
+                      - time [ref=f10e113]: 02:17
+                  - listitem [ref=f10e114]:
+                    - generic [ref=f10e115]: Сегодня
+                  - listitem [ref=f10e117]:
+                    - generic [ref=f10e118]:
+                      - generic [ref=f10e119]: 1 непрочитанное
+                      - button "Отметить сообщения как прочитанные" [ref=f10e120] [cursor=pointer]
+                  - listitem [ref=f10e124]:
+                    - generic [ref=f10e125]:
+                      - button [ref=f10e126]
+                      - generic [ref=f10e129]:
+                        - button "Открыть меню действий с сообщениями" [ref=f10e150] [cursor=pointer]
+                        - 'generic "Сообщение, Ответ кинолога: browser smoke" [ref=f10e131]':
+                          - generic [ref=f10e132]: Сообщение,
+                          - paragraph [ref=f10e135]: "Ответ кинолога: browser smoke"
+                      - time [ref=f10e137]: 02:19
+              - paragraph [ref=f10e138]:
+                - text: История доступна.
+                - link "Продлите тариф" [ref=f10e139] [cursor=pointer]:
+                  - /url: /subscription
+                - text: ", чтобы отправлять сообщения."
+      - generic [ref=f10e27]:
+        - generic [ref=f10e28]:
+          - link "Контакты" [ref=f10e140] [cursor=pointer]:
+            - /url: /contacts
+          - generic [ref=f10e30]: ·
+          - link "Оферта" [ref=f10e141] [cursor=pointer]:
+            - /url: /oferta.html
+        - generic [ref=f10e32]:
+          - generic [ref=f10e33]: "Все новости и обновления в нашем телеграм-канале:"
+          - link "GafusRu" [ref=f10e142] [cursor=pointer]:
+            - /url: https://t.me/gafusRu
+  - alert [ref=f10e46]
+  - generic [ref=f10e148]:
+    - status
+    - alert

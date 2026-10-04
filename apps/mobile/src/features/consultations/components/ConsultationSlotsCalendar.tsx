@@ -18,7 +18,7 @@ import {
 } from "@gafus/consultation-shared";
 import type { ConsultationSlotDto } from "@gafus/consultation-shared";
 import type { Href } from "expo-router";
-import { useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
@@ -79,6 +79,8 @@ export function ConsultationSlotsCalendar({
   }, []);
 
   const slotsQuery = useQuery({
+    refetchInterval: 60_000,
+    staleTime: 0,
     queryKey: ["consultations", "slotsCalendar", cynologistUserId, fromIso, toIso],
     queryFn: async () => {
       const res = await consultationsApi.getSlotsCalendar(cynologistUserId, fromIso, toIso);
@@ -91,9 +93,16 @@ export function ConsultationSlotsCalendar({
       }
       const raw = res.data.filter((s) => s.status !== "BLOCKED");
       const dayOffDates = Array.isArray(res.dayOffDates) ? res.dayOffDates : [];
-      return { slots: raw, dayOffDates, accessRequired: false };
+      return {
+        slots: raw, dayOffDates, accessRequired: false,
+        bookingEligibility: res.bookingEligibility,
+      };
     },
   });
+
+  useFocusEffect(useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["consultations", "slotsCalendar", cynologistUserId] });
+  }, [queryClient, cynologistUserId]));
 
   const slots = slotsQuery.data?.slots ?? EMPTY_SLOTS;
   const dayOffDates = slotsQuery.data?.dayOffDates ?? EMPTY_DAY_OFF_DATES;
@@ -247,6 +256,19 @@ export function ConsultationSlotsCalendar({
       );
     }
   }, [slotsQuery.isError, slotsQuery.error]);
+
+  const bookingEligibility = slotsQuery.data?.bookingEligibility;
+  if (!slotsQuery.isPending && bookingEligibility && !bookingEligibility.canBook) {
+    return (
+      <ScrollView contentContainerStyle={{ padding: SPACING.md, gap: SPACING.md }}>
+        <Text accessibilityRole="alert" style={{ fontFamily: FONTS.montserrat, fontSize: 16, lineHeight: 24 }}>
+          {bookingEligibility.message}
+        </Text>
+        <Button label="Мои консультации" onPress={() => router.push("/consultations/mine" as Href)} />
+        <Button label="Обновить" onPress={() => void slotsQuery.refetch()} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.scroll}>

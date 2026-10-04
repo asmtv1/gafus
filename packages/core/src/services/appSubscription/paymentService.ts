@@ -1072,6 +1072,7 @@ async function prepareInitialYookassaCheckout(params: {
   userId: string;
   planCode: AppSubscriptionPlanCode;
   originalAmountRub: number;
+  planTitle: string;
   currency: string;
   intervalDays: number;
   promoCode?: RequestedAppSubscriptionPromoCode;
@@ -1321,6 +1322,7 @@ async function prepareInitialYookassaCheckout(params: {
         planCode: params.planCode,
         amount: amountRub.toNumber(),
         originalAmount: params.originalAmountRub,
+        planTitle: params.planTitle,
         currency: params.currency,
         buyerEmail: params.buyerEmail,
         promoCodeId: promo?.id,
@@ -1420,6 +1422,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
       userId: params.userId,
       planCode,
       originalAmountRub: amountRub,
+      planTitle: selectedPlan.title,
       currency,
       intervalDays,
       promoCode: params.promoCode,
@@ -2538,11 +2541,13 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
       kind: true,
       planCode: true,
       promoCodeId: true,
+      planTitle: true,
+      originalAmount: true,
       amount: true,
       currency: true,
       periodStart: true,
       periodEnd: true,
-      subscription: { select: { currentPeriodEnd: true } },
+      subscription: { select: { currentPeriodEnd: true, renewalIntervalDays: true } },
     },
   });
   if (!payment) {
@@ -2615,7 +2620,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         const currentPeriodEnd = payment.subscription?.currentPeriodEnd;
         periodStart = currentPeriodEnd && currentPeriodEnd > now ? currentPeriodEnd : now;
         periodEnd = new Date(
-          periodStart.getTime() + fallbackPlan.intervalDays * 24 * 60 * 60 * 1000,
+          periodStart.getTime() + (payment.subscription?.renewalIntervalDays ?? fallbackPlan.intervalDays) * 24 * 60 * 60 * 1000,
         );
       }
 
@@ -2641,6 +2646,12 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
             where: { id: payment.subscriptionId },
             data: {
               status: "ACTIVE",
+              ...(payment.kind === "INITIAL" ? {
+                renewalPriceRub: payment.originalAmount ?? payment.amount,
+                renewalCurrency: payment.currency ?? "RUB",
+                renewalIntervalDays: Math.round((periodEnd!.getTime() - periodStart!.getTime()) / 86400000),
+                planTitle: payment.planTitle,
+              } : {}),
               planCode: payment.planCode,
               currentPeriodStart: periodStart,
               currentPeriodEnd: periodEnd,
@@ -2663,6 +2674,12 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
               userId: payment.userId,
               provider: "YOOKASSA",
               status: "ACTIVE",
+              ...(payment.kind === "INITIAL" ? {
+                renewalPriceRub: payment.originalAmount ?? payment.amount,
+                renewalCurrency: payment.currency ?? "RUB",
+                renewalIntervalDays: Math.round((periodEnd!.getTime() - periodStart!.getTime()) / 86400000),
+                planTitle: payment.planTitle,
+              } : {}),
               planCode: payment.planCode,
               currentPeriodStart: periodStart,
               currentPeriodEnd: periodEnd,

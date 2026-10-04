@@ -1,0 +1,201 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - status "Загрузка"
+    - main [ref=e3]:
+      - main [ref=e4]:
+        - region [ref=e5]:
+          - img "Гафус приглашает начать занятие" [ref=e8]
+          - generic [ref=e9]:
+            - link "Гафус, на главную" [ref=e10] [cursor=pointer]:
+              - /url: /
+              - img "Гафус" [ref=e11]
+            - navigation "Основная навигация" [ref=e12]:
+              - link "Начать заниматься" [ref=e13] [cursor=pointer]:
+                - /url: /register
+              - link "Войти" [ref=e14] [cursor=pointer]:
+                - /url: /login
+          - generic [ref=e16]:
+            - generic [ref=e17]:
+              - heading "ГАФУС - Уверенность в каждом шаге!" [level=1] [ref=e18]:
+                - generic [ref=e19]:
+                  - generic [ref=e20]: ГАФУС -
+                  - generic [ref=e21]: Уверенность
+                  - generic [ref=e22]: в каждом шаге!
+              - paragraph [ref=e23]: Лёгкое обучение начинается с понятной программы.В ГАФУСе вы всегда понимаете, какойрезультат ожидать сегодня и что делать завтра.
+            - link "Как это работает?" [ref=e24] [cursor=pointer]:
+              - /url: "#concerns"
+        - region [ref=e25]:
+          - generic [ref=e28]:
+            - generic [ref=e30]:
+              - heading "От проблемы к результату." [level=2] [ref=e31]:
+                - generic [ref=e32]:
+                  - generic [ref=e33]: От проблемы
+                  - generic [ref=e34]: к результату.
+              - paragraph [ref=e35]: Не нужно самостоятельно искать советы и пытаться собрать из них систему.В ГАФУсе вас ждет готовый пошаговый план под любую проблему. Просто выберите нужный курс.
+            - list [ref=e36]:
+              - listitem [ref=e37]: На прогулке контакт быстро теряется
+              - listitem [ref=e38]: Непонятно, за что взяться сначала
+              - listitem [ref=e39]: Советы есть. Порядка действий нет
+              - listitem [ref=e40]: Собака не может оставаться дома одна
+              - listitem [ref=e41]: Постоянно тянет поводок
+              - listitem [ref=e42]: Подбирает всё подряд с земли
+              - listitem [ref=e43]: Отдельные программы для лая, тревожности, перевозбуждения, агрессии и других сложностей...
+            - link "А почему именно ГАФУС?" [ref=e45] [cursor=pointer]:
+              - /url: "#path"
+        - region [ref=e46]:
+          - generic [ref=e49]:
+            - heading "В ГАФУС Мы заморочились над всем!" [level=2] [ref=e50]:
+              - generic [ref=e51]:
+                - generic [ref=e52]: В ГАФУС
+                - generic [ref=e53]: Мы заморочились
+                - generic [ref=e54]: над всем!
+            - paragraph [ref=e55]: От структуры занятий до мобильного приложения и напоминаний — чтобы вам оставалось только заниматься с собакой.
+          - generic [ref=e56]:
+            - article [ref=e57]:
+              - generic [ref=e60]:
+                - heading "Пошаговую систему" [level=3] [ref=e61]
+                - paragraph [ref=e62]: "Понятный путь вместо разрозненных уроков: от первой задачи к устойчивому навыку."
+            - article [ref=e63]:
+              - generic [ref=e66]:
+                - heading "Практические навыки" [level=3] [ref=e67]
+                - paragraph [ref=e68]: Большинство занятий - не голая теория, а отработка практических навыков в реальной жизни.
+            - article [ref=e69]:
+              - generic [ref=e72]:
+                - heading "Позитивные методы" [level=3] [ref=e73]
+                - paragraph [ref=e74]: Без запугивания, рывков и строгих ошейников. Собака учится через положительное подкрепление.
+            - article [ref=e75]:
+              - generic [ref=e78]:
+                - heading "Всё в одном месте" [level=3] [ref=e79]
+                - paragraph [ref=e80]: Помимо курсов, храните документы хвостика, ставьте напоминания и делайте записи о процедурах — всё это бесплатно.
+            - article [ref=e81]:
+              - generic [ref=e84]:
+                - heading "Мобильное приложение" [level=3] [ref=e85]
+                - paragraph [ref=e86]: "Занимайтесь там, где вам удобно: дома, на прогулке или в дороге — без привязки к компьютеру и интернету."
+          - link "А кто автор курсов?" [ref=e88] [cursor=pointer]:
+            - /url: "#expert"
+        - region [ref=e89]:
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - heading "Не советы из интернета, а система от кинолога." [level=2] [ref=e93]:
+                - generic [ref=e94]:
+                  - generic [ref=e95]: Не советы из интернета,
+                  - generic [ref=e96]: а система от кинолога.
+              - paragraph [ref=e97]: Курсы разработаны профессиональным специалистом.
+            - img "Кинолог и Гафус" [ref=e99]
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - img "Лана Петренко" [ref=e104]
+              - paragraph [ref=e105]: Доброта - часть метода
+            - generic [ref=e106]:
+              - heading "Лана Петренко" [level=3] [ref=e107]
+              - paragraph [ref=e110]: Специалист по поведению и благополучию собак и кошек. Помогает выстраивать занятия эффективно, понятно и с вниманием к состоянию животного.
+              - list [ref=e111]:
+                - listitem [ref=e112]: Член ассоциации поведенческой медицины RVBA
+                - listitem [ref=e113]: "Сертифицированный специалист Fear Free: без боли и стресса"
+                - listitem [ref=e114]: Основатель и руководитель сервиса Campdog
+                - listitem [ref=e115]: Лектор самарских информационных площадок и газет
+                - listitem [ref=e116]: Участвует в приютских мероприятиях и обучает детей в центрах
+          - link "А какая цена?" [ref=e118] [cursor=pointer]:
+            - /url: "#pricing"
+        - region [ref=e119]:
+          - generic [ref=e120]:
+            - generic [ref=e123]:
+              - heading "Не десятки тысяч, а по адекватной цене." [level=2] [ref=e124]:
+                - generic [ref=e125]:
+                  - generic [ref=e126]: Не десятки тысяч,
+                  - generic [ref=e127]: а по адекватной цене.
+              - paragraph [ref=e128]: Весь функционал ГАФУС — дешевле одной личной встречи с кинологом.И большинства онлайн-курсов.
+            - generic [ref=e129]:
+              - generic [ref=e130]:
+                - article [ref=e131]:
+                  - paragraph [ref=e132]: 2 недели
+                  - paragraph [ref=e133]:
+                    - text: "835"
+                    - generic [ref=e134]: ₽
+                  - paragraph [ref=e135]: Чтобы познакомиться с форматом занятий
+                  - list [ref=e136]:
+                    - listitem [ref=e137]:
+                      - generic [ref=e140]: Доступ к курсам и пошаговым занятиям
+                    - listitem [ref=e141]:
+                      - generic [ref=e144]: Практика дома и на прогулках
+                    - listitem [ref=e145]:
+                      - generic [ref=e148]: Весь бесплатный функционал
+                - article [ref=e149]:
+                  - text: Самый полный формат
+                  - paragraph [ref=e150]: 1 месяц
+                  - paragraph [ref=e151]:
+                    - text: "956"
+                    - generic [ref=e152]: ₽
+                    - superscript [aria-hidden] [ref=e153]: "*"
+                  - paragraph [ref=e154]: Полный ритм занятий в своём темпе
+                  - list [ref=e155]:
+                    - listitem [ref=e156]:
+                      - generic [ref=e159]: Всё, что есть в предыдущем тарифе
+                    - listitem [ref=e160]:
+                      - generic [ref=e163]: Полный доступ к курсам и занятиям
+                    - listitem [ref=e164]:
+                      - generic [ref=e167]: Поддержка кинолога и запись на консультацию
+                    - listitem [ref=e168]:
+                      - generic [ref=e171]: Скачивание курсов без интернета
+                  - generic [ref=e172]:
+                    - strong [ref=e173]: Кинолог всегда рядом.
+                    - generic [ref=e174]: Можно написать специалисту или разобрать ситуацию на созвоне, если нужна поддержка.
+                - article [ref=e175]:
+                  - paragraph [ref=e176]: 3 месяца
+                  - paragraph [ref=e177]:
+                    - text: 2 396
+                    - generic [ref=e178]: ₽
+                    - superscript [aria-hidden] [ref=e179]: "*"
+                  - paragraph [ref=e180]: Чтобы идти к устойчивому результату в своём темпе
+                  - list [ref=e181]:
+                    - listitem [ref=e182]:
+                      - generic [ref=e185]: Всё, что есть в предыдущих тарифах — только ещё выгоднее
+                    - listitem [ref=e186]:
+                      - generic [ref=e189]: Доступ к программе на весь период
+              - paragraph [ref=e190]:
+                - generic [aria-hidden] [ref=e191]: "*"
+                - generic [ref=e192]:
+                  - strong [ref=e193]: Цены на месяц и три месяца — с учётом промокода от наших партнёров.
+                  - text: Промокод ищите в наших соцсетях.
+            - link "А где скачать приложение?" [ref=e195] [cursor=pointer]:
+              - /url: "#invitation"
+        - region [ref=e196]:
+          - generic [ref=e198]:
+            - generic [ref=e199]:
+              - heading "Поведение мечты - от тебя в одном клике." [level=2] [ref=e200]:
+                - generic [ref=e201]:
+                  - generic [ref=e202]: Поведение мечты -
+                  - generic [ref=e203]: от тебя
+                  - generic [ref=e204]: в одном клике.
+              - paragraph [ref=e205]: И этот клик - регистрация.
+            - paragraph [ref=e206]:
+              - generic [aria-hidden] [ref=e207]: С нами уже учатся
+              - strong [aria-hidden] [ref=e208]:
+                - generic [ref=e209]: "1"
+                - text: хвостиков
+            - generic "Скачать приложение GAFUS" [ref=e210]:
+              - paragraph [ref=e211]: Присоединяйся и ты!
+              - generic [ref=e212]:
+                - link [ref=e213] [cursor=pointer]:
+                  - /url: https://apps.apple.com/ru/app/gafus/id6760964612
+                  - img "Загрузите GAFUS в App Store" [ref=e214]
+                - link [ref=e215] [cursor=pointer]:
+                  - /url: https://www.rustore.ru/catalog/app/ru.gafus.app
+                  - img "Скачайте GAFUS из RuStore" [ref=e216]
+            - generic [ref=e217]:
+              - paragraph [ref=e218]: Или начните в браузере
+              - link "Начать заниматься" [ref=e219] [cursor=pointer]:
+                - /url: /register
+              - button "Войти через VK" [ref=e221] [cursor=pointer]
+    - button "Open Tanstack query devtools" [ref=e275] [cursor=pointer]
+    - dialog [ref=e324]:
+      - generic [ref=e325]:
+        - heading "Использование cookies" [level=6] [ref=e326]
+        - paragraph [ref=e327]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link "Подробнее" [ref=e328] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+      - generic [ref=e329]:
+        - button "Принять" [active] [ref=e330] [cursor=pointer]
+        - button "Отклонить" [ref=e331] [cursor=pointer]
+  - alert [ref=e332]

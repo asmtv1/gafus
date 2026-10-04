@@ -45,14 +45,14 @@ describe("app subscription settings admin action", () => {
 
     await expect(getAppSubscriptionSettingsAction()).resolves.toEqual({
       twoWeeksEnabled: false,
-      yookassaTwoWeeksPriceRub: 1490,
-      twoWeeksIntervalDays: 14,
+      yookassaTwoWeeksPriceRub: 1185,
+      twoWeeksIntervalDays: 30,
       monthlyEnabled: true,
-      yookassaMonthlyPriceRub: 2490,
+      yookassaMonthlyPriceRub: 1465,
       monthlyIntervalDays: 30,
       threeMonthsEnabled: false,
-      yookassaThreeMonthsPriceRub: 6490,
-      threeMonthsIntervalDays: 90,
+      yookassaThreeMonthsPriceRub: 2470,
+      threeMonthsIntervalDays: 30,
       monthlyAppleProductId: null,
     });
   });

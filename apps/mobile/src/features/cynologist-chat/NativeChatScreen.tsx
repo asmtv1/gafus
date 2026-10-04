@@ -32,6 +32,7 @@ import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import {
   Chat,
+  Streami18n,
   Channel,
   MessageList,
   WithComponents,
@@ -54,6 +55,14 @@ import { Loading } from "@/shared/components/ui/Loading";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { chatApi, uploadChatFile } from "@/shared/lib/api/cynologistChat";
+
+const chatI18n = new Streami18n({
+  language: "ru",
+  translationsForLanguage: {
+    "timestamp/InlineDateSeparator": '{{ timestamp | timestampFormatter(calendar: false; format: D MMMM YYYY) }}',
+    "timestamp/StickyHeader": '{{ timestamp | timestampFormatter(calendar: false; format: D MMMM YYYY) }}',
+  },
+});
 
 function useChatAuthorProfile(username?: string) {
   return useQuery({
@@ -353,6 +362,7 @@ export function Connected({
           }}
         >
           <Chat
+            i18nInstance={chatI18n}
             client={client}
             style={{
               semantics: {

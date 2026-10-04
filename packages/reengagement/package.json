@@ -1,6 +1,6 @@
 {
   "name": "@gafus/reengagement",
-  "version": "1.6.9",
+  "version": "1.7.0",
   "description": "Re-engagement система для возврата неактивных пользователей",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

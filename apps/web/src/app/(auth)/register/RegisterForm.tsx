@@ -11,7 +11,6 @@ import { useCaughtError } from "@shared/hooks/useCaughtError";
 import { useZodForm } from "@shared/hooks/useZodForm";
 import { registerUserAction } from "@shared/server-actions";
 import { previewRegistrationPromoAction } from "@shared/server-actions/auth";
-import { VkIdOneTap } from "@shared/components/auth/VkIdOneTap";
 import { registerFormSchema } from "@shared/lib/validation/authSchemas";
 import type { ConsentPayload } from "@shared/constants/consent";
 import { suggestRegisterEmailDomain } from "@gafus/core/validation/email-domain-suggestion";
@@ -275,7 +274,7 @@ export function RegisterForm() {
             onClick={onApplyPromo}
             disabled={promoState === "checking" || !promoCode.trim()}
           >
-            {promoState === "checking" ? "Проверяем…" : "Применить"}
+            {promoState === "checking" ? "Проверяем…" : "Применить промокод"}
           </PrimaryButton>
         </div>
         <p
@@ -284,7 +283,7 @@ export function RegisterForm() {
           role={promoState === "invalid" || promoState === "network-error" ? "alert" : "status"}
           aria-live="polite"
         >
-          {getRegistrationPromoStatusMessage(promoState, promoMessage)}
+          {promoState !== "idle" ? getRegistrationPromoStatusMessage(promoState, promoMessage) : null}
         </p>
       </div>
 
@@ -317,14 +316,14 @@ export function RegisterForm() {
           aria-invalid={!!errors.acceptPersonalData}
         />
         <span className={styles.checkboxLabel}>
-          Даю{" "}
+          Даю согласие на{" "}
           <Link
             href="/personal.html"
             className={styles.checkboxLink}
             target="_blank"
             rel="noopener noreferrer"
           >
-            согласие на обработку персональных данных
+            обработку персональных данных
           </Link>
         </span>
       </label>
@@ -355,14 +354,14 @@ export function RegisterForm() {
           aria-invalid={!!errors.acceptPersonalData}
         />
         <span className={styles.checkboxLabel}>
-          Даю{" "}
+          Даю согласие на{" "}
           <Link
             href="/personal-distribution.html"
             className={styles.checkboxLink}
             target="_blank"
             rel="noopener noreferrer"
           >
-            согласие на размещение данных в публичном профиле
+            размещение данных в публичном профиле
           </Link>
         </span>
       </label>
@@ -383,7 +382,9 @@ export function RegisterForm() {
       >
         {isPending ? "регистрация..." : "зарегистрироваться"}
       </PrimaryButton>
-      <VkIdOneTap promoCode={promoCode} />
+      <Link href="/login" className={styles.loginLink}>
+        Уже есть аккаунт? Войти
+      </Link>
     </form>
   );
 }

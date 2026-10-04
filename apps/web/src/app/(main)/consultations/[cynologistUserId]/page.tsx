@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { listListedCynologists } from "@gafus/core";
+import { getConsultationBookingEligibility, listListedCynologists } from "@gafus/core";
 import { Box, Typography } from "@mui/material";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -30,6 +30,8 @@ export default async function ConsultationCynologistPage({ params }: PageProps) 
     notFound();
   }
 
+  const eligibility = await getConsultationBookingEligibility(session.user.id);
+
   return (
     <main className={styles.page}>
       <div className={styles.content}>
@@ -41,7 +43,7 @@ export default async function ConsultationCynologistPage({ params }: PageProps) 
           <Typography component="h1" className={styles.sectionHeading} sx={{ mb: 2 }}>
             {cynologist.displayName ?? "Кинолог"}
           </Typography>
-          <CynologistSlotsClient cynologist={cynologist} />
+          <CynologistSlotsClient cynologist={cynologist} initialBookingEligibility={eligibility} />
         </Box>
       </div>
     </main>

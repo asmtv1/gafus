@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import {
   requireConsultationBookingSubscriptionAccess,
+  requireConsultationBookingEligibility,
   verifyConsultationSlotFreeForCynologist,
 } from "@gafus/core";
 import { AuthorizationError } from "@gafus/core/errors";
@@ -34,6 +35,7 @@ export async function GET(
     await requireConsultationBookingSubscriptionAccess({
       userId: session.user.id,
     });
+    await requireConsultationBookingEligibility(session.user.id);
     await verifyConsultationSlotFreeForCynologist(slotId, cynologistUserId);
     return NextResponse.json({ success: true });
   } catch (error) {

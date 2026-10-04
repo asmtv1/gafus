@@ -11,7 +11,7 @@
   --edge: max(var(--gutter), calc((100% - 1200px) / 2));
   --art-shape: 50% 50% 45% 55% / 48% 55% 45% 52%;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  background: var(--cream);
+  background: transparent;
   color: var(--ink);
   overflow: clip;
 }

@@ -1,0 +1,53 @@
+- generic [ref=f10e1]:
+  - generic [aria-hidden] [ref=f10e2]:
+    - main [ref=f10e3]:
+      - generic [ref=f10e4]:
+        - generic [ref=f10e5]:
+          - button [ref=f10e6] [cursor=pointer]: Назад
+          - button [ref=f10e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f10e14]: Меню
+        - main [ref=f10e15]:
+          - tablist [ref=f10e16]:
+            - tab [selected] [ref=f10e17] [cursor=pointer]: Чат с кинологом
+            - tab [ref=f10e18] [cursor=pointer]: Общий чат
+          - tabpanel [ref=f10e19]:
+            - main [ref=f10e20]:
+              - heading [level=1] [ref=f10e21]: Чат с кинологом
+              - paragraph [ref=f10e22]: Ответ в течение суток
+              - paragraph [ref=f10e23]: Кинолог отвечает в рабочие дни с 10:00 до 19:00 МСК
+              - status [ref=f10e24]:
+                - paragraph [ref=f10e25]: Подключение…
+        - generic [ref=f10e27]:
+          - generic [ref=f10e28]:
+            - link [ref=f10e29] [cursor=pointer]:
+              - /url: /contacts
+              - text: Контакты
+            - generic [ref=f10e30]: ·
+            - link [ref=f10e31] [cursor=pointer]:
+              - /url: /oferta.html
+              - text: Оферта
+          - generic [ref=f10e32]:
+            - generic [ref=f10e33]: "Все новости и обновления в нашем телеграм-канале:"
+            - link [ref=f10e34] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+              - generic [ref=f10e37]: GafusRu
+    - dialog [ref=f10e38]:
+      - generic [ref=f10e39]:
+        - heading [level=6] [ref=f10e40]: Использование cookies
+        - paragraph [ref=f10e41]:
+          - text: Мы используем cookies для улучшения работы сайта и персонализации контента.
+          - link [ref=f10e42] [cursor=pointer]:
+            - /url: https://gafus.ru/cookies.html
+            - text: Подробнее
+      - generic [ref=f10e43]:
+        - button [active] [ref=f10e44] [cursor=pointer]: Принять
+        - button [ref=f10e45] [cursor=pointer]: Отклонить
+  - alert [ref=f10e46]
+  - dialog [ref=f10e48]:
+    - img "Гафус" [ref=f10e49]
+    - heading "Включить уведомления?" [level=2] [ref=f10e50]
+    - generic [ref=f10e51]: Включите уведомления, чтобы получать оповещения о завершении упражнения А так же для работы приложения без интернета. Отключить уведомления можно в настройках профиля.
+    - text: "!"
+    - generic [ref=f10e52]:
+      - button "Включить" [ref=f10e53] [cursor=pointer]
+      - button "Не сейчас" [ref=f10e54] [cursor=pointer]

@@ -24,7 +24,7 @@ import AttachFileIcon from "@mui/icons-material/AttachFile";
 import SendIcon from "@mui/icons-material/Send";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckIcon from "@mui/icons-material/Check";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@gafus/react-query";
 import { getPublicProfileAction } from "@/shared/server-actions/user";
 import {
   Chat,
@@ -34,6 +34,8 @@ import {
   MessageUI,
   Avatar,
   ComponentProvider,
+  DateSeparator,
+  type DateSeparatorProps,
   useMessageContext,
   useCreateChatClient,
   Streami18n,
@@ -58,6 +60,19 @@ import { ChatReactionContext, ChatReactionPicker, ChatReactionList } from "./Cha
 import "stream-chat-react/css/index.css";
 
 const chatI18n = new Streami18n({ language: "ru" });
+
+function ChatDateSeparator(props: DateSeparatorProps) {
+  return (
+    <DateSeparator
+      {...props}
+      formatDate={(date) => date.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).replace(/\s*г\.$/, "")}
+    />
+  );
+}
 
 const MessageManagementContext = createContext<{
   userId: string;
@@ -599,6 +614,7 @@ export function ConnectedChat({
           <Chat client={client} i18nInstance={chatI18n}>
             <ComponentProvider
               value={{
+                DateSeparator: ChatDateSeparator,
                 MessageUI: GafusMessageUI,
                 QuotedMessage: ChatQuotedReply,
                 MessageReactions: ChatReactionList,

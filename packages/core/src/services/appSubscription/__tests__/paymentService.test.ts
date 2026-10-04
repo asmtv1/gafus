@@ -1215,11 +1215,11 @@ describe("app subscription payment service", () => {
           "Idempotence-Key": expect.stringMatching(/^appsub-init:[0-9a-f-]{36}$/),
         }),
         body: JSON.stringify({
-          amount: { value: "2500.00", currency: "RUB" },
+          amount: { value: "1465.00", currency: "RUB" },
           capture: true,
           save_payment_method: true,
           confirmation: { type: "redirect", return_url: "https://gafus.ru/subscription?paid=1" },
-          description: "Подписка Gafus Premium 2500.00 RUB/30 дн.",
+          description: "Подписка Gafus Premium 1465.00 RUB/30 дн.",
           metadata: {
             kind: "app_subscription",
             localPaymentId: "pay-1",
@@ -1239,7 +1239,7 @@ describe("app subscription payment service", () => {
           provider: "YOOKASSA",
           kind: "INITIAL",
           status: "PENDING",
-          amount: 2500,
+          amount: 1465,
           currency: "RUB",
           planCode: "MONTHLY",
           periodStart: new Date("2026-05-30T10:00:00.000Z"),
@@ -1357,7 +1357,7 @@ describe("app subscription payment service", () => {
     expect(mockPaymentCreate).not.toHaveBeenCalled();
   });
 
-  it("activates YooKassa payment with the local payment plan period instead of current settings", async () => {
+  it.each(["INITIAL", "RENEWAL"] as const)("activates %s with payment terms and preserves the renewal agreement", async (kind) => {
     const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
@@ -1373,6 +1373,9 @@ describe("app subscription payment service", () => {
       userId: "user-1",
       subscriptionId: "sub-month",
       status: "PENDING",
+      kind,
+      originalAmount: 1465,
+      planTitle: "Поддержка в чате",
       amount: 1100,
       currency: "RUB",
       planCode: "MONTHLY",
@@ -1430,6 +1433,14 @@ describe("app subscription payment service", () => {
         periodEnd: new Date("2026-06-29T10:00:00.000Z"),
       }),
     });
+    const activatedTerms = mockSubscriptionUpdate.mock.calls.find(([call]) => call.data.status === "ACTIVE")?.[0].data;
+    if (kind === "INITIAL") {
+      expect(activatedTerms).toMatchObject({ renewalPriceRub: 1465, renewalCurrency: "RUB", renewalIntervalDays: 30, planTitle: "Поддержка в чате" });
+    } else {
+      expect(activatedTerms).not.toHaveProperty("renewalPriceRub");
+      expect(activatedTerms).not.toHaveProperty("renewalIntervalDays");
+      expect(activatedTerms).not.toHaveProperty("planTitle");
+    }
     expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
       where: { id: "sub-month" },
       data: expect.objectContaining({

@@ -1,4 +1,3 @@
-import { useTabContentBottomPadding } from "@/shared/lib/useTabContentBottomPadding";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
@@ -151,7 +150,6 @@ function DailyCourseCard({
  * При офлайне показывается экран «Скачанные курсы».
  */
 export default function CoursesScreen() {
-  const tabContentBottomPadding = useTabContentBottomPadding();
   const isOffline = useIsOffline();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -424,7 +422,7 @@ export default function CoursesScreen() {
               initialDrawBatchSize: INITIAL_COURSE_RENDER_BATCH_SIZE,
             }}
             ListHeaderComponent={listHeader}
-            contentContainerStyle={[styles.listContent, { paddingBottom: tabContentBottomPadding }]}
+            contentContainerStyle={styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>

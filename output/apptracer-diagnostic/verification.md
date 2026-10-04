@@ -1,0 +1,53 @@
+# AppTracer Android symbol upload verification — 2026-10-04
+
+- Strict Gradle task: `:app:generateTracerNativeSymbolsForRelease --info --console=plain`.
+- Result: BUILD SUCCESSFUL in 9m 1s; exit code 0; 185 tasks executed.
+- Native project uses the default strict upload policy; dontFailOnUploadFailure is absent.
+- ARM64 safeareacontext manual upload: HTTP 200, {"success":true}; UID 47167A0B955550C38DC6F31F216489B40.
+- Gradle sent 39 symbol upload requests.
+- Subsequent API nativesymbol/exists check for all 39 entries: HTTP 200, {"items":[]} (none require upload).
+- Original failed UID 66E9665DB8A0CF9F6EB20F879858239C0 was not reproduced. Original EAS temporary build directory is absent.
+- Exact cause of original HTTP 400 remains undetermined. Successful new uploads do not prove the original file was valid or a service incident occurred.
+- Full release AAB build, mapping upload and device crash delivery were not tested in this run.
+
+## Gradle upload entries
+
+- libreact_codegen_safeareacontext.so: C0B51F50F8A3E23A790E8221BA5A1F330
+- libreact_codegen_rnscreens.so: 426E06F244BB3FF18DCC5778EE2985BF0
+- libworklets.so: 269097AC15DD16144F284D37D362B1180
+- librnscreens.so: 3D31AE78E57A7C12E75F771611126BDC0
+- libappmodules.so: 0556E4BEA68849B347B17C08BC3BABC30
+- libgesturehandler.so: B4D8ED56A9750E638D88EB826C16011D0
+- libreact_codegen_TeleportViewSpec.so: 73025677EF7FC3804CD41F4155F3ADC30
+- libreanimated.so: 4A720F19FDC74CBB8F03F54359D1C3D90
+- libexpo-modules-core.so: FF8D7F47360EC3C35C72DFD835B8936B0
+- libreact_codegen_rnsvg.so: 0EA4754004293AE380AB4BEA286B03010
+- libreact_codegen_safeareacontext.so: 9C147566078C81F509DB9AFA98A457430
+- libreact_codegen_rnscreens.so: 1F551CDB6EE226F897187732E8AC1D9C0
+- libworklets.so: AC8AE49C8F94EE35BA0348DC166128A60
+- librnscreens.so: D5D6B747175962CAA6B9CA013214BD740
+- libappmodules.so: 174433F9E429733462AD125E986E499C0
+- libgesturehandler.so: 3704BF8CAA0CE29F1392EB6795D37F910
+- libreact_codegen_TeleportViewSpec.so: 26FE8972056945AE6B1159400932BC7F0
+- libreanimated.so: 99D33323AD8FEC7CEE54204B27AF81100
+- libexpo-modules-core.so: BB336CCAFD37540EB2EA4571B19A65640
+- libreact_codegen_rnsvg.so: 3A354907A481C93E8F7CDAC6E9B7E77A0
+- libreact_codegen_rnscreens.so: E9EEE7DAC7A8C58762AC2BCD43F25CCB0
+- libworklets.so: CAD3970A2C97259E3525E83ACF1152140
+- librnscreens.so: A43B427B1E1A8A777DE87D9EDE54B6CF0
+- libappmodules.so: 3D46A53A40D21D5E28060C00FBC713960
+- libgesturehandler.so: C5842095A764FAC567C9A02F91AA198F0
+- libreact_codegen_TeleportViewSpec.so: C765F64DAD81F3DB0407F89E2FDC22E20
+- libreanimated.so: B3B7AC506DE4B0B84619484C8DB610FC0
+- libexpo-modules-core.so: DC20B1678F8151C9173FC9D75FAE0E270
+- libreact_codegen_rnsvg.so: C32FDC58A6FE8FB19677E700A8EA2FE40
+- libreact_codegen_safeareacontext.so: C85A349ED7B5152956F732C59BBD819C0
+- libreact_codegen_rnscreens.so: 5569647FBE2E826186AAC6AFE4ECABAC0
+- libworklets.so: 73BD2DEF197E5CD5C4EB491012DBBA980
+- librnscreens.so: DD12ACE87C60571CB6A3B5A01501C06A0
+- libappmodules.so: A854FDD857C71B3290F77138C6F006A20
+- libgesturehandler.so: 4F5E3E36B3FDDDD1A252BFFBAF9A203C0
+- libreact_codegen_TeleportViewSpec.so: E951034DA7EEBA2D281882DFABCF1B930
+- libreanimated.so: 1E18ADD3CA71DB6CA8DA826A7B06ED520
+- libexpo-modules-core.so: C868B46D6F44273030FB37D9CA20C2BE0
+- libreact_codegen_rnsvg.so: 1CDB9607CE5F3B0F96C21AE5016A19910

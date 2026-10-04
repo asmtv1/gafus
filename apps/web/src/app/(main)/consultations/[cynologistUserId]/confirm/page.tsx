@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { listListedCynologists } from "@gafus/core";
-import { Box, Typography } from "@mui/material";
+import { getConsultationBookingEligibility, listListedCynologists } from "@gafus/core";
+import { Alert, Box, Typography } from "@mui/material";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -37,6 +37,8 @@ export default async function ConsultationConfirmPage({ params, searchParams }: 
     notFound();
   }
 
+  const eligibility = await getConsultationBookingEligibility(session.user.id);
+
   return (
     <main className={styles.page}>
       <div className={styles.content}>
@@ -48,13 +50,13 @@ export default async function ConsultationConfirmPage({ params, searchParams }: 
           <Typography component="h1" className={styles.sectionHeading} sx={{ mb: 2 }}>
             Подтверждение консультации
           </Typography>
-          <ConsultationBookingConfirmClient
+          {!eligibility.canBook ? <Alert severity="info">{eligibility.message}</Alert> : <ConsultationBookingConfirmClient
             slotId={slotId}
             cynologistUserId={cynologist.userId}
             cynologistName={cynologist.displayName ?? "Кинолог"}
             startAtUtc={query.startAtUtc}
             endAtUtc={query.endAtUtc}
-          />
+          />}
         </Box>
       </div>
     </main>

@@ -33,14 +33,14 @@ export async function getAppSubscriptionSettingsAction() {
   const settings = await getDefaultAppSubscriptionSettings();
   return {
     twoWeeksEnabled: settings?.twoWeeksEnabled ?? false,
-    yookassaTwoWeeksPriceRub: Number(settings?.yookassaTwoWeeksPriceRub ?? 1490),
-    twoWeeksIntervalDays: settings?.twoWeeksIntervalDays ?? 14,
+    yookassaTwoWeeksPriceRub: Number(settings?.yookassaTwoWeeksPriceRub ?? 1185),
+    twoWeeksIntervalDays: settings?.twoWeeksIntervalDays ?? 30,
     monthlyEnabled: settings?.monthlyEnabled ?? true,
-    yookassaMonthlyPriceRub: Number(settings?.yookassaMonthlyPriceRub ?? 2490),
+    yookassaMonthlyPriceRub: Number(settings?.yookassaMonthlyPriceRub ?? 1465),
     monthlyIntervalDays: settings?.monthlyIntervalDays ?? 30,
     threeMonthsEnabled: settings?.threeMonthsEnabled ?? false,
-    yookassaThreeMonthsPriceRub: Number(settings?.yookassaThreeMonthsPriceRub ?? 6490),
-    threeMonthsIntervalDays: settings?.threeMonthsIntervalDays ?? 90,
+    yookassaThreeMonthsPriceRub: Number(settings?.yookassaThreeMonthsPriceRub ?? 2470),
+    threeMonthsIntervalDays: settings?.threeMonthsIntervalDays ?? 30,
     monthlyAppleProductId: settings?.monthlyAppleProductId ?? null,
   };
 }

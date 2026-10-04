@@ -1,6 +1,7 @@
 import {
   ConsultationBookingNotIncludedError,
   ConsultationForbiddenError,
+  ConsultationBookingRestrictedError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
   TelemostUnavailableError,
@@ -25,6 +26,12 @@ export function logConsultationRouteError(logger: Logger, label: string, error: 
 export function mapConsultationError(
   error: unknown,
 ): { status: number; body: Record<string, unknown> } | null {
+  if (error instanceof ConsultationBookingRestrictedError) {
+    return {
+      status: 403,
+      body: { success: false, error: error.message, code: error.code, eligibility: error.eligibility },
+    };
+  }
   if (error instanceof ConsultationSlotTakenError) {
     return { status: 409, body: { success: false, error: error.message, code: error.code } };
   }

@@ -2,12 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const {
+  bookingEligibilityMock,
   getAvailableSlotsMock,
   getCalendarSlotsMock,
   getCynologistDayOffDatesMock,
   getServerSessionMock,
   requireConsultationSlotsSubscriptionAccessMock,
 } = vi.hoisted(() => ({
+  bookingEligibilityMock: vi.fn().mockResolvedValue({ canBook: true, reason: null, nextBookingAt: null, message: null }),
   getAvailableSlotsMock: vi.fn(),
   getCalendarSlotsMock: vi.fn(),
   getCynologistDayOffDatesMock: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock("@/shared/lib/consultation-route-errors", () => ({
   logConsultationRouteError: vi.fn(),
 }));
 vi.mock("@gafus/core", () => ({
+  getConsultationBookingEligibility: bookingEligibilityMock,
   getAvailableSlots: getAvailableSlotsMock,
   getCalendarSlots: getCalendarSlotsMock,
   getCynologistDayOffDates: getCynologistDayOffDatesMock,
@@ -67,4 +70,17 @@ describe("GET /api/v1/consultations/cynologists/[cynologistUserId]/slots", () =>
     expect(getCalendarSlotsMock).not.toHaveBeenCalled();
     expect(getAvailableSlotsMock).not.toHaveBeenCalled();
   });
+});
+
+
+it("returns booking restriction alongside calendar without caching it", async () => {
+  getServerSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+  requireConsultationSlotsSubscriptionAccessMock.mockResolvedValue(undefined);
+  getCalendarSlotsMock.mockResolvedValue([]);
+  getCynologistDayOffDatesMock.mockResolvedValue([]);
+  const bookingEligibility = { canBook: false, reason: "WEEKLY_COOLDOWN", nextBookingAt: "2026-10-11T12:30:00.000Z", message: "Подождите до 11 октября" };
+  bookingEligibilityMock.mockResolvedValueOnce(bookingEligibility);
+  const response = await GET(request(), { params: Promise.resolve({ cynologistUserId: "trainer-1" }) });
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(await response.json()).toMatchObject({ success: true, bookingEligibility });
 });

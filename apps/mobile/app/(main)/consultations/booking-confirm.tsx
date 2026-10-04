@@ -64,6 +64,7 @@ export default function ConsultationBookingConfirmScreen() {
   const [clientProblem, setClientProblem] = useState("");
   const [clientSelfHelpAttempt, setClientSelfHelpAttempt] = useState("");
   const [showFieldErrors, setShowFieldErrors] = useState(false);
+  const [bookingRestriction, setBookingRestriction] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   /** Сервер: `z.string().uuid()` — только v4, без слабого fallback. */
   const [idemKey] = useState(() => randomUUID());
@@ -109,6 +110,18 @@ export default function ConsultationBookingConfirmScreen() {
       setShowFieldErrors(false);
     }
   }, [canSubmit]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (cynologistUserId && slotId) {
+      void consultationsApi.verifySlotFree(cynologistUserId, slotId).then((res) => {
+        if (!cancelled && (res.code === "CONSULTATION_ACTIVE_BOOKING" || res.code === "CONSULTATION_WEEKLY_COOLDOWN")) {
+          setBookingRestriction(res.error ?? "Запись временно недоступна");
+        }
+      }).catch(() => { /* Submit verifies again and displays request errors. */ });
+    }
+    return () => { cancelled = true; };
+  }, [cynologistUserId, slotId]);
 
   const bookMutation = useMutation({
     mutationFn: async () => {
@@ -156,6 +169,10 @@ export default function ConsultationBookingConfirmScreen() {
       const code =
         typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
       const msg = e instanceof Error ? e.message : String(e);
+      if (code === "CONSULTATION_ACTIVE_BOOKING" || code === "CONSULTATION_WEEKLY_COOLDOWN") {
+        setBookingRestriction(msg);
+        return;
+      }
       if (isSubscriptionRequiredCode(code)) {
         openConsultationAccessPaywall();
         return;
@@ -215,6 +232,17 @@ export default function ConsultationBookingConfirmScreen() {
     hapticFeedback.light();
     bookMutation.mutate();
   }, [bookMutation, canSubmit, cynologistUserId, slotId]);
+
+  if (bookingRestriction) {
+    return (
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
+        <ScrollView contentContainerStyle={{ padding: SPACING.md, gap: SPACING.md }}>
+          <Text accessibilityRole="alert" style={styles.lead}>{bookingRestriction}</Text>
+          <Button label="Мои консультации" onPress={() => router.replace("/consultations/mine" as Href)} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   if (!cynologistUserId || !slotId) {
     return (

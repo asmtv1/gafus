@@ -30,7 +30,7 @@ export default function ResetPasswordPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   return (
-    <main className={styles.container}>
+    <main className={styles.container} data-app-background="auth">
       <Image
         src="/uploads/paw.svg"
         alt=""

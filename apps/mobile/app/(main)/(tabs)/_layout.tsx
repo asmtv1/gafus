@@ -5,16 +5,14 @@ import type { CynologistChatStateDto } from "@gafus/consultation-shared";
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { Text, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, FONTS } from "@/shared/config";
 import type { MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { trackEvent } from "@/shared/lib/analytics";
+import { getMainTabBarSafeAreaStyle } from "@/shared/lib/tabBarSafeArea";
 import { TourTarget } from "@/shared/lib/tour-targets";
-import { GardenTabBarBackground } from "@/shared/components/GardenTabBarBackground";
-import { AnimatedTabBarButton } from "@/shared/components/AnimatedTabBarButton";
-import { SharedSkyBackground } from "@/shared/components/SharedSkyBackground";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const TAB_ICON_SIZE = 24;
@@ -30,7 +28,8 @@ const TAB_LABEL_FONT_SIZE = 12;
 const SHOW_FAVORITES_TAB = false;
 
 /** Цвет неактивного таба (иконка и подпись) */
-const TAB_INACTIVE = "#655034";
+const TAB_INACTIVE = "#6A6A6A";
+const TAB_BAR_BG = COLORS.cardBackground;
 
 /**
  * Layout нижней навигации — цвета из дизайна приложения, не зависят от темы.
@@ -49,9 +48,7 @@ export default function TabsLayout() {
     return () => { alive = false; };
   }, [userId]);
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const gardenImageHeight = width * (783 / 2009);
-  const bottomInset = Math.max(8, insets.bottom);
+  const androidSafeAreaStyle = getMainTabBarSafeAreaStyle(Platform.OS, insets.bottom);
 
   const trackTabClick = (tabName: string) => {
     trackEvent({
@@ -98,17 +95,12 @@ export default function TabsLayout() {
   );
 
   return (
-    <SharedSkyBackground>
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: "transparent" },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: TAB_INACTIVE,
         tabBarAllowFontScaling: false,
-        tabBarBackground: () => (
-          <GardenTabBarBackground imageHeight={gardenImageHeight} />
-        ),
         tabBarLabelStyle: {
           fontFamily: FONTS.montserrat,
           fontSize: TAB_LABEL_FONT_SIZE,
@@ -116,22 +108,41 @@ export default function TabsLayout() {
           textAlign: "center",
           includeFontPadding: false,
         },
-        tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
+        tabBarButton: ({ children, style, ref: _ref, ...props }) => {
+          const isSelected =
+            props["aria-selected"] === true || props.accessibilityState?.selected === true;
+          return (
+            <Pressable
+              {...props}
+              style={({ pressed }) => [
+                style,
+                styles.tabButton,
+                isSelected && styles.tabButtonSelected,
+                pressed && styles.tabButtonPressed,
+              ]}
+            >
+              {children}
+            </Pressable>
+          );
+        },
         tabBarItemStyle: {
-          height: 48,
-          paddingHorizontal: 0,
-          paddingVertical: 2,
+          minHeight: 58,
+          marginVertical: 6,
+          paddingHorizontal: 2,
+          paddingVertical: 3,
         },
         tabBarStyle: {
-          position: "absolute",
-          backgroundColor: "transparent",
+          backgroundColor: TAB_BAR_BG,
           borderTopWidth: 0,
-          height: gardenImageHeight * 0.58 + bottomInset,
-          paddingHorizontal: width * 0.02,
-          paddingTop: Math.max(0, gardenImageHeight * 0.58 - 48),
-          paddingBottom: bottomInset,
-          shadowOpacity: 0,
-          elevation: 0,
+          gap: 6,
+          paddingHorizontal: 16,
+          paddingTop: 5,
+          shadowColor: "#4A4A1E",
+          shadowOffset: { width: 0, height: -5 },
+          shadowOpacity: 0.12,
+          shadowRadius: 14,
+          elevation: 14,
+          ...androidSafeAreaStyle,
         },
         headerStyle: {
           backgroundColor: COLORS.surface,
@@ -243,11 +254,31 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
-    </SharedSkyBackground>
   );
 }
 
 const styles = {
+  tabButton: {
+    backgroundColor: "#FBF7EF",
+    borderRadius: 18,
+    borderCurve: "continuous" as const,
+    boxShadow: "0 4px 8px rgba(74, 74, 30, 0.18)",
+    elevation: 5,
+  },
+  tabButtonSelected: {
+    backgroundColor: "#E9E2CF",
+    boxShadow:
+      "inset 0 2px 5px rgba(74, 74, 30, 0.22), 0 1px 2px rgba(74, 74, 30, 0.10)",
+    elevation: 1,
+    transform: [{ translateY: 3 }],
+  },
+  tabButtonPressed: {
+    backgroundColor: "#E3DCC8",
+    boxShadow:
+      "inset 0 3px 6px rgba(74, 74, 30, 0.24), 0 1px 1px rgba(74, 74, 30, 0.08)",
+    elevation: 0,
+    transform: [{ translateY: 4 }, { scale: 0.98 }],
+  },
   tabIconWrap: {
     minWidth: 36,
     height: 28,

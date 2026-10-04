@@ -1,3 +1,4 @@
+import type { ConsultationBookingEligibility } from "@gafus/consultation-shared";
 import { ServiceError } from "../../errors/ServiceError";
 
 /** Слот уже занят другим клиентом (optimistic lock). */
@@ -41,5 +42,13 @@ export class ConsultationNotFoundError extends ServiceError {
   constructor(resource: string) {
     super(`${resource} не найден`, "CONSULTATION_NOT_FOUND", 404);
     this.name = "ConsultationNotFoundError";
+  }
+}
+
+export class ConsultationBookingRestrictedError extends ServiceError {
+  constructor(public readonly eligibility: ConsultationBookingEligibility) {
+    super(eligibility.message ?? "Запись временно недоступна",
+      eligibility.reason === "ACTIVE_BOOKING" ? "CONSULTATION_ACTIVE_BOOKING" : "CONSULTATION_WEEKLY_COOLDOWN", 403);
+    this.name = "ConsultationBookingRestrictedError";
   }
 }

@@ -14,7 +14,7 @@ export function redirectSystemPath({
 }): string {
   try {
     if (!path || typeof path !== "string") return path;
-    // VK redirect: vk54472653://vk.ru/blank.html или vk123://vk.ru?code=...
+    // VK redirect: vk54804685://vk.ru/blank.html или vk123://vk.ru?code=...
     if (path.includes("vk.ru")) {
       return "/(auth)/welcome";
     }

@@ -1,0 +1,28 @@
+- generic [active] [ref=f6e1]:
+  - generic [ref=f6e2]:
+    - status "Загрузка"
+    - main [ref=f6e3]:
+      - generic [ref=f6e4]:
+        - generic [ref=f6e5]:
+          - button "Назад" [ref=f6e6] [cursor=pointer]
+          - button "Открыть меню" [ref=f6e9] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f6e14]: Меню
+        - main [ref=f6e15]:
+          - tablist "Чаты" [ref=f6e16]:
+            - tab "Чат с кинологом" [selected] [ref=f6e17] [cursor=pointer]
+            - tab "Общий чат" [ref=f6e18] [cursor=pointer]
+          - tabpanel "Чат с кинологом" [ref=f6e19]:
+            - status [ref=f6e20]:
+              - paragraph [ref=f6e21]: Загрузка диалога…
+        - generic [ref=f6e23]:
+          - generic [ref=f6e24]:
+            - link "Контакты" [ref=f6e25] [cursor=pointer]:
+              - /url: /contacts
+            - generic [ref=f6e26]: ·
+            - link "Оферта" [ref=f6e27] [cursor=pointer]:
+              - /url: /oferta.html
+          - generic [ref=f6e28]:
+            - generic [ref=f6e29]: "Все новости и обновления в нашем телеграм-канале:"
+            - link "GafusRu" [ref=f6e30] [cursor=pointer]:
+              - /url: https://t.me/gafusRu
+  - alert [ref=f6e34]

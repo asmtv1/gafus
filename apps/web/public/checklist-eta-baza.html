@@ -33,22 +33,9 @@
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.6;
       color: var(--dark);
-      background: var(--secondary);
       overflow-x: hidden;
       scroll-behavior: smooth;
       position: relative;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(circle at 20% 20%, rgba(99, 97, 40, 0.05) 0%, transparent 60%),
-        radial-gradient(circle at 80% 80%, rgba(255, 248, 229, 0.03) 0%, transparent 60%),
-        radial-gradient(circle at 50% 50%, rgba(53, 46, 46, 0.02) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
     }
 
     .container {
@@ -412,13 +399,14 @@
 
     @media print {
       body { padding: 0; }
-      body::before { display: none; }
-      .no-print { display: none !important; }
+
+.no-print { display: none !important; }
       .item { break-inside: avoid; }
       .section { break-inside: avoid; box-shadow: none; }
       .item:hover { background: transparent; }
     }
   </style>
+  <link rel="stylesheet" href="/styles/site-background.css">
 </head>
 <body>
   <div class="container" id="checklist-page">

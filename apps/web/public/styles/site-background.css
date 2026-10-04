@@ -1,0 +1,40 @@
+/* Shared by all Next.js routes and standalone HTML pages.
+   Mobile reference: PaperTextureBackground.tsx and shared/config/index.ts. */
+:root {
+  --app-background-color: #e6e2d8;
+  --app-background-auth-color: #f5f0e5;
+  --app-background-image: url("/images/site-sky-background-v1.webp");
+  --app-background-opacity: 0.27;
+  --app-background-blur: 6.4px;
+  --bg-1: var(--app-background-color);
+}
+
+html {
+  background-color: var(--app-background-color);
+}
+
+html body {
+  isolation: isolate;
+  background-color: transparent;
+  background-image: none;
+}
+
+/* Auth screens in mobile override the base with COLORS.cardBackground. */
+html:has([data-app-background="auth"]) {
+  --app-background-color: var(--app-background-auth-color);
+}
+
+html body::before {
+  content: "";
+  position: fixed;
+  /* Extend beyond the viewport to avoid transparent edges after blur. */
+  inset: -24px;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--app-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: var(--app-background-opacity);
+  filter: blur(var(--app-background-blur));
+}

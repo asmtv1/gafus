@@ -1,5 +1,6 @@
 import type {
   ConsultationBookingDto,
+  ConsultationBookingEligibility,
   ConsultationSlotDto,
   ListedCynologistCardDto,
 } from "@gafus/consultation-shared";
@@ -16,12 +17,20 @@ export type BookSlotApiResult = {
   booking: ConsultationBookingDto;
 };
 
+type BookingEligibilityResponse<T> = ApiResponse<T> & {
+  bookingEligibility?: ConsultationBookingEligibility;
+};
+
+type SlotsCalendarResponse = BookingEligibilityResponse<ConsultationSlotDto[]> & {
+  dayOffDates?: string[];
+};
+
 /**
  * Консультации с кинологом (Bearer JWT → apps/api).
  * Сегменты пути с id кодируются (`encodeURIComponent`); бизнес-правила и Zod — на сервере.
  */
 export const consultationsApi = {
-  listCynologists: (): Promise<ApiResponse<ListedCynologistCardDto[]>> =>
+  listCynologists: (): Promise<BookingEligibilityResponse<ListedCynologistCardDto[]>> =>
     apiClient<ListedCynologistCardDto[]>("/api/v1/consultations/cynologists"),
 
   getSlots: (
@@ -41,13 +50,13 @@ export const consultationsApi = {
     cynologistUserId: string,
     fromIso: string,
     toIso: string,
-  ): Promise<ApiResponse<ConsultationSlotDto[]> & { dayOffDates?: string[] }> => {
+  ): Promise<SlotsCalendarResponse> => {
     const q = new URLSearchParams({ from: fromIso, to: toIso, includeBusy: "1" });
     const res = await apiClient<ConsultationSlotDto[]>(
       `/api/v1/consultations/cynologists/${encodeURIComponent(cynologistUserId)}/slots?${q}`,
       { suppressSubscriptionPaywall: true },
     );
-    return res as ApiResponse<ConsultationSlotDto[]> & { dayOffDates?: string[] };
+    return res as SlotsCalendarResponse;
   },
 
   verifySlotFree: (cynologistUserId: string, slotId: string): Promise<ApiResponse<unknown>> =>

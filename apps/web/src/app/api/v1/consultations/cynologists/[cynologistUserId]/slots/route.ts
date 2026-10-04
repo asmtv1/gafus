@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import {
   getAvailableSlots,
+  getConsultationBookingEligibility,
   getCalendarSlots,
   getCynologistDayOffDates,
   getSlotsQuerySchema,
@@ -45,7 +46,8 @@ export async function GET(
       ? await getCalendarSlots(cynologistUserId, from, to)
       : await getAvailableSlots(cynologistUserId, from, to);
     const dayOffDates = await getCynologistDayOffDates(cynologistUserId, from, to);
-    return NextResponse.json({ success: true, data, dayOffDates });
+    const bookingEligibility = await getConsultationBookingEligibility(session.user.id);
+    return NextResponse.json({ success: true, data, dayOffDates, bookingEligibility }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return NextResponse.json(

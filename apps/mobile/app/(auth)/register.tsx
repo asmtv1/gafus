@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useLocalSearchParams, usePathname } from "expo-router";
+import { router, useLocalSearchParams, usePathname } from "expo-router";
 import {
   View,
   StyleSheet,
@@ -319,21 +319,17 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Заголовок */}
-          <Text style={[styles.title, { fontSize: Math.min(layout.moderateScale(100, 0.4), 100) }]}>
-            Гафус!
-          </Text>
-
-          {/* Контейнер с логотипом и подзаголовком */}
+          {/* Иллюстрация регистрации */}
           <View style={styles.logoContainer}>
             <Image
-              source={require("../../assets/images/register-logo.png")}
-              style={[styles.logo, { width: formWidth * 0.8, height: formWidth * 0.8 * 0.74 }]}
+              source={require("../../assets/images/register-wizard.png")}
+              style={[
+                styles.logo,
+                { width: formWidth * 0.8, height: formWidth * 0.8 * (1199 / 1312) },
+              ]}
               contentFit="contain"
+              accessibilityLabel="Регистрация — собака-волшебник"
             />
-            <Text style={[styles.subtitle, { fontSize: Math.min(layout.moderateScale(40), 40) }]}>
-              регистрация
-            </Text>
           </View>
 
           {/* Форма */}
@@ -426,6 +422,11 @@ export default function RegisterScreen() {
               onPress={() => void applyPromoCode()}
               loading={promoPreviewState === "checking"}
               disabled={!form.promoCode.trim() || promoPreviewState === "checking" || isLoading}
+              height={36}
+              fontSize={13}
+              lineHeight={18}
+              verticalPadding={0}
+              borderRadius={12}
               style={styles.promoApplyButton}
             />
 
@@ -617,6 +618,13 @@ export default function RegisterScreen() {
               onPress={handleRegister}
               disabled={isLoading}
             />
+            <Pressable
+              onPress={() => router.replace("/(auth)/login")}
+              accessibilityRole="link"
+              style={styles.loginLink}
+            >
+              <Text style={styles.loginLinkText}>Уже есть аккаунт? Войти</Text>
+            </Pressable>
           </View>
 
           {/* Метка бандла: после применения OTA меняется префикс ota xxxxxxxx */}
@@ -653,31 +661,15 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     gap: 8,
   },
-  // Заголовок "Гафус!" - fontSize задаётся динамически
-  title: {
-    fontWeight: "400",
-    color: COLORS.primary,
-    textAlign: "center",
-    fontFamily: FONTS.impact,
-    marginBottom: 5,
-    marginTop: 0,
-  },
-  // Контейнер с логотипом и подзаголовком
+  // Иллюстрация регистрации
   logoContainer: {
+    paddingTop: 10,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
   // Логотип - размеры задаются динамически
   logo: {},
-  // Подзаголовок "регистрация" - Impact, 40px
-  subtitle: {
-    fontSize: 40,
-    fontWeight: "400",
-    color: COLORS.primary,
-    textAlign: "center",
-    fontFamily: FONTS.impact,
-  },
   // Форма
   form: {
     alignItems: "center",
@@ -796,7 +788,7 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   consentsContainer: {
-    gap: 8,
+    gap: 0,
     marginTop: 8,
   },
   consentRow: {
@@ -806,7 +798,7 @@ const styles = StyleSheet.create({
   },
   checkboxHit: {
     width: Platform.OS === "ios" ? 44 : 48,
-    height: Platform.OS === "ios" ? 44 : 48,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -846,6 +838,20 @@ const styles = StyleSheet.create({
   },
   registerButtonLayout: {
     marginTop: 20,
+  },
+  loginLink: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  loginLinkText: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 12,
+    lineHeight: 18,
+    color: COLORS.primary,
+    textAlign: "center",
+    textDecorationLine: "underline",
   },
   /** Едва заметная подсказка для проверки OTA; не тянется с web */
   otaBundleHint: {

@@ -1,6 +1,6 @@
 .container {
   margin: 0 auto;
-  background-color: var(--bg-1);
+  background-color: transparent;
   padding-bottom: 10px;
 }
 
