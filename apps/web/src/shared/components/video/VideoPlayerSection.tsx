@@ -1,7 +1,9 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { CircularProgress, Alert, Typography } from "@shared/utils/muiImports";
+import { Alert } from "@shared/utils/muiImports";
 import { getCDNUrl } from "@gafus/cdn-upload";
 import { CourseVideoPlayer } from "@shared/components/video/CourseVideoPlayer";
 import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";
@@ -198,9 +200,7 @@ export function VideoPlayerSection({
     if (!videoInfo) {
       return (
         <div className={styles.videoContainer}>
-          <div style={{ padding: "20px", textAlign: "center" }}>
-            <p>Загрузка видео...</p>
-          </div>
+          <LoadingState message="Загрузка видео…" size="small" />
         </div>
       );
     }
@@ -235,7 +235,7 @@ export function VideoPlayerSection({
             justifyContent: "center",
           }}
         >
-          <CircularProgress />
+          <LoadingState message="Загрузка видео…" size="small" />
         </div>
       </div>
     );
@@ -259,12 +259,12 @@ export function VideoPlayerSection({
             padding: "20px",
           }}
         >
-          <CircularProgress />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            {videoMetadata.transcodingStatus === "PENDING"
-              ? "Видео в очереди на обработку..."
-              : "Видео обрабатывается..."}
-          </Typography>
+          <LoadingState
+            size="small"
+            message={videoMetadata.transcodingStatus === "PENDING"
+              ? "Видео в очереди на обработку…"
+              : "Видео обрабатывается…"}
+          />
         </div>
       </div>
     );

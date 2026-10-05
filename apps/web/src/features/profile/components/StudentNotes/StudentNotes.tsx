@@ -1,4 +1,6 @@
 "use client";
+
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { ProfileIcon } from "../ProfileIcon";
 
 import { format } from "date-fns";
@@ -43,7 +45,7 @@ export default function StudentNotes() {
         <h2 className={styles.title}>
           <ProfileIcon name="trainer-notes" /> Заметки тренера
         </h2>
-        <p className={styles.loading}>Загрузка заметок...</p>
+        <LoadingState variant="inline" message="Загрузка заметок…" />
       </div>
     );
   }

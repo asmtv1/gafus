@@ -1,4 +1,6 @@
 "use client";
+
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useChatContext, useMessageContext } from "stream-chat-react";
@@ -338,7 +340,7 @@ export function ChatReactionList() {
                   );
                 })}
               </ul>
-              {loading && <p role="status">Загрузка…</p>}
+              {loading && <LoadingState variant="inline" size="small" />}
               {error && <p role="alert">{error}</p>}
               {!loading && !error && !rows.length && <p>Пока нет реакций</p>}
               {(next || error) && (

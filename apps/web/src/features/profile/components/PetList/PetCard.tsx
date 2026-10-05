@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { memo, useCallback, useEffect, useState } from "react";
 import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
@@ -569,7 +571,7 @@ const PetCard = memo(function PetCard({
             <span className={styles.documentsTitle}>Записи о процедурах</span>
           </div>
           {preventionLoading ? (
-            <p className={styles.documentsHint}>Загрузка записей...</p>
+            <LoadingState variant="inline" size="small" message="Загрузка записей…" />
           ) : preventionError ? (
             <p className={styles.documentsError}>{preventionError}</p>
           ) : (
@@ -610,7 +612,9 @@ const PetCard = memo(function PetCard({
               />
             </label>
           </div>
-          {documentsLoading ? <p className={styles.documentsHint}>Загрузка документов...</p> : null}
+          {documentsLoading ? (
+            <LoadingState variant="inline" size="small" message="Загрузка документов…" />
+          ) : null}
           {documentsError ? <p className={styles.documentsError}>{documentsError}</p> : null}
           {localDocumentsError ? (
             <p className={styles.documentsError}>{localDocumentsError}</p>

@@ -6,6 +6,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
+import type { UpdatedUserProfile } from "@/shared/lib/api/user";
 import { identifyUser, resetAnalyticsUser } from "@/shared/lib/analytics";
 import { reportClientError } from "@/shared/lib/tracer";
 
@@ -48,6 +49,7 @@ interface AuthActions {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
+  setUserProfile: (profile: UpdatedUserProfile) => void;
   handleSessionExpired: () => void;
   clearPendingVkPhone: () => void;
   setVkPhoneComplete: (phone: string) => Promise<{ success: boolean; error?: string }>;
@@ -572,6 +574,11 @@ export const useAuthStore = create<AuthStore>()(
        * Установка данных пользователя (например, после обновления профиля)
        */
       setUser: (user) => set({ user }),
+      setUserProfile: (profile) =>
+        set((state) => {
+          if (!state.user || state.user.id !== profile.userId) return state;
+          return { user: { ...state.user, profile } };
+        }),
       clearPendingVkPhone: () => set({ pendingVkPhone: false }),
       clearPendingVkConsent: async () => {
         await clearVkRegistrationContext();

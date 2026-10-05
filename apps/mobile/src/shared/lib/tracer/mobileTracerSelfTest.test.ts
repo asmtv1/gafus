@@ -19,6 +19,14 @@ describe("mobile tracer self-test", () => {
       false,
     );
     expect(canSendMobileTracerSelfTest(null)).toBe(false);
+    expect(canSendMobileTracerSelfTest(undefined)).toBe(false);
+    expect(canSendMobileTracerSelfTest({ ...baseUser, username: " Admin " })).toBe(true);
+  });
+
+  it("does not crash on incomplete or malformed cached user data", () => {
+    for (const username of [undefined, null, 123, ""]) {
+      expect(canSendMobileTracerSelfTest({ ...baseUser, username } as unknown as User)).toBe(false);
+    }
   });
 
   it("reports a tagged AppTracer self-test error", async () => {

@@ -1,10 +1,11 @@
 "use client";
 
+import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
+
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import {
   Button,
-  CircularProgress,
   Link as MuiLink,
   SwipeableDrawer,
   Typography,
@@ -134,7 +135,7 @@ export function PaidArticleDrawer({
             onClick={handlePay}
             startIcon={
               payLoading || csrfLoading ? (
-                <CircularProgress size={20} color="inherit" />
+                <LoadingMascot pixelSize={20} />
               ) : null
             }
           >

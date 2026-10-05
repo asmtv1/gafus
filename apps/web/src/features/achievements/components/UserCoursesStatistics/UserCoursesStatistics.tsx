@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import Link from "next/link";
@@ -126,10 +128,7 @@ export default function UserCoursesStatistics() {
 
   if (isLoading) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.loadingSpinner}></div>
-        <p>Загрузка статистики курсов...</p>
-      </div>
+      <LoadingState message="Загрузка статистики курсов…" />
     );
   }
 

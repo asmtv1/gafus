@@ -13,6 +13,9 @@ export interface UpdateProfileData {
   birthDate?: string;
 }
 
+/** PUT /user/profile returns profile fields, not the account. */
+export type UpdatedUserProfile = NonNullable<User["profile"]> & { userId: string };
+
 /** Курс в публичном профиле кинолога */
 export interface PublicProfileCourse {
   id: string;
@@ -72,8 +75,8 @@ export const userApi = {
   /**
    * Обновить профиль
    */
-  updateProfile: async (data: UpdateProfileData): Promise<ApiResponse<User>> => {
-    return apiClient<User>("/api/v1/user/profile", {
+  updateProfile: async (data: UpdateProfileData): Promise<ApiResponse<UpdatedUserProfile>> => {
+    return apiClient<UpdatedUserProfile>("/api/v1/user/profile", {
       method: "PUT",
       body: data,
     });

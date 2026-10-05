@@ -1,4 +1,6 @@
 "use client";
+
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { reportClientError } from "@gafus/error-handling";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -225,7 +227,7 @@ export default function PrivateProfileSection({ user }: PrivateProfileSectionPro
             ))}
         </div>
 
-        {loading ? <p className={styles.subscriptionText}>Загрузка подписки...</p> : null}
+        {loading ? <LoadingState variant="inline" size="small" message="Загрузка подписки…" /> : null}
         {error ? <p className={styles.errorText}>{error}</p> : null}
 
         {!loading && !error && status ? (

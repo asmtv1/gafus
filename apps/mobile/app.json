@@ -14,12 +14,12 @@
     },
     "icon": "./assets/images/icon512.png",
     "splash": {
-      "image": "./assets/images/notification-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#dad3c1"
+      "image": "./assets/images/startup-splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#B5E5EB"
     },
     "androidStatusBar": {
-      "backgroundColor": "#DAD3C1",
+      "backgroundColor": "#B5E5EB",
       "translucent": false
     },
     "ios": {
@@ -40,6 +40,9 @@
       }
     },
     "android": {
+      "splash": {
+        "backgroundColor": "#B5E5EB"
+      },
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon-foreground.png",
@@ -81,6 +84,22 @@
       "icon": "./assets/images/notification-icon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#B5E5EB",
+          "ios": {
+            "image": "./assets/images/startup-splash.png",
+            "resizeMode": "cover",
+            "enableFullScreenImage_legacy": true
+          },
+          "android": {
+            "drawable": {
+              "icon": "./assets/splash/transparent-icon.xml"
+            }
+          }
+        }
+      ],
       [
         "expo-build-properties",
         {

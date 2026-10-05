@@ -64,6 +64,7 @@ vi.mock("./resetAll", () => ({
 }));
 
 import { useAuthStore } from "./authStore";
+import type { UpdatedUserProfile } from "@/shared/lib/api/user";
 
 const persistedUser = {
   id: "user-1",
@@ -72,6 +73,39 @@ const persistedUser = {
   email: "offline@example.com",
   role: "USER" as const,
 };
+
+describe("authStore profile update", () => {
+  const profile: UpdatedUserProfile = {
+    userId: persistedUser.id,
+    fullName: "Новое имя",
+    about: "О себе",
+    telegram: null,
+    instagram: null,
+    website: null,
+    birthDate: null,
+    avatarUrl: "/avatar.webp",
+  };
+
+  it("updates profile fields while preserving account identity and flags", () => {
+    const user = { ...persistedUser, hasAppPassword: true, hasVkLinked: true };
+    useAuthStore.setState({ user });
+
+    useAuthStore.getState().setUserProfile(profile);
+
+    expect(useAuthStore.getState().user).toEqual({ ...user, profile });
+  });
+
+  it("ignores a profile response after logout or a switch to another account", () => {
+    useAuthStore.setState({ user: null });
+    useAuthStore.getState().setUserProfile(profile);
+    expect(useAuthStore.getState().user).toBeNull();
+
+    const otherUser = { ...persistedUser, id: "other-user" };
+    useAuthStore.setState({ user: otherUser });
+    useAuthStore.getState().setUserProfile(profile);
+    expect(useAuthStore.getState().user).toEqual(otherUser);
+  });
+});
 
 describe("authStore checkAuth", () => {
   beforeEach(async () => {

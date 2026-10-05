@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useUserData } from "@shared/stores";
 
 export default function UserProfile() {
@@ -15,9 +17,7 @@ export default function UserProfile() {
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center">
-        <p>Загрузка профиля...</p>
-      </div>
+      <LoadingState message="Загрузка профиля…" />
     );
   }
 

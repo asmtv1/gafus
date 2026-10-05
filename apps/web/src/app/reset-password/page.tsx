@@ -1,3 +1,4 @@
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import Image from "next/image";
 import { Suspense } from "react";
 import { generatePageMetadata } from "@gafus/metadata";
@@ -67,7 +68,7 @@ export default function ResetPasswordPage({
       <p className={styles.subtitle}>
         Откройте последнее письмо со ссылкой или вставьте токен из него и задайте новый пароль.
       </p>
-      <Suspense fallback={<p className={styles.subtitle}>Загрузка...</p>}>
+      <Suspense fallback={<LoadingState variant="inline" size="small" message="Загрузка формы…" />}>
         <ResetPasswordWithToken searchParams={searchParams} />
       </Suspense>
       <Image

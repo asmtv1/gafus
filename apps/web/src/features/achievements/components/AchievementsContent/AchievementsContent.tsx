@@ -1,11 +1,12 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { PrimaryButtonLink } from "@/shared/components/ui";
 import {
   useAchievementsFromStores,
   useAchievementsByCategoryFromStores,
 } from "@shared/hooks/useAchievementsFromStores";
-import { AchievementsSkeleton } from "@shared/components/ui/AchievementsSkeleton";
 import { AchievementsError } from "@shared/components/ui/AchievementsError";
 import UserCoursesStatistics from "../UserCoursesStatistics";
 
@@ -21,7 +22,7 @@ export function AchievementsContent() {
 
   // Состояние загрузки
   if (isLoading) {
-    return <AchievementsSkeleton />;
+    return <LoadingState message="Загрузка достижений…" />;
   }
 
   // Состояние ошибки

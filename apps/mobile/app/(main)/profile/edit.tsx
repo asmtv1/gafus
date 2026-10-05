@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -58,7 +58,24 @@ function mapProfileToForm(profile: {
 export default function EditProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const setUser = useAuthStore((s) => s.setUser);
+  const setUserProfile = useAuthStore((s) => s.setUserProfile);
+  const backTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const returnToProfile = useCallback(() => {
+    if (backTimer.current !== null) {
+      clearTimeout(backTimer.current);
+      backTimer.current = null;
+    }
+    if (router.canGoBack()) router.back();
+    else router.replace("/(main)/(tabs)/profile");
+  }, [router]);
+
+  useEffect(
+    () => () => {
+      if (backTimer.current !== null) clearTimeout(backTimer.current);
+    },
+    [],
+  );
 
   const [form, setForm] = useState<UpdateProfileData>({
     fullName: "",
@@ -94,11 +111,12 @@ export default function EditProfileScreen() {
     mutationFn: userApi.updateProfile,
     onSuccess: (result) => {
       if (result.success && result.data) {
-        setUser(result.data);
+        setUserProfile(result.data);
         queryClient.invalidateQueries({ queryKey: ["user-profile"] });
         void hapticFeedback.success();
         setSnackbar({ visible: true, message: "Профиль обновлён" });
-        setTimeout(() => router.back(), 1000);
+        if (backTimer.current !== null) clearTimeout(backTimer.current);
+        backTimer.current = setTimeout(returnToProfile, 1000);
       } else {
         setSnackbar({ visible: true, message: result.error || "Ошибка сохранения" });
       }
@@ -144,7 +162,7 @@ export default function EditProfileScreen() {
 
   const handleBack = () => {
     void hapticFeedback.light();
-    router.back();
+    returnToProfile();
   };
 
   return (

@@ -1,4 +1,6 @@
 "use client";
+
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { ProfileIcon } from "../ProfileIcon";
 
 import { reportClientError } from "@gafus/error-handling";
@@ -210,10 +212,7 @@ export default function TrainingReminders() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>Загрузка напоминаний...</p>
-        </div>
+        <LoadingState variant="inline" message="Загрузка напоминаний…" />
       </div>
     );
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { CookieConsentBanner } from "@gafus/ui-components";
 import { CSRFProvider } from "@gafus/csrf";
 import AnalyticsProvider from "@shared/components/analytics/AnalyticsProvider";
@@ -41,7 +43,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             aria-busy="true"
             aria-label="Загрузка"
           >
-            <div className={styles.spinner} aria-hidden="true" />
+            <LoadingState />
           </div>
         )}
 

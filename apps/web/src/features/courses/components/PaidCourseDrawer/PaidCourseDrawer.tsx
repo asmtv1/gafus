@@ -1,11 +1,12 @@
 "use client";
 
+import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
+
 import { trackEvent } from "@gafus/analytics";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import {
   Button,
-  CircularProgress,
   Link as MuiLink,
   SwipeableDrawer,
   Typography,
@@ -145,7 +146,7 @@ export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDr
             fullWidth
             disabled={payLoading || csrfLoading}
             onClick={handlePay}
-            startIcon={payLoading || csrfLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            startIcon={payLoading || csrfLoading ? <LoadingMascot pixelSize={20} /> : null}
           >
             {payLoading || csrfLoading ? "Загрузка..." : "Оплатить/Начать курс"}
           </Button>

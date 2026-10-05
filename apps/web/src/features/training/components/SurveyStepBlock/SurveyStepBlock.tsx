@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCSRFStore } from "@gafus/csrf";
 import {
@@ -176,7 +178,7 @@ export function SurveyStepBlock({
   if (isLoading) {
     return (
       <div className={styles.stepInfo}>
-        <div className={styles.cardSection}>Загрузка анкеты...</div>
+        <LoadingState message="Загрузка анкеты…" />
       </div>
     );
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { trackEvent } from "@gafus/analytics";
 import { memo, useCallback, useEffect, type MouseEvent } from "react";
 import Link from "next/link";
@@ -191,9 +193,7 @@ const TrainingDayList = memo(function TrainingDayList({
 
   if (displayLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-gray-600">Загрузка дней тренировок...</div>
-      </div>
+      <LoadingState message="Загрузка дней тренировок…" />
     );
   }
 

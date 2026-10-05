@@ -1,24 +1,32 @@
-import Image from "next/image";
+import { LoadingMascot } from "./LoadingMascot";
 import styles from "./LoadingState.module.css";
-export function LoadingState({ message = "Загрузка…" }: { message?: string }) {
+
+interface LoadingStateProps {
+  message?: string;
+  size?: "small" | "large";
+  variant?: "card" | "inline";
+  className?: string;
+}
+
+/** Common web loading state, matching the mobile card and inline variants. */
+export function LoadingState({
+  message = "Загрузка…",
+  size = "large",
+  variant = "card",
+  className,
+}: LoadingStateProps) {
+  const inline = variant === "inline";
+  const pixelSize = inline ? (size === "small" ? 32 : 56) : size === "small" ? 112 : 168;
   return (
-    <div className={styles.container} role="status">
-      <Image
-        src="/images/loading-mascot-router.webp"
-        alt=""
-        width={120}
-        height={120}
-        unoptimized
-        className={styles.animated}
-      />
-      <Image
-        src="/images/loading-mascot-router-poster.webp"
-        alt=""
-        width={120}
-        height={120}
-        className={styles.poster}
-      />
-      <p>{message}</p>
+    <div
+      className={[styles.container, inline && styles.inline, className].filter(Boolean).join(" ")}
+      role="status"
+      aria-live="polite"
+    >
+      <div className={inline ? styles.inlineContent : styles.card}>
+        <LoadingMascot pixelSize={pixelSize} />
+        <p className={styles.message}>{message}</p>
+      </div>
     </div>
   );
 }

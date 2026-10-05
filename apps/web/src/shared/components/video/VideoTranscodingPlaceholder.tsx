@@ -1,6 +1,8 @@
 "use client";
 
-import { Box, CircularProgress, Typography, LinearProgress } from "@mui/material";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
+import { Box, Typography, LinearProgress } from "@mui/material";
 import { Videocam as VideocamIcon } from "@mui/icons-material";
 
 interface VideoTranscodingPlaceholderProps {
@@ -57,11 +59,10 @@ export function VideoTranscodingPlaceholder({ status, error }: VideoTranscodingP
         textAlign: "center",
       }}
     >
-      <CircularProgress size={60} sx={{ mb: 3 }} />
-
-      <Typography variant="h6" gutterBottom>
-        {status === "PENDING" ? "Видео в очереди на обработку" : "Обработка видео"}
-      </Typography>
+      <LoadingState
+        size="small"
+        message={status === "PENDING" ? "Видео в очереди на обработку" : "Обработка видео"}
+      />
 
       <Typography variant="body2" color="text.secondary" gutterBottom>
         Это может занять несколько минут

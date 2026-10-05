@@ -1,4 +1,6 @@
 "use client";
+
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { useState } from "react";
 import type { CommunityModerationDto } from "@gafus/consultation-shared";
 import { chatApi } from "./api";
@@ -62,7 +64,7 @@ export default function CommunityModeration() {
       {open && (
         <>
           {error && <p role="alert">{error}</p>}
-          {busy && <p role="status">Загрузка…</p>}
+          {busy && <LoadingState variant="inline" size="small" />}
           {confirm ? (
             <div className={styles.rules}>
               <p>{confirm.label}</p>

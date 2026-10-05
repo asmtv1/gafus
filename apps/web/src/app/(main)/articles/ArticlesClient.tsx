@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { memo, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,7 +18,6 @@ import { reportClientError } from "@gafus/error-handling";
 
 import { getCDNUrl } from "@gafus/cdn-upload";
 import type { ArticleListDto } from "@gafus/types";
-import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 
 import styles from "./articles.module.css";
 
@@ -158,7 +159,7 @@ export default function ArticlesClient({
   }
 
   if (articles.length === 0 && !initialArticles) {
-    return <CoursesSkeleton />;
+    return <LoadingState message="Загрузка статей…" />;
   }
 
   return (

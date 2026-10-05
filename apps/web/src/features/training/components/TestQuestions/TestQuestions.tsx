@@ -1,5 +1,8 @@
 "use client";
 
+import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useState, useEffect } from "react";
 import {
   Button,
@@ -11,7 +14,6 @@ import {
   RadioGroup,
   Typography,
   Alert,
-  CircularProgress,
 } from "@mui/material";
 import { reportClientError } from "@gafus/error-handling";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
@@ -129,12 +131,7 @@ export function TestQuestions({
   // Показываем индикатор загрузки
   if (isLoading) {
     return (
-      <div style={{ padding: "16px", textAlign: "center" }}>
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          Загрузка данных...
-        </Typography>
-      </div>
+      <LoadingState message="Загрузка данных…" />
     );
   }
 
@@ -249,7 +246,9 @@ export function TestQuestions({
           >
             {isSubmitting ? (
               <>
-                <CircularProgress size={20} sx={{ mr: 1 }} />
+                <span style={{ display: "inline-flex", marginRight: 8 }}>
+                  <LoadingMascot pixelSize={20} />
+                </span>
                 Сохранение...
               </>
             ) : (

@@ -1,3 +1,4 @@
+import { LoadingState } from "@/shared/components/ui/LoadingState";
 import Image from "next/image";
 import { Suspense } from "react";
 import { generatePageMetadata } from "@gafus/metadata";
@@ -49,7 +50,7 @@ export default function PasswordResetPage() {
         Укажите email аккаунта. Если запросите новое письмо, ссылка из предыдущего перестанет
         работать.
       </p>
-      <Suspense fallback={<p>Загрузка...</p>}>
+      <Suspense fallback={<LoadingState variant="inline" size="small" message="Загрузка формы…" />}>
         <PasswordResetForm />
       </Suspense>
       <Image

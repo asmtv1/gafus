@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useCSRFStore } from "@gafus/csrf";
@@ -136,7 +138,7 @@ export default function PartnerDashboard() {
           Приглашайте новых учеников и получайте вознаграждение за их оплаченные подписки.
         </p>
 
-        {loading ? <p className={styles.info}>Загрузка кабинета...</p> : null}
+        {loading ? <LoadingState variant="inline" size="small" message="Загрузка кабинета…" /> : null}
         {error ? <p className={styles.error}>{error}</p> : null}
 
         {dashboard ? (

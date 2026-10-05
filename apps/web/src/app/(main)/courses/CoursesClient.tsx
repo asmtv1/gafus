@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -11,7 +13,6 @@ import type { TodayDailyCourseResponse } from "@gafus/core/services/dailyCourse"
 import { DAILY_COURSE_LOGO } from "@gafus/metadata";
 import type { CourseWithProgressData } from "@gafus/types";
 
-import { CoursesSkeleton } from "@shared/components/ui/Skeleton";
 import { SyncStatusIndicator } from "@shared/components/ui/SyncStatusIndicator";
 import { useCourseProgressSync } from "@shared/hooks/useCourseProgressSync";
 import { useCourseStoreActions } from "@shared/stores";
@@ -272,7 +273,7 @@ export default function CoursesClient({
 
   // Показываем скелетон во время загрузки
   if (loading.all) {
-    return <CoursesSkeleton />;
+    return <LoadingState message="Загрузка курсов…" />;
   }
 
   // Показываем ошибку если есть (серверная или клиентская)

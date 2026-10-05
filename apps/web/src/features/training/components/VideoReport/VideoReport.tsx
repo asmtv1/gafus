@@ -1,7 +1,10 @@
 "use client";
 
+import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
+import { LoadingState } from "@/shared/components/ui/LoadingState";
+
 import { useState, useRef, useEffect } from "react";
-import { Button, Card, CardContent, Typography, Alert, Box, CircularProgress } from "@mui/material";
+import { Button, Card, CardContent, Typography, Alert, Box } from "@mui/material";
 import { VideoCameraFront, Stop, CloudUpload, CloudDone } from "@mui/icons-material";
 import { reportClientError } from "@gafus/error-handling";
 import { submitExamResult } from "@/shared/lib/actions/submitExamResult";
@@ -346,12 +349,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
   // Показываем индикатор загрузки
   if (isLoading) {
     return (
-      <div style={{ padding: "16px", textAlign: "center" }}>
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          Загрузка данных...
-        </Typography>
-      </div>
+      <LoadingState message="Загрузка данных…" />
     );
   }
 
@@ -566,7 +564,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
                 <Button
                   variant="contained"
                   startIcon={
-                    isSubmitting ? <CircularProgress size={20} color="inherit" /> : <CloudUpload />
+                    isSubmitting ? <LoadingMascot pixelSize={20} /> : <CloudUpload />
                   }
                   onClick={handleSubmit}
                   disabled={isSubmitting || videoSize > 50 * 1024 * 1024}

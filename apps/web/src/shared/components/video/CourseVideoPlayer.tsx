@@ -1,11 +1,12 @@
 "use client";
 
+import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
+
 import { useCallback, useEffect, useRef } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
 import { getSafeVideoResumePosition } from "@gafus/core/utils";
 import type HlsType from "hls.js";
-import { CircularProgress } from "@shared/utils/muiImports";
 import { PlayArrowIcon } from "@shared/utils/muiImports";
 
 import styles from "./CourseVideoPlayer.module.css";
@@ -299,7 +300,7 @@ export function CourseVideoPlayer({
           {showPlayButton ? (
             <PlayArrowIcon className={styles.playIcon} />
           ) : (
-            <CircularProgress className={styles.loadingIcon} size={32} />
+            <LoadingMascot pixelSize={32} />
           )}
         </button>
       )}
