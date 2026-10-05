@@ -57,6 +57,12 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             Партнёрская программа
           </Link>
         )}
+        {session.user.role === "ADMIN" && (
+          <Link href="/main-panel/profit" className={styles.button}>
+            <TrendingUp sx={{ mr: 1.5, fontSize: 20 }} />
+            Чистая прибыль
+          </Link>
+        )}
         <Link href="/main-panel/feature-flags" className={styles.button}>
           <Flag sx={{ mr: 1.5, fontSize: 20 }} />
           Мобильный релиз

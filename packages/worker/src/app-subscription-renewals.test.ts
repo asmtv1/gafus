@@ -320,7 +320,9 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
           id: "yk-succeeded",
           status: "succeeded",
           amount: { value: "2500.00", currency: "RUB" },
-          payment_method: { id: "pm-1" },
+          income_amount: { value: "2400.00", currency: "RUB" },
+          captured_at: "2026-06-01T10:00:00.000Z",
+          payment_method: { id: "pm-1", type: "bank_card" },
         }),
       }),
     );
@@ -332,6 +334,16 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
     )?.[0];
     expect(succeededUpdate?.data).not.toHaveProperty("amount");
     expect(succeededUpdate?.data).not.toHaveProperty("originalAmount");
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "pay-succeeded" },
+        data: expect.objectContaining({
+          providerIncomeAmount: "2400.00",
+          providerPaymentMethodType: "bank_card",
+          providerCapturedAt: new Date("2026-06-01T10:00:00.000Z"),
+        }),
+      }),
+    );
   });
 
   it("does not activate a renewal when YooKassa returns another amount", async () => {

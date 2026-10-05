@@ -2631,6 +2631,42 @@ describe("app subscription payment service", () => {
     );
   });
 
+  it("enriches an already succeeded payment without repeating subscription or partner writes", async () => {
+    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    mockPaymentFindUnique.mockResolvedValue({
+      id: "local-pay-1", userId: "user-1", status: "SUCCEEDED", amount: 200, currency: "RUB",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "yk-pay-1", status: "succeeded", paid: true,
+      amount: { value: "200.00", currency: "RUB" },
+      income_amount: { value: "190.00", currency: "RUB" },
+      captured_at: "2026-09-18T00:00:00Z", payment_method: { type: "sbp" },
+      metadata: { kind: "app_subscription", localPaymentId: "local-pay-1", userId: "user-1" },
+    }))));
+    await handleYookassaAppSubscriptionWebhook({ event: "payment.succeeded", yookassaPaymentId: "yk-pay-1",
+      metadata: { kind: "app_subscription", localPaymentId: "local-pay-1", userId: "user-1" } });
+    expect(mockPaymentUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ providerIncomeAmount: "190.00", providerPaymentMethodType: "sbp" }),
+    }));
+    expect(mockCommissionCreate).not.toHaveBeenCalled();
+    expect(mockSubscriptionCreate).not.toHaveBeenCalled();
+    expect(mockPaymentUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects enrichment from another provider payment even when its amount matches", async () => {
+    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    mockPaymentFindUnique.mockResolvedValue({
+      id: "local-pay-1", userId: "user-1", status: "SUCCEEDED", amount: 200, currency: "RUB",
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "yk-pay-1", status: "succeeded", paid: true, amount: { value: "200.00", currency: "RUB" },
+      metadata: { kind: "app_subscription", localPaymentId: "other-payment", userId: "user-1" },
+    }))));
+    await expect(handleYookassaAppSubscriptionWebhook({ event: "payment.succeeded", yookassaPaymentId: "yk-pay-1",
+      metadata: { kind: "app_subscription", localPaymentId: "local-pay-1", userId: "user-1" } })).rejects.toThrow("localPaymentId mismatch");
+    expect(mockPaymentUpdate).not.toHaveBeenCalled();
+  });
+
   it("rejects Apple transaction when appAccountToken belongs to another user", async () => {
     const { verifyAppleAppSubscription } = await import("../paymentService");
     verifyAndDecodeTransaction.mockResolvedValue({

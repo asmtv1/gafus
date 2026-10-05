@@ -1,3 +1,4 @@
+import { enrichPaymentFinance, recordFinanceRefund } from "./paymentFinanceService";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
@@ -243,6 +244,8 @@ type YooKassaPaymentObject = {
   paid?: boolean;
   amount?: { value?: string; currency?: string };
   metadata?: Record<string, string | undefined>;
+  income_amount?: { value?: string; currency?: string };
+  captured_at?: string;
   payment_method?: {
     id?: string;
     type?: string;
@@ -252,6 +255,7 @@ type YooKassaPaymentObject = {
 };
 
 type YooKassaRefundObject = {
+  created_at?: string;
   id?: string;
   status?: string;
   payment_id?: string;
@@ -2476,6 +2480,13 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     // webhook branch. This is not a decision based on the incoming payload.
     if (!payment) return { userId: null };
     assertYookassaPaymentConfirmed({ providerPayment, localPayment: payment, yookassaPaymentId: refund.payment_id });
+    await enrichPaymentFinance(payment.id, providerPayment, { ...payment, yookassaPaymentId: providerPayment.id! });
+    try {
+      await prisma.$transaction((tx) => recordFinanceRefund(tx, payment, refund));
+    } catch {
+      await prisma.appSubscriptionPayment.update({ where: { id: payment.id }, data: { financeRefundsIncomplete: true } });
+      logger.warn("Refund finance requires reconciliation", { paymentId: payment.id });
+    }
     const fullRefund = amountsEqual(refund.amount?.value, payment.amount) && refund.amount?.currency === payment.currency;
     if (!fullRefund) {
       logger.warn("Partial app-subscription refund does not cancel NPD receipt", {
@@ -2559,6 +2570,15 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
     return { userId: null };
   }
   if (payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
+    if (params.event === "payment.succeeded") {
+      const confirmed = await fetchYookassaPaymentObject({
+        yookassaPaymentId: params.yookassaPaymentId, shopId: params.shopId, secretKey: params.secretKey,
+      });
+      assertYookassaPaymentConfirmed({
+        providerPayment: confirmed, localPayment: payment, yookassaPaymentId: params.yookassaPaymentId,
+      });
+      await enrichPaymentFinance(payment.id, confirmed, { ...payment, yookassaPaymentId: params.yookassaPaymentId });
+    }
     if (eventId) {
       await prisma.appSubscriptionEvent
         .update({
@@ -2582,6 +2602,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
         localPayment: payment,
         yookassaPaymentId: params.yookassaPaymentId,
       });
+      await enrichPaymentFinance(payment.id, providerPayment, { ...payment, yookassaPaymentId: providerPayment.id! });
       const providerPaymentMethodId = providerPayment.payment_method?.id ?? params.paymentMethodId;
       const providerPaymentMethodLast4 =
         providerPayment.payment_method?.card?.last4 ?? params.paymentMethodLast4;
@@ -2637,6 +2658,7 @@ export async function handleYookassaAppSubscriptionWebhook(params: {
             periodStart,
             periodEnd,
             succeededAt: now,
+            financeRefundsIncomplete: false,
           },
         });
         if (claimed.count !== 1) return;

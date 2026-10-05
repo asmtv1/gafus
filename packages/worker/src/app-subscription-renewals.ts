@@ -8,7 +8,7 @@ import {
   incrementRenewalFailedTotal,
 } from "./app-subscription-metrics";
 import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
-import { ensureNpdReceiptForSucceededPayment, recordPartnerCommissionForPayment } from "@gafus/core/services/appSubscription";
+import { enrichPaymentFinance, ensureNpdReceiptForSucceededPayment, recordPartnerCommissionForPayment } from "@gafus/core/services/appSubscription";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
@@ -417,7 +417,9 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
           id?: string;
           status?: string;
           amount?: { value?: string; currency?: string };
-          payment_method?: { id?: string };
+          payment_method?: { id?: string; type?: string };
+          income_amount?: { value?: string; currency?: string };
+          captured_at?: string;
         };
         if (!data.id) {
           await (prisma as any).appSubscriptionPayment.update({
@@ -468,6 +470,11 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             skipped += 1;
             continue;
           }
+          await enrichPaymentFinance(payment.id, data, {
+            yookassaPaymentId: data.id,
+            amount: amountRub,
+            currency,
+          });
           await (prisma as any).$transaction(async (tx: any) => {
             const claimed = await tx.appSubscriptionPayment.updateMany({
               where: { id: payment.id, status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
@@ -479,6 +486,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
                 periodStart,
                 periodEnd,
                 succeededAt: new Date(),
+                financeRefundsIncomplete: false,
               },
             });
             if (claimed.count !== 1) return;

@@ -56,6 +56,7 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       label: "Партнёрская программа",
       show: userRole === "ADMIN",
     },
+    { href: "/main-panel/profit", icon: TrendingUp, label: "Чистая прибыль", show: userRole === "ADMIN" },
     {
       href: "/main-panel/feature-flags",
       icon: Flag,
