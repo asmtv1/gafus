@@ -184,7 +184,7 @@ async function requireModerator(userId: string) {
   return user;
 }
 export async function communityModerationOverview(userId: string, cursor?: string) {
-  await requireModerator(userId);
+  const moderator = await requireModerator(userId);
   const before = cursor
     ? z
         .string()
@@ -201,12 +201,30 @@ export async function communityModerationOverview(userId: string, cursor?: strin
       exclude_expired_bans: true,
     }),
   ]);
+  const targetIds = [
+    ...new Set(
+      (room.messages ?? []).flatMap((m) =>
+        m.user?.id.startsWith("gafus-") ? [m.user.id.slice(6)] : [],
+      ),
+    ),
+  ];
+  const targets = await prisma.user.findMany({
+    where: { id: { in: targetIds } },
+    select: { id: true, username: true, role: true },
+  });
+  const canBan = new Map(
+    targets.map((target) => [
+      `gafus-${target.id}`,
+      target.id !== moderator.id && !isCommunityModerator(target),
+    ]),
+  );
   const messages = (room.messages ?? [])
     .filter((m) => !m.deleted_at)
     .map((m) => ({
       id: m.id,
       userId: m.user?.id ?? "",
       username: m.user?.name ?? m.user?.id ?? "Участник",
+      canBan: canBan.get(m.user?.id ?? "") ?? false,
       text: m.text || "Фото или видео",
       createdAt: m.created_at,
     }));

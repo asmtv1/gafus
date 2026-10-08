@@ -150,3 +150,8 @@ apps/mobile/build-*.tar.gz
 
 # Local production Stream credentials
 /.env.stream-chat-prod
+
+# Local Playwright/QA artifacts (never ship screenshots, browser dumps or reports)
+/.playwright-cli/
+/output/navigation-more/
+/output/playwright/gallery/

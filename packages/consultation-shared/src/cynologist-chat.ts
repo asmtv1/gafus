@@ -4,6 +4,9 @@ export const CHAT_LIMITS = {
   videoBytes: 100 * 1024 * 1024,
   videoSeconds: 120,
   textLength: 5000,
+  attachmentsPerMessage: 5,
+  editWindowMs: 15 * 60 * 1000,
+  deleteWindowMs: 24 * 60 * 60 * 1000,
 } as const;
 export const CHAT_REPLY_COPY = "Ответ в течение суток";
 export const CHAT_HOURS_COPY = "Кинолог отвечает с 14:00 до 20:00 МСК. Выходной — понедельник.";
@@ -41,6 +44,7 @@ export interface CommunityModerationDto {
     id: string;
     userId: string;
     username: string;
+    canBan: boolean;
     text: string;
     createdAt?: string | Date;
   }[];
@@ -88,3 +92,41 @@ export const CHAT_ROLE_LABELS: Record<ChatDisplayRole, string> = {
   trainer: "Кинолог",
   subscriber: "Подписчик",
 };
+
+export const CHAT_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const CHAT_VIDEO_MIME_TYPES = ["video/mp4", "video/quicktime"] as const;
+export const CHAT_ATTACHMENT_ACCEPT = [...CHAT_IMAGE_MIME_TYPES, ...CHAT_VIDEO_MIME_TYPES].join(
+  ",",
+);
+export function chatAttachmentKind(mime: string): "image" | "video" | null {
+  if (CHAT_IMAGE_MIME_TYPES.some((type) => type === mime)) return "image";
+  if (CHAT_VIDEO_MIME_TYPES.some((type) => type === mime)) return "video";
+  return null;
+}
+
+/** Domain policy shared by server enforcement and client action visibility. */
+export function ownChatMessageActions(
+  message: {
+    id: string;
+    authorId?: string;
+    type?: string;
+    deletedAt?: string | Date | null;
+    createdAt?: string | Date | null;
+  },
+  actorId: string,
+  now = Date.now(),
+) {
+  const age = now - new Date(message.createdAt ?? "").getTime();
+  const own =
+    message.authorId === actorId &&
+    !message.id.startsWith("intake-") &&
+    !message.deletedAt &&
+    message.type !== "deleted" &&
+    message.type !== "system" &&
+    Number.isFinite(age) &&
+    age >= 0;
+  return {
+    canEdit: own && age < CHAT_LIMITS.editWindowMs,
+    canDelete: own && age < CHAT_LIMITS.deleteWindowMs,
+  };
+}

@@ -13,8 +13,8 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/questions": ["../../packages/core/src/services/questions/index.ts"],
       "@gafus/core/services/cynologistChat": ["../../packages/core/src/services/cynologistChat/index.ts"],
-      "@gafus/core/services/cynologistChat/http": ["../../packages/core/src/services/cynologistChat/http.ts"],
       "@gafus/core/services/consent": ["../../packages/core/src/services/consent"],
       "@gafus/core/services/appSubscription": ["../../packages/core/src/services/appSubscription/index.ts"],
       "@gafus/core/services/consultation": ["../../packages/core/src/services/consultation/index.ts"],

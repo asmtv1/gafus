@@ -48,6 +48,8 @@ import {
   CHAT_ROLE_LABELS,
   CHAT_REPLY_COPY,
   CHAT_HOURS_COPY,
+  CHAT_LIMITS,
+  ownChatMessageActions,
 } from "@gafus/consultation-shared";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { Button } from "@/shared/components/ui/Button";
@@ -59,8 +61,10 @@ import { chatApi, uploadChatFile } from "@/shared/lib/api/cynologistChat";
 const chatI18n = new Streami18n({
   language: "ru",
   translationsForLanguage: {
-    "timestamp/InlineDateSeparator": '{{ timestamp | timestampFormatter(calendar: false; format: D MMMM YYYY) }}',
-    "timestamp/StickyHeader": '{{ timestamp | timestampFormatter(calendar: false; format: D MMMM YYYY) }}',
+    "timestamp/InlineDateSeparator":
+      "{{ timestamp | timestampFormatter(calendar: false; format: D MMMM YYYY) }}",
+    "timestamp/StickyHeader":
+      "{{ timestamp | timestampFormatter(calendar: false; format: D MMMM YYYY) }}",
   },
 });
 
@@ -304,7 +308,7 @@ export function Connected({
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images", "videos"],
-        videoMaxDuration: 120,
+        videoMaxDuration: CHAT_LIMITS.videoSeconds,
         videoExportPreset: ImagePicker.VideoExportPreset.H264_1920x1080,
         preferredAssetRepresentationMode:
           ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
@@ -312,7 +316,7 @@ export function Connected({
       if (result.canceled) return;
       const asset = result.assets[0];
       const video = asset.type === "video";
-      if ((asset.fileSize ?? 0) > (video ? 100 : 10) * 1024 * 1024)
+      if ((asset.fileSize ?? 0) > (video ? CHAT_LIMITS.videoBytes : CHAT_LIMITS.imageBytes))
         throw new Error(video ? "Видео должно быть до 100 МБ" : "Фото должно быть до 10 МБ");
       const uri = video
         ? asset.uri
@@ -445,22 +449,21 @@ export function Connected({
                           },
                         ]
                       : [];
-                  const age = Date.now() - new Date(message.created_at ?? "").getTime();
-                  if (
-                    busy ||
-                    retry ||
-                    message.user?.id !== session.userId ||
-                    message.id.startsWith("intake-") ||
-                    message.type === "deleted" ||
-                    message.type === "system" ||
-                    !Number.isFinite(age) ||
-                    age < 0 ||
-                    age >= 86400000
-                  )
+                  const actions = ownChatMessageActions(
+                    {
+                      id: message.id,
+                      authorId: message.user?.id,
+                      type: message.type,
+                      deletedAt: message.deleted_at,
+                      createdAt: message.created_at,
+                    },
+                    session.userId,
+                  );
+                  if (busy || retry || (!actions.canEdit && !actions.canDelete))
                     return replyActions;
                   return [
                     ...replyActions,
-                    ...(age < 900000
+                    ...(actions.canEdit
                       ? [
                           {
                             ...editMessage,
@@ -481,27 +484,31 @@ export function Connected({
                           },
                         ]
                       : []),
-                    {
-                      ...deleteMessage,
-                      title: "Удалить у всех",
-                      action: () => {
-                        dismissOverlay();
-                        Alert.alert(
-                          "Удалить сообщение?",
-                          "Сообщение будет удалено у всех участников чата.",
-                          [
-                            { text: "Отмена", style: "cancel" },
-                            {
-                              text: "Удалить",
-                              style: "destructive",
-                              onPress: () => {
-                                void removeMessage(message.id);
-                              },
+                    ...(actions.canDelete
+                      ? [
+                          {
+                            ...deleteMessage,
+                            title: "Удалить у всех",
+                            action: () => {
+                              dismissOverlay();
+                              Alert.alert(
+                                "Удалить сообщение?",
+                                "Сообщение будет удалено у всех участников чата.",
+                                [
+                                  { text: "Отмена", style: "cancel" },
+                                  {
+                                    text: "Удалить",
+                                    style: "destructive",
+                                    onPress: () => {
+                                      void removeMessage(message.id);
+                                    },
+                                  },
+                                ],
+                              );
                             },
-                          ],
-                        );
-                      },
-                    },
+                          },
+                        ]
+                      : []),
                   ];
                 }}
               >
@@ -561,14 +568,26 @@ export function Connected({
                           accessibilityLabel="Прикрепить фото или видео"
                           accessibilityHint="Фото до 10 МБ, видео до 100 МБ и двух минут"
                           accessibilityState={{
-                            disabled: busy || retry || !!editingId || files.length >= 5,
+                            disabled:
+                              busy ||
+                              retry ||
+                              !!editingId ||
+                              files.length >= CHAT_LIMITS.attachmentsPerMessage,
                           }}
-                          disabled={busy || retry || !!editingId || files.length >= 5}
+                          disabled={
+                            busy ||
+                            retry ||
+                            !!editingId ||
+                            files.length >= CHAT_LIMITS.attachmentsPerMessage
+                          }
                           onPress={() => void pick()}
                           style={({ pressed }) => [
                             styles.attachmentButton,
                             pressed && styles.attachmentPressed,
-                            (busy || retry || !!editingId || files.length >= 5) &&
+                            (busy ||
+                              retry ||
+                              !!editingId ||
+                              files.length >= CHAT_LIMITS.attachmentsPerMessage) &&
                               styles.attachmentDisabled,
                           ]}
                         >
@@ -594,7 +613,7 @@ export function Connected({
                               Math.max(48, Math.ceil(nativeEvent.contentSize.height)),
                             )
                           }
-                          maxLength={5000}
+                          maxLength={CHAT_LIMITS.textLength}
                           value={text}
                           onChangeText={(value) => {
                             setText(value);

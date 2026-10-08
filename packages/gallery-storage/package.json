@@ -1,0 +1,49 @@
+{
+  "version": "1.7.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "name": "@gafus/gallery-storage",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./hmac": {
+      "types": "./dist/hmac.d.ts",
+      "default": "./dist/hmac.js"
+    },
+    "./cdn": {
+      "types": "./dist/cdn.d.ts",
+      "default": "./dist/cdn.js"
+    },
+    "./objects": {
+      "types": "./dist/objects.d.ts",
+      "default": "./dist/objects.js"
+    },
+    "./keys": {
+      "types": "./dist/keys.d.ts",
+      "default": "./dist/keys.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/core": "workspace:*",
+    "@aws-sdk/client-s3": "3.980.0",
+    "@aws-sdk/s3-presigned-post": "3.980.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "vitest": "4.0.18",
+    "esbuild": "0.27.2"
+  }
+}

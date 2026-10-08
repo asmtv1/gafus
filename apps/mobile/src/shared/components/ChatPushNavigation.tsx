@@ -7,7 +7,7 @@ import * as Linking from "expo-linking";
 
 function chatPath(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  return value === "/cynologist-chat" || /^\/cynologist-chats\/[\w-]{1,128}$/.test(value)
+  return /^\/questions\/[\w-]{1,128}$/.test(value) || value === "/cynologist-chat" || /^\/cynologist-chats\/[\w-]{1,128}$/.test(value)
     ? value
     : null;
 }
@@ -55,6 +55,11 @@ export function ChatPushNavigation() {
   }, []);
   useEffect(() => {
     if (!pending || !authenticated || loading || !nav?.key) return;
+    if (pending.startsWith("/questions/")) {
+      router.push(pending as Href);
+      setPending(null);
+      return;
+    }
     let alive = true;
     const chatId = pending.startsWith("/cynologist-chats/") ? pending.split("/")[2] : undefined;
     void chatApi<CynologistChatStateDto>("", { chatId })

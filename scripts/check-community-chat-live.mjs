@@ -111,12 +111,12 @@ try {
     bannedSender = e.code === "CHAT_BANNED";
   }
   check(bannedSender, "banned account cannot use server sending");
-  const { uploadChatAttachment } = await import(
-    "../packages/core/dist/core/src/services/cynologistChat/upload.js"
+  const { uploadChatAttachmentRequest } = await import(
+    "../packages/chat-server/dist/upload.js"
   );
   let bannedUpload = false;
   try {
-    await uploadChatAttachment(
+    await uploadChatAttachmentRequest(
       ids[0],
       new Request("http://localhost/upload", { method: "POST", body: "unused" }),
       undefined,

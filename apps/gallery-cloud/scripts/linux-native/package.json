@@ -1,0 +1,10 @@
+{
+  "name": "gallery-function-linux-native",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "sharp": "0.34.3",
+    "@img/sharp-linux-x64": "0.34.3",
+    "@img/sharp-libvips-linux-x64": "1.2.0"
+  }
+}

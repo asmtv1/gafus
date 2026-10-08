@@ -11,7 +11,7 @@ import {
   getChatSession,
   sendChatMessage,
 } from "../packages/core/dist/core/src/services/cynologistChat/service.js";
-import { uploadChatAttachment } from "../packages/core/dist/core/src/services/cynologistChat/upload.js";
+import { uploadChatAttachmentRequest } from "../packages/chat-server/dist/upload.js";
 import {
   streamServer,
   CHAT_CHANNEL_TYPE,
@@ -205,7 +205,7 @@ async function main() {
     async function upload(path, mime, name) {
       const form = new FormData();
       form.append("file", new Blob([await readFile(path)], { type: mime }), name);
-      return uploadChatAttachment(
+      return uploadChatAttachmentRequest(
         clientId,
         new Request("http://localhost/upload", { method: "POST", body: form }),
       );

@@ -1,5 +1,6 @@
 "use client";
 
+import { GalleryPreview } from "@/features/gallery";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useUserData } from "@shared/stores";
@@ -56,6 +57,7 @@ export default function UserProfile() {
           </div>
         </div>
       </div>
+      <GalleryPreview username={user.username} />
     </div>
   );
 }

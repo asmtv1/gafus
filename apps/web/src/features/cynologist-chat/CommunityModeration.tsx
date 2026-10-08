@@ -120,7 +120,7 @@ export default function CommunityModeration() {
                     >
                       Удалить сообщение
                     </button>
-                    {message.username !== "admin" && (
+                    {message.canBan && (
                       <button
                         disabled={busy}
                         onClick={() =>

@@ -1,0 +1,30 @@
+{
+  "name": "@gafus/questions-server",
+  "version": "1.7.0",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gafus/core": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17"
+  }
+}

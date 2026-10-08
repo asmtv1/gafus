@@ -1,0 +1,14 @@
+{
+  "environment": "dev",
+  "uploadId": "SERVER_REGISTRATION_ID",
+  "contentType": "image/png",
+  "sourceFile": "/absolute/path/to/test.png",
+  "post": {
+    "url": "https://storage.yandexcloud.net/DEDICATED_BUCKET",
+    "fields": { "key": "albums/OWNER/ALBUM/incoming/SERVER_REGISTRATION_ID/source.png", "Content-Type": "image/png", "policy": "FROM_CORE_PRESIGNED_POST", "x-amz-signature": "FROM_CORE_PRESIGNED_POST" }
+  },
+  "finalKeys": {
+    "thumb": "albums/OWNER/ALBUM/photos/PHOTO/thumb.webp",
+    "full": "albums/OWNER/ALBUM/photos/PHOTO/full.webp"
+  }
+}

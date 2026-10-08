@@ -286,6 +286,17 @@ model DailyCourseUserStep {
 }
 
 model User {
+  galleryAlbums GalleryAlbum[]
+  galleryPhotos GalleryPhoto[]
+  galleryUploads GalleryUpload[]
+  questions Question[]
+  questionAnswers QuestionAnswer[]
+  questionHearts QuestionHeart[]
+  questionViews QuestionView[]
+  questionPhotos QuestionPhoto[]
+  questionReports QuestionReport[]
+  questionBlock QuestionBlock?
+
   clientCynologistChat CynologistChat? @relation("ChatClient")
   trainerCynologistChats CynologistChat[] @relation("ChatTrainer")
   communityChatOperations CommunityChatSendOperation[]
@@ -2608,4 +2619,254 @@ model ProfitVideoExpenseRevision {
   snapshot Json
   createdAt DateTime @default(now())
   @@index([expenseId, createdAt])
+}
+
+// Community questions. All permissions and state transitions live in core.
+model Question {
+  id              String           @id @default(cuid())
+  authorId        String
+  clientRequestId String
+  title           String           @db.VarChar(150)
+  body            String           @db.Text
+  category        String
+  tags            String[]         @default([])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  editedAt        DateTime?
+  activityAt      DateTime         @default(now())
+  closedAt        DateTime?
+  deletedAt       DateTime?
+  hiddenAt        DateTime?
+  bestAnswerId    String?          @unique
+  author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  answers         QuestionAnswer[] @relation("QuestionAnswers")
+  bestAnswer      QuestionAnswer?  @relation("QuestionBestAnswer", fields: [bestAnswerId], references: [id], onDelete: SetNull)
+  photos          QuestionPhoto[]
+  views           QuestionView[]
+  reports         QuestionReport[]
+
+  @@unique([authorId, clientRequestId])
+  @@index([createdAt, id])
+  @@index([activityAt, id])
+  @@index([authorId, createdAt])
+  @@index([category, createdAt])
+}
+
+model QuestionAnswer {
+  id              String           @id @default(cuid())
+  questionId      String
+  authorId        String
+  clientRequestId String
+  body            String           @db.Text
+  parentId        String?
+  replyToId       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  hiddenAt        DateTime?
+  question        Question         @relation("QuestionAnswers", fields: [questionId], references: [id], onDelete: Cascade)
+  chosenIn        Question?        @relation("QuestionBestAnswer")
+  author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent          QuestionAnswer?  @relation("AnswerThread", fields: [parentId], references: [id], onDelete: SetNull)
+  children        QuestionAnswer[] @relation("AnswerThread")
+  replyTo         QuestionAnswer?  @relation("AnswerReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies         QuestionAnswer[] @relation("AnswerReply")
+  hearts          QuestionHeart[]
+  photos          QuestionPhoto[]
+  reports         QuestionReport[]
+
+  @@unique([authorId, clientRequestId])
+  @@index([questionId, parentId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([replyToId])
+}
+
+model QuestionHeart {
+  answerId  String
+  userId    String
+  createdAt DateTime       @default(now())
+  answer    QuestionAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([answerId, userId])
+  @@index([userId])
+}
+
+model QuestionView {
+  questionId String
+  userId     String
+  createdAt  DateTime @default(now())
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, userId])
+  @@index([userId])
+}
+
+model QuestionPhoto {
+  id          String          @id @default(cuid())
+  ownerId     String
+  url         String
+  storagePath String
+  questionId  String?
+  answerId    String?
+  createdAt   DateTime        @default(now())
+  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  question    Question?       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer      QuestionAnswer? @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@index([questionId])
+  @@index([answerId])
+}
+
+model QuestionReport {
+  id         String          @id @default(cuid())
+  reporterId String
+  questionId String
+  answerId   String?
+  targetKey  String
+  reason     String
+  details    String          @default("")
+  createdAt  DateTime        @default(now())
+  resolvedAt DateTime?
+  resolution String?
+  reporter   User            @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  question   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     QuestionAnswer? @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, targetKey])
+  @@index([resolvedAt, createdAt])
+  @@index([questionId])
+  @@index([answerId])
+}
+
+model QuestionBlock {
+  userId    String   @id
+  reason    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+// Gallery states use the same lowercase values as the shared DTOs.
+enum GalleryPhotoStatus {
+  pending
+  processing
+  ready
+  moving
+  failed
+}
+enum GalleryUploadStatus {
+  reserved
+  uploaded
+  processing
+  ready
+  failed
+  cancelled
+  expired
+}
+enum GalleryStorageJobKind {
+  publish
+  move
+  delete
+}
+enum GalleryStorageJobStatus {
+  pending
+  processing
+  done
+  failed
+  cancelled
+}
+model GalleryAlbum {
+  id String @id @default(cuid())
+  ownerId String
+  name String @db.VarChar(120)
+  description String? @db.VarChar(2000)
+  isVisible Boolean @default(true)
+  // Application validates same-album READY cover under the owner lock.
+  coverPhotoId String?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  photos GalleryPhoto[]
+  @@index([ownerId, deletedAt, createdAt, id])
+}
+model GalleryPhoto {
+  id String @id @default(cuid())
+  ownerId String
+  albumId String
+  caption String? @db.VarChar(2000)
+  status GalleryPhotoStatus @default(pending)
+  thumbKey String?
+  fullKey String?
+  width Int?
+  height Int?
+  reservationExpiresAt DateTime
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  album GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  upload GalleryUpload?
+  @@index([ownerId, deletedAt, status, reservationExpiresAt])
+  @@index([albumId, deletedAt, createdAt, id])
+}
+model GalleryUpload {
+  id String @id @default(cuid())
+  ownerId String
+  photoId String @unique
+  clientRequestId String @db.VarChar(36)
+  requestFingerprint String
+  // A retry creates a new photo/key generation; no old callback can overwrite it.
+  retryOfId String? @unique
+  retryCount Int @default(0)
+  filename String @db.VarChar(255)
+  declaredMime String @db.VarChar(64)
+  declaredBytes Int
+  sourceKey String @unique
+  sourceETag String?
+  status GalleryUploadStatus @default(reserved)
+  postExpiresAt DateTime
+  reservationExpiresAt DateTime
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  stagedThumbKey String?
+  stagedFullKey String?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  photo GalleryPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  @@unique([ownerId, clientRequestId])
+  @@index([status, reservationExpiresAt, leaseUntil])
+}
+// No foreign keys: jobs and their immutable key snapshots survive account cascades.
+model GalleryStorageJob {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  ownerId String
+  photoId String?
+  uploadId String?
+  destinationAlbumId String?
+  kind GalleryStorageJobKind
+  status GalleryStorageJobStatus @default(pending)
+  sourceKeys String[]
+  sourceETags String[]
+  targetKeys String[]
+  width Int?
+  height Int?
+  availableAt DateTime @default(now())
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt, leaseUntil])
+  @@index([ownerId, photoId])
 }

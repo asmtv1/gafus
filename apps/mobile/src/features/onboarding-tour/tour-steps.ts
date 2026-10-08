@@ -14,7 +14,7 @@ export type MobileOnboardingTourStepId =
   | "finish";
 
 export type MobileOnboardingTourTargetId =
-  | "tab-consultations"
+  | "tab-more"
   | "consultations-list"
   | "tab-pets"
   | "pets-add-button"
@@ -53,10 +53,10 @@ export function getMobileOnboardingTourSteps({
     {
       id: "consultations",
       title: "Кинолог",
-      text: "Здесь можно выбрать кинолога, посмотреть свободные слоты и записаться на консультацию.",
+      text: "В разделе «Меню» откройте «Кинолог», чтобы выбрать специалиста, посмотреть свободные слоты и записаться на консультацию.",
       route: "/(main)/(tabs)/consultations",
       targetId: "consultations-list",
-      secondaryTargetId: "tab-consultations",
+      secondaryTargetId: "tab-more",
     },
     {
       id: "pets",

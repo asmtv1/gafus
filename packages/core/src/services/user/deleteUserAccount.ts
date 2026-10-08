@@ -10,6 +10,8 @@ import { prisma, Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
+import { enqueueGalleryAccountCleanup } from "../gallery/accountCleanup";
+
 import { sendAccountDeletionCodeEmail } from "../auth/transactionalAuthMail";
 
 const logger = createWebLogger("core-delete-user-account");
@@ -328,6 +330,7 @@ export async function deleteUserAccount(
           userAgent: null,
         },
       });
+      await enqueueGalleryAccountCleanup(tx, actorUserId, deletionTimestamp);
       await tx.user.delete({ where: { id: actorUserId } });
       await tx.$executeRaw`
         INSERT INTO "AccountDeletionAudit"

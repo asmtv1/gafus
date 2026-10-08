@@ -140,7 +140,7 @@ export default function CommunityModeration() {
                         })
                       }
                     />
-                    {message.username !== "admin" && (
+                    {message.canBan && (
                       <Button
                         label="Заблокировать участника"
                         variant="outline"

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { chatHttpError, dispatchChatRequest } from "@gafus/core/services/cynologistChat/http";
+import { chatHttpError, dispatchChatRequest } from "@gafus/chat-server";
 export const communityChatRoutes = new Hono();
 communityChatRoutes.all("*", async (c) => {
   c.header("Cache-Control", "no-store");

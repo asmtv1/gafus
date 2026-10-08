@@ -15,6 +15,7 @@ export type {
   Pet,
   PrismaClient,
   PushSubscription,
+  Reminder,
   Step,
   StepNotification,
   StepOnDay,

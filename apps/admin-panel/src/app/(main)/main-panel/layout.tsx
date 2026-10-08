@@ -43,6 +43,7 @@ export default async function MainPanelLayout({ children }: { children: React.Re
         </div>
 
         {/* Основное меню */}
+        {session.user.role === "ADMIN" && <Link href="/main-panel/questions" className={styles.button}><Flag sx={{ mr: 1.5, fontSize: 20 }} />Вопросы: модерация</Link>}
         <Link href="/main-panel/users" className={styles.button}>
           <People sx={{ mr: 1.5, fontSize: 20 }} />
           Пользователи платформы

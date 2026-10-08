@@ -1,3 +1,6 @@
+import { questionsRoutes } from "./routes/v1/questions.js";
+import { galleryRoutes } from "./routes/v1/gallery.js";
+import { internalGalleryRoutes } from "./routes/internal/gallery.js";
 import { communityChatRoutes } from "./routes/v1/community-chat.js";
 import { cynologistChatRoutes, streamChatWebhookRoutes } from "./routes/v1/cynologist-chat.js";
 /**
@@ -79,6 +82,18 @@ app.route("/api/v1/cynologist-chat", cynologistChatRoutes);
 app.use("/api/v1/community-chat", authMiddleware, apiRateLimiter);
 app.use("/api/v1/community-chat/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/community-chat", communityChatRoutes);
+app.use("/api/v1/questions", authMiddleware, apiRateLimiter);
+app.use("/api/v1/questions/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/questions", questionsRoutes);
+const galleryNoStore = async (c: import("hono").Context, next: () => Promise<void>) => {
+  c.header("Cache-Control", "no-store");
+  await next();
+};
+app.use("/api/v1/gallery", galleryNoStore, authMiddleware, apiRateLimiter);
+app.use("/api/v1/gallery/*", galleryNoStore, authMiddleware, apiRateLimiter);
+app.route("/api/v1/gallery", galleryRoutes);
+// Internal cloud callbacks authenticate each raw request with HMAC and Redis-backed nonce replay protection.
+app.route("/internal/gallery", internalGalleryRoutes);
 app.route("/api/v1/stream-chat/webhook", streamChatWebhookRoutes);
 
 // Protected routes - require auth

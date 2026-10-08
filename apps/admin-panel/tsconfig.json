@@ -23,6 +23,7 @@
     ],
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/questions": ["../../packages/core/src/services/questions/index.ts"],
       "@/*": [
         "./src/*"
       ],

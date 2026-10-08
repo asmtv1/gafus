@@ -257,9 +257,25 @@
       "types": "./dist/core/src/services/cynologistChat/index.d.ts",
       "default": "./dist/core/src/services/cynologistChat/index.js"
     },
-    "./services/cynologistChat/http": {
-      "types": "./dist/core/src/services/cynologistChat/http.d.ts",
-      "default": "./dist/core/src/services/cynologistChat/http.js"
+    "./services/cynologistChat/upload": {
+      "types": "./dist/core/src/services/cynologistChat/upload.d.ts",
+      "default": "./dist/core/src/services/cynologistChat/upload.js"
+    },
+    "./services/questions": {
+      "types": "./dist/core/src/services/questions/index.d.ts",
+      "default": "./dist/core/src/services/questions/index.js"
+    },
+    "./services/gallery": {
+      "types": "./dist/core/src/services/gallery/index.d.ts",
+      "default": "./dist/core/src/services/gallery/index.js"
+    },
+    "./services/gallery/imageProcessing": {
+      "types": "./dist/core/src/services/gallery/imageProcessing.d.ts",
+      "default": "./dist/core/src/services/gallery/imageProcessing.js"
+    },
+    "./services/gallery/keys": {
+      "types": "./dist/core/src/services/gallery/keys.d.ts",
+      "default": "./dist/core/src/services/gallery/keys.js"
     }
   },
   "main": "./dist/core/src/index.js",
@@ -290,15 +306,14 @@
     "bcryptjs": "^3.0.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "file-type": "20.5.0",
     "libphonenumber-js": "^1.12.8",
     "luxon": "^3.7.2",
     "petrovich": "^0.2.1",
     "sanitize-html": "^2.17.7",
-    "validator": "^13.15.26",
-    "zod": "^3.24.1",
     "stream-chat": "9.53.0",
-    "busboy": "1.6.0",
-    "file-type": "20.5.0"
+    "validator": "^13.15.26",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -310,7 +325,6 @@
     "rimraf": "5.0.1",
     "ts-add-js-extension": "^1.6.6",
     "typescript": "5.8.3",
-    "vitest": "^4.0.17",
-    "@types/busboy": "^1.5.4"
+    "vitest": "^4.0.17"
   }
 }

@@ -38,3 +38,7 @@ export * from "./swr";
 
 // Собственные типы (заменяют зависимости от фреймворков)
 export * from "./types";
+
+export * from "./questions";
+
+export * from "./gallery";

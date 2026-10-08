@@ -1,0 +1,69 @@
+# Релиз галереи: runbook
+
+**Состояние на 2026-10-08:** код и перечисленные локальные проверки подготовлены; облачные ресурсы не развёрнуты, production не выпущен. Галерея остаётся выключенной до прохождения внешних ворот ниже. Идентификаторы облачных ресурсов, домены, сертификаты и production credentials здесь намеренно не заданы.
+
+## Порядок включения
+
+Включать по шагам в отдельном dev/staging окружении, записывая фактические outputs в защищённую конфигурацию. Не включать пользовательский флаг до завершения всех ворот.
+
+1. **Аддитивная миграция БД.** Проверить состав миграции `packages/prisma/migrations/20261007120000_gallery/`, применить её к целевой БД и проверить таблицы/индексы галереи. Миграция добавляет структуру; rollback приложения не должен удалять таблицы или данные.
+2. **Облако и функции.** После восстановления YC-аутентификации проверить Terraform plan в изолированном folder, затем создать приватный bucket, service accounts/IAM, Lockbox, queue/DLQ, функции, три source-only object triggers, gateway, CDN и maintenance timer. Собрать и отдельно проверить Linux x64/glibc артефакты Node 22 на Yandex runtime. Terraform state и plan содержат чувствительные значения: хранить только в защищённом backend с ограниченным доступом.
+3. **DNS/TLS и выходные значения.** Оператор предоставляет выбранный gallery CDN hostname и уже выпущенный/валидированный сертификат. Настроить DNS для CDN hostname, проверить TLS и CDN→private origin, затем получить реальные bucket, queue, origin/CDN URL, function и Lockbox IDs из успешного apply. Внести реальные outputs в конфигурацию без копирования секретов в репозиторий. Проверить авторизацию на CDN HIT, включая отсутствие/истечение/невалидность token.
+4. **Backend и web.** Передать backend/web только их runtime-конфигурацию (см. ниже), выдать фактической web identity доступ к предназначенному Lockbox secret, развернуть API и web с `GALLERY_ENABLED=false`. Проверить аутентификацию, CSRF, private/no-store ответы и поведение `enabled:false`.
+5. **Mobile build и proof.** Передать приложению целевой API URL и выпустить отдельный dev/internal build для iOS и Android. Проверить реальные устройства и store-подписанные/распространяемые сборки; Expo export не заменяет сборку, установку или device QA. Проверить HEIC picker→локальная JPEG-нормализация, разрешения, фон/возврат, просмотр и logout. Клиентский кэш изображений остаётся только в памяти.
+6. **Readiness и флаг последним.** Установить `GALLERY_PROCESSOR_READY=true` лишь после cloud gates и успешных end-to-end smoke сценариев. Установить `GALLERY_ENABLED=true` согласованно в backend и cloud только после готовности web/mobile и наблюдаемости. Сразу проверить пользовательский список и тестовую загрузку владельца и скрытого альбома; иметь готовый шаг отключения.
+
+## Конфигурация по потребителю
+
+Передавать только имена переменных и фактические значения через секретный механизм окружения. Никогда не коммитить токены, ключи, presigned POST или Terraform state.
+
+| Потребитель | Нужные параметры |
+| --- | --- |
+| Core/API и web runtime | `GALLERY_ENABLED`, `GALLERY_PROCESSOR_READY`, `GALLERY_BUCKET`, `GALLERY_S3_ENDPOINT`, `GALLERY_S3_ACCESS_KEY_ID`, `GALLERY_S3_SECRET_ACCESS_KEY`, `GALLERY_CDN_BASE_URL`, `GALLERY_CDN_SECRET`, `GALLERY_INTERNAL_BASE_URL`, `GALLERY_INTERNAL_HMAC_SECRET`. Endpoint должен быть `https://storage.yandexcloud.net`; bucket отдельный и приватный. Web identity получает только нужный Lockbox secret. |
+| Cloud processor/maintenance/dispatcher | `GALLERY_ENABLED`, `GALLERY_BUCKET`, `GALLERY_INTERNAL_BASE_URL`, `GALLERY_INTERNAL_HMAC_SECRET`, `GALLERY_S3_ACCESS_KEY_ID`, `GALLERY_S3_SECRET_ACCESS_KEY`, `GALLERY_QUEUE_URL`, `GALLERY_QUEUE_ACCESS_KEY_ID`, `GALLERY_QUEUE_SECRET_ACCESS_KEY`. Разделять runtime identities и права согласно Terraform. |
+| Cloud origin | `GALLERY_BUCKET`, `GALLERY_S3_ACCESS_KEY_ID`, `GALLERY_S3_SECRET_ACCESS_KEY`, `GALLERY_ORIGIN_SECRET`; `GALLERY_ORIGIN_VERIFY_TOKEN` по умолчанию `false`. Если включена проверка CDN token на origin, оператор отдельно добавляет `GALLERY_CDN_SECRET` origin-функции и проверяет оба слоя. Origin не получает HMAC или queue credentials. |
+| Mobile | `EXPO_PUBLIC_API_BASE_URL` / `API_BASE_URL`; отдельного клиентского секретного gallery key нет. API DTO `enabled` и серверный gate являются authoritative. `EXPO_PUBLIC_*` не содержит credentials. |
+| Provisioning operator | Фактические значения `cloud_id`, `folder_id`, `bucket`, `web_origins`, `internal_base_url`, `cdn_hostname`, `cdn_certificate_id`, `environment`, `enabled`; секреты через secure injection: `TF_VAR_internal_hmac_secret`, `TF_VAR_origin_secret`, `TF_VAR_cdn_secret`, provisioner YMQ credentials. Не использовать placeholder из `example.tfvars` как реальные ID. |
+
+`GALLERY_ENABLED` допускает только `true`/`false`. При `true` storage config требует валидный отдельный bucket, CDN и internal HTTPS URL, HMAC секрет не короче 32 байт и `GALLERY_PROCESSOR_READY=true`; `GALLERY_BUCKET_PUBLIC=true` отвергается. Для безопасного старта feature flag остаётся `false`. Maintenance продолжает durable delete cleanup и при выключенном feature.
+
+## Ready gates до флага
+
+- Terraform plan просмотрен; DNS/TLS, приватность bucket, узкие IAM, CORS только на фактические HTTPS web origins, invokers, Lockbox и масштабирование проверены. Нет публичного чтения объектов или публичного вызова функций.
+- Node 22 Linux-артефакты запущены в целевой среде; обработаны валидные и повреждённые файлы, EXIF/ориентация, 50 MP, высокоэнтропийные файлы и 1,750,000-byte cap; проверены память, timeout, холодный запуск и задержка origin.
+- Smoke проверил direct presigned POST, отсутствие публичного доступа, event delivery, дубли, HMAC replay/nonce через shared Redis, conditional object writes, origin path/secret, private/no-store headers и CDN token denial на уже закэшированном объекте. Отдельно проверены пропущенное событие через maintenance, периодический timer, DLQ redrive, partial retry и disabled cleanup.
+- DB quota/visibility/cancel/retry/move/delete/account cleanup проверены изолированными сценариями. Веб-сценарии проверены с владельцем и другим пользователем. iOS и Android dev/internal builds установлены на устройства; проверены разрешения, HEIC нормализация, фоновый переход/возврат, загрузка, просмотр, logout/cache clear. Store build proof следует перед включением production flag.
+- Alert queries и внешние адресаты настроены и проверены тестовым событием; биллинговая нотификация отдельно привязана к аккаунту и получателю.
+
+## Операционные процедуры
+
+**Загрузка, повтор, отмена.** Клиент запрашивает reservation; backend фиксирует quota и регистрирует source cleanup до ответа, затем выдаёт POST на 10 минут. Резерв живёт 15 минут. Клиент загружает прямо в bucket, подтверждает `/uploads/:uploadId/complete`; event/maintenance ставит обработку в очередь. При сетевом сбое сначала сверить состояние: живой `reserved` использует прежний POST, `uploaded|processing|ready` не требует нового файла. Для серверного `failed|expired` использовать `POST /uploads/:uploadId/retry`: новый `clientRequestId` выделяется один раз для новой логической попытки и сохраняется при повторной отправке после потерянного ответа. Pending retry повторяется с той же парой parent ID/request ID до получения дочернего upload ID, даже если parent уже недоступен. `DELETE /uploads/:uploadId` отменяет незавершённую загрузку. Не логировать форму POST, URL, ключи или содержимое.
+
+**Move и удаление.** Перемещение выполняется только через `POST /photos/:photoId/move`: core проверяет права, cloud job копирует оба WebP в пути целевого альбома и проверяет результат. Затем metadata переключается, а исходные объекты удаляются durable job. Перенос не создаёт дополнительную фотографию в квоте. При ошибке повторить запрос с прежним request ID согласно клиентскому reconciliation; не удалять исходник вручную. Удаление фото/альбома и удаление учётной записи создают cleanup jobs. При `DELETE` storage failure job восстанавливается после cooldown в один час; не чистить bucket вручную.
+
+**Истёкший source, зависшая обработка, replay.** 10-минутный POST и 15-минутная reservation имеют отдельные сроки. Пяти-минутный maintenance запускает обработку подтверждённых или обнаруженных source uploads и durable cleanup. Он также удаляет просроченные reservation, reconcile-ит jobs и отправляет повторные uploads в очередь. Queue redrive настроен после пяти receive с DLQ. Сначала проверить `gallery_metric`, queue и DLQ; затем использовать утверждённый maintenance/queue redrive и повторить smoke. Не менять source/final key и не удалять attempt object пока job активен: leases и отложенная уборка защищают поздние POST и stale callbacks.
+
+**Feature выключен/cleanup.** Сначала установить `GALLERY_ENABLED=false` и подтвердить `enabled:false`/отказ изменений. Не выключать maintenance, очередь, приватное хранилище или delete path, пока остались данные и cleanup jobs. Maintenance при выключенном флаге завершает удаления; upload processing остановлена. Удаление bucket/очереди допустимо только после отдельной проверки нулевых jobs, источников и объектов и принятого решения о retention.
+
+**Rollback.** Снять feature flag в backend/web/cloud, затем проверить, что клиенты скрыли вход, API отказывает новым мутациям, а maintenance продолжает удаления. Откатить совместимые backend/web/mobile релизы при необходимости. Сохранить аддитивную схему, bucket, queue, CDN и объекты для чтения/cleanup и последующего восстановления. Не удалять миграцию, таблицы, резервные данные, ключи, функции maintenance или файлы как часть обычного rollback. При повторном включении сначала устранить причину, повторить относящиеся к ней gates, затем включить processor readiness и feature flag.
+
+## Наблюдаемость и бюджет
+
+Cloud пишет JSON в логи с `event="gallery_metric"`, полями `operation` (`upload|publish|move|delete|maintenance`), `outcome` (`success|failure|retry|skipped`), `durationMs`, безопасным `errorCode`; maintenance дополнительно пишет `expiredUploads`, `recoveredCleanupJobs`, `reconciledJobs`, `queuedUploads`. Ключи, URL, request body и secrets не логируются. Это доступные log-события/счётчики; внешние dashboard, alert rules, billing integration и recipient сейчас не настроены.
+
+После включения создайте внешние log-based alerts (предлагаемые начальные пороги, tune по staging baseline):
+
+- `operation=upload AND outcome=failure` или `retry`: alert при ≥5 за 10 минут либо retry доле >10% за 15 минут; группировать по `errorCode`, не включать сырой payload.
+- Maintenance: alert на стандартные ошибки вызова Cloud Functions и возраст последнего `operation=maintenance AND outcome=success` >10 минут. Custom event `maintenance/failure` сейчас не испускается. `expiredUploads`/`recoveredCleanupJobs` ростом показывают уборку, не являются сами по себе ошибкой.
+- Stuck reservations: отдельный read-only DB alert по uploads в `reserved|uploaded|processing` и связанным photos в `pending|processing`, у которых reservation истекла >5 минут назад и нет действующей processing/publication lease; порог ≥1. Сверять условия с core `usedSlots`/maintenance, чтобы не считать защищённую обработку зависшей. В текущей JSON телеметрии отдельного `stuckReservations` поля нет.
+- Queue retries/DLQ: alert на DLQ visible message ≥1 и на oldest-message age >10 минут; это queue metrics, не `gallery_metric`.
+- `operation=delete|move|publish AND outcome=failure`: alert на любой durable cleanup/publication failure; retry на повторяющихся failures. Для latency считать log-based p95 `durationMs` по operation, сигналить p95 >45 секунд для upload/job и >10 минут без maintenance success.
+- Бюджет: установить **500 RUB/month NOTIFY**, без автоматического shutdown. Политика записана в `infra/gallery/budget-policy.json`, но привязки к billing account и внешнему получателю нет. Ответственный оператор должен прикрепить recipient и проверить тестовое уведомление. Это уведомление, не hard stop, расход не гарантированно бесплатный и порог не ограничивает затраты.
+
+## Что проверено и что остаётся
+
+**Проверено локально:** 20 PostgreSQL gallery integration tests прошли в ROOT-прогоне на выделенной локальной БД; все финальные web/API/mobile typechecks прошли. Целевые gallery suites: 119 тестов (core 40, storage 29, cloud 36, dispatcher 5, Hono 2, web route 3, internal route 4). Cloud cases прошли по целевым прогонам: полный прогон получил один timeout high-entropy sharp под нагрузкой; изолированный повтор всех 9 processor tests прошёл без увеличения timeout. Web queue/session final focused tests: 25, mobile queue/session: 18. Cloud typecheck и изолированная сборка прошли. Playwright browser-render fixtures прошли owner UI сценарии на 320/390/1440 и keyboard viewer flow; данные синтетические, это не доказательство provider upload/auth.
+
+**Оставшиеся проверки:** финальная browser-проверка повторного входа после 401 не завершилась из-за таймаутов локального dev-сервера; автоматическое NextAuth update, вызывавшее гонку с signOut, удалено, focused tests и typecheck прошли.
+
+**Не подтверждено извне:** YC OAuth был invalid/expired; Terraform apply, provider upload, CDN HIT expiry, cold origin и production deploy/push не выполнены. CUA accessibility automation завершилась `AXError.cannotComplete`, поэтому нет native authenticated/device QA. iOS и Android Expo production exports с synthetic local API URL прошли, но export — отдельная проверка bundling, не установка или device/store proof. HEIC conversion и memory-only image cache видны в коде, но фактические picker/cache lifecycle на устройствах не доказаны. Dashboard/alerts и 500 RUB billing recipient attachment не настроены. Производственный флаг включать нельзя до перечисленных внешних gates.

@@ -23,6 +23,7 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   code?: string;
+  details?: Record<string, unknown>;
 }
 
 // Флаг для предотвращения параллельных refresh запросов
@@ -73,6 +74,16 @@ function extractHttpErrorCode(data: unknown): string | undefined {
   if (data && typeof data === "object" && !Array.isArray(data)) {
     const c = (data as { code?: unknown }).code;
     return typeof c === "string" ? c : undefined;
+  }
+  return undefined;
+}
+
+function extractHttpErrorDetails(data: unknown): Record<string, unknown> | undefined {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const details = (data as Record<string, unknown>).details;
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+      return details as Record<string, unknown>;
+    }
   }
   return undefined;
 }
@@ -340,6 +351,7 @@ export async function apiClient<T>(
         success: false,
         error: extractHttpErrorMessage(data, response),
         code,
+        details: extractHttpErrorDetails(data),
       };
     }
 

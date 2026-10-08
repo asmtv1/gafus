@@ -223,6 +223,10 @@ export default React.memo(function Header({
               </span>
               <span className={styles.menuLabel}>{assignedTrainer ? "Диалоги" : "Чат"}</span>
             </Link>
+            <Link href="/questions" className={`${styles.menuButton} ${isCurrentRoute("/questions") ? styles.menuButtonActive : ""}`} aria-current={isCurrentRoute("/questions") ? "page" : undefined} onClick={() => { trackMenuClick("tab-questions"); setMenuOpen(false); }}>
+              <span className={styles.menuIconSlot} aria-hidden="true"><Image src="/images/tab-icons/questions.png" alt="" width={32} height={32} style={{ objectFit: "contain" }} /></span>
+              <span className={styles.menuLabel}>Вопросы</span>
+            </Link>
             <Link
               href="/consultations"
               data-tour-target="tab-consultations"

@@ -5,7 +5,7 @@ import { LoadingState } from "@/shared/components/ui/LoadingState";
 import { COMMUNITY_CHAT_RULES } from "@gafus/consultation-shared";
 import CommunityModeration from "./CommunityModeration";
 import type { CommunityChatStateDto } from "@gafus/consultation-shared";
-import { ConnectedChat } from "./ChatPage";
+import { ConnectedChat } from "./ConnectedChat";
 import { useChatResource } from "./useChatResource";
 import styles from "./chat.module.css";
 export default function CommunityChat() {

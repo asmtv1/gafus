@@ -45,7 +45,7 @@ ARG NEXT_PUBLIC_YM_COUNTER_ID=""
 ENV NEXT_PUBLIC_YM_COUNTER_ID=${NEXT_PUBLIC_YM_COUNTER_ID}
 ENV USE_STANDALONE=true
 RUN pnpm --filter @gafus/mailer build && \
-    pnpm build --filter '@gafus/core...'
+    pnpm build --filter '@gafus/chat-server...' --filter '@gafus/questions-server...'
 RUN pnpm build --filter @gafus/web
 
 # Production stage - только runtime

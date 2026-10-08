@@ -1,3 +1,4 @@
+import { CHAT_LIMITS, ownChatMessageActions } from "@gafus/consultation-shared";
 import { prisma } from "@gafus/prisma";
 import { z } from "zod";
 import { chatForActor } from "./service";
@@ -15,7 +16,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("edit"),
     messageId: z.string().min(1).max(128),
-    text: z.string().trim().max(5000),
+    text: z.string().trim().max(CHAT_LIMITS.textLength),
   }),
   z.object({ action: z.literal("delete"), messageId: z.string().min(1).max(128) }),
 ]);
@@ -44,10 +45,17 @@ export async function manageOwnChatMessage(
     throw new ChatError("CHAT_FORBIDDEN", "Можно изменять только свои сообщения в этом чате", 403);
   if (message.deleted_at || message.type === "deleted" || message.type === "system")
     throw new ChatError("CHAT_MESSAGE_UNAVAILABLE", "Сообщение недоступно", 409);
-  const created = new Date(message.created_at ?? "").getTime();
-  const age = Date.now() - created;
-  const limit = body.action === "edit" ? 15 * 60 * 1000 : 24 * 60 * 60 * 1000;
-  if (!Number.isFinite(age) || age < 0 || age >= limit)
+  const actions = ownChatMessageActions(
+    {
+      id: message.id,
+      authorId: message.user?.id,
+      type: message.type,
+      deletedAt: message.deleted_at,
+      createdAt: message.created_at,
+    },
+    `gafus-${userId}`,
+  );
+  if (!(body.action === "edit" ? actions.canEdit : actions.canDelete))
     throw new ChatError(
       "CHAT_MESSAGE_TIME_EXPIRED",
       body.action === "edit"

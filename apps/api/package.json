@@ -27,7 +27,10 @@
     "hono": "^4.11.4",
     "hono-rate-limiter": "^0.4.2",
     "jose": "^5.10.0",
-    "zod": "^3.25.56"
+    "zod": "^3.25.56",
+    "@gafus/chat-server": "workspace:*",
+    "@gafus/questions-server": "workspace:*",
+    "@gafus/gallery-server": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

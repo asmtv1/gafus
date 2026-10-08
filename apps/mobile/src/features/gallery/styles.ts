@@ -1,0 +1,23 @@
+import { StyleSheet } from "react-native";
+import { COLORS, FONTS, SPACING } from "@/shared/config";
+export const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: COLORS.background },
+  content: { padding: SPACING.md, gap: SPACING.md, paddingBottom: SPACING.xl },
+  section: { gap: SPACING.md, marginBottom: SPACING.lg },
+  heading: { fontFamily: FONTS.impact, fontSize: 24, color: COLORS.text },
+  text: { fontFamily: FONTS.montserrat, fontSize: 14, lineHeight: 21, color: COLORS.text },
+  muted: { fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 18, color: COLORS.textSecondary },
+  error: { fontFamily: FONTS.montserrat, fontSize: 14, lineHeight: 21, color: "#922D38" },
+  row: { flexDirection: "row", alignItems: "center", gap: SPACING.sm, flexWrap: "wrap" },
+  card: { padding: SPACING.md, gap: SPACING.sm, borderRadius: 12, backgroundColor: COLORS.cardBackground },
+  album: { flex: 1, maxWidth: "49%", gap: SPACING.sm, padding: SPACING.sm, borderRadius: 12, backgroundColor: COLORS.cardBackground },
+  cover: { width: "100%", aspectRatio: 1.4, borderRadius: 8, backgroundColor: COLORS.background },
+  placeholder: { alignItems: "center", justifyContent: "center" },
+  grid: { flex: 1, margin: SPACING.xs, aspectRatio: 1, borderRadius: 8, backgroundColor: COLORS.cardBackground, overflow: "hidden" },
+  thumb: { width: "100%", height: "100%" },
+  modal: { flex: 1, backgroundColor: COLORS.background },
+  viewer: { flex: 1, backgroundColor: "#161810" },
+  viewerText: { color: "#fff", fontFamily: FONTS.montserrat, fontSize: 15, lineHeight: 22 },
+  viewerBar: { padding: SPACING.md, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  close: { padding: SPACING.sm, minHeight: 44, minWidth: 44, justifyContent: "center" },
+});

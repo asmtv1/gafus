@@ -1,0 +1,8 @@
+{
+  "currency": "RUB",
+  "period": "MONTHLY",
+  "amount": 500,
+  "thresholds": [{ "amount": 500, "action": "NOTIFY" }],
+  "automaticShutdown": false,
+  "billingAccountIntegration": "required-external-gate"
+}

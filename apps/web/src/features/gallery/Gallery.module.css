@@ -1,0 +1,286 @@
+.surface {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  max-width: 960px;
+  margin: 20px auto;
+  padding: 24px;
+  background: var(--surface, #fff8e5);
+  border-radius: 22px;
+  box-shadow: var(--shadow-card, 0 4px 16px #4a491714);
+  color: #352e2e;
+  font-family: var(--font-montserrat), sans-serif;
+  overflow-wrap: anywhere;
+}
+.preview {
+  max-width: 500px;
+  padding: 20px;
+}
+.surface h1,
+.surface h2 {
+  font-family: var(--font-impact), sans-serif;
+  font-weight: 400;
+  margin: 0;
+}
+.surface h1 {
+  font-size: 32px;
+}
+.surface h2 {
+  font-size: 26px;
+}
+.header {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 16px 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.preview .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.album {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.album strong {
+  display: block;
+  margin: 10px 0 4px;
+  overflow-wrap: anywhere;
+}
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #ece5d2;
+}
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  box-sizing: border-box;
+  color: #636128;
+  text-align: center;
+}
+.photo {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  min-width: 0;
+  font: inherit;
+}
+.photo span {
+  display: block;
+  margin-top: 8px;
+}
+.surface a:focus-visible,
+.photo:focus-visible {
+  outline: 3px solid #636128;
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+.muted {
+  color: #636128;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.empty {
+  padding: 28px 0;
+  line-height: 1.6;
+}
+.error {
+  color: #922d26;
+  line-height: 1.5;
+}
+.queue {
+  padding: 0;
+  list-style: none;
+}
+.queue li {
+  padding: 12px 0;
+  border-bottom: 1px solid #d4c4a8;
+}
+.viewer {
+  background: #211e18;
+  color: #fff8e5;
+  display: flex;
+  flex-direction: column;
+  min-height: 60vh;
+  padding: 16px;
+}
+.full {
+  width: 100%;
+  height: min(65vh, 760px);
+  object-fit: contain;
+}
+.viewerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.viewerControls button {
+  color: #fff8e5;
+}
+/* Dialogs render in a portal, so they carry their own gallery scope. */
+.dialog :global(.MuiDialog-paper) {
+  background: var(--surface, #f5f0e5);
+  color: var(--text-primary, #352e2e);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  font-family: var(--font-montserrat), sans-serif;
+  overflow-wrap: anywhere;
+}
+.dialog :global(.MuiDialogTitle-root) {
+  font-family: var(--font-impact), sans-serif;
+  font-weight: 400;
+}
+.dialog :global(.MuiDialogActions-root) {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 24px;
+}
+:is(.surface, .dialog) :global(.MuiButton-root) {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: var(--accent-primary, #4d5c2d);
+  font-family: var(--font-montserrat), sans-serif;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+:is(.surface, .dialog) :global(.MuiButton-root):hover {
+  background: var(--surface-strong, #e8e1cb);
+}
+:is(.surface, .dialog) :global(.MuiButton-root.MuiButton-outlined) {
+  border-color: var(--accent-primary, #4d5c2d);
+}
+:is(.surface, .dialog) :global(.MuiButton-root.MuiButton-contained) {
+  background: var(--accent-primary, #4d5c2d);
+  color: #fff8e5;
+  box-shadow: var(--shadow-button);
+}
+:is(.surface, .dialog) :global(.MuiButton-root.MuiButton-contained):hover {
+  background: var(--accent-secondary, #3b4822);
+}
+:is(.surface, .dialog) :global(.MuiButton-root.Mui-disabled) {
+  color: var(--text-secondary, #686540);
+  background: var(--surface-muted, #eee7d2);
+  border-color: #d4c4a8;
+  box-shadow: none;
+}
+:is(.surface, .dialog) :global(.MuiButton-root):focus-visible,
+:is(.surface, .dialog) :global(.MuiButton-root.Mui-focusVisible) {
+  outline: 3px solid var(--accent-primary, #4d5c2d);
+  outline-offset: 3px;
+}
+:is(.surface, .dialog) :global(.MuiCheckbox-root),
+:is(.surface, .dialog) :global(.MuiCheckbox-root.Mui-checked) {
+  color: var(--accent-primary, #4d5c2d);
+}
+:is(.surface, .dialog) :global(.MuiCheckbox-root):hover {
+  background: var(--surface-strong, #e8e1cb);
+}
+:is(.surface, .dialog) :global(.MuiCheckbox-root.Mui-focusVisible) {
+  outline: 3px solid var(--accent-primary, #4d5c2d);
+  outline-offset: 2px;
+}
+:is(.surface, .dialog) :global(.MuiInputBase-root),
+:is(.surface, .dialog) :global(.MuiFormControlLabel-label),
+:is(.surface, .dialog) :global(.MuiFormHelperText-root),
+:is(.surface, .dialog) :global(.MuiInputLabel-root) {
+  font-family: var(--font-montserrat), sans-serif;
+  color: var(--text-secondary, #686540);
+}
+:is(.surface, .dialog) :global(.MuiOutlinedInput-root) {
+  background: var(--surface, #f5f0e5);
+  color: var(--text-primary, #352e2e);
+  border-radius: 12px;
+  caret-color: var(--accent-primary, #4d5c2d);
+}
+:is(.surface, .dialog) :global(.MuiOutlinedInput-notchedOutline) {
+  border-color: #a39e7c;
+}
+:is(.surface, .dialog)
+  :global(.MuiOutlinedInput-root):hover
+  :global(.MuiOutlinedInput-notchedOutline),
+:is(.surface, .dialog)
+  :global(.MuiOutlinedInput-root.Mui-focused)
+  :global(.MuiOutlinedInput-notchedOutline) {
+  border-color: var(--accent-primary, #4d5c2d);
+}
+:is(.surface, .dialog) :global(.MuiInputLabel-root.Mui-focused) {
+  color: var(--accent-primary, #4d5c2d);
+}
+.dialog select {
+  border: 1px solid #a39e7c;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--surface, #f5f0e5);
+  color: var(--text-primary, #352e2e);
+  font: inherit;
+}
+.dialog select:focus-visible {
+  outline: 3px solid var(--accent-primary, #4d5c2d);
+  outline-offset: 2px;
+}
+.surface :global(.MuiLinearProgress-root) {
+  background: var(--surface-strong, #e8e1cb);
+}
+.surface :global(.MuiLinearProgress-bar) {
+  background: var(--accent-primary, #4d5c2d);
+}
+.dialog .viewer :global(.MuiButton-root) {
+  background: var(--surface, #f5f0e5);
+  color: var(--accent-primary, #4d5c2d);
+}
+.dialog .viewer :global(.MuiButton-root):hover {
+  background: var(--surface-strong, #e8e1cb);
+}
+.dialog .viewer :global(.MuiButton-root.Mui-disabled) {
+  background: var(--surface-muted, #eee7d2);
+  color: var(--text-secondary, #686540);
+}
+.dialog .viewer :global(.MuiButton-root):focus-visible {
+  outline-color: #fff8e5;
+}
+.caption {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .surface {
+    padding: 16px;
+    margin: 12px auto;
+  }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .surface h1 {
+    font-size: 28px;
+  }
+}

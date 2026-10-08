@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   canSend: vi.fn(),
   create: vi.fn(),
@@ -27,7 +30,9 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==",
   "base64",
 );
-beforeEach(() => {
+let dir: string;
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), "chat-upload-test-"));
   vi.clearAllMocks();
   mock.remove.mockResolvedValue(undefined);
   mock.canSend.mockResolvedValue({ id: "chat", streamChannelId: "channel" });
@@ -39,40 +44,36 @@ beforeEach(() => {
     return { file: "https://cdn.example/image" };
   });
 });
-function request(data: Buffer, mime = "image/png", field = "file", extra = false) {
-  const form = new FormData();
-  form.append(field, new Blob([new Uint8Array(data)], { type: mime }), "file.png");
-  if (extra) form.append("unexpected", "extra");
-  return new Request("http://localhost/upload", { method: "POST", body: form });
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
+async function temporaryFile(data: Buffer, mime = "image/png") {
+  const path = join(dir, "file.png");
+  await writeFile(path, data);
+  return { path, name: "file.png", declaredMime: mime };
 }
-describe("streaming chat uploads", () => {
-  it("accepts a single valid multipart image", async () => {
-    const file = await uploadChatAttachment("client", request(png));
+describe("chat attachment domain validation", () => {
+  it("accepts a valid inspected image", async () => {
+    const file = await uploadChatAttachment("client", await temporaryFile(png));
     expect(file).toMatchObject({ kind: "image", mime: "image/png", size: png.length });
     expect(mock.canSend).toHaveBeenCalledTimes(2);
   });
   it("rejects MIME substitution before CDN upload", async () => {
-    await expect(uploadChatAttachment("client", request(png, "video/mp4"))).rejects.toMatchObject({
+    await expect(
+      uploadChatAttachment("client", await temporaryFile(png, "video/mp4")),
+    ).rejects.toMatchObject({
       code: "CHAT_MIME_MISMATCH",
     });
     expect(mock.image).not.toHaveBeenCalled();
   });
   it("rejects arbitrary documents with an image MIME", async () => {
     await expect(
-      uploadChatAttachment("client", request(Buffer.from("%PDF-1.4\n"))),
+      uploadChatAttachment("client", await temporaryFile(Buffer.from("%PDF-1.4\n"))),
     ).rejects.toMatchObject({ code: "CHAT_MIME_MISMATCH" });
-  });
-  it("rejects an extra form field and a wrong file field", async () => {
-    await expect(
-      uploadChatAttachment("client", request(png, "image/png", "file", true)),
-    ).rejects.toMatchObject({ code: "CHAT_INVALID_FILE" });
-    await expect(
-      uploadChatAttachment("client", request(png, "image/png", "arbitrary")),
-    ).rejects.toMatchObject({ code: "CHAT_INVALID_FILE" });
   });
   it("cleans the uploaded CDN object if the database write fails", async () => {
     mock.create.mockRejectedValue(new Error("database unavailable"));
-    await expect(uploadChatAttachment("client", request(png))).rejects.toThrow(
+    await expect(uploadChatAttachment("client", await temporaryFile(png))).rejects.toThrow(
       "database unavailable",
     );
     expect(mock.remove).toHaveBeenCalledWith("https://cdn.example/image");
@@ -81,7 +82,9 @@ describe("streaming chat uploads", () => {
     mock.canSend
       .mockResolvedValueOnce({ id: "chat", streamChannelId: "channel" })
       .mockRejectedValueOnce(new Error("expired"));
-    await expect(uploadChatAttachment("client", request(png))).rejects.toThrow("expired");
+    await expect(uploadChatAttachment("client", await temporaryFile(png))).rejects.toThrow(
+      "expired",
+    );
     expect(mock.image).not.toHaveBeenCalled();
   });
 });

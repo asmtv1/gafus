@@ -36,6 +36,9 @@ const withPWA = withPWAInit({
 // Общие алиасы для webpack и Turbopack (workspace-пакеты).
 // Важно: более длинные пути для core — первыми, иначе сработает @gafus/core и попадёт src вместо dist (на проде 500).
 const gafusAliases = {
+  "@gafus/core/services/questions": _path.resolve(__dirname, "../../packages/core/dist/core/src/services/questions"),
+  "@gafus/questions-server": _path.resolve(__dirname, "../../packages/questions-server/dist"),
+  "@gafus/gallery-server": _path.resolve(__dirname, "../../packages/gallery-server/dist"),
   "@gafus/core/updatePetPhoto": _path.resolve(
     __dirname,
     "../../packages/core/src/services/pets/petsService.ts",
@@ -137,6 +140,7 @@ const nextConfig = {
     "@gafus/auth",
     "@gafus/logger",
     "@gafus/types",
+    "@gafus/gallery-server",
     "@gafus/error-handling",
     "@gafus/ui-components",
   ],

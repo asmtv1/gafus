@@ -1,5 +1,3 @@
-import { manageChatReaction } from "./reactions";
-import { manageOwnChatMessage } from "./messageManagement";
 import { connection } from "@gafus/queues";
 import { ZodError } from "zod";
 import {
@@ -8,16 +6,17 @@ import {
   getChatSession,
   sendChatMessage,
   listChatDialogs,
-} from "./service";
-import { ChatError } from "./stream";
-import { uploadChatAttachment, deleteChatAttachment } from "./upload";
-import {
+  ChatError,
+  manageChatReaction,
+  manageOwnChatMessage,
   communityModerationOverview,
   moderateCommunityChat,
   getCommunityChatState,
   getCommunityChatSession,
   sendCommunityChatMessage,
-} from "./community";
+} from "@gafus/core/services/cynologistChat";
+import { deleteChatAttachment } from "@gafus/core/services/cynologistChat/upload";
+import { uploadChatAttachmentRequest } from "./upload.js";
 
 export function chatHttpError(error: unknown) {
   if (error instanceof ChatError)
@@ -76,7 +75,7 @@ export async function dispatchChatRequest(
   if (request.method === "POST" && action === "session")
     return community ? getCommunityChatSession(userId) : getChatSession(userId, chatId);
   if (request.method === "POST" && action === "attachments") {
-    const a = await uploadChatAttachment(userId, request, chatId, community);
+    const a = await uploadChatAttachmentRequest(userId, request, chatId, community);
     return { id: a.id, kind: a.kind, name: a.name };
   }
   if (request.method === "DELETE" && action === "attachments") {

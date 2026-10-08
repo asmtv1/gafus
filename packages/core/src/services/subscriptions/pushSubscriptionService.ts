@@ -4,7 +4,7 @@
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  */
 
-import { prisma } from "@gafus/prisma";
+import { prisma, type PushSubscription } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("push-subscription-service");
@@ -23,7 +23,9 @@ interface SavePushSubscriptionParams {
 /**
  * Сохраняет или обновляет push-подписку пользователя
  */
-export async function savePushSubscription(params: SavePushSubscriptionParams) {
+export async function savePushSubscription(
+  params: SavePushSubscriptionParams,
+): Promise<PushSubscription> {
   const { userId, endpoint, keys } = params;
 
   logger.info("Saving push subscription", { userId, endpoint: endpoint.substring(0, 50) + "..." });

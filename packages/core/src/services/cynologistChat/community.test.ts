@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
   user: vi.fn(),
+  users: vi.fn(),
+  query: vi.fn(),
   files: vi.fn(),
   op: vi.fn(),
   update: vi.fn(),
@@ -17,7 +19,7 @@ const m = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/prisma", () => ({
   prisma: {
-    user: { findUnique: m.user },
+    user: { findUnique: m.user, findMany: m.users },
     communityChatAttachment: { findMany: m.files },
     communityChatSendOperation: { upsert: m.op, update: m.update },
   },
@@ -44,11 +46,12 @@ vi.mock("./stream", () => ({
     queryBannedUsers: m.bans,
     getMessage: m.getMessage,
     deleteMessage: m.deleteMessage,
-    channel: () => ({ create: m.create, banUser: m.ban, unbanUser: m.unban }),
+    channel: () => ({ query: m.query, create: m.create, banUser: m.ban, unbanUser: m.unban }),
   }),
 }));
 vi.mock("./service", async () => ({ ...(await vi.importActual("./service")), sendOnce: m.send }));
 import {
+  communityModerationOverview,
   moderateCommunityChat,
   getCommunityChatState,
   getCommunityChatSession,
@@ -249,4 +252,25 @@ describe("community moderation boundaries", () => {
     ).rejects.toMatchObject({ code: "CHAT_FORBIDDEN" });
     expect(m.ban).not.toHaveBeenCalled();
   });
+});
+
+it("computes ban capability from database roles instead of Stream display names", async () => {
+  m.user.mockResolvedValue({ id: "mod", username: "admin", role: "ADMIN" });
+  m.users.mockResolvedValue([
+    { id: "mod", username: "admin", role: "ADMIN" },
+    { id: "normal", username: "admin", role: "USER" },
+    { id: "other", username: "other", role: "USER" },
+  ]);
+  m.query.mockResolvedValue({
+    messages: [
+      { id: "a", user: { id: "gafus-mod", name: "renamed" } },
+      { id: "b", user: { id: "gafus-normal", name: "admin" } },
+      { id: "c", user: { id: "gafus-other", name: "other" } },
+      { id: "d", user: { id: "external", name: "external" } },
+    ],
+  });
+  const result = await communityModerationOverview("mod");
+  expect(
+    Object.fromEntries(result.messages.map((message) => [message.id, message.canBan])),
+  ).toEqual({ a: false, b: true, c: true, d: false });
 });

@@ -1,3 +1,4 @@
+import { reconcileQuestionNotifications, cleanupUnusedQuestionPhotos } from "@gafus/core/services/questions";
 /**
  * Cron-планировщик для периодических задач
  * Запускает re-engagement планировщик ежедневно
@@ -26,6 +27,12 @@ const logger = createWorkerLogger("cron-scheduler");
  */
 export function startCronJobs(): void {
   logger.info("Запуск cron-планировщика...");
+  cron.schedule("* * * * *", () => {
+    reconcileQuestionNotifications().catch((error) => logger.error("Question push reconciliation failed", error as Error));
+  });
+  cron.schedule("17 * * * *", () => {
+    cleanupUnusedQuestionPhotos().catch((error) => logger.error("Question photo cleanup failed", error as Error));
+  });
 
   // Задача 1: Re-engagement планировщик (ежедневно в 8:00 МСК)
   cron.schedule(

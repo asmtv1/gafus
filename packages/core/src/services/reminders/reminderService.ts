@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { prisma, type Reminder } from "@gafus/prisma";
 
 const REMINDER_TYPE = "training";
 const MAX_REMINDERS = 5;
@@ -51,7 +51,7 @@ export async function createReminder(
   reminderTime: string,
   reminderDays?: string | null,
   timezone?: string | null,
-) {
+): Promise<Reminder> {
   validateTime(reminderTime);
   validateDays(reminderDays);
   validateTimezone(timezone);
@@ -84,7 +84,7 @@ export async function updateReminder(
     reminderDays?: string | null;
     timezone?: string;
   },
-) {
+): Promise<Reminder> {
   if (data.reminderTime !== undefined) validateTime(data.reminderTime);
   if (data.reminderDays !== undefined) validateDays(data.reminderDays);
   if (data.timezone !== undefined) validateTimezone(data.timezone);
@@ -103,7 +103,7 @@ export async function updateReminder(
   });
 }
 
-export async function deleteReminder(userId: string, id: string) {
+export async function deleteReminder(userId: string, id: string): Promise<Reminder> {
   const existing = await prisma.reminder.findFirst({
     where: { id, userId, type: REMINDER_TYPE },
     select: { id: true },

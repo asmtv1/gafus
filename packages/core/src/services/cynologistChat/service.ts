@@ -26,7 +26,10 @@ export const chatMessageSchema = z
     clientMessageId: z.string().uuid(),
     text: z.string().trim().max(CHAT_LIMITS.textLength).default(""),
     quotedMessageId: z.string().min(1).max(128).optional(),
-    attachmentIds: z.array(z.string().min(1).max(128)).max(5).default([]),
+    attachmentIds: z
+      .array(z.string().min(1).max(128))
+      .max(CHAT_LIMITS.attachmentsPerMessage)
+      .default([]),
   })
   .refine(
     (v) => v.text.length > 0 || v.attachmentIds.length > 0,

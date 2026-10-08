@@ -1,0 +1,31 @@
+{
+  "version": "1.7.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "name": "@gafus/gallery-cloud",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "package:linux": "node scripts/package-linux.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "benchmark": "node scripts/benchmark.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@gafus/core": "workspace:*",
+    "@gafus/gallery-storage": "workspace:*",
+    "@aws-sdk/client-sqs": "3.980.0",
+    "sharp": "0.34.3"
+  },
+  "optionalDependencies": {
+    "@img/sharp-linux-x64": "0.34.3",
+    "@img/sharp-libvips-linux-x64": "1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "vitest": "4.0.18",
+    "esbuild": "0.27.2"
+  }
+}

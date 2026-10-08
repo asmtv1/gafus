@@ -300,15 +300,24 @@ importers:
       '@gafus/cdn-upload':
         specifier: workspace:*
         version: link:../../packages/cdn-upload
+      '@gafus/chat-server':
+        specifier: workspace:*
+        version: link:../../packages/chat-server
       '@gafus/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gafus/gallery-server':
+        specifier: workspace:*
+        version: link:../../packages/gallery-server
       '@gafus/logger':
         specifier: workspace:*
         version: link:../../packages/logger
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
+      '@gafus/questions-server':
+        specifier: workspace:*
+        version: link:../../packages/questions-server
       '@gafus/queues':
         specifier: workspace:*
         version: link:../../packages/queues
@@ -386,6 +395,41 @@ importers:
       tsx:
         specifier: ^4.20.3
         version: 4.21.0
+
+  apps/gallery-cloud:
+    dependencies:
+      '@aws-sdk/client-sqs':
+        specifier: 3.980.0
+        version: 3.980.0
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@gafus/gallery-storage':
+        specifier: workspace:*
+        version: link:../../packages/gallery-storage
+      sharp:
+        specifier: 0.34.3
+        version: 0.34.3
+    devDependencies:
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
+      esbuild:
+        specifier: 0.27.2
+        version: 0.27.2
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)
+    optionalDependencies:
+      '@img/sharp-libvips-linux-x64':
+        specifier: 1.2.0
+        version: 1.2.0
+      '@img/sharp-linux-x64':
+        specifier: 0.34.3
+        version: 0.34.3
 
   apps/mobile:
     dependencies:
@@ -799,6 +843,9 @@ importers:
       '@gafus/cdn-upload':
         specifier: workspace:^
         version: link:../../packages/cdn-upload
+      '@gafus/chat-server':
+        specifier: workspace:*
+        version: link:../../packages/chat-server
       '@gafus/consultation-shared':
         specifier: workspace:*
         version: link:../../packages/consultation-shared
@@ -811,6 +858,9 @@ importers:
       '@gafus/error-handling':
         specifier: workspace:*
         version: link:../../packages/error-handling
+      '@gafus/gallery-server':
+        specifier: workspace:*
+        version: link:../../packages/gallery-server
       '@gafus/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -820,6 +870,9 @@ importers:
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../../packages/prisma
+      '@gafus/questions-server':
+        specifier: workspace:*
+        version: link:../../packages/questions-server
       '@gafus/queues':
         specifier: workspace:*
         version: link:../../packages/queues
@@ -1071,6 +1124,37 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/chat-server:
+    dependencies:
+      '@gafus/consultation-shared':
+        specifier: workspace:*
+        version: link:../consultation-shared
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gafus/queues':
+        specifier: workspace:*
+        version: link:../queues
+      busboy:
+        specifier: ^1.6.0
+        version: 1.6.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/busboy':
+        specifier: ^1.5.4
+        version: 1.5.4
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/consultation-shared:
     dependencies:
       libphonenumber-js:
@@ -1131,9 +1215,6 @@ importers:
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.3
-      busboy:
-        specifier: 1.6.0
-        version: 1.6.0
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -1168,9 +1249,6 @@ importers:
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6
-      '@types/busboy':
-        specifier: ^1.5.4
-        version: 1.5.4
       '@types/luxon':
         specifier: ^3.7.1
         version: 3.7.1
@@ -1266,6 +1344,62 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+
+  packages/gallery-server:
+    dependencies:
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gafus/gallery-storage':
+        specifier: workspace:*
+        version: link:../gallery-storage
+      '@gafus/prisma':
+        specifier: workspace:*
+        version: link:../prisma
+      '@gafus/queues':
+        specifier: workspace:*
+        version: link:../queues
+      '@gafus/types':
+        specifier: workspace:*
+        version: link:../types
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/gallery-storage:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: 3.980.0
+        version: 3.980.0
+      '@aws-sdk/s3-presigned-post':
+        specifier: 3.980.0
+        version: 3.980.0
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
+      esbuild:
+        specifier: 0.27.2
+        version: 0.27.2
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/logger:
     dependencies:
@@ -1366,6 +1500,28 @@ importers:
       typescript:
         specifier: 5.8.3
         version: 5.8.3
+
+  packages/questions-server:
+    dependencies:
+      '@gafus/core':
+        specifier: workspace:*
+        version: link:../core
+      '@gafus/types':
+        specifier: workspace:*
+        version: link:../types
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: 20.4.8
+        version: 20.4.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/queues:
     dependencies:
@@ -1824,6 +1980,10 @@ packages:
     resolution: {integrity: sha512-ch8QqKehyn1WOYbd8LyDbWjv84Z9OEj9qUxz8q3IOCU3ftAVkVR0wAuN96a1xCHnpOJcQZo3rOB08RlyKdkGxQ==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/client-sqs@3.980.0':
+    resolution: {integrity: sha512-ibZ89sI3DRQOXrbHoMd83Dz6y1Qiu+qXPRTyiGV0w1tADFZlCL6G+HdwlvUmuHCkQBMErsztUzbMwil7/AhP6g==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/client-sso@3.980.0':
     resolution: {integrity: sha512-AhNXQaJ46C1I+lQ+6Kj+L24il5K9lqqIanJd8lMszPmP7bLnmX0wTKK0dxywcvrLdij3zhWttjAKEBNgLtS8/A==}
     engines: {node: '>=20.0.0'}
@@ -1900,6 +2060,10 @@ packages:
     resolution: {integrity: sha512-3IgeIDiQ15tmMBFIdJ1cTy3A9rXHGo+b9p22V38vA3MozeMyVC8VmCYdDLA0iMWo4VHA9LDJTgCM0+xU3wjBOg==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/middleware-sdk-sqs@3.972.43':
+    resolution: {integrity: sha512-0V1bKYPfAnhA6fW9r04uZfXB7DkwT149wKL14BKCC7zUryxIBecgDyvxKIUsZApmvSXpEzPL66uzO/Yc55s74g==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/middleware-ssec@3.972.3':
     resolution: {integrity: sha512-dU6kDuULN3o3jEHcjm0c4zWJlY1zWVkjG9NPe9qxYLLpcbdj5kRYBS2DdWYD+1B9f910DezRuws7xDEqKkHQIg==}
     engines: {node: '>=20.0.0'}
@@ -1916,6 +2080,10 @@ packages:
     resolution: {integrity: sha512-v4J8qYAWfOMcZ4MJUyatntOicTzEMaU7j3OpkRCGGFSL2NgXQ5VbxauIyORA+pxdKZ0qQG2tCQjQjZDlXEC3Ow==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/s3-presigned-post@3.980.0':
+    resolution: {integrity: sha512-ucGrzDKg3T1dHSVb2sKHFzEJw7CRCDxgFZ0QDTCrC3xYWWysBtpms9jLi7l8zRi0uvlT+dZfZlzYhEprsdQCvQ==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/s3-request-presigner@3.980.0':
     resolution: {integrity: sha512-qX1Ptvja9Le0Wt1VadgsJ7Kw8Xf57pTIVmIcvYD5HrdAot71qgXdfBtcbuvNKZPeD+HfcUITwxxHpDiXfSoTsA==}
     engines: {node: '>=20.0.0'}
@@ -1930,6 +2098,10 @@ packages:
 
   '@aws-sdk/types@3.973.1':
     resolution: {integrity: sha512-DwHBiMNOB468JiX6+i34c+THsKHErYUdNQ3HexeXZvVn4zouLjgaS4FejiGSi2HyBuzuyHg7SuOPmjSvoU9NRg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/types@3.974.6':
+    resolution: {integrity: sha512-v/clNZzZnDxGyvpHMOGpJKVXFAExJzUNAAjaWGdcx8QAcXLGwTaOkw33p5SHAi0YAioK32xB3hWwOekRVfmfKg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/util-arn-parser@3.972.2':
@@ -4633,7 +4805,7 @@ packages:
     resolution: {integrity: sha512-GksZ6pr6TpIjHm8h9lSQ8pi8BE9VeubNT0OMJ3B5uZJ8pz73NPiqOtCog/x2/QzM1ENChPKxMDhiQuRHsqc+lg==}
     engines: {node: '>= 8.0.0'}
     peerDependencies:
-      rollup: 4.59.0
+      rollup: '>=2.80.0'
 
   '@rollup/pluginutils@5.3.0':
     resolution: {integrity: sha512-5EdhGZtnu3V88ces7s53hhfK5KSASnJZv8Lulpc04cWO3REESroJXg73DFsOmgbU2BhwV0E20bu2IDZb3VKW4Q==}
@@ -4814,6 +4986,10 @@ packages:
     resolution: {integrity: sha512-6vjCHD6vaY8KubeNw2Fg3EK0KLGQYdldG4fYgQmA0xSW0dJ8G2xFhSOdrlUakWVoP5JuWHtFODg3PNd/DN3FDA==}
     engines: {node: '>=18.0.0'}
 
+  '@smithy/core@3.35.1':
+    resolution: {integrity: sha512-i4YPS4B6ts7bjn7UwLnGjiZdprOvHvgGobFZsYK3GIY3E5hIqtj0rReU69BcTpGp+fvtraSNXeG1l+jtJvF55w==}
+    engines: {node: '>=18.0.0'}
+
   '@smithy/credential-provider-imds@4.2.8':
     resolution: {integrity: sha512-FNT0xHS1c/CPN8upqbMFP83+ul5YgdisfCfkZ86Jh2NSmnqw/AJ6x5pEogVCTVvSm7j9MopRU89bmDelxuDMYw==}
     engines: {node: '>=18.0.0'}
@@ -4932,6 +5108,10 @@ packages:
 
   '@smithy/types@4.12.0':
     resolution: {integrity: sha512-9YcuJVTOBDjg9LWo23Qp0lTQ3D7fQsQtwle0jVfpbUHy9qBwCEgKuVH4FqFB3VYu0nwdHKiEMA+oXz7oV8X1kw==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/types@4.19.0':
+    resolution: {integrity: sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q==}
     engines: {node: '>=18.0.0'}
 
   '@smithy/url-parser@4.2.8':
@@ -12534,6 +12714,52 @@ snapshots:
     transitivePeerDependencies:
       - aws-crt
 
+  '@aws-sdk/client-sqs@3.980.0':
+    dependencies:
+      '@aws-crypto/sha256-browser': 5.2.0
+      '@aws-crypto/sha256-js': 5.2.0
+      '@aws-sdk/core': 3.973.5
+      '@aws-sdk/credential-provider-node': 3.972.4
+      '@aws-sdk/middleware-host-header': 3.972.3
+      '@aws-sdk/middleware-logger': 3.972.3
+      '@aws-sdk/middleware-recursion-detection': 3.972.3
+      '@aws-sdk/middleware-sdk-sqs': 3.972.43
+      '@aws-sdk/middleware-user-agent': 3.972.5
+      '@aws-sdk/region-config-resolver': 3.972.3
+      '@aws-sdk/types': 3.973.1
+      '@aws-sdk/util-endpoints': 3.980.0
+      '@aws-sdk/util-user-agent-browser': 3.972.3
+      '@aws-sdk/util-user-agent-node': 3.972.3
+      '@smithy/config-resolver': 4.4.6
+      '@smithy/core': 3.22.0
+      '@smithy/fetch-http-handler': 5.3.9
+      '@smithy/hash-node': 4.2.8
+      '@smithy/invalid-dependency': 4.2.8
+      '@smithy/md5-js': 4.2.8
+      '@smithy/middleware-content-length': 4.2.8
+      '@smithy/middleware-endpoint': 4.4.12
+      '@smithy/middleware-retry': 4.4.29
+      '@smithy/middleware-serde': 4.2.9
+      '@smithy/middleware-stack': 4.2.8
+      '@smithy/node-config-provider': 4.3.8
+      '@smithy/node-http-handler': 4.4.8
+      '@smithy/protocol-http': 5.3.8
+      '@smithy/smithy-client': 4.11.1
+      '@smithy/types': 4.12.0
+      '@smithy/url-parser': 4.2.8
+      '@smithy/util-base64': 4.3.0
+      '@smithy/util-body-length-browser': 4.2.0
+      '@smithy/util-body-length-node': 4.2.1
+      '@smithy/util-defaults-mode-browser': 4.3.28
+      '@smithy/util-defaults-mode-node': 4.2.31
+      '@smithy/util-endpoints': 3.2.8
+      '@smithy/util-middleware': 4.2.8
+      '@smithy/util-retry': 4.2.8
+      '@smithy/util-utf8': 4.2.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - aws-crt
+
   '@aws-sdk/client-sso@3.980.0':
     dependencies:
       '@aws-crypto/sha256-browser': 5.2.0
@@ -12780,6 +13006,13 @@ snapshots:
       '@smithy/util-utf8': 4.2.0
       tslib: 2.8.1
 
+  '@aws-sdk/middleware-sdk-sqs@3.972.43':
+    dependencies:
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
   '@aws-sdk/middleware-ssec@3.972.3':
     dependencies:
       '@aws-sdk/types': 3.973.1
@@ -12847,6 +13080,20 @@ snapshots:
       '@smithy/types': 4.12.0
       tslib: 2.8.1
 
+  '@aws-sdk/s3-presigned-post@3.980.0':
+    dependencies:
+      '@aws-sdk/client-s3': 3.980.0
+      '@aws-sdk/types': 3.973.1
+      '@aws-sdk/util-format-url': 3.972.3
+      '@smithy/middleware-endpoint': 4.4.12
+      '@smithy/signature-v4': 5.3.8
+      '@smithy/types': 4.12.0
+      '@smithy/util-hex-encoding': 4.2.0
+      '@smithy/util-utf8': 4.2.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - aws-crt
+
   '@aws-sdk/s3-request-presigner@3.980.0':
     dependencies:
       '@aws-sdk/signature-v4-multi-region': 3.980.0
@@ -12882,6 +13129,11 @@ snapshots:
   '@aws-sdk/types@3.973.1':
     dependencies:
       '@smithy/types': 4.12.0
+      tslib: 2.8.1
+
+  '@aws-sdk/types@3.974.6':
+    dependencies:
+      '@smithy/types': 4.19.0
       tslib: 2.8.1
 
   '@aws-sdk/util-arn-parser@3.972.2':
@@ -16137,6 +16389,11 @@ snapshots:
       '@smithy/uuid': 1.1.0
       tslib: 2.8.1
 
+  '@smithy/core@3.35.1':
+    dependencies:
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
   '@smithy/credential-provider-imds@4.2.8':
     dependencies:
       '@smithy/node-config-provider': 4.3.8
@@ -16329,6 +16586,10 @@ snapshots:
       tslib: 2.8.1
 
   '@smithy/types@4.12.0':
+    dependencies:
+      tslib: 2.8.1
+
+  '@smithy/types@4.19.0':
     dependencies:
       tslib: 2.8.1
 
@@ -22996,7 +23257,7 @@ snapshots:
       debug: 4.4.3(supports-color@5.5.0)
       devtools-protocol: 0.0.1367902
       typed-query-selector: 2.12.2
-      ws: 8.20.0
+      ws: 8.22.0
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer

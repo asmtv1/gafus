@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { chatHttpError, dispatchChatRequest } from "@gafus/core/services/cynologistChat/http";
+import { chatHttpError, dispatchChatRequest } from "@gafus/chat-server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function handle(request: NextRequest) {

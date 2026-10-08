@@ -18,7 +18,7 @@ vi.mock("stream-chat-react", () => ({
   Window: ({ children }: { children: React.ReactNode }) => children,
   MessageList: () => null,
 }));
-import { ConnectedChat } from "./ChatPage";
+import { ConnectedChat } from "./ConnectedChat";
 let root: Root;
 let host: HTMLDivElement;
 const session = {

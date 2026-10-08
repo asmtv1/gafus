@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "declaration": false,
+    "noEmit": true,
+    "baseUrl": "../..",
+    "paths": {
+      "@gafus/core/services/gallery": [
+        "packages/core/src/services/gallery/index.ts"
+      ],
+      "@gafus/core/services/gallery/imageProcessing": [
+        "packages/core/src/services/gallery/imageProcessing.ts"
+      ],
+      "@gafus/core/services/gallery/keys": [
+        "packages/core/src/services/gallery/keys.ts"
+      ],
+      "@gafus/gallery-storage": [
+        "packages/gallery-storage/src/index.ts"
+      ],
+      "@gafus/gallery-storage/*": [
+        "packages/gallery-storage/src/*"
+      ],
+      "@gafus/types": [
+        "packages/types/src/gallery.ts"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
+}
