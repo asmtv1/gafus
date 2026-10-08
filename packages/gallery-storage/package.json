@@ -4,6 +4,7 @@
   "type": "module",
   "sideEffects": false,
   "name": "@gafus/gallery-storage",
+  "files": ["dist"],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

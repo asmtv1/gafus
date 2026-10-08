@@ -28,17 +28,14 @@ RUN cd packages/prisma \
   && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
   && mv schema.prisma.bak schema.prisma
 
-# Собираем все необходимые пакеты для API (mailer до core — типы из dist)
+# Собираем API вместе со всем графом workspace-зависимостей.
 RUN pnpm --filter @gafus/mailer build && \
-    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/auth --filter @gafus/core --filter @gafus/chat-server --filter @gafus/questions-server --filter @gafus/cdn-upload --filter @gafus/video-access --filter @gafus/api
+    pnpm build --filter '@gafus/api...'
 
-# Готовим production зависимости через pnpm deploy
+# pnpm deploy создаёт самодостаточный production node_modules.
 RUN pnpm deploy --legacy --filter @gafus/api --prod --no-optional /app/deploy
-# Восстанавливаем .pnpm для работы симлинков
-RUN if [ -d /app/node_modules/.pnpm ]; then \
-      mkdir -p /app/deploy/node_modules/.pnpm && \
-      cp -r /app/node_modules/.pnpm/* /app/deploy/node_modules/.pnpm/; \
-    fi
+# Prisma генерируется после install; переносим клиент в его runtime virtual store.
+RUN node -e "const {createRequire}=require('node:module'); const {dirname,join}=require('node:path'); const {cpSync}=require('node:fs'); const source=createRequire('/app/packages/prisma/package.json'); const deployed=createRequire('/app/deploy/package.json'); const target=createRequire(deployed.resolve('@gafus/prisma')); cpSync(join(dirname(source.resolve('@prisma/client')), '../../.prisma'), join(dirname(target.resolve('@prisma/client')), '../../.prisma'), {recursive:true});"
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -56,6 +53,8 @@ RUN apk add --no-cache curl wget ffmpeg
 COPY --from=base --chown=hono:nodejs /app/deploy/ ./
 # Копируем собранные файлы API (перезаписываем если нужно)
 COPY --from=base --chown=hono:nodejs /app/apps/api/dist ./dist
+# Проверяем новые runtime imports до выкладки, без подключения к сервисам.
+RUN node --input-type=module -e "const {createRequire} = await import('node:module'); await import(createRequire(import.meta.resolve('@gafus/gallery-server')).resolve('@gafus/gallery-storage')); createRequire(import.meta.resolve('@gafus/core')).resolve('file-type');"
 USER hono
 
 # Устанавливаем переменные окружения

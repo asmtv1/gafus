@@ -721,6 +721,7 @@ jobs:
             echo "🔐 Generating SSL certificates..."
             docker-compose -f "$COMPOSE_PROD" run --rm certbot certonly \
                 --webroot --webroot-path=/var/www/certbot \
+                --non-interactive --keep-until-expiring \
                 --email admin@gafus.ru --agree-tos --no-eff-email \
                 -d gafus.ru -d www.gafus.ru -d api.gafus.ru \
                 -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru || true

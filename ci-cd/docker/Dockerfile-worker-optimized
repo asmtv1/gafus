@@ -26,11 +26,14 @@ RUN cd packages/prisma \
   && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
   && mv schema.prisma.bak schema.prisma
 
-# Собираем все пакеты (включая logger, cdn-upload и reengagement для worker)
-# mailer до core (см. Dockerfile-admin-panel-optimized)
-# Порядок важен: сначала зависимости, потом worker. Worker импортирует только @gafus/core/services/consent (без auth)
+# Собираем worker вместе со всем графом workspace-зависимостей.
 RUN pnpm --filter @gafus/mailer build && \
-    pnpm build --filter @gafus/types --filter @gafus/logger --filter @gafus/prisma --filter @gafus/queues --filter @gafus/webpush --filter @gafus/cdn-upload --filter @gafus/reengagement --filter @gafus/consultation-shared --filter @gafus/core --filter @gafus/npd --filter @gafus/worker
+    pnpm build --filter '@gafus/worker...'
+
+# Берём production зависимости из манифестов и lockfile, включая зависимости core.
+RUN pnpm deploy --legacy --filter @gafus/worker --prod --no-optional /app/deploy
+# Prisma генерируется после install; переносим клиент в его runtime virtual store.
+RUN node -e "const {createRequire}=require('node:module'); const {dirname,join}=require('node:path'); const {cpSync}=require('node:fs'); const source=createRequire('/app/packages/prisma/package.json'); const deployed=createRequire('/app/deploy/package.json'); const target=createRequire(deployed.resolve('@gafus/prisma')); cpSync(join(dirname(source.resolve('@prisma/client')), '../../.prisma'), join(dirname(target.resolve('@prisma/client')), '../../.prisma'), {recursive:true});"
 
 # Production stage - только runtime
 FROM node:20-alpine AS runner
@@ -44,83 +47,10 @@ RUN adduser --system --uid 1001 worker
 # Устанавливаем только необходимые пакеты
 RUN apk add --no-cache curl ffmpeg
 
-# Копируем только собранные файлы
-COPY --from=base /app/packages/worker/dist ./packages/worker/dist
-COPY --from=base /app/packages/prisma/dist ./packages/prisma/dist
-COPY --from=base /app/packages/queues/dist ./packages/queues/dist
-COPY --from=base /app/packages/webpush/dist ./packages/webpush/dist
-COPY --from=base /app/packages/types/dist ./packages/types/dist
-COPY --from=base /app/packages/logger/dist ./packages/logger/dist
-COPY --from=base /app/packages/reengagement/dist ./packages/reengagement/dist
-COPY --from=base /app/packages/consultation-shared/dist ./packages/consultation-shared/dist
-COPY --from=base /app/packages/cdn-upload/dist ./packages/cdn-upload/dist
-COPY --from=base /app/packages/core/dist ./packages/core/dist
-COPY --from=base /app/packages/mailer/dist ./packages/mailer/dist
-COPY --from=base /app/packages/npd/dist ./packages/npd/dist
+COPY --from=base --chown=worker:nodejs /app/deploy/ ./
 
-# Копируем только package.json файлы
-COPY --from=base /app/packages/worker/package.json ./packages/worker/package.json
-COPY --from=base /app/packages/prisma/package.json ./packages/prisma/package.json
-COPY --from=base /app/packages/reengagement/package.json ./packages/reengagement/package.json
-COPY --from=base /app/packages/queues/package.json ./packages/queues/package.json
-COPY --from=base /app/packages/webpush/package.json ./packages/webpush/package.json
-COPY --from=base /app/packages/types/package.json ./packages/types/package.json
-COPY --from=base /app/packages/logger/package.json ./packages/logger/package.json
-COPY --from=base /app/packages/consultation-shared/package.json ./packages/consultation-shared/package.json
-COPY --from=base /app/packages/cdn-upload/package.json ./packages/cdn-upload/package.json
-COPY --from=base /app/packages/core/package.json ./packages/core/package.json
-COPY --from=base /app/packages/mailer/package.json ./packages/mailer/package.json
-COPY --from=base /app/packages/npd/package.json ./packages/npd/package.json
-
-# Устанавливаем только production зависимости (expo-server-sdk нужен для push в мобильное приложение)
-# bcryptjs, libphonenumber-js, zod, petrovich, @apple/app-store-server-library — deps @gafus/core
-RUN npm init -y && \
-    npm install --production --no-optional \
-    @apple/app-store-server-library@3.0.0 \
-    stream-chat@9.53.0 \
-    bullmq@5.2.0 \
-    ioredis@5.3.2 \
-    web-push@3.6.6 \
-    expo-server-sdk@3.15.0 \
-    @prisma/client@6.10.1 \
-    pino@8.16.2 \
-    pino-pretty@10.2.3 \
-    @aws-sdk/client-s3@3.914.0 \
-    @aws-sdk/s3-request-presigner@3.914.0 \
-    node-cron@3.0.3 \
-    pg@8.23.0 \
-    bcryptjs@^3.0.2 \
-    date-fns@^4.1.0 \
-    date-fns-tz@^3.2.0 \
-    libphonenumber-js@^1.12.8 \
-    zod@^3.24.1 \
-    petrovich@^0.2.1 \
-    nodemailer@^7.0.10
-
-# Копируем весь сгенерированный Prisma client из base stage (включая runtime файлы)
-COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/.prisma ./node_modules/.prisma
-COPY --from=base /app/node_modules/.pnpm/@prisma+client@6.10.1_prisma@6.10.1_typescript@5.8.3__typescript@5.8.3/node_modules/@prisma ./node_modules/@prisma
-
-# Копируем Prisma schema
-COPY --from=base /app/packages/prisma/schema.prisma ./packages/prisma/schema.prisma
-
-# Создаём алиасы в node_modules для workspace пакетов
-RUN mkdir -p /app/node_modules/@gafus \
-  && ln -s /app/packages/prisma /app/node_modules/@gafus/prisma \
-  && ln -s /app/packages/queues /app/node_modules/@gafus/queues \
-  && ln -s /app/packages/webpush /app/node_modules/@gafus/webpush \
-  && ln -s /app/packages/types /app/node_modules/@gafus/types \
-  && ln -s /app/packages/logger /app/node_modules/@gafus/logger \
-  && ln -s /app/packages/consultation-shared /app/node_modules/@gafus/consultation-shared \
-  && ln -s /app/packages/cdn-upload /app/node_modules/@gafus/cdn-upload \
-  && ln -s /app/packages/reengagement /app/node_modules/@gafus/reengagement \
-  && ln -s /app/packages/core /app/node_modules/@gafus/core \
-  && ln -s /app/packages/mailer /app/node_modules/@gafus/mailer \
-  && ln -s /app/packages/npd /app/node_modules/@gafus/npd
-
-# Проверяем импорт чат-сервиса в итоговом образе, чтобы отсутствующие runtime deps
-# останавливали сборку до выкладки.
-RUN node -e "import('./packages/core/dist/core/src/services/cynologistChat/stream.js')"
+# Проверяем импорты, которые сломали запуск production worker.
+RUN node -e "Promise.all([import(require('node:path').join(require('node:path').dirname(require.resolve('@gafus/core')), 'services/cynologistChat/stream.js')), import('@gafus/core/services/questions')]).then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); })"
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app
@@ -130,4 +60,4 @@ USER worker
 ENV NODE_ENV=production
 
 # Запускаем worker
-CMD ["node", "packages/worker/dist/worker/src/index.js"]
+CMD ["node", "dist/worker/src/index.js"]
