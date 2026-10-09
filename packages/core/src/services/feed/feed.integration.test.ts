@@ -103,6 +103,17 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     await social.deleteComment(owner, comment.id);
     expect((await social.listComments(reader, post.id)).items.filter(x => !x.deleted)).toHaveLength(0);
   });
+  it("resolves a notification comment only while its post and comment remain visible", async () => {
+    const post = await publish();
+    const comment = await social.createComment(reader, post.id, { clientRequestId: randomUUID(), text: "Из уведомления" });
+    expect(await social.getComment(owner, comment.id)).toMatchObject({ id: comment.id, postId: post.id, text: "Из уведомления" });
+    await social.deleteComment(reader, comment.id);
+    await expect(social.getComment(owner, comment.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const other = await social.createComment(reader, post.id, { clientRequestId: randomUUID(), text: "Второй" });
+    await posts.remove(owner, post.id);
+    await expect(social.getComment(reader, other.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(social.getComment(randomUUID(), other.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
   it("hides a deleted post and its interactions immediately", async () => {
     const post = await publish(); await posts.remove(owner, post.id);
     await expect(posts.get(reader, post.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
