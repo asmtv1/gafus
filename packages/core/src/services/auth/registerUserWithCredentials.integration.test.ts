@@ -1,6 +1,7 @@
+vi.mock("./registerEmailDomainDns", () => ({ canRegisterEmailDomain: vi.fn().mockResolvedValue(true) }));
 import crypto from "node:crypto";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { prisma } from "@gafus/prisma";
 

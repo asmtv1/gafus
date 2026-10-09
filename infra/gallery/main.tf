@@ -54,7 +54,9 @@ resource "yandex_storage_bucket" "gallery" {
     { Sid = "RegisteredSources", Effect = "Allow", Principal = { CanonicalUser = yandex_iam_service_account.gallery["web"].id }, Action = ["s3:PutObject"], Resource = [for ext in ["jpg", "png", "webp"] : "arn:aws:s3:::${var.bucket}/albums/*/*/incoming/*/source.${ext}"] },
     { Sid = "CoreHead", Effect = "Allow", Principal = { CanonicalUser = yandex_iam_service_account.gallery["web"].id }, Action = ["s3:GetObject"], Resource = ["arn:aws:s3:::${var.bucket}/albums/*"] },
     { Sid = "WorkerObjects", Effect = "Allow", Principal = { CanonicalUser = yandex_iam_service_account.gallery["worker"].id }, Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"], Resource = ["arn:aws:s3:::${var.bucket}/albums/*"] },
-    { Sid = "FinalOrigin", Effect = "Allow", Principal = { CanonicalUser = yandex_iam_service_account.gallery["origin"].id }, Action = ["s3:GetObject"], Resource = [for variant in ["thumb", "full"] : "arn:aws:s3:::${var.bucket}/albums/*/*/photos/*/${variant}.webp"] }
+    { Sid = "FinalOrigin", Effect = "Allow", Principal = { CanonicalUser = yandex_iam_service_account.gallery["origin"].id }, Action = ["s3:GetObject"], Resource = [for variant in ["thumb", "full"] : "arn:aws:s3:::${var.bucket}/albums/*/*/photos/*/${variant}.webp"] },
+    # Keep Terraform's S3 administration on the DEV provisioner account only.
+    { Sid = "TerraformProvisioner", Effect = "Allow", Principal = { CanonicalUser = var.provisioner_service_account_id }, Action = ["s3:*"], Resource = ["arn:aws:s3:::${var.bucket}", "arn:aws:s3:::${var.bucket}/*"] }
   ] })
   lifecycle { prevent_destroy = true }
 }
@@ -140,7 +142,21 @@ resource "yandex_function" "gallery" {
     GALLERY_INTERNAL_BASE_URL   = var.internal_base_url
     GALLERY_ORIGIN_VERIFY_TOKEN = "false"
   }
-  content { zip_filename = "${var.artifact_directory}/${each.key}.zip" }
+  # The provider's inline code limit is ~3.5 MiB, so large Linux/Sharp
+  # archives are loaded from a private deployment bucket.
+  dynamic "content" {
+    for_each = contains(["origin", "dispatch"], each.key) ? [1] : []
+    content {
+      zip_filename = "${var.artifact_directory}/${each.key}.zip"
+    }
+  }
+  dynamic "package" {
+    for_each = contains(["process", "maintenance"], each.key) ? [1] : []
+    content {
+      bucket_name = yandex_storage_bucket.function_packages.bucket
+      object_name = yandex_storage_object.function_packages[each.key].key
+    }
+  }
   dynamic "secrets" {
     for_each = nonsensitive(toset(keys(local.payloads[each.value.runtime_sa])))
     content {
@@ -152,7 +168,7 @@ resource "yandex_function" "gallery" {
   }
   # Request headers, bodies and secret-bearing integration configuration are never logged.
   log_options { disabled = true }
-  depends_on = [yandex_lockbox_secret_iam_binding.runtime, yandex_resourcemanager_folder_iam_member.queue_writer]
+  depends_on = [yandex_lockbox_secret_iam_binding.runtime, yandex_resourcemanager_folder_iam_member.queue_writer, yandex_storage_bucket_iam_binding.function_packages_reader]
 }
 resource "yandex_function_scaling_policy" "bounded" {
   for_each    = yandex_function.gallery

@@ -7,6 +7,7 @@ import { GalleryError, createGalleryService, galleryParse, galleryListSchema, ga
 } from "@gafus/core/services/gallery";
 import type { GalleryService } from "@gafus/core/services/gallery";
 import { prisma } from "@gafus/prisma";
+import { connection as redis } from "@gafus/queues";
 import { createGalleryStorageFromEnv } from "@gafus/gallery-storage";
 import { INTERNAL_GALLERY_PATHS, createGalleryRequestVerifier } from "@gafus/gallery-storage/hmac";
 import type { GalleryInternalPath, NonceStore } from "@gafus/gallery-storage/hmac";
@@ -147,13 +148,24 @@ export async function dispatchGalleryRequest(actorId: string, request: Request, 
   throw new GalleryError("NOT_FOUND", "Маршрут не найден", 404);
 }
 
+// Queue connections intentionally wait indefinitely; HTTP authentication must not.
+// Absolute expiry also prevents a delayed Redis command from extending nonce lifetime.
 const redisNonceStore: NonceStore = {
   async consume(nonce, expiresAt) {
-    const ttl = expiresAt - Date.now();
-    if (ttl <= 0) return false;
-    const { connection: redis } = await import("@gafus/queues");
-    const result = await redis.set(`gafus-gallery-nonce:${nonce}`, "1", "PX", ttl, "NX");
-    return result === "OK";
+    if (expiresAt <= Date.now()) return false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        (async () => {
+          if (redis.status !== "ready") throw new Error("NONCE_STORE_UNAVAILABLE");
+          const result = await redis.set(`gafus-gallery-nonce:${nonce}`, "1", "PXAT", expiresAt, "NX");
+          return result === "OK";
+        })(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error("NONCE_STORE_UNAVAILABLE")), 1000);
+        }),
+      ]);
+    } finally { if (timer) clearTimeout(timer); }
   },
 };
 
@@ -165,6 +177,12 @@ export async function dispatchGalleryInternalRequest(request: Request, path: str
   const method = request.method.toUpperCase();
   if (method !== "POST" || !(INTERNAL_GALLERY_PATHS as readonly string[]).includes(path))
     throw new GalleryError(method !== "POST" ? "METHOD_NOT_ALLOWED" : "NOT_FOUND", method !== "POST" ? "Метод не поддерживается" : "Маршрут не найден", method !== "POST" ? 405 : 404);
+  const url = new URL(request.url);
+  if (url.pathname !== path || url.search)
+    throw new GalleryError("NOT_FOUND", "Маршрут не найден", 404);
+  const declared = request.headers.get("content-length");
+  if (declared && /^\d+$/.test(declared) && Number(declared) > MAX_BODY_BYTES)
+    throw new GalleryError("BODY_TOO_LARGE", "Запрос слишком большой", 413);
   const rawBytes = await readLimitedBytes(request);
   let raw: string;
   try { raw = new TextDecoder("utf-8", { fatal: true }).decode(rawBytes); }
@@ -187,6 +205,8 @@ export async function dispatchGalleryInternalRequest(request: Request, path: str
     throw new GalleryError("INTERNAL_UNAVAILABLE", "Запрос не принят", 503);
   }
   if (!valid) throw new GalleryError("UNAUTHORIZED", "Запрос не авторизован", 401);
+  if (request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json")
+    throw new GalleryError("UNSUPPORTED_MEDIA_TYPE", "Поддерживается только JSON", 415);
   let json: unknown;
   try { json = raw ? JSON.parse(raw) : {}; }
   catch { throw new GalleryError("VALIDATION", "Некорректный JSON", 400); }

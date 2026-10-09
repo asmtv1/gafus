@@ -3,4 +3,5 @@
 *.tfplan
 *.tfvars
 !example.tfvars
+.secrets/
 crash.log

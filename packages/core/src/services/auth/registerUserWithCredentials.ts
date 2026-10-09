@@ -17,6 +17,8 @@ import {
 } from "./registrationContracts";
 import { parseAppSubscriptionPromoCode } from "../appSubscription/promoCode";
 
+import { canRegisterEmailDomain } from "./registerEmailDomainDns";
+
 const logger = createWebLogger("register-user-credentials");
 
 const BCRYPT_ROUNDS = 12;
@@ -84,6 +86,15 @@ export async function registerUserWithCredentials(
       ok: false,
       code: "VALIDATION_ERROR",
       messageRu: parsedConsent.error.errors.map((issue) => issue.message).join(", "),
+    };
+  }
+
+  const emailDomain = normalizedEmail.slice(normalizedEmail.lastIndexOf("@") + 1);
+  if (!(await canRegisterEmailDomain(emailDomain))) {
+    return {
+      ok: false,
+      code: "VALIDATION_ERROR",
+      messageRu: `Почта с доменом @${emailDomain} не принимает письма. Укажите настоящий адрес электронной почты`,
     };
   }
 

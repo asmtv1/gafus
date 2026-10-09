@@ -1,6 +1,6 @@
 # Private gallery cloud delivery
 
-Implementation step 3 is complete locally. No cloud resources were provisioned, and no live cloud smoke tests were run: YC OAuth is expired. Keep `GALLERY_ENABLED=false` and `GALLERY_PROCESSOR_READY` unset until the external gates below pass. Core owns registration, quotas, authorization, leases, durable jobs and cleanup. Workers use signed HTTP only and never connect to a database.
+Implementation step 3 is complete locally. DEV infrastructure and CDN are deployed; DNS and HTTPS work. Runtime smoke has not yet been verified. The production deployment is pending. `GALLERY_ENABLED=true` and `GALLERY_PROCESSOR_READY=true` are staged in local Compose, and a reviewed DEV Terraform plan will enable four existing cloud functions. Neither activation nor real runtime smoke has been completed yet. Core owns registration, quotas, authorization, leases, durable jobs and cleanup. Workers use signed HTTP only and never connect to a database.
 
 ## Factories and imports
 
@@ -82,7 +82,7 @@ Local benchmark: macOS ARM64, Node 20.20.2, 24 MP solid-color JPEG, 140,893 inpu
 
 Before enabling, the operator must finish these gates in an isolated dev/staging environment:
 
-1. Renew YC auth; review a Terraform plan; wire DNS/certificate and actual web Lockbox identity, core transport and shared nonce store. No plan/apply/live test was performed here.
+1. DEV infrastructure/CDN and DNS/HTTPS are deployed. Verify actual web Lockbox identity, transport through the existing GAFUS API and shared Redis nonce store; runtime smoke remains pending.
 2. Run the Linux native processor on Yandex `nodejs22`; exercise valid/invalid images and measure worker memory/timeout under load. Keep processor memory at 1 GiB, timeout 60 seconds and no prepared instances.
 3. Run the opt-in smoke runner described in [the infra runbook](../../infra/gallery/README.md): conditional S3 GET/PUT, anonymous-read denial, source upload without confirmation, duplicate delivery, origin secret/path checks and cached CDN token denial.
 4. Explicitly suppress incoming event delivery for a registered source fixture and run smoke with `GALLERY_SMOKE_REQUIRE_RECOVERY=true`; confirm maintenance returns and queues its ID. Separately verify scheduled maintenance without a manual call, partial output retry, HTTP outage/lease expiry, DLQ redrive and flag-off cleanup after the one-hour cooldown.
@@ -90,4 +90,4 @@ Before enabling, the operator must finish these gates in an isolated dev/staging
 6. Verify constrained browser POST CORS, negative public bucket ACL/IAM access, no public function invokers, actual scaling limits and viewer no-store headers alongside an edge HIT. A valid token must not bypass an invalid/expired/absent token test on the already-cached key.
 7. Attach the exact **500 RUB/month notification budget**, without automatic shutdown, to the billing account. `infra/gallery/budget-policy.json` records the required policy; billing-account integration is an external/root gate and is not provisioned by this module.
 
-Remaining work is external integration/credential/runtime validation, not missing local implementation. No production deployment or commits were made.
+Remaining work is external integration/credential/runtime validation, not missing local implementation. No production deployment is claimed. This local integration task made no cloud changes or commits.

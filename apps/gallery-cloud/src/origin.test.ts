@@ -3,7 +3,8 @@ import { describe,it,expect,vi } from 'vitest';
 import { createGalleryOrigin } from './origin-handler';
 import { signGalleryCdnUrl } from '@gafus/gallery-storage/cdn';
 import type { GalleryObjectStore } from '@gafus/gallery-storage/objects';
-const secret=randomBytes(32).toString('hex'), path='/albums/o/a/photos/p/full.webp';
+// Same 32-character URL-safe key format accepted by both origin and CDN signers.
+const secret=randomBytes(24).toString('base64url'), path='/albums/o/a/photos/p/full.webp';
 function setup(size=4) {
  const bytes=Buffer.alloc(size); const meta={etag:'"'+'a'.repeat(32)+'"',bytes:size,contentType:'image/webp'};
  const objects={head:vi.fn(async()=>meta),read:vi.fn(async()=>({bytes,metadata:meta})),create:vi.fn(),delete:vi.fn()} as unknown as GalleryObjectStore;

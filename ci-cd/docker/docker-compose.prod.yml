@@ -73,6 +73,18 @@ services:
       # Yandex Cloud CDN credentials
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
+      # Gallery DEV enabled by user request; deploy only after DB migration/cloud readiness.
+      - GALLERY_ENABLED=true
+      - GALLERY_BUCKET_PUBLIC=false
+      - GALLERY_BUCKET=gafus-gallery-dev-photos-b1gjbsvfnd1fl68k43g6
+      - GALLERY_S3_ENDPOINT=https://storage.yandexcloud.net
+      - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_DEV_WEB_S3_ACCESS_KEY_ID:-}
+      - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY:-}
+      - GALLERY_CDN_BASE_URL=https://gallery-dev.gafus.ru
+      - GALLERY_CDN_SECRET=${GALLERY_DEV_CDN_SECRET:-}
+      - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
+      - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
+      - GALLERY_PROCESSOR_READY=true
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
       - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
@@ -335,6 +347,18 @@ services:
       # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
+      # Gallery DEV enabled by user request; deploy only after DB migration/cloud readiness.
+      - GALLERY_ENABLED=true
+      - GALLERY_BUCKET_PUBLIC=false
+      - GALLERY_BUCKET=gafus-gallery-dev-photos-b1gjbsvfnd1fl68k43g6
+      - GALLERY_S3_ENDPOINT=https://storage.yandexcloud.net
+      - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_DEV_WEB_S3_ACCESS_KEY_ID:-}
+      - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY:-}
+      - GALLERY_CDN_BASE_URL=https://gallery-dev.gafus.ru
+      - GALLERY_CDN_SECRET=${GALLERY_DEV_CDN_SECRET:-}
+      - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
+      - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
+      - GALLERY_PROCESSOR_READY=true
       # VK ID (mobile auth, vk-link)
       - VK_CLIENT_ID=${VK_CLIENT_ID}
       - VK_CLIENT_ID_IOS=${VK_CLIENT_ID_IOS}

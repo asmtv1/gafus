@@ -1,4 +1,12 @@
 variable "cloud_id" { type = string }
+# Service account running this module; must retain private-bucket S3 access.
+variable "provisioner_service_account_id" {
+  type = string
+  validation {
+    condition     = can(regex("^[a-z0-9]{20}$", var.provisioner_service_account_id))
+    error_message = "Provide the folder-scoped Terraform provisioner service account ID."
+  }
+}
 variable "folder_id" { type = string }
 variable "environment" {
   type    = string
@@ -59,6 +67,12 @@ variable "cdn_secret" {
 }
 variable "cdn_hostname" { type = string }
 variable "cdn_certificate_id" { type = string }
+# CDN must be created in a second apply: the Yandex provider needs a known
+# API Gateway hostname during CDN resource planning (custom_host_header).
+variable "deploy_cdn" {
+  type    = bool
+  default = false
+}
 variable "enabled" {
   type    = bool
   default = false

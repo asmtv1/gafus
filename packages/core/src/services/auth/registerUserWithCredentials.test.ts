@@ -1,3 +1,4 @@
+vi.mock("./registerEmailDomainDns", () => ({ canRegisterEmailDomain: vi.fn().mockResolvedValue(true) }));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ hash: vi.fn(), compare: vi.fn(), transaction: vi.fn(), attempt: vi.fn(), userCreate: vi.fn(), userFindUnique: vi.fn(), savePromo: vi.fn(), attributeReferral: vi.fn(), createConsents: vi.fn(), attemptUpdate: vi.fn() }));
@@ -23,6 +24,8 @@ vi.mock("./registrationContracts", () => ({
   saveRegistrationPromoCodeInTransaction: (...args: unknown[]) => mocks.savePromo(...args),
 }));
 
+import { canRegisterEmailDomain } from "./registerEmailDomainDns";
+
 import { registerUserWithCredentials } from "./registerUserWithCredentials";
 
 const context = {
@@ -34,9 +37,21 @@ const input = { username: "new_user", email: "new@example.com", password: "Passw
 
 describe("registerUserWithCredentials atomic registration", () => {
   beforeEach(() => {
+    vi.mocked(canRegisterEmailDomain).mockResolvedValue(true);
     vi.clearAllMocks(); mocks.hash.mockResolvedValue("password-hash"); mocks.compare.mockResolvedValue(true);
     mocks.attempt.mockResolvedValue({ id: "attempt-1", completedAt: null }); mocks.userCreate.mockResolvedValue({ id: "user-1" }); mocks.savePromo.mockResolvedValue(null);
     mocks.transaction.mockImplementation((operation: (client: typeof tx) => Promise<unknown>) => operation(tx));
+  });
+
+  it.each(["WEB", "IOS", "ANDROID"])("rejects an unmail-able domain for %s before hashing or writing", async (channel) => {
+    vi.mocked(canRegisterEmailDomain).mockResolvedValue(false);
+    await expect(registerUserWithCredentials({ ...input, email: "new@qwe.ru", registrationChannel: channel as import("@gafus/prisma").RegistrationChannel })).resolves.toEqual({
+      ok: false, code: "VALIDATION_ERROR",
+      messageRu: "Почта с доменом @qwe.ru не принимает письма. Укажите настоящий адрес электронной почты",
+    });
+    expect(canRegisterEmailDomain).toHaveBeenCalledWith("qwe.ru");
+    expect(mocks.hash).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("requires accepted consent context even for an old no-promo client", async () => {

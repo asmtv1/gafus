@@ -8,6 +8,12 @@ vi.mock("@gafus/core/services/appFeatureFlags", () => ({
   getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
 }));
 
+const registerMock = vi.hoisted(() => vi.fn());
+vi.mock("@gafus/core/services/auth", async (importOriginal) => ({
+  ...await importOriginal<object>(),
+  registerUserService: registerMock,
+}));
+
 import { jsonRequest } from "../../test/route-test-utils";
 import { authRoutes } from "./auth";
 
@@ -21,6 +27,19 @@ describe("auth route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMobileFeatureFlagEnabledMock.mockResolvedValue(true);
+  });
+
+  it.each(["WEB", "IOS", "ANDROID"])("preserves DNS rejection text for %s direct API", async (registrationChannel) => {
+    const error = "Почта с доменом @qwe.ru не принимает письма. Укажите настоящий адрес электронной почты";
+    registerMock.mockResolvedValueOnce({ error });
+    const response = await createTestApp().request(jsonRequest("/api/v1/auth/register", "POST", {
+      name: "new_user", email: "new@qwe.ru", password: "Password1x", registrationChannel,
+      tempSessionId: "9d7ca270-0e15-4e37-a0f9-9c62529c63d2",
+      consentPayload: { acceptPersonalData: true, acceptPrivacyPolicy: true, acceptDataDistribution: true },
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ success: false, error });
+    expect(registerMock).toHaveBeenCalledWith("new_user", "new@qwe.ru", "Password1x", registrationChannel, undefined, expect.objectContaining({ consentPayload: expect.any(Object) }));
   });
 
   it("rejects invalid login payloads before calling auth services", async () => {

@@ -9,11 +9,6 @@ import {
   resolveRegistrationChannelFromBody,
 } from "@gafus/core/validation/auth-register";
 import { registerUserService, REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE } from "@gafus/core/services/auth";
-import {
-  createConsentLogs,
-  linkConsentLogsToUser,
-  markConsentLogsFailed,
-} from "@gafus/core/services/consent";
 import { createWebLogger } from "@gafus/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -49,52 +44,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, tempSessionId, consentPayload, registrationChannel } =
+    const { name, email, password, tempSessionId, consentPayload, registrationChannel, promoCode } =
       parsed.data;
     const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0] ?? undefined;
     const userAgent = request.headers.get("user-agent") ?? undefined;
 
-    let consentCreated = false;
-    try {
-      await createConsentLogs({
+    const result = await registerUserService(
+      name,
+      email,
+      password,
+      resolveRegistrationChannelFromBody(registrationChannel),
+      promoCode,
+      {
         tempSessionId,
         consentPayload,
         formData: { name, email },
         ipAddress,
         userAgent,
         defaultVersion: CONSENT_VERSION,
-      });
-      consentCreated = true;
+      },
+    );
 
-      const result = await registerUserService(
-        name,
-        email,
-        password,
-        resolveRegistrationChannelFromBody(registrationChannel),
+    if ("error" in result) {
+      const isConflict = result.error === REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE;
+      return NextResponse.json(
+        {
+          success: false,
+          error: isConflict
+            ? REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE
+            : result.error,
+        },
+        { status: isConflict ? 409 : 400 },
       );
-
-      if ("error" in result) {
-        await markConsentLogsFailed(tempSessionId);
-        const isConflict = result.error === REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE;
-        return NextResponse.json(
-          {
-            success: false,
-            error: isConflict
-              ? REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE
-              : result.error,
-          },
-          { status: isConflict ? 409 : 400 },
-        );
-      }
-
-      await linkConsentLogsToUser(tempSessionId, result.userId);
-      return NextResponse.json({ success: true, data: result });
-    } catch (error) {
-      if (consentCreated) {
-        await markConsentLogsFailed(tempSessionId).catch(() => undefined);
-      }
-      throw error;
     }
+
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     logger.error("Error in register API", error as Error);
     return NextResponse.json(

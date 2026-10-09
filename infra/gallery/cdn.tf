@@ -33,6 +33,9 @@ resource "yandex_cdn_origin_group" "gallery" {
   }
 }
 resource "yandex_cdn_resource" "gallery" {
+  # The provider requires the API Gateway domain to be known during planning.
+  # First deploy the origin infrastructure; enable the CDN in a second plan.
+  count           = var.deploy_cdn ? 1 : 0
   folder_id       = var.folder_id
   cname           = var.cdn_hostname
   active          = true
@@ -64,7 +67,7 @@ resource "yandex_cdn_resource" "gallery" {
   }
 }
 output "origin_base_url" { value = "https://${yandex_api_gateway.origin.domain}" }
-output "cdn_base_url" { value = "https://${var.cdn_hostname}" }
+output "cdn_base_url" { value = var.deploy_cdn ? "https://${var.cdn_hostname}" : null }
 output "queue_url" { value = yandex_message_queue.process.id }
 output "dlq_url" { value = yandex_message_queue.dlq.id }
 output "function_ids" { value = { for name, function in yandex_function.gallery : name => function.id } }
