@@ -26,5 +26,29 @@ describe('lease, duplicate and job retries with real processing',()=>{
   const original=vi.mocked(x.objects.create).getMockImplementation()!;let once=true;vi.spyOn(x.objects,'create').mockImplementation(async(...args)=>{if(args[0]===job.targetKeys[1]&&once){once=false;throw Error('NETWORK');}return original(...args);});
   await expect(x.worker.processJob(job,now+50000)).rejects.toThrow('NETWORK');expect(x.core.failJob).toHaveBeenCalledWith(expect.objectContaining({attemptToken:'jt',retryable:true}));await x.worker.processJob(job,now+50000);expect(x.core.completeJob).toHaveBeenCalledTimes(1);expect(x.objects.delete).not.toHaveBeenCalled();expect(keys.every(k=>x.data.has(k))).toBe(true);expect(x.data.has(sourceKey)).toBe(true);
  });
+ it('publishes the exact completed upload immediately without waiting for maintenance',async()=>{
+  const x=await setup();
+  vi.mocked(x.core.claimJobs).mockImplementation(async (_limit, uploadId)=>{
+   if(uploadId!=='u') throw Error('UNSCOPED_CLAIM');
+   const keys=[staging+'/thumb.webp',staging+'/full.webp'];
+   return [{jobId:'immediate',kind:'publish',attemptToken:'jt',sourceKeys:keys,sourceETags:keys.map(key=>objectMd5(x.data.get(key)!)),targetKeys:[final+'/thumb.webp',final+'/full.webp'],leaseUntil:x.claim.leaseUntil,writeMode:'create-if-absent'}];
+  });
+  await x.worker.processUpload('u');
+  expect(x.core.claimJobs).toHaveBeenCalledWith(1,'u');
+  expect(x.core.completeJob).toHaveBeenCalledExactlyOnceWith({jobId:'immediate',attemptToken:'jt'});
+  expect(x.data.has(final+'/thumb.webp')).toBe(true);
+  expect(x.data.has(final+'/full.webp')).toBe(true);
+  expect(x.core.maintenance).not.toHaveBeenCalled();
+ });
+ it('keeps the durable fallback when immediate publish claim fails',async()=>{
+  const x=await setup();
+  vi.mocked(x.core.claimJobs).mockRejectedValueOnce(Error('NETWORK'));
+  await expect(x.worker.processUpload('u')).resolves.toBeUndefined();
+  expect(x.core.completeUpload).toHaveBeenCalledTimes(1);
+  expect(x.core.failUpload).not.toHaveBeenCalled();
+  expect(x.core.maintenance).not.toHaveBeenCalled();
+  expect(x.data.has(staging+'/thumb.webp')).toBe(true);
+  expect(x.data.has(staging+'/full.webp')).toBe(true);
+ });
  it('maintenance queues recovered IDs and preserves cleanup while disabled',async()=>{const x=await setup();await x.worker.maintenance();expect(x.queue.send).toHaveBeenCalledWith('u');x.queue.send.mockClear();const disabled=createGalleryCloudWorker({core:x.core,objects:x.objects,engine:sharpGalleryEngine,queue:x.queue,now:()=>now,enabled:false});await disabled.maintenance();expect(x.queue.send).not.toHaveBeenCalled();expect(x.core.claimJobs).toHaveBeenCalledTimes(2);expect(x.core.maintenance).toHaveBeenCalledTimes(2);});
 });

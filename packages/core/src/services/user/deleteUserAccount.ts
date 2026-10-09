@@ -10,6 +10,7 @@ import { prisma, Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod";
 
+import { enqueueFeedAccountCleanup } from "../feed/cleanup";
 import { enqueueGalleryAccountCleanup } from "../gallery/accountCleanup";
 
 import { sendAccountDeletionCodeEmail } from "../auth/transactionalAuthMail";
@@ -331,6 +332,7 @@ export async function deleteUserAccount(
         },
       });
       await enqueueGalleryAccountCleanup(tx, actorUserId, deletionTimestamp);
+      await enqueueFeedAccountCleanup(tx, actorUserId, deletionTimestamp);
       await tx.user.delete({ where: { id: actorUserId } });
       await tx.$executeRaw`
         INSERT INTO "AccountDeletionAudit"

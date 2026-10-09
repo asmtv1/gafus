@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GalleryPreview } from "@/features/gallery";
+import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 
 import { Bio, PrivateProfileSection, SettingsActions, StudentNotes } from "@/features/profile";
 
@@ -29,6 +30,7 @@ export default function ProfileClient({
     <main>
       <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
       {!isOwner && <GalleryPreview username={username} />}
+      <ProfileFeedPreview username={username} />
       {isOwner && publicData.role === "USER" && <StudentNotes />}
       {isOwner && userData && <PrivateProfileSection user={userData} />}
       {SHOW_ACHIEVEMENTS_LINK && isOwner && (

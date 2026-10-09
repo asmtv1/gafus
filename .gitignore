@@ -155,3 +155,5 @@ apps/mobile/build-*.tar.gz
 /.playwright-cli/
 /output/navigation-more/
 /output/playwright/gallery/
+
+/output/playwright/feed/

@@ -214,7 +214,7 @@ export async function dispatchGalleryInternalRequest(request: Request, path: str
     case "/internal/gallery/uploads/claim": return gallery.claimUpload(galleryParse(galleryClaimUploadSchema, json));
     case "/internal/gallery/uploads/complete": return gallery.completeUpload(galleryParse(galleryCompleteUploadSchema, json));
     case "/internal/gallery/uploads/fail": return gallery.failUpload(galleryParse(galleryFailUploadSchema, json));
-    case "/internal/gallery/jobs/claim": return gallery.claimStorageJobs(galleryParse(galleryClaimStorageJobsSchema, json));
+    case "/internal/gallery/jobs/claim": return gallery.claimStorageJobs(galleryParse(galleryClaimStorageJobsSchema.extend({ uploadId: galleryIdSchema.optional() }), json));
     case "/internal/gallery/jobs/complete": return gallery.completeStorageJob(galleryParse(galleryCompleteStorageJobSchema, json));
     case "/internal/gallery/jobs/fail": return gallery.failStorageJob(galleryParse(galleryFailStorageJobSchema, json));
     case "/internal/gallery/maintenance": return gallery.maintenance(galleryParse(galleryClaimStorageJobsSchema, json));

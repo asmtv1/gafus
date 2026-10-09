@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
 import { chatApi } from "@/features/cynologist-chat/api";
+import { feedApi } from "@/features/feed/api";
 import type { CynologistChatStateDto } from "@gafus/consultation-shared";
 
 import type { HeaderProps } from "../types";
@@ -25,7 +26,18 @@ export default React.memo(function Header({
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [assignedTrainer, setAssignedTrainer] = useState(false);
+  const [feedEnabled, setFeedEnabled] = useState(false);
   const accountId = useSession().data?.user?.id;
+  useEffect(() => {
+    let active = true;
+    setFeedEnabled(false);
+    if (accountId) {
+      void feedApi.status().then(result => {
+        if (active) setFeedEnabled(result.enabled);
+      }).catch(() => undefined);
+    }
+    return () => { active = false; };
+  }, [accountId]);
   useEffect(() => {
     let alive = true;
     setAssignedTrainer(false);
@@ -247,6 +259,21 @@ export default React.memo(function Header({
               </span>
               <span className={styles.menuLabel}>Фотоальбомы</span>
             </Link>
+            {feedEnabled && <Link
+              href="/feed"
+              className={`${styles.menuButton} ${isCurrentRoute("/feed") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/feed") ? "page" : undefined}
+              onClick={() => {
+                trackMenuClick("tab-feed");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/feed")}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/articles.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>Лента</span>
+            </Link>}
             <Link href="/questions" className={`${styles.menuButton} ${isCurrentRoute("/questions") ? styles.menuButtonActive : ""}`} aria-current={isCurrentRoute("/questions") ? "page" : undefined} onClick={() => { trackMenuClick("tab-questions"); setMenuOpen(false); }}>
               <span className={styles.menuIconSlot} aria-hidden="true"><Image src="/images/tab-icons/questions.png" alt="" width={32} height={32} style={{ objectFit: "contain" }} /></span>
               <span className={styles.menuLabel}>Вопросы</span>

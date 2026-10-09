@@ -51,7 +51,22 @@ export function createGalleryCloudWorker(input: { core: GalleryInternalClient; o
       const result = await input.core.completeUpload({ uploadId, attemptToken: claim.attemptToken, sourceETag: claim.sourceETag, width: images.full.width, height: images.full.height });
       if (!result.accepted) throw new Error('CALLBACK_REJECTED');
       record({ operation: 'upload', outcome: 'success', durationMs: now() - started });
-      // Durable publish job now owns publication. Source and orphan deletion belong to core.
+      // The core transaction already persisted the publish job. Claim only this
+      // upload's job immediately instead of waiting for the five-minute timer.
+      // Errors here must not invalidate a successfully staged image: maintenance
+      // can safely retry the durable job after its lease/backoff expires.
+      if (result.status !== 'ready' && now() + 10_000 < invocationDeadline) {
+        try {
+          const jobs = await input.core.claimJobs(1, uploadId);
+          if (jobs.length > 1 || jobs.some(job => job.kind !== 'publish'))
+            throw new Error('UNTRUSTED_CLAIM');
+          for (const job of jobs) await processJob(job, invocationDeadline);
+        } catch (error) {
+          // processJob records its own failure and persists retry/backoff.
+          // Avoid logging request details, paths, signed headers or exception text.
+          record({ operation: 'publish', outcome: 'retry', durationMs: now() - started, errorCode: errorCode(error) });
+        }
+      }
     } catch (error) {
       if (!completing) {
         const code = errorCode(error);

@@ -1,0 +1,71 @@
+import { describe, expect, it, vi } from "vitest";
+import { createFeedStorage, feedStorageConfigFromEnv, signFeedCdnUrl, type FeedStorageConfig } from "./storage.js";
+const key = "posts/user/post/attachments/media/full.webp";
+const config: FeedStorageConfig = { enabled: true, bucket: "gafus-private-test", endpoint: "https://storage.yandexcloud.net",
+  accessKeyId: "test-access", secretAccessKey: "test-secret", cdnBaseUrl: "https://cdn.example.com", cdnSecret: "a".repeat(24) };
+describe("feed storage", () => {
+  it("stays disabled independently of gallery flags", () => {
+    expect(feedStorageConfigFromEnv({ GALLERY_ENABLED: "true", GALLERY_PROCESSOR_READY: "true" }).enabled).toBe(false);
+    expect(feedStorageConfigFromEnv({ FEED_ENABLED: "true", FEED_PROCESSOR_READY: "false" }).enabled).toBe(false);
+  });
+  it("rejects enabled incomplete or public storage configuration", () => {
+    expect(() => feedStorageConfigFromEnv({ FEED_ENABLED: "true", FEED_PROCESSOR_READY: "true" })).toThrow();
+    expect(() => feedStorageConfigFromEnv({ FEED_BUCKET_PUBLIC: "true" })).toThrow();
+    expect(() => createFeedStorage({ ...config, bucket: "gafus-public" })).toThrow();
+    expect(() => createFeedStorage({ ...config, endpoint: "http://storage.test" })).toThrow();
+  });
+  it("signs only final objects for at most 120 seconds", () => {
+    const now = 1_800_000_000_000;
+    const url = new URL(signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + 120_000), config.cdnSecret, now));
+    expect(url.pathname).toBe("/" + key); expect(url.searchParams.get("md5")).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    for (const delta of [0, -1000, 121_000]) expect(() => signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + delta), config.cdnSecret, now)).toThrow();
+    expect(() => signFeedCdnUrl(config.cdnBaseUrl, "posts/user/post/incoming/upload/source.jpg", new Date(now + 1000), config.cdnSecret, now)).toThrow();
+  });
+  it.each(["http://cdn.example.com", "https://storage.yandexcloud.net", "https://cdn.example.com/path", "https://u:p@cdn.example.com"])
+  ("rejects unsafe CDN %s", base => expect(() => createFeedStorage({ ...config, cdnBaseUrl: base })).toThrow());
+  it("reads multipart metadata and bounds request time", async () => {
+    const send = vi.fn().mockResolvedValue({ ETag: '"' + "a".repeat(32) + '-2"', ContentLength: 12_000_000, ContentType: "video/mp4" });
+    const storage = createFeedStorage(config, { send } as never);
+    expect((await storage.head("posts/user/post/incoming/upload/source.mp4"))?.bytes).toBe(12_000_000);
+    expect(send.mock.calls[0][1].abortSignal).toBeInstanceOf(AbortSignal);
+  });
+  it("distinguishes missing objects from permission and transport errors", async () => {
+    const send = vi.fn().mockRejectedValue({ $metadata: { httpStatusCode: 404 } });
+    const storage = createFeedStorage(config, { send } as never);
+    expect(await storage.head(key)).toBeNull();
+    send.mockRejectedValue({ $metadata: { httpStatusCode: 403 } });
+    await expect(storage.head(key)).rejects.toMatchObject({ $metadata: { httpStatusCode: 403 } });
+  });
+  it("rejects untrusted keys before contacting S3", async () => {
+    const send = vi.fn(); const storage = createFeedStorage(config, { send } as never);
+    await expect(storage.head("albums/user/photo/full.webp")).rejects.toThrow();
+    expect(send).not.toHaveBeenCalled();
+  });
+  it.each([0, -1, 200 * 1024 * 1024 + 1, NaN])("rejects invalid HEAD byte count %s", async bytes => {
+    const send = vi.fn().mockResolvedValue({ ETag: '"' + "a".repeat(32) + '"', ContentLength: bytes, ContentType: "image/webp" });
+    await expect(createFeedStorage(config, { send } as never).head(key)).rejects.toThrow();
+  });
+  it("does not sign while disabled", async () => {
+    const storage = createFeedStorage({ ...config, enabled: false });
+    await expect(storage.signCdn({ key, expiresAt: new Date(Date.now() + 60_000) })).rejects.toThrow("FEED_STORAGE_DISABLED");
+  });
+  it("rejects MIME/extension or policy limit mismatch before signing", async () => {
+    const storage = createFeedStorage(config);
+    await expect(storage.presignPost({ key: "posts/user/post/incoming/upload/source.jpg", contentType: "video/mp4", maxBytes: 200 * 1024 * 1024, expiresAt: new Date(Date.now() + 60_000) })).rejects.toThrow("INVALID_FEED_UPLOAD_POLICY");
+  });
+  it.each([
+    ["image/jpeg", "jpg", 10 * 1024 * 1024],
+    ["video/quicktime", "mov", 200 * 1024 * 1024],
+  ])("signs a constrained direct POST for %s", async (contentType, ext, maxBytes) => {
+    const source = `posts/user/post/incoming/upload/source.${ext}`;
+    const signed = await createFeedStorage(config).presignPost({ key: source, contentType,
+      maxBytes, expiresAt: new Date(Date.now() + 60_000) });
+    expect(signed.url).toBe("https://storage.yandexcloud.net/gafus-private-test");
+    const policy = JSON.parse(Buffer.from(signed.fields.Policy, "base64").toString());
+    expect(policy.conditions).toEqual(expect.arrayContaining([
+      ["content-length-range", 1, maxBytes], ["eq", "$Content-Type", contentType], ["eq", "$key", source],
+    ]));
+    expect(signed.fields["Content-Type"]).toBe(contentType);
+  });
+
+});

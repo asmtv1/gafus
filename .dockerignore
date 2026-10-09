@@ -283,3 +283,11 @@ jspm_packages/
 # Package build scripts are required by workspace builds.
 !packages/*/scripts/
 !packages/*/scripts/**
+
+# Infrastructure credentials and local state must never enter image contexts.
+**/.secrets
+**/.terraform
+**/*.tfstate*
+**/*.tfvars
+**/*.tfplan
+output/playwright

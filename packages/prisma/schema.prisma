@@ -286,6 +286,14 @@ model DailyCourseUserStep {
 }
 
 model User {
+  feedPosts FeedPost[]
+  feedMediaAssets FeedMediaAsset[]
+  feedUploads FeedUpload[]
+  feedComments FeedComment[]
+  feedPostReactions FeedPostReaction[]
+  feedCommentReactions FeedCommentReaction[]
+  feedPostViews FeedPostView[]
+  feedNotifications FeedNotification[]
   galleryAlbums GalleryAlbum[]
   galleryPhotos GalleryPhoto[]
   galleryUploads GalleryUpload[]
@@ -2869,4 +2877,296 @@ model GalleryStorageJob {
   updatedAt DateTime @updatedAt
   @@index([status, availableAt, leaseUntil])
   @@index([ownerId, photoId])
+}
+
+// The feed has independent storage, revisions and cleanup lifecycles from gallery.
+enum FeedPostStatus {
+  draft
+  pending
+  published
+  failed
+  deleted
+}
+
+enum FeedRevisionStatus {
+  draft
+  pending
+  ready
+  failed
+  superseded
+}
+
+enum FeedMediaKind {
+  photo
+  video
+}
+
+enum FeedMediaStatus {
+  reserved
+  uploaded
+  processing
+  ready
+  failed
+  cancelled
+  expired
+}
+
+enum FeedJobKind {
+  copy_album
+  publish_photo
+  publish_video
+  delete_keys
+  cleanup_source
+}
+
+enum FeedJobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum FeedReactionKind {
+  heart
+  laugh
+  dog
+  fire
+  like
+}
+
+enum FeedNotificationKind {
+  comment
+  reply
+  post_reaction
+  comment_reaction
+}
+
+model FeedPost {
+  id String @id @default(cuid())
+  authorId String
+  status FeedPostStatus @default(draft)
+  clientRequestId String @db.VarChar(64)
+  version Int @default(0)
+  activeRevisionId String?
+  publishedAt DateTime?
+  editedAt DateTime?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  revisions FeedPostRevision[]
+  media FeedMediaAsset[]
+  uploads FeedUpload[]
+  comments FeedComment[]
+  reactions FeedPostReaction[]
+  views FeedPostView[]
+  notifications FeedNotification[]
+  @@unique([authorId, clientRequestId])
+  @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId, status, publishedAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId, deletedAt, updatedAt])
+}
+
+model FeedPostRevision {
+  id String @id @default(cuid())
+  postId String
+  revisionNumber Int
+  status FeedRevisionStatus @default(draft)
+  text String @default("") @db.VarChar(5000)
+  clientRequestId String @db.VarChar(64)
+  acceptedAt DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  attachments FeedRevisionAttachment[]
+  @@unique([postId, revisionNumber])
+  @@unique([postId, clientRequestId])
+  @@index([postId, status, createdAt])
+}
+
+model FeedMediaAsset {
+  id String @id @default(cuid())
+  postId String
+  ownerId String
+  kind FeedMediaKind
+  status FeedMediaStatus @default(reserved)
+  width Int?
+  height Int?
+  durationSeconds Float?
+  thumbKey String?
+  fullKey String?
+  posterKey String?
+  playlistKey String?
+  videoSegmentKeys String[] @default([])
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload FeedUpload?
+  attachments FeedRevisionAttachment[]
+  @@index([postId, status])
+  @@index([ownerId, status])
+}
+
+model FeedRevisionAttachment {
+  revisionId String
+  mediaId String
+  position Int
+  revision FeedPostRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@id([revisionId, mediaId])
+  @@unique([revisionId, position])
+  @@index([mediaId])
+}
+
+model FeedUpload {
+  id String @id @default(cuid())
+  ownerId String
+  postId String
+  mediaId String @unique
+  clientRequestId String @db.VarChar(64)
+  requestFingerprint String
+  filename String @db.VarChar(255)
+  declaredMime String @db.VarChar(64)
+  declaredBytes Int
+  sourceKey String @unique
+  sourceETag String?
+  status FeedMediaStatus @default(reserved)
+  postExpiresAt DateTime
+  reservationExpiresAt DateTime
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@unique([ownerId, clientRequestId])
+  @@index([status, reservationExpiresAt, leaseUntil])
+  @@index([postId, status])
+}
+
+// No FK: immutable storage keys survive account/post cascades until cleanup succeeds.
+model FeedStorageJob {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  ownerId String
+  postId String?
+  uploadId String?
+  mediaId String?
+  kind FeedJobKind
+  status FeedJobStatus @default(pending)
+  sourceKeys String[] @default([])
+  targetKeys String[] @default([])
+  availableAt DateTime @default(now())
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt, leaseUntil])
+  @@index([ownerId, postId])
+}
+
+model FeedComment {
+  id String @id @default(cuid())
+  postId String
+  authorId String
+  text String @db.VarChar(2000)
+  rootId String?
+  replyToId String?
+  deletedAt DateTime?
+  editedAt DateTime?
+  clientRequestId String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  root FeedComment? @relation("FeedCommentRoot", fields: [rootId], references: [id], onDelete: NoAction)
+  rootedReplies FeedComment[] @relation("FeedCommentRoot")
+  replyTo FeedComment? @relation("FeedCommentReplyTo", fields: [replyToId], references: [id], onDelete: NoAction)
+  addressedReplies FeedComment[] @relation("FeedCommentReplyTo")
+  reactions FeedCommentReaction[]
+  notifications FeedNotification[]
+  @@unique([authorId, clientRequestId])
+  @@index([postId, rootId, createdAt, id])
+  @@index([replyToId])
+}
+
+model FeedPostReaction {
+  id String @id @default(cuid())
+  postId String
+  userId String
+  kind FeedReactionKind
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([postId, userId])
+  @@index([postId, kind, createdAt, id])
+}
+
+model FeedCommentReaction {
+  id String @id @default(cuid())
+  commentId String
+  userId String
+  kind FeedReactionKind
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  comment FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([commentId, userId])
+  @@index([commentId, kind, createdAt, id])
+}
+
+model FeedPostView {
+  postId String
+  userId String
+  createdAt DateTime @default(now())
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([postId, userId])
+  @@index([postId])
+}
+
+model FeedNotification {
+  id String @id @default(cuid())
+  recipientId String
+  postId String
+  commentId String?
+  kind FeedNotificationKind
+  groupKey String? @db.VarChar(255)
+  actorIds String[] @default([])
+  reaction FeedReactionKind?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment FeedComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  @@index([recipientId, readAt, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([groupKey, createdAt])
+}
+
+// Delivery jobs are independent of recipient rows and allow idempotent recovery.
+model FeedNotificationOutbox {
+  id String @id @default(cuid())
+  notificationId String
+  recipientId String
+  availableAt DateTime @default(now())
+  status FeedJobStatus @default(pending)
+  attempts Int @default(0)
+  leaseUntil DateTime?
+  attemptToken String? @unique
+  lastErrorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([notificationId])
+  @@index([status, availableAt, leaseUntil])
 }

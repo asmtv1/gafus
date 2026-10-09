@@ -85,6 +85,16 @@ services:
       - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
       - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
       - GALLERY_PROCESSOR_READY=true
+      - FEED_ENABLED=${FEED_ENABLED:-false}
+      - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      - FEED_BUCKET_PUBLIC=false
+      - FEED_BUCKET=gafus-feed-prod-b1gjbsvfnd1fl68k43g6
+      - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
+      - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
+      - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
+      - FEED_CDN_BASE_URL=https://gallery-dev.gafus.ru
+      - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
+      - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
       - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
@@ -223,6 +233,18 @@ services:
     image: ghcr.io/asmtv1/gafus-worker:latest
     container_name: gafus-worker
     environment:
+      - FEED_ENABLED=${FEED_ENABLED:-false}
+      - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      - FEED_BUCKET_PUBLIC=false
+      - FEED_BUCKET=gafus-feed-prod-b1gjbsvfnd1fl68k43g6
+      - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
+      - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
+      - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
+      - FEED_CDN_BASE_URL=https://gallery-dev.gafus.ru
+      - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
+      - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
+      - FEED_MAINTENANCE_ENABLED=${FEED_MAINTENANCE_ENABLED:-false}
+      - FEED_PUSH_ENABLED=${FEED_PUSH_ENABLED:-false}
       - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
       - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
       - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
@@ -359,6 +381,16 @@ services:
       - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
       - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
       - GALLERY_PROCESSOR_READY=true
+      - FEED_ENABLED=${FEED_ENABLED:-false}
+      - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      - FEED_BUCKET_PUBLIC=false
+      - FEED_BUCKET=gafus-feed-prod-b1gjbsvfnd1fl68k43g6
+      - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
+      - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
+      - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
+      - FEED_CDN_BASE_URL=https://gallery-dev.gafus.ru
+      - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
+      - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
       # VK ID (mobile auth, vk-link)
       - VK_CLIENT_ID=${VK_CLIENT_ID}
       - VK_CLIENT_ID_IOS=${VK_CLIENT_ID_IOS}

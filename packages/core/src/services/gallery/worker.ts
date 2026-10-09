@@ -40,6 +40,8 @@ export interface GalleryFailUploadInput {
 }
 export interface GalleryClaimStorageJobsInput {
   limit?: number;
+  /** Scope immediate publication to the upload that just completed. */
+  uploadId?: string;
 }
 export interface GalleryCompleteStorageJobInput {
   jobId: string;
@@ -447,11 +449,18 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
     async claimStorageJobs(
       input: GalleryClaimStorageJobsInput = {},
     ): Promise<GalleryStorageJobClaim[]> {
-      const data = s.galleryParse(s.galleryClaimStorageJobsSchema, input),
+      const data = s.galleryParse(
+          s.galleryClaimStorageJobsSchema.extend({ uploadId: s.galleryIdSchema.optional() }),
+          input,
+        ),
         at = now();
+      // Disabled galleries may only perform cleanup, never targeted publishing.
+      if (data.uploadId && !ctx.storage.enabled) return [];
       const candidates = await ctx.db.galleryStorageJob.findMany({
         where: {
-          ...(ctx.storage.enabled ? {} : { kind: "delete" }),
+          ...(data.uploadId
+            ? { kind: "publish" as const, uploadId: data.uploadId }
+            : ctx.storage.enabled ? {} : { kind: "delete" as const }),
           availableAt: { lte: at },
           OR: [{ status: "pending" }, { status: "processing", leaseUntil: { lte: at } }],
         },
@@ -467,6 +476,7 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
           if (
             !job ||
             (!ctx.storage.enabled && job.kind !== "delete") ||
+            (data.uploadId && (job.kind !== "publish" || job.uploadId !== data.uploadId)) ||
             job.availableAt > current ||
             (job.status !== "pending" &&
               !(job.status === "processing" && job.leaseUntil && job.leaseUntil <= current))

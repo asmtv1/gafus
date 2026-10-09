@@ -67,7 +67,8 @@
     "stream-chat-react": "14.12.1",
     "@gafus/chat-server": "workspace:*",
     "@gafus/questions-server": "workspace:*",
-    "@gafus/gallery-server": "workspace:*"
+    "@gafus/gallery-server": "workspace:*",
+    "@gafus/feed-server": "workspace:*"
   },
   "devDependencies": {
     "@asteasolutions/zod-to-openapi": "^8.1.0",

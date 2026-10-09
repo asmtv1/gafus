@@ -30,7 +30,8 @@
     "zod": "^3.25.56",
     "@gafus/chat-server": "workspace:*",
     "@gafus/questions-server": "workspace:*",
-    "@gafus/gallery-server": "workspace:*"
+    "@gafus/gallery-server": "workspace:*",
+    "@gafus/feed-server": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

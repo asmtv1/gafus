@@ -124,6 +124,15 @@ jobs:
               echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.GALLERY_S3_SECRET_ACCESS_KEY }}"
               echo "GALLERY_DEV_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
               echo "GALLERY_DEV_INTERNAL_HMAC_SECRET=${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}"
+              echo "# Feed production settings; activation is an explicit environment variable"
+              echo "FEED_S3_ACCESS_KEY_ID=${{ secrets.FEED_S3_ACCESS_KEY_ID }}"
+              echo "FEED_S3_SECRET_ACCESS_KEY=${{ secrets.FEED_S3_SECRET_ACCESS_KEY }}"
+              echo "FEED_CDN_SECRET=${{ secrets.FEED_CDN_SECRET }}"
+              echo "FEED_INTERNAL_HMAC_SECRET=${{ secrets.FEED_INTERNAL_HMAC_SECRET }}"
+              echo "FEED_ENABLED=${{ vars.FEED_ENABLED || 'false' }}"
+              echo "FEED_PROCESSOR_READY=${{ vars.FEED_PROCESSOR_READY || 'false' }}"
+              echo "FEED_MAINTENANCE_ENABLED=${{ vars.FEED_MAINTENANCE_ENABLED || 'false' }}"
+              echo "FEED_PUSH_ENABLED=${{ vars.FEED_PUSH_ENABLED || 'false' }}"
               echo ""
               echo "# Яндекс Телемост (консультации)"
               echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}"
@@ -256,6 +265,15 @@ jobs:
 
             # Wait for core services to be ready
             sleep 15
+
+            # Verify a fresh local rollback backup before any schema changes.
+            mkdir -p /root/gafus/backups/feed
+            chmod 700 /root/gafus/backups/feed
+            FEED_BACKUP_FILE="/root/gafus/backups/feed/before-deploy-$(date -u +%Y%m%dT%H%M%SZ).dump"
+            (umask 077; docker exec gafus-postgres pg_dump -U gafus -d gafus -Fc > "$FEED_BACKUP_FILE")
+            test -s "$FEED_BACKUP_FILE"
+            docker exec -i gafus-postgres pg_restore --list < "$FEED_BACKUP_FILE" > /dev/null
+            echo "Database rollback backup verified."
 
             # Run Prisma migrations. Migration failures must stop deployment.
             echo "🗄️ Applying Prisma migrations..."

@@ -7,6 +7,7 @@ import * as Linking from "expo-linking";
 
 function chatPath(value: unknown): string | null {
   if (typeof value !== "string") return null;
+  if (/^\/feed\/[A-Za-z0-9_-]{1,128}(?:\?commentId=[A-Za-z0-9_-]{1,128})?$/.test(value)) return value;
   return /^\/questions\/[\w-]{1,128}$/.test(value) || value === "/cynologist-chat" || /^\/cynologist-chats\/[\w-]{1,128}$/.test(value)
     ? value
     : null;
@@ -55,7 +56,7 @@ export function ChatPushNavigation() {
   }, []);
   useEffect(() => {
     if (!pending || !authenticated || loading || !nav?.key) return;
-    if (pending.startsWith("/questions/")) {
+    if (pending.startsWith("/questions/") || pending.startsWith("/feed/")) {
       router.push(pending as Href);
       setPending(null);
       return;

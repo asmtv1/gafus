@@ -1,6 +1,7 @@
 "use client";
 
 import { GalleryPreview } from "@/features/gallery";
+import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useUserData } from "@shared/stores";
@@ -58,6 +59,7 @@ export default function UserProfile() {
         </div>
       </div>
       <GalleryPreview username={user.username} />
+      <ProfileFeedPreview username={user.username} />
     </div>
   );
 }
