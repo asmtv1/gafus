@@ -1,52 +1,36 @@
 name: Deploy Only
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Deployment environment
-        default: production
-        required: true
-        type: choice
-        options: [production]
 jobs:
-  feed-preflight:
+  feed-smoke-setup:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Feed production preflight and rollback backup
+      - name: Create isolated Feed production acceptance fixtures
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          FEED_SMOKE_PASSWORD: ${{ secrets.FEED_SMOKE_PASSWORD }}
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
+          username: ${{ secrets.SERVER_feed_smoke_1791563355740 }}
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          envs: FEED_SMOKE_PASSWORD
           command_timeout: 5m
           script: |
             set -eu
-            cd /root/gafus
-            mkdir -p backups/feed
-            chmod 700 backups/feed
-            BACKUP_FILE="backups/feed/before-feed-$(date -u +%Y%m%dT%H%M%SZ).dump"
-            umask 077
-            docker exec gafus-postgres pg_dump -U gafus -d gafus -Fc > "$BACKUP_FILE"
-            test -s "$BACKUP_FILE"
-            docker exec -i gafus-postgres pg_restore --list < "$BACKUP_FILE" > /dev/null
-            echo "FEED_ROLLBACK_BACKUP=VERIFIED"
-            echo "FEED_ROLLBACK_BACKUP_PATH=$BACKUP_FILE"
-            docker exec gafus-postgres psql -U gafus -d gafus -Atc 'SELECT '\''FEED_TABLE_PRESENT='\'' || (to_regclass('\''public."FeedPost"'\'') IS NOT NULL)::text; SELECT '\''GALLERY_TABLE_PRESENT='\'' || (to_regclass('\''public."GalleryAlbum"'\'') IS NOT NULL)::text; SELECT '\''FAILED_MIGRATIONS='\'' || count(*) FROM "_prisma_migrations" WHERE finished_at IS NULL AND rolled_back_at IS NULL;'
-            echo "PRODUCTION_PREFLIGHT=PASS"
-  build-feed-worker:
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - uses: yc-actions/yc-cr-login@v3
-        with:
-          yc-sa-json-credentials: ${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}
-      - name: Build Feed worker for the actual cloud architecture
-        run: docker build --platform linux/amd64 -f apps/feed-cloud/Dockerfile -t cr.yandex/crp9p5h97rb9739muubg/feed:${{ github.sha }} .
-      - name: Verify native Sharp and FFmpeg in the built image
-        run: docker run --rm --entrypoint sh cr.yandex/crp9p5h97rb9739muubg/feed:${{ github.sha }} -c 'ffmpeg -version >/dev/null && node -e '\''require("sharp")({create:{width:8,height:8,channels:3,background:"green"}}).webp().toBuffer().then(b=>{if(!b.length)process.exit(1)}).catch(()=>process.exit(1))'\'''
-      - name: Publish verified Feed worker
-        run: docker push cr.yandex/crp9p5h97rb9739muubg/feed:${{ github.sha }}
+            docker exec -e FEED_SMOKE_PASSWORD -i gafus-api node --input-type=module <<'NODE'
+            import {prisma} from '@gafus/prisma';
+            import {createRequire} from 'node:module';
+            const bcrypt=createRequire(import.meta.resolve('@gafus/core'))('bcryptjs');
+            try {
+              if (!process.env.FEED_SMOKE_PASSWORD || process.env.FEED_SMOKE_PASSWORD.length < 32) throw Error('SMOKE_PASSWORD_MISSING');
+              for (const username of ['feed_smoke_1791563355740','feed_smoke_1791563355740_reader']) {
+                const found=await prisma.user.findUnique({where:{username},select:{id:true}});
+                if (found) { console.log('FEED_SMOKE_FIXTURE=EXISTS'); continue; }
+                await prisma.user.create({data:{username,password:await bcrypt.hash(process.env.FEED_SMOKE_PASSWORD,12),profile:{create:{fullName:'Feed acceptance fixture'}}}});
+                console.log('FEED_SMOKE_FIXTURE=CREATED');
+              }
+            } catch { console.log('FEED_SMOKE_SETUP=FAILED'); process.exitCode=1; }
+            finally {await prisma.$disconnect();}
+            NODE
