@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs><linearGradient id="paper" x2=".4" y2="1"><stop stop-color="#fff4d9"/><stop offset="1" stop-color="#eac994"/></linearGradient><linearGradient id="fur" x2=".3" y2="1"><stop stop-color="#dba86e"/><stop offset="1" stop-color="#b47741"/></linearGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="2" dy="5" stdDeviation="2" flood-color="#57371f" flood-opacity=".24"/></filter></defs>
+<g stroke="#784321" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)">
+<path d="M203 217q32-29 35-56-29 4-38 31" fill="#71814a"/><path d="m205 211 22-35" fill="none" stroke="#506332" stroke-width="3"/>
+<path d="M47 208q-34-8-39-33 30-5 47 21" fill="#849450"/><path d="m45 204-25-20" fill="none" stroke="#506332" stroke-width="3"/>
+<g transform="rotate(10 136 120)"><rect x="64" y="34" width="160" height="183" rx="15" fill="#c7aa72"/><rect x="61" y="29" width="160" height="183" rx="15" fill="url(#paper)"/><path d="M177 46h25M177 58h19" stroke="#c09a68" stroke-width="5"/></g>
+<g transform="rotate(-7 117 136)"><rect x="27" y="56" width="173" height="169" rx="14" fill="#cda365"/><rect x="24" y="49" width="173" height="169" rx="14" fill="url(#paper)"/>
+<rect x="38" y="64" width="144" height="105" rx="9" fill="#a8b4a0" stroke="#b48a58" stroke-width="3"/>
+<path d="M40 148q27-20 51-9 38-24 89 8v19H40Z" fill="#7d915c" stroke="none"/>
+<path d="M88 100q-25-10-27 14-1 25 21 22l12-23M132 100q25-12 29 12 3 24-19 25l-15-23" fill="#8d582f"/>
+<path d="M78 115q0-30 31-31t33 31v23q-3 25-31 26-29-1-32-25Z" fill="url(#fur)"/>
+<path d="M100 87q9-4 17 0l-3 42h-12Z" fill="#f4dfb8" stroke="none"/>
+<path d="M91 139q-2-13 17-13 21 0 21 13-3 15-19 16-16-1-19-16Z" fill="#f7e4c2" stroke="#b88149" stroke-width="2"/>
+<ellipse cx="96" cy="118" rx="3" ry="4" fill="#4c3020" stroke="none"/><ellipse cx="125" cy="118" rx="3" ry="4" fill="#4c3020" stroke="none"/>
+<path d="M103 131q8-5 14 0l-7 7Z" fill="#573522" stroke-width="2"/><path d="M110 138v5m-7 0q7 7 14 0" fill="none" stroke-width="2"/>
+<path d="M45 186h76m-76 12h56" stroke="#ba976c" stroke-width="6"/>
+<path d="M145 187c-12-13-23 4-12 12l13 10 14-12c9-10-3-23-15-10Z" fill="#b66d4b" stroke-width="3"/>
+<path d="M36 58h91" stroke="#fff9e8" stroke-width="3" opacity=".7"/>
+</g></g></svg>

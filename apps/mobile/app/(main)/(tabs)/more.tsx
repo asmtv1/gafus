@@ -33,7 +33,7 @@ const SECTIONS = [
   {
     name: "feed",
     title: "Лента",
-    image: require("../../../assets/images/tab-icons/articles.webp"),
+    image: require("../../../assets/images/tab-icons/feed.webp"),
   },
   {
     name: "profile",
