@@ -92,7 +92,7 @@ services:
       - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
       - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
       - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
-      - FEED_CDN_BASE_URL=https://feed.gafus.ru
+      - FEED_CDN_BASE_URL=https://gallery-dev.gafus.ru
       - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
       - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
       # HLS Video Protection
@@ -240,7 +240,7 @@ services:
       - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
       - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
       - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
-      - FEED_CDN_BASE_URL=https://feed.gafus.ru
+      - FEED_CDN_BASE_URL=https://gallery-dev.gafus.ru
       - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
       - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
       - FEED_MAINTENANCE_ENABLED=${FEED_MAINTENANCE_ENABLED:-false}
@@ -388,7 +388,7 @@ services:
       - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
       - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
       - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
-      - FEED_CDN_BASE_URL=https://feed.gafus.ru
+      - FEED_CDN_BASE_URL=https://gallery-dev.gafus.ru
       - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
       - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
       # VK ID (mobile auth, vk-link)

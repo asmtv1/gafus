@@ -7,11 +7,11 @@ interface OriginEvent {
 }
 let client: S3Client | undefined;
 export async function handler(event: OriginEvent) {
-  const headers = { "Cache-Control": "private, no-store, max-age=0", "X-Content-Type-Options": "nosniff" };
+  const headers = { "Cache-Control": "private, no-store, max-age=0", "X-Content-Type-Options": "nosniff", "Access-Control-Allow-Origin": "*" };
   const failure = (statusCode: number) => ({ statusCode, headers, body: "" });
   try {
     const expected = process.env.FEED_ORIGIN_SECRET ?? "";
-    const supplied = Object.entries(event.headers ?? {}).find(([name]) => name.toLowerCase() === "x-feed-origin-secret")?.[1] ?? "";
+    const supplied = Object.entries(event.headers ?? {}).find(([name]) => name.toLowerCase() === (process.env.FEED_ORIGIN_HEADER ?? "x-feed-origin-secret"))?.[1] ?? "";
     const hash = (value: string) => createHash("sha256").update(value).digest();
     if (expected.length < 32 || !timingSafeEqual(hash(expected), hash(supplied))) return failure(403);
     const method = event.httpMethod ?? event.requestContext?.http?.method;

@@ -348,7 +348,10 @@ export function FeedPostPage({ postId, commentId }: { postId: string; commentId?
   const [error, setError] = useState("");
   const cache = useQueryClient();
   const post = useQuery({ queryKey: ["feed", "post", postId, access.userId], queryFn: () => feedApi.getPost(postId), refetchInterval: 90_000, enabled: !!access.enabled.data?.enabled });
-  const comments = useQuery({ queryKey: ["feed", "comments", postId, access.userId], queryFn: () => feedApi.listComments(postId), enabled: !!access.enabled.data?.enabled });
+  const comments = useInfiniteQuery({ queryKey: ["feed", "comments", postId, access.userId],
+    queryFn: ({ pageParam }) => feedApi.listComments(postId, { cursor: pageParam }),
+    initialPageParam: null as string | null, getNextPageParam: page => page.nextCursor,
+    enabled: !!access.enabled.data?.enabled });
   const focused = useQuery({ queryKey: ["feed", "comment", commentId, access.userId],
     queryFn: () => feedApi.getComment(commentId!), enabled: !!commentId && access.enabled.data?.enabled === true, retry: false });
   const focusedRef = useRef<HTMLDivElement>(null);
@@ -386,7 +389,8 @@ export function FeedPostPage({ postId, commentId }: { postId: string; commentId?
           </div>}
           {comments.isPending && <p role="status">Загрузка комментариев…</p>}
           {comments.isError && <p role="alert" className={styles.error}>{message(comments.error)}</p>}
-          {comments.data?.items.map(item => <FeedCommentRow key={item.id} item={item} onReply={setReplyTo} />)}
+          {comments.data?.pages.flatMap(page => page.items).map(item => <FeedCommentRow key={item.id} item={item} onReply={setReplyTo} />)}
+          {comments.hasNextPage && <button type="button" className={styles.secondary} disabled={comments.isFetchingNextPage} onClick={() => void comments.fetchNextPage()}>Ещё комментарии</button>}
           {replyTo && <p className={styles.muted}>Ответ на комментарий <button type="button" className={styles.textButton} onClick={() => setReplyTo(null)}>Отменить</button></p>}
           <form className={styles.form} onSubmit={event => { event.preventDefault(); void send(); }}>
             <label htmlFor="feed-comment">Добавить комментарий</label>

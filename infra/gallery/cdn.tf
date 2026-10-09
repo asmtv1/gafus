@@ -6,7 +6,7 @@ resource "yandex_api_gateway" "origin" {
   spec = yamlencode({
     openapi = "3.0.0"
     info    = { title = "Private gallery CDN origin", version = "1.0.0" }
-    paths = { "/{path+}" = {
+    paths = merge({ "/{path+}" = {
       for method in ["get", "head"] : method => {
         operationId = "galleryOrigin${title(method)}"
         parameters  = [{ name = "path", in = "path", required = true, schema = { type = "string" } }]
@@ -20,7 +20,22 @@ resource "yandex_api_gateway" "origin" {
           payload_format_version = "1.0"
         }
       }
-    } }
+    } }, var.feed_origin_function_id != "" && var.feed_origin_service_account_id != "" ? {
+      "/posts/{path+}" = {
+        for method in ["get", "head"] : method => {
+          operationId = "feedOrigin${title(method)}"
+          parameters = [{ name = "path", in = "path", required = true, schema = { type = "string" } }]
+          responses = { "200" = { description = "Feed media" }, "206" = { description = "Feed media range" } }
+          x-yc-apigateway-integration = {
+            type = "cloud_functions"
+            function_id = var.feed_origin_function_id
+            service_account_id = var.feed_origin_service_account_id
+            tag = "$latest"
+            payload_format_version = "1.0"
+          }
+        }
+      }
+    } : {})
   })
   depends_on = [yandex_function_iam_binding.private_invokers]
 }

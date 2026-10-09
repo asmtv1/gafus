@@ -260,7 +260,10 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
   const [busy, setBusy] = useState(false);
   const client = useQueryClient();
   const post = useQuery({ queryKey: ["feed","post",id,userId], queryFn: () => feedApi.getPost(id), refetchInterval: 90_000, enabled: status.data?.enabled === true });
-  const comments = useQuery({ queryKey: ["feed","comments",id,userId], queryFn: () => feedApi.listComments(id), enabled: status.data?.enabled === true });
+  const comments = useInfiniteQuery({ queryKey: ["feed","comments",id,userId],
+    queryFn: ({ pageParam }) => feedApi.listComments(id, { cursor: pageParam }),
+    initialPageParam: null as string | null, getNextPageParam: page => page.nextCursor,
+    enabled: status.data?.enabled === true });
   const focused = useQuery({ queryKey: ["feed", "comment", commentId, userId], queryFn: () => feedApi.getComment(commentId!), enabled: !!commentId && status.data?.enabled === true, retry: false });
   const scroll = useRef<ScrollView>(null);
   const focusedY = useRef(0);
@@ -294,7 +297,8 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
           </View>}
           {comments.isPending && <Muted>Загрузка комментариев…</Muted>}
           {comments.isError && <Text style={s.error}>{errorMessage(comments.error)}</Text>}
-          {comments.data?.items.map(item => <CommentRow key={item.id} item={item} onReply={setReplyTo} />)}
+          {comments.data?.pages.flatMap(page => page.items).map(item => <CommentRow key={item.id} item={item} onReply={setReplyTo} />)}
+          {comments.hasNextPage && <Button label="Ещё комментарии" variant="outline" disabled={comments.isFetchingNextPage} onPress={() => void comments.fetchNextPage()} />}
           {replyTo && <Button label="Отменить ответ" variant="outline" onPress={() => setReplyTo(null)} />}
           <TextInput value={body} onChangeText={setBody} multiline textAlignVertical="top" style={s.input} placeholder="Комментарий…" placeholderTextColor={COLORS.textSecondary} />
           <Button label="Отправить" variant="primary" disabled={busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters} onPress={() => void send()} />

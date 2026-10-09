@@ -134,3 +134,9 @@ Origin пока отвечает полным ограниченным объе�
 ## Уточнение среды пользователем
 
 Пользователь подтвердил: отдельного тестового сервера нет, проверки выполняются на production. Требование отдельного DEV API/БД из первоначального документа больше не применяется; отсутствие DEV не является блокером. Это не означает, что миграция, инфраструктура или включение Feed уже выполнены. Текущие флаги глобальны; перед ограниченным smoke требуется механизм допуска тестового аккаунта. Незавершённые облачные и продуктовые пункты перечислены выше.
+
+## Production rollout update — 2026-10-09
+
+The owner authorized production testing and visibility for all users. A separate test server is not required. Cloud workers use a dedicated private Feed bucket and queues, while media delivery reuses the existing `gallery-dev.gafus.ru` CDN through its `/posts/…` origin route. No additional CDN DNS record is needed. The certificate challenge CNAME already created for `feed.gafus.ru` can remain; that hostname is not the active media URL.
+
+A fresh PostgreSQL dump was verified through production SSH in GitHub Actions before rollout; Feed tables were absent and there were no failed migrations. Native Sharp/FFmpeg processing passed in an AMD64 container. Application deployment, production queue processing and browser acceptance must be recorded separately after their actual checks; infrastructure creation alone does not establish them.

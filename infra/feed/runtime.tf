@@ -60,7 +60,7 @@ resource "yandex_function" "origin" {
   service_account_id = yandex_iam_service_account.feed["origin"].id
   user_hash          = filesha256("${var.artifact_directory}/feed-origin.zip")
   content { zip_filename = "${var.artifact_directory}/feed-origin.zip" }
-  environment = { FEED_BUCKET = var.bucket }
+  environment = { FEED_BUCKET = var.bucket, FEED_ORIGIN_HEADER = "x-gallery-origin-secret" }
   dynamic "secrets" {
     for_each = nonsensitive(toset(keys(local.payloads.origin)))
     content {
@@ -157,3 +157,6 @@ output "build_service_account_key" {
     private_key        = yandex_iam_service_account_key.build.private_key
   })
 }
+
+output "origin_function_id" { value = yandex_function.origin.id }
+output "origin_gateway_service_account_id" { value = yandex_iam_service_account.feed["gateway"].id }
