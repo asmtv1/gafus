@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppState } from "react-native";
+import * as Crypto from "expo-crypto";
 import { useIsFocused } from "@react-navigation/native";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { galleryApi } from "@/shared/lib/api/gallery";
@@ -59,4 +60,4 @@ export function galleryError(error: unknown): string {
   if (error instanceof Error && !/network|fetch|abort/i.test(error.message)) return error.message;
   return "Не удалось подключиться. Проверьте интернет и повторите попытку.";
 }
-export const requestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+export const requestId = () => Crypto.randomUUID();

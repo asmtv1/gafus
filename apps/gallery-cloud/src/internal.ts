@@ -4,7 +4,7 @@ export interface GalleryInternalClient {
   claimUpload(uploadId: string): Promise<GalleryUploadClaim | null>;
   completeUpload(input: GalleryCompleteUploadInput): Promise<GalleryCallbackResult>;
   failUpload(input: GalleryFailUploadInput): Promise<GalleryCallbackResult>;
-  claimJobs(limit: number): Promise<GalleryStorageJobClaim[]>;
+  claimJobs(limit: number, uploadId?: string): Promise<GalleryStorageJobClaim[]>;
   completeJob(input: GalleryCompleteStorageJobInput): Promise<GalleryCallbackResult>;
   failJob(input: GalleryFailStorageJobInput): Promise<GalleryCallbackResult>;
   maintenance(limit: number): Promise<GalleryMaintenanceResult>;
@@ -32,6 +32,6 @@ export function createGalleryInternalClient(input: { baseUrl: string; secret: st
   return {
     claimUpload: (uploadId) => request('/internal/gallery/uploads/claim', { uploadId }),
     completeUpload: (v) => request('/internal/gallery/uploads/complete', v), failUpload: (v) => request('/internal/gallery/uploads/fail', v),
-    claimJobs: (limit) => request('/internal/gallery/jobs/claim', { limit }), completeJob: (v) => request('/internal/gallery/jobs/complete', v), failJob: (v) => request('/internal/gallery/jobs/fail', v), maintenance: (limit) => request('/internal/gallery/maintenance', { limit }),
+    claimJobs: (limit, uploadId) => request('/internal/gallery/jobs/claim', { limit, ...(uploadId ? { uploadId } : {}) }), completeJob: (v) => request('/internal/gallery/jobs/complete', v), failJob: (v) => request('/internal/gallery/jobs/fail', v), maintenance: (limit) => request('/internal/gallery/maintenance', { limit }),
   };
 }
