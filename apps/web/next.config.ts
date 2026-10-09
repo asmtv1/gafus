@@ -36,6 +36,12 @@ const withPWA = withPWAInit({
 // Общие алиасы для webpack и Turbopack (workspace-пакеты).
 // Важно: более длинные пути для core — первыми, иначе сработает @gafus/core и попадёт src вместо dist (на проде 500).
 const gafusAliases = {
+  // Workspace dist uses require(), while app hooks use import. Pin both to the
+  // same ESM entry so they share QueryClientContext in production bundles.
+  "@tanstack/react-query": _path.join(
+    _path.dirname(require.resolve("@tanstack/react-query")),
+    "index.js",
+  ),
   "@gafus/core/services/questions": _path.resolve(__dirname, "../../packages/core/dist/core/src/services/questions"),
   "@gafus/questions-server": _path.resolve(__dirname, "../../packages/questions-server/dist"),
   "@gafus/gallery-server": _path.resolve(__dirname, "../../packages/gallery-server/dist"),
