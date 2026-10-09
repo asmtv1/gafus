@@ -13,16 +13,40 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@gafus/core/services/questions": ["../../packages/core/src/services/questions/index.ts"],
-      "@gafus/core/services/cynologistChat": ["../../packages/core/src/services/cynologistChat/index.ts"],
-      "@gafus/core/services/consent": ["../../packages/core/src/services/consent"],
-      "@gafus/core/services/appSubscription": ["../../packages/core/src/services/appSubscription/index.ts"],
-      "@gafus/core/services/consultation": ["../../packages/core/src/services/consultation/index.ts"],
-      "@gafus/core/services/notifications": ["../../packages/core/src/services/notifications"],
-      "@gafus/prisma": ["../../packages/prisma/src/index.ts"],
-      "@gafus/npd": ["../../packages/npd/src/index.ts"]
+      "@gafus/core/services/questions": [
+        "../../packages/core/src/services/questions/index.ts"
+      ],
+      "@gafus/core/services/cynologistChat": [
+        "../../packages/core/src/services/cynologistChat/index.ts"
+      ],
+      "@gafus/core/services/consent": [
+        "../../packages/core/src/services/consent"
+      ],
+      "@gafus/core/services/appSubscription": [
+        "../../packages/core/src/services/appSubscription/index.ts"
+      ],
+      "@gafus/core/services/consultation": [
+        "../../packages/core/src/services/consultation/index.ts"
+      ],
+      "@gafus/core/services/notifications": [
+        "../../packages/core/src/services/notifications"
+      ],
+      "@gafus/prisma": [
+        "../../packages/prisma/src/index.ts"
+      ],
+      "@gafus/npd": [
+        "../../packages/npd/src/index.ts"
+      ],
+      "@gafus/core/services/feed": [
+        "../../packages/core/src/services/feed/index.ts"
+      ]
     }
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

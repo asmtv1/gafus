@@ -121,7 +121,7 @@ describe("deleteUserAccount", () => {
     expect(mockAccountDeletionDeleteMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
     expect(mockRefreshUpdateMany).toHaveBeenCalled();
     expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
-    expect(mockExecuteRaw).toHaveBeenCalledTimes(5);
+    expect(mockExecuteRaw).toHaveBeenCalledTimes(9);
     const cleanupCall = mockExecuteRaw.mock.calls.findIndex(([sql]) =>
       (sql as TemplateStringsArray).join("").includes('INSERT INTO "GalleryStorageJob"'),
     );

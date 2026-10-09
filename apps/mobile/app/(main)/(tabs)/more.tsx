@@ -9,6 +9,7 @@ import { TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { chatApi } from "@/shared/lib/api/cynologistChat";
+import { feedApi } from "@/shared/lib/api/feed";
 import { trackEvent } from "@/shared/lib/analytics";
 
 const SECTIONS = [
@@ -30,6 +31,11 @@ const SECTIONS = [
     image: require("../../../assets/images/tab-icons/albums.webp"),
   },
   {
+    name: "feed",
+    title: "Лента",
+    image: require("../../../assets/images/tab-icons/articles.webp"),
+  },
+  {
     name: "profile",
     title: "Профиль",
     image: require("../../../assets/images/tab-icons/profile.webp"),
@@ -45,12 +51,19 @@ export default function MoreScreen() {
     enabled: Boolean(userId),
     retry: 1,
   });
+  const feedState = useQuery({
+    queryKey: ["more-feed-ready", userId],
+    queryFn: () => feedApi.status(),
+    enabled: Boolean(userId),
+    staleTime: 30_000,
+    retry: 1,
+  });
 
   return (
     <TexturedSafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.menu}>
-          {SECTIONS.map((section, index) => {
+          {SECTIONS.filter(section => section.name !== "feed" || feedState.data?.enabled === true).map((section, index) => {
             const isChat = section.name === "chat";
             const loading = isChat && chatState.isPending;
             const failed = isChat && chatState.isError;

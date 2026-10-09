@@ -7,6 +7,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="pets" options={{ title: "Питомцы" }} />
       <Tabs.Screen name="index" options={{ title: "Курсы" }} />
       <Tabs.Screen name="more" options={{ title: "Меню" }} />
+      <Tabs.Screen name="feed" options={{ title: "Лента", href: null }} />
       <Tabs.Screen name="articles" options={{ title: "Статьи", href: null }} />
       <Tabs.Screen name="consultations" options={{ title: "Консультации", href: null }} />
       <Tabs.Screen name="cynologist-chat" options={{ title: "Чат с кинологом", href: null }} />

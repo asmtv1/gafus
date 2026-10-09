@@ -12,6 +12,7 @@ import { useShallow } from "zustand/react/shallow";
 import { StatusBar } from "expo-status-bar";
 
 import { ProfileIcon } from "@/features/profile";
+import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 
 import { Button, Card } from "@/shared/components/ui";
 import { TexturedSafeAreaView } from "@/shared/components";
@@ -768,6 +769,7 @@ export default function ProfileScreen() {
                 }}
               />
             </View>
+            <ProfileFeedPreview username={user?.username ?? ""} />
             <View style={styles.notificationsCard}>
               <View style={styles.sectionHeading}>
                 <ProfileIcon name="notifications" />

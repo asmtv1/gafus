@@ -27,6 +27,12 @@ const logger = createWorkerLogger("cron-scheduler");
  */
 export function startCronJobs(): void {
   logger.info("Запуск cron-планировщика...");
+  if (process.env.FEED_MAINTENANCE_ENABLED === "true") {
+    cron.schedule("* * * * *", () => {
+      void import("./feed-worker").then(({ processFeedBackgroundTasks }) => processFeedBackgroundTasks())
+        .catch(error => logger.error("Feed background processing failed", error as Error));
+    });
+  }
   cron.schedule("* * * * *", () => {
     reconcileQuestionNotifications().catch((error) => logger.error("Question push reconciliation failed", error as Error));
   });

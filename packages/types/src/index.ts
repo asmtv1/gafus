@@ -42,3 +42,5 @@ export * from "./types";
 export * from "./questions";
 
 export * from "./gallery";
+
+export * from "./feed";

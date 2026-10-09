@@ -1,5 +1,8 @@
+import { feedPlaybackResponse } from "@gafus/feed-server";
+import { internalFeedRoutes } from "./routes/internal/feed.js";
 import { questionsRoutes } from "./routes/v1/questions.js";
 import { galleryRoutes } from "./routes/v1/gallery.js";
+import { feedRoutes } from "./routes/v1/feed.js";
 import { internalGalleryRoutes } from "./routes/internal/gallery.js";
 import { communityChatRoutes } from "./routes/v1/community-chat.js";
 import { cynologistChatRoutes, streamChatWebhookRoutes } from "./routes/v1/cynologist-chat.js";
@@ -92,8 +95,13 @@ const galleryNoStore = async (c: import("hono").Context, next: () => Promise<voi
 app.use("/api/v1/gallery", galleryNoStore, authMiddleware, apiRateLimiter);
 app.use("/api/v1/gallery/*", galleryNoStore, authMiddleware, apiRateLimiter);
 app.route("/api/v1/gallery", galleryRoutes);
+app.use("/api/v1/feed", galleryNoStore, authMiddleware, apiRateLimiter);
+app.use("/api/v1/feed/*", galleryNoStore, authMiddleware, apiRateLimiter);
+app.route("/api/v1/feed", feedRoutes);
 // Internal cloud callbacks authenticate each raw request with HMAC and Redis-backed nonce replay protection.
 app.route("/internal/gallery", internalGalleryRoutes);
+app.route("/internal/feed", internalFeedRoutes);
+app.get("/api/v1/feed-playback/:mediaId", c => feedPlaybackResponse(c.req.raw));
 app.route("/api/v1/stream-chat/webhook", streamChatWebhookRoutes);
 
 // Protected routes - require auth

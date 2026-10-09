@@ -269,6 +269,10 @@
       "types": "./dist/core/src/services/gallery/index.d.ts",
       "default": "./dist/core/src/services/gallery/index.js"
     },
+    "./services/feed": {
+      "types": "./dist/core/src/services/feed/index.d.ts",
+      "default": "./dist/core/src/services/feed/index.js"
+    },
     "./services/gallery/imageProcessing": {
       "types": "./dist/core/src/services/gallery/imageProcessing.d.ts",
       "default": "./dist/core/src/services/gallery/imageProcessing.js"

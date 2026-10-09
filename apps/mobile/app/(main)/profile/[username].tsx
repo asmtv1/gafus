@@ -1,4 +1,5 @@
 import { GalleryPreview } from "@/features/gallery";
+import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
@@ -304,6 +305,7 @@ export default function PublicProfileScreen() {
           )}
 
           <GalleryPreview owner={publicData?.username ?? username} />
+          <ProfileFeedPreview username={publicData?.username ?? username} />
 
           {/* Социальные сети */}
           {hasSocialLinks && profile && (
