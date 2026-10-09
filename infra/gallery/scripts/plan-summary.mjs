@@ -181,10 +181,63 @@ const stage3OnlyActivation = deployCdn === true &&
   pendingUpdates.length === 4;
 console.log("Stage-3 exact four function flag toggles:",
   stage3OnlyActivation ? "YES" : "NO");
-if ((counts.update > 0 && !reviewedCORSOnly && !stage3OnlyActivation) ||
-    counts.create || counts.delete || counts.replace || counts.other ||
+
+// Stage 4: enable only temporary operational logs on dispatch/process/maintenance.
+// The private image origin must stay unlogged. Stage 5 rolls the same three
+// flags back off. Neither stage can change code, secrets, IAM or other resources.
+const diagnosticNames = ["dispatch", "maintenance", "process"];
+const diagnosticAddresses = new Set(
+  diagnosticNames.map((name) => `yandex_function.gallery["${name}"]`)
+);
+const diagnosticFlag = plan.variables?.diagnostic_logging?.value;
+const expectedBefore = diagnosticFlag === true;
+const expectedAfter = diagnosticFlag === false;
+function loggingOptions(value, expectedDisabled) {
+  if (!Array.isArray(value) || value.length !== 1) return null;
+  const option = value[0];
+  if (!option || typeof option !== "object" ||
+      option.disabled !== expectedDisabled) return null;
+  const { disabled, ...remaining } = option;
+  // A custom destination or filter must never be slipped in with the flag.
+  return remaining;
+}
+const loggingUpdates = resourceChanges.filter((change) => {
+  if (change.change?.actions?.join(",") !== "update" ||
+      !diagnosticAddresses.has(change.address)) return false;
+  const before = change.change.before ?? {};
+  const after = change.change.after ?? {};
+  if (before.environment?.GALLERY_ENABLED !== "true" ||
+      after.environment?.GALLERY_ENABLED !== "true") return false;
+  const oldOptions = loggingOptions(before.log_options, expectedBefore);
+  const newOptions = loggingOptions(after.log_options, expectedAfter);
+  if (!oldOptions || !newOptions ||
+      JSON.stringify(oldOptions) !== JSON.stringify(newOptions)) return false;
+  const { log_options: _oldLogging, ...oldOther } = before;
+  const { log_options: _newLogging, ...newOther } = after;
+  return JSON.stringify(oldOther) === JSON.stringify(newOther);
+});
+const origin = resourceChanges.find((change) =>
+  change.address === 'yandex_function.gallery["origin"]');
+const originRemainsUnlogged = origin?.change?.actions?.join(",") === "no-op" &&
+  origin.change.before?.environment?.GALLERY_ENABLED === "true" &&
+  origin.change.after?.environment?.GALLERY_ENABLED === "true" &&
+  loggingOptions(origin.change.before?.log_options, true) !== null &&
+  loggingOptions(origin.change.after?.log_options, true) !== null;
+const onlyDiagnosticLogging = deployCdn === true &&
+  plan.variables?.enabled?.value === true &&
+  typeof diagnosticFlag === "boolean" &&
+  counts.create === 0 && counts.update === 3 &&
+  counts.delete === 0 && counts.replace === 0 && counts.other === 0 &&
+  pendingUpdates.length === 3 &&
+  loggingUpdates.length === 3 &&
+  originRemainsUnlogged;
+console.log("Stage-4/5 only three diagnostic logging flags:",
+  onlyDiagnosticLogging ? "YES" : "NO");
+console.log("Private origin logging remains disabled:",
+  originRemainsUnlogged ? "YES" : "NO");
+if (counts.create || counts.delete || counts.replace || counts.other ||
     unexpected.length || otherFolders.length || !resourceChanges.length ||
-    !stage3OnlyActivation) safe = false;
+    !(stage3OnlyActivation || onlyDiagnosticLogging)) safe = false;
 console.log("Preliminary plan safety checks:", safe ? "PASS" : "REVIEW_REQUIRED");
 console.log("This does not apply changes or verify cloud IAM, costs, or runtime readiness.");
 process.exitCode = safe ? 0 : 2;

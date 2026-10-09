@@ -353,3 +353,9 @@ a.card:hover {
     font-size: 20px;
   }
 }
+
+.field textarea.titleInput {
+  min-height: 88px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

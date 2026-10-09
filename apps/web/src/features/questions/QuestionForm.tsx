@@ -67,7 +67,9 @@ export function QuestionForm({ initial }: { initial?: QuestionDetailDto }) {
       >
         <label className={s.field}>
           Заголовок
-          <input
+          <textarea
+            className={s.titleInput}
+            rows={3}
             required
             maxLength={QUESTION_LIMITS.title}
             value={title}

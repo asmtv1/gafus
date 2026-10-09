@@ -220,6 +220,25 @@ The runner requires an explicit nonproduction mutation opt-in and checks the POS
 
 `missingEventRecoveryVerified` is true only when maintenance actually returned this upload's ID; normal object delivery may win the race. The explicit recovery mode requires that result. `cloudColdStartVerified` is always false: perform the separate fresh-version CDN cold-miss gate, including worst-case latency across zones. The script does not establish DLQ or scheduled cleanup correctness; run those scenarios from the delivery document separately. Delete test photos through the authenticated owner path so core persists cleanup jobs. Do not delete arbitrary storage keys by hand.
 
+## Temporary Cloud Functions diagnostic logs
+
+Set `diagnostic_logging = true` only in the ignored `gallery-dev.tfvars`
+while diagnosing Gallery DEV failures. Terraform then writes logs for exactly
+`gallery-dev-dispatch`, `gallery-dev-process`, and
+`gallery-dev-maintenance` to the folder's default Cloud Logging group.
+`gallery-dev-origin` remains unlogged to protect private-image requests.
+Keep image bytes, presigned POST fields, object keys, request headers, and
+secret material out of diagnostic output. Cloud Logging may incur charges.
+
+Generate a **fresh** `gallery-dev.tfplan` using `terraform.mjs plan` and
+run `node infra/gallery/scripts/plan-summary.mjs`. Apply only if the strict
+review says `PASS` and exactly three existing DEV functions change only
+`log_options.disabled`. Neither the queue nor DLQ is automatically replayed.
+
+**After diagnosis**, change `diagnostic_logging = false`, generate and
+review a new plan, then apply it to turn off those same three logs. Do not
+remove or purge the 42 DLQ messages until their failures are understood.
+
 ## Billing and rollout gates
 
 `budget-policy.json` specifies exactly 500 RUB/month notification with no automatic shutdown. Binding it to a billing account/notification recipient belongs to the root billing integration; this module does not claim that notification is live. YC credentials are currently expired. Linux runtime execution, provider conditional write behavior, actual CORS/IAM/trigger delivery, CDN secure authorization on HIT, cold origin latency and billing attachment remain external gates. Do not enable the gallery until they pass.

@@ -28,6 +28,7 @@ export async function getQuestionModeration(
   const author = (row: (typeof rows)[number]["reporter"]) => ({
     id: row.id,
     name: row.profile?.fullName || row.username,
+    username: row.username,
     avatarUrl: row.profile?.avatarUrl ?? null,
   });
   return {

@@ -1,9 +1,11 @@
 import { memo, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, View } from "react-native";
 import { IconButton, Text } from "react-native-paper";
-import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { GalleryImage } from "./image";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import type { GalleryAlbumDto } from "@gafus/types";
 import { Button, Input } from "@/shared/components/ui";
 import { galleryApi } from "@/shared/lib/api/gallery";
@@ -75,11 +77,11 @@ export function AlbumEditor({ owner, album, close }: { owner: string; album?: Ga
     <Button label="Сохранить" loading={busy} disabled={busy || !name.trim()} onPress={() => void save()} />
   </EditorShell>;
 }
-export const AlbumTile = memo(function AlbumTile({ album, refresh }: { album: GalleryAlbumDto; refresh: () => void }) {
+export const AlbumTile = memo(function AlbumTile({ album, refresh, compact = false }: { album: GalleryAlbumDto; refresh: () => void; compact?: boolean }) {
   const router = useRouter();
-  return <Pressable style={s.album} accessibilityRole="button" accessibilityLabel={`${album.name}, фотографий: ${album.photoCount}${album.isVisible ? "" : ", только для вас"}`} onPress={() => router.push({ pathname: "/profile/albums/[albumId]", params: { albumId: album.id, username: album.ownerUsername } })}>
-    {album.coverThumbUrl ? <GalleryImage source={{ uri: album.coverThumbUrl }} style={s.cover} contentFit="cover" refresh={refresh} /> : <View style={[s.cover, s.placeholder]}><Text style={s.muted}>Нет обложки</Text></View>}
-    <Text numberOfLines={2} style={s.text}>{album.name}</Text><Text style={s.muted}>{album.photoCount} фото{album.isVisible ? "" : " · Только для вас"}</Text>
+  return <Pressable style={compact ? s.albumCompact : s.album} accessibilityRole="button" accessibilityLabel={`${album.name}, фотографий: ${album.photoCount}${album.isVisible ? "" : ", только для вас"}`} onPress={() => router.push({ pathname: "/profile/albums/[albumId]", params: { albumId: album.id, username: album.ownerUsername } })}>
+    {album.coverThumbUrl ? <GalleryImage source={{ uri: album.coverThumbUrl }} style={compact ? s.coverCompact : s.cover} contentFit="cover" refresh={refresh} /> : <View style={[compact ? s.coverCompact : s.cover, s.placeholder]}>{compact ? <MaterialCommunityIcons name="image-outline" size={28} color={COLORS.textSecondary} /> : <Text style={s.muted}>Нет обложки</Text>}</View>}
+    <Text numberOfLines={2} style={compact ? s.albumCompactName : s.text}>{album.name}</Text><Text style={s.muted}>{album.photoCount} фото{album.isVisible ? "" : " · Только для вас"}</Text>
   </Pressable>;
 });
 export function GalleryPreview({ owner }: { owner: string }) {
@@ -96,8 +98,8 @@ export function GalleryPreview({ owner }: { owner: string }) {
     {meta?.isOwner ? <Text style={s.muted}>{meta.usedSlots}/200 фотографий</Text> : null}
     {[0, 2].map(start => items[start] ? <View key={start} style={[s.row, { alignItems: "stretch" }]}>{items.slice(start, start + 2).map(album => <AlbumTile key={album.id} album={album} refresh={() => void albums.refetch()} />)}{!items[start + 1] ? <View style={{ flex: 1 }} /> : null}</View> : null)}
     {meta && !items.length ? <Text style={s.text}>{meta.isOwner ? "Добавьте первые фотографии — альбом появится автоматически." : "Здесь пока нет доступных альбомов."}</Text> : null}
-    {meta ? <Button label="Все альбомы" variant="outline" onPress={() => router.push({ pathname: "/profile/albums", params: { username: owner } })} /> : null}
-    {meta?.isOwner ? <><Button label="Создать альбом" variant="outline" onPress={() => setCreating(true)} /><UploadControls owner={owner} usedSlots={meta.usedSlots} /></> : null}
+    {meta ? <Button label="Все альбомы" variant="outline" onPress={() => router.navigate({ pathname: "/(main)/(tabs)/albums", params: { username: owner } } as Href)} /> : null}
+    {meta?.isOwner ? <><Button label="Создать альбом" variant="caramel" animatedPress onPress={() => setCreating(true)} /><UploadControls owner={owner} usedSlots={meta.usedSlots} /></> : null}
     {creating ? <AlbumEditor owner={owner} close={() => setCreating(false)} /> : null}
   </View>;
 }

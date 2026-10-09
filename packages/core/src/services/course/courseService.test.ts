@@ -1,5 +1,4 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { TrainingStatus } from "@gafus/types";
 
 import {
   checkCourseAccess,

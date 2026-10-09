@@ -56,6 +56,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const closeViewer = useCallback(() => setSelected(null), []);
   const [editing, setEditing] = useState(false);
+  const [choosingCover, setChoosingCover] = useState(false);
   const [editPhoto, setEditPhoto] = useState<GalleryPhotoDto | null>(null);
   const [caption, setCaption] = useState("");
   const [destination, setDestination] = useState("");
@@ -152,6 +153,15 @@ function AlbumContent({ albumId }: { albumId: string }) {
         </>
       )}
       {album.canEdit && (
+        <div className={styles.actions}>
+          <Button disabled={busy || !album.photoCount} onClick={() => setChoosingCover((value) => !value)}>
+            {choosingCover ? "Отменить выбор обложки" : album.coverPhotoId ? "Изменить обложку" : "Выбрать обложку"}
+          </Button>
+          {choosingCover && <p role="status">Нажмите на фотографию, чтобы сделать её обложкой.</p>}
+          {!album.photoCount && <p className={styles.muted}>Добавьте фотографии, чтобы выбрать обложку.</p>}
+        </div>
+      )}
+      {album.canEdit && (
         <UploadQueue
           albumId={albumId}
           usedSlots={photosQuery.data?.pages[0]?.usedSlots ?? 0}
@@ -180,9 +190,13 @@ function AlbumContent({ albumId }: { albumId: string }) {
           <div key={photo.id}>
             <button
               className={styles.photo}
-              disabled={photo.status !== "ready"}
-              aria-label={`Открыть фотографию ${photo.caption || "без подписи"}`}
-              onClick={() => setSelected(photo.id)}
+              disabled={photo.status !== "ready" || (choosingCover && busy)}
+              aria-label={`${choosingCover ? "Сделать обложкой фотографию" : "Открыть фотографию"} ${photo.caption || "без подписи"}`}
+              onClick={async () => {
+                if (choosingCover && album.canEdit) {
+                  if (await perform(() => galleryApi.setCover(albumId, { photoId: photo.id }))) setChoosingCover(false);
+                } else setSelected(photo.id);
+              }}
             >
               {photo.thumbUrl ? (
                 <img
@@ -225,6 +239,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
               )}
               {photo.caption && <span className={styles.caption}>{photo.caption}</span>}
             </button>
+            {album.coverPhotoId === photo.id && <p className={styles.muted}>Обложка альбома</p>}
             {photo.canEdit && (
               <Button
                 size="small"

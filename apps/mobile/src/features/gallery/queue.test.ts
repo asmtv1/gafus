@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GalleryUploadDto } from "@gafus/types";
 vi.mock("expo-image", () => ({ Image: { clearMemoryCache: vi.fn().mockResolvedValue(undefined) } }));
-import { clearGallerySession, updateTask, useGallerySession } from "./session";
+import { canDismissUploadTask, clearGallerySession, dismissUploadTask, updateTask, useGallerySession } from "./session";
 import { cancelTask, pollTask, runUpload } from "./queue";
 
 function deferred<T>() {
@@ -189,6 +189,29 @@ describe("native upload queue races", () => {
     await vi.waitFor(() => expect(transport.reserveUpload).toHaveBeenCalled());
     clearGallerySession(); reserved.resolve(dto("reserved")); await running;
     expect(config.transfer).not.toHaveBeenCalled(); expect(transport.confirmUpload).not.toHaveBeenCalled();
+    expect(useGallerySession.getState().tasks).toEqual([]);
+  });
+});
+
+describe("upload status notification dismissal", () => {
+  it.each(["ready", "cancelled", "failed", "expired"] as const)("can dismiss a finished %s notice", status => {
+    updateTask("task", { status }, fence);
+    expect(canDismissUploadTask(status)).toBe(true);
+    dismissUploadTask("task", fence);
+    expect(useGallerySession.getState().tasks).toEqual([]);
+  });
+  it.each(["queued", "sending", "processing", "cancelling"] as const)("keeps an active %s upload", status => {
+    updateTask("task", { status }, fence);
+    expect(canDismissUploadTask(status)).toBe(false);
+    dismissUploadTask("task", fence);
+    expect(task().status).toBe(status);
+  });
+  it("does not dismiss a newer retry or a different session", () => {
+    updateTask("task", { generation: 1, status: "cancelled" }, fence);
+    dismissUploadTask("task", fence);
+    dismissUploadTask("task", { epoch: 1, generation: 1 });
+    expect(task().generation).toBe(1);
+    dismissUploadTask("task", { epoch: 0, generation: 1 });
     expect(useGallerySession.getState().tasks).toEqual([]);
   });
 });

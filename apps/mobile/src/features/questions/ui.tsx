@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert } from "react-native";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { COLORS, FONTS } from "@/shared/config";
+import { useAuthStore } from "@/shared/stores";
 import { uploadQuestionPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
+import { questionAuthorProfileIdentifier } from "./profileLink";
 import {
   QUESTION_LIMITS,
   type QuestionAuthorDto,
@@ -19,6 +22,7 @@ export function QButton({
   secondary,
   selected,
   icon,
+  compact = false,
 }: {
   label: string;
   onPress: () => void;
@@ -26,6 +30,7 @@ export function QButton({
   secondary?: boolean;
   selected?: boolean;
   icon?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  compact?: boolean;
 }) {
   return (
     <Pressable
@@ -33,18 +38,32 @@ export function QButton({
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled, selected: !!selected }}
       disabled={disabled}
+      hitSlop={compact ? 4 : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         st.button,
         secondary && st.secondary,
         selected && st.selected,
+        compact && st.compactButton,
         (pressed || disabled) && { opacity: 0.6 },
       ]}
     >
       {icon && (
-        <MaterialCommunityIcons name={icon} size={20} color={secondary ? COLORS.primary : "#fff"} />
+        <MaterialCommunityIcons
+          name={icon}
+          size={compact ? 16 : 20}
+          color={secondary ? COLORS.primary : "#fff"}
+        />
       )}
-      <Text style={[st.buttonText, secondary && { color: COLORS.primary }]}>{label}</Text>
+      <Text
+        style={[
+          st.buttonText,
+          compact && st.compactButtonText,
+          secondary && { color: COLORS.primary },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -52,36 +71,137 @@ export function QAuthor({
   author,
   date,
   edited,
+  compact = false,
+  listStats,
 }: {
   author: QuestionAuthorDto;
   date: string;
   edited?: string | null;
+  compact?: boolean;
+  listStats?: string;
 }) {
-  return (
-    <View style={st.author}>
-      {author.avatarUrl ? (
-        <Image source={{ uri: author.avatarUrl }} style={st.avatar} contentFit="cover" />
-      ) : (
-        <View style={[st.avatar, st.initial]}>
-          <Text style={st.label}>{author.name.slice(0, 1)}</Text>
-        </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={st.label}>{author.name}</Text>
-        <Text style={st.meta}>
-          {new Date(date).toLocaleDateString("ru-RU")}
-          {edited && " · Изменено"}
-        </Text>
-      </View>
+  const router = useRouter();
+  const viewer = useAuthStore((state) => state.user);
+  const profileIdentifier = questionAuthorProfileIdentifier(author, viewer);
+  const openProfile = () => {
+    if (profileIdentifier) {
+      router.push({ pathname: "/profile/[username]", params: { username: profileIdentifier } });
+    }
+  };
+  const avatar = author.avatarUrl ? (
+    <Image
+      source={{ uri: author.avatarUrl }}
+      style={[st.avatar, (compact || listStats !== undefined) && st.compactAvatar]}
+      contentFit="cover"
+    />
+  ) : (
+    <View style={[st.avatar, st.initial, (compact || listStats !== undefined) && st.compactAvatar]}>
+      <Text style={st.label}>{author.name.slice(0, 1)}</Text>
     </View>
   );
-}
-export function QStatus({ question }: { question: QuestionListItemDto }) {
+  const nameAndDate = (
+    <>
+      <Text style={[st.label, compact && st.compactName]} numberOfLines={compact ? 1 : undefined}>
+        {author.name}
+      </Text>
+      <Text style={[st.meta, compact && st.compactDate]}>
+        {new Date(date).toLocaleDateString("ru-RU")}
+        {edited && " · Изменено"}
+      </Text>
+    </>
+  );
+  // Question lists show author, date and activity in a compact two-line footer.
+  if (listStats !== undefined) {
+    return (
+      <View style={st.listAuthor}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Открыть профиль ${author.name}`}
+          disabled={!profileIdentifier}
+          hitSlop={6}
+          onPress={(event) => {
+            event.stopPropagation();
+            openProfile();
+          }}
+        >
+          {avatar}
+        </Pressable>
+        <View style={st.listAuthorInfo}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Открыть профиль ${author.name}`}
+            disabled={!profileIdentifier}
+            hitSlop={4}
+            onPress={(event) => {
+              event.stopPropagation();
+              openProfile();
+            }}
+          >
+            <Text style={st.listName} numberOfLines={1}>{author.name}</Text>
+          </Pressable>
+          <Text style={st.listMeta} numberOfLines={2}>
+            {new Date(date).toLocaleDateString("ru-RU")} · {listStats}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  // Instagram-style threads: the avatar remains on the left, while the body
+  // starts directly below the one-line name/date rather than below the avatar.
+  if (compact) {
+    return (
+      <View style={st.compactAuthor}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Открыть профиль ${author.name}`}
+          disabled={!profileIdentifier}
+          hitSlop={5}
+          style={st.compactAvatarTap}
+          onPress={(event) => {
+            event.stopPropagation();
+            openProfile();
+          }}
+        >
+          {avatar}
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Открыть профиль ${author.name}`}
+          disabled={!profileIdentifier}
+          style={st.compactAuthorInfo}
+          onPress={(event) => {
+            event.stopPropagation();
+            openProfile();
+          }}
+        >
+          {nameAndDate}
+        </Pressable>
+      </View>
+    );
+  }
   return (
-    <View style={st.row}>
+    <Pressable
+      style={st.author}
+      accessibilityRole="button"
+      accessibilityLabel={`Открыть профиль ${author.name}`}
+      disabled={!profileIdentifier}
+      onPress={(event) => {
+        event.stopPropagation();
+        openProfile();
+      }}
+    >
+      {avatar}
+      <View style={st.authorInfo}>{nameAndDate}</View>
+    </Pressable>
+  );
+}
+export function QStatus({ question, compact = false }: { question: QuestionListItemDto; compact?: boolean }) {
+  return (
+    <View style={[st.row, compact && st.listTags]}>
       <Text
         style={[
           st.badge,
+          compact && st.listBadge,
           question.status === "resolved"
             ? st.resolved
             : question.status === "answered"
@@ -95,10 +215,10 @@ export function QStatus({ question }: { question: QuestionListItemDto }) {
             ? "Есть ответы"
             : "Ждёт ответа"}
       </Text>
-      {question.closed && <Text style={st.badge}>Закрыто</Text>}
-      <Text style={st.tag}>{question.category}</Text>
+      {question.closed && <Text style={[st.badge, compact && st.listBadge]}>Закрыто</Text>}
+      <Text style={[st.tag, compact && st.listTag]}>{question.category}</Text>
       {question.tags.map((tag) => (
-        <Text key={tag} style={st.tag}>
+        <Text key={tag} style={[st.tag, compact && st.listTag]}>
           #{tag}
         </Text>
       ))}
@@ -121,9 +241,18 @@ export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
     </View>
   );
 }
-export function QBody({ text }: { text: string }) {
+export function QBody({
+  text,
+  compact = false,
+  replyToName,
+}: {
+  text: string;
+  compact?: boolean;
+  replyToName?: string | null;
+}) {
   return (
-    <Text style={st.body}>
+    <Text style={[st.body, compact && st.compactBody]}>
+      {replyToName && <Text style={st.inlineReplyTo}>В ответ {replyToName}: </Text>}
       {text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
         /^https?:\/\//.test(part) ? (
           <Text
@@ -232,6 +361,7 @@ export function QInput({
   value,
   onChange,
   multiline,
+  minHeight,
   maxLength,
   placeholder,
 }: {
@@ -239,6 +369,7 @@ export function QInput({
   value: string;
   onChange: (text: string) => void;
   multiline?: boolean;
+  minHeight?: number;
   maxLength?: number;
   placeholder?: string;
 }) {
@@ -250,10 +381,16 @@ export function QInput({
         value={value}
         onChangeText={onChange}
         multiline={multiline}
+        scrollEnabled={multiline ? false : undefined}
         maxLength={maxLength}
         placeholder={placeholder}
         placeholderTextColor="#6a655b"
-        style={[st.input, multiline && { minHeight: 140, textAlignVertical: "top" }]}
+        style={[
+          st.input,
+          multiline
+            ? { minHeight: minHeight ?? 140, lineHeight: 24, textAlignVertical: "top" }
+            : st.singleLineInput,
+        ]}
       />
     </View>
   );
@@ -263,8 +400,25 @@ export const st = StyleSheet.create({
   group: { gap: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   card: { backgroundColor: COLORS.cardBackground, borderRadius: 16, padding: 18, gap: 16 },
+  listCard: { padding: 12, gap: 8, borderRadius: 14 },
+  listTitle: {
+    fontFamily: FONTS.montserratBold,
+    fontSize: 17,
+    lineHeight: 24,
+    color: COLORS.text,
+  },
+  listPreview: { backgroundColor: "#e3ead7", padding: 9, borderRadius: 9, gap: 3 },
+  listTags: { gap: 6, rowGap: 4 },
+  listBadge: { paddingHorizontal: 8, paddingVertical: 3, fontSize: 11, lineHeight: 16 },
+  listTag: { paddingHorizontal: 0, paddingVertical: 2, fontSize: 11, lineHeight: 17 },
+  listAuthor: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 32 },
+  listAuthorInfo: { flex: 1, minWidth: 0, gap: 1 },
+  listName: { fontFamily: FONTS.montserratMedium, fontSize: 12, lineHeight: 17, color: COLORS.text },
+  listMeta: { fontFamily: FONTS.montserrat, fontSize: 11, lineHeight: 16, color: "#5b564b" },
   title: { fontFamily: FONTS.montserratBold, fontSize: 22, lineHeight: 31, color: COLORS.text },
   body: { fontFamily: FONTS.montserrat, fontSize: 15, lineHeight: 25, color: COLORS.text },
+  compactBody: { fontSize: 14, lineHeight: 21 },
+  inlineReplyTo: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.textSecondary },
   label: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.text },
   meta: { fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 19, color: "#5b564b" },
   badge: {
@@ -290,9 +444,17 @@ export const st = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
+  compactButton: {
+    minHeight: 36,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderRadius: 10,
+    gap: 5,
+  },
   secondary: { backgroundColor: "transparent", borderColor: "#b0ad9c", borderWidth: 1 },
   selected: { backgroundColor: "#e1e6d0", borderColor: COLORS.primary },
   buttonText: { fontFamily: FONTS.montserratMedium, color: "#fff", fontSize: 13 },
+  compactButtonText: { fontSize: 12 },
   input: {
     borderWidth: 1,
     borderColor: "#aaa791",
@@ -303,10 +465,36 @@ export const st = StyleSheet.create({
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
     fontSize: 15,
-    lineHeight: 24,
+  },
+  singleLineInput: {
+    // Preserve the former 24px line + 24px padding + 2px border height.
+    height: 50,
+    paddingVertical: 0,
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   author: { flexDirection: "row", gap: 10, alignItems: "center" },
+  compactAuthor: { minHeight: 32, position: "relative" },
+  compactAvatarTap: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 32,
+    height: 32,
+  },
+  authorInfo: { flex: 1 },
+  compactAuthorInfo: {
+    minHeight: 22,
+    marginLeft: 40,
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    gap: 6,
+  },
+  compactName: { fontFamily: FONTS.montserratBold, fontSize: 13, flexShrink: 1 },
+  compactDate: { fontSize: 11, lineHeight: 17 },
   avatar: { width: 36, height: 36, borderRadius: 18 },
+  compactAvatar: { width: 32, height: 32, borderRadius: 16 },
   initial: { backgroundColor: "#e1e6d0", alignItems: "center", justifyContent: "center" },
   photo: { width: 110, height: 110, borderRadius: 10 },
   removePhoto: {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { registerGallerySessionCleanup } from "@/shared/stores/galleryCleanupBridge";
 import { Image } from "expo-image";
 import type { QueryClient } from "@tanstack/react-query";
 import type { GalleryUploadDto } from "@gafus/types";
@@ -33,6 +34,22 @@ export function updateTask(id: string, patch: Partial<UploadTask>, fence: TaskFe
   if (!taskAt(id, fence, allowCancelled)) return;
   useGallerySession.setState(s => ({ tasks: s.tasks.map(t => t.id === id ? { ...t, ...patch } : t) }));
 }
+
+const DISMISSIBLE_STATUSES: ReadonlySet<UploadTask["status"]> = new Set([
+  "ready", "cancelled", "failed", "expired",
+]);
+export function canDismissUploadTask(status: UploadTask["status"]) {
+  return DISMISSIBLE_STATUSES.has(status);
+}
+/** Remove only a finished notification from the current session, never an active or newer upload. */
+export function dismissUploadTask(id: string, fence: TaskFence) {
+  useGallerySession.setState(state => {
+    if (state.epoch !== fence.epoch) return state;
+    const task = state.tasks.find(t => t.id === id);
+    if (!task || task.generation !== fence.generation || !canDismissUploadTask(task.status)) return state;
+    return { tasks: state.tasks.filter(t => t.id !== id) };
+  });
+}
 /** Public lifecycle API: no signed URL or local upload survives logout. */
 export function clearGallerySession() {
   for (const controller of galleryRequests.values()) controller.abort();
@@ -45,3 +62,6 @@ export function clearGallerySession() {
   }
   void Image.clearMemoryCache().catch(() => undefined);
 }
+
+// Register once when the gallery feature loads, without importing authStore here.
+registerGallerySessionCleanup(clearGallerySession);

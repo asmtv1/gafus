@@ -36,6 +36,7 @@ function author(row: {
   return {
     id: row.id,
     name: row.profile?.fullName || row.username,
+    username: row.username,
     avatarUrl: row.profile?.avatarUrl ?? null,
   };
 }

@@ -19,7 +19,7 @@ export default function ChatHubScreen({ trainer = false }: { trainer?: boolean }
           variant={community ? "primary" : "selected"}
           flex={1}
           fullWidth={false}
-          height={52}
+          height={44}
           fontSize={12}
           lineHeight={18}
           fontFamily={FONTS.montserratMedium}
@@ -36,7 +36,7 @@ export default function ChatHubScreen({ trainer = false }: { trainer?: boolean }
           variant={community ? "selected" : "primary"}
           flex={1}
           fullWidth={false}
-          height={52}
+          height={44}
           fontSize={12}
           lineHeight={18}
           fontFamily={FONTS.montserratMedium}
@@ -63,5 +63,5 @@ export default function ChatHubScreen({ trainer = false }: { trainer?: boolean }
 }
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
 });

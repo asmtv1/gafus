@@ -1,4 +1,4 @@
-import { clearGallerySession } from "@/features/gallery";
+import { clearRegisteredGallerySession } from "./galleryCleanupBridge";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { Platform } from "react-native";
@@ -358,7 +358,7 @@ export const useAuthStore = create<AuthStore>()(
        */
       logout: async () => {
         authSessionGeneration += 1;
-        clearGallerySession();
+        clearRegisteredGallerySession();
         try {
           const refreshToken = await SecureStore.getItemAsync("refresh_token");
           if (refreshToken) {
@@ -556,7 +556,7 @@ export const useAuthStore = create<AuthStore>()(
        */
       handleSessionExpired: () => {
         authSessionGeneration += 1;
-        clearGallerySession();
+        clearRegisteredGallerySession();
         resetUserStores();
         set({
           user: null,

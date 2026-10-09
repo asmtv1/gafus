@@ -120,8 +120,9 @@ export async function getUserIdByUsername(username: string): Promise<string | nu
 export async function getPublicProfile(username: string): Promise<PublicProfile | null> {
   if (!username) throw new Error("username is required");
 
-  const user = await prisma.user.findUnique({
-    where: { username },
+  const user = await prisma.user.findFirst({
+    // Old questions API only provides the stable author ID.
+    where: { OR: [{ username }, { id: username }] },
     select: {
       id: true,
       username: true,

@@ -67,6 +67,8 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
           <View style={st.card}>
             <QInput
               label="Заголовок"
+              multiline
+              minHeight={72}
               value={title}
               onChange={setTitle}
               maxLength={QUESTION_LIMITS.title}

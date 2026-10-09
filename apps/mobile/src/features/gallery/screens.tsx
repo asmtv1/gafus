@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, View, useWindowDimensions } from "react-native";
 import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { GalleryImage } from "./image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -24,11 +24,35 @@ export function GalleryAlbumsScreen() {
   const [creating, setCreating] = useState(false);
   const meta = albums.data?.pages[0];
   const items = albums.data?.pages.flatMap(page => page.items) ?? [];
-  return <SafeAreaView edges={["bottom", "left", "right"]} style={s.screen}>
-    <Stack.Screen options={{ headerShown: true, title: "Альбомы", headerStyle: { backgroundColor: COLORS.background }, headerTintColor: COLORS.text }} />
-    <FlatList data={items} numColumns={2} columnWrapperStyle={{ gap: 12, marginBottom: 12 }} keyExtractor={a => a.id} contentContainerStyle={s.content} renderItem={({ item }) => <AlbumTile album={item} refresh={() => void albums.refetch()} />} refreshing={albums.isRefetching} onRefresh={() => void albums.refetch()} onEndReached={() => { if (albums.hasNextPage && !albums.isFetchingNextPage) void albums.fetchNextPage(); }} onEndReachedThreshold={0.5}
-      ListHeaderComponent={<View style={s.section}><Text style={s.heading}>Альбомы {owner}</Text>{meta?.enabled === false ? <Text style={s.text}>Галерея пока недоступна.</Text> : null}{meta?.isOwner && meta.enabled ? <><Text style={s.muted}>{meta.usedSlots}/200 фотографий</Text><Button label="Создать альбом" variant="outline" onPress={() => setCreating(true)} /><UploadControls owner={owner} usedSlots={meta.usedSlots} /></> : null}{albums.isError ? <Failure error={albums.error} retry={() => void albums.refetch()} /> : null}</View>}
-      ListEmptyComponent={albums.isPending ? <ActivityIndicator color={COLORS.primary} /> : meta?.enabled ? <Text style={s.text}>Альбомов пока нет.</Text> : null}
+  return <SafeAreaView edges={["left", "right"]} style={s.screen}>
+    <FlatList data={items} numColumns={2} columnWrapperStyle={{ gap: 12, marginBottom: 8 }} keyExtractor={a => a.id} contentContainerStyle={[s.content, s.albumsListContent]} renderItem={({ item }) => <AlbumTile album={item} refresh={() => void albums.refetch()} compact />} refreshing={albums.isRefetching} onRefresh={() => void albums.refetch()} onEndReached={() => { if (albums.hasNextPage && !albums.isFetchingNextPage) void albums.fetchNextPage(); }} onEndReachedThreshold={0.5}
+      ListHeaderComponent={<View style={s.albumsToolbar}>
+        {meta && !meta.isOwner ? <Text accessibilityRole="header" style={s.albumsPageTitle}>Альбомы {owner}</Text> : null}
+        {meta?.enabled === false ? <Text style={s.text}>Галерея пока недоступна.</Text> : null}
+        {meta?.isOwner && meta.enabled ? <>
+          <Text style={s.albumsQuota}>{meta.usedSlots} из 200 фотографий</Text>
+          <UploadControls
+            owner={owner}
+            usedSlots={meta.usedSlots}
+            inlineHeader
+            leadingAction={<Button
+              label="Создать альбом"
+              variant="caramel"
+              fontSize={13}
+              lineHeight={18}
+              height={44}
+              borderRadius={14}
+              horizontalPadding={0}
+              verticalPadding={0}
+              labelStyle={{ marginHorizontal: 0, marginVertical: 0 }}
+              onPress={() => setCreating(true)}
+              animatedPress
+            />}
+          />
+        </> : null}
+        {albums.isError ? <Failure error={albums.error} retry={() => void albums.refetch()} /> : null}
+      </View>}
+      ListEmptyComponent={albums.isPending ? <ActivityIndicator color={COLORS.primary} /> : meta?.enabled ? <Text style={s.muted}>Альбомов пока нет.</Text> : null}
       ListFooterComponent={albums.isFetchingNextPage ? <ActivityIndicator color={COLORS.primary} /> : null} />
     {creating ? <AlbumEditor owner={owner} close={() => setCreating(false)} /> : null}
   </SafeAreaView>;
@@ -70,6 +94,19 @@ export function GalleryAlbumScreen() {
   const photos = useInfiniteQuery({ queryKey: [...galleryKeys.album(viewer, owner, albumId), "photos"], initialPageParam: null as string | null, queryFn: ({ pageParam }) => galleryApi.listPhotos(albumId, { cursor: pageParam, pageSize: 30 }), getNextPageParam: page => page.nextCursor ?? undefined, enabled: !!viewer && !!album.data && foreground, gcTime: 0, retry: 1,
     refetchInterval: query => foreground && query.state.data?.pages.some(p => p.items.some(photo => ["pending", "processing", "moving"].includes(photo.status))) ? 3000 : false });
   const [editing, setEditing] = useState(false);
+  const [choosingCover, setChoosingCover] = useState(false);
+  const [savingCover, setSavingCover] = useState(false);
+  const [coverError, setCoverError] = useState<unknown>();
+  const chooseCover = async (photoId: string) => {
+    if (savingCover || !album.data?.canEdit) return;
+    setSavingCover(true); setCoverError(undefined);
+    try {
+      await galleryApi.setCover(albumId, { photoId });
+      await cache.invalidateQueries({ queryKey: galleryKeys.owner(viewer, owner) });
+      setChoosingCover(false);
+    } catch (error) { setCoverError(error); }
+    finally { setSavingCover(false); }
+  };
   const [photoEdit, setPhotoEdit] = useState<GalleryPhotoDto | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -92,16 +129,18 @@ export function GalleryAlbumScreen() {
         {album.isError ? <Failure error={album.error} retry={() => void album.refetch()} /> : null}
         {album.data ? <><Text style={s.heading}>{album.data.name}</Text><Text style={s.muted}>{album.data.photoCount} фото · {album.data.isVisible ? "Виден всем авторизованным" : "Только для вас"}</Text></> : null}
         {meta?.enabled === false ? <Text style={s.text}>Галерея пока недоступна.</Text> : null}
-        {album.data?.canEdit && meta?.enabled ? <><Text style={s.muted}>{meta.usedSlots}/200 фотографий</Text><Button label="Настройки альбома" variant="outline" onPress={() => setEditing(true)} /><UploadControls owner={owner} albumId={albumId} usedSlots={meta.usedSlots} /><Button label="Удалить альбом" variant="danger" loading={deleting} disabled={deleting} onPress={remove} /></> : null}
+        {album.data?.canEdit && meta?.enabled ? <><Text style={s.muted}>{meta.usedSlots}/200 фотографий</Text><Button label="Настройки альбома" variant="outline" onPress={() => setEditing(true)} /><Button label={choosingCover ? "Отменить выбор обложки" : album.data.coverPhotoId ? "Изменить обложку" : "Выбрать обложку"} variant="outline" disabled={savingCover || !album.data.photoCount} loading={savingCover} onPress={() => { setCoverError(undefined); setChoosingCover(value => !value); }} />{choosingCover ? <Text style={s.text}>Нажмите на фотографию, чтобы сделать её обложкой.</Text> : null}{!album.data.photoCount ? <Text style={s.muted}>Добавьте фотографии, чтобы выбрать обложку.</Text> : null}<UploadControls owner={owner} albumId={albumId} usedSlots={meta.usedSlots} /><Button label="Удалить альбом" variant="danger" loading={deleting} disabled={deleting} onPress={remove} /></> : null}
+        {coverError ? <Text accessibilityRole="alert" style={s.error}>{galleryError(coverError)}</Text> : null}
         {deleteError ? <Text style={s.error}>{galleryError(deleteError)}</Text> : null}
         {photos.isError ? <Failure error={photos.error} retry={() => void photos.refetch()} /> : null}
       </View>}
       renderItem={({ item }) => <View style={[s.grid, { flex: 0, width: (width - 32) / 3 - 8, aspectRatio: undefined, minHeight: 120 }]}>
-        <Pressable style={{ aspectRatio: 1 }} accessibilityRole="button" accessibilityLabel={item.status === "ready" ? item.caption ?? "Открыть фотографию" : photoStatus[item.status]} disabled={item.status !== "ready"} onPress={() => setViewing(ready.findIndex(p => p.id === item.id))}>
+        <Pressable style={{ aspectRatio: 1 }} accessibilityRole="button" accessibilityLabel={item.status === "ready" ? choosingCover ? "Сделать обложкой фотографию" : item.caption ?? "Открыть фотографию" : photoStatus[item.status]} disabled={item.status !== "ready" || (choosingCover && savingCover)} onPress={() => { if (choosingCover) void chooseCover(item.id); else setViewing(ready.findIndex(p => p.id === item.id)); }}>
           {item.thumbUrl ? <GalleryImage source={{ uri: item.thumbUrl }} style={s.thumb} contentFit="cover" refresh={() => void photos.refetch()} /> : <View style={[s.thumb, s.placeholder]}><Text style={s.muted}>{photoStatus[item.status]}</Text></View>}
         </Pressable>
         {item.status !== "ready" && item.thumbUrl ? <Text style={s.muted}>{photoStatus[item.status]}</Text> : null}
         {item.status === "failed" ? <Text accessibilityRole="alert" style={s.error}>{item.errorMessage ?? "Не удалось обработать фото."}</Text> : null}
+        {album.data?.coverPhotoId === item.id ? <Text style={s.muted}>Обложка альбома</Text> : null}
         {item.canEdit ? <Pressable accessibilityRole="button" accessibilityLabel="Настройки фотографии" style={[s.close, { alignItems: "center" }]} onPress={() => setPhotoEdit(item)}><Text style={s.muted}>Изменить</Text></Pressable> : null}
       </View>}
       ListEmptyComponent={photos.isPending && album.data ? <ActivityIndicator color={COLORS.primary} /> : meta?.enabled ? <Text style={s.text}>В альбоме пока нет фотографий.</Text> : null}

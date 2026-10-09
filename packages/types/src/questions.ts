@@ -24,6 +24,8 @@ export type QuestionSort = "new" | "active" | "unanswered";
 export interface QuestionAuthorDto {
   id: string;
   name: string;
+  /** Optional for compatibility with the previously deployed questions API. */
+  username?: string;
   avatarUrl: string | null;
 }
 export interface QuestionPhotoDto {

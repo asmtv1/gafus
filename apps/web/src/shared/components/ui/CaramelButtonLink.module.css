@@ -1,0 +1,40 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #e3caa6 0%, #dcc096 18%, #d9bc91 56%, #ceae7e 84%, #caa574 100%);
+  color: #503c27;
+  box-shadow: 0 7px 12px rgba(99, 78, 47, 0.25);
+  cursor: pointer;
+  font-family: var(--font-montserrat, var(--font-sans-fallback));
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.root:hover {
+  box-shadow: 0 9px 16px rgba(99, 78, 47, 0.28);
+  transform: translateY(-2px);
+}
+
+.root:active {
+  box-shadow: 0 2px 4px rgba(99, 78, 47, 0.2);
+  opacity: 0.94;
+  transform: translateY(2px);
+}
+
+.root:focus-visible {
+  outline: 3px solid rgba(215, 131, 123, 0.8);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root { transition: none; }
+  .root:hover, .root:active { transform: none; }
+}

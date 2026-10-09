@@ -166,8 +166,10 @@ resource "yandex_function" "gallery" {
       version_id           = yandex_lockbox_secret_version.runtime[each.value.runtime_sa].id
     }
   }
-  # Request headers, bodies and secret-bearing integration configuration are never logged.
-  log_options { disabled = true }
+  # Temporary diagnostics for dispatch/process/maintenance only. Origin handles
+  # signed private images and MUST remain unlogged. Disable after diagnosis.
+  # No request headers, object keys, payloads or credentials are logged by app code.
+  log_options { disabled = each.key == "origin" || !var.diagnostic_logging }
   depends_on = [yandex_lockbox_secret_iam_binding.runtime, yandex_resourcemanager_folder_iam_member.queue_writer, yandex_storage_bucket_iam_binding.function_packages_reader]
 }
 resource "yandex_function_scaling_policy" "bounded" {

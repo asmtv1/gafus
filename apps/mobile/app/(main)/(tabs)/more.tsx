@@ -92,9 +92,9 @@ export default function MoreScreen() {
                   });
                   router.navigate(
                     (name === "gallery"
-                      ? "/profile/albums"
+                      ? "/(main)/(tabs)/albums"
                       : name === "questions"
-                        ? "/questions"
+                        ? "/(main)/(tabs)/questions"
                         : `/(main)/(tabs)/${name}`) as Href,
                   );
                 }}

@@ -77,6 +77,12 @@ variable "enabled" {
   type    = bool
   default = false
 }
+# Temporary Cloud Logging for DEV dispatch/process/maintenance only. Turn off
+# after diagnosing failures; the image-serving origin is always unlogged.
+variable "diagnostic_logging" {
+  type    = bool
+  default = false
+}
 variable "artifact_directory" {
   type    = string
   default = "../../apps/gallery-cloud/artifacts"
