@@ -1,284 +1,37 @@
 name: Deploy Only
-
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment to deploy to"
+        description: Deployment environment
+        default: production
         required: true
-        default: "production"
         type: choice
-        options:
-          - production
-          - staging
-
+        options: [production]
 jobs:
-  deploy:
+  feed-preflight:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    environment: production
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Deploy to server
+      - name: Feed production preflight and rollback backup
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
-          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          command_timeout: 60m
+          command_timeout: 5m
           script: |
-            set -e
-            echo "🚀 Starting deployment to ${{ github.event.inputs.environment }}..."
-
-            # Install basic tools first
-            echo "🔧 Installing basic tools..."
-            apt-get update
-            apt-get install -y curl wget
-
-            # Install Docker if not present
-            if ! command -v docker &> /dev/null; then
-              echo "🐳 Installing Docker..."
-              # Use apt for Ubuntu 20.04 (focal)
-              apt-get install -y apt-transport-https ca-certificates gnupg lsb-release
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-              echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu focal stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-              apt-get update
-              apt-get install -y docker-ce docker-ce-cli containerd.io
-              systemctl start docker
-              systemctl enable docker
-            fi
-
-            # Install Docker Compose if not present
-            if ! command -v docker-compose &> /dev/null; then
-              echo "🐳 Installing Docker Compose..."
-              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              chmod +x /usr/local/bin/docker-compose
-            fi
-
-            # Login to GitHub Container Registry
-            echo "🔐 Logging in to GitHub Container Registry..."
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
-
-            # Navigate to project directory
-            cd /root/gafus || {
-              echo "Directory /root/gafus not found, creating it..."
-              mkdir -p /root/gafus
-              cd /root/gafus
-            }
-
-            # Initialize git repository if it doesn't exist
-            if [ ! -d .git ]; then
-              echo "Git repository not found, initializing..."
-              git init
-              git remote add origin https://${{ secrets.GH_PAT }}@github.com/asmtv1/gafus.git
-            fi
-
-            # Ensure we have the correct remote
-            git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/asmtv1/gafus.git
-
-            # Pull latest changes
-            git pull origin main
-
-            # Create .env file from GitHub Secrets
-            echo "🔐 Creating .env file from GitHub Secrets..."
-            {
-              echo "# Database"
-              echo "POSTGRES_DB=gafus"
-              echo "POSTGRES_USER=gafus"
-              echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
-              echo "DATABASE_URL=postgresql://gafus:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/gafus"
-              echo ""
-              echo "# Redis"
-              echo "REDIS_URL=redis://redis:6379"
-              echo ""
-              echo "# NextAuth секреты"
-              echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"
-              echo ""
-              echo "# JWT секреты для API"
-              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
-              echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}"
-              echo ""
-              echo "# URLs приложений"
-              echo "NEXTAUTH_URL=https://gafus.ru"
-              echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
-              echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
-              echo "NEXT_PUBLIC_APP_VERSION=1.7.0"
-              echo "NEXT_PUBLIC_ENABLE_TRACER=true"
-              echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
-              echo ""
-              echo "# Cookie домен"
-              echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
-              echo ""
-              echo "# VAPID ключи для Push уведомлений"
-              echo "VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}"
-              echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}"
-              echo "VAPID_SUBJECT=mailto:admin@gafus.ru"
-              echo ""
-              echo "# Yandex Cloud CDN"
-              echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
-              echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
-              echo "# Gallery DEV settings (compose flag true staged, deployment gated)"
-              echo "GALLERY_DEV_WEB_S3_ACCESS_KEY_ID=${{ secrets.GALLERY_S3_ACCESS_KEY_ID }}"
-              echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.GALLERY_S3_SECRET_ACCESS_KEY }}"
-              echo "GALLERY_DEV_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
-              echo "GALLERY_DEV_INTERNAL_HMAC_SECRET=${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}"
-              echo ""
-              echo "# Яндекс Телемост (консультации)"
-              echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}"
-              echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}"
-              echo ""
-              echo "# Защита видео (HLS)"
-              echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
-              echo "NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${{ secrets.NEXT_PUBLIC_ENABLE_HLS_PROTECTION || 'true' }}"
-              echo ""
-              echo "# Логирование"
-              echo "DISABLE_CONSOLE_LOGGING=true"
-              echo ""
-              echo "# Next.js публичные переменные"
-              echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
-              echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
-              echo "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}"
-              echo ""
-              echo "# Инвалидация кэша web при изменении курсов (trainer-panel → web)"
-              echo "REVALIDATE_SECRET_TOKEN=${{ secrets.REVALIDATE_SECRET_TOKEN }}"
-              echo ""
-              echo "# Анализ бандла (только для разработки)"
-              echo "ANALYZE=false"
-              echo ""
-              echo "# CSRF защита"
-              echo "CSRF_STRICT=false"
-              echo ""
-              echo "# Grafana"
-              echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
-              echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
-              echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
-              echo ""
-              echo "# ЮKassa (платные курсы)"
-              echo "YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}"
-              echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}"
-              echo "# NPD secrets are consumed only by worker; keep processing disabled until live verification"
-              echo "NPD_TOKEN_ENCRYPTION_KEY=${{ secrets.NPD_TOKEN_ENCRYPTION_KEY }}"
-              echo "NPD_PROCESSING_ENABLED=${{ vars.NPD_PROCESSING_ENABLED || 'false' }}"
-              echo "NPD_API_BASE_URL=${{ vars.NPD_API_BASE_URL || 'https://lknpd.nalog.ru/api/v1' }}"
-              echo "NPD_BATCH_SIZE=${{ vars.NPD_BATCH_SIZE || '20' }}"
-              echo "NPD_REQUEST_TIMEOUT_MS=${{ vars.NPD_REQUEST_TIMEOUT_MS || '10000' }}"
-              echo "NPD_RECEIPT_EMAIL_BATCH_SIZE=${{ vars.NPD_RECEIPT_EMAIL_BATCH_SIZE || '20' }}"
-              echo "NPD_RECEIPT_EMAIL_ENABLED=${{ vars.NPD_RECEIPT_EMAIL_ENABLED || 'true' }}"
-              echo ""
-              echo "# Apple IAP (верификация покупки курса на iOS; vars → Repository / Environment)"
-              echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}"
-              echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}"
-              echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}"
-              echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}"
-              echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}"
-              echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}"
-              echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}"
-              echo ""
-              echo "# Реквизиты для ЮKassa (контакты на сайте)"
-              echo "NEXT_PUBLIC_CONTACT_EMAIL=${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}"
-              echo "NEXT_PUBLIC_CONTACT_PHONE=${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}"
-              echo "NEXT_PUBLIC_CONTACT_FIO=${{ secrets.NEXT_PUBLIC_CONTACT_FIO }}"
-              echo "NEXT_PUBLIC_CONTACT_INN=${{ secrets.NEXT_PUBLIC_CONTACT_INN }}"
-              echo ""
-              echo "# VK ID авторизация"
-              echo "VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }}"
-              echo "VK_CLIENT_ID_IOS=${{ secrets.VK_CLIENT_ID_IOS }}"
-              echo "VK_CLIENT_ID_ANDROID=${{ secrets.VK_CLIENT_ID_ANDROID }}"
-              echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
-              echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
-              echo ""
-              echo "# SMTP / Yandex 360"
-              echo "SMTP_HOST=${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
-              echo "SMTP_PORT=${{ vars.SMTP_PORT || '465' }}"
-              echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'true' }}"
-              echo "SMTP_USER=${{ secrets.SMTP_USER }}"
-              echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
-              echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
-              echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
-              echo "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}"
-              echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
-              echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
-              echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
-            } > ci-cd/docker/.env
-
-            # Set secure permissions for .env file
-            chmod 600 ci-cd/docker/.env
-            echo "✅ .env file created with secure permissions"
-
-            # Create uploads directories if they don't exist
-            mkdir -p packages/public-assets/public/uploads/avatars
-            mkdir -p packages/public-assets/public/uploads/pets
-            mkdir -p packages/public-assets/public/uploads/courses
-            mkdir -p packages/public-assets/public/uploads/shared
-            chmod -R 755 packages/public-assets/public/uploads/
-
-            # Создаем бэкап БД на Яндекс.Диск перед остановкой
-            ./ci-cd/scripts/backup-to-yandex.sh || echo "⚠️ Бэкап на Яндекс.Диск не удался, продолжаем деплой"
-
-            # Stop existing containers and clean up (сохраняем volumes для БД)
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans || true
-            docker container prune -f
-            docker image prune -f
-
-            # Pull latest images from registry in parallel (используем существующие образы)
-            echo "📥 Pulling latest Docker images in parallel..."
-            pids=""
-            docker pull ghcr.io/asmtv1/gafus-web:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-trainer-panel:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-api:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-worker:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-bull-board:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-prisma:latest & pids="$pids $!"
-            pull_failed=0
-            for pid in $pids; do
-              if ! wait $pid; then
-                pull_failed=1
-              fi
-            done
-            if [ "$pull_failed" -ne 0 ]; then
-              echo "❌ One or more docker pulls failed"
-              exit 1
-            fi
-
-            # Tag images for local use
-            docker tag ghcr.io/asmtv1/gafus-web:latest gafus-web:latest
-            docker tag ghcr.io/asmtv1/gafus-trainer-panel:latest trainer-panel:latest
-            docker tag ghcr.io/asmtv1/gafus-api:latest gafus-api:latest
-            docker tag ghcr.io/asmtv1/gafus-worker:latest gafus-worker:latest
-            docker tag ghcr.io/asmtv1/gafus-bull-board:latest gafus-bull-board:latest
-            docker tag ghcr.io/asmtv1/gafus-prisma:latest gafus-prisma:latest
-
-            # Start core services first, then apply migrations before app containers.
-            echo "🚀 Starting core services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis
-
-            # Wait for core services to be ready
-            sleep 15
-
-            # Run Prisma migrations. Migration failures must stop deployment.
-            echo "🗄️ Applying Prisma migrations..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
-
-            # Start app services only after the database schema is current.
-            echo "🚀 Starting application services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate worker api web trainer-panel admin-panel bull-board nginx
-
-            echo "📊 Starting monitoring services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate \
-              node-exporter postgres-exporter redis-exporter blackbox-exporter grafana-alloy yandex-metrics-sync
-
-            # Check service health
-            if docker-compose -f ci-cd/docker/docker-compose.prod.yml ps | grep -q "Up"; then
-              echo "✅ Deployment completed successfully!"
-              
-                          # Clean up unused images and containers
-            docker image prune -f
-            docker container prune -f
-            docker system prune -f
-            else
-              echo "❌ Deployment failed - services not running"
-              exit 1
-            fi
+            set -eu
+            cd /root/gafus
+            mkdir -p backups/feed
+            chmod 700 backups/feed
+            BACKUP_FILE="backups/feed/before-feed-$(date -u +%Y%m%dT%H%M%SZ).dump"
+            umask 077
+            docker exec gafus-postgres pg_dump -U gafus -d gafus -Fc > "$BACKUP_FILE"
+            test -s "$BACKUP_FILE"
+            docker exec -i gafus-postgres pg_restore --list < "$BACKUP_FILE" > /dev/null
+            echo "FEED_ROLLBACK_BACKUP=VERIFIED"
+            echo "FEED_ROLLBACK_BACKUP_PATH=$BACKUP_FILE"
+            docker exec gafus-postgres psql -U gafus -d gafus -Atc 'SELECT '\''FEED_TABLE_PRESENT='\'' || (to_regclass('\''public."FeedPost"'\'') IS NOT NULL)::text; SELECT '\''GALLERY_TABLE_PRESENT='\'' || (to_regclass('\''public."GalleryAlbum"'\'') IS NOT NULL)::text; SELECT '\''FAILED_MIGRATIONS='\'' || count(*) FROM "_prisma_migrations" WHERE finished_at IS NULL AND rolled_back_at IS NULL;'
+            echo "PRODUCTION_PREFLIGHT=PASS"
