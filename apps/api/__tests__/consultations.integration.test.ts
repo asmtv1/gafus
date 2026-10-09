@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { app } from "../src/app.js";
 
 vi.mock("../src/middleware/rate-limit.js", () => ({
   apiRateLimiter: async (_c: unknown, next: () => Promise<void>) => next(),
@@ -10,7 +11,6 @@ vi.mock("../src/middleware/rate-limit.js", () => ({
 
 describe("consultations API (контракт)", () => {
   it("401 без Authorization на GET /cynologists", async () => {
-    const { app } = await import("../src/app.js");
     const res = await app.request("http://localhost/api/v1/consultations/cynologists", {
       method: "GET",
     });
