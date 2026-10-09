@@ -28,7 +28,7 @@ export default function ProfileClient({
   return (
     <main>
       <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
-      <GalleryPreview username={username} />
+      {!isOwner && <GalleryPreview username={username} />}
       {isOwner && publicData.role === "USER" && <StudentNotes />}
       {isOwner && userData && <PrivateProfileSection user={userData} />}
       {SHOW_ACHIEVEMENTS_LINK && isOwner && (

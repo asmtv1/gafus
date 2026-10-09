@@ -69,17 +69,67 @@
   font-family: inherit;
 }
 
+.hub {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  align-items: start;
+}
 .tabs {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 20px 16px 0;
 }
-.tabs button {
-  flex: 1;
+.chatTab {
+  width: 100%;
+  min-height: 48px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #4d5c2d;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.chatTab:hover {
+  background: #eeeedf;
+}
+.chatTab[aria-selected="true"] {
+  background: #4d5c2d;
+  color: #fffdf7;
+}
+.chatTab:focus-visible {
+  outline: 2px solid #4d5c2d;
+  outline-offset: 2px;
+}
+.hubPanel {
   min-width: 0;
-  padding: 12px 16px;
+}
+.hubPanel .page {
+  max-width: none;
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .hub {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 16px;
+  }
+  .tabs {
+    flex-direction: row;
+  }
+  .chatTab {
+    flex: 1;
+    min-width: 0;
+    padding: 12px;
+    text-align: center;
+  }
 }
 
 .rules {
@@ -347,8 +397,15 @@
   border-radius: 50%;
   object-fit: cover;
 }
-.messageWrapper :global(.str-chat__message-reactions-host) {
+/* Keep reactions in the bubble's grid column, below its content. */
+.messageWrapper :global(.str-chat__message .str-chat__message-inner .str-chat__message-reactions-host) {
   position: static;
+  justify-self: stretch;
+  min-width: 0;
+}
+.messageWrapper :global(.str-chat__message-reactions-host) .reactionList {
+  width: 100%;
+  min-width: 0;
 }
 @media (pointer: coarse) {
   .messageMenu {

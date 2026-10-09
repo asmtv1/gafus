@@ -1,7 +1,5 @@
 "use client";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
-import { PrimaryButton } from "@/shared/components/ui/PrimaryButton";
-import { SecondaryButton } from "@/shared/components/ui/SecondaryButton";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -21,8 +19,14 @@ export default function ChatHub({
 }) {
   const accountId = useSession().data?.user?.id;
   const [community, setCommunity] = useState(initialCommunity);
-  const PersonalTabButton = community ? SecondaryButton : PrimaryButton;
-  const CommunityTabButton = community ? PrimaryButton : SecondaryButton;
+  const [verticalTabs, setVerticalTabs] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const updateOrientation = () => setVerticalTabs(media.matches);
+    updateOrientation();
+    media.addEventListener("change", updateOrientation);
+    return () => media.removeEventListener("change", updateOrientation);
+  }, []);
   const pendingTabFocus = useRef<string | null>(null);
   useEffect(() => {
     if (pendingTabFocus.current) {
@@ -37,15 +41,15 @@ export default function ChatHub({
     document.getElementById(id)?.focus();
   }
   function navigateTab(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const next = event.key === "Home" ? false : event.key === "End" ? true : !community;
     selectTab(next);
   }
   return (
-    <>
-      <div className={styles.tabs} role="tablist" aria-label="Чаты" onKeyDown={navigateTab}>
-        <PersonalTabButton
+    <div className={styles.hub}>
+      <div className={styles.tabs} role="tablist" aria-label="Чаты" aria-orientation={verticalTabs ? "vertical" : "horizontal"} onKeyDown={navigateTab}>
+        <button className={styles.chatTab}
           type="button"
           role="tab"
           id="chat-personal-tab"
@@ -55,8 +59,8 @@ export default function ChatHub({
           onClick={() => selectTab(false)}
         >
           Чат с кинологом
-        </PersonalTabButton>
-        <CommunityTabButton
+        </button>
+        <button className={styles.chatTab}
           type="button"
           role="tab"
           id="chat-community-tab"
@@ -66,9 +70,10 @@ export default function ChatHub({
           onClick={() => selectTab(true)}
         >
           Общий чат
-        </CommunityTabButton>
+        </button>
       </div>
       <div
+        className={styles.hubPanel}
         role="tabpanel"
         id="chat-hub-panel"
         aria-labelledby={community ? "chat-community-tab" : "chat-personal-tab"}
@@ -81,6 +86,6 @@ export default function ChatHub({
           <ChatLoader key={accountId} />
         )}
       </div>
-    </>
+    </div>
   );
 }

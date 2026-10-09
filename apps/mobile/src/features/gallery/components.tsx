@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from "react-native";
-import { Text } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, View } from "react-native";
+import { IconButton, Text } from "react-native-paper";
+import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from "react-native-safe-area-context";
 import { GalleryImage } from "./image";
 import { useRouter } from "expo-router";
 import type { GalleryAlbumDto } from "@gafus/types";
@@ -16,14 +16,34 @@ export function Failure({ error, retry }: { error: unknown; retry: () => void })
   return <View style={s.card}><Text accessibilityRole="alert" style={s.error}>{galleryError(error)}</Text><Button label="Повторить" variant="outline" onPress={retry} /></View>;
 }
 export function EditorShell({ title, close, children }: { title: string; close: () => void; children: React.ReactNode }) {
-  return <Modal visible animationType="slide" onRequestClose={close}>
-    <SafeAreaView style={s.modal}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
-        <View style={s.row}><Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>{title}</Text><Button label="Закрыть" variant="outline" fullWidth={false} onPress={close} /></View>
-        {children}
-      </ScrollView>
-    </KeyboardAvoidingView></SafeAreaView>
-  </Modal>;
+  return (
+    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={close}>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <SafeAreaView style={s.modal} edges={["top", "bottom", "left", "right"]}>
+          <View style={s.editorHeader}>
+            <Text accessibilityRole="header" style={[s.heading, s.editorTitle]}>{title}</Text>
+            <IconButton
+              icon="close"
+              iconColor={COLORS.primary}
+              size={24}
+              style={s.editorClose}
+              accessibilityLabel="Закрыть"
+              onPress={close}
+            />
+          </View>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={s.content}
+            >
+              {children}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </Modal>
+  );
 }
 export function AlbumEditor({ owner, album, close }: { owner: string; album?: GalleryAlbumDto; close: () => void }) {
   const [name, setName] = useState(album?.name ?? "");
@@ -41,9 +61,15 @@ export function AlbumEditor({ owner, album, close }: { owner: string; album?: Ga
   };
   return <EditorShell title={album ? "Настройки альбома" : "Новый альбом"} close={close}>
     <Input label="Название альбома" value={name} onChangeText={setName} maxLength={120} autoCapitalize="sentences" />
-    <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: visible }} accessibilityLabel="Виден всем авторизованным" onPress={() => setVisible(v => !v)} style={[s.row, { minHeight: 48 }]}>
-      <Text style={[s.heading, { color: COLORS.primary }]}>{visible ? "☑" : "☐"}</Text><Text style={[s.text, { flex: 1 }]}>Виден всем авторизованным</Text>
-    </Pressable>
+    <View style={s.visibilityRow}>
+      <Text style={[s.text, { flex: 1 }]}>Виден всем авторизованным</Text>
+      <Switch
+        value={visible}
+        onValueChange={setVisible}
+        accessibilityLabel="Виден всем авторизованным"
+        trackColor={{ true: COLORS.primary }}
+      />
+    </View>
     <Text style={s.muted}>Если отключить, альбом и фотографии будут доступны только вам.</Text>
     {error ? <Text accessibilityRole="alert" style={s.error}>{galleryError(error)}</Text> : null}
     <Button label="Сохранить" loading={busy} disabled={busy || !name.trim()} onPress={() => void save()} />

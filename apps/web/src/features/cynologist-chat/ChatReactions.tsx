@@ -164,7 +164,7 @@ export function ChatReactionList() {
   return (
     <>
       <div
-        className={styles.reactionList}
+        className={`${styles.reactionList} str-chat__message-reactions--bottom`}
         style={{ justifyContent: isMyMessage() ? "flex-end" : "flex-start" }}
         onDoubleClick={(event) => event.stopPropagation()}
       >

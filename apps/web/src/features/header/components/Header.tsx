@@ -52,6 +52,9 @@ export default React.memo(function Header({
     [pathname],
   );
 
+  const galleryActive = isCurrentRoute("/profile/albums");
+  const profileActive = isCurrentRoute("/profile") && !galleryActive;
+
   const trackMenuClick = useCallback(
     (elementId: string) => {
       trackEvent({
@@ -120,9 +123,9 @@ export default React.memo(function Header({
           <div className={styles.overlay} onClick={() => setMenuOpen(false)} />
           <nav className={styles.dropdownMenu} ref={menuRef} aria-label="Навигация">
             <Link
-              className={`${styles.menuButton} ${isCurrentRoute("/profile") ? styles.menuButtonActive : ""}`}
+              className={`${styles.menuButton} ${profileActive ? styles.menuButtonActive : ""}`}
               href={{ pathname: "/profile", query: { username: userName } }}
-              aria-current={isCurrentRoute("/profile") ? "page" : undefined}
+              aria-current={profileActive ? "page" : undefined}
               onClick={() => {
                 trackMenuClick("tab-profile");
                 setMenuOpen(false);
@@ -222,6 +225,27 @@ export default React.memo(function Header({
                 <Image src="/images/tab-icons/chat.webp" alt="" width={32} height={32} />
               </span>
               <span className={styles.menuLabel}>{assignedTrainer ? "Диалоги" : "Чат"}</span>
+            </Link>
+            <Link
+              href="/profile/albums"
+              className={`${styles.menuButton} ${galleryActive ? styles.menuButtonActive : ""}`}
+              aria-current={galleryActive ? "page" : undefined}
+              onClick={() => {
+                trackMenuClick("tab-gallery");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/profile/albums")}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image
+                  src="/images/tab-icons/albums.webp"
+                  alt=""
+                  width={34}
+                  height={34}
+                  style={{ objectFit: "contain" }}
+                />
+              </span>
+              <span className={styles.menuLabel}>Фотоальбомы</span>
             </Link>
             <Link href="/questions" className={`${styles.menuButton} ${isCurrentRoute("/questions") ? styles.menuButtonActive : ""}`} aria-current={isCurrentRoute("/questions") ? "page" : undefined} onClick={() => { trackMenuClick("tab-questions"); setMenuOpen(false); }}>
               <span className={styles.menuIconSlot} aria-hidden="true"><Image src="/images/tab-icons/questions.png" alt="" width={32} height={32} style={{ objectFit: "contain" }} /></span>
