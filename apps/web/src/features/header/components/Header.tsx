@@ -270,7 +270,7 @@ export default React.memo(function Header({
               onMouseEnter={() => router.prefetch("/feed")}
             >
               <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/articles.webp" alt="" width={32} height={32} />
+                <Image src="/images/tab-icons/feed.webp" alt="" width={32} height={32} />
               </span>
               <span className={styles.menuLabel}>Лента</span>
             </Link>}
