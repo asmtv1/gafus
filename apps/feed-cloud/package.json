@@ -1,0 +1,24 @@
+{
+  "name": "@gafus/feed-cloud-runtime",
+  "version": "1.7.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/server.js",
+    "package:origin": "node scripts/package-origin.mjs"
+  },
+  "dependencies": {
+    "@gafus/feed-cloud": "workspace:*",
+    "@gafus/feed-storage": "workspace:*",
+    "@aws-sdk/client-s3": "3.980.0",
+    "sharp": "0.34.3",
+    "@aws-sdk/client-sqs": "3.980.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "esbuild": "0.27.2"
+  }
+}
