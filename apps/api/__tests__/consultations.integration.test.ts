@@ -3,6 +3,7 @@ import { app } from "../src/app.js";
 
 vi.mock("../src/middleware/rate-limit.js", () => ({
   apiRateLimiter: async (_c: unknown, next: () => Promise<void>) => next(),
+  galleryRateLimiter: async (_c: unknown, next: () => Promise<void>) => next(),
   authRateLimiter: async (_c: unknown, next: () => Promise<void>) => next(),
   paymentsRateLimiter: async (_c: unknown, next: () => Promise<void>) => next(),
   usernameAvailableRateLimiter: async (_c: unknown, next: () => Promise<void>) => next(),
