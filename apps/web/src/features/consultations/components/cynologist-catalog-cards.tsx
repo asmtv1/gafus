@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { cynologistDisplayInitials, type ListedCynologistCardDto } from "@gafus/consultation-shared";
 import { CaramelButtonLink, PrimaryButtonLink } from "@/shared/components/ui";
 import { profilePagePath } from "@/shared/lib/profile/profilePagePath";

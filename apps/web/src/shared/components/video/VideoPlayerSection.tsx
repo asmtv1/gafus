@@ -4,7 +4,7 @@ import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Alert } from "@shared/utils/muiImports";
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { CourseVideoPlayer } from "@shared/components/video/CourseVideoPlayer";
 import { getVideoMetadata } from "@shared/lib/video/getVideoMetadata";
 import { getVideoUrlForPlayback } from "@shared/lib/video/getVideoUrlForPlayback";

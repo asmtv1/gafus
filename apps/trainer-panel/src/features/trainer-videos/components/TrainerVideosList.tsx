@@ -30,7 +30,7 @@ import { deleteTrainerVideo } from "../lib/deleteTrainerVideo";
 import { updateTrainerVideoName } from "../lib/updateTrainerVideoName";
 import { getSignedVideoUrl } from "../lib/getSignedVideoUrl";
 import { HLSVideoPlayer } from "@shared/components/video/HLSVideoPlayer";
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 
 import { formatFileSize, formatRuDate } from "../lib/format";
 import type { TrainerVideoViewModel } from "../types";

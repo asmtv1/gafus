@@ -16,7 +16,7 @@ import { Delete as DeleteIcon, Add as AddIcon } from "@mui/icons-material";
 import imageCompression from "browser-image-compression";
 import { useState, useRef, useEffect } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 
 const logger = createTrainerPanelLogger("trainer-panel-step-image-uploader");
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { getArticleBySlug, getArticleBySlugForMonetizedAccess } from "@gafus/core/services/article";
 import ArticleDetailClient from "./ArticleDetailClient";
 

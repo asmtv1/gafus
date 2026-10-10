@@ -16,7 +16,7 @@ import {
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import type { ArticleListDto } from "@gafus/types";
 
 import styles from "./articles.module.css";

@@ -1,6 +1,6 @@
 "use server";
 
-import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
+import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload/utils";
 import { authOptions } from "@gafus/auth";
 import { getVideoForPlaybackCheck } from "@gafus/core/services/trainerVideo";
 import { requirePremiumOrRewardedAccessForVideoUrl } from "@gafus/core/services/rewardedCredits";

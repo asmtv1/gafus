@@ -10,7 +10,7 @@ import {
   FavoriteBorder as FavoriteBorderIcon,
 } from "@mui/icons-material";
 
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { trackEvent } from "@gafus/analytics";

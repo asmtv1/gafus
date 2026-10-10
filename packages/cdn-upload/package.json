@@ -4,6 +4,21 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "default": "./dist/utils.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "utils": ["dist/utils.d.ts"]
+    }
+  },
   "scripts": {
     "build": "tsc",
     "lint": "eslint .",

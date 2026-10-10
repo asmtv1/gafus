@@ -15,7 +15,7 @@ import {
 import imageCompression from "browser-image-compression";
 import { useState } from "react";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 
 import { uploadArticleLogoServerAction } from "../lib/uploadArticleLogoServerAction";
 

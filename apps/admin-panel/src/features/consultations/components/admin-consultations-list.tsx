@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Alert, Box, Button, Checkbox } from "@mui/material";
 
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { reportClientError } from "@gafus/error-handling";
 
 import { setListedCynologistsAction } from "../lib/set-listed-cynologists";

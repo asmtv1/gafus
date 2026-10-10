@@ -20,7 +20,7 @@ import VideoLibraryIcon from "@mui/icons-material/VideoLibrary";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 import type { TrainerVideoDto } from "@gafus/types";
-import { getCDNUrl } from "@gafus/cdn-upload";
+import { getCDNUrl } from "@gafus/cdn-upload/utils";
 
 interface VideoSelectorProps {
   value?: string | null;
