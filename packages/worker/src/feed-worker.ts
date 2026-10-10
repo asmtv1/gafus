@@ -11,6 +11,7 @@ export const feedPushDelivery: FeedNotificationDelivery = {
     if (!subscriptions.length) return;
     const parts = partitionPushSubscriptions(subscriptions);
     const text = {
+      author_post: "Новая публикация автора, на которого вы подписаны.",
       comment: "Новый комментарий к вашей публикации.", reply: "Новый ответ на ваш комментарий.",
       post_reaction: "На вашу публикацию отреагировали.", comment_reaction: "На ваш комментарий отреагировали.",
     }[notification.kind];

@@ -75,3 +75,24 @@ describe("feed shared HTTP dispatcher", () => {
     expect(result.body.code).toBe("INTERNAL_ERROR");
   });
 });
+
+
+describe("feed personal actions routing", () => {
+  it("routes bookmarks separately so hidden authors remain accessible there", async () => {
+    const list = vi.fn().mockResolvedValue({ items: [] });
+    await dispatchFeedRequest(actor, new Request("https://example.test/api/v1/feed/me/bookmarks"), "/me/bookmarks", { list } as unknown as FeedService, {} as FeedSocialService);
+    expect(list).toHaveBeenCalledWith(actor, { pageSize: 20 }, true);
+  });
+  it("scopes preferences and post/comment reports to the authenticated actor", async () => {
+    const personal = { preference: vi.fn(), report: vi.fn(), bookmark: vi.fn(), hiddenAuthors: vi.fn() };
+    const run = (path: string, method: string, body: object) => dispatchFeedRequest(actor, new Request(`https://example.test/api/v1/feed${path}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }), path, {} as FeedService, {} as FeedSocialService, personal as unknown as NonNullable<Parameters<typeof dispatchFeedRequest>[5]>);
+    await run("/authors/author_1/preferences", "PATCH", { hidden: true });
+    expect(personal.preference).toHaveBeenCalledWith(actor, "author_1", { hidden: true });
+    await run("/posts/post_1/report", "POST", { reason: "spam" });
+    expect(personal.report).toHaveBeenCalledWith(actor, "post", "post_1", { reason: "spam" });
+    await run("/comments/comment_1/report", "POST", { reason: "other" });
+    expect(personal.report).toHaveBeenCalledWith(actor, "comment", "comment_1", { reason: "other" });
+    await run("/posts/post_1/bookmark", "PUT", {});
+    expect(personal.bookmark).toHaveBeenCalledWith(actor, "post_1", true);
+  });
+});

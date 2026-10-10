@@ -93,11 +93,6 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
       )}
       <div className={styles.buttonsContainer}>
         <h2 className={styles.groupTitle}>Настройки</h2>
-        <Link href="/reminders" className={styles.row}>
-          <ProfileIcon name="reminders" />
-          <span>Напоминания о тренировках</span>
-          <span aria-hidden="true">›</span>
-        </Link>
         <button type="button" className={styles.row} onClick={handleRestartTour}>
           <ProfileIcon name="tour" />
           <span>Повторить экскурсию</span>

@@ -286,6 +286,11 @@ model DailyCourseUserStep {
 }
 
 model User {
+  feedBookmarks FeedBookmark[]
+  feedPreferences FeedAuthorPreference[] @relation("FeedPreferenceReader")
+  feedSubscribers FeedAuthorPreference[] @relation("FeedPreferenceAuthor")
+  feedPublishingBlocked Boolean @default(false)
+  feedPublishingBlockReason String? @db.VarChar(1000)
   feedPosts FeedPost[]
   feedMediaAssets FeedMediaAsset[]
   feedUploads FeedUpload[]
@@ -2935,6 +2940,7 @@ enum FeedReactionKind {
 }
 
 enum FeedNotificationKind {
+  author_post
   comment
   reply
   post_reaction
@@ -2942,6 +2948,10 @@ enum FeedNotificationKind {
 }
 
 model FeedPost {
+  moderationState String @default("visible") @db.VarChar(16)
+  moderationReason String? @db.VarChar(1000)
+  moderatedAt DateTime?
+  bookmarks FeedBookmark[]
   id String @id @default(cuid())
   authorId String
   status FeedPostStatus @default(draft)
@@ -3075,6 +3085,9 @@ model FeedStorageJob {
 }
 
 model FeedComment {
+  moderationState String @default("visible") @db.VarChar(16)
+  moderationReason String? @db.VarChar(1000)
+  moderatedAt DateTime?
   id String @id @default(cuid())
   postId String
   authorId String
@@ -3169,4 +3182,59 @@ model FeedNotificationOutbox {
   updatedAt DateTime @updatedAt
   @@unique([notificationId])
   @@index([status, availableAt, leaseUntil])
+}
+
+model FeedBookmark {
+  userId String
+  postId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@id([userId, postId])
+  @@index([userId, createdAt(sort: Desc), postId(sort: Desc)])
+}
+
+model FeedAuthorPreference {
+  userId String
+  authorId String
+  hidden Boolean @default(false)
+  notify Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation("FeedPreferenceReader", fields: [userId], references: [id], onDelete: Cascade)
+  author User @relation("FeedPreferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  @@id([userId, authorId])
+  @@index([authorId, notify, hidden])
+}
+
+// Text evidence deliberately survives author edits/deletion and has no media copies.
+model FeedReport {
+  id String @id @default(cuid())
+  reporterId String
+  authorId String
+  targetType String @db.VarChar(16)
+  targetId String
+  postId String
+  snapshotText String @db.VarChar(5000)
+  reason String @db.VarChar(64)
+  comment String @default("") @db.VarChar(1000)
+  status String @default("pending") @db.VarChar(16)
+  resolution String? @db.VarChar(16)
+  resolutionReason String? @db.VarChar(1000)
+  moderatorId String?
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId])
+}
+
+model FeedModerationAction {
+  id String @id @default(cuid())
+  moderatorId String
+  reportId String
+  action String @db.VarChar(16)
+  reason String @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  @@index([reportId, createdAt])
 }

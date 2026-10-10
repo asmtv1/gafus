@@ -14,6 +14,7 @@ import {
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { GalleryPhotoDto } from "@gafus/types";
 import { GalleryScope } from "./GalleryScope";
+import { LoadingState } from "@/shared/components/ui";
 import { galleryApi } from "./api";
 import { galleryMessage, refreshDelay, useGalleryAlbums, useGalleryIdentity } from "./hooks";
 import { AlbumForm } from "./AlbumForm";
@@ -90,7 +91,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
   if (albumQuery.isPending)
     return (
       <main className={styles.surface}>
-        <p role="status">Загрузка альбома…</p>
+        <LoadingState variant="inline" size="large" message="Загрузка альбома…" />
       </main>
     );
   if (!album)
@@ -169,7 +170,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
           failedPhotos={photos.filter((photo) => photo.status === "failed")}
         />
       )}
-      {photosQuery.isPending && <p role="status">Загрузка фотографий…</p>}
+      {photosQuery.isPending && <LoadingState variant="inline" size="large" message="Загрузка фотографий…" />}
       {photosQuery.error && (
         <p role="alert" className={styles.error}>
           {galleryMessage(photosQuery.error)}
@@ -267,6 +268,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
           </Button>
         </div>
       )}
+      {photosQuery.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем фотографии…" />}
       <PhotoViewer
         photos={photos.filter((photo) => photo.status === "ready")}
         selected={selected}

@@ -1,3 +1,4 @@
+import { assertFeedPublishingAllowed } from "./preferences";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@gafus/prisma";
 import type {
@@ -31,13 +32,13 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
     return { id: user.id, username: user.username, name: user.profile?.fullName ?? user.username, avatarUrl: user.profile?.avatarUrl ?? null };
   }
   async function readablePost(tx: Pick<FeedTx, "feedPost">, id: string) {
-    const post = await tx.feedPost.findFirst({ where: { id, status: "published", deletedAt: null } });
+    const post = await tx.feedPost.findFirst({ where: { id, status: "published", deletedAt: null, moderationState: "visible" } });
     if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
     return post;
   }
   async function readableComment(tx: FeedTx, id: string) {
     const row = await tx.feedComment.findUnique({ where: { id }, include: { post: true } });
-    if (!row || row.deletedAt || row.post.deletedAt || row.post.status !== "published") throw new FeedError("NOT_FOUND", undefined, 404);
+    if (!row || row.deletedAt || row.moderationState !== "visible" || row.post.moderationState !== "visible" || row.post.deletedAt || row.post.status !== "published") throw new FeedError("NOT_FOUND", undefined, 404);
     return row;
   }
   function cursor(row: { id: string; createdAt: Date }) {
@@ -70,15 +71,15 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
     const at = now();
     return rows.map(row => ({
       id: row.id, postId: row.postId, author: userDto(row.author),
-      text: row.deletedAt ? "" : row.text, createdAt: row.createdAt.toISOString(),
+      text: row.deletedAt || row.moderationState !== "visible" ? "" : row.text, createdAt: row.createdAt.toISOString(),
       editedAt: row.editedAt?.toISOString() ?? null,
       editUntil: new Date(row.createdAt.getTime() + L.editSeconds * 1000).toISOString(),
       rootId: row.rootId, replyToId: row.replyToId,
       replyToName: row.replyToId ? recipients.get(row.replyToId) ?? null : null,
-      deleted: !!row.deletedAt, replyCount: replyCounts.get(row.id) ?? 0,
+      deleted: !!row.deletedAt || row.moderationState !== "visible", moderationState: row.moderationState, replyCount: replyCounts.get(row.id) ?? 0,
       reactions: reactions.get(row.id) ?? [], myReaction: my.get(row.id) ?? null,
-      canEdit: !row.deletedAt && row.authorId === actorId && row.createdAt.getTime() + L.editSeconds * 1000 > at.getTime(),
-      canDelete: !row.deletedAt && (row.authorId === actorId || postAuthorId === actorId),
+      canEdit: !row.deletedAt && row.moderationState === "visible" && row.authorId === actorId && row.createdAt.getTime() + L.editSeconds * 1000 > at.getTime(),
+      canDelete: !row.deletedAt && row.moderationState === "visible" && (row.authorId === actorId || postAuthorId === actorId),
     }));
   }
   async function notification(tx: FeedTx, recipientId: string, postId: string, commentId: string | null, kind: "comment" | "reply", actorId: string, at: Date) {
@@ -113,7 +114,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const commentId = s.feedParse(s.feedIdSchema, id);
       const row = await db.feedComment.findUnique({ where: { id: commentId }, include: commentInclude });
-      if (!row || row.deletedAt) throw new FeedError("NOT_FOUND", undefined, 404);
+      if (!row || row.deletedAt || row.moderationState !== "visible") throw new FeedError("NOT_FOUND", undefined, 404);
       const post = await readablePost(db, row.postId);
       return (await commentDto(actorId, [row], post.authorId))[0]!;
     },
@@ -121,7 +122,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const q = s.feedParse(s.feedListSchema, input);
       const c = decodeCursor(q.cursor);
-      const post = await db.feedPost.findFirst({ where: { id: postId, status: "published", deletedAt: null } });
+      const post = await db.feedPost.findFirst({ where: { id: postId, status: "published", deletedAt: null, moderationState: "visible" } });
       if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
       const rows = await db.feedComment.findMany({
         where: { postId, rootId: null,
@@ -135,7 +136,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const q = s.feedParse(s.feedListSchema, input), c = decodeCursor(q.cursor);
       const root = await db.feedComment.findUnique({ where: { id: rootId }, include: { post: true } });
-      if (!root || root.rootId || root.post.deletedAt || root.post.status !== "published") throw new FeedError("NOT_FOUND", undefined, 404);
+      if (!root || root.rootId || root.post.moderationState !== "visible" || root.post.deletedAt || root.post.status !== "published") throw new FeedError("NOT_FOUND", undefined, 404);
       const rows = await db.feedComment.findMany({
         where: { rootId, ...(c ? { OR: [{ createdAt: { gt: c.createdAt } }, { createdAt: c.createdAt, id: { gt: c.id } }] } : {}) },
         include: commentInclude, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: q.pageSize + 1,
@@ -147,6 +148,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const value = s.feedParse(s.feedCommentSchema, input);
       const id = await transaction(async tx => {
+        await assertFeedPublishingAllowed(tx, actorId);
         const post = await readablePost(tx, postId);
         const prior = await tx.feedComment.findUnique({ where: { authorId_clientRequestId: { authorId: actorId, clientRequestId: value.clientRequestId } } });
         if (prior) {
@@ -155,7 +157,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
         }
         let rootId: string | null = null, replyRecipient: string | null = null;
         if (value.replyToId) {
-          const target = await tx.feedComment.findFirst({ where: { id: value.replyToId, postId, deletedAt: null } });
+          const target = await tx.feedComment.findFirst({ where: { id: value.replyToId, postId, deletedAt: null, moderationState: "visible" } });
           if (!target) throw new FeedError("NOT_FOUND", "Комментарий для ответа недоступен", 404);
           rootId = target.rootId ?? target.id;
           replyRecipient = target.authorId;
@@ -181,11 +183,12 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const value = s.feedParse(s.feedCommentEditSchema, input);
       const { row, post } = await transaction(async tx => {
+        await assertFeedPublishingAllowed(tx, actorId);
         const comment = await readableComment(tx, id);
         if (comment.authorId !== actorId) throw new FeedError("FORBIDDEN", undefined, 403);
         if (now().getTime() >= comment.createdAt.getTime() + L.editSeconds * 1000) throw new FeedError("EDIT_WINDOW_CLOSED", undefined, 409);
         // The conditional update does not allow a simultaneous delete to be overwritten.
-        const changed = await tx.feedComment.updateMany({ where: { id, deletedAt: null }, data: { text: value.text, editedAt: now() } });
+        const changed = await tx.feedComment.updateMany({ where: { id, deletedAt: null, moderationState: "visible" }, data: { text: value.text, editedAt: now() } });
         if (!changed.count) throw new FeedError("NOT_FOUND", undefined, 404);
         const latest = await tx.feedComment.findUniqueOrThrow({ where: { id }, include: commentInclude });
         const owner = await tx.feedPost.findUniqueOrThrow({ where: { id: comment.postId } });
@@ -261,7 +264,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
         if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
       } else {
         const comment = await db.feedComment.findUnique({ where: { id: target.commentId }, include: { post: true } });
-        if (!comment || comment.deletedAt || comment.post.deletedAt || comment.post.status !== "published") throw new FeedError("NOT_FOUND", undefined, 404);
+        if (!comment || comment.deletedAt || comment.moderationState !== "visible" || comment.post.moderationState !== "visible" || comment.post.deletedAt || comment.post.status !== "published") throw new FeedError("NOT_FOUND", undefined, 404);
       }
       const kind = q.reaction ? feedReactionToKind[q.reaction] : undefined;
       const relation = { user: { select: profile } } as const;
@@ -299,8 +302,8 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const q = s.feedParse(s.feedListSchema, input), c = decodeCursor(q.cursor);
       const rows = await db.feedNotification.findMany({
-        where: { recipientId: actorId, ...(c ? { OR: [{ createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } }] } : {}) },
-        include: { post: { select: { status: true, deletedAt: true } } },
+        where: { recipientId: actorId, kind: { not: "author_post" }, ...(c ? { OR: [{ createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } }] } : {}) },
+        include: { post: { select: { status: true, deletedAt: true, moderationState: true } } },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: q.pageSize + 1,
       });
       const page = rows.slice(0, q.pageSize);
@@ -313,13 +316,13 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
         reaction: row.reaction ? kindToReaction[row.reaction] : null,
         actorCount: row.actorIds.length,
         createdAt: row.createdAt.toISOString(), readAt: row.readAt?.toISOString() ?? null,
-        targetAvailable: row.post.status === "published" && !row.post.deletedAt,
+        targetAvailable: row.post.status === "published" && !row.post.deletedAt && row.post.moderationState === "visible",
       }));
       return { items, nextCursor: rows.length > q.pageSize ? cursor(page[page.length - 1]!) : null, serverNow: now().toISOString() };
     },
     async unreadCount(actorId: string) {
       await auth(actorId);
-      return { count: await db.feedNotification.count({ where: { recipientId: actorId, readAt: null } }) };
+      return { count: await db.feedNotification.count({ where: { recipientId: actorId, kind: { not: "author_post" }, readAt: null } }) };
     },
     async markNotificationRead(actorId: string, notificationId: string) {
       await auth(actorId);
@@ -330,7 +333,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
     },
     async markAllNotificationsRead(actorId: string) {
       await auth(actorId);
-      const changed = await db.feedNotification.updateMany({ where: { recipientId: actorId, readAt: null }, data: { readAt: now() } });
+      const changed = await db.feedNotification.updateMany({ where: { recipientId: actorId, kind: { not: "author_post" }, readAt: null }, data: { readAt: now() } });
       return { count: changed.count };
     },
   };

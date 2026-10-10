@@ -80,6 +80,21 @@ export const apiRateLimiter = rateLimiter({
   store,
 });
 
+/** Gallery polling has its own read budget; mutations retain the shared limit. */
+const galleryReadRateLimiter = rateLimiter({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-6",
+  keyGenerator: c => `gallery-read:${c.get("user")?.id ?? getClientIp(c)}`,
+  store,
+  handler: c => c.json({
+    success: false, code: "RATE_LIMITED",
+    error: "Слишком много запросов. Подождите немного и повторите попытку.",
+  }, 429),
+});
+export const galleryRateLimiter: import("hono").MiddlewareHandler = (c, next) =>
+  c.req.method === "GET" ? galleryReadRateLimiter(c, next) : apiRateLimiter(c, next);
+
 /**
  * Отдельный лимит для создания платежей
  * 10 запросов в минуту на пользователя

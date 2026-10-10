@@ -1,4 +1,17 @@
 .surface{max-width:720px;width:100%;margin:0 auto;padding:24px 16px 96px;color:#382b22;font-family:Montserrat,Arial,sans-serif}
+@media (min-width: 1100px) {
+  .surface:has(> .feed) {
+    max-width: 1600px;
+    padding-inline: clamp(24px, 3vw, 56px);
+  }
+  .surface > .feed {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 22px;
+  }
+  .surface > .feed > :not(.card) { grid-column: 1 / -1; }
+}
 .header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .title{font-size:clamp(26px,4vw,36px);margin:0;color:#443b28}
 .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -38,6 +51,10 @@
 
 /* Accessible feed carousel and native modal lightbox. */
 .carousel{margin-bottom:16px}
+.carouselDots{display:flex;align-items:center;justify-content:center;gap:6px;height:17px;padding-top:3px}
+.carouselDot{display:block;width:5px;height:5px;flex-shrink:0;border-radius:50%;background:#b5baa9}
+.carouselDotActive{width:7px;height:7px;background:#516634}
+.carouselDotEdge{width:3px;height:3px}
 .carousel .media{display:flex;align-items:center;overflow:visible;scroll-snap-type:none;margin-bottom:0}
 .carousel .mediaItem{flex:1 1 auto;min-width:0}
 .carouselArrow{flex:0 0 36px;height:44px;border-radius:12px;border:1px solid #b9bda0;background:#f8f4eb;color:#4c4b31;font:inherit;font-size:28px;cursor:pointer}
@@ -49,3 +66,16 @@
 .photoDialog img{display:block;max-width:100%;max-height:calc(96vh - 146px);height:auto;width:auto;object-fit:contain;margin:auto}
 .dialogActions{display:flex;justify-content:space-between;gap:16px;align-items:center;margin:8px 0}
 @media(max-width:390px){.carouselArrow{flex-basis:31px}.carousel .media{gap:4px}}
+
+.postActions { margin-block: 8px; color: var(--text-color, #352e2e); }
+.postActions summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.postActionList { display: flex; flex-direction: column; gap: 2px; padding: 8px; background: #f5f0e8; border-radius: 12px; }
+.postActionList button { text-align: left; min-height: 44px; padding: 10px 12px; border: 0; background: transparent; color: #352e2e; font: inherit; cursor: pointer; border-radius: 8px; }
+.postActionList button:hover { background: #e9e2d7; }
+.postActionList button:focus-visible { outline: 2px solid #365d43; outline-offset: 2px; }
+.postActionList button:disabled { opacity: .5; cursor: wait; }
+.reportForm { display: grid; gap: 12px; padding-block: 16px; }
+.reportForm label { display: grid; gap: 6px; }
+.reportForm .input { box-sizing: border-box; width: 100%; max-width: 100%; }
+.reportForm select { min-height: 44px; height: 44px; }
+.reportForm textarea { min-height: 96px; resize: vertical; }

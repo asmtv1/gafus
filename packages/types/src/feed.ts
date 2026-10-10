@@ -30,7 +30,7 @@ export type FeedMediaKind = "photo" | "video";
 export type FeedPostStatus = "draft" | "pending" | "published" | "failed" | "deleted";
 export type FeedRevisionStatus = "draft" | "pending" | "ready" | "failed" | "superseded";
 export type FeedMediaStatus = "reserved" | "uploaded" | "processing" | "ready" | "failed" | "cancelled" | "expired";
-export type FeedNotificationKind = "comment" | "reply" | "post_reaction" | "comment_reaction";
+export type FeedNotificationKind = "author_post" | "comment" | "reply" | "post_reaction" | "comment_reaction";
 export type FeedMimeType =
   | (typeof FEED_PHOTO_MIME_TYPES)[number]
   | (typeof FEED_VIDEO_MIME_TYPES)[number];
@@ -66,6 +66,11 @@ export interface FeedMediaDto {
 }
 
 export interface FeedPostDto {
+  bookmarked?: boolean;
+  authorHidden?: boolean;
+  authorNotify?: boolean;
+  moderationState?: string;
+  moderationReason?: string | null;
   id: string;
   author: FeedAuthorDto;
   status: FeedPostStatus;
@@ -98,6 +103,7 @@ export interface FeedPostEditorDto extends FeedPostDto {
 }
 
 export interface FeedCommentDto {
+  moderationState?: string;
   id: string;
   postId: string;
   author: FeedAuthorDto;
@@ -253,6 +259,11 @@ function feedQuery(query: FeedListQuery & { reaction?: FeedReaction } = {}): str
 /** Paths are relative to /api/v1/feed, never directly to the underlying storage. */
 export function createFeedClient(transport: FeedTransport) {
   return {
+    listBookmarks: (query?: FeedListQuery) => transport<FeedPostPageDto>(`me/bookmarks${feedQuery(query)}`),
+    setBookmark: (id: string, saved: boolean) => transport<{ saved: boolean }>(`posts/${encodeId(id)}/bookmark`, { method: saved ? "PUT" : "DELETE", body: {} }),
+    listHiddenAuthors: (query?: FeedListQuery) => transport<FeedPageDto<FeedAuthorDto>>(`me/hidden-authors${feedQuery(query)}`),
+    setAuthorPreference: (id: string, body: { hidden?: boolean; notify?: boolean }) => transport<{ hidden: boolean; notify: boolean }>(`authors/${encodeId(id)}/preferences`, { method: "PATCH", body }),
+    report: (type: "post" | "comment", id: string, body: { reason: FeedReportReason; comment?: string }) => transport<{ id: string }>(`${type === "post" ? "posts" : "comments"}/${encodeId(id)}/report`, { method: "POST", body }),
     status: () => transport<{ enabled: boolean }>("status"),
     listPosts: (query?: FeedListQuery) => transport<FeedPostPageDto>(`posts${feedQuery(query)}`),
     listProfilePosts: (username: string, query?: FeedListQuery) =>
@@ -460,3 +471,14 @@ export const FEED_ERROR_MESSAGES = {
   UPLOAD_EXPIRED: "Время загрузки истекло. Выберите файл ещё раз.",
   VALIDATION_ERROR: "Проверьте введённые данные.",
 } as const;
+
+
+export const FEED_REPORT_REASONS = {
+  spam: "Спам и реклама",
+  harassment: "Оскорбления и травля",
+  animal_cruelty: "Жестокое обращение с животными",
+  dangerous_advice: "Опасные рекомендации",
+  inappropriate: "Недопустимый контент",
+  other: "Другое",
+} as const;
+export type FeedReportReason = keyof typeof FEED_REPORT_REASONS;

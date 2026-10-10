@@ -776,7 +776,7 @@ export default function ChatScreen({
       )}
       {state && !state.chat && !state.canUseCynologistChat && (
         <View style={styles.header}>
-          <Text>Чат входит в месячный и трёхмесячный тариф.</Text>
+          <Text>Чат входит в тарифы «Поддержка в чате» и «Полное сопровождение».</Text>
           <Button
             label="Выбрать тариф"
             onPress={() =>

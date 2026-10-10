@@ -1,4 +1,6 @@
-/** `WEEKLY` is retained exclusively for historical subscriptions and Apple receipts. */
+/** `WEEKLY` is historical. `TWO_WEEKS` and `THREE_MONTHS` are stable billing codes,
+ * not durations: current public offers all last 30 days. Keep these codes for
+ * payment history, pending checkouts and subscription agreement snapshots. */
 export const APP_SUBSCRIPTION_PLAN_CODES = [
   "WEEKLY",
   "TWO_WEEKS",
@@ -59,19 +61,19 @@ const PLAN_DEFINITIONS = {
     fallbackIntervalDays: 7,
   },
   MONTHLY: {
-    label: "Месяц",
+    label: "Поддержка в чате",
     title: "Поддержка в чате",
     fallbackPriceRub: 1465,
     fallbackIntervalDays: 30,
   },
   TWO_WEEKS: {
-    label: "2 недели",
+    label: "Самостоятельный",
     title: "Самостоятельный",
     fallbackPriceRub: 1185,
     fallbackIntervalDays: 30,
   },
   THREE_MONTHS: {
-    label: "3 месяца",
+    label: "Полное сопровождение",
     title: "Полное сопровождение",
     fallbackPriceRub: 2470,
     fallbackIntervalDays: 30,

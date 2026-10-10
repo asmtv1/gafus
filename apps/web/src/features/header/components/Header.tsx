@@ -135,6 +135,21 @@ export default React.memo(function Header({
           <div className={styles.overlay} onClick={() => setMenuOpen(false)} />
           <nav className={styles.dropdownMenu} ref={menuRef} aria-label="Навигация">
             <Link
+              href="/reminders"
+              className={`${styles.menuButton} ${isCurrentRoute("/reminders") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/reminders") ? "page" : undefined}
+              onClick={() => {
+                trackMenuClick("tab-reminders");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/reminders")}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/profile-icons/reminders.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>Напоминания о тренировках</span>
+            </Link>
+            <Link
               className={`${styles.menuButton} ${profileActive ? styles.menuButtonActive : ""}`}
               href={{ pathname: "/profile", query: { username: userName } }}
               aria-current={profileActive ? "page" : undefined}

@@ -1,7 +1,8 @@
 /* Основной контейнер */
 .container {
   padding: 20px;
-  max-width: 800px;
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
   background-color: transparent;
   padding-bottom: 30px;

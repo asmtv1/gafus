@@ -79,3 +79,20 @@ describe("apiClient auth refresh", () => {
     );
   });
 });
+
+
+describe("apiClient rate limits", () => {
+  it("recognizes a plain-text 429 without treating it as invalid JSON or expiring auth", async () => {
+    vi.clearAllMocks();
+    getItemAsyncMock.mockResolvedValue("access-token");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false, status: 429, statusText: "Too Many Requests",
+      text: vi.fn().mockResolvedValue("Too many requests, please try again later."),
+    }));
+    const result = await apiClient("/api/v1/gallery/albums");
+    expect(result).toMatchObject({ success: false, code: "RATE_LIMITED" });
+    expect(result.error).toContain("Подождите");
+    expect(deleteItemAsyncMock).not.toHaveBeenCalled();
+    expect(reportClientErrorMock).not.toHaveBeenCalled();
+  });
+});

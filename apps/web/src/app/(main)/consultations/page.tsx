@@ -29,7 +29,7 @@ export default async function ConsultationsPage() {
     <main className={styles.page}>
       <h1 className={styles.pageTitle}>Консультации с кинологом</h1>
       <div className={styles.content}>
-        <Box sx={{ maxWidth: 960, width: "100%", mx: "auto" }}>
+        <Box sx={{ width: "100%" }}>
           <ConsultationsSubNav active="catalog" />
           {!eligibility.canBook ? <Alert severity="info" sx={{ mb: 2 }}>{eligibility.message}</Alert> : null}
         </Box>

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, type Href } from "expo-router";
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { CynologistChatStateDto } from "@gafus/consultation-shared";
@@ -36,6 +37,11 @@ const SECTIONS = [
     image: require("../../../assets/images/tab-icons/feed.webp"),
   },
   {
+    name: "reminders",
+    title: "Напоминания о тренировках",
+    image: require("../../../assets/images/profile-icons/reminders.webp"),
+  },
+  {
     name: "profile",
     title: "Профиль",
     image: require("../../../assets/images/tab-icons/profile.webp"),
@@ -60,8 +66,17 @@ export default function MoreScreen() {
   });
 
   return (
-    <TexturedSafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+    <TexturedSafeAreaView style={{ flex: 1 }} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <ScrollView contentContainerStyle={styles.content}>
+        <Image
+          source={require("../../../assets/images/menu-header.webp")}
+          style={styles.headerImage}
+          contentFit="cover"
+          contentPosition="center"
+          accessible
+          accessibilityLabel="Меню. Все разделы приложения в одном месте"
+        />
         <View style={styles.menu}>
           {SECTIONS.filter(section => section.name !== "feed" || feedState.data?.enabled === true).map((section, index) => {
             const isChat = section.name === "chat";
@@ -93,6 +108,8 @@ export default function MoreScreen() {
                   router.navigate(
                     (name === "gallery"
                       ? "/(main)/(tabs)/albums"
+                      : name === "reminders"
+                        ? "/(main)/(tabs)/reminders"
                       : name === "questions"
                         ? "/(main)/(tabs)/questions"
                         : `/(main)/(tabs)/${name}`) as Href,
@@ -127,7 +144,7 @@ export default function MoreScreen() {
                 </View>
                 <MaterialCommunityIcons
                   name={failed ? "refresh" : "chevron-right"}
-                  size={24}
+                  size={22}
                   color={COLORS.primary}
                 />
               </Pressable>
@@ -141,21 +158,27 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: SPACING.md, paddingBottom: SPACING.xl },
+  headerImage: {
+    height: 180,
+    marginHorizontal: -SPACING.md,
+    marginTop: -SPACING.md,
+    marginBottom: SPACING.md,
+  },
   menu: { backgroundColor: COLORS.cardBackground, borderRadius: 22, overflow: "hidden" },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING.md,
-    minHeight: 80,
+    minHeight: 64,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: 8,
   },
   separator: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.borderLight },
   pressed: { backgroundColor: "#E9E2CF" },
-  iconSlot: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
-  icon: { width: 40, height: 40 },
-  iconSmallArtwork: { width: 52, height: 52 },
-  label: { fontFamily: FONTS.montserratMedium, fontSize: 17, color: COLORS.text },
+  iconSlot: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  icon: { width: 36, height: 36 },
+  iconSmallArtwork: { width: 44, height: 44 },
+  label: { fontFamily: FONTS.montserratMedium, fontSize: 16, color: COLORS.text },
   status: {
     fontFamily: FONTS.montserrat,
     fontSize: 12,

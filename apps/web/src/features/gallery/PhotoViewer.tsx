@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Dialog } from "@mui/material";
 import type { GalleryPhotoDto } from "@gafus/types";
 import { galleryApi } from "./api";
+import { LoadingState } from "@/shared/components/ui";
 import { galleryMessage, refreshDelay, useGalleryIdentity } from "./hooks";
 import styles from "./Gallery.module.css";
 export function PhotoViewer({
@@ -116,7 +117,7 @@ export function PhotoViewer({
             }}
           />
         ) : (
-          <p role="status">Загрузка фотографии…</p>
+          <LoadingState variant="inline" size="small" message="Загрузка фотографии…" />
         )}
         {photo?.caption && <p className={styles.caption}>{photo.caption}</p>}
         <div className={styles.viewerControls}>

@@ -1,7 +1,7 @@
 .page {
-  max-width: 860px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 24px clamp(16px, 3vw, 56px);
 }
 .page h1 {
   color: var(--color-primary, #636b32);
@@ -71,11 +71,11 @@
 
 .hub {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: clamp(220px, 20vw, 300px) minmax(0, 1fr);
   gap: 24px;
-  max-width: 1120px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 24px clamp(16px, 3vw, 56px);
   align-items: start;
 }
 .tabs {

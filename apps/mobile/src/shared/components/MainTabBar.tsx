@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react";
 import type { Tabs } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +8,7 @@ import { COLORS, FONTS } from "@/shared/config";
 import { trackEvent } from "@/shared/lib/analytics";
 import { getMainTabBarSafeAreaStyle } from "@/shared/lib/tabBarSafeArea";
 import { TourTarget } from "@/shared/lib/tour-targets";
+import { MENU_TAB_ICON_SOURCE } from "./menuTabIconSource";
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 const TAB_LABEL_FONT_SIZE = 12;
@@ -25,7 +25,7 @@ const ITEMS = [
     targetId: "tab-courses",
     image: require("../../../assets/images/tab-icons/courses.webp"),
   },
-  { name: "more", label: "Меню", targetId: "tab-more", image: null },
+  { name: "more", label: "Меню", targetId: "tab-more", image: MENU_TAB_ICON_SOURCE },
 ] as const;
 
 /** Второстепенные маршруты остаются вкладками, но выделяют общий вход «Меню». */
@@ -93,16 +93,12 @@ export function MainTabBar({ state, navigation }: TabBarProps) {
           >
             <TourTarget id={item.targetId}>
               <View style={styles.tabIconWrap}>
-                {item.image ? (
-                  <Image
-                    source={item.image}
-                    style={{ width: 24, height: 24 }}
-                    contentFit="contain"
-                    accessible={false}
-                  />
-                ) : (
-                  <MaterialCommunityIcons name="dots-horizontal" size={28} color={color} />
-                )}
+                <Image
+                  source={item.image}
+                  style={{ width: item.name === "more" ? 34 : 24, height: item.name === "more" ? 28 : 24 }}
+                  contentFit="contain"
+                  accessible={false}
+                />
               </View>
             </TourTarget>
             <Text

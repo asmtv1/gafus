@@ -5,7 +5,7 @@ import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
@@ -244,19 +244,19 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Stack.Screen options={{ title: `Профиль ${publicData.username}` }} />
+      <Stack.Screen options={{ title: profile?.fullName || publicData.username }} />
       <Pressable
         style={styles.backRow}
+        accessibilityRole="button"
+        accessibilityLabel="Назад"
         onPress={() => router.back()}
         hitSlop={12}
       >
-        <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
+        <MaterialCommunityIcons name="chevron-left" size={24} color={COLORS.primary} />
         <Text style={styles.backRowText}>Назад</Text>
       </Pressable>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Профиль {publicData.username}</Text>
-
-        {/* Баннер профиля */}
+        {/* Compact public profile identity header, without a duplicate page title. */}
         <View style={styles.profileBanner}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
@@ -272,17 +272,19 @@ export default function PublicProfileScreen() {
             </View>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.greeting}>
+            <Text style={styles.greeting} numberOfLines={2}>
               {profile?.fullName || publicData.username}
             </Text>
-            {profile?.telegram && (
-              <Text style={styles.contactInfo}>@{profile.telegram}</Text>
-            )}
-            {displayRole && (
-              <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
-                <Text style={styles.roleText}>{displayRole}</Text>
-              </View>
-            )}
+            <View style={styles.profileMeta}>
+              <Text style={styles.contactInfo} numberOfLines={1}>
+                @{profile?.telegram || publicData.username}
+              </Text>
+              {displayRole && (
+                <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
+                  <Text style={styles.roleText}>{displayRole}</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
@@ -321,7 +323,7 @@ export default function PublicProfileScreen() {
                       )
                     }
                   >
-                    <Text style={styles.socialIcon}>📷</Text>
+                    <FontAwesome5 name="instagram" brand size={22} color="#C13584" style={styles.socialBrandIcon} />
                     <Text style={styles.socialLabel}>Instagram</Text>
                     <Text style={styles.socialUsername}>
                       {profile.instagram}
@@ -335,7 +337,7 @@ export default function PublicProfileScreen() {
                       Linking.openURL(`https://t.me/${profile.telegram}`)
                     }
                   >
-                    <Text style={styles.socialIcon}>✈️</Text>
+                    <FontAwesome5 name="telegram-plane" brand size={22} color="#229ED9" style={styles.socialBrandIcon} />
                     <Text style={styles.socialLabel}>Telegram</Text>
                     <Text style={styles.socialUsername}>{profile.telegram}</Text>
                   </Pressable>
@@ -345,7 +347,7 @@ export default function PublicProfileScreen() {
                     style={styles.socialLink}
                     onPress={() => Linking.openURL(profile.website!)}
                   >
-                    <Text style={styles.socialIcon}>🌐</Text>
+                    <MaterialCommunityIcons name="web" size={24} color="#636128" style={styles.socialBrandIcon} />
                     <Text style={styles.socialLabel}>Сайт</Text>
                     <Text style={styles.socialUsername}>{profile.website}</Text>
                   </Pressable>
@@ -434,7 +436,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scrollContent: {
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingTop: 4,
+    paddingBottom: SPACING.md,
   },
   errorContainer: {
     flex: 1,
@@ -452,38 +456,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    minHeight: 42,
+    paddingVertical: 4,
     gap: 4,
   },
   backRowText: {
-    fontSize: 17,
+    fontSize: 15,
     color: COLORS.primary,
     fontWeight: "500",
     fontFamily: FONTS.montserrat,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "400",
-    color: "#352E2E",
-    textAlign: "center",
-    marginBottom: SPACING.md,
-    fontFamily: FONTS.impact,
-  },
   profileBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
+    gap: 12,
     width: "100%",
     backgroundColor: "#636128",
-    borderRadius: 12,
-    paddingVertical: SPACING.sm + 10,
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
   avatarContainer: {
     flexShrink: 0,
@@ -491,16 +483,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 95,
-    height: 95,
-    borderRadius: 48,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     overflow: "hidden",
     backgroundColor: COLORS.primary,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
   },
   avatarImage: {
     width: "100%",
@@ -508,34 +495,39 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "column",
-    gap: 4,
+    gap: 3,
   },
   greeting: {
     fontSize: 16,
-    fontWeight: "600",
     color: "#ECE5D2",
-    fontFamily: FONTS.impact,
-    lineHeight: 20,
+    fontFamily: FONTS.montserratMedium,
+    lineHeight: 21,
+  },
+  profileMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: 8,
+    rowGap: 3,
   },
   contactInfo: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#D4C4A8",
     fontFamily: FONTS.montserrat,
-    opacity: 0.9,
+    flexShrink: 1,
   },
   roleBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginTop: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 7,
     alignSelf: "flex-start",
   },
   roleText: {
     color: "#ECE5D2",
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: FONTS.impact,
+    fontSize: 10,
+    fontFamily: FONTS.montserratMedium,
   },
   infoContainer: {
     width: "100%",
@@ -599,11 +591,6 @@ const styles = StyleSheet.create({
   socialLinksContainer: {
     width: "100%",
     marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: "#ECE5D2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
   },
   socialLinksTitle: {
     fontSize: 14,
@@ -630,8 +617,9 @@ const styles = StyleSheet.create({
     borderColor: "#D4C4A8",
     minHeight: 44,
   },
-  socialIcon: {
-    fontSize: 20,
+  socialBrandIcon: {
+    width: 28,
+    textAlign: "center",
   },
   socialLabel: {
     fontWeight: "600",

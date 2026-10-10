@@ -38,6 +38,7 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
   const pathname = usePathname();
 
   const menuItems = [
+    { href: "/main-panel/feed-moderation", icon: Flag, label: "Модерация ленты", show: ["ADMIN", "MODERATOR"].includes(userRole) },
     { href: "/main-panel/questions", icon: Flag, label: "Вопросы: модерация", show: userRole === "ADMIN" },
     {
       href: "/main-panel/users",

@@ -723,7 +723,7 @@ export default function ProfileScreen() {
                           Linking.openURL(`https://instagram.com/${profile.instagram}`)
                         }
                       >
-                        <Text style={styles.socialIcon}>📷</Text>
+                        <FontAwesome5 name="instagram" brand size={22} color="#C13584" style={styles.socialBrandIcon} />
                         <Text style={styles.socialLabel}>Instagram</Text>
                         <Text style={styles.socialUsername}>{profile.instagram}</Text>
                       </Pressable>
@@ -733,7 +733,7 @@ export default function ProfileScreen() {
                         style={styles.socialLink}
                         onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
                       >
-                        <Text style={styles.socialIcon}>✈️</Text>
+                        <FontAwesome5 name="telegram-plane" brand size={22} color="#229ED9" style={styles.socialBrandIcon} />
                         <Text style={styles.socialLabel}>Telegram</Text>
                         <Text style={styles.socialUsername}>{profile.telegram}</Text>
                       </Pressable>
@@ -743,7 +743,7 @@ export default function ProfileScreen() {
                         style={styles.socialLink}
                         onPress={() => Linking.openURL(profile.website!)}
                       >
-                        <Text style={styles.socialIcon}>🌐</Text>
+                        <MaterialCommunityIcons name="web" size={24} color="#636128" style={styles.socialBrandIcon} />
                         <Text style={styles.socialLabel}>Сайт</Text>
                         <Text style={styles.socialUsername}>{profile.website}</Text>
                       </Pressable>
@@ -830,21 +830,6 @@ export default function ProfileScreen() {
                 <MaterialCommunityIcons name="chevron-right" size={21} color="#352E2E" />
               </Pressable>
             </View>
-
-            <Pressable
-              style={styles.remindersCard}
-              onPress={() => {
-                trackProfileClick("training-reminders-open");
-                router.push({ pathname: "/reminders" });
-              }}
-            >
-              <ProfileIcon name="reminders" />
-              <View style={styles.remindersCardContent}>
-                <Text style={styles.remindersCardTitle}>Напоминания о тренировках</Text>
-                <Text style={styles.remindersCardSubtitle}>Настроить время и дни</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
-            </Pressable>
 
             <MobileAppSubscriptionCard />
 
@@ -1594,11 +1579,6 @@ const styles = StyleSheet.create({
   socialLinksContainer: {
     width: "100%",
     marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E5DDC9",
   },
   socialLinksTitle: {
     fontSize: 14,
@@ -1625,8 +1605,9 @@ const styles = StyleSheet.create({
     borderColor: "#D4C4A8",
     minHeight: 44,
   },
-  socialIcon: {
-    fontSize: 20,
+  socialBrandIcon: {
+    width: 28,
+    textAlign: "center",
   },
   socialLabel: {
     fontWeight: "600",

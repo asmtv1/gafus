@@ -1,5 +1,6 @@
 "use client";
 import { reportClientError } from "@gafus/error-handling";
+import { LoadingState } from "@/shared/components/ui";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -215,7 +216,7 @@ export function QuestionDetail({ id }: { id: string }) {
   if (query.isPending)
     return (
       <main className={s.page}>
-        <p role="status">Загрузка вопроса…</p>
+        <LoadingState variant="inline" size="large" message="Загрузка вопроса…" />
       </main>
     );
   if (query.isError || !question)
@@ -412,6 +413,7 @@ export function QuestionDetail({ id }: { id: string }) {
             {query.isFetchingNextPage ? "Загрузка…" : "Ещё ответы"}
           </button>
         )}
+        {query.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем ответы…" />}
       </section>
       {question.blockReason && (
         <p className={s.notice}>Публикации в разделе заблокированы: {question.blockReason}</p>

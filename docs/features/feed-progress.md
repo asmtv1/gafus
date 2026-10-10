@@ -1,5 +1,13 @@
 # GAFUS Feed implementation and rollout status
 
+## Production repair 2026-10-10
+
+Application deployment and Feed tables are present in production. Corrected the activation variable from `FEED_ENABLE` to `FEED_ENABLED` in GitHub configuration and applied it to the running application services. Public Feed status now returns enabled.
+
+Two photo posts remained pending with uploaded media and zero processing attempts: object triggers and worker containers existed, but queue consumer triggers and the periodic wake-up trigger were absent. Applied a reviewed, targeted Terraform plan creating only `feed-prod-photo`, `feed-prod-video` and `feed-prod-maintenance`. All three are ACTIVE. Both existing posts then reached published through the normal processing pipeline; no manual publication status overrides were used.
+
+Live Feed list returns both published posts with ready attachments. Signed CDN requests for both thumbnails and both full images return HTTP 200 with image/webp. These checks supersede the application deployment/trigger gates below. Video/HLS, physical device and push acceptance still require separate verification.
+
 Updated 2026-10-09. The owner authorized finishing Feed, deploying to production for testing and enabling it for all accounts. There is no separate DEV server.
 
 ## Implemented

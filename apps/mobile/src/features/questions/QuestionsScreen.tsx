@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Keyboard, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter, type Href } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { QUESTION_CATEGORIES, type QuestionStatus, type QuestionSort } from "@gafus/types";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui/Button";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
@@ -31,6 +32,7 @@ export function QuestionsScreen() {
   const [sort, setSort] = useState<QuestionSort>("new");
   const [mine, setMine] = useState(false);
   const [filters, setFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setTerm(search), 300);
     return () => clearTimeout(timer);
@@ -50,6 +52,15 @@ export function QuestionsScreen() {
     getNextPageParam: (p) => p.nextPage,
     enabled: !!userId,
   });
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await query.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const access = query.data?.pages[0];
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const activeFilterCount = Number(!!category) + Number(!!status) + Number(sort !== "new");
@@ -59,28 +70,27 @@ export function QuestionsScreen() {
     setFilters(true);
   };
   return (
-    <TexturedSafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+    <TexturedSafeAreaView style={{ flex: 1 }} edges={[]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <ScrollView
+        style={styles.scroll}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={st.content}
         refreshControl={
-          <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />
         }
       >
-        <View style={styles.header} accessible accessibilityRole="header">
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle}>Вопросы</Text>
-            <Text style={styles.headerDescription}>
-              Спрашивайте и делитесь опытом с другими владельцами
-            </Text>
-          </View>
-          <Image
-            source={require("../../../assets/images/tab-icons/questions.png")}
-            style={styles.headerArtwork}
-            contentFit="contain"
-            accessible={false}
-          />
-        </View>
+        <Image
+          source={require("../../../assets/images/questions-header.webp")}
+          style={styles.headerImage}
+          contentFit="cover"
+          contentPosition="center"
+          accessible
+          accessibilityLabel="Вопросы. Задавайте вопросы и получайте помощь от нашей команды и сообщества"
+        />
         <Button
           label="Задать вопрос"
           variant="primary"
@@ -164,7 +174,7 @@ export function QuestionsScreen() {
             </Pressable>
           </View>
         </View>
-        {query.isPending && <Text style={st.meta}>Загрузка вопросов…</Text>}
+        {query.isPending && <Loading variant="inline" size="large" message="Загрузка вопросов…" />}
         {query.isError && (
           <View style={st.group}>
             <Text accessibilityRole="alert" style={st.error}>
@@ -214,6 +224,7 @@ export function QuestionsScreen() {
             onPress={() => void query.fetchNextPage()}
           />
         )}
+        {query.isFetchingNextPage && <MascotSpinner size="small" />}
       </ScrollView>
       <Modal
         visible={filters}
@@ -288,11 +299,11 @@ export function QuestionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    minHeight: 112,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: SPACING.sm,
+  scroll: { flex: 1 },
+  headerImage: {
+    height: 180,
+    marginHorizontal: -SPACING.md,
+    marginTop: -SPACING.md,
   },
   filtersRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7 },
   searchSection: { gap: 8 },
@@ -350,19 +361,4 @@ const styles = StyleSheet.create({
   resetButton: { minHeight: 44, paddingHorizontal: 6, justifyContent: "center" },
   resetText: { fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.primary },
   applyButton: { flex: 1 },
-  headerCopy: { flex: 1, paddingRight: SPACING.sm },
-  headerTitle: {
-    fontFamily: FONTS.impact,
-    fontSize: 36,
-    lineHeight: 44,
-    color: COLORS.text,
-  },
-  headerDescription: {
-    fontFamily: FONTS.montserrat,
-    fontSize: 14,
-    lineHeight: 21,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-  },
-  headerArtwork: { width: 88, height: 88 },
 });

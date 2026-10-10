@@ -60,6 +60,15 @@ resource "yandex_storage_bucket" "gallery" {
   ] })
   lifecycle { prevent_destroy = true }
 }
+# Bucket policy is a second access check, not a replacement for IAM/ACL.
+# The origin needs base read permission before FinalOrigin can restrict it
+# to final photo keys. Keep this role on this bucket, never on the folder.
+resource "yandex_storage_bucket_iam_binding" "photo_origin_reader" {
+  bucket  = yandex_storage_bucket.gallery.bucket
+  role    = "storage.viewer"
+  members = ["serviceAccount:${yandex_iam_service_account.gallery["origin"].id}"]
+}
+
 resource "yandex_message_queue" "dlq" {
   name                      = "${local.prefix}-dlq"
   access_key                = var.provisioner_ymq_access_key
@@ -170,7 +179,7 @@ resource "yandex_function" "gallery" {
   # signed private images and MUST remain unlogged. Disable after diagnosis.
   # No request headers, object keys, payloads or credentials are logged by app code.
   log_options { disabled = each.key == "origin" || !var.diagnostic_logging }
-  depends_on = [yandex_lockbox_secret_iam_binding.runtime, yandex_resourcemanager_folder_iam_member.queue_writer, yandex_storage_bucket_iam_binding.function_packages_reader]
+  depends_on = [yandex_lockbox_secret_iam_binding.runtime, yandex_resourcemanager_folder_iam_member.queue_writer, yandex_storage_bucket_iam_binding.function_packages_reader, yandex_storage_bucket_iam_binding.photo_origin_reader]
 }
 resource "yandex_function_scaling_policy" "bounded" {
   for_each    = yandex_function.gallery

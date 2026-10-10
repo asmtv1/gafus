@@ -31,7 +31,7 @@ export default async function MyConsultationsPage() {
     <main className={styles.page}>
       <h1 className={styles.pageTitle}>Мои консультации</h1>
       <div className={styles.content}>
-        <Box sx={{ maxWidth: 960, width: "100%", mx: "auto" }}>
+        <Box sx={{ width: "100%" }}>
           <ConsultationsSubNav active="my" />
           <MyConsultationsClient initialItems={items} />
         </Box>

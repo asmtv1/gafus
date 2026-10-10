@@ -4,7 +4,7 @@ export type FeedDb = Pick<
   "$transaction" | "user" | "feedPost" | "feedPostRevision" | "feedMediaAsset" |
   "feedUpload" | "feedRevisionAttachment" | "galleryPhoto" | "feedStorageJob" |
   "feedComment" | "feedPostReaction" | "feedCommentReaction" | "feedPostView" |
-  "feedNotification" | "feedNotificationOutbox"
+  "feedNotification" | "feedNotificationOutbox" | "feedBookmark" | "feedAuthorPreference" | "feedReport" | "feedModerationAction"
 >;
 export type FeedTx = Prisma.TransactionClient;
 export interface FeedStoragePort {

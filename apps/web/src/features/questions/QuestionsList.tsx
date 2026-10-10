@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { Add } from "@mui/icons-material";
+import { Add, Search } from "@mui/icons-material";
 import { QUESTION_CATEGORIES, type QuestionSort, type QuestionStatus } from "@gafus/types";
+import { LoadingState, PrimaryButtonLink } from "@/shared/components/ui";
 import { questionsApi } from "./api";
 import { Author, Status, Counts, BestLabel } from "./parts";
 import s from "./Questions.module.css";
@@ -38,17 +39,17 @@ export function QuestionsList() {
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const access = query.data?.pages[0];
   return (
-    <main className={s.page}>
-      <div className={s.heading}>
+    <main className={`${s.page} ${s.questionsPage}`}>
+      <div className={`${s.heading} ${s.questionsHeading}`}>
         <div>
           <h1>Вопросы</h1>
           <div className={s.subtitle}>Спрашивайте, делитесь опытом и помогайте друг другу.</div>
         </div>
         {access?.canPublish && (
-          <Link href="/questions/new" className={s.primary}>
-            <Add />
+          <PrimaryButtonLink href="/questions/new" className={s.askButton}>
+            <Add fontSize="small" />
             Задать вопрос
-          </Link>
+          </PrimaryButtonLink>
         )}
       </div>
       {access?.blockReason && (
@@ -56,71 +57,77 @@ export function QuestionsList() {
           Публикации в разделе заблокированы: {access.blockReason}. Вы можете читать обсуждения.
         </p>
       )}
-      <div className={s.filters}>
-        <input
-          aria-label="Поиск вопросов"
-          placeholder="Поиск по вопросам"
-          maxLength={150}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          aria-label="Категория"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        >
-          <option value="">Все категории</option>
-          {QUESTION_CATEGORIES.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        <select
-          aria-label="Статус вопроса"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as QuestionStatus | "")}
-        >
-          <option value="">Все статусы</option>
-          <option value="waiting">Ждёт ответа</option>
-          <option value="answered">Есть ответы</option>
-          <option value="resolved">Решён</option>
-        </select>
-      </div>
-      <div className={s.heading}>
-        <div className={s.tabs}>
-          {[
-            [false, "Все"],
-            [true, "Мои"],
-          ].map(([v, text]) => (
-            <button
-              key={String(v)}
-              className={`${s.secondary} ${mine === v ? s.selected : ""}`}
-              aria-pressed={mine === v}
-              onClick={() => setMine(v as boolean)}
-            >
-              {text}
-            </button>
-          ))}
+      <div className={s.questionTools}>
+        <div className={s.questionFilters}>
+          <div className={s.questionSearch}>
+            <Search aria-hidden="true" fontSize="small" />
+            <input
+              aria-label="Поиск вопросов"
+              type="search"
+              placeholder="Поиск по вопросам"
+              maxLength={150}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            aria-label="Категория"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">Все категории</option>
+            {QUESTION_CATEGORIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Статус вопроса"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as QuestionStatus | "")}
+          >
+            <option value="">Все статусы</option>
+            <option value="waiting">Ждёт ответа</option>
+            <option value="answered">Есть ответы</option>
+            <option value="resolved">Решён</option>
+          </select>
         </div>
-        <div className={s.tabs}>
-          {(
-            [
-              ["new", "Новые"],
-              ["active", "Активные"],
-              ["unanswered", "Без ответа"],
-            ] as const
-          ).map(([v, text]) => (
-            <button
-              key={v}
-              aria-pressed={sort === v}
-              className={`${s.textButton} ${sort === v ? s.selected : ""}`}
-              onClick={() => setSort(v)}
-            >
-              {text}
-            </button>
-          ))}
+        <div className={s.questionOptions}>
+          <div className={`${s.tabs} ${s.questionScope}`} role="group" aria-label="Чьи вопросы">
+            {[
+              [false, "Все"],
+              [true, "Мои"],
+            ].map(([v, text]) => (
+              <button
+                key={String(v)}
+                className={`${s.questionTab} ${mine === v ? s.questionTabActive : ""}`}
+                aria-pressed={mine === v}
+                onClick={() => setMine(v as boolean)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          <div className={`${s.tabs} ${s.questionSort}`} role="group" aria-label="Сортировка вопросов">
+            {(
+              [
+                ["new", "Новые"],
+                ["active", "Активные"],
+                ["unanswered", "Без ответа"],
+              ] as const
+            ).map(([v, text]) => (
+              <button
+                key={v}
+                aria-pressed={sort === v}
+                className={`${s.questionTab} ${sort === v ? s.questionTabActive : ""}`}
+                onClick={() => setSort(v)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      {query.isPending && <p role="status">Загрузка вопросов…</p>}
+      {query.isPending && <LoadingState variant="inline" size="large" message="Загрузка вопросов…" />}
       {query.isError && (
         <div className={s.error} role="alert">
           {query.error.message}
@@ -138,14 +145,14 @@ export function QuestionsList() {
               : "Задайте первый вопрос — здесь можно обмениваться опытом с другими владельцами."}
           </p>
           {access?.canPublish && (
-            <Link href="/questions/new" className={s.primary}>
+            <PrimaryButtonLink href="/questions/new" className={s.askButton}>
               Задать вопрос
-            </Link>
+            </PrimaryButtonLink>
           )}
         </div>
       )}
       {items.map((q) => (
-        <Link href={`/questions/${q.id}`} key={q.id} className={s.card}>
+        <Link href={`/questions/${q.id}`} key={q.id} className={`${s.card} ${s.questionCard}`}>
           <Status question={q} />
           <h2>{q.title}</h2>
           {q.bestAnswer && (
@@ -169,6 +176,7 @@ export function QuestionsList() {
           {query.isFetchingNextPage ? "Загрузка…" : "Ещё вопросы"}
         </button>
       )}
+      {query.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем вопросы…" />}
     </main>
   );
 }

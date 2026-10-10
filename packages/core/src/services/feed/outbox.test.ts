@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { FeedDb } from "./ports";
 import { createFeedNotificationOutbox, feedNotificationRetryMs } from "./outbox";
 const now = new Date("2026-10-09T12:00:00.000Z");
-function setup(options: { missingPost?: boolean; fail?: boolean; reaction?: boolean } = {}) {
+function setup(options: { missingPost?: boolean; fail?: boolean; reaction?: boolean; authorPost?: boolean; hidden?: boolean; unsubscribed?: boolean; moderated?: boolean } = {}) {
   const event = {
     id: "note_1", postId: "post_1", commentId: null, recipientId: "recipient_1",
-    kind: options.reaction ? "post_reaction" as const : "comment" as const,
-    actorIds: ["actor_1"], post: { status: "published", deletedAt: options.missingPost ? now : null },
+    kind: options.authorPost ? "author_post" as const : options.reaction ? "post_reaction" as const : "comment" as const,
+    actorIds: ["actor_1"], post: { authorId: "author_1", moderationState: options.moderated ? "hidden" : "visible", status: "published", deletedAt: options.missingPost ? now : null },
     comment: null,
   };
   const updateMany = vi.fn(async () => ({ count: 1 }));
@@ -22,6 +22,7 @@ function setup(options: { missingPost?: boolean; fail?: boolean; reaction?: bool
   const db = {
     feedNotificationOutbox: { findMany, updateMany },
     feedNotification: { findUnique: notification },
+    feedAuthorPreference: { findUnique: vi.fn(async () => ({ notify: !options.unsubscribed, hidden: !!options.hidden })) },
     feedPostReaction: { count: reactionCount },
     feedCommentReaction: { count: reactionCount },
   } as unknown as FeedDb;
@@ -29,6 +30,16 @@ function setup(options: { missingPost?: boolean; fail?: boolean; reaction?: bool
     updateMany, findMany, notification, send, reactionCount };
 }
 describe("feed notification delivery outbox", () => {
+  it.each([{ hidden: true }, { unsubscribed: true }, { moderated: true }])("suppresses queued author pushes after preference/moderation changes: %j", async option => {
+    const { worker, send } = setup({ authorPost: true, ...option });
+    expect(await worker.process(1)).toMatchObject({ delivered: 0, completed: 1 });
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("delivers a new-post push while the subscription remains active", async () => {
+    const { worker, send } = setup({ authorPost: true });
+    expect(await worker.process(1)).toMatchObject({ delivered: 1, completed: 1 });
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ kind: "author_post" }));
+  });
   it("bounds backoff and rejects invalid attempts", () => {
     expect(feedNotificationRetryMs(1)).toBe(60000);
     expect(feedNotificationRetryMs(2)).toBe(120000);

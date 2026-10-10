@@ -119,8 +119,15 @@ export function createGalleryCloudWorker(input: { core: GalleryInternalClient; o
       if (input.enabled !== false) for (const id of result.processUploadIds) { if (now() >= deadline) throw new Error('INVOCATION_DEADLINE'); await input.queue.send(id); }
       // Scheduled delete recovery must keep running when product is disabled.
       if (now() >= deadline) throw new Error('INVOCATION_DEADLINE');
-      const jobs = await input.core.claimJobs(1);
-      for (const job of jobs) await processJob(job, deadline);
+      // Drain a bounded page in one timer invocation. One job every five minutes
+      // lets cleanup backlog consume an upload's entire publication window.
+      // Claim one at a time so unstarted jobs never hold leases when time runs out.
+      for (let processed = 0; processed < 10 && now() + 10_000 < deadline; processed++) {
+        const jobs = await input.core.claimJobs(1);
+        if (!jobs.length) break;
+        if (jobs.length !== 1) throw new Error('UNTRUSTED_CLAIM');
+        await processJob(jobs[0]!, deadline);
+      }
       record({ operation: 'maintenance', outcome: 'success', durationMs: now() - started,
         expiredUploads: result.expiredUploads, recoveredCleanupJobs: result.recoveredCleanupJobs,
         reconciledJobs: result.reconciledJobs, queuedUploads: input.enabled !== false ? result.processUploadIds.length : 0 });

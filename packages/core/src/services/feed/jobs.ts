@@ -1,3 +1,4 @@
+import { enqueueFeedAuthorPush } from "./preferences";
 import { randomUUID } from "node:crypto";
 import type { FeedDb } from "./ports";
 import { FeedError } from "./errors";
@@ -232,6 +233,7 @@ export function createFeedStorageJobs({ db, now = () => new Date() }: {
                 publishedAt: post.publishedAt ?? at, editedAt: post.publishedAt ? at : null,
               },
             });
+            await enqueueFeedAuthorPush(tx, post, at);
           }
         }
       }

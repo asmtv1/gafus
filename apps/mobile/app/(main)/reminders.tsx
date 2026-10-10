@@ -12,8 +12,10 @@ import {
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { Snackbar, Switch, Text } from "react-native-paper";
+import { Image } from "expo-image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
@@ -129,8 +131,15 @@ function ScrollColumn({ items, selectedIndex, onSelect }: ScrollColumnProps) {
 }
 
 export default function RemindersScreen() {
+  const segments = useSegments();
+  // Old /reminders links should also open inside the shared tab navigator.
+  return segments.some(segment => segment === "(tabs)")
+    ? <RemindersContent />
+    : <Redirect href="/(main)/(tabs)/reminders" />;
+}
+
+function RemindersContent() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   const [name, setName] = useState("");
   const [selectedHour, setSelectedHour] = useState(9);
@@ -301,24 +310,17 @@ export default function RemindersScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable
-          style={styles.backRow}
-          onPress={() => {
-            void hapticFeedback.light();
-            router.back();
-          }}
-          hitSlop={12}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
-
+      <SafeAreaView style={styles.container} edges={[]}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Image
+            source={require("../../assets/images/reminders-header.webp")}
+            style={styles.headerImage}
+            contentFit="contain"
+            accessible
+            accessibilityLabel="Напоминания. Настройте время и не пропускайте важное"
+          />
           <View style={styles.formCard}>
-            <Text style={styles.screenTitle}>Напоминания</Text>
-
             <TextInput
               value={name}
               onChangeText={setName}
@@ -581,29 +583,15 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 15,
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    gap: 4,
-  },
-  backText: {
-    fontSize: 17,
-    color: COLORS.primary,
-    fontWeight: "500",
-  },
   scrollContent: {
     padding: SPACING.md,
     paddingTop: 0,
     gap: SPACING.md,
     paddingBottom: SPACING.xl,
   },
-  screenTitle: {
-    fontSize: 24,
-    fontFamily: FONTS.impact,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+  headerImage: {
+    aspectRatio: 1842 / 854,
+    marginHorizontal: -SPACING.md,
   },
   formCard: {
     backgroundColor: COLORS.cardBackground,

@@ -1,9 +1,9 @@
 import { memo, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, View } from "react-native";
 import { IconButton, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Loading, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { GalleryImage } from "./image";
 import { useRouter, type Href } from "expo-router";
 import type { GalleryAlbumDto } from "@gafus/types";
@@ -91,15 +91,73 @@ export function GalleryPreview({ owner }: { owner: string }) {
   const items = albums.data?.pages.flatMap(p => p.items).slice(0, 4) ?? [];
   const router = useRouter();
   if (!owner || meta?.enabled === false) return null;
-  return <View style={s.section}>
-    <Text accessibilityRole="header" style={s.heading}>Фотографии</Text>
-    {albums.isPending ? <ActivityIndicator color={COLORS.primary} accessibilityLabel="Загрузка альбомов" /> : null}
+  const openAlbums = () => router.navigate({
+    pathname: "/(main)/(tabs)/albums",
+    params: { username: owner },
+  } as Href);
+  return <View style={s.galleryPreviewCard}>
+    <View style={s.galleryPreviewHeader}>
+      <View style={s.galleryPreviewHeading}>
+        <Text accessibilityRole="header" style={s.galleryPreviewTitle}>Фотографии</Text>
+        {meta?.isOwner ? (
+          <Text style={s.galleryPreviewQuota}>{meta.usedSlots} из 200 фотографий</Text>
+        ) : null}
+      </View>
+      {meta ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Все альбомы"
+          onPress={openAlbums}
+          style={({ pressed }) => [s.galleryPreviewAll, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={s.galleryPreviewAllText}>Все альбомы</Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={COLORS.primary} />
+        </Pressable>
+      ) : null}
+    </View>
+    {albums.isPending ? <Loading variant="inline" size="small" message="Загрузка альбомов…" /> : null}
     {albums.isError ? <Failure error={albums.error} retry={() => void albums.refetch()} /> : null}
-    {meta?.isOwner ? <Text style={s.muted}>{meta.usedSlots}/200 фотографий</Text> : null}
-    {[0, 2].map(start => items[start] ? <View key={start} style={[s.row, { alignItems: "stretch" }]}>{items.slice(start, start + 2).map(album => <AlbumTile key={album.id} album={album} refresh={() => void albums.refetch()} />)}{!items[start + 1] ? <View style={{ flex: 1 }} /> : null}</View> : null)}
-    {meta && !items.length ? <Text style={s.text}>{meta.isOwner ? "Добавьте первые фотографии — альбом появится автоматически." : "Здесь пока нет доступных альбомов."}</Text> : null}
-    {meta ? <Button label="Все альбомы" variant="outline" onPress={() => router.navigate({ pathname: "/(main)/(tabs)/albums", params: { username: owner } } as Href)} /> : null}
-    {meta?.isOwner ? <><Button label="Создать альбом" variant="caramel" animatedPress onPress={() => setCreating(true)} /><UploadControls owner={owner} usedSlots={meta.usedSlots} /></> : null}
+    {items.length > 0 ? (
+      <View style={s.galleryPreviewGrid}>
+        {[0, 2].map(start => items[start] ? (
+          <View key={start} style={s.galleryPreviewRow}>
+            {items.slice(start, start + 2).map(album =>
+              <AlbumTile key={album.id} album={album} refresh={() => void albums.refetch()} compact />)}
+            {!items[start + 1] ? <View style={{ flex: 1 }} /> : null}
+          </View>
+        ) : null)}
+      </View>
+    ) : null}
+    {meta && !items.length ? (
+      <Text style={s.galleryPreviewEmpty}>
+        {meta.isOwner ? "Добавьте фотографии — первый альбом появится автоматически." : "Здесь пока нет доступных альбомов."}
+      </Text>
+    ) : null}
+    {meta?.isOwner ? (
+      <View style={s.galleryPreviewFooter}>
+        <UploadControls
+          owner={owner}
+          usedSlots={meta.usedSlots}
+          inlineHeader
+          leadingAction={
+            <Button
+              label="Новый альбом"
+              accessibilityLabel="Создать альбом"
+              variant="caramel"
+              height={44}
+              fontSize={13}
+              lineHeight={18}
+              horizontalPadding={0}
+              verticalPadding={0}
+              labelStyle={{ marginHorizontal: 0, marginVertical: 0 }}
+              borderRadius={14}
+              animatedPress
+              onPress={() => setCreating(true)}
+            />
+          }
+        />
+      </View>
+    ) : null}
     {creating ? <AlbumEditor owner={owner} close={() => setCreating(false)} /> : null}
   </View>;
 }

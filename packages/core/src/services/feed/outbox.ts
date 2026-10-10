@@ -11,7 +11,7 @@ export interface FeedNotificationDelivery {
   deliver(input: {
     notificationId: string;
     recipientId: string;
-    kind: "comment" | "reply" | "post_reaction" | "comment_reaction";
+    kind: "author_post" | "comment" | "reply" | "post_reaction" | "comment_reaction";
     postId: string;
     commentId: string | null;
     actorIds: string[];
@@ -83,12 +83,12 @@ export function createFeedNotificationOutbox(input: {
     const row = await db.feedNotification.findUnique({
       where: { id: job.notificationId },
       include: {
-        post: { select: { status: true, deletedAt: true } },
-        comment: { select: { deletedAt: true } },
+        post: { select: { status: true, deletedAt: true, moderationState: true, authorId: true } },
+        comment: { select: { deletedAt: true, moderationState: true } },
       },
     });
-    let deliverable = Boolean(row && row.post.status === "published" && !row.post.deletedAt &&
-      (!row.commentId || (row.comment && !row.comment.deletedAt)) &&
+    let deliverable = Boolean(row && row.post.status === "published" && !row.post.deletedAt && (!row.post.moderationState || row.post.moderationState === "visible") &&
+      (!row.commentId || (row.comment && !row.comment.deletedAt && (!row.comment.moderationState || row.comment.moderationState === "visible"))) &&
       row.actorIds.length > 0);
     if (deliverable && row && (row.kind === "post_reaction" || row.kind === "comment_reaction")) {
       // Never push a reaction that was removed during the grouping window.
@@ -96,6 +96,10 @@ export function createFeedNotificationOutbox(input: {
         ? await db.feedPostReaction.count({ where: { postId: row.postId, userId: { in: row.actorIds } } })
         : await db.feedCommentReaction.count({ where: { commentId: row.commentId!, userId: { in: row.actorIds } } });
       deliverable = reactionCount > 0;
+    }
+    if (deliverable && row?.kind === "author_post") {
+      const preference = await db.feedAuthorPreference.findUnique({ where: { userId_authorId: { userId: job.recipientId, authorId: row.post.authorId } } });
+      deliverable = Boolean(preference?.notify && !preference.hidden);
     }
     try {
       if (deliverable && row) {

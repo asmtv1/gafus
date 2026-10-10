@@ -1,7 +1,7 @@
 /* Основной контейнер */
 .section {
   padding: 20px;
-  max-width: 500px;
+  max-width: 1440px;
   width: 100%;
   margin: 1rem auto;
   background: #f5f0e5;
@@ -55,10 +55,10 @@
 
 /* Контейнер для кнопок */
 .buttonsContainer {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
-  align-items: center;
+  align-items: stretch;
 }
 
 /* Кнопки */

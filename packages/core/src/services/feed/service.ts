@@ -1,3 +1,4 @@
+import { assertFeedPublishingAllowed, enqueueFeedAuthorPush } from "./preferences";
 import { enqueueFeedPostCleanup } from "./cleanup";
 import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@gafus/prisma";
@@ -47,9 +48,9 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     const found = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "FeedPost" WHERE "id" = ${id} FOR UPDATE`;
     if (!found.length) throw new FeedError("NOT_FOUND", undefined, 404);
   }
-  async function ownedPost(tx: FeedTx, actorId: string, id: string) {
+  async function ownedPost(tx: FeedTx, actorId: string, id: string, allowModerated = false) {
     const row = await tx.feedPost.findFirst({ where: { id, deletedAt: null } });
-    if (!row || row.authorId !== actorId) throw new FeedError("NOT_FOUND", undefined, 404);
+    if (!row || row.authorId !== actorId || (!allowModerated && row.moderationState !== "visible")) throw new FeedError("NOT_FOUND", undefined, 404);
     return row;
   }
   function checkEditable(post: { publishedAt: Date | null }, at: Date) {
@@ -74,16 +75,20 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     if (!posts.length) return [];
     const postIds = posts.map((post) => post.id);
     const activeIds = posts.map(p => p.activeRevisionId).filter((id): id is string => !!id);
-    const [versions, views, comments, counts, mine] = await Promise.all([
+    const [versions, views, comments, counts, mine, bookmarks, preferences] = await Promise.all([
       db.feedPostRevision.findMany({
         where: { id: { in: activeIds } },
         include: { attachments: { orderBy: { position: "asc" }, include: { media: true } } },
       }),
       db.feedPostView.groupBy({ by: ["postId"], where: { postId: { in: postIds } }, _count: { _all: true } }),
-      db.feedComment.groupBy({ by: ["postId"], where: { postId: { in: postIds }, deletedAt: null }, _count: { _all: true } }),
+      db.feedComment.groupBy({ by: ["postId"], where: { postId: { in: postIds }, deletedAt: null, moderationState: "visible" }, _count: { _all: true } }),
       db.feedPostReaction.groupBy({ by: ["postId", "kind"], where: { postId: { in: postIds } }, _count: { _all: true } }),
       db.feedPostReaction.findMany({ where: { postId: { in: postIds }, userId: actorId }, select: { postId: true, kind: true } }),
+      db.feedBookmark.findMany({ where: { userId: actorId, postId: { in: postIds } }, select: { postId: true } }),
+      db.feedAuthorPreference.findMany({ where: { userId: actorId, authorId: { in: posts.map(p => p.authorId) } } }),
     ]);
+    const saved = new Set(bookmarks.map(row => row.postId));
+    const prefs = new Map(preferences.map(row => [row.authorId, row]));
     const versionById = new Map(versions.map(v => [v.id, v]));
     const byCount = <T extends { postId: string; _count: { _all: number } }>(rows: T[]) => new Map(rows.map(row => [row.postId, row._count._all]));
     const viewMap = byCount(views);
@@ -108,7 +113,10 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       const editUntil = post.publishedAt ? new Date(post.publishedAt.getTime() + L.editSeconds * 1000) : null;
       const published = post.status === "published" && !!revision;
       return {
-        id: post.id, author: {
+        id: post.id, bookmarked: saved.has(post.id), authorHidden: prefs.get(post.authorId)?.hidden ?? false,
+        authorNotify: prefs.get(post.authorId)?.notify ?? false,
+        moderationState: post.moderationState, moderationReason: post.authorId === actorId ? post.moderationReason : null,
+        author: {
           id: post.author.id, username: post.author.username,
           name: post.author.profile?.fullName ?? post.author.username,
           avatarUrl: post.author.profile?.avatarUrl ?? null,
@@ -119,7 +127,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         version: post.version, reactions: reactionMap.get(post.id) ?? [],
         myReaction: myMap.get(post.id) ?? null, viewCount: viewMap.get(post.id) ?? 0,
         commentCount: commentMap.get(post.id) ?? 0,
-        canEdit: post.authorId === actorId && (editUntil ? editUntil > at : !published),
+        canEdit: post.moderationState === "visible" && post.authorId === actorId && (editUntil ? editUntil > at : !published),
         canDelete: post.authorId === actorId, serverNow: at.toISOString(),
       };
     }));
@@ -151,15 +159,17 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       publishedAt: post.publishedAt ?? at,
       editedAt: post.publishedAt ? at : null,
     } });
+    await enqueueFeedAuthorPush(tx, post, at);
     return true;
   }
   const service = {
-    async list(actorId: string, query: FeedListQuery = {}): Promise<FeedPostPageDto> {
+    async list(actorId: string, query: FeedListQuery = {}, bookmarksOnly = false): Promise<FeedPostPageDto> {
       await actor(actorId);
       const q = s.feedParse(s.feedListSchema, query);
       const c = decodeCursor(q.cursor);
       const where: Prisma.FeedPostWhereInput = {
-        status: "published", deletedAt: null, publishedAt: { not: null },
+        status: "published", deletedAt: null, moderationState: "visible", publishedAt: { not: null },
+        ...(bookmarksOnly ? { bookmarks: { some: { userId: actorId } } } : { author: { feedSubscribers: { none: { userId: actorId, hidden: true } } } }),
         ...(c ? { OR: [{ publishedAt: { lt: c.date } }, { publishedAt: c.date, id: { lt: c.id } }] } : {}),
       };
       const rows = await db.feedPost.findMany({
@@ -177,7 +187,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       const q = s.feedParse(s.feedListSchema, query);
       const c = decodeCursor(q.cursor);
       const rows = await db.feedPost.findMany({
-        where: { authorId: profile.id, deletedAt: null, status: "published",
+        where: { authorId: profile.id, deletedAt: null, status: "published", ...(profile.id !== actorId ? { moderationState: "visible" } : {}),
           ...(c ? { OR: [{ publishedAt: { lt: c.date } }, { publishedAt: c.date, id: { lt: c.id } }] } : {}) },
         include: postInclude,
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }], take: q.pageSize + 1,
@@ -194,7 +204,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     },
     async get(actorId: string, id: string): Promise<FeedPostDto> {
       await actor(actorId);
-      const row = await db.feedPost.findFirst({ where: { id, status: "published", deletedAt: null }, include: postInclude });
+      const row = await db.feedPost.findFirst({ where: { id, status: "published", deletedAt: null, moderationState: "visible" }, include: postInclude });
       if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
       return (await feedDto(actorId, [row], now()))[0]!;
     },
@@ -204,7 +214,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       s.feedParse(s.feedIdSchema, mediaId);
       const media = await db.feedMediaAsset.findFirst({ where: { id: mediaId, kind: "video", status: "ready" } });
       if (!media?.playlistKey) throw new FeedError("NOT_FOUND", undefined, 404);
-      const post = await db.feedPost.findFirst({ where: { id: media.postId, status: "published", deletedAt: null } });
+      const post = await db.feedPost.findFirst({ where: { id: media.postId, status: "published", deletedAt: null, moderationState: "visible" } });
       if (!post?.activeRevisionId || !await db.feedRevisionAttachment.findFirst({
         where: { revisionId: post.activeRevisionId, mediaId }, select: { mediaId: true },
       })) throw new FeedError("NOT_FOUND", undefined, 404);
@@ -215,6 +225,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       await actor(actorId);
       const value = s.feedParse(s.feedCreatePostSchema, input);
       const id = await transact(async tx => {
+        await assertFeedPublishingAllowed(tx, actorId);
         const prior = await tx.feedPost.findUnique({ where: { authorId_clientRequestId: { authorId: actorId, clientRequestId: value.clientRequestId } } });
         if (prior) return prior.id;
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${actorId} FOR UPDATE`;
@@ -227,6 +238,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       await actor(actorId);
       const value = s.feedParse(s.feedRevisionSchema, input);
       await transact(async tx => {
+        await assertFeedPublishingAllowed(tx, actorId);
         await lock(tx, postId);
         const post = await ownedPost(tx, actorId, postId);
         const previous = await tx.feedPostRevision.findUnique({
@@ -261,6 +273,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       await actor(actorId);
       s.feedParse(s.feedPublishSchema, input);
       await transact(async tx => {
+        await assertFeedPublishingAllowed(tx, actorId);
         await lock(tx, postId);
         const post = await ownedPost(tx, actorId, postId);
         const latest = await tx.feedPostRevision.findFirst({ where: { postId, revisionNumber: post.version }, orderBy: { createdAt: "desc" } });
@@ -279,7 +292,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       await actor(actorId);
       await transact(async tx => {
         await lock(tx, postId);
-        const post = await ownedPost(tx, actorId, postId);
+        const post = await ownedPost(tx, actorId, postId, true);
         const at = now();
         await enqueueFeedPostCleanup(tx, postId, actorId, at, "delete");
         await tx.feedPost.update({ where: { id: post.id }, data: { deletedAt: at, status: "deleted" } });

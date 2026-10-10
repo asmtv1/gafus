@@ -5,9 +5,9 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
-  padding: 8px 16px 10px 16px;
+  padding: 8px clamp(16px, 3vw, 56px) 10px;
   gap: 14px;
 }
 

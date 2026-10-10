@@ -159,7 +159,7 @@ describe("consultations route contracts", () => {
     await expect(response.json()).resolves.toMatchObject({
       success: false,
       code: "CONSULTATION_BOOKING_NOT_INCLUDED",
-      error: "Запись к кинологу доступна по действующему трёхмесячному тарифу",
+      error: "Запись к кинологу доступна по действующему тарифу «Полное сопровождение»",
     });
   });
 });

@@ -144,8 +144,7 @@ export default function MainLayout() {
             <Stack.Screen
               name="reminders"
               options={{
-                headerShown: true,
-                title: "Напоминания",
+                headerShown: false,
               }}
             />
             <Stack.Screen

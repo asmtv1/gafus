@@ -7,3 +7,4 @@ export { RequiredAppUpdateGate } from "./RequiredAppUpdateGate";
 export { PaperTextureBackground } from "./PaperTextureBackground";
 export { TexturedSafeAreaView } from "./TexturedSafeAreaView";
 export { PageHeader } from "./PageHeader";
+export { AppBackButton } from "./AppBackButton";

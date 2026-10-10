@@ -14,15 +14,14 @@
   text-align: center;
 }
 .courseList {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
   gap: 20px;
-  padding: 0 20px;
+  padding: 0 clamp(16px, 3vw, 56px);
   margin-top: 22px;
-  justify-items: center;
-  align-items: center;
-  align-content: center;
-  flex-wrap: wrap;
-  justify-content: space-evenly;
+  justify-items: stretch;
+  align-items: stretch;
+  align-content: start;
 }
 
 .emptyState {

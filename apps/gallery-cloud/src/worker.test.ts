@@ -50,5 +50,34 @@ describe('lease, duplicate and job retries with real processing',()=>{
   expect(x.data.has(staging+'/thumb.webp')).toBe(true);
   expect(x.data.has(staging+'/full.webp')).toBe(true);
  });
+ it('maintenance drains cleanup before publishing within the same timer invocation',async()=>{
+  const x=await setup();await x.worker.processUpload('u');vi.mocked(x.core.claimJobs).mockClear();
+  const keys=[staging+'/thumb.webp',staging+'/full.webp'];
+  vi.mocked(x.core.claimJobs)
+   .mockResolvedValueOnce([{jobId:'cleanup',kind:'delete',attemptToken:'ct',sourceKeys:['albums/o/a/incoming/old/source.png'],sourceETags:[],targetKeys:[],leaseUntil:x.claim.leaseUntil,writeMode:'create-if-absent'}])
+   .mockResolvedValueOnce([{jobId:'publish',kind:'publish',attemptToken:'pt',sourceKeys:keys,sourceETags:keys.map(k=>objectMd5(x.data.get(k)!)),targetKeys:[final+'/thumb.webp',final+'/full.webp'],leaseUntil:x.claim.leaseUntil,writeMode:'create-if-absent'}])
+   .mockResolvedValueOnce([]);
+  await x.worker.maintenance();
+  expect(x.core.completeJob).toHaveBeenCalledWith({jobId:'cleanup',attemptToken:'ct'});
+  expect(x.core.completeJob).toHaveBeenCalledWith({jobId:'publish',attemptToken:'pt'});
+  expect(x.core.claimJobs).toHaveBeenCalledTimes(3);
+  expect(x.data.has(final+'/full.webp')).toBe(true);
+ });
+ it('bounds maintenance to ten jobs without claiming the remaining backlog',async()=>{
+  const x=await setup();let claimed=0;
+  vi.mocked(x.core.claimJobs).mockImplementation(async()=>[{jobId:`cleanup-${++claimed}`,kind:'delete',attemptToken:'ct',sourceKeys:[],sourceETags:[],targetKeys:[],leaseUntil:x.claim.leaseUntil,writeMode:'create-if-absent'}]);
+  await x.worker.maintenance();
+  expect(x.core.claimJobs).toHaveBeenCalledTimes(10);
+  expect(x.core.completeJob).toHaveBeenCalledTimes(10);
+ });
+ it('does not claim another job when the invocation budget is nearly exhausted',async()=>{
+  const x=await setup();let clock=now;
+  vi.mocked(x.core.claimJobs).mockResolvedValue([{jobId:'cleanup',kind:'delete',attemptToken:'ct',sourceKeys:[],sourceETags:[],targetKeys:[],leaseUntil:x.claim.leaseUntil,writeMode:'create-if-absent'}]);
+  vi.mocked(x.core.completeJob).mockImplementation(async()=>{clock+=41000;return {accepted:true,status:'done'};});
+  const worker=createGalleryCloudWorker({core:x.core,objects:x.objects,engine:sharpGalleryEngine,queue:x.queue,now:()=>clock});
+  await worker.maintenance();
+  expect(x.core.claimJobs).toHaveBeenCalledTimes(1);
+  expect(x.core.completeJob).toHaveBeenCalledTimes(1);
+ });
  it('maintenance queues recovered IDs and preserves cleanup while disabled',async()=>{const x=await setup();await x.worker.maintenance();expect(x.queue.send).toHaveBeenCalledWith('u');x.queue.send.mockClear();const disabled=createGalleryCloudWorker({core:x.core,objects:x.objects,engine:sharpGalleryEngine,queue:x.queue,now:()=>now,enabled:false});await disabled.maintenance();expect(x.queue.send).not.toHaveBeenCalled();expect(x.core.claimJobs).toHaveBeenCalledTimes(2);expect(x.core.maintenance).toHaveBeenCalledTimes(2);});
 });

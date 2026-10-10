@@ -93,6 +93,11 @@ function extractHttpErrorDetails(data: unknown): Record<string, unknown> | undef
  * Прокси/HTML/текст вместо JSON дают понятную ошибку вместо «Unexpected character: T».
  */
 async function safeParseResponseJson(response: Response): Promise<SafeJsonOk | SafeJsonErr> {
+  // Rate limits can be returned as plain text by middleware or the proxy.
+  if (response.status === 429) {
+    return { ok: true, value: { success: false, code: "RATE_LIMITED",
+      error: "Слишком много запросов. Подождите немного и повторите попытку." } };
+  }
   const text = await response.text();
   const trimmed = text.trim();
   if (!trimmed) {

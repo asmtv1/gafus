@@ -1,8 +1,8 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { FlashList } from "@shopify/flash-list";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { feedApi } from "@/shared/lib/api/feed";
@@ -30,7 +30,8 @@ export function FeedProfilePostsScreen({ username }: { username: string }) {
       <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.link}>← Назад</Text></Pressable>
       <Text style={styles.title}>Публикации</Text>
     </View>
-    {status.data?.enabled !== true ? <View style={styles.card}><Text style={styles.body}>Лента пока недоступна.</Text></View> :
+    {status.isPending ? <Loading fullScreen embedded message="Загрузка публикаций…" /> :
+      status.data?.enabled !== true ? <View style={styles.card}><Text style={styles.body}>Лента пока недоступна.</Text></View> :
       <FlashList
         data={items}
         keyExtractor={item => item.id}
@@ -40,10 +41,9 @@ export function FeedProfilePostsScreen({ username }: { username: string }) {
         onEndReachedThreshold={0.4}
         onRefresh={() => void query.refetch()}
         refreshing={query.isRefetching}
-        ListEmptyComponent={<View style={styles.card}>
-          {query.isPending ? <ActivityIndicator color={COLORS.primary} /> :
-            <Text style={styles.body}>{query.isError ? "Не удалось загрузить публикации." : "Публикаций пока нет."}</Text>}
-        </View>}
+        ListEmptyComponent={query.isPending ? <Loading variant="inline" size="large" message="Загрузка публикаций…" /> :
+          <View style={styles.card}><Text style={styles.body}>{query.isError ? "Не удалось загрузить публикации." : "Публикаций пока нет."}</Text></View>}
+        ListFooterComponent={query.isFetchingNextPage ? <MascotSpinner size="small" /> : null}
       />}
   </TexturedSafeAreaView>;
 }

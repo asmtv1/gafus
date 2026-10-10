@@ -9,6 +9,7 @@ import { galleryApi } from "./api";
 import { galleryMessage, useGalleryAlbums } from "./hooks";
 import { AlbumForm } from "./AlbumForm";
 import { UploadQueue } from "./UploadQueue";
+import { LoadingState } from "@/shared/components/ui";
 import styles from "./Gallery.module.css";
 function AlbumsContent({ username, preview = false }: { username: string; preview?: boolean }) {
   const { query, albums, info, authenticated, viewerId } = useGalleryAlbums(username, preview);
@@ -41,7 +42,7 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
           <Link href={`/profile/albums?username=${encodeURIComponent(username)}`}>Все альбомы</Link>
         )}
       </div>
-      {query.isPending && <p role="status">Загрузка альбомов…</p>}
+      {query.isPending && <LoadingState variant="inline" size={preview ? "small" : "large"} message="Загрузка альбомов…" />}
       {(query.error || error) && (
         <p role="alert" className={styles.error}>
           {error || galleryMessage(query.error)}{" "}

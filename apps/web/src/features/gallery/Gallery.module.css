@@ -1,7 +1,7 @@
 .surface {
   box-sizing: border-box;
-  width: calc(100% - 24px);
-  max-width: 960px;
+  width: calc(100% - 32px);
+  max-width: 1600px;
   margin: 20px auto;
   padding: 24px;
   background: var(--surface, #fff8e5);
@@ -12,8 +12,20 @@
   overflow-wrap: anywhere;
 }
 .preview {
-  max-width: 500px;
+  max-width: 100%;
   padding: 20px;
+}
+@media (min-width: 1200px) {
+  .surface:not(.preview) { padding: clamp(24px, 3vw, 48px); }
+  .surface:not(.preview) .grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+  }
+  .preview { max-width: 720px; }
+}
+@media (max-width: 767px) {
+  .surface { width: calc(100% - 24px); padding: 16px; }
+  .preview { max-width: 500px; }
 }
 .surface h1,
 .surface h2 {

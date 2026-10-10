@@ -1,6 +1,8 @@
 # Private gallery cloud delivery
 
-Implementation step 3 is complete locally. DEV infrastructure and CDN are deployed; DNS and HTTPS work. Runtime smoke has not yet been verified. The production deployment is pending. `GALLERY_ENABLED=true` and `GALLERY_PROCESSOR_READY=true` are staged in local Compose, and a reviewed DEV Terraform plan will enable four existing cloud functions. Neither activation nor real runtime smoke has been completed yet. Core owns registration, quotas, authorization, leases, durable jobs and cleanup. Workers use signed HTTP only and never connect to a database.
+As of 2026-10-10, the production API uses the enabled Gallery DEV cloud resources. A targeted live PNG upload, immediate publication, origin, gateway and CDN delivery have been verified; unsigned/invalid CDN requests, anonymous storage and unauthenticated gateway requests returned 403. This does not establish every load, format, recovery and cold-start gate below. Core owns registration, quotas, authorization, leases, durable jobs and cleanup. Workers use signed HTTP only and never connect to a database.
+
+The 2026-10-10 production repair updated `process` and `maintenance`: the deployed processor was older than the immediate-publication fix, and the timer consumed only one storage job every five minutes. Maintenance now drains at most ten jobs, claiming one at a time while sufficient invocation time remains. The origin also lacked base bucket read permission: bucket policy alone does not pass the preceding IAM/ACL check. `photo_origin_reader` grants `storage.viewer` only on the photo bucket; the existing `FinalOrigin` policy still restricts reads to final images. No folder-wide storage role or public access was added. The original stalled photo was published through its durable job, and temporary private test albums were removed.
 
 ## Factories and imports
 

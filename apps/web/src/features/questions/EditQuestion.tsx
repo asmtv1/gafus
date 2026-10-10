@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { questionsApi } from "./api";
+import { LoadingState } from "@/shared/components/ui";
 import { QuestionForm } from "./QuestionForm";
 import s from "./Questions.module.css";
 export function EditQuestion({ id }: { id: string }) {
@@ -11,7 +12,7 @@ export function EditQuestion({ id }: { id: string }) {
     queryFn: () => questionsApi.detail(id),
     enabled: !!userId,
   });
-  if (query.isPending) return <main className={s.page}>Загрузка вопроса…</main>;
+  if (query.isPending) return <main className={s.page}><LoadingState variant="inline" size="large" message="Загрузка вопроса…" /></main>;
   if (query.isError || !query.data?.canEdit || query.data.blockReason)
     return (
       <main className={s.page}>

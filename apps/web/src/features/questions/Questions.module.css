@@ -1,7 +1,8 @@
 .page {
-  max-width: 1000px;
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 28px 24px 64px;
+  padding: 28px clamp(16px, 3vw, 56px) 64px;
   color: #352e2e;
 }
 .heading {
@@ -358,4 +359,206 @@ a.card:hover {
   min-height: 88px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+/* Compact questions index. Detail pages and editors retain their own spacing. */
+.questionsPage {
+  padding-top: 18px;
+  padding-bottom: 40px;
+}
+.questionsHeading {
+  margin-bottom: 14px;
+  gap: 12px;
+}
+.questionsPage h1 {
+  font-size: clamp(25px, 3vw, 32px);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.questionsHeading .subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.questionsPage .askButton {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 12px;
+  font-size: 14px;
+  gap: 5px;
+  white-space: nowrap;
+}
+.questionsPage .askButton svg {
+  font-size: 18px;
+}
+.questionTools {
+  padding: 10px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(77, 92, 45, 0.15);
+  border-radius: 14px;
+  background: rgba(245, 240, 229, 0.72);
+}
+.questionFilters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 205px) minmax(135px, 185px);
+  gap: 8px;
+}
+.questionFilters input,
+.questionFilters select {
+  min-width: 0;
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  border: 1px solid #b9b5a5;
+  border-radius: 10px;
+  background: #faf7ef;
+  color: #352e2e;
+  font: inherit;
+  font-size: 13px;
+  padding: 0 12px;
+}
+.questionFilters select {
+  cursor: pointer;
+}
+.questionSearch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.questionSearch > svg {
+  position: absolute;
+  left: 12px;
+  color: #656a53;
+  pointer-events: none;
+}
+.questionFilters .questionSearch input {
+  padding-left: 39px;
+}
+.questionFilters input::placeholder {
+  color: #6a655b;
+}
+.questionOptions {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(77, 92, 45, 0.12);
+}
+.questionOptions .tabs {
+  gap: 4px;
+}
+.questionScope {
+  flex-shrink: 0;
+}
+.questionSort {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+.questionTab {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #555446;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.questionTab:hover {
+  background: rgba(77, 92, 45, 0.08);
+}
+.questionTabActive {
+  background: #e1e6d0;
+  border-color: rgba(77, 92, 45, 0.3);
+  color: #3b4822;
+  font-weight: 600;
+}
+.questionsPage .questionCard {
+  padding: 15px 20px;
+  margin: 8px 0;
+  border: 1px solid rgba(77, 92, 45, 0.09);
+  border-radius: 14px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.questionsPage a.questionCard:hover {
+  background: #f1ecdf;
+  border-color: rgba(77, 92, 45, 0.3);
+}
+.questionsPage .questionCard h2 {
+  font-size: 19px;
+  line-height: 1.35;
+  margin: 9px 0 11px;
+}
+.questionCard .tabs {
+  gap: 5px;
+}
+.questionCard .badge,
+.questionCard .tag {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+.questionCard .cardFooter {
+  margin-top: 10px;
+  gap: 10px;
+}
+.questionCard .author {
+  gap: 8px;
+  font-size: 12px;
+}
+.questionCard .avatar {
+  width: 30px;
+  height: 30px;
+}
+.questionCard .meta {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.questionCard .bestPreview {
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+.questionsPage .empty {
+  padding: 28px 20px;
+}
+@media (max-width: 740px) {
+  .questionFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .questionSearch {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .questionsPage {
+    padding: 14px 16px 40px;
+  }
+  .questionsHeading {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .questionsHeading > div {
+    flex: 1 1 180px;
+  }
+  .questionsPage .questionCard {
+    padding: 13px 14px;
+  }
+  .questionsPage .questionCard h2 {
+    font-size: 17px;
+  }
+  .questionTab {
+    padding: 6px 9px;
+  }
+  .questionOptions {
+    gap: 6px;
+  }
+  .questionSort {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }

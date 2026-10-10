@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuthStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { galleryApi } from "@/shared/lib/api/gallery";
+import { Loading } from "@/shared/components";
 
 /** Only the current user's albums can be selected, including hidden ones. */
 export function FeedAlbumPicker({ selected, onChange, disabled }: {
@@ -36,7 +37,7 @@ export function FeedAlbumPicker({ selected, onChange, disabled }: {
   return <View style={styles.card}>
     <Text style={styles.title}>Фотографии из моих альбомов</Text>
     <Text style={styles.notice}>При публикации будет создана отдельная копия. Даже фотография из скрытого альбома станет видна читателям.</Text>
-    {albums.isPending && <Text style={styles.notice}>Загружаем альбомы…</Text>}
+    {albums.isPending && <Loading variant="inline" size="small" message="Загружаем альбомы…" />}
     {albums.isError && <Pressable accessibilityRole="button" onPress={() => void albums.refetch()}>
       <Text style={styles.link}>Не удалось загрузить альбомы. Повторить</Text>
     </Pressable>}
@@ -51,7 +52,7 @@ export function FeedAlbumPicker({ selected, onChange, disabled }: {
       </Pressable>}
     </ScrollView>
     {albumId && <>
-      {photos.isPending && <Text style={styles.notice}>Загружаем фотографии…</Text>}
+      {photos.isPending && <Loading variant="inline" size="small" message="Загружаем фотографии…" />}
       {photos.isError && <Pressable accessibilityRole="button" onPress={() => void photos.refetch()}>
         <Text style={styles.link}>Ошибка загрузки фотографий. Повторить</Text>
       </Pressable>}

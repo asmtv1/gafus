@@ -5,7 +5,7 @@
 
 .catalogHeading {
   width: 100%;
-  max-width: 960px;
+  max-width: none;
   margin: 0 auto 16px;
 }
 
@@ -43,10 +43,18 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 960px;
+  max-width: none;
   padding: 0;
   margin: 0 auto;
   list-style: none;
+}
+
+@media (min-width: 1100px) {
+  .list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+    align-items: stretch;
+  }
 }
 
 .card {

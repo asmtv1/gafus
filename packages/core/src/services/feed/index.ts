@@ -12,3 +12,4 @@ export type { FeedStorageJobClaim, FeedAssetOutput } from "./jobs";
 export type { FeedNotificationDelivery } from "./outbox";
 
 export { createFeedUploadRecovery } from "./recovery";
+export { createFeedPreferences, feedPreferenceSchema, feedReportSchema } from "./preferences";

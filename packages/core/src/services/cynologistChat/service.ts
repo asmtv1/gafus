@@ -125,7 +125,7 @@ export async function startChat(userId: string, input: unknown) {
   if (!(await getCynologistEntitlements(userId)).canUseCynologistChat)
     throw new ChatError(
       "CHAT_SUBSCRIPTION_REQUIRED",
-      "Для начала переписки нужен месячный или трёхмесячный тариф",
+      "Для начала переписки нужен тариф «Поддержка в чате» или «Полное сопровождение»",
       403,
     );
   let chat = await prisma.cynologistChat.findUnique({ where: { clientUserId: userId } });

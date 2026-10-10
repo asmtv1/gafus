@@ -4,6 +4,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { GalleryScope } from "@/features/gallery/GalleryScope";
 import { galleryApi } from "@/features/gallery/api";
+import { LoadingState } from "@/shared/components/ui";
 import styles from "./Feed.module.css";
 
 /** Album access is resolved as the authenticated owner, including hidden albums. */
@@ -37,7 +38,7 @@ function Picker({ selected, onChange, disabled }: {
   return <section className={styles.comment} aria-label="Выбрать фотографию из своего альбома">
     <h3>Из моих фотоальбомов</h3>
     <p className={styles.muted}>При публикации будет создана отдельная копия. Фотография станет видна читателям, даже если альбом скрыт.</p>
-    {albums.isPending && <p role="status">Загружаем альбомы…</p>}
+    {albums.isPending && <LoadingState variant="inline" size="small" message="Загружаем альбомы…" />}
     {albums.isError && <button type="button" className={styles.secondary} onClick={() => void albums.refetch()}>Повторить загрузку альбомов</button>}
     <div className={styles.actions}>
       {allAlbums.map(album => <button type="button" key={album.id} disabled={disabled}
@@ -46,8 +47,9 @@ function Picker({ selected, onChange, disabled }: {
     </div>
     {albums.hasNextPage && <button type="button" className={styles.secondary}
       disabled={albums.isFetchingNextPage} onClick={() => void albums.fetchNextPage()}>Ещё альбомы</button>}
+    {albums.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем альбомы…" />}
     {albumId && <>
-      {photos.isPending && <p role="status">Загружаем фотографии…</p>}
+      {photos.isPending && <LoadingState variant="inline" size="small" message="Загружаем фотографии…" />}
       {photos.isError && <button type="button" className={styles.secondary} onClick={() => void photos.refetch()}>Повторить загрузку фото</button>}
       <div className={styles.media}>
         {allPhotos.map(photo => <button type="button" key={photo.id}

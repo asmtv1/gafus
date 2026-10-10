@@ -21,6 +21,7 @@ import { authMiddleware } from "./middleware/auth.js";
 import {
   authRateLimiter,
   apiRateLimiter,
+  galleryRateLimiter,
   paymentsRateLimiter,
   usernameAvailableRateLimiter,
 } from "./middleware/rate-limit.js";
@@ -92,8 +93,8 @@ const galleryNoStore = async (c: import("hono").Context, next: () => Promise<voi
   c.header("Cache-Control", "no-store");
   await next();
 };
-app.use("/api/v1/gallery", galleryNoStore, authMiddleware, apiRateLimiter);
-app.use("/api/v1/gallery/*", galleryNoStore, authMiddleware, apiRateLimiter);
+app.use("/api/v1/gallery", galleryNoStore, authMiddleware, galleryRateLimiter);
+app.use("/api/v1/gallery/*", galleryNoStore, authMiddleware, galleryRateLimiter);
 app.route("/api/v1/gallery", galleryRoutes);
 app.use("/api/v1/feed", galleryNoStore, authMiddleware, apiRateLimiter);
 app.use("/api/v1/feed/*", galleryNoStore, authMiddleware, apiRateLimiter);

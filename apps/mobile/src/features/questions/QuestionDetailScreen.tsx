@@ -21,7 +21,7 @@ import {
   type QuestionAnswerDto,
   type QuestionPhotoDto,
 } from "@gafus/types";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore } from "@/shared/stores";
 import { COLORS, FONTS } from "@/shared/config";
 import { questionsApi } from "@/shared/lib/api/questions";
@@ -382,7 +382,7 @@ export function QuestionDetailScreen({ id }: { id: string }) {
             icon="arrow-left"
             onPress={() => router.replace("/(main)/(tabs)/questions" as Href)}
           />
-          {query.isPending && <Text style={st.meta}>Загрузка вопроса…</Text>}
+          {query.isPending && <Loading variant="inline" size="large" message="Загрузка вопроса…" />}
           {query.isError && (
             <View style={st.group}>
               <Text accessibilityRole="alert" style={st.error}>
@@ -497,6 +497,7 @@ export function QuestionDetailScreen({ id }: { id: string }) {
                     onPress={() => void query.fetchNextPage()}
                   />
                 )}
+                {query.isFetchingNextPage && <MascotSpinner size="small" />}
               </View>
               <QuestionPostMenu
                 title="Действия с ответом"
@@ -549,7 +550,7 @@ export function QuestionDetailScreen({ id }: { id: string }) {
                 </View>
               )}
               {(question.canReply || editing) && (
-                <View style={st.card}>
+                <View style={[st.card, styles.answerComposer]}>
                   <QInput
                     label={
                       editing
@@ -561,29 +562,38 @@ export function QuestionDetailScreen({ id }: { id: string }) {
                     value={body}
                     onChange={setBody}
                     multiline
+                    minHeight={84}
                     maxLength={QUESTION_LIMITS.body}
                     placeholder="Поделитесь своим опытом"
                   />
-                  <QPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
-                  <QButton
-                    label={busy ? "Отправка…" : editing ? "Сохранить" : "Ответить"}
-                    disabled={busy || uploading || !body.trim()}
-                    onPress={() =>
-                      void run(async () => {
-                        if (editing)
-                          await questionsApi.editAnswer(editing.id, {
-                            body,
-                            photoIds: photos.map((p) => p.id),
-                          });
-                        else
-                          await questionsApi.answer(id, {
-                            body,
-                            photoIds: photos.map((p) => p.id),
-                            replyToId: replyTo?.id,
-                            clientRequestId: requestId,
-                          });
-                        reset();
-                      })
+                  <QPhotoPicker
+                    photos={photos}
+                    onChange={setPhotos}
+                    onBusy={setUploading}
+                    compact
+                    trailingAction={
+                      <QButton
+                        label={busy ? "Отправка…" : editing ? "Сохранить" : "Ответить"}
+                        compact
+                        disabled={busy || uploading || !body.trim()}
+                        onPress={() =>
+                          void run(async () => {
+                            if (editing)
+                              await questionsApi.editAnswer(editing.id, {
+                                body,
+                                photoIds: photos.map((p) => p.id),
+                              });
+                            else
+                              await questionsApi.answer(id, {
+                                body,
+                                photoIds: photos.map((p) => p.id),
+                                replyToId: replyTo?.id,
+                                clientRequestId: requestId,
+                              });
+                            reset();
+                          })
+                        }
+                      />
                     }
                   />
                   {(replyTo || editing) && <QButton label="Отмена" secondary onPress={reset} />}
@@ -598,6 +608,7 @@ export function QuestionDetailScreen({ id }: { id: string }) {
 }
 const styles = StyleSheet.create({
   detailContent: { gap: 12 },
+  answerComposer: { paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
   questionCard: { paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
   questionTitle: { fontSize: 19, lineHeight: 26 },
   questionMeta: { fontSize: 11, lineHeight: 16, marginTop: 1 },

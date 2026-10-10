@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert, FlatList, Modal, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { COLORS, FONTS } from "@/shared/config";
@@ -226,19 +228,78 @@ export function QStatus({ question, compact = false }: { question: QuestionListI
   );
 }
 export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const { width } = useWindowDimensions();
+  const closeViewer = () => setViewerIndex(null);
+
   return (
-    <View style={st.row}>
-      {photos.map((p) => (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Открыть фото"
-          key={p.id}
-          onPress={() => void Linking.openURL(p.url)}
+    <>
+      <View style={st.row}>
+        {photos.map((p, index) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Открыть фото ${index + 1} из ${photos.length}`}
+            key={p.id}
+            onPress={() => setViewerIndex(index)}
+          >
+            <Image source={{ uri: p.url }} contentFit="cover" style={st.photo} />
+          </Pressable>
+        ))}
+      </View>
+      {viewerIndex !== null && (
+        <Modal
+          visible
+          animationType="fade"
+          onRequestClose={closeViewer}
+          supportedOrientations={["portrait", "landscape"]}
         >
-          <Image source={{ uri: p.url }} contentFit="cover" style={st.photo} />
-        </Pressable>
-      ))}
-    </View>
+          <StatusBar hidden />
+          <SafeAreaProvider>
+            <SafeAreaView edges={["top", "bottom"]} style={st.questionPhotoViewer}>
+            <View style={st.questionPhotoViewerHeader}>
+              <Text style={st.questionPhotoViewerCount}>
+                {viewerIndex + 1} / {photos.length}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Закрыть просмотр фотографии"
+                hitSlop={8}
+                onPress={closeViewer}
+                style={st.questionPhotoViewerClose}
+              >
+                <MaterialCommunityIcons name="close" size={26} color="#fff" />
+              </Pressable>
+            </View>
+            <FlatList
+              key={width}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              data={photos}
+              initialScrollIndex={Math.min(viewerIndex, photos.length - 1)}
+              keyExtractor={(photo) => photo.id}
+              getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+              onMomentumScrollEnd={(event) => {
+                setViewerIndex(
+                  Math.max(0, Math.min(photos.length - 1, Math.round(event.nativeEvent.contentOffset.x / width))),
+                );
+              }}
+              renderItem={({ item, index }) => (
+                <View style={[st.questionPhotoViewerPage, { width }]}>
+                  <Image
+                    source={{ uri: item.url }}
+                    contentFit="contain"
+                    style={st.questionPhotoViewerImage}
+                    accessibilityLabel={`Фото ${index + 1} из ${photos.length}`}
+                  />
+                </View>
+              )}
+            />
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </Modal>
+      )}
+    </>
   );
 }
 export function QBody({
@@ -274,10 +335,14 @@ export function QPhotoPicker({
   photos,
   onChange,
   onBusy,
+  compact = false,
+  trailingAction,
 }: {
   photos: QuestionPhotoDto[];
   onChange: (photos: QuestionPhotoDto[]) => void;
   onBusy: (busy: boolean) => void;
+  compact?: boolean;
+  trailingAction?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -320,34 +385,59 @@ export function QPhotoPicker({
     }
   };
   return (
-    <View style={st.group}>
-      <View style={st.row}>
+    <View style={[st.group, compact && st.compactPhotoPicker]}>
+      {photos.length > 0 && <View style={st.row}>
         {photos.map((p) => (
           <View key={p.id}>
-            <Image source={{ uri: p.url }} contentFit="cover" style={st.photo} />
+            <Image source={{ uri: p.url }} contentFit="cover" style={[st.photo, compact && st.compactPhoto]} />
             <Pressable
               disabled={busy}
               accessibilityRole="button"
               accessibilityLabel="Убрать фото"
-              style={st.removePhoto}
+              hitSlop={compact ? 8 : undefined}
+              style={[st.removePhoto, compact && st.compactRemovePhoto]}
               onPress={() => {
                 onChange(photos.filter((x) => x.id !== p.id));
                 void discardQuestionPhoto(p.id).catch(() => undefined);
               }}
             >
-              <MaterialCommunityIcons name="close" size={22} color={COLORS.text} />
+              <MaterialCommunityIcons name="close" size={compact ? 16 : 22} color={COLORS.text} />
             </Pressable>
           </View>
         ))}
-      </View>
-      <QButton
-        label={busy ? "Загрузка фото…" : "Прикрепить фото"}
-        secondary
-        icon="image-plus"
-        disabled={busy || photos.length >= QUESTION_LIMITS.photos}
-        onPress={() => void pick()}
-      />
-      <Text style={st.meta}>До 5 фото · до 10 МБ каждое</Text>
+      </View>}
+      {compact ? (
+        <View style={st.compactPhotoToolbar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Прикрепить фото"
+            accessibilityHint="До 5 фото, до 10 МБ каждое"
+            accessibilityState={{ disabled: busy || photos.length >= QUESTION_LIMITS.photos }}
+            disabled={busy || photos.length >= QUESTION_LIMITS.photos}
+            onPress={() => void pick()}
+            style={({ pressed }) => [
+              st.compactPhotoAction,
+              (pressed || busy || photos.length >= QUESTION_LIMITS.photos) && { opacity: 0.6 },
+            ]}
+          >
+            <MaterialCommunityIcons name="image-plus-outline" size={19} color={COLORS.primary} />
+            <Text style={st.compactPhotoText}>{busy ? "Загрузка…" : "Фото"}</Text>
+            <Text style={st.compactPhotoHint}>{photos.length}/{QUESTION_LIMITS.photos} · 10 МБ</Text>
+          </Pressable>
+          {trailingAction}
+        </View>
+      ) : (
+        <>
+          <QButton
+            label={busy ? "Загрузка фото…" : "Прикрепить фото"}
+            secondary
+            icon="image-plus"
+            disabled={busy || photos.length >= QUESTION_LIMITS.photos}
+            onPress={() => void pick()}
+          />
+          <Text style={st.meta}>До 5 фото · до 10 МБ каждое</Text>
+        </>
+      )}
       {error && (
         <Text accessibilityRole="alert" style={st.error}>
           {error}
@@ -397,7 +487,44 @@ export function QInput({
 }
 export const st = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40, gap: 16 },
+  questionPhotoViewer: { flex: 1, backgroundColor: "#101010" },
+  questionPhotoViewerHeader: {
+    minHeight: 52,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  questionPhotoViewerCount: { color: "#fff", fontFamily: FONTS.montserratMedium, fontSize: 14 },
+  questionPhotoViewerClose: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  questionPhotoViewerPage: { flex: 1, paddingHorizontal: 12, justifyContent: "center" },
+  questionPhotoViewerImage: { flex: 1, width: "100%" },
   group: { gap: 8 },
+  compactPhotoPicker: { gap: 8 },
+  compactPhotoToolbar: {
+    minHeight: 44,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  compactPhotoAction: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  compactPhotoText: { fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.primary },
+  compactPhotoHint: { fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
+  compactPhoto: { width: 64, height: 64, borderRadius: 8 },
+  compactRemovePhoto: { width: 26, height: 26, borderRadius: 13 },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   card: { backgroundColor: COLORS.cardBackground, borderRadius: 16, padding: 18, gap: 16 },
   listCard: { padding: 12, gap: 8, borderRadius: 14 },

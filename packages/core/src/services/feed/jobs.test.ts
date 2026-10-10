@@ -29,6 +29,7 @@ function mockDb(options: {
     version: 1, publishedAt: null, activeRevisionId: null,
   };
   const tx = {
+    feedAuthorPreference: { findMany: vi.fn(async () => []) },
     feedStorageJob: {
       findFirst: vi.fn(async () => options.stale ? null : j),
       updateMany: updates, upsert: vi.fn(async () => ({})),

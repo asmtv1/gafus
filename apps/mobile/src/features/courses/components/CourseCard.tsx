@@ -640,7 +640,7 @@ function CourseCardComponent({
                   fontSize={13}
                   fontFamily={FONTS.montserratBold}
                   icon="lock-outline"
-                  accessibilityHint="Скачивание курсов доступно на тарифах на один или три месяца"
+                  accessibilityHint="Скачивание курсов доступно на тарифах «Поддержка в чате» и «Полное сопровождение»"
                 />
               ) : (
                 <Button

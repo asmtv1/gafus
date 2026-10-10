@@ -1,5 +1,5 @@
 import { createFeedPlayback } from "./playback.js";
-import { createFeedService, createFeedSocial, FeedError, feedParse, feedListSchema, feedReactionListSchema,
+import { createFeedService, createFeedSocial, createFeedPreferences, FeedError, feedParse, feedListSchema, feedReactionListSchema,
   feedCreatePostSchema, feedRevisionSchema, feedPublishSchema, feedCommentSchema, feedCommentEditSchema,
   feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema,
 } from "@gafus/core/services/feed";
@@ -13,6 +13,7 @@ const flag = () => process.env.FEED_ENABLED === "true" && process.env.FEED_PROCE
 const storage = createFeedStorageFromEnv();
 const service = createFeedService({ db: prisma, storage, enabled: flag });
 const social = createFeedSocial({ db: prisma, enabled: flag });
+const preferences = createFeedPreferences({ db: prisma, enabled: flag });
 export interface FeedHttpError {
   status: number;
   body: { success: false; error: string; code: string };
@@ -90,6 +91,7 @@ export async function dispatchFeedRequest(
   path: string,
   posts: FeedService = service,
   actions: FeedSocialService = social,
+  personal: ReturnType<typeof createFeedPreferences> = preferences,
 ): Promise<unknown> {
   const method = request.method.toUpperCase();
   if (!allowed.has(method)) throw new FeedError("VALIDATION_ERROR", "Метод не поддерживается", 405);
@@ -113,6 +115,13 @@ export async function dispatchFeedRequest(
       if (entries.length !== 1 || entries[0]?.[0] !== "ticket") throw new FeedError("VALIDATION_ERROR", undefined, 400);
       return playbackService(posts).manifest(mediaId, entries[0][1], actorId);
     }
+  }
+  if (len === 2 && one === "me" && two === "bookmarks" && method === "GET") return posts.list(actorId, parseQuery(url), true);
+  if (len === 2 && one === "me" && two === "hidden-authors" && method === "GET") return personal.hiddenAuthors(actorId, parseQuery(url));
+  if (len === 3 && one === "authors" && three === "preferences" && method === "PATCH") return personal.preference(actorId, routeId(two!), input);
+  if (len === 3 && (one === "posts" || one === "comments") && three === "report" && method === "POST") return personal.report(actorId, one === "posts" ? "post" : "comment", routeId(two!), input);
+  if (len === 3 && one === "posts" && three === "bookmark" && (method === "PUT" || method === "DELETE")) {
+    assertEmpty(input); return personal.bookmark(actorId, routeId(two!), method === "PUT");
   }
   if (is(1, "posts") && method === "GET") return posts.list(actorId, parseQuery(url));
   if (len === 3 && one === "profiles" && three === "posts" && method === "GET")

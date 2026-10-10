@@ -8,6 +8,7 @@ import { File } from "expo-file-system";
 import { useQuery } from "@tanstack/react-query";
 import { GALLERY_LIMITS } from "@gafus/types";
 import { Button } from "@/shared/components/ui";
+import { MascotSpinner } from "@/shared/components";
 import { COLORS } from "@/shared/config";
 import { galleryApi } from "@/shared/lib/api/gallery";
 import { galleryError, galleryKeys, requestId, useForeground, useGalleryContext } from "./data";
@@ -93,19 +94,19 @@ function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => 
   const dismissible = canDismissUploadTask(task.status);
   useEffect(() => {
     if (task.status !== "ready" && task.status !== "cancelled") return;
-    const timer = setTimeout(() => dismissUploadTask(task.id, { epoch, generation: task.generation }), 10_000);
+    const timer = setTimeout(() => dismissUploadTask(task.id, { epoch, generation: task.generation }), 4_500);
     return () => clearTimeout(timer);
   }, [task.id, task.status, task.generation, epoch]);
   const status = useQuery({
     queryKey: [...galleryKeys.album(viewer, task.owner, task.albumId ?? "default"), "upload", task.upload?.uploadId, epoch, task.generation],
     queryFn: () => pollTask(task.id, { epoch, generation: task.generation }, galleryApi),
     enabled: !!viewer && !!task.upload && task.status === "processing" && foreground,
-    refetchInterval: query => foreground && (!query.state.data || ["reserved", "uploaded", "processing"].includes(query.state.data.status)) ? 3000 : false,
+    refetchInterval: query => foreground && (!query.state.data || ["reserved", "uploaded", "processing"].includes(query.state.data.status)) ? 5000 : false,
     retry: 1, gcTime: 0,
   });
   useEffect(() => {
-    if (status.data && taskAt(task.id, { epoch, generation: task.generation })) {
-      void cache.invalidateQueries({ queryKey: galleryKeys.owner(viewer, task.owner) });
+    if (status.data && ["ready", "failed", "expired", "cancelled"].includes(status.data.status) && taskAt(task.id, { epoch, generation: task.generation })) {
+      void cache.invalidateQueries({ queryKey: galleryKeys.owner(viewer, task.owner), predicate: query => !query.queryKey.includes("upload") });
     }
   }, [status.data, task.id, task.generation, epoch, cache, viewer, task.owner]);
   const cancel = async () => {
@@ -114,25 +115,72 @@ function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => 
       void cache.invalidateQueries({ queryKey: galleryKeys.owner(viewer, task.owner) });
     }
   };
-  return <View style={s.card}>
-    <View style={s.uploadNoticeHeader}>
-      <Text style={[s.text, s.uploadNoticeTitle]}>{task.filename} · {statusLabel[task.status]}</Text>
-      {dismissible ? <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Закрыть сообщение о загрузке ${task.filename}`}
-        onPress={() => dismissUploadTask(task.id, { epoch, generation: task.generation })}
-        style={s.uploadNoticeClose}
-      ><MaterialCommunityIcons name="close" size={22} color={COLORS.primary} /></Pressable> : null}
+  const active = ["queued", "sending", "processing", "cancelling"].includes(task.status);
+  const retryable = task.status === "failed" || task.status === "expired";
+  return <View style={s.uploadNotice}>
+    <View style={s.uploadNoticeRow}>
+      {active ? (
+        <MascotSpinner size="small" />
+      ) : <MaterialCommunityIcons
+        name={task.status === "ready" ? "check-circle-outline" : retryable ? "alert-circle-outline" : "close-circle-outline"}
+        size={20}
+        color={retryable ? "#A35A43" : COLORS.primary}
+      />}
+      <View style={s.uploadNoticeText}>
+        <Text numberOfLines={1} ellipsizeMode="middle" style={s.uploadFileName}>{task.filename}</Text>
+        <Text numberOfLines={1} style={[s.uploadStatus, retryable && s.uploadStatusError]}>
+          {statusLabel[task.status]}
+        </Text>
+      </View>
+      {retryable ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Повторить загрузку ${task.filename}, выбрать файл заново`}
+          hitSlop={5}
+          style={s.uploadNoticeAction}
+          onPress={() => retry(task.upload?.uploadId ?? task.retrySourceId)}
+        >
+          <MaterialCommunityIcons name="refresh" size={23} color={COLORS.primary} />
+        </Pressable>
+      ) : null}
+      {active ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={task.status === "cancelling" ? "Повторить проверку отмены" : `Отменить загрузку ${task.filename}`}
+          hitSlop={5}
+          style={s.uploadNoticeAction}
+          onPress={() => void cancel()}
+        >
+          <MaterialCommunityIcons name={task.status === "cancelling" ? "refresh" : "close"} size={22} color={COLORS.primary} />
+        </Pressable>
+      ) : null}
+      {dismissible ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Закрыть сообщение о загрузке ${task.filename}`}
+          hitSlop={5}
+          style={s.uploadNoticeAction}
+          onPress={() => dismissUploadTask(task.id, { epoch, generation: task.generation })}
+        >
+          <MaterialCommunityIcons name="close" size={20} color={COLORS.textSecondary} />
+        </Pressable>
+      ) : null}
     </View>
-    {task.error ? <Text selectable accessibilityRole="alert" style={s.error}>{task.error}</Text> : null}
-    {status.isError ? <Button label="Проверить статус" variant="outline" onPress={() => void status.refetch()} /> : null}
-    {["failed", "expired"].includes(task.status) ? <Button label="Выбрать файл заново" variant="outline" onPress={() => retry(task.upload?.uploadId ?? task.retrySourceId)} /> : null}
-    {!["ready", "cancelled"].includes(task.status) ? <Button label={task.status === "cancelling" ? "Проверить отмену снова" : "Отменить загрузку"} variant="outline" onPress={() => void cancel()} /> : null}
+    {task.error ? (
+      <Text selectable numberOfLines={2} accessibilityRole="alert" style={s.uploadNoticeError}>{task.error}</Text>
+    ) : null}
+    {status.isError && task.status === "processing" ? (
+      <Pressable accessibilityRole="button" style={s.uploadStatusRetry}
+        onPress={() => void status.refetch()}>
+        <MaterialCommunityIcons name="refresh" size={16} color={COLORS.primary} />
+        <Text style={s.uploadStatusRetryText}>Не удалось проверить статус · Повторить</Text>
+      </Pressable>
+    ) : null}
   </View>;
 }
-export function UploadControls({ owner, albumId, usedSlots = 0, retryUploadId, onRetried, compact = false, inlineHeader = false, leadingAction }: {
+export function UploadControls({ owner, albumId, usedSlots = 0, retryUploadId, onRetried, compact = false, inlineHeader = false, leadingAction, minimal = false }: {
   owner: string; albumId?: string; usedSlots?: number; retryUploadId?: string; onRetried?: () => void; compact?: boolean;
-  inlineHeader?: boolean; leadingAction?: ReactNode;
+  inlineHeader?: boolean; leadingAction?: ReactNode; minimal?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -183,7 +231,7 @@ export function UploadControls({ owner, albumId, usedSlots = 0, retryUploadId, o
   };
   const visibleTasks = tasks.filter(t => t.owner === owner && (!albumId || t.albumId === albumId));
   const uploadInProgress = visibleTasks.some(t => ["queued", "sending", "processing", "cancelling"].includes(t.status));
-  return <View style={inlineHeader ? s.albumsUploadSection : s.section}>
+  return <View style={inlineHeader || minimal ? s.albumsUploadSection : s.section}>
     {inlineHeader ? <View style={s.albumsActions}>
       {leadingAction ? <View style={s.albumsAction}>{leadingAction}</View> : null}
       <View style={s.albumsAction}>
@@ -193,8 +241,11 @@ export function UploadControls({ owner, albumId, usedSlots = 0, retryUploadId, o
           disabled={busy || (!retryUploadId && usedSlots >= 200)} onPress={() => void pick(retryUploadId)} />
       </View>
     </View> : <Button label={retryUploadId ? "Выбрать файл заново" : "Добавить фотографии"} loading={busy}
+      height={minimal ? 44 : undefined} fontSize={minimal ? 14 : undefined}
+      borderRadius={minimal ? 14 : undefined}
+      accessibilityHint="JPG, PNG, WebP, HEIC · до 10 МиБ"
       disabled={busy || (!retryUploadId && usedSlots >= 200)} onPress={() => void pick(retryUploadId)} />}
-    {!compact ? inlineHeader
+    {!compact && !minimal ? inlineHeader
       ? <View style={s.albumsHintRow}>
         <Text style={s.albumsHint}>JPG, PNG, WebP, HEIC · до 10 МиБ</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Правила загрузки фотографий" hitSlop={8}
@@ -204,7 +255,7 @@ export function UploadControls({ owner, albumId, usedSlots = 0, retryUploadId, o
         </Pressable>
       </View>
       : <Text style={s.muted}>JPG, PNG, WebP до 10 МиБ. HEIC преобразуется в JPG. Не закрывайте приложение до завершения загрузки.</Text> : null}
-    {inlineHeader && uploadInProgress ? <Text style={s.albumsUploadWarning}>Не закрывайте приложение до завершения загрузки.</Text> : null}
+    {(inlineHeader || minimal) && uploadInProgress ? <Text style={s.albumsUploadWarning}>Не закрывайте приложение до завершения загрузки.</Text> : null}
     {error ? <Text selectable accessibilityRole="alert" style={s.error}>{error}</Text> : null}
     {!compact && visibleTasks.map(task =>
       <UploadRow key={task.id} task={task} retry={id => void pick(id)} />)}

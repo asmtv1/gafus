@@ -1,11 +1,12 @@
 /* Основной контейнер */
 .section {
-  max-width: 500px;
+  max-width: 1440px;
   width: 100%;
   margin: 1rem auto;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  align-items: start;
   gap: 20px;
 }
 

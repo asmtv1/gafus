@@ -61,7 +61,7 @@ export default function ChatPage({ chatId }: { chatId?: string }) {
       {!state && !error && <LoadingState message="Загрузка сообщений…" />}
       {state && !state.chat && !state.canUseCynologistChat && (
         <p>
-          Чат входит в месячный и трёхмесячный тариф.{" "}
+          Чат входит в тарифы «Поддержка в чате» и «Полное сопровождение».{" "}
           <Link href="/subscription">Выбрать тариф</Link>
         </p>
       )}

@@ -1,15 +1,19 @@
+import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import * as Crypto from "expo-crypto";
-import { useRouter, useFocusEffect, type Href } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter, useFocusEffect, type Href } from "expo-router";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FEED_REACTIONS, FEED_LIMITS, countFeedCharacters, formatFeedTime,
-  type FeedPostDto, type FeedCommentDto, type FeedReaction,
+  type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto,
 } from "@gafus/types";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { Button } from "@/shared/components";
@@ -17,6 +21,8 @@ import { feedApi } from "@/shared/lib/api/feed";
 import { pickFeedMedia, uploadPickedFeedMedia, checkFeedPickedMedia, type FeedPickedMedia } from "./uploads";
 import { FeedVideo, stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
+import { FeedCarouselDots } from "./FeedCarouselDots";
+import { SortableMediaStrip } from "./SortableMediaStrip";
 
 function errorMessage(error: unknown) { return error instanceof Error ? error.message : "Не удалось загрузить ленту."; }
 export function useFeedStatus() {
@@ -31,18 +37,104 @@ export function useFeedStatus() {
 }
 function Muted({ children }: { children: React.ReactNode }) { return <Text style={s.muted}>{children}</Text>; }
 function Status({ status, retry }: { status: ReturnType<typeof useFeedStatus>; retry?: () => void }) {
-  if (status.isPending) return <Muted>Проверяем доступность ленты…</Muted>;
+  if (status.isPending) return <Loading variant="inline" size="small" />;
   if (status.isError) return <View style={s.card}><Text style={s.error}>{errorMessage(status.error)}</Text><Button label="Повторить" onPress={() => void (retry?.() ?? status.refetch())} /></View>;
   return <View style={s.card}><Muted>Лента пока недоступна.</Muted></View>;
+}
+// Telegram-style reactions: show only used reactions and keep the picker behind one compact button.
+function FeedReactionStrip({ reactions, myReaction, busy, onSelect }: {
+  reactions: readonly FeedReactionCountDto[];
+  myReaction: FeedReaction | null;
+  busy: boolean;
+  onSelect: (emoji: FeedReaction) => Promise<void>;
+}) {
+  const triggerRef = useRef<View>(null);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const openPicker = () => {
+    triggerRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchor({ x, y, width, height });
+      setPickerOpen(true);
+    });
+  };
+  const paletteWidth = Math.min(242, screenWidth - 24);
+  const paletteHeight = 58;
+  const left = anchor
+    ? Math.max(12, Math.min(screenWidth - paletteWidth - 12, anchor.x + anchor.width / 2 - paletteWidth / 2))
+    : 12;
+  const minimumTop = insets.top + 8;
+  const maximumTop = Math.max(minimumTop, screenHeight - insets.bottom - paletteHeight - 8);
+  const preferredTop = anchor
+    ? (anchor.y - paletteHeight - 8 >= minimumTop
+      ? anchor.y - paletteHeight - 8
+      : anchor.y + anchor.height + 8)
+    : minimumTop;
+  const top = Math.max(minimumTop, Math.min(maximumTop, preferredTop));
+  const used = FEED_REACTIONS.filter(emoji =>
+    reactions.some(reaction => reaction.emoji === emoji && reaction.count > 0) || myReaction === emoji,
+  );
+  return <>
+    <View style={s.compactReactions}>
+      {used.map(emoji => {
+        const count = reactions.find(reaction => reaction.emoji === emoji)?.count ?? 0;
+        return <Pressable key={emoji} accessibilityRole="button"
+          accessibilityLabel={`Реакция ${emoji}, ${count}`}
+          accessibilityState={{ selected: myReaction === emoji, disabled: busy }}
+          disabled={busy} hitSlop={6} onPress={() => void onSelect(emoji)}
+          style={[s.reactionPill, myReaction === emoji && s.reactionPillSelected]}>
+          <Text style={s.reactionEmoji}>{emoji}</Text>
+          {count > 0 && <Text style={s.reactionCount}>{count}</Text>}
+        </Pressable>;
+      })}
+      <Pressable ref={triggerRef} accessibilityRole="button" accessibilityLabel="Добавить реакцию"
+        disabled={busy} hitSlop={6} onPress={openPicker} style={s.addReaction}>
+        <MaterialCommunityIcons name="emoticon-plus-outline" size={19} color={COLORS.primary} />
+      </Pressable>
+    </View>
+    {pickerOpen && anchor && <Modal visible transparent statusBarTranslucent animationType="fade"
+      onRequestClose={() => setPickerOpen(false)}>
+      <View style={s.reactionModal}>
+        <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button"
+          accessibilityLabel="Закрыть выбор реакции" onPress={() => setPickerOpen(false)} />
+        <View style={[s.reactionPalette, { width: paletteWidth, left, top }]}
+          accessibilityLabel="Выберите реакцию">
+          {FEED_REACTIONS.map(emoji => (
+            <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${emoji}`}
+              onPress={() => { setPickerOpen(false); void onSelect(emoji); }}
+              style={[s.reactionPaletteItem, myReaction === emoji && s.reactionPillSelected]}>
+              <Text style={s.reactionPaletteEmoji}>{emoji}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    </Modal>}
+  </>;
 }
 export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; detailed?: boolean }) {
   const router = useRouter();
   const cache = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [mediaPosition, setMediaPosition] = useState(0);
-  const [mediaWidth, setMediaWidth] = useState(260);
+  const [mediaWidth, setMediaWidth] = useState(320);
+  useEffect(() => { setMediaPosition(0); }, [post.id]);
   const [busy, setBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
   const go = () => router.push({ pathname: "/(main)/feed/[postId]", params: { postId: post.id } } as Href);
+  const deletePost = async () => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    try {
+      await feedApi.deletePost(post.id);
+      await cache.invalidateQueries({ queryKey: ["feed"] });
+      if (detailed) router.replace("/(main)/(tabs)/feed" as Href);
+    } catch (error) {
+      Alert.alert("Не удалось удалить публикацию", errorMessage(error));
+    } finally {
+      setActionBusy(false);
+    }
+  };
   const react = async (reaction: FeedReaction) => {
     setBusy(true);
     try {
@@ -53,38 +145,71 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
     finally { setBusy(false); }
   };
   const media = post.attachments.filter(asset => asset.status === "ready");
-  return <View style={s.card} onLayout={event => setMediaWidth(Math.max(1, event.nativeEvent.layout.width - 32))}>
+  const currentMediaPosition = Math.min(mediaPosition, Math.max(0, media.length - 1));
+  const updateMediaPosition = (offset: number) => {
+    if (!media.length || !Number.isFinite(offset)) return;
+    const next = Math.min(media.length - 1,
+      Math.max(0, Math.round(offset / (mediaWidth + 8))));
+    setMediaPosition(previous => previous === next ? previous : next);
+  };
+  const firstMedia = media[0];
+  const aspectRatio = firstMedia?.width && firstMedia.height
+    ? firstMedia.width / firstMedia.height : 4 / 3;
+  const mediaHeight = detailed
+    ? 226
+    : Math.max(155, Math.min(mediaWidth / aspectRatio, aspectRatio < 1 ? 280 : 218));
+  return <View style={[s.postCard, detailed && s.postCardDetailed]}
+    onLayout={event => {
+      const width = Math.max(1, event.nativeEvent.layout.width - (detailed ? 24 : 0));
+      setMediaWidth(current => Math.abs(current - width) > 1 ? width : current);
+    }}>
+    <View style={s.postAuthorBar}>
     <Pressable style={s.authorRow} accessibilityRole="button" accessibilityLabel={`Профиль ${post.author.name}`} onPress={() => router.push({ pathname: "/profile/[username]", params: { username: post.author.username } } as Href)}>
       {post.author.avatarUrl ? <Image source={{ uri: post.author.avatarUrl }} style={s.avatar} cachePolicy="memory" /> :
-        <View style={[s.avatar, s.avatarFallback]}><Text style={s.text}>🐾</Text></View>}
+        <View style={[s.avatar, s.avatarFallback]}><Text style={s.avatarInitial}>{post.author.name.slice(0, 1)}</Text></View>}
       <View style={{ flex: 1 }}>
-        <Text style={s.authorName} numberOfLines={2}>{post.author.name}</Text>
+        <Text style={s.authorName} numberOfLines={1}>{post.author.name}</Text>
         <Muted>{formatFeedTime(post.publishedAt ?? post.createdAt)}{post.editedAt ? " · Изменён" : ""}</Muted>
       </View>
     </Pressable>
-    {!!media.length && <ScrollView horizontal snapToInterval={mediaWidth + 10} decelerationRate="fast" showsHorizontalScrollIndicator
+    <FeedPostActions post={post} onEdit={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)} onDelete={() => Alert.alert("Удалить публикацию?", "Публикация исчезнет из ленты.", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive", onPress: () => void deletePost() }])} />
+    </View>
+    {post.moderationState && post.moderationState !== "visible" && <Text style={s.error}>
+      {post.moderationState === "removed" ? "Публикация удалена" : "Публикация скрыта"} из-за жалобы. {post.moderationReason}
+    </Text>}
+    {(!post.moderationState || post.moderationState === "visible") && !!media.length && <ScrollView key={post.id} horizontal snapToInterval={mediaWidth + 8} decelerationRate="fast" showsHorizontalScrollIndicator={false}
+      style={!detailed && s.feedCarousel}
       contentContainerStyle={s.carousel} onScrollBeginDrag={() => stopFeedVideoOutsidePosts(new Set())}
-      onMomentumScrollEnd={event => setMediaPosition(Math.round(event.nativeEvent.contentOffset.x / (mediaWidth + 10)))}>
-      {media.map((asset, index) => <View style={[s.media, { width: mediaWidth }]} key={asset.id}>
+      scrollEventThrottle={32}
+      onScroll={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}
+      onMomentumScrollEnd={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}>
+      {media.map((asset, index) => <View style={[s.media, { width: mediaWidth, height: mediaHeight }]} key={asset.id}>
         {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ?
           <Pressable style={s.image} onPress={go} accessibilityRole="button" accessibilityLabel={`Открыть фото ${index + 1}`}>
-            <Image source={{ uri: asset.fullUrl ?? asset.thumbUrl ?? "" }} cachePolicy="memory" contentFit="contain" style={s.image} />
+            <Image source={{ uri: asset.fullUrl ?? asset.thumbUrl ?? "" }} cachePolicy="memory" contentFit={detailed ? "contain" : "cover"} style={s.image} />
           </Pressable> :
-          <FeedVideo postId={post.id} mediaId={asset.id} poster={asset.posterUrl} visible={index === mediaPosition} />}
+          <FeedVideo postId={post.id} mediaId={asset.id} poster={asset.posterUrl} visible={index === currentMediaPosition} />}
       </View>)}
     </ScrollView>}
+    <FeedCarouselDots count={media.length} position={currentMediaPosition} />
     {post.text ? <Pressable onPress={() => detailed ? undefined : setExpanded(value => !value)} accessibilityRole={detailed ? "text" : "button"} accessibilityLabel={detailed ? "Текст" : "Показать текст полностью"}>
-      <Text style={s.body} numberOfLines={detailed || expanded ? undefined : 6}>{post.text}</Text>
-      {!detailed && post.text.length > 250 && <Text style={s.more}>{expanded ? "Свернуть" : "Ещё"}</Text>}
+      <Text style={[s.body, detailed && s.bodyDetailed]} numberOfLines={detailed || expanded ? undefined : 4}>{post.text}</Text>
+      {!detailed && post.text.length > 80 && <Text style={s.more}>{expanded ? "Свернуть" : "Ещё"}</Text>}
     </Pressable> : null}
-    <View style={s.reactions}>
-      {FEED_REACTIONS.map(emoji => <Pressable key={emoji} disabled={busy} accessibilityRole="button" accessibilityState={{ selected: post.myReaction === emoji }} onPress={() => void react(emoji)} style={[s.reaction, post.myReaction === emoji && s.reactionSelected]}>
-        <Text style={s.reactionText}>{emoji} {post.reactions.find(r => r.emoji === emoji)?.count ?? ""}</Text>
-      </Pressable>)}
-    </View>
-    <View style={s.row}>
-      <Muted>{post.viewCount} просмотров</Muted>
-      <Pressable accessibilityRole="button" onPress={go}><Text style={s.more}>{post.commentCount} комментариев</Text></Pressable>
+    <View style={s.postFooter}>
+      <FeedReactionStrip reactions={post.reactions} myReaction={post.myReaction}
+        busy={busy} onSelect={react} />
+      <View style={s.postStats}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Комментарии: ${post.commentCount}`}
+          onPress={go} style={s.postStat}>
+          <MaterialCommunityIcons name="comment-outline" size={17} color={COLORS.primary} />
+          <Text style={s.postStatText}>{post.commentCount}</Text>
+        </Pressable>
+        <View style={s.postStat} accessibilityLabel={`Просмотров: ${post.viewCount}`}>
+          <MaterialCommunityIcons name="eye-outline" size={17} color={COLORS.textSecondary} />
+          <Text style={s.postStatText}>{post.viewCount}</Text>
+        </View>
+      </View>
     </View>
   </View>;
 }
@@ -123,9 +248,25 @@ export function FeedScreen() {
     }
   }, [userId]);
   return <TexturedSafeAreaView style={s.screen} edges={["top", "left", "right"]}>
-    <View style={s.pageHeader}><Text style={s.heading}>Лента</Text>{status.data?.enabled &&
-      <Button label="Новый пост" variant="primary" onPress={() => router.push("/(main)/feed/create" as Href)} />}</View>
-    {status.data?.enabled !== true ? <View style={s.padding}><Status status={status} /></View> :
+    <View style={s.pageHeader}>
+      <Text accessibilityRole="header" style={s.heading}>Лента</Text>
+      {status.data?.enabled && <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Новый пост"
+        accessibilityHint="Создать публикацию"
+        onPress={() => router.push("/(main)/feed/create" as Href)}
+        style={({ pressed }) => [s.newPostButton, pressed && s.newPostPressed]}
+      >
+        <MaterialCommunityIcons name="plus" size={25} color={COLORS.onPrimary} />
+      </Pressable>}
+    </View>
+    {status.data?.enabled && <View style={{ flexDirection: "row", gap: 20, paddingHorizontal: 20, paddingBottom: 12 }}>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/(main)/feed/saved" as Href)}><Text style={s.more}>Закладки</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/(main)/feed/hidden-authors" as Href)}><Text style={s.more}>Скрытые авторы</Text></Pressable>
+    </View>}
+    {status.isPending ? <Loading fullScreen embedded /> :
+      status.data?.enabled !== true ? <View style={s.padding}><Status status={status} /></View> :
+      pages.isPending && posts.length === 0 ? <Loading fullScreen embedded /> :
       <FlashList
         data={posts}
         keyExtractor={item => item.id}
@@ -137,49 +278,99 @@ export function FeedScreen() {
         refreshing={pages.isRefetching}
         onEndReached={() => { if (pages.hasNextPage && !pages.isFetchingNextPage) void pages.fetchNextPage(); }}
         onEndReachedThreshold={0.4}
-        ListEmptyComponent={<View style={s.card}><Muted>{pages.isPending ? "Загрузка публикаций…" : pages.isError ? errorMessage(pages.error) : "Здесь пока нет публикаций."}</Muted></View>}
+        ListFooterComponent={pages.isFetchingNextPage ? <MascotSpinner size="small" /> : null}
+        ListEmptyComponent={<View style={s.card}><Muted>{pages.isError ? errorMessage(pages.error) : "Здесь пока нет публикаций."}</Muted></View>}
       />}
   </TexturedSafeAreaView>;
 }
 export function FeedComposeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { edit } = useLocalSearchParams<{ edit?: string | string[] }>();
+  const editId = typeof edit === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(edit) ? edit : undefined;
+  const isEditing = !!editId;
+  const userId = useAuthStore(state => state.user?.id);
+  const cache = useQueryClient();
   const status = useFeedStatus();
+  const original = useQuery({
+    queryKey: ["feed", "editor", editId, userId],
+    queryFn: () => feedApi.getEditor(editId!),
+    enabled: !!editId && status.data?.enabled === true,
+    retry: 1,
+  });
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [picked, setPicked] = useState<FeedPickedMedia[]>([]);
   const [albumPhotoIds, setAlbumPhotoIds] = useState<string[]>([]);
+  const [albumsOpen, setAlbumsOpen] = useState(false);
+  const [existingMediaIds, setExistingMediaIds] = useState<string[]>([]);
+  const hydratedEditor = useRef<string | null>(null);
   const copied = useRef(new Map<string, { requestId: string; mediaId?: string }>());
   const draft = useRef<string | null>(null);
   const requestId = useRef(Crypto.randomUUID());
   const completed = useRef(new Map<string, string>());
+  useEffect(() => {
+    if (!editId || !original.data || hydratedEditor.current === editId) return;
+    hydratedEditor.current = editId;
+    setText(original.data.pendingRevision?.text ?? original.data.text);
+    setExistingMediaIds(original.data.pendingRevision?.attachmentIds ??
+      original.data.attachments.map(asset => asset.id));
+    draft.current = editId;
+  }, [editId, original.data]);
+  const existingMedia = (original.data?.attachments ?? [])
+    .filter(asset => existingMediaIds.includes(asset.id))
+    .sort((a, b) => existingMediaIds.indexOf(a.id) - existingMediaIds.indexOf(b.id));
+  const attachedCount = existingMediaIds.length + picked.length + albumPhotoIds.length;
+  const existingVideoCount = existingMedia.filter(asset => asset.kind === "video").length;
+  const canSubmit = (!isEditing || (!!original.data && original.data.canEdit)) &&
+    (Boolean(text.trim()) || attachedCount > 0) &&
+    countFeedCharacters(text) <= FEED_LIMITS.postCharacters;
   const pick = async (source: "library" | "camera-photo" | "camera-video") => {
     try {
       const assets = await pickFeedMedia(source);
       const next = [...picked, ...assets];
       checkFeedPickedMedia(next);
-      if (next.length + albumPhotoIds.length > FEED_LIMITS.maxAttachments) {
+      if (next.length + albumPhotoIds.length + existingMediaIds.length > FEED_LIMITS.maxAttachments) {
         throw new Error("Максимум 10 вложений.");
+      }
+      if (existingVideoCount + next.filter(item => item.kind === "video").length > FEED_LIMITS.maxVideos) {
+        throw new Error("Максимум три видео.");
       }
       setPicked(next);
     } catch (error) { Alert.alert("Не удалось выбрать файл", errorMessage(error)); }
   };
-  const move = (index: number, delta: number) => {
+  const move = (index: number, destination: number) => {
     setPicked(items => {
-      const next = [...items], dest = index + delta;
-      if (dest < 0 || dest >= next.length) return items;
-      [next[index], next[dest]] = [next[dest]!, next[index]!];
+      if (index === destination || index < 0 || index >= items.length ||
+          destination < 0 || destination >= items.length) return items;
+      const next = [...items];
+      const [item] = next.splice(index, 1);
+      if (!item) return items;
+      next.splice(destination, 0, item);
+      return next;
+    });
+  };
+  const moveExisting = (index: number, destination: number) => {
+    setExistingMediaIds(items => {
+      if (index === destination || index < 0 || index >= items.length ||
+          destination < 0 || destination >= items.length) return items;
+      const next = [...items];
+      const [item] = next.splice(index, 1);
+      if (!item) return items;
+      next.splice(destination, 0, item);
       return next;
     });
   };
   const submit = async () => {
-    if ((!text.trim() && !picked.length && !albumPhotoIds.length) || busy) return;
+    if (!canSubmit || busy || (isEditing && original.isPending)) return;
     setBusy(true);
     try {
       const created = draft.current ? await feedApi.getEditor(draft.current)
         : await feedApi.createPost({ clientRequestId: requestId.current });
+      if (isEditing && !created.canEdit) throw new Error("Время редактирования публикации истекло.");
       draft.current = created.id;
-      const attachmentIds: string[] = [];
+      const attachmentIds: string[] = isEditing ? [...existingMediaIds] : [];
       for (const [index, asset] of picked.entries()) {
         setProgress(`Загружаем ${index + 1} из ${picked.length}…`);
         let id = completed.current.get(asset.requestId);
@@ -205,59 +396,120 @@ export function FeedComposeScreen() {
         text, attachmentIds,
       });
       await feedApi.publishPost(created.id, { clientRequestId: Crypto.randomUUID() });
-      router.replace(picked.length || albumPhotoIds.length ? "/(main)/(tabs)/feed" as Href
-        : { pathname: "/(main)/feed/[postId]", params: { postId: created.id } } as Href);
-    } catch (error) { Alert.alert("Не удалось опубликовать", errorMessage(error)); }
+      await cache.invalidateQueries({ queryKey: ["feed"] });
+      router.replace(isEditing || (!picked.length && !albumPhotoIds.length)
+        ? { pathname: "/(main)/feed/[postId]", params: { postId: created.id } } as Href
+        : "/(main)/(tabs)/feed" as Href);
+    } catch (error) { Alert.alert(isEditing ? "Не удалось сохранить изменения" : "Не удалось опубликовать", errorMessage(error)); }
     finally { setBusy(false); setProgress(""); }
   };
-  return <TexturedSafeAreaView style={s.screen} edges={["top","left","right"]}>
-    <ScrollView contentContainerStyle={s.padding}>
-      <View style={s.row}><Button label="Назад" variant="outline" onPress={() => router.back()} /></View>
-      <Text style={s.heading}>Новая публикация</Text>
-      {status.data?.enabled ? <View style={s.card}>
-        <TextInput value={text} onChangeText={setText} multiline textAlignVertical="top"
-          placeholder="Расскажите о своём питомце…" placeholderTextColor={COLORS.textSecondary}
-          style={s.input} maxLength={10_000} />
-        <Muted>{countFeedCharacters(text)} / {FEED_LIMITS.postCharacters}</Muted>
-        <View style={s.row}>
-          <Button label="Выбрать с устройства" variant="outline" disabled={busy} onPress={() => void pick("library")} />
-          <Button label="Сделать фото" variant="outline" disabled={busy} onPress={() => void pick("camera-photo")} />
-          <Button label="Снять видео" variant="outline" disabled={busy} onPress={() => void pick("camera-video")} />
+  return <TexturedSafeAreaView style={s.screen} edges={["left","right"]}>
+    <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <Stack.Screen options={{ headerShown: false }} />
+    <View style={[s.composeTopBar, { paddingTop: insets.top + 8 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Назад"
+        onPress={() => router.back()} style={s.composeBackPill}>
+        <MaterialCommunityIcons name="chevron-left" size={27} color={COLORS.text} />
+        <Text style={s.composeBackLabel}>Назад</Text>
+      </Pressable>
+      <Text accessibilityRole="header" numberOfLines={1} style={s.composeTopTitle}>
+        {isEditing ? "Редактирование публикации" : "Новая публикация"}
+      </Text>
+    </View>
+    <ScrollView
+      automaticallyAdjustContentInsets={false}
+      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={s.composeContent}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag">
+      {status.isPending ? <Loading variant="inline" size="large" message="Проверяем доступность ленты…" /> :
+        status.data?.enabled ? isEditing && original.isPending ? <Loading variant="inline" size="large" message="Загружаем публикацию…" />
+        : isEditing && (original.isError || !original.data?.canEdit)
+          ? <View style={s.card}>
+              <Text style={s.error}>{original.isError ? errorMessage(original.error) : "Редактирование этой публикации недоступно."}</Text>
+              <Button label="Назад" variant="outline" onPress={() => router.back()} />
+            </View>
+        : <>
+        <View style={s.composeEditor}>
+          <TextInput value={text} onChangeText={setText} multiline textAlignVertical="top"
+            placeholder="Расскажите о своём питомце…" placeholderTextColor={COLORS.textSecondary}
+            style={s.composeInput} maxLength={10_000} />
+          <Text style={[s.composeCounter, countFeedCharacters(text) > FEED_LIMITS.postCharacters && s.error]}>
+            {countFeedCharacters(text)} / {FEED_LIMITS.postCharacters}
+          </Text>
         </View>
-        {picked.map((asset, index) => <View style={s.row} key={asset.requestId}>
-          <Muted>{index + 1}. {asset.filename} ({Math.ceil(asset.bytes / 1024)} КиБ)</Muted>
-          <Pressable accessibilityRole="button" disabled={busy || index === 0} onPress={() => move(index, -1)}>
-            <Text style={s.more}>↑</Text>
+        {isEditing && existingMediaIds.length > 0 && <View style={s.composeAttachments}>
+          <Text style={s.composeAttachmentsTitle}>Вложения публикации · {existingMediaIds.length}</Text>
+          <SortableMediaStrip
+            items={existingMediaIds.map(id => {
+              const asset: FeedMediaDto | undefined = original.data?.attachments.find(item => item.id === id);
+              return { id, kind: asset?.kind === "video" ? "video" : "photo", uri: asset?.thumbUrl ?? asset?.posterUrl ?? asset?.fullUrl };
+            })}
+            onMove={moveExisting}
+            onRemove={id => setExistingMediaIds(items => items.filter(value => value !== id))}
+            disabled={busy}
+          />
+          {existingMediaIds.length > 1 && <Text style={s.composeReorderHint}>Удерживайте фотографию и перетаскивайте</Text>}
+        </View>}
+        <View style={s.composeTools}>
+          {([
+            ["library", "image-multiple-outline", "Галерея"],
+            ["camera-photo", "camera-outline", "Фото"],
+            ["camera-video", "video-outline", "Видео"],
+          ] as const).map(([source, icon, label]) => (
+            <Pressable key={source} accessibilityRole="button" accessibilityLabel={label}
+              disabled={busy} onPress={() => void pick(source)}
+              style={({ pressed }) => [s.composeTool, (pressed || busy) && s.composeToolPressed]}>
+              <MaterialCommunityIcons name={icon} size={22} color={COLORS.primary} />
+              <Text style={s.composeToolText}>{label}</Text>
+            </Pressable>
+          ))}
+          <Pressable accessibilityRole="button" accessibilityLabel="Фотографии из альбомов"
+            accessibilityState={{ expanded: albumsOpen }} disabled={busy}
+            onPress={() => setAlbumsOpen(open => !open)}
+            style={({ pressed }) => [s.composeTool, albumsOpen && s.composeToolSelected, (pressed || busy) && s.composeToolPressed]}>
+            <MaterialCommunityIcons name="image-album" size={22} color={COLORS.primary} />
+            <Text style={s.composeToolText}>Альбомы</Text>
+            {albumPhotoIds.length > 0 && <View style={s.composeToolDot} />}
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={busy || index === picked.length - 1} onPress={() => move(index, 1)}>
-            <Text style={s.more}>↓</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" disabled={busy}
-            onPress={() => setPicked(items => items.filter(item => item.requestId !== asset.requestId))}>
-            <Text style={s.more}>Убрать</Text>
-          </Pressable>
-        </View>)}
-        <FeedAlbumPicker selected={albumPhotoIds} disabled={busy} onChange={ids => {
-          if (ids.length + picked.length > FEED_LIMITS.maxAttachments) {
+        </View>
+        {picked.length > 0 && <View style={s.composeAttachments}>
+          <Text style={s.composeAttachmentsTitle}>С устройства · {picked.length}</Text>
+          <SortableMediaStrip
+            items={picked.map(asset => ({ id: asset.requestId, kind: asset.kind, uri: asset.kind === "photo" ? asset.uri : null }))}
+            onMove={move}
+            onRemove={id => setPicked(items => items.filter(item => item.requestId !== id))}
+            disabled={busy}
+          />
+          {picked.length > 1 && <Text style={s.composeReorderHint}>Удерживайте фотографию и перетаскивайте</Text>}
+        </View>}
+        {albumPhotoIds.length > 0 && !albumsOpen &&
+          <Text style={s.composeAlbumCount}>Из альбомов: {albumPhotoIds.length} фото</Text>}
+        {albumsOpen && <FeedAlbumPicker selected={albumPhotoIds} disabled={busy} onChange={ids => {
+          if (ids.length + picked.length + existingMediaIds.length > FEED_LIMITS.maxAttachments) {
             Alert.alert("Слишком много вложений", "Максимум 10 вложений."); return;
           }
           setAlbumPhotoIds(ids);
-        }} />
-        {progress ? <Muted>{progress}</Muted> : null}
-        <Button label={busy ? "Публикуем…" : "Опубликовать"} variant="primary"
-          disabled={busy || (!text.trim() && !picked.length && !albumPhotoIds.length) || countFeedCharacters(text) > FEED_LIMITS.postCharacters}
+        }} />}
+        {progress ? <Text accessibilityRole="alert" style={s.composeAlbumCount}>{progress}</Text> : null}
+        <Button label={busy ? (isEditing ? "Сохраняем…" : "Публикуем…") : isEditing ? "Сохранить изменения" : "Опубликовать"} variant="primary"
+          height={46} fontSize={15} lineHeight={20} borderRadius={14} animatedPress
+          disabled={busy || !canSubmit}
           onPress={() => void submit()} />
-      </View> : <Status status={status} />}
+      </> : <Status status={status} />}
     </ScrollView>
   </TexturedSafeAreaView>;
 }
 export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: string }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const status = useFeedStatus();
   const userId = useAuthStore(state => state.user?.id);
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyToName, setReplyToName] = useState("");
   const [busy, setBusy] = useState(false);
+  const composerRef = useRef<TextInput>(null);
   const client = useQueryClient();
   const post = useQuery({ queryKey: ["feed","post",id,userId], queryFn: () => feedApi.getPost(id), refetchInterval: 90_000, enabled: status.data?.enabled === true });
   const comments = useInfiniteQuery({ queryKey: ["feed","comments",id,userId],
@@ -270,44 +522,92 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
   useEffect(() => {
     if (focused.data?.postId === id) scroll.current?.scrollTo({ y: focusedY.current, animated: true });
   }, [focused.data, id]);
+  const startReply = (item: FeedCommentDto) => {
+    setReplyTo(item.id);
+    setReplyToName(item.author.name);
+    composerRef.current?.focus();
+  };
+  const cancelReply = () => { setReplyTo(null); setReplyToName(""); };
   const send = async () => {
     if (!body.trim() || busy) return;
     setBusy(true);
     try {
       await feedApi.createComment(id, { text: body, replyToId: replyTo, clientRequestId: Crypto.randomUUID() });
-      setBody(""); setReplyTo(null);
+      setBody(""); cancelReply();
       await client.invalidateQueries({ queryKey: ["feed"] });
     } catch (error) { Alert.alert("Не удалось отправить", errorMessage(error)); }
     finally { setBusy(false); }
   };
   return <TexturedSafeAreaView style={s.screen} edges={["top","left","right"]}>
-    <ScrollView ref={scroll} contentContainerStyle={s.padding}>
-      <Button label="Назад" variant="outline" onPress={() => router.back()} />
-      {status.data?.enabled !== true ? <Status status={status} /> :
-      <>
-        {post.isPending && <Muted>Загрузка публикации…</Muted>}
-        {post.isError && <Text style={s.error}>{errorMessage(post.error)}</Text>}
-        {post.data && <FeedPostCard post={post.data} detailed />}
-        <View style={s.card} onLayout={event => { focusedY.current = event.nativeEvent.layout.y; if (focused.data?.postId === id) scroll.current?.scrollTo({ y: focusedY.current, animated: true }); }}><Text style={s.heading}>Комментарии</Text>
-          {commentId && <View accessibilityLabel="Комментарий из уведомления">
-            <Text style={s.heading}>Комментарий из уведомления</Text>
-            {focused.isPending && <Muted>Загрузка комментария…</Muted>}
-            {(focused.isError || (focused.data && focused.data.postId !== id)) && <Muted>Комментарий недоступен.</Muted>}
-            {focused.data?.postId === id && <CommentRow item={focused.data} onReply={setReplyTo} />}
-          </View>}
-          {comments.isPending && <Muted>Загрузка комментариев…</Muted>}
-          {comments.isError && <Text style={s.error}>{errorMessage(comments.error)}</Text>}
-          {comments.data?.pages.flatMap(page => page.items).map(item => <CommentRow key={item.id} item={item} onReply={setReplyTo} />)}
-          {comments.hasNextPage && <Button label="Ещё комментарии" variant="outline" disabled={comments.isFetchingNextPage} onPress={() => void comments.fetchNextPage()} />}
-          {replyTo && <Button label="Отменить ответ" variant="outline" onPress={() => setReplyTo(null)} />}
-          <TextInput value={body} onChangeText={setBody} multiline textAlignVertical="top" style={s.input} placeholder="Комментарий…" placeholderTextColor={COLORS.textSecondary} />
-          <Button label="Отправить" variant="primary" disabled={busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters} onPress={() => void send()} />
+    <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={s.detailHeader}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Назад"
+          style={s.detailBack} onPress={() => router.back()}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
+        </Pressable>
+        <Text style={s.detailHeading}>Публикация</Text>
+      </View>
+      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+        contentContainerStyle={s.detailContent}>
+        {status.data?.enabled !== true ? <Status status={status} /> : <>
+          {post.isPending && <Loading variant="inline" size="large" message="Загрузка публикации…" />}
+          {post.isError && <Text style={s.error}>{errorMessage(post.error)}</Text>}
+          {post.data && <FeedPostCard post={post.data} detailed />}
+          <View style={s.commentsBlock} onLayout={event => {
+            focusedY.current = event.nativeEvent.layout.y;
+            if (focused.data?.postId === id) scroll.current?.scrollTo({ y: focusedY.current, animated: true });
+          }}>
+            <Text style={s.commentsHeading}>Комментарии{post.data ? ` · ${post.data.commentCount}` : ""}</Text>
+            {commentId && <View accessibilityLabel="Комментарий из уведомления" style={s.focusedComment}>
+              {focused.isPending && <Loading variant="inline" size="small" message="Загрузка комментария…" />}
+              {(focused.isError || (focused.data && focused.data.postId !== id)) && <Muted>Комментарий недоступен.</Muted>}
+              {focused.data?.postId === id && <CommentRow item={focused.data} onReply={startReply} />}
+            </View>}
+            {comments.isPending && <Loading variant="inline" size="small" message="Загрузка комментариев…" />}
+            {comments.isError && <Text style={s.error}>{errorMessage(comments.error)}</Text>}
+            {comments.data?.pages.flatMap(page => page.items)
+              .filter(item => item.id !== (focused.data?.postId === id ? commentId : null))
+              .map(item => <CommentRow key={item.id} item={item} onReply={startReply} />)}
+            {comments.hasNextPage && <Pressable accessibilityRole="button" style={s.moreComments}
+              disabled={comments.isFetchingNextPage} onPress={() => void comments.fetchNextPage()}>
+              <Text style={s.more}>{comments.isFetchingNextPage ? "Загрузка…" : "Показать ещё комментарии"}</Text>
+            </Pressable>}
+            {comments.isFetchingNextPage && <MascotSpinner size="small" />}
+            {!comments.isPending && !comments.isError && !comments.data?.pages.flatMap(page => page.items).length && !focused.data &&
+              <Muted>Пока нет комментариев. Напишите первым.</Muted>}
+          </View>
+        </>}
+      </ScrollView>
+      {status.data?.enabled === true && <View style={[s.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        {replyTo && <View style={s.replyBanner}>
+          <MaterialCommunityIcons name="reply" size={16} color={COLORS.primary} />
+          <Text numberOfLines={1} style={s.replyBannerText}>Ответ для {replyToName}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Отменить ответ"
+            style={s.replyCancel} onPress={cancelReply}>
+            <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
+          </Pressable>
+        </View>}
+        <View style={s.composerRow}>
+          <TextInput ref={composerRef} value={body} onChangeText={setBody}
+            multiline textAlignVertical="center" style={s.composerInput}
+            accessibilityLabel="Написать комментарий"
+            placeholder={replyTo ? "Написать ответ…" : "Комментарий…"}
+            placeholderTextColor={COLORS.textSecondary} />
+          <Pressable accessibilityRole="button" accessibilityLabel={busy ? "Отправка…" : "Отправить комментарий"}
+            accessibilityState={{ disabled: busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters }}
+            style={[s.composerSend, (busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters) && s.composerSendDisabled]}
+            disabled={busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters}
+            onPress={() => void send()}>
+            <MaterialCommunityIcons name="arrow-up" size={22} color="#fff" />
+          </Pressable>
         </View>
-      </>}
-    </ScrollView>
+        {countFeedCharacters(body) > FEED_LIMITS.commentCharacters &&
+          <Text style={s.composerLimit}>Максимум {FEED_LIMITS.commentCharacters} символов</Text>}
+      </View>}
+    </KeyboardAvoidingView>
   </TexturedSafeAreaView>;
 }
-function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (id: string) => void }) {
+function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: FeedCommentDto) => void }) {
   const router = useRouter();
   const cache = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -337,84 +637,204 @@ function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (id: str
     } catch (error) { Alert.alert("Комментарий", errorMessage(error)); }
     finally { setBusy(false); }
   };
+  const openActions = () => {
+    if (busy || (!item.canEdit && !item.canDelete)) return;
+    const options: { text: string; style?: "cancel" | "destructive"; onPress?: () => void }[] = [];
+    if (item.canEdit) options.push({ text: "Изменить", onPress: () => { setDraft(item.text); setEditing(true); } });
+    if (item.canDelete) options.push({ text: "Удалить", style: "destructive", onPress: () =>
+      Alert.alert("Удалить комментарий?", "Отменить удаление будет нельзя.", [
+        { text: "Отмена", style: "cancel" },
+        { text: "Удалить", style: "destructive", onPress: () => void run("delete") },
+      ]) });
+    options.push({ text: "Отмена", style: "cancel" });
+    Alert.alert("Комментарий", undefined, options);
+  };
+  const goProfile = () => router.push({
+    pathname: "/profile/[username]", params: { username: item.author.username },
+  } as Href);
   return <View style={s.comment}>
-    <Pressable accessibilityRole="button" onPress={() => router.push({
-      pathname: "/profile/[username]", params: { username: item.author.username },
-    } as Href)}>
-      <Text style={s.authorName}>{item.author.name}</Text>
-    </Pressable>
-    <Muted>{formatFeedTime(item.createdAt)}{item.editedAt ? " · Изменён" : ""}</Muted>
-    {item.replyToName && <Muted>Ответ для {item.replyToName}</Muted>}
-    {editing ? <View style={{ gap: SPACING.sm }}>
-      <TextInput style={s.input} multiline value={draft} onChangeText={setDraft}
-        placeholder="Изменить комментарий" placeholderTextColor={COLORS.textSecondary} />
-      <Button label="Сохранить" variant="primary"
-        disabled={busy || !draft.trim() || countFeedCharacters(draft) > FEED_LIMITS.commentCharacters}
-        onPress={() => void run("edit")} />
-      <Button label="Отменить" variant="outline" onPress={() => setEditing(false)} />
-    </View> : <Text style={s.body}>{item.deleted ? "Комментарий удалён" : item.text}</Text>}
-    {!item.deleted && <>
-      <View style={s.row}>
-        <Pressable accessibilityRole="button" onPress={() => onReply(item.id)}>
-          <Text style={s.more}>Ответить</Text>
-        </Pressable>
-        {item.canEdit && <Pressable disabled={busy} accessibilityRole="button"
-          onPress={() => { setDraft(item.text); setEditing(true); }}>
-          <Text style={s.more}>Изменить</Text>
-        </Pressable>}
-        {item.canDelete && <Pressable disabled={busy} accessibilityRole="button"
-          onPress={() => Alert.alert("Удалить комментарий?", "Отменить удаление будет нельзя.", [
-            { text: "Отмена", style: "cancel" },
-            { text: "Удалить", style: "destructive", onPress: () => void run("delete") },
-          ])}>
-          <Text style={s.more}>Удалить</Text>
+    <View style={s.commentLine}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Профиль ${item.author.name}`}
+        style={s.commentAvatarTap} onPress={goProfile}>
+        {item.author.avatarUrl
+          ? <Image source={{ uri: item.author.avatarUrl }} style={s.commentAvatar} cachePolicy="memory" />
+          : <View style={[s.commentAvatar, s.avatarFallback]}>
+              <Text style={s.commentAvatarInitial}>{item.author.name.slice(0, 1)}</Text>
+            </View>}
+      </Pressable>
+      <View style={s.commentContent}>
+        <View style={s.commentMetaRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Профиль ${item.author.name}`}
+            style={s.commentAuthorTap} onPress={goProfile}>
+            <Text numberOfLines={1} style={s.commentAuthorName}>{item.author.name}</Text>
+          </Pressable>
+          <Text numberOfLines={1} style={s.commentTime}>
+            {formatFeedTime(item.createdAt)}{item.editedAt ? " · изм." : ""}
+          </Text>
+          {(item.canEdit || item.canDelete) && !item.deleted &&
+            <Pressable accessibilityRole="button" accessibilityLabel="Действия с комментарием"
+              style={s.commentMenuButton} disabled={busy} onPress={openActions}>
+              <MaterialCommunityIcons name="dots-horizontal" size={20} color={COLORS.textSecondary} />
+            </Pressable>}
+        </View>
+        {item.replyToName && <Text numberOfLines={1} style={s.commentReplyLabel}>↪ {item.replyToName}</Text>}
+        {editing
+          ? <View style={s.inlineEditor}>
+              <TextInput style={s.inlineEditInput} multiline value={draft} onChangeText={setDraft}
+                placeholder="Изменить комментарий" placeholderTextColor={COLORS.textSecondary} />
+              <View style={s.inlineEditActions}>
+                <Pressable accessibilityRole="button" onPress={() => setEditing(false)} style={s.commentAction}>
+                  <Text style={s.commentActionText}>Отмена</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button"
+                  disabled={busy || !draft.trim() || countFeedCharacters(draft) > FEED_LIMITS.commentCharacters}
+                  onPress={() => void run("edit")} style={s.commentAction}>
+                  <Text style={s.commentActionText}>Сохранить</Text>
+                </Pressable>
+              </View>
+            </View>
+          : <Pressable onLongPress={openActions} disabled={!item.canEdit && !item.canDelete}>
+              <Text style={[s.commentBody, item.deleted && s.deletedComment]}>
+                {item.deleted ? "Комментарий удалён" : item.text}
+              </Text>
+            </Pressable>}
+        {!item.deleted && !item.canEdit && <FeedReportButton type="comment" id={item.id} authorId={item.author.id} />}
+        {!item.deleted && !editing && <View style={s.commentActions}>
+          <FeedReactionStrip reactions={item.reactions} myReaction={item.myReaction}
+            busy={busy} onSelect={async emoji => { await run("reaction", emoji); }} />
+          <Pressable accessibilityRole="button" style={s.commentReplyButton}
+            onPress={() => onReply(item)}>
+            <Text style={s.commentActionText}>Ответить</Text>
+          </Pressable>
+        </View>}
+        {!item.rootId && item.replyCount > 0 && <Pressable accessibilityRole="button"
+          style={s.showRepliesButton} onPress={() => setShowReplies(previous => !previous)}>
+          <MaterialCommunityIcons name={showReplies ? "chevron-up" : "reply-outline"}
+            size={17} color={COLORS.primary} />
+          <Text style={s.more}>{showReplies ? "Скрыть ответы" : `Ответы · ${item.replyCount}`}</Text>
         </Pressable>}
       </View>
-      <View style={s.reactions}>
-        {FEED_REACTIONS.map(emoji => <Pressable key={emoji} accessibilityRole="button"
-          accessibilityState={{ selected: item.myReaction === emoji }} disabled={busy}
-          onPress={() => void run("reaction", emoji)}
-          style={[s.reaction, item.myReaction === emoji && s.reactionSelected]}>
-          <Text style={s.reactionText}>{emoji} {item.reactions.find(r => r.emoji === emoji)?.count ?? ""}</Text>
-        </Pressable>)}
-      </View>
-    </>}
-    {!item.rootId && item.replyCount > 0 && <Pressable accessibilityRole="button"
-      onPress={() => setShowReplies(previous => !previous)}>
-      <Text style={s.more}>{showReplies ? "Скрыть ответы" : `Ответы (${item.replyCount})`}</Text>
-    </Pressable>}
-    {showReplies && <>
-      {replies.isPending && <Muted>Загружаем ответы…</Muted>}
-      {replies.isError && <Button label="Повторить загрузку ответов" variant="outline"
-        onPress={() => void replies.refetch()} />}
+    </View>
+    {showReplies && <View style={s.threadReplies}>
+      {replies.isPending && <Loading variant="inline" size="small" message="Загружаем ответы…" />}
+      {replies.isError && <Pressable accessibilityRole="button"
+        onPress={() => void replies.refetch()} style={s.moreComments}>
+        <Text style={s.more}>Повторить загрузку ответов</Text>
+      </Pressable>}
       {replies.data?.pages.flatMap(page => page.items).map(reply =>
         <CommentRow key={reply.id} item={reply} onReply={onReply} />)}
-      {replies.hasNextPage && <Button label="Ещё ответы" variant="outline"
-        disabled={replies.isFetchingNextPage} onPress={() => void replies.fetchNextPage()} />}
-    </>}
+      {replies.hasNextPage && <Pressable accessibilityRole="button"
+        style={s.moreComments} disabled={replies.isFetchingNextPage}
+        onPress={() => void replies.fetchNextPage()}>
+        <Text style={s.more}>{replies.isFetchingNextPage ? "Загрузка…" : "Ещё ответы"}</Text>
+      </Pressable>}
+      {replies.isFetchingNextPage && <MascotSpinner size="small" />}
+    </View>}
   </View>;
 }
 const s = StyleSheet.create({
   screen: { flex: 1 }, padding: { padding: SPACING.md, paddingBottom: 100, gap: SPACING.md },
-  list: { paddingHorizontal: SPACING.md, paddingBottom: 80 }, listItem: { marginBottom: 14 },
-  pageHeader: { paddingHorizontal: SPACING.md, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  heading: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 24 },
+  list: { paddingHorizontal: 8, paddingBottom: 80 }, listItem: { marginBottom: 7 },
+  pageHeader: { paddingHorizontal: 16, paddingTop: 3, paddingBottom: 7, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  heading: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 21 },
+  newPostButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" },
+  newPostPressed: { opacity: 0.7 },
   card: { backgroundColor: COLORS.cardBackground, borderRadius: 20, padding: 16, gap: 12 },
-  authorRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { height: 46, width: 46, borderRadius: 23 }, avatarFallback: { backgroundColor: "#e5e5cf", justifyContent: "center", alignItems: "center" },
-  authorName: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 15 },
+  postCard: { backgroundColor: COLORS.cardBackground, borderRadius: 14, padding: 10, gap: 7 },
+  postCardDetailed: { padding: 12, gap: 9, borderRadius: 16 },
+  postAuthorBar: { flexDirection: "row", alignItems: "center", gap: 5 },
+  authorRow: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, minHeight: 35 },
+  postMenuButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  avatar: { height: 34, width: 34, borderRadius: 17 },
+  avatarFallback: { backgroundColor: "#e5e5cf", justifyContent: "center", alignItems: "center" },
+  avatarInitial: { fontFamily: FONTS.montserratBold, color: COLORS.primary, fontSize: 15 },
+  authorName: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 13 },
   text: { fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 15 },
-  muted: { fontFamily: FONTS.montserrat, color: COLORS.textSecondary, fontSize: 12, lineHeight: 19 },
-  body: { fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 15, lineHeight: 24 },
+  muted: { fontFamily: FONTS.montserrat, color: COLORS.textSecondary, fontSize: 11, lineHeight: 16 },
+  body: { fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 14, lineHeight: 20 },
+  bodyDetailed: { fontSize: 15, lineHeight: 24 },
   more: { fontFamily: FONTS.montserratMedium, color: COLORS.primary, fontSize: 13 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, justifyContent: "space-between", flexWrap: "wrap" },
-  reactions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  reaction: { backgroundColor: "#F4F1E7", paddingHorizontal: 10, minHeight: 40, borderRadius: 18, justifyContent: "center" },
-  reactionSelected: { backgroundColor: "#DCE5C6" },
-  reactionText: { fontSize: 15 },
-  carousel: { gap: 10 }, media: { width: 295, height: 250, backgroundColor: "#E6E0D2", borderRadius: 14, overflow: "hidden" },
+  postFooter: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", columnGap: 8, rowGap: 2 },
+  postStats: { flexDirection: "row", alignItems: "center", gap: 10 },
+  postStat: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 4 },
+  postStatText: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
+  compactReactions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
+  reactionPill: { minHeight: 30, borderRadius: 15, backgroundColor: "#f1ecdf", paddingHorizontal: 7, flexDirection: "row", alignItems: "center", gap: 4 },
+  reactionPillSelected: { backgroundColor: "#dce6c9" },
+  reactionEmoji: { fontSize: 16, lineHeight: 23 },
+  reactionCount: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.primary },
+  addReaction: { width: 34, height: 32, alignItems: "center", justifyContent: "center" },
+  reactionModal: { flex: 1 },
+  reactionPalette: {
+    position: "absolute", flexDirection: "row", alignItems: "center", gap: 3,
+    padding: 8, height: 58, borderRadius: 20, backgroundColor: "#faf7ef",
+    shadowColor: "#000", shadowOpacity: 0.16, shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12, elevation: 6,
+  },
+  reactionPaletteItem: { flex: 1, minWidth: 0, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  reactionPaletteEmoji: { fontSize: 23 },
+  feedCarousel: { marginHorizontal: -10, borderRadius: 8 },
+  carousel: { gap: 8 }, media: { width: 295, height: 226, backgroundColor: "#E6E0D2", borderRadius: 8, overflow: "hidden" },
   image: { width: "100%", height: "100%" }, videoPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center" },
   input: { borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: 12, minHeight: 120, padding: 12, fontFamily: FONTS.montserrat, fontSize: 15, color: COLORS.text, backgroundColor: "#FFFEF9" },
+  composeContent: { paddingHorizontal: SPACING.md, paddingTop: 6, paddingBottom: 44, gap: 12 },
+  composeTopBar: { flexDirection: "row", alignItems: "center", minHeight: 56, paddingHorizontal: SPACING.md, paddingBottom: 10, gap: 12 },
+  composeBackPill: { minHeight: 44, flexDirection: "row", alignItems: "center", paddingLeft: 9, paddingRight: 15, borderRadius: 24, backgroundColor: "#FBF7EF" },
+  composeBackLabel: { fontFamily: FONTS.montserratMedium, fontSize: 16, color: COLORS.text },
+  composeTopTitle: { flex: 1, fontFamily: FONTS.montserratMedium, fontSize: 17, color: COLORS.text },
+  composeEditor: { backgroundColor: COLORS.cardBackground, padding: 12, borderRadius: 16, gap: 4 },
+  composeInput: { minHeight: 106, padding: 0, fontFamily: FONTS.montserrat, fontSize: 15, lineHeight: 23, color: COLORS.text, textAlignVertical: "top" },
+  composeCounter: { textAlign: "right", fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
+  composeTools: { flexDirection: "row", gap: 7 },
+  composeTool: { flex: 1, minWidth: 0, height: 58, borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 3, backgroundColor: COLORS.cardBackground },
+  composeToolPressed: { opacity: 0.6 },
+  composeToolSelected: { backgroundColor: "#DFE7D0" },
+  composeToolText: { fontFamily: FONTS.montserratMedium, fontSize: 11, color: COLORS.primary },
+  composeToolDot: { position: "absolute", right: 8, top: 6, width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.primary },
+  composeAttachments: { gap: 6 },
+  composeAttachmentsTitle: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.textSecondary },
+  composeReorderHint: { fontFamily: FONTS.montserrat, fontSize: 11, lineHeight: 16, color: COLORS.textSecondary },
+  composeAlbumCount: { fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 18, color: COLORS.textSecondary },
   error: { color: "#95283B", fontFamily: FONTS.montserrat },
-  comment: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.borderLight, paddingTop: 12, gap: 4 },
+  detailHeader: { height: 48, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
+  detailBack: { width: 38, height: 44, alignItems: "center", justifyContent: "center" },
+  detailHeading: { fontFamily: FONTS.montserratMedium, color: COLORS.text, fontSize: 17 },
+  detailContent: { paddingHorizontal: 10, paddingTop: 4, paddingBottom: 18, gap: 10 },
+  commentsBlock: { backgroundColor: COLORS.cardBackground, borderRadius: 16, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
+  commentsHeading: { fontFamily: FONTS.montserratMedium, fontSize: 17, lineHeight: 23, color: COLORS.text, paddingBottom: 7 },
+  focusedComment: { backgroundColor: "#e7eadb", borderRadius: 12, paddingHorizontal: 8 },
+  comment: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.borderLight, paddingVertical: 9, gap: 5 },
+  commentLine: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  commentAvatarTap: { width: 32, height: 32 },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16 },
+  commentAvatarInitial: { fontFamily: FONTS.montserratMedium, color: COLORS.primary, fontSize: 13 },
+  commentContent: { flex: 1, minWidth: 0, gap: 4 },
+  commentMetaRow: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 23 },
+  commentAuthorTap: { flexShrink: 1, minWidth: 0 },
+  commentAuthorName: { fontFamily: FONTS.montserratMedium, fontSize: 13, lineHeight: 18, color: COLORS.text },
+  commentTime: { flexShrink: 1, fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
+  commentMenuButton: { marginLeft: "auto", width: 28, height: 30, alignItems: "center", justifyContent: "center" },
+  commentReplyLabel: { fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
+  commentBody: { fontFamily: FONTS.montserrat, fontSize: 14, lineHeight: 20, color: COLORS.text },
+  deletedComment: { color: COLORS.textSecondary, fontStyle: "italic" },
+  commentActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: 4 },
+  commentReplyButton: { minHeight: 32, paddingHorizontal: 6, justifyContent: "center" },
+  commentAction: { minHeight: 36, paddingHorizontal: 6, justifyContent: "center" },
+  commentActionText: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.primary },
+  showRepliesButton: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32 },
+  threadReplies: { marginLeft: 40, borderLeftWidth: 1, borderLeftColor: "#ccd5b8", paddingLeft: 10 },
+  inlineEditor: { gap: 5 },
+  inlineEditInput: { minHeight: 56, maxHeight: 110, borderRadius: 10, borderWidth: 1, borderColor: COLORS.borderLight, backgroundColor: "#fffef9", padding: 8, fontFamily: FONTS.montserrat, fontSize: 13, color: COLORS.text },
+  inlineEditActions: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 12 },
+  moreComments: { minHeight: 38, justifyContent: "center", alignItems: "center" },
+  composer: { paddingHorizontal: 12, paddingTop: 8, backgroundColor: "#faf7ef", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.borderLight, gap: 6 },
+  composerRow: { flexDirection: "row", alignItems: "flex-end", gap: 9 },
+  composerInput: { flex: 1, minHeight: 42, maxHeight: 110, borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: 21, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: "#fffef9", fontFamily: FONTS.montserrat, fontSize: 14, color: COLORS.text },
+  composerSend: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" },
+  composerSendDisabled: { opacity: 0.45 },
+  composerLimit: { color: "#95283B", fontFamily: FONTS.montserrat, fontSize: 11 },
+  replyBanner: { minHeight: 30, flexDirection: "row", alignItems: "center", gap: 5 },
+  replyBannerText: { flex: 1, fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
+  replyCancel: { width: 30, height: 30, justifyContent: "center", alignItems: "center" },
 });

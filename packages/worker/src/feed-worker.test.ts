@@ -24,6 +24,10 @@ describe("feed push delivery adapter", () => {
       title: "Лента GAFUS", body: "Новый ответ на ваш комментарий.", url: "/feed/post?commentId=comment",
     });
   });
+  it("delivers subscribed author posts as push with the post link", async () => {
+    await feedPushDelivery.deliver({ ...event, kind: "author_post", commentId: null });
+    expect(mocks.expo).toHaveBeenCalledWith([{}], { title: "Лента GAFUS", body: "Новая публикация автора, на которого вы подписаны.", url: "/feed/post" });
+  });
   it("finishes gracefully without subscriptions", async () => {
     mocks.subscriptions.mockResolvedValue([]);
     await feedPushDelivery.deliver(event);
