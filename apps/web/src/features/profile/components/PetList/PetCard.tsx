@@ -21,7 +21,9 @@ import { getAgeWithMonths, declOfNum, getPetTypeLabel } from "@gafus/core/utils"
 import { Avatar, IconButton } from "@shared/utils/muiImports";
 import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
 import { PreventionEntryList } from "@/features/pet-prevention";
+import { VetVisitShortcut } from "@/features/pet-vet-visits/VetVisits";
 import { PetWeight } from "./PetWeight";
+import PetProfileVisibility from "./PetProfileVisibility";
 import { useWebOnboardingTourStore } from "@/features/onboarding-tour";
 import { PrimaryButton, primaryButtonClassName } from "@/shared/components/ui";
 
@@ -39,18 +41,18 @@ import {
   PET_DOCUMENT_ALLOWED_MIME_TYPES,
   PET_DOCUMENT_MAX_SIZE_BYTES,
   type PetDocumentDto,
-  type PublicProfile,
+  type Pet,
 } from "@gafus/types";
 import type { ChangeEvent, FocusEvent } from "react";
 import type { PreventionEntryDisplay } from "@/features/pet-prevention";
 
-type PetFromPublicProfile = PublicProfile["pets"][0];
+type OwnerPet = Pet;
 
 interface PetCardProps {
-  pet: PetFromPublicProfile;
+  pet: OwnerPet;
   index: number;
   isOwner: boolean;
-  onEdit: (pet: PetFromPublicProfile) => void;
+  onEdit: (pet: OwnerPet) => void;
   onDelete: (petId: string, petName: string) => void;
   isPending: boolean;
   pathOrScreen: string;
@@ -524,6 +526,9 @@ const PetCard = memo(function PetCard({
           </div>
         </div>
       </div>
+      {isOwner ? (
+        <PetProfileVisibility petId={pet.id} petName={pet.name} showInProfile={pet.showInProfile} />
+      ) : null}
       {!isExpanded && isOwner && (
         <div className={styles.petCompactFoot}>
           <span>Процедуры · {preventionLoading ? "…" : preventionEntries.length}</span>
@@ -571,7 +576,7 @@ const PetCard = memo(function PetCard({
             <span className={styles.documentsTitle}>Записи о процедурах</span>
           </div>
           {preventionLoading ? (
-            <LoadingState variant="inline" size="small" message="Загрузка записей…" />
+            <LoadingState variant="inline" message="Загрузка записей…" />
           ) : preventionError ? (
             <p className={styles.documentsError}>{preventionError}</p>
           ) : (
@@ -583,6 +588,7 @@ const PetCard = memo(function PetCard({
           )}
         </div>
       ) : null}
+      {isOwner ? <VetVisitShortcut petId={pet.id} /> : null}
       {isOwner ? <PetWeight petId={pet.id} petName={pet.name} /> : null}
       {isOwner ? (
         <div
@@ -613,7 +619,7 @@ const PetCard = memo(function PetCard({
             </label>
           </div>
           {documentsLoading ? (
-            <LoadingState variant="inline" size="small" message="Загрузка документов…" />
+            <LoadingState variant="inline" message="Загрузка документов…" />
           ) : null}
           {documentsError ? <p className={styles.documentsError}>{documentsError}</p> : null}
           {localDocumentsError ? (

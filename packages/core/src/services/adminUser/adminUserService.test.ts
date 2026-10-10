@@ -182,6 +182,7 @@ describe("updateUserAdmin", () => {
 describe("deleteUserAdmin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTransaction.mockImplementation(async (fn) => fn({ user: { delete: mockUserDelete }, $executeRaw: vi.fn().mockResolvedValue(1) }));
   });
 
   it("returns error when deleting self", async () => {

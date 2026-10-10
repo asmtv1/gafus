@@ -3,17 +3,16 @@ import { StyleSheet, View } from "react-native";
 
 import { getAnimatedMascotSource, getMascotPosterSource } from "./loadingMascotAssets";
 
-interface LoadingMascotProps {
-  pixelSize: number;
-}
+/** Единый размер анимированного лоудера на всех экранах. */
+export const STANDARD_LOADING_MASCOT_PX = 168;
 
 /**
  * Общий визуальный слой загрузки. Статичный первый кадр виден сразу,
  * пока Android или iOS декодирует анимированный GIF поверх него.
  */
-export function LoadingMascot({ pixelSize }: LoadingMascotProps) {
+export function LoadingMascot() {
   return (
-    <View style={{ width: pixelSize, height: pixelSize }} pointerEvents="none">
+    <View style={{ width: STANDARD_LOADING_MASCOT_PX, height: STANDARD_LOADING_MASCOT_PX }} pointerEvents="none">
       <Image
         source={getMascotPosterSource()}
         style={StyleSheet.absoluteFill}

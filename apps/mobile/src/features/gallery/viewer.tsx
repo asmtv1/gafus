@@ -57,7 +57,7 @@ function FullPhoto({ photo, owner, active, width, close }: { photo: GalleryPhoto
     ],
   }));
   return <GestureDetector gesture={drag}><Animated.View style={[{ width, flex: 1, padding: 16 }, photoStyle]}>
-    {full.isPending ? <Loading variant="inline" size="small" message="Загрузка фотографии…" /> : null}
+    {full.isPending ? <Loading variant="inline" message="Загрузка фотографии…" /> : null}
     {full.isError ? <Failure error={full.error} retry={() => void full.refetch()} /> : null}
     {full.data?.fullUrl ? <Image source={{ uri: full.data.fullUrl }} style={{ flex: 1, width: "100%" }} contentFit="contain" cachePolicy="memory" onError={refresh} accessibilityLabel={photo.caption ?? "Фотография"} /> : null}
     {photo.caption ? <Text style={[s.viewerText, { marginTop: 12 }]} numberOfLines={4}>{photo.caption}</Text> : null}

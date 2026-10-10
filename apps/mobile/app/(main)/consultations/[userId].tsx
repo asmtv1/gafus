@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { StyleSheet, Text } from "react-native";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
@@ -40,10 +39,7 @@ export default function ConsultationSlotsScreen() {
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerBackVisible: false }} />
-      <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-        <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-        <Text style={styles.backRowText}>Назад</Text>
-      </Pressable>
+      <AppBackButton style={styles.backRow} onPress={() => router.back()} />
       <ConsultationSlotsCalendar
         cynologistUserId={userId}
         slotDurationMin={slotDurationMin}

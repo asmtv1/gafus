@@ -95,13 +95,14 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
           Body: Readable.fromWeb(file.stream() as ReadableStream),
           ContentType: file.type,
           ContentLength: file.size,
-          CacheControl: "public, max-age=31536000", // 1 год
+          CacheControl: /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath) ? "private, no-store" : "public, max-age=31536000",
           Metadata: {
             "original-name": sanitizeFileName(file.name),
             "upload-timestamp": Date.now().toString(),
           },
         }),
       3,
+      /^(users|questions)\//.test(relativePath) ? AbortSignal.timeout(60_000) : undefined,
     );
 
     logger.info(`✅ Файл загружен в CDN: ${relativePath}`);
@@ -159,12 +160,13 @@ export async function uploadReadableStreamToCDN(
 async function uploadWithRetry(
   createCommand: () => PutObjectCommand,
   maxRetries: number,
+  signal?: AbortSignal,
 ): Promise<void> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await s3Client.send(createCommand());
+      await s3Client.send(createCommand(), { abortSignal: signal });
       return; // Успешно загружено
     } catch (error) {
       lastError = error as Error;
@@ -482,10 +484,10 @@ export async function uploadBufferToCDN(
       Body: buffer,
       ContentType: contentType,
       ContentLength: buffer.length,
-      CacheControl: "public, max-age=31536000", // 1 год
+      CacheControl: /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath) ? "private, no-store" : "public, max-age=31536000",
     });
 
-    await uploadWithRetry(() => command, 3);
+    await uploadWithRetry(() => command, 3, /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath) ? AbortSignal.timeout(60_000) : undefined);
 
     logger.info(`✅ Buffer загружен в CDN: ${key}`);
 

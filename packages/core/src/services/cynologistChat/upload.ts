@@ -90,31 +90,40 @@ export async function uploadChatAttachment(
     // Recheck after receiving and inspecting the file, including expiry during upload.
     if (community) await requireCommunityCanSend(userId);
     else await requireCanSend(userId, chat.id);
-    const channel = streamServer().channel(channelType, chat.streamChannelId);
-    const attachmentKind = image ? "image" : "video";
-    const response = image
-      ? await channel.sendImage(createReadStream(filePath), originalName, type!.mime, {
-          id: `gafus-${userId}`,
-        })
-      : await channel.sendFile(createReadStream(filePath), originalName, type!.mime, {
-          id: `gafus-${userId}`,
-        });
-    uploaded = { kind: attachmentKind, url: response.file };
-    const data = {
-      ownerUserId: userId,
-      kind: attachmentKind,
-      url: response.file,
-      mime: type!.mime,
-      size,
-      name: originalName,
-    };
-    if (community) return await prisma.communityChatAttachment.create({ data });
-    return await prisma.chatAttachment.create({
-      data: {
-        chatId: chat.id,
-        ...data,
-      },
-    });
+    return await prisma.$transaction(async (tx) => {
+      const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      if (!owners.length) throw new ChatError("CHAT_FORBIDDEN", "Профиль удалён", 403);
+      if (!community) {
+        const chats = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "CynologistChat" WHERE "id" = ${chat.id} FOR UPDATE`;
+        if (!chats.length) throw new ChatError("CHAT_FORBIDDEN", "Диалог удалён", 403);
+      }
+      const channel = streamServer().channel(channelType, chat.streamChannelId);
+      const attachmentKind = image ? "image" : "video";
+      const request = { timeout: 60_000, signal: AbortSignal.timeout(60_000) };
+      const response = image
+        ? await channel.sendImage(createReadStream(filePath), originalName, type!.mime, {
+            id: `gafus-${userId}`,
+          }, request)
+        : await channel.sendFile(createReadStream(filePath), originalName, type!.mime, {
+            id: `gafus-${userId}`,
+          }, request);
+      uploaded = { kind: attachmentKind, url: response.file };
+      const data = {
+        ownerUserId: userId,
+        kind: attachmentKind,
+        url: response.file,
+        mime: type!.mime,
+        size,
+        name: originalName,
+      };
+      if (community) return await tx.communityChatAttachment.create({ data });
+      return await tx.chatAttachment.create({
+        data: {
+          chatId: chat.id,
+          ...data,
+        },
+      });
+    }, { timeout: 90_000 });
   } catch (error) {
     if (uploaded) {
       const channel = streamServer().channel(channelType, chat.streamChannelId);

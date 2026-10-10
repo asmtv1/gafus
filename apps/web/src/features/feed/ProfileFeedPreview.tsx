@@ -24,11 +24,11 @@ export function ProfileFeedPreview({ username }: { username: string }) {
     staleTime: 30_000,
   });
   if (!userId) return null;
-  if (enabled.isPending) return <LoadingState variant="inline" size="small" message="Загрузка публикаций…" />;
+  if (enabled.isPending) return <LoadingState variant="inline" message="Загрузка публикаций…" />;
   if (enabled.data?.enabled !== true) return null;
   return <section className={styles.card} aria-label="Публикации пользователя">
     <h2>Публикации</h2>
-    {posts.isPending && <LoadingState variant="inline" size="small" message="Загружаем публикации…" />}
+    {posts.isPending && <LoadingState variant="inline" message="Загружаем публикации…" />}
     {posts.isError && <div>
       <p className={styles.muted} role="alert">Не удалось загрузить публикации.</p>
       <button className={styles.secondary} type="button" onClick={() => void posts.refetch()}>Повторить</button>

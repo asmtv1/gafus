@@ -12,7 +12,7 @@ import {
   type QuestionDetailDto,
   type QuestionPhotoDto,
 } from "@gafus/types";
-import { Loading, TexturedSafeAreaView } from "@/shared/components";
+import { AppBackButton, Loading, TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui/Button";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
@@ -67,10 +67,7 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
       >
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content}>
           <View style={styles.header}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Назад" hitSlop={6}
-              style={styles.backButton} onPress={() => router.back()}>
-              <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
-            </Pressable>
+            <AppBackButton onPress={() => router.back()} />
             <Text accessibilityRole="header" style={styles.heading}>
               {initial ? "Изменить вопрос" : "Задать вопрос"}
             </Text>

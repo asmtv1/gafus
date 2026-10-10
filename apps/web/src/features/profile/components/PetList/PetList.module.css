@@ -762,3 +762,102 @@
   .sectionIcon { width: 35px; height: 35px; }
   .petDetails .documentsTitle { font-size: 15px; }
 }
+
+.profileVisibility {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 12px;
+}
+
+.profileVisibilityLabel {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 15px;
+  border: 1px solid #ded3b9;
+  background: #f9f5ec;
+  color: #352e2e;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+  font: inherit;
+}
+
+.profileVisibilityIcon {
+  color: #4d5c2d;
+  width: 19px !important;
+  height: 19px !important;
+  flex-shrink: 0;
+}
+
+.profileVisibilityText {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.profileVisibilityTrack {
+  display: flex;
+  flex: 0 0 50px;
+  align-items: center;
+  width: 50px;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 3px;
+  border: 1px solid #cdbf9f;
+  border-radius: 999px;
+  background: #e5dac5;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.profileVisibilityTrackActive {
+  background: #4d5c2d;
+  border-color: #4d5c2d;
+}
+
+.profileVisibilityThumb {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 50%;
+  background: #fffdf6;
+  box-shadow: 0 1px 3px rgba(53, 46, 46, 0.18);
+  transition: transform 160ms ease;
+}
+
+.profileVisibilityTrackActive .profileVisibilityThumb {
+  transform: translateX(20px);
+}
+
+.profileVisibilityLabel:hover:not(:disabled) {
+  background: #f1ead9;
+}
+
+.profileVisibilityLabel:focus-visible {
+  outline: 3px solid rgba(77, 92, 45, 0.55);
+  outline-offset: 2px;
+}
+
+.profileVisibilityLabel:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profileVisibilityLabel,
+  .profileVisibilityTrack,
+  .profileVisibilityThumb { transition: none; }
+}
+
+.profileVisibilityError {
+  margin: 0 0 8px;
+  color: var(--error, #b42318);
+  font-size: 12px;
+  line-height: 1.5;
+}

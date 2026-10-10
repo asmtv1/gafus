@@ -1,6 +1,5 @@
 "use client";
 
-import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useState, useRef, useEffect } from "react";
@@ -564,7 +563,7 @@ export function VideoReport({ userStepId, stepId, onComplete, onReset }: VideoRe
                 <Button
                   variant="contained"
                   startIcon={
-                    isSubmitting ? <LoadingMascot pixelSize={20} /> : <CloudUpload />
+                    isSubmitting ? null : <CloudUpload />
                   }
                   onClick={handleSubmit}
                   disabled={isSubmitting || videoSize > 50 * 1024 * 1024}

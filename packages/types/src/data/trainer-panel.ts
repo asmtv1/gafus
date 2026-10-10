@@ -15,6 +15,7 @@ export interface TrainerDay {
 // Данные формы курса в trainer-panel
 export interface TrainerCourseFormData {
   name: string;
+  guideContent?: string;
   shortDesc: string;
   description: string;
   duration: string;

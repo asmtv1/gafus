@@ -29,6 +29,7 @@ const logger = createTrainerPanelLogger("trainer-panel-create-course");
 export interface CreateCourseInput {
   name: string;
   shortDesc: string;
+  guideContent?: string;
   description: string;
   duration: string;
   videoUrl?: string;
@@ -60,6 +61,7 @@ export async function createCourseServerAction(formData: FormData) {
 
     const name = formData.get("name")?.toString() || "";
     const shortDesc = formData.get("shortDesc")?.toString() || "";
+    const guideContent = formData.get("guideContent")?.toString() || "";
     const description = formData.get("description")?.toString() || "";
     const duration = formData.get("duration")?.toString() || "";
     const videoUrl = formData.get("videoUrl")?.toString();
@@ -125,6 +127,7 @@ export async function createCourseServerAction(formData: FormData) {
       id: uuid,
       name,
       shortDesc,
+      guideContent,
       description,
       duration,
       videoUrl: videoUrl || null,
@@ -236,6 +239,7 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     id: input.id,
     name: input.name,
     shortDesc: input.shortDesc,
+    guideContent: input.guideContent,
     description: input.description,
     duration: input.duration,
     videoUrl: input.videoUrl ?? null,

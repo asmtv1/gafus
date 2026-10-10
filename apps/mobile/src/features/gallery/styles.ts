@@ -21,6 +21,8 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   galleryPreviewHeading: { flex: 1, minWidth: 0, gap: 2 },
+  galleryPreviewTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  galleryPreviewTitleIcon: { width: 40, height: 40, flexShrink: 0 },
   galleryPreviewTitle: {
     fontFamily: FONTS.montserratBold,
     fontSize: 18,

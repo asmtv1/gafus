@@ -1,0 +1,298 @@
+.page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+  color: #352e2e;
+  font-family: var(--font-montserrat), sans-serif;
+}
+.back {
+  color: #4d5c2d;
+  display: inline-block;
+  margin-bottom: 24px;
+  text-underline-offset: 4px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+.header h1 {
+  font-size: clamp(24px, 5vw, 34px);
+  margin: 0 0 8px;
+}
+.header p {
+  margin: 0;
+  color: #595344;
+}
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  background: #fffdf8;
+  border-radius: 16px;
+  color: #4d5c2d;
+  text-decoration: none;
+}
+.shortcut span {
+  flex: 1;
+}
+.shortcut strong,
+.shortcut small {
+  display: block;
+}
+.shortcut strong {
+  font-size: 17px;
+}
+.shortcut small {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #595344;
+}
+.shortcut:hover {
+  background: #f5f0e5;
+}
+.form,
+.empty {
+  padding: 24px;
+  border-radius: 16px;
+  background: #fffdf8;
+}
+.form h2,
+.empty h2 {
+  font-size: 21px;
+  margin: 0 0 20px;
+}
+.empty p {
+  max-width: 50ch;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+.form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.form label small {
+  color: #595344;
+  font-weight: 400;
+  font-size: 12px;
+}
+.form input,
+.form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #aaa187;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+  color: #352e2e;
+  font: inherit;
+  font-weight: 400;
+  caret-color: #4d5c2d;
+}
+.form textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.page :is(button, a, input, textarea):focus-visible,
+.visit summary:focus-visible {
+  outline: 3px solid #4d5c2d;
+  outline-offset: 4px;
+}
+.page ::selection {
+  background: #e3deb6;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 24px;
+}
+.error {
+  background: #fff1ee;
+  color: #8b2719;
+  padding: 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.error button {
+  display: block;
+  margin-top: 8px;
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.visit {
+  background: #fffdf8;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.visit summary {
+  padding: 20px 24px;
+  cursor: pointer;
+}
+.visit summary span {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  width: calc(100% - 22px);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.visit time {
+  font-size: 13px;
+  color: #595344;
+  font-variant-numeric: tabular-nums;
+}
+.visit strong {
+  font-size: 19px;
+}
+.visit small {
+  color: #595344;
+  line-height: 1.5;
+}
+.details {
+  padding: 0 24px 24px;
+}
+.details dl {
+  margin: 0;
+}
+.details dl > div {
+  padding-top: 20px;
+}
+.details dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: #595344;
+  margin-bottom: 8px;
+}
+.details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.attachments {
+  margin-top: 28px;
+}
+.attachments h3 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+.attachments p {
+  color: #595344;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 20px;
+}
+.attachment {
+  min-width: 0;
+}
+.attachment a {
+  display: block;
+  color: #4d5c2d;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-underline-offset: 3px;
+}
+.attachment a + a {
+  margin-top: 10px;
+}
+.attachment img,
+.pdf {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  background: #ece5d2;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.pdf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4d5c2d;
+  font-weight: 700;
+  font-size: 24px;
+}
+.file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #ded8c7;
+}
+.file span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.file small {
+  display: block;
+}
+.file button,
+.delete,
+.error button {
+  border: 0;
+  background: transparent;
+  color: #8b2719;
+  padding: 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.form .filePicker {
+  margin-top: 16px;
+}
+.form .filePicker input {
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+}
+.page button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+@media (max-width: 520px) {
+  .page {
+    padding: 22px 16px 48px;
+  }
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .form,
+  .empty {
+    padding: 20px 16px;
+  }
+  .visit summary {
+    padding: 20px 16px;
+  }
+  .details {
+    padding: 0 16px 20px;
+  }
+}

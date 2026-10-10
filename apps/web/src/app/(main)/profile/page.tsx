@@ -5,6 +5,7 @@ import { createWebLogger } from "@gafus/logger";
 import { getPublicProfile } from "@shared/lib/profile/getPublicProfile";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 import { generateStaticPageMetadata } from "@gafus/metadata";
+import { prisma } from "@gafus/prisma";
 import { notFound, unstable_rethrow } from "next/navigation";
 
 const logger = createWebLogger("web-profile-page");
@@ -54,10 +55,20 @@ export default async function ProfilPage({
     }
 
     const userData: UserWithTrainings | null = isOwner ? await getUserWithTrainings() : null;
+    const userCity = await prisma.user.findUnique({
+      where: { username },
+      select: { profile: { select: { city: true } } },
+    });
+    const profileWithCity = {
+      ...publicData,
+      profile: publicData.profile
+        ? { ...publicData.profile, city: userCity?.profile?.city ?? null }
+        : null,
+    };
 
     return (
       <ProfileClient
-        publicData={publicData}
+        publicData={profileWithCity}
         isOwner={isOwner}
         username={username}
         userData={userData}

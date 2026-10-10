@@ -8,7 +8,11 @@ const mock = vi.hoisted(() => ({
   image: vi.fn(),
   remove: vi.fn(),
 }));
-vi.mock("@gafus/prisma", () => ({ prisma: { chatAttachment: { create: mock.create } } }));
+vi.mock("@gafus/prisma", () => ({ prisma: {
+  $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({
+    $queryRaw: async () => [{ id: "exists" }], chatAttachment: { create: mock.create },
+  }),
+} }));
 vi.mock("./service", () => ({ requireCanSend: mock.canSend, chatForActor: vi.fn() }));
 vi.mock("./stream", () => ({
   COMMUNITY_CHANNEL_TYPE: "gafus_community",

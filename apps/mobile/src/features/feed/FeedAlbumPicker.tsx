@@ -37,7 +37,7 @@ export function FeedAlbumPicker({ selected, onChange, disabled }: {
   return <View style={styles.card}>
     <Text style={styles.title}>Фотографии из моих альбомов</Text>
     <Text style={styles.notice}>При публикации будет создана отдельная копия. Даже фотография из скрытого альбома станет видна читателям.</Text>
-    {albums.isPending && <Loading variant="inline" size="small" message="Загружаем альбомы…" />}
+    {albums.isPending && <Loading variant="inline" message="Загружаем альбомы…" />}
     {albums.isError && <Pressable accessibilityRole="button" onPress={() => void albums.refetch()}>
       <Text style={styles.link}>Не удалось загрузить альбомы. Повторить</Text>
     </Pressable>}
@@ -52,7 +52,7 @@ export function FeedAlbumPicker({ selected, onChange, disabled }: {
       </Pressable>}
     </ScrollView>
     {albumId && <>
-      {photos.isPending && <Loading variant="inline" size="small" message="Загружаем фотографии…" />}
+      {photos.isPending && <Loading variant="inline" message="Загружаем фотографии…" />}
       {photos.isError && <Pressable accessibilityRole="button" onPress={() => void photos.refetch()}>
         <Text style={styles.link}>Ошибка загрузки фотографий. Повторить</Text>
       </Pressable>}

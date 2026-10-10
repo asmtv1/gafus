@@ -2,7 +2,6 @@
 
 import {
   getTrainingDayWithMonetizedSteps,
-  getTrainingDayWithUserSteps as getTrainingDayWithUserStepsFromCore,
 } from "@gafus/core/services/training/trainingService";
 
 import type { TrainingDetail } from "@gafus/types";
@@ -25,15 +24,14 @@ export async function getTrainingDayWithUserSteps(
   const safeCourseType = courseTypeSchema.parse(courseType);
   const safeDayId = dayOnCourseIdSchema.parse(dayOnCourseId);
   const userId = await getCurrentUserId();
+  // Never server-render locked training material to an unauthenticated visitor.
+  if (!userId) return { training: null };
 
   try {
-    const training =
-      userId ?
-        await getTrainingDayWithMonetizedSteps(userId, safeCourseType, safeDayId, {
-          ...options,
-          platform: "WEB_DESKTOP",
-        })
-      : await getTrainingDayWithUserStepsFromCore(undefined, safeCourseType, safeDayId, options);
+    const training = await getTrainingDayWithMonetizedSteps(userId, safeCourseType, safeDayId, {
+      ...options,
+      platform: "WEB_DESKTOP",
+    });
 
     return { training };
   } catch (error) {

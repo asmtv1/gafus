@@ -1,4 +1,3 @@
-import { AppState } from "react-native";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "expo-camera";
@@ -112,26 +111,36 @@ export async function pickFeedMedia(source: "camera-photo" | "camera-video" | "l
     throw error;
   }
 }
-export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia): Promise<string> {
-  const reserved = await feedApi.reserveUpload(postId, {
+export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia, onProgress?: (loaded: number, total: number) => void): Promise<string> {
+  let reserved = await feedApi.reserveUpload(postId, {
     filename: item.filename, kind: item.kind, declaredMime: item.mime,
     declaredBytes: item.bytes, clientRequestId: item.requestId,
   });
+  if (["uploaded", "processing", "ready"].includes(reserved.status)) return reserved.mediaId;
+  if (["expired", "failed", "cancelled"].includes(reserved.status)) {
+    reserved = await feedApi.retryUpload(reserved.uploadId, { clientRequestId: Crypto.randomUUID() });
+  }
   if (!reserved.postUrl || !reserved.postFields) throw new Error("Ссылка для загрузки истекла.");
   if (!reserved.postUrl.startsWith("https://")) throw new Error("Небезопасный адрес загрузки.");
   const fields = new FormData();
   for (const [key, value] of Object.entries(reserved.postFields)) fields.append(key, value);
   fields.append("file", { uri: item.uri, name: item.filename, type: item.mime } as unknown as Blob);
-  const abort = new AbortController();
-  const background = AppState.addEventListener("change", state => {
-    if (state !== "active") abort.abort();
+  // XMLHttpRequest exposes actual native upload bytes; fetch provides no upload progress.
+  // Do not abort when the screen unmounts or AppState changes. The OS may still suspend
+  // networking when the app is backgrounded; errors remain retryable in the queue.
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", reserved.postUrl!);
+    if (onProgress) xhr.upload.onprogress = event => {
+      if (event.lengthComputable && event.total > 0) onProgress(event.loaded, event.total);
+    };
+    xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+      ? resolve() : reject(new Error("Не удалось передать вложение в хранилище."));
+    xhr.onerror = () => reject(new Error("Сеть недоступна. Повторите загрузку."));
+    xhr.ontimeout = () => reject(new Error("Превышено время загрузки. Попробуйте ещё раз."));
+    xhr.timeout = 10 * 60 * 1000;
+    xhr.send(fields);
   });
-  try {
-    const response = await fetch(reserved.postUrl, {
-      method: "POST", body: fields, signal: abort.signal,
-    });
-    if (!response.ok) throw new Error("Не удалось передать вложение в хранилище.");
-  } finally { background.remove(); }
   await feedApi.completeUpload(reserved.uploadId);
   return reserved.mediaId;
 }

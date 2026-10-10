@@ -5,6 +5,7 @@ import styles from "./SecondaryButton.module.css";
 type SecondaryButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
   fullWidth?: boolean;
+  variant?: "default" | "red";
 };
 
 /** Shared subdued action for flows where a primary CTA is already present. */
@@ -12,10 +13,11 @@ export function SecondaryButton({
   children,
   className,
   fullWidth = false,
+  variant = "default",
   type = "button",
   ...props
 }: SecondaryButtonProps) {
-  const classNames = [styles.root, fullWidth ? styles.fullWidth : undefined, className]
+  const classNames = [styles.root, variant === "red" ? styles.red : undefined, fullWidth ? styles.fullWidth : undefined, className]
     .filter(Boolean)
     .join(" ");
 

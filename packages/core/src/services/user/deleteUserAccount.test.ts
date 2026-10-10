@@ -121,7 +121,7 @@ describe("deleteUserAccount", () => {
     expect(mockAccountDeletionDeleteMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
     expect(mockRefreshUpdateMany).toHaveBeenCalled();
     expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
-    expect(mockExecuteRaw).toHaveBeenCalledTimes(9);
+    expect(mockExecuteRaw).toHaveBeenCalledTimes(14);
     const cleanupCall = mockExecuteRaw.mock.calls.findIndex(([sql]) =>
       (sql as TemplateStringsArray).join("").includes('INSERT INTO "GalleryStorageJob"'),
     );
@@ -131,20 +131,20 @@ describe("deleteUserAccount", () => {
     );
   });
 
-  it("deletes pet assets from CDN after user deletion", async () => {
-    mockPetFindMany.mockResolvedValue([
-      {
-        id: "pet-1",
-        photoUrl: "https://cdn.example.com/pets/p1.jpg",
-        documents: [{ id: "doc-1", url: "https://cdn.example.com/docs/d1.pdf" }],
-      },
-    ]);
-
+  it("persists all public assets before the cascade instead of best-effort network deletion", async () => {
     const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
-
     expect(result).toEqual({ success: true });
-    expect(mockGetRelativePathFromCDNUrl).toHaveBeenCalledTimes(2);
-    expect(mockDeleteFileFromCDN).toHaveBeenCalledTimes(2);
+    const snapshotIndex = mockExecuteRaw.mock.calls.findIndex(([sql]) =>
+      (sql as TemplateStringsArray).join("").includes('INSERT INTO "AccountStorageCleanup"'));
+    expect(snapshotIndex).toBeGreaterThanOrEqual(0);
+    expect(mockExecuteRaw.mock.invocationCallOrder[snapshotIndex]).toBeLessThan(mockUserDelete.mock.invocationCallOrder[0]!);
+    expect(mockDeleteFileFromCDN).not.toHaveBeenCalled();
+  });
+
+  it("does not delete the user when persisting cleanup fails", async () => {
+    mockExecuteRaw.mockRejectedValueOnce(new Error("database unavailable"));
+    expect(await deleteUserAccount({ actorUserId: "u1", code: "123456" })).toMatchObject({ success: false });
+    expect(mockUserDelete).not.toHaveBeenCalled();
   });
 
   it("rejects legacy PREMIUM role", async () => {

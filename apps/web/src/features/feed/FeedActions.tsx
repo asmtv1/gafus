@@ -49,14 +49,28 @@ export function FeedActions({ post }: { post: FeedPostDto }) {
         <button type="button" disabled={busy} onClick={() => void run(() => feedApi.setBookmark(post.id, !post.bookmarked), post.bookmarked ? "Публикация убрана из закладок" : "Публикация сохранена")}>{post.bookmarked ? "Убрать из закладок" : "Сохранить в закладках"}</button>
         {!post.canDelete && <button type="button" disabled={busy} onClick={() => void run(() => feedApi.setAuthorPreference(post.author.id, { notify: !post.authorNotify }), post.authorNotify ? "Уведомления об авторе отключены" : "Подписка включена. Разрешите push в настройках уведомлений, чтобы получать новые посты.")}>{post.authorNotify ? "Не уведомлять о постах" : "Уведомлять о постах"}</button>}
         <button type="button" disabled={busy} onClick={() => void run(() => navigator.clipboard.writeText(`${window.location.origin}/feed/${encodeURIComponent(post.id)}`), "Ссылка скопирована")}>Скопировать ссылку</button>
+        {post.recommendationReason && <button type="button" onClick={() => {
+          const descriptions = {
+            same_city: "Автор из вашего города.",
+            similar_pet: "У вас похожие питомцы.",
+            author_affinity: "Вам интересны публикации этого автора.",
+            trending: "Публикация интересна другим пользователям.",
+            discovery: "Знакомим вас с новыми авторами.",
+          };
+          setMessage(descriptions[post.recommendationReason!]);
+          if (menu.current) menu.current.open = false;
+        }}>Почему я вижу эту публикацию?</button>}
+        {!post.canDelete && post.recommendationReason && <button type="button" disabled={busy}
+          onClick={() => void run(() => feedApi.setPostFeedback(post.id),
+            "Эта публикация больше не будет появляться в рекомендациях")}>Не интересно</button>}
         {!post.canDelete && <><button type="button" disabled={busy} onClick={() => {
-          setUndo(true); void run(async () => { await feedApi.setAuthorPreference(post.author.id, { hidden: true }); window.dispatchEvent(new CustomEvent("feed-author-hidden", { detail: post.author })); }, "Все публикации автора скрыты из вашей ленты");
-        }}>Не интересно</button>
+          setUndo(true); void run(async () => { await feedApi.setAuthorPreference(post.author.id, { hidden: true }); window.dispatchEvent(new CustomEvent("feed-author-hidden", { detail: post.author })); }, "Публикации автора скрыты в разделе «Моменты»");
+        }}>Скрыть автора</button>
         <button type="button" disabled={busy} onClick={() => { if (menu.current) menu.current.open = false; setReport(true); }}>Пожаловаться</button></>}
       </div>
     </details>
     {message && <p role="status">{message}</p>}
-    {undo && <button className={styles.textButton} disabled={busy} type="button" onClick={() => void run(() => feedApi.setAuthorPreference(post.author.id, { hidden: false }), "Публикации автора возвращены в ленту")}>Отменить скрытие</button>}
+    {undo && <button className={styles.textButton} disabled={busy} type="button" onClick={() => void run(() => feedApi.setAuthorPreference(post.author.id, { hidden: false }), "Публикации автора снова видны в «Моментах»")}>Отменить скрытие</button>}
     {report && <FeedReportForm type="post" id={post.id} onClose={() => setReport(false)} />}
   </div>;
 }

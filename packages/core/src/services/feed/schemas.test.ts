@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  feedCommentSchema, feedCopyPhotoSchema, feedCreatePostSchema, feedListSchema,
+  feedCommentSchema, feedCopyPhotoSchema, feedCreatePostSchema, feedListSchema, feedPostListSchema,
   feedParse, feedReactionSchema, feedRevisionSchema, feedUploadSchema,
 } from "./schemas";
 import { FeedError } from "./errors";
@@ -37,6 +37,10 @@ describe("feed input validation", () => {
     expect(feedCommentSchema.safeParse({ clientRequestId: uuid, text: "🐶".repeat(2001) }).success).toBe(false);
     expect(feedListSchema.safeParse({ pageSize: 50 }).success).toBe(true);
     expect(feedListSchema.safeParse({ pageSize: 51 }).success).toBe(false);
+    expect(feedPostListSchema.parse({}).sort).toBe("new");
+    expect(feedPostListSchema.safeParse({ sort: "popular" }).success).toBe(true);
+    expect(feedPostListSchema.safeParse({ sort: "discussed" }).success).toBe(true);
+    expect(feedPostListSchema.safeParse({ sort: "views" }).success).toBe(false);
     expect(feedCopyPhotoSchema.safeParse({ photoId: "../albums/private", clientRequestId: uuid }).success).toBe(false);
   });
   it("returns localized typed validation errors", () => {

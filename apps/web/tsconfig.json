@@ -17,6 +17,7 @@
     /* Пути и алиасы для web */
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/feed/publication-client": ["../../packages/core/src/services/feed/publication-client.ts"],
       "@gafus/core/services/questions": ["../../packages/core/src/services/questions/index.ts"],
       "@gafus/core/services/cynologistChat": ["../../packages/core/src/services/cynologistChat/index.ts"],
       "@/*": ["./src/*"],
@@ -79,6 +80,15 @@
       ],
       "@gafus/core/services/rewardedCredits": [
         "../../packages/core/src/services/rewardedCredits/index.ts"
+      ],
+      "@gafus/core/services/gafus": [
+        "../../packages/core/src/services/gafus/index.ts"
+      ],
+      "@gafus/core/services/contentAccess": [
+        "../../packages/core/src/services/contentAccess/index.ts"
+      ],
+      "@gafus/core/services/adminGafus": [
+        "../../packages/core/src/services/adminGafus/index.ts"
       ],
       "@gafus/core/services/exam": ["../../packages/core/src/services/exam/index.ts"],
       "@gafus/core/services/offline": ["../../packages/core/src/services/offline/index.ts"],

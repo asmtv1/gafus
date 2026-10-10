@@ -1,10 +1,12 @@
 import { GalleryPreview } from "@/features/gallery";
 import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
-import { useEffect, useMemo, useState } from "react";
+import { ProfileIcon } from "@/features/profile";
+import { PublicPets } from "@/features/pets/PublicPets";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -152,7 +154,7 @@ export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
 
   // Загрузка публичного профиля
-  const { data: profileResponse, isLoading } = useQuery({
+  const { data: profileResponse, isLoading, refetch } = useQuery({
     queryKey: ["public-profile", username],
     queryFn: async () => {
       const res = await userApi.getPublicProfile(username as string);
@@ -161,6 +163,8 @@ export default function PublicProfileScreen() {
     },
     enabled: !!username,
   });
+
+  useFocusEffect(useCallback(() => { void refetch(); }, [refetch]));
 
   const publicData = profileResponse?.data;
   const profile = publicData?.profile;
@@ -180,10 +184,7 @@ export default function PublicProfileScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backRowText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
         <Loading
           fullScreen
           embedded
@@ -199,19 +200,7 @@ export default function PublicProfileScreen() {
         <Stack.Screen options={{ title: "Профиль не найден" }} />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Профиль не найден</Text>
-          <Button
-            label="Назад"
-            fullWidth={false}
-            height={42}
-            fontFamily={FONTS.impact}
-            fontWeight="600"
-            fontSize={15}
-            lineHeight={20}
-            horizontalPadding={24}
-            verticalPadding={12}
-            borderRadius={12}
-            onPress={() => router.back()}
-          />
+          <AppBackButton onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     );
@@ -245,16 +234,7 @@ export default function PublicProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Stack.Screen options={{ title: profile?.fullName || publicData.username }} />
-      <Pressable
-        style={styles.backRow}
-        accessibilityRole="button"
-        accessibilityLabel="Назад"
-        onPress={() => router.back()}
-        hitSlop={12}
-      >
-        <MaterialCommunityIcons name="chevron-left" size={24} color={COLORS.primary} />
-        <Text style={styles.backRowText}>Назад</Text>
-      </Pressable>
+      <AppBackButton style={styles.backRow} onPress={() => router.back()} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Compact public profile identity header, without a duplicate page title. */}
         <View style={styles.profileBanner}>
@@ -290,6 +270,12 @@ export default function PublicProfileScreen() {
 
         {/* Информация о пользователе */}
         <View style={styles.infoContainer}>
+          {profile?.city ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <MaterialCommunityIcons name="map-marker-outline" size={19} color={COLORS.primary} />
+              <Text style={styles.infoText}>Город: {profile.city}</Text>
+            </View>
+          ) : null}
           {age !== null && (
             <Text style={styles.infoText}>
               Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
@@ -299,20 +285,27 @@ export default function PublicProfileScreen() {
           {/* О себе */}
           {profile?.about && (
             <View style={styles.aboutContainer}>
-              <Text style={styles.aboutTitle}>О СЕБЕ</Text>
+              <View style={styles.socialHeading}>
+                <ProfileIcon name="about" />
+                <Text style={styles.aboutTitle}>О СЕБЕ</Text>
+              </View>
               <View style={styles.aboutCard}>
                 <Text style={styles.aboutText}>{profile.about}</Text>
               </View>
             </View>
           )}
 
-          <GalleryPreview owner={publicData?.username ?? username} />
+          <PublicPets pets={publicData.pets ?? []} />
+          <GalleryPreview owner={publicData?.username ?? username} showHeadingIcon />
           <ProfileFeedPreview username={publicData?.username ?? username} />
 
           {/* Социальные сети */}
           {hasSocialLinks && profile && (
             <View style={styles.socialLinksContainer}>
-              <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
+              <View style={styles.socialHeading}>
+                <ProfileIcon name="contacts" />
+                <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
+              </View>
               <View style={styles.socialLinksList}>
                 {profile.instagram && (
                   <Pressable
@@ -568,7 +561,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#352E2E",
-    marginBottom: SPACING.sm,
+    marginBottom: 0,
     fontFamily: FONTS.impact,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -591,12 +584,30 @@ const styles = StyleSheet.create({
   socialLinksContainer: {
     width: "100%",
     marginTop: SPACING.md,
+    backgroundColor: "#FFFAF0",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(77, 92, 45, 0.22)",
+    paddingTop: 14,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+    shadowColor: "#352E2E",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  socialHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: SPACING.sm,
   },
   socialLinksTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: "#352E2E",
-    marginBottom: SPACING.sm,
+    marginBottom: 0,
     fontFamily: FONTS.impact,
     textTransform: "uppercase",
     letterSpacing: 0.5,

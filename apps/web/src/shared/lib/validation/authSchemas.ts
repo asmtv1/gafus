@@ -360,6 +360,7 @@ export const registerApiSchema = registerUserSchema.extend({
  */
 export const userProfileFormSchema = z.object({
   fullName: z.string().trim().max(120, "Не более 120 символов").optional(),
+  city: z.string().trim().max(100, "Не более 100 символов").optional(),
   birthDate: z
     .union([z.string(), z.undefined()])
     .transform((s) => (typeof s === "string" ? s.trim() : ""))

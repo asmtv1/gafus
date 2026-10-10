@@ -5,20 +5,9 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS } from "@/shared/config";
 import { TexturedSafeAreaView } from "../TexturedSafeAreaView";
 import { LoadingMascot } from "./LoadingMascot";
 
-const MASCOT_PX = {
-  large: 168,
-  small: 112,
-} as const;
-
-const INLINE_MASCOT_PX = {
-  large: 56,
-  small: 32,
-} as const;
-
 interface LoadingProps {
   message?: string;
-  size?: "small" | "large";
-  /** Компактная загрузка внутри уже открытого блока, без дополнительной карточки. */
+  /** Встроенная компоновка без карточки; размер маскота всегда стандартный (168 px). */
   variant?: "card" | "inline";
   fullScreen?: boolean;
   /** Экран уже предоставляет фон и safe-area: загрузка только заполняет его содержимое. */
@@ -31,7 +20,6 @@ interface LoadingProps {
  */
 export function Loading({
   message,
-  size = "large",
   variant = "card",
   fullScreen = false,
   embedded = false,
@@ -39,8 +27,6 @@ export function Loading({
 }: LoadingProps) {
   // Полноэкранная загрузка всегда использует общую карточку и крупного маскота.
   const resolvedVariant = fullScreen ? "card" : variant;
-  const resolvedSize = fullScreen ? "large" : size;
-  const mascotPx = (resolvedVariant === "inline" ? INLINE_MASCOT_PX : MASCOT_PX)[resolvedSize];
   const content = (
     <View
       style={[
@@ -53,7 +39,7 @@ export function Loading({
       accessibilityLabel={message ?? "Загрузка"}
     >
       <View style={resolvedVariant === "card" ? styles.card : styles.inlineContent}>
-        <LoadingMascot pixelSize={mascotPx} />
+        <LoadingMascot />
         {message ? (
           <Text style={[styles.message, resolvedVariant === "inline" && styles.inlineMessage]}>
             {message}

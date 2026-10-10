@@ -2,6 +2,7 @@
 import { reportClientError } from "@gafus/error-handling";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AppBackButtonLink } from "@/shared/components/ui";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,9 +29,9 @@ export function QuestionForm({ initial }: { initial?: QuestionDetailDto }) {
   const [error, setError] = useState("");
   return (
     <main className={s.page}>
-      <Link className={s.back} href={initial ? `/questions/${initial.id}` : "/questions"}>
+      <AppBackButtonLink href={initial ? `/questions/${initial.id}` : "/questions"}>
         Назад к {initial ? "вопросу" : "вопросам"}
-      </Link>
+      </AppBackButtonLink>
       <h1>{initial ? "Редактировать вопрос" : "Задать вопрос"}</h1>
       <p className={s.subtitle}>
         Расскажите о ситуации — другие владельцы смогут поделиться опытом.

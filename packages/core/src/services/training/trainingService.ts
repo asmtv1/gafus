@@ -7,6 +7,7 @@ import { prisma, isPrismaUniqueConstraintError } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import { createWebLogger } from "@gafus/logger";
 import { checkCourseAccess, checkCourseAccessById } from "../course";
+import { hasActiveGafusCourseStepAccess } from "../contentAccess";
 import {
   getPremiumOrRewardedAccess,
   requirePremiumOrRewardedUnlock,
@@ -932,6 +933,10 @@ export async function getTrainingDayWithMonetizedSteps(
       if (!target) {
         return { ...step, locked: false };
       }
+      if (await hasActiveGafusCourseStepAccess({ userId, dayOnCourseId, stepOnDayId: target.targetId })) {
+        return { ...step, locked: false,
+          monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId } };
+      }
 
       try {
         await getPremiumOrRewardedAccess({
@@ -977,6 +982,9 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
   }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) return null;
+  if (await hasActiveGafusCourseStepAccess({
+    userId: input.userId, dayOnCourseId: input.dayOnCourseId, stepOnDayId: target.targetId,
+  })) return null;
 
   return requirePremiumOrRewardedUnlock({
     userId: input.userId,
@@ -1030,7 +1038,10 @@ export async function requireCourseStepOperationAccess(input: {
     return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
   }
   if (isRewardedMonetizedStepType(stepLink.step.type)) {
-    await requirePremiumOrRewardedUnlock({
+    const hasGafusAccess = await hasActiveGafusCourseStepAccess({
+      userId: input.userId, dayOnCourseId: input.dayOnCourseId, stepOnDayId: stepLink.id,
+    });
+    if (!hasGafusAccess) await requirePremiumOrRewardedUnlock({
       userId: input.userId,
       platform: input.platform,
       target: { targetType: "COURSE_STEP", targetId: stepLink.id },

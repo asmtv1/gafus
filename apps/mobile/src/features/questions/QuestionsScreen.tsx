@@ -174,7 +174,7 @@ export function QuestionsScreen() {
             </Pressable>
           </View>
         </View>
-        {query.isPending && <Loading variant="inline" size="large" message="Загрузка вопросов…" />}
+        {query.isPending && <Loading variant="inline" message="Загрузка вопросов…" />}
         {query.isError && (
           <View style={st.group}>
             <Text accessibilityRole="alert" style={st.error}>
@@ -224,7 +224,7 @@ export function QuestionsScreen() {
             onPress={() => void query.fetchNextPage()}
           />
         )}
-        {query.isFetchingNextPage && <MascotSpinner size="small" />}
+        {query.isFetchingNextPage && <MascotSpinner />}
       </ScrollView>
       <Modal
         visible={filters}

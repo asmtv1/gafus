@@ -46,6 +46,7 @@ export async function GET() {
 // PATCH - Обновить профиль
 const updateSchema = z.object({
   fullName: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(100).optional(),
   about: z.string().trim().max(2000).optional(),
   telegram: z
     .string()

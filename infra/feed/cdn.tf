@@ -69,6 +69,7 @@ resource "yandex_cdn_resource" "feed" {
 }
 output "origin_base_url" { value = "https://${yandex_api_gateway.origin.domain}" }
 output "cdn_base_url" { value = var.deploy_cdn ? "https://${var.cdn_hostname}" : null }
+output "cdn_resource_id" { value = var.deploy_cdn ? yandex_cdn_resource.feed[0].id : null }
 output "web_lockbox_secret_id" { value = yandex_lockbox_secret.runtime["web"].id }
 output "web_lockbox_version_id" { value = yandex_lockbox_secret_version.runtime["web"].id }
 output "registry_id" { value = yandex_container_registry.feed.id }

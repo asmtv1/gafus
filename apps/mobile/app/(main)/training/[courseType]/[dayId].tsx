@@ -15,10 +15,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { WebView } from "react-native-webview";
-import { Button, Loading, MascotSpinner } from "@/shared/components/ui";
-import { MarkdownText } from "@/shared/components";
+import { Button, Loading } from "@/shared/components/ui";
+import { AppBackButton, MarkdownText } from "@/shared/components";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
-import { AccordionStep } from "@/features/training";
+import { AccordionStep, GafusStepUnlock } from "@/features/training";
 import {
   useTrainingDay,
   useStartStep,
@@ -676,7 +676,7 @@ export default function TrainingDayScreen() {
                   >
                     <Text style={styles.webViewCloseText}>Закрыть</Text>
                   </Pressable>
-                  {isPaymentChecking && <MascotSpinner size="small" />}
+                  {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
                 </View>
                 <WebView
                   source={{ uri: paymentUrl }}
@@ -762,17 +762,10 @@ export default function TrainingDayScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-          <Pressable
-            style={styles.backRow}
-            onPress={() => {
-              void hapticFeedback.light();
-              router.back();
-            }}
-            hitSlop={12}
-          >
-            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-            <Text style={styles.backText}>Назад</Text>
-          </Pressable>
+          <AppBackButton style={styles.backRow} onPress={() => {
+            void hapticFeedback.light();
+            router.back();
+          }} />
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>{errorMessage}</Text>
@@ -809,10 +802,7 @@ export default function TrainingDayScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -930,7 +920,7 @@ export default function TrainingDayScreen() {
                 disabled={isOffline || isExporting}
               >
                 {isExporting ? (
-                  <MascotSpinner size="small" />
+                  <MaterialCommunityIcons name="file-download-outline" size={22} color="#fff" />
                 ) : (
                   <MaterialCommunityIcons name="file-download-outline" size={22} color="#fff" />
                 )}
@@ -993,15 +983,25 @@ export default function TrainingDayScreen() {
                       onSaveDiary={stepType === "DIARY" ? handleSaveDiaryForStep : undefined}
                       accessGate={
                         isLockedRewardedStep ? (
-                          <RewardedAccessGate
-                            title="Продолжить обучение"
-                            subtitle="С подпиской будет доступно всё!"
-                            prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
-                            errorText={openIndex === index ? stepAccessError : null}
-                            isBusy={unlockingStepIndex === index}
-                            onPrimaryPress={() => void unlockStepWithRewardedAd(index)}
-                            onSubscriptionPress={handleSubscriptionPaywall}
-                          />
+                          <>
+                            {openIndex === index && step.monetizationTarget && (
+                              <GafusStepUnlock
+                                key={step.monetizationTarget.targetId}
+                                dayOnCourseId={dayId}
+                                stepOnDayId={step.monetizationTarget.targetId}
+                                onUnlocked={refetch}
+                              />
+                            )}
+                            <RewardedAccessGate
+                              title="Продолжить обучение"
+                              subtitle="С подпиской будет доступно всё!"
+                              prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
+                              errorText={openIndex === index ? stepAccessError : null}
+                              isBusy={unlockingStepIndex === index}
+                              onPrimaryPress={() => void unlockStepWithRewardedAd(index)}
+                              onSubscriptionPress={handleSubscriptionPaywall}
+                            />
+                          </>
                         ) : undefined
                       }
                     />
@@ -1042,7 +1042,7 @@ export default function TrainingDayScreen() {
               >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
-              {isPaymentChecking && <MascotSpinner size="small" />}
+              {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
             </View>
             <WebView
               source={{ uri: paymentUrl }}

@@ -3,6 +3,7 @@
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TextField from "@mui/material/TextField";
 import Link from "next/link";
+import { AppBackButtonLink } from "@/shared/components/ui";
 import { useActionState, useState, useTransition } from "react";
 
 import { reportClientError } from "@gafus/error-handling";
@@ -75,9 +76,7 @@ export default function DeleteAccountForm({ userEmail, username }: DeleteAccount
   if (!emailTrimmed) {
     return (
       <main className={styles.page}>
-        <Link href={backToProfileHref} className={styles.backLink}>
-          ← В профиль
-        </Link>
+        <AppBackButtonLink href={backToProfileHref}>В профиль</AppBackButtonLink>
         <section className={`${styles.card} ${styles.noEmailCard}`} aria-labelledby="delete-account-no-email">
           <h1 id="delete-account-no-email" className={styles.title}>
             Удаление аккаунта
@@ -95,9 +94,7 @@ export default function DeleteAccountForm({ userEmail, username }: DeleteAccount
 
   return (
     <main className={styles.page}>
-      <Link href={backToProfileHref} className={styles.backLink}>
-        ← В профиль
-      </Link>
+      <AppBackButtonLink href={backToProfileHref}>В профиль</AppBackButtonLink>
       <section className={styles.card} aria-labelledby="delete-account-title">
         <div className={styles.iconWrap} aria-hidden>
           <DeleteOutlineIcon sx={{ fontSize: 28 }} />

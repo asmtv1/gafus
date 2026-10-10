@@ -7,18 +7,20 @@ location /uploads/ {
     proxy_ssl_name storage.yandexcloud.net;
     proxy_set_header Host storage.yandexcloud.net;
 
-    # Включаем кэширование
+    # User media must disappear when the origin object is deleted.
+    # Do not serve stale copies, including responses cached before this deployment.
     proxy_cache cdn_cache;
+    proxy_cache_bypass $account_media_no_cache;
+    proxy_no_cache $account_media_no_cache;
     proxy_cache_valid 200 1y;
     proxy_cache_valid 404 1m;
     proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
     proxy_cache_background_update on;
     proxy_cache_lock on;
-
-    # Заголовки для кэширования
-    expires 1y;
-    add_header Cache-Control "public, immutable";
-    add_header X-Cache-Status $upstream_cache_status;
+    proxy_hide_header Cache-Control;
+    proxy_hide_header Expires;
+    expires off;
+    add_header Cache-Control $uploads_cache_control always;
 
     # Таймауты
     proxy_connect_timeout 3s;

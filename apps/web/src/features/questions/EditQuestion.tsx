@@ -12,7 +12,7 @@ export function EditQuestion({ id }: { id: string }) {
     queryFn: () => questionsApi.detail(id),
     enabled: !!userId,
   });
-  if (query.isPending) return <main className={s.page}><LoadingState variant="inline" size="large" message="Загрузка вопроса…" /></main>;
+  if (query.isPending) return <main className={s.page}><LoadingState variant="inline" message="Загрузка вопроса…" /></main>;
   if (query.isError || !query.data?.canEdit || query.data.blockReason)
     return (
       <main className={s.page}>

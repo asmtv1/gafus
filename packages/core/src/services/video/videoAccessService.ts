@@ -3,6 +3,7 @@
  */
 
 import { prisma } from "@gafus/prisma";
+import { resolveCourseStepTargetTx, resolveCourseStepAccessTx } from "../contentAccess";
 
 export interface VideoManifestInfo {
   hlsManifestPath: string | null;
@@ -66,44 +67,36 @@ export async function checkVideoAccess(params: CheckVideoAccessParams): Promise<
       return true;
     }
 
-    // Шаги хранят videoUrl с CUID в пути — проверяем вхождение videoId
-    const coursesWithVideo = await prisma.course.findMany({
-      where: {
-        dayLinks: {
-          some: {
-            day: {
-              stepLinks: {
-                some: {
-                  step: {
-                    videoUrl: { contains: videoId },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        isPrivate: true,
-        isPaid: true,
-        access: { where: { userId }, select: { userId: true } },
-      },
+    // An occurrence is unique to a course/day even when a TrainingDay is reused.
+    const stepLinks = await prisma.stepOnDay.findMany({
+      where: { step: { videoUrl: { contains: videoId } } },
+      select: { id: true, dayId: true },
     });
-
-    for (const course of coursesWithVideo) {
-      const isPublicFree = !course.isPrivate && !course.isPaid;
-      const hasExplicitAccess = course.access.length > 0;
-      if (isPublicFree || hasExplicitAccess) {
-        logger.info("Video access granted: course access", {
-          userId,
-          videoId,
-          courseId: course.id,
-          isPublicFree,
-        });
-        return true;
+    const dayIds = [...new Set(stepLinks.map(link => link.dayId))];
+    if (dayIds.length) {
+      const occurrences = await prisma.dayOnCourse.findMany({
+        where: { dayId: { in: dayIds } },
+        select: { id: true, dayId: true },
+      });
+      const now = new Date();
+      for (const occurrence of occurrences) {
+        for (const link of stepLinks) {
+          if (link.dayId !== occurrence.dayId) continue;
+          const target = await resolveCourseStepTargetTx(prisma, occurrence.id, link.id);
+          if (!target) continue;
+          const entitlement = await resolveCourseStepAccessTx(prisma, userId, target, now);
+          if (entitlement.allowed) return true;
+        }
       }
     }
+    const daily = await prisma.dailyCourseBundleStep.findFirst({
+      where: {
+        step: { videoUrl: { contains: videoId } },
+        bundle: { schedules: { some: { isPublished: true, date: { lte: new Date() } } } },
+      },
+      select: { id: true },
+    });
+    if (daily) return true;
 
     logger.warn("Video access denied: no permissions", {
       userId,

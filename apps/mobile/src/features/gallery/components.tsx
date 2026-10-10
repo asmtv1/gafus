@@ -2,6 +2,7 @@ import { memo, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, View } from "react-native";
 import { IconButton, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { Loading, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { GalleryImage } from "./image";
@@ -84,7 +85,7 @@ export const AlbumTile = memo(function AlbumTile({ album, refresh, compact = fal
     <Text numberOfLines={2} style={compact ? s.albumCompactName : s.text}>{album.name}</Text><Text style={s.muted}>{album.photoCount} фото{album.isVisible ? "" : " · Только для вас"}</Text>
   </Pressable>;
 });
-export function GalleryPreview({ owner }: { owner: string }) {
+export function GalleryPreview({ owner, showHeadingIcon = false }: { owner: string; showHeadingIcon?: boolean }) {
   const albums = useAlbums(owner);
   const [creating, setCreating] = useState(false);
   const meta = albums.data?.pages[0];
@@ -98,7 +99,17 @@ export function GalleryPreview({ owner }: { owner: string }) {
   return <View style={s.galleryPreviewCard}>
     <View style={s.galleryPreviewHeader}>
       <View style={s.galleryPreviewHeading}>
-        <Text accessibilityRole="header" style={s.galleryPreviewTitle}>Фотографии</Text>
+        <View style={s.galleryPreviewTitleRow}>
+          {showHeadingIcon ? (
+            <Image
+              source={require("../../../assets/images/tab-icons/albums.webp")}
+              style={s.galleryPreviewTitleIcon}
+              contentFit="contain"
+              accessible={false}
+            />
+          ) : null}
+          <Text accessibilityRole="header" style={s.galleryPreviewTitle}>Фотографии</Text>
+        </View>
         {meta?.isOwner ? (
           <Text style={s.galleryPreviewQuota}>{meta.usedSlots} из 200 фотографий</Text>
         ) : null}
@@ -115,7 +126,7 @@ export function GalleryPreview({ owner }: { owner: string }) {
         </Pressable>
       ) : null}
     </View>
-    {albums.isPending ? <Loading variant="inline" size="small" message="Загрузка альбомов…" /> : null}
+    {albums.isPending ? <Loading variant="inline" message="Загрузка альбомов…" /> : null}
     {albums.isError ? <Failure error={albums.error} retry={() => void albums.refetch()} /> : null}
     {items.length > 0 ? (
       <View style={s.galleryPreviewGrid}>

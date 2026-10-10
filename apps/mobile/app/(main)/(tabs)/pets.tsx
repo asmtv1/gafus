@@ -20,7 +20,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -53,7 +53,9 @@ import { TexturedSafeAreaView } from "@/shared/components";
 import { trackEvent } from "@/shared/lib/analytics";
 import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet, type PetDocument } from "@/shared/lib/api/pets";
+import { PetProfileVisibility } from "@/features/pets/PetProfileVisibility";
 import { PetWeightSection } from "@/features/pets/PetWeightSection";
+import { PetVetVisitShortcut } from "@/features/pets/PetVetVisits";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -1373,7 +1375,8 @@ export default function PetsTabScreen() {
   const scrollLayoutHeightRef = useRef(0);
   const tourIsActive = useMobileOnboardingTourStore((s) => s.isActive);
   const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
-  const { data: petsData } = useQuery(petsQueryOptions);
+  const { data: petsData, refetch: refetchPets } = useQuery(petsQueryOptions);
+  useFocusEffect(useCallback(() => { void refetchPets(); }, [refetchPets]));
   const pets = petsData?.data || [];
   const [expandedPetIds, setExpandedPetIds] = useState<string[]>([]);
   const preventionSummaries = useQueries({
@@ -1679,6 +1682,7 @@ export default function PetsTabScreen() {
                     </View>
                   </View>
                 </LinearGradient>
+                <PetProfileVisibility pet={pet} />
                 {!isExpanded ? (
                   <Pressable
                     style={styles.petCompactFoot}
@@ -1755,6 +1759,7 @@ export default function PetsTabScreen() {
                     />
                   </View>
                   <PetPreventionSection pet={pet} />
+                  <PetVetVisitShortcut petId={pet.id} />
                   <PetWeightSection petId={pet.id} />
                   <PetDocumentsSection pet={pet} />
                 </View>

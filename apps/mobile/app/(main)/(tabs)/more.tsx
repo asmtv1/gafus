@@ -11,6 +11,7 @@ import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { chatApi } from "@/shared/lib/api/cynologistChat";
 import { feedApi } from "@/shared/lib/api/feed";
+import { gafusApi } from "@/shared/lib/api/gafus";
 import { trackEvent } from "@/shared/lib/analytics";
 
 const SECTIONS = [
@@ -33,8 +34,13 @@ const SECTIONS = [
   },
   {
     name: "feed",
-    title: "Лента",
+    title: "Моменты",
     image: require("../../../assets/images/tab-icons/feed.webp"),
+  },
+  {
+    name: "gafus",
+    title: "Мои Гафусы",
+    image: require("../../../assets/images/tab-icons/pets.webp"),
   },
   {
     name: "reminders",
@@ -64,6 +70,13 @@ export default function MoreScreen() {
     staleTime: 30_000,
     retry: 1,
   });
+  const gafusState = useQuery({
+    queryKey: ["more-gafus-status", userId],
+    queryFn: () => gafusApi.status(),
+    enabled: Boolean(userId),
+    staleTime: 30_000,
+    retry: 1,
+  });
 
   return (
     <TexturedSafeAreaView style={{ flex: 1 }} edges={[]}>
@@ -78,7 +91,10 @@ export default function MoreScreen() {
           accessibilityLabel="Меню. Все разделы приложения в одном месте"
         />
         <View style={styles.menu}>
-          {SECTIONS.filter(section => section.name !== "feed" || feedState.data?.enabled === true).map((section, index) => {
+          {SECTIONS.filter(section =>
+            (section.name !== "feed" || feedState.data?.enabled === true) &&
+            (section.name !== "gafus" || gafusState.data?.enabled.economy === true)
+          ).map((section, index) => {
             const isChat = section.name === "chat";
             const loading = isChat && chatState.isPending;
             const failed = isChat && chatState.isError;
@@ -112,6 +128,8 @@ export default function MoreScreen() {
                         ? "/(main)/(tabs)/reminders"
                       : name === "questions"
                         ? "/(main)/(tabs)/questions"
+                        : name === "gafus"
+                          ? "/(main)/gafus"
                         : `/(main)/(tabs)/${name}`) as Href,
                   );
                 }}
@@ -122,7 +140,9 @@ export default function MoreScreen() {
                 ]}
               >
                 <View style={styles.iconSlot}>
-                  <Image
+                  {section.name === "gafus" ? (
+                    <MaterialCommunityIcons name="paw" size={30} color={COLORS.primary} />
+                  ) : <Image
                     source={section.image}
                     style={[
                       styles.icon,
@@ -131,7 +151,7 @@ export default function MoreScreen() {
                     ]}
                     contentFit="contain"
                     accessible={false}
-                  />
+                  />}
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={styles.label}>{section.title}</Text>

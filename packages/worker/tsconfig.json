@@ -13,6 +13,9 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/accountCleanup": [
+        "../../packages/core/src/services/accountCleanup/index.ts"
+      ],
       "@gafus/core/services/questions": [
         "../../packages/core/src/services/questions/index.ts"
       ],

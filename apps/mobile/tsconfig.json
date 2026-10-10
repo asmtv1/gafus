@@ -22,6 +22,7 @@
       "@gafus/analytics/mobile": ["../../packages/analytics/src/mobile.ts"],
       "@gafus/consultation-shared": ["../../packages/consultation-shared/src/index.ts"],
       "@gafus/consultation-shared/*": ["../../packages/consultation-shared/src/*"],
+      "@gafus/core/services/feed/publication-client": ["../../packages/core/src/services/feed/publication-client.ts"],
       "@gafus/core/utils": ["../../packages/core/src/utils/index.ts"],
       "@gafus/core/utils/*": ["../../packages/core/src/utils/*"],
       "@gafus/core/validation/auth-register": [

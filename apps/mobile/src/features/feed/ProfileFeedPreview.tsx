@@ -39,7 +39,7 @@ export function ProfileFeedPreview({ username }: { username: string }) {
     staleTime: 30_000,
   });
   if (!viewerId) return null;
-  if (status.isPending) return <Loading variant="inline" size="small" message="Загрузка публикаций…" />;
+  if (status.isPending) return <Loading variant="inline" message="Загрузка публикаций…" />;
   if (status.data?.enabled !== true) return null;
   return <View style={styles.card} accessibilityLabel="Публикации пользователя">
     <View style={styles.header}>
@@ -51,7 +51,7 @@ export function ProfileFeedPreview({ username }: { username: string }) {
       />
       <Text style={styles.title}>Публикации</Text>
     </View>
-    {posts.isPending && <Loading variant="inline" size="small" message="Загрузка публикаций…" />}
+    {posts.isPending && <Loading variant="inline" message="Загрузка публикаций…" />}
     {posts.isError && <Pressable
       accessibilityRole="button"
       style={styles.stateAction}

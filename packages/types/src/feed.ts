@@ -31,6 +31,30 @@ export type FeedPostStatus = "draft" | "pending" | "published" | "failed" | "del
 export type FeedRevisionStatus = "draft" | "pending" | "ready" | "failed" | "superseded";
 export type FeedMediaStatus = "reserved" | "uploaded" | "processing" | "ready" | "failed" | "cancelled" | "expired";
 export type FeedNotificationKind = "author_post" | "comment" | "reply" | "post_reaction" | "comment_reaction";
+/** Ordering of the main publication feed; personal lists keep their own chronology. */
+export const FEED_SORT_OPTIONS = ["smart", "new", "popular", "discussed"] as const;
+export type FeedSort = (typeof FEED_SORT_OPTIONS)[number];
+export type FeedRecommendationReason = "same_city" | "similar_pet" | "author_affinity" | "trending" | "discovery" | null;
+export interface FeedPersonalizationSettings {
+  enabled: boolean;
+  useCity: boolean;
+  usePets: boolean;
+  useBehavior: boolean;
+  exploration: boolean;
+}
+export interface FeedImpressionInput {
+  eventId: string;
+  postId: string;
+  rankingSessionId: string;
+  algorithmVersion: string;
+  rank: number;
+  visibleMs: number;
+  exposureToken?: string;
+}
+export type FeedRankingEventInput = Omit<FeedImpressionInput, "visibleMs"> & {
+  kind: "dwell" | "post_open" | "profile_open";
+  durationMs?: number;
+};
 export type FeedMimeType =
   | (typeof FEED_PHOTO_MIME_TYPES)[number]
   | (typeof FEED_VIDEO_MIME_TYPES)[number];
@@ -66,6 +90,12 @@ export interface FeedMediaDto {
 }
 
 export interface FeedPostDto {
+  recommendationReason?: FeedRecommendationReason;
+  /** Display order in the server-side ranking snapshot, for qualified impression logging. */
+  recommendationRank?: number;
+  /** Per-page Redis snapshot for authenticated impression tracking. */
+  recommendationSessionId?: string;
+  recommendationExposureToken?: string;
   bookmarked?: boolean;
   authorHidden?: boolean;
   authorNotify?: boolean;
@@ -139,6 +169,14 @@ export interface FeedPageDto<T> {
   items: T[];
   nextCursor: string | null;
   serverNow: string;
+  feedMeta?: {
+    mode: FeedSort;
+    personalized: boolean;
+    algorithmVersion?: string;
+    rankingSessionId?: string;
+    experimentVariant?: "control" | "treatment";
+    fallback?: "new" | null;
+  };
 }
 
 export type FeedPostPageDto = FeedPageDto<FeedPostDto>;
@@ -177,6 +215,9 @@ export interface FeedErrorDto {
 export interface FeedListQuery {
   cursor?: string | null;
   pageSize?: number;
+}
+export interface FeedPostListQuery extends FeedListQuery {
+  sort?: FeedSort;
 }
 
 export interface FeedPostCreateInput {
@@ -248,10 +289,11 @@ export type FeedTransport = <T>(
 ) => Promise<T>;
 
 const encodeId = encodeURIComponent;
-function feedQuery(query: FeedListQuery & { reaction?: FeedReaction } = {}): string {
+function feedQuery(query: FeedPostListQuery & { reaction?: FeedReaction } = {}): string {
   const params = new URLSearchParams();
   if (query.cursor) params.set("cursor", query.cursor);
   if (query.pageSize !== undefined) params.set("pageSize", String(query.pageSize));
+  if (query.sort !== undefined) params.set("sort", query.sort);
   if (query.reaction !== undefined) params.set("reaction", query.reaction);
   return params.size ? `?${params.toString()}` : "";
 }
@@ -264,8 +306,19 @@ export function createFeedClient(transport: FeedTransport) {
     listHiddenAuthors: (query?: FeedListQuery) => transport<FeedPageDto<FeedAuthorDto>>(`me/hidden-authors${feedQuery(query)}`),
     setAuthorPreference: (id: string, body: { hidden?: boolean; notify?: boolean }) => transport<{ hidden: boolean; notify: boolean }>(`authors/${encodeId(id)}/preferences`, { method: "PATCH", body }),
     report: (type: "post" | "comment", id: string, body: { reason: FeedReportReason; comment?: string }) => transport<{ id: string }>(`${type === "post" ? "posts" : "comments"}/${encodeId(id)}/report`, { method: "POST", body }),
-    status: () => transport<{ enabled: boolean }>("status"),
-    listPosts: (query?: FeedListQuery) => transport<FeedPostPageDto>(`posts${feedQuery(query)}`),
+    status: () => transport<{ enabled: boolean; smartEnabled?: boolean }>("status"),
+    getPersonalization: () => transport<FeedPersonalizationSettings>("personalization"),
+    setPersonalization: (body: Partial<FeedPersonalizationSettings>) =>
+      transport<FeedPersonalizationSettings>("personalization", { method: "PATCH", body }),
+    resetPersonalization: () =>
+      transport<{ reset: boolean; resetAt: string }>("personalization/reset", { method: "POST", body: {} }),
+    setPostFeedback: (postId: string, kind: "not_interested" = "not_interested") =>
+      transport<{ saved: boolean }>(`posts/${encodeId(postId)}/feedback`, { method: "POST", body: { kind } }),
+    recordImpressions: (events: FeedImpressionInput[]) =>
+      transport<{ accepted: number; retryable?: boolean }>("impressions/batch", { method: "POST", body: { events } }),
+    recordRankingEvents: (events: FeedRankingEventInput[]) =>
+      transport<{ accepted: number; retryable?: boolean }>("ranking-events/batch", { method: "POST", body: { events } }),
+    listPosts: (query?: FeedPostListQuery) => transport<FeedPostPageDto>(`posts${feedQuery(query)}`),
     listProfilePosts: (username: string, query?: FeedListQuery) =>
       transport<FeedPostPageDto>(`profiles/${encodeId(username)}/posts${feedQuery(query)}`),
     listPendingPosts: (query?: FeedListQuery) =>
@@ -454,8 +507,8 @@ export function formatFeedTime(
 }
 
 export const FEED_ERROR_MESSAGES = {
-  FEED_DISABLED: "Лента временно недоступна.",
-  UNAUTHENTICATED: "Войдите в аккаунт, чтобы открыть ленту.",
+  FEED_DISABLED: "Раздел «Моменты» временно недоступен.",
+  UNAUTHENTICATED: "Войдите в аккаунт, чтобы открыть «Моменты».",
   FORBIDDEN: "У вас нет доступа к этому действию.",
   NOT_FOUND: "Публикация или комментарий недоступны.",
   TEXT_TOO_LONG: "Текст публикации превышает 5 000 символов.",

@@ -10,7 +10,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="reminders" options={{ title: "Напоминания", href: null }} />
       <Tabs.Screen name="albums" options={{ title: "Альбомы", href: null }} />
       <Tabs.Screen name="questions" options={{ title: "Вопросы", href: null }} />
-      <Tabs.Screen name="feed" options={{ title: "Лента", href: null }} />
+      <Tabs.Screen name="feed" options={{ title: "Моменты", href: null }} />
       <Tabs.Screen name="articles" options={{ title: "Статьи", href: null }} />
       <Tabs.Screen name="consultations" options={{ title: "Консультации", href: null }} />
       <Tabs.Screen name="cynologist-chat" options={{ title: "Чат с кинологом", href: null }} />

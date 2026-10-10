@@ -18,6 +18,7 @@ export async function enqueueGalleryAccountCleanup(
     FROM (
       SELECT unnest(ARRAY[p."thumbKey", p."fullKey"]) AS key FROM "GalleryPhoto" p WHERE p."ownerId" = ${ownerId}
       UNION SELECT unnest(ARRAY[u."sourceKey", u."stagedThumbKey", u."stagedFullKey"]) FROM "GalleryUpload" u WHERE u."ownerId" = ${ownerId}
+      UNION SELECT unnest(ARRAY[a."originalKey", a."previewKey"]) FROM "PetVetAttachment" a JOIN "PetVetVisit" v ON v."id" = a."visitId" WHERE v."ownerId" = ${ownerId}
       UNION SELECT unnest(j."sourceKeys" || j."targetKeys") FROM "GalleryStorageJob" j WHERE j."ownerId" = ${ownerId} AND j."kind" <> 'delete'
     ) k WHERE k.key IS NOT NULL
     ON CONFLICT ("dedupeKey") DO NOTHING`;

@@ -1,10 +1,12 @@
 import type { Prisma, PrismaClient } from "@gafus/prisma";
 export type FeedDb = Pick<
   PrismaClient,
-  "$transaction" | "user" | "feedPost" | "feedPostRevision" | "feedMediaAsset" |
+  "$transaction" | "$queryRaw" | "user" | "feedPost" | "feedPostRevision" | "feedMediaAsset" |
   "feedUpload" | "feedRevisionAttachment" | "galleryPhoto" | "feedStorageJob" |
   "feedComment" | "feedPostReaction" | "feedCommentReaction" | "feedPostView" |
-  "feedNotification" | "feedNotificationOutbox" | "feedBookmark" | "feedAuthorPreference" | "feedReport" | "feedModerationAction"
+  "feedNotification" | "feedNotificationOutbox" | "feedBookmark" | "feedAuthorPreference" | "feedReport" | "feedModerationAction" |
+  "feedPersonalizationPreference" | "feedImpression" | "feedUserAuthorAffinity" | "feedPostStats" | "feedUserPostFeedback" |
+  "feedSmartRankerModel" | "feedRankingEvent"
 >;
 export type FeedTx = Prisma.TransactionClient;
 export interface FeedStoragePort {

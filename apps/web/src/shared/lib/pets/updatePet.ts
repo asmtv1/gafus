@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
 import { updatePet as updatePetInCore } from "@gafus/core/services/pets";
 
@@ -19,6 +20,10 @@ export async function updatePet(data: UpdatePetInput) {
     const pet = await updatePetInCore(id, userId, updateData);
     if (!pet) {
       throw new Error("Питомец не найден");
+    }
+    if (updateData.showInProfile !== undefined) {
+      revalidatePath("/profile");
+      revalidatePath("/pets");
     }
     return pet;
   } catch (error) {

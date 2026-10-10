@@ -117,7 +117,7 @@ export function PhotoViewer({
             }}
           />
         ) : (
-          <LoadingState variant="inline" size="small" message="Загрузка фотографии…" />
+          <LoadingState variant="inline" message="Загрузка фотографии…" />
         )}
         {photo?.caption && <p className={styles.caption}>{photo.caption}</p>}
         <div className={styles.viewerControls}>

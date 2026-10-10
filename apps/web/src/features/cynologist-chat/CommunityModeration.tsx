@@ -64,7 +64,7 @@ export default function CommunityModeration() {
       {open && (
         <>
           {error && <p role="alert">{error}</p>}
-          {busy && <LoadingState variant="inline" size="small" />}
+          {busy && <LoadingState variant="inline" />}
           {confirm ? (
             <div className={styles.rules}>
               <p>{confirm.label}</p>

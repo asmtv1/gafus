@@ -1,7 +1,8 @@
 import { createFeedPlayback } from "./playback.js";
-import { createFeedService, createFeedSocial, createFeedPreferences, FeedError, feedParse, feedListSchema, feedReactionListSchema,
+import { createFeedService, createFeedSocial, createFeedPreferences, FeedError, feedParse, feedListSchema, feedPostListSchema, feedReactionListSchema,
   feedCreatePostSchema, feedRevisionSchema, feedPublishSchema, feedCommentSchema, feedCommentEditSchema,
   feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema,
+  createSmartFeedPreferences, smartImpressionsSchema, smartRankingEventsSchema, smartRedisTimeout, smartFeedbackSchema, isSmartMlVector, verifySmartExposure,
 } from "@gafus/core/services/feed";
 import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
 import { prisma } from "@gafus/prisma";
@@ -14,6 +15,7 @@ const storage = createFeedStorageFromEnv();
 const service = createFeedService({ db: prisma, storage, enabled: flag });
 const social = createFeedSocial({ db: prisma, enabled: flag });
 const preferences = createFeedPreferences({ db: prisma, enabled: flag });
+const smartPreferences = createSmartFeedPreferences(prisma);
 export interface FeedHttpError {
   status: number;
   body: { success: false; error: string; code: string };
@@ -22,7 +24,7 @@ export function feedHttpError(error: unknown): FeedHttpError {
   if (error instanceof FeedError) {
     return { status: error.status, body: { success: false, error: error.message, code: error.code } };
   }
-  return { status: 500, body: { success: false, error: "Не удалось выполнить запрос ленты", code: "INTERNAL_ERROR" } };
+  return { status: 500, body: { success: false, error: "Не удалось выполнить запрос раздела «Моменты»", code: "INTERNAL_ERROR" } };
 }
 async function readJson(request: Request) {
   const type = request.headers.get("content-type");
@@ -69,9 +71,9 @@ function partsFromPath(path: string) {
     throw new FeedError("NOT_FOUND", undefined, 404);
   }
 }
-function parseQuery(url: URL, reaction = false) {
+function parseQuery(url: URL, reaction = false, postSort = false) {
   const entries = [...url.searchParams.entries()];
-  const accepted = reaction ? ["cursor", "pageSize", "reaction"] : ["cursor", "pageSize"];
+  const accepted = reaction ? ["cursor", "pageSize", "reaction"] : postSort ? ["cursor", "pageSize", "sort"] : ["cursor", "pageSize"];
   if (entries.some(([key]) => !accepted.includes(key)) || new Set(entries.map(([key]) => key)).size !== entries.length)
     throw new FeedError("VALIDATION_ERROR", "Некорректные параметры списка", 400);
   const size = url.searchParams.get("pageSize"), cursor = url.searchParams.get("cursor");
@@ -80,8 +82,9 @@ function parseQuery(url: URL, reaction = false) {
     ...(size !== null ? { pageSize: Number(size) } : {}),
     ...(cursor !== null ? { cursor } : {}),
     ...(reaction && url.searchParams.has("reaction") ? { reaction: url.searchParams.get("reaction") } : {}),
+    ...(postSort && url.searchParams.has("sort") ? { sort: url.searchParams.get("sort") } : {}),
   };
-  return reaction ? feedParse(feedReactionListSchema, input) : feedParse(feedListSchema, input);
+  return reaction ? feedParse(feedReactionListSchema, input) : postSort ? feedParse(feedPostListSchema, input) : feedParse(feedListSchema, input);
 }
 function routeId(input: string) { return feedParse(feedIdSchema, input); }
 
@@ -102,7 +105,153 @@ export async function dispatchFeedRequest(
   const is = (n: number, first: string, last?: string) =>
     len === n && one === first && (last === undefined || pathParts[n - 1] === last);
 
-  if (is(1, "status") && method === "GET") return { enabled: flag() && storage.enabled };
+  if (is(1, "status") && method === "GET") return {
+    enabled: flag() && storage.enabled,
+    smartEnabled: flag() && storage.enabled && process.env.FEED_SMART_ENABLED === "true",
+  };
+  if (is(1, "personalization")) {
+    if (process.env.FEED_SMART_ENABLED !== "true") throw new FeedError("FEED_DISABLED", undefined, 503);
+    if (method === "GET") return smartPreferences.get(actorId);
+    if (method === "PATCH") return smartPreferences.patch(actorId, input);
+  }
+  if (len === 2 && one === "personalization" && two === "reset" && method === "POST") {
+    if (process.env.FEED_SMART_ENABLED !== "true") throw new FeedError("FEED_DISABLED", undefined, 503);
+    assertEmpty(input);
+    return smartPreferences.reset(actorId);
+  }
+  if (len === 2 && one === "impressions" && two === "batch" && method === "POST") {
+    if (!await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } }))
+      throw new FeedError("UNAUTHENTICATED", undefined, 401);
+    const { events } = feedParse(smartImpressionsSchema, input);
+    if (process.env.FEED_SMART_ENABLED !== "true") return { accepted: 0 };
+    const preference = await prisma.feedPersonalizationPreference.findUnique({ where: { userId: actorId } });
+    if (preference?.enabled === false) return { accepted: 0 };
+    const preferencesUpdatedAt = preference?.updatedAt.getTime() ?? 0;
+    const { connection } = await import("@gafus/queues");
+    if (connection.status !== "ready") return { accepted: 0, retryable: true };
+    type Snapshot = {
+      actorId: string; version: string; preferencesUpdatedAt: number;
+      modelVersion?: string | null; experimentVariant?: "control" | "treatment" | null;
+      rows: { id: string; features?: number[]; sources?: string[]; exposureToken?: string }[];
+    };
+    const sessions = new Map<string, Snapshot>();
+    const sessionIds = [...new Set(events.map(event => event.rankingSessionId))];
+    // Fetch in parallel so malformed/bogus session IDs cannot multiply Redis
+    // timeouts sequentially. Impressions are best-effort, never block the feed.
+    try {
+      const raws = await Promise.all(sessionIds.map(sessionId =>
+        smartRedisTimeout(connection.get(`feed:smart:${sessionId}`)),
+      ));
+      raws.forEach((raw, index) => {
+        if (raw) sessions.set(sessionIds[index]!, JSON.parse(raw) as Snapshot);
+      });
+    } catch {
+      return { accepted: 0, retryable: true };
+    }
+    const verified = events.filter(event => {
+      const session = sessions.get(event.rankingSessionId);
+      return verifySmartExposure(session, actorId, preferencesUpdatedAt, event,
+        process.env.FEED_SMART_EXPOSURE_TOKENS_REQUIRED === "true");
+    });
+    if (!verified.length) return { accepted: 0 };
+    const visible = await prisma.feedPost.findMany({
+      where: { id: { in: verified.map(event => event.postId) }, status: "published",
+        deletedAt: null, moderationState: "visible",
+        feedback: { none: { userId: actorId, kind: "not_interested" } },
+        author: { feedSubscribers: { none: { userId: actorId, hidden: true } } } },
+      select: { id: true },
+    });
+    const allowedPosts = new Set(visible.map(post => post.id));
+    const data = verified.filter(event => allowedPosts.has(event.postId)).map(event => {
+      const session = sessions.get(event.rankingSessionId)!;
+      const snapshot = session.rows[event.rank]!;
+      return {
+        eventId: event.eventId, userId: actorId, postId: event.postId,
+        rankingSessionId: event.rankingSessionId, algorithmVersion: event.algorithmVersion,
+        rank: event.rank, visibleMs: event.visibleMs,
+        features: isSmartMlVector(snapshot.features) ? snapshot.features : undefined,
+        candidateSources: (snapshot.sources ?? []).filter(source =>
+          ["recent", "local", "pet", "affinity", "trending"].includes(source),
+        ).slice(0, 5),
+        modelVersion: typeof session.modelVersion === "string" ? session.modelVersion : null,
+        experimentVariant: session.experimentVariant === "control" || session.experimentVariant === "treatment"
+          ? session.experimentVariant : null,
+      };
+    });
+    if (!data.length) return { accepted: 0 };
+    const written = await prisma.feedImpression.createMany({ data, skipDuplicates: true });
+    return { accepted: written.count };
+  }
+  if (len === 2 && one === "ranking-events" && two === "batch" && method === "POST") {
+    const { events } = feedParse(smartRankingEventsSchema, input);
+    if (process.env.FEED_SMART_ENABLED !== "true" || process.env.FEED_SMART_EVENTS_ENABLED !== "true") {
+      return { accepted: 0 };
+    }
+    if (!await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } })) {
+      throw new FeedError("UNAUTHENTICATED", undefined, 401);
+    }
+    const preference = await prisma.feedPersonalizationPreference.findUnique({
+      where: { userId: actorId },
+    });
+    if (preference?.enabled === false || preference?.useBehavior === false) return { accepted: 0 };
+    const { connection } = await import("@gafus/queues");
+    if (connection.status !== "ready") return { accepted: 0, retryable: true };
+    // Shared Redis limiter; client-controlled event IDs never decide quota or identity.
+    const windowKey = `feed:ranking-events:limit:${actorId}:${Math.floor(Date.now() / 60_000)}`;
+    try {
+      const hits = await smartRedisTimeout(connection.incrby(windowKey, events.length));
+      if (hits === events.length) await smartRedisTimeout(connection.expire(windowKey, 70));
+      if (hits > 180) return { accepted: 0, retryable: true };
+    } catch { return { accepted: 0, retryable: true }; }
+    const ids = [...new Set(events.map(event => event.rankingSessionId))];
+    const sessions = new Map<string, {
+      actorId: string; version: string; preferencesUpdatedAt: number;
+      rows: { id: string; exposureToken?: string }[];
+    }>();
+    try {
+      const raws = await Promise.all(ids.map(id => smartRedisTimeout(connection.get(`feed:smart:${id}`))));
+      raws.forEach((raw, index) => {
+        if (raw) sessions.set(ids[index]!, JSON.parse(raw));
+      });
+    } catch { return { accepted: 0, retryable: true }; }
+    const prefVersion = preference?.updatedAt.getTime() ?? 0;
+    const validated = events.filter(event => {
+      const snapshot = sessions.get(event.rankingSessionId);
+      return verifySmartExposure(snapshot, actorId, prefVersion, event);
+    });
+    if (!validated.length) return { accepted: 0 };
+    // No event for hidden, removed, blocked or own content.
+    const eligible = await prisma.feedPost.findMany({
+      where: {
+        id: { in: [...new Set(validated.map(event => event.postId))] },
+        authorId: { not: actorId }, status: "published",
+        moderationState: "visible", deletedAt: null,
+        feedback: { none: { userId: actorId, kind: "not_interested" } },
+        author: { feedSubscribers: { none: { userId: actorId, hidden: true } } },
+      },
+      select: { id: true },
+    });
+    const idsAllowed = new Set(eligible.map(post => post.id));
+    const impressions = await prisma.feedImpression.findMany({
+      where: {
+        userId: actorId,
+        OR: validated.filter(event => idsAllowed.has(event.postId)).map(event => ({
+          postId: event.postId, rankingSessionId: event.rankingSessionId,
+        })),
+      },
+      select: { postId: true, rankingSessionId: true },
+    });
+    const qualified = new Set(impressions.map(row => `${row.rankingSessionId}:${row.postId}`));
+    const accepted = validated.filter(event => idsAllowed.has(event.postId) &&
+      qualified.has(`${event.rankingSessionId}:${event.postId}`)).map(event => ({
+      eventId: event.eventId, userId: actorId, postId: event.postId,
+      rankingSessionId: event.rankingSessionId, kind: event.kind,
+      durationMs: event.kind === "dwell" ? Math.min(event.durationMs ?? 0, 120_000) : 0,
+    }));
+    if (!accepted.length) return { accepted: 0 };
+    const inserted = await prisma.feedRankingEvent.createMany({ data: accepted, skipDuplicates: true });
+    return { accepted: inserted.count };
+  }
   if (len === 3 && one === "media") {
     const mediaId = routeId(two!);
     if (three === "playback" && method === "POST") {
@@ -123,7 +272,7 @@ export async function dispatchFeedRequest(
   if (len === 3 && one === "posts" && three === "bookmark" && (method === "PUT" || method === "DELETE")) {
     assertEmpty(input); return personal.bookmark(actorId, routeId(two!), method === "PUT");
   }
-  if (is(1, "posts") && method === "GET") return posts.list(actorId, parseQuery(url));
+  if (is(1, "posts") && method === "GET") return posts.list(actorId, parseQuery(url, false, true));
   if (len === 3 && one === "profiles" && three === "posts" && method === "GET")
     return posts.listProfile(actorId, two!, parseQuery(url));
   if (len === 2 && one === "me" && two === "pending-posts" && method === "GET")
@@ -132,6 +281,21 @@ export async function dispatchFeedRequest(
     return posts.create(actorId, feedParse(feedCreatePostSchema, input));
   if (len >= 2 && one === "posts") {
     const id = routeId(two!);
+    if (len === 3 && three === "feedback" && method === "POST") {
+      if (process.env.FEED_SMART_ENABLED !== "true") throw new FeedError("FEED_DISABLED", undefined, 503);
+      const { kind } = feedParse(smartFeedbackSchema, input);
+      const post = await prisma.feedPost.findFirst({
+        where: { id, status: "published", deletedAt: null, moderationState: "visible",
+          author: { feedSubscribers: { none: { userId: actorId, hidden: true } } } },
+        select: { id: true },
+      });
+      if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
+      await prisma.feedUserPostFeedback.upsert({
+        where: { userId_postId_kind: { userId: actorId, postId: id, kind } },
+        create: { userId: actorId, postId: id, kind }, update: {},
+      });
+      return { saved: true };
+    }
     if (len === 2 && method === "GET") return posts.get(actorId, id);
     if (len === 2 && method === "DELETE") { assertEmpty(input); return posts.remove(actorId, id); }
     if (len === 3 && three === "editor" && method === "GET") return posts.editor(actorId, id);
@@ -190,7 +354,7 @@ export async function dispatchFeedRequest(
       throw new FeedError("VALIDATION_ERROR", "Ожидалось {read:true}", 400);
     return actions.markNotificationRead(actorId, routeId(two!));
   }
-  throw new FeedError("NOT_FOUND", "Маршрут ленты недоступен", 404);
+  throw new FeedError("NOT_FOUND", "Запрошенный раздел «Моментов» недоступен", 404);
 }
 
 export { createFeedInternalDispatcher, dispatchFeedInternalRequest, FEED_INTERNAL_MAX_BODY_BYTES } from "./internal.js";

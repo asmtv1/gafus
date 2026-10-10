@@ -23,6 +23,7 @@ export interface DeleteCourseResult extends ActionResult {
 export interface CourseDraftDto {
   id: string;
   name: string;
+  guideContent: string | null;
   shortDesc: string;
   description: string;
   duration: string;
@@ -87,7 +88,7 @@ export async function createCourse(
             input.isPaid && input.appleIapProductId ? input.appleIapProductId : null,
           showInProfile: input.showInProfile ?? true,
           isPersonalized: input.isPersonalized ?? false,
-          guideContent: null,
+          guideContent: input.guideContent?.trim() || null,
           videoUrl: input.videoUrl || null,
           equipment: input.equipment ?? "",
           trainingLevel: input.trainingLevel,
@@ -163,7 +164,7 @@ export async function updateCourse(
                 input.isPaid && input.appleIapProductId ? input.appleIapProductId : null,
               showInProfile: input.showInProfile ?? true,
               isPersonalized: input.isPersonalized ?? false,
-              guideContent: null,
+              guideContent: input.guideContent === undefined ? undefined : input.guideContent?.trim() || null,
               equipment: input.equipment ?? "",
               trainingLevel: input.trainingLevel,
             },
@@ -391,6 +392,7 @@ export async function getCourseDraftWithRelations(
       select: {
         id: true,
         name: true,
+        guideContent: true,
         shortDesc: true,
         description: true,
         duration: true,
@@ -430,6 +432,7 @@ export async function getCourseDraftWithRelations(
     return {
       id: course.id,
       name: course.name,
+      guideContent: course.guideContent,
       shortDesc: course.shortDesc,
       description: course.description,
       duration: course.duration,

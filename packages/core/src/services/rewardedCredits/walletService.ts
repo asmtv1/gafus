@@ -6,7 +6,7 @@ import {
   REWARDED_DAILY_LIMIT_TIMEZONE,
   REWARDED_MAX_CREDIT_BALANCE,
 } from "./constants";
-import { RewardedBalanceFullError, RewardedCreditsRequiredError } from "./errors";
+import { RewardedBalanceFullError, RewardedCreditsRequiredError, RewardedAdsDisabledError } from "./errors";
 import { resolveRewardedPlatformSettings } from "./settingsService";
 import type { ClientAppContext } from "../appFeatureFlags";
 import type {
@@ -249,6 +249,8 @@ export async function spendRewardedCredits(input: {
   metadata?: Record<string, unknown>;
   now?: Date;
 }): Promise<RewardedSpendResultDto> {
+  // Legacy wallet remains an audit artifact; forbid double-spending after cutover.
+  if (process.env.GAFUS_LEGACY_REWARDED_DISABLED === "true") throw new RewardedAdsDisabledError();
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
   if (subscription.hasActiveSubscription) {
     const wallet = await ensureWallet(getPrismaClient(), input.userId);

@@ -456,7 +456,11 @@ export async function uploadExamVideoFile(
   const uuid = randomUUID();
   const relativePath = getExamVideoPath(userStepId, uuid, extension);
   const buffer = Buffer.from(await file.arrayBuffer());
-  const videoUrl = await uploadBufferToCDN(buffer, relativePath, file.type || "video/mp4");
+  const videoUrl = await prisma.$transaction(async (tx) => {
+    const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    if (!owners.length) throw new Error("Пользователь не найден");
+    return uploadBufferToCDN(buffer, relativePath, file.type || "video/mp4");
+  }, { timeout: 90_000 });
 
   logger.info(`Видео экзамена успешно загружено на CDN: ${videoUrl}`);
   return { success: true, videoUrl };

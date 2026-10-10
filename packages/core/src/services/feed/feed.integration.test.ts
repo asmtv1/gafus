@@ -50,6 +50,40 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     await posts.publish(owner, draft.id, { clientRequestId: randomUUID() });
     return posts.get(reader, draft.id);
   }
+  it("orders the full feed by newest, reactions or visible comments with paginated cursors", async () => {
+    const first = await publish("Первый");
+    at = new Date(at.getTime() + 60_000);
+    const second = await publish("Второй");
+    at = new Date(at.getTime() + 60_000);
+    const third = await publish("Третий");
+    await social.setPostReaction(reader, first.id, "❤️");
+    await social.setPostReaction(stranger, first.id, "🔥");
+    await social.setPostReaction(reader, second.id, "❤️");
+    await social.createComment(reader, first.id, { text: "Первый ответ", clientRequestId: randomUUID() });
+    await social.createComment(reader, second.id, { text: "Второй ответ", clientRequestId: randomUUID() });
+    await social.createComment(stranger, second.id, { text: "Ещё ответ", clientRequestId: randomUUID() });
+
+    expect((await posts.list(reader, { sort: "new" })).items.map(post => post.id))
+      .toEqual([third.id, second.id, first.id]);
+    expect((await posts.list(reader, { sort: "popular" })).items.map(post => post.id))
+      .toEqual([first.id, second.id, third.id]);
+    expect((await posts.list(reader, { sort: "discussed" })).items.map(post => post.id))
+      .toEqual([second.id, first.id, third.id]);
+
+    for (const [sort, expected] of [
+      ["popular", [first.id, second.id, third.id]],
+      ["discussed", [second.id, first.id, third.id]],
+    ] as const) {
+      const ids: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const page = await posts.list(reader, { sort, pageSize: 1, cursor });
+        ids.push(...page.items.map(post => post.id));
+        cursor = page.nextCursor;
+      } while (cursor);
+      expect(ids).toEqual([...expected]);
+    }
+  });
   it("hides current/future posts for one reader while preserving profiles, links and bookmarks", async () => {
     const prefs = createFeedPreferences({ db: db!, enabled: () => true });
     const post = await publish();

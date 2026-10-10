@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FEED_LIMITS as L, FEED_REACTIONS, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES, countFeedCharacters } from "../../../../types/src/feed";
+import { FEED_LIMITS as L, FEED_REACTIONS, FEED_SORT_OPTIONS, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES, countFeedCharacters } from "../../../../types/src/feed";
 import { FeedError } from "./errors";
 export const feedIdSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);
 const requestId = z.string().uuid();
@@ -32,6 +32,7 @@ export const feedListSchema = z.object({
   cursor: z.string().min(1).max(512).nullable().optional(),
   pageSize: z.number().int().min(1).max(L.maxPageSize).default(L.pageSize),
 }).strict();
+export const feedPostListSchema = feedListSchema.extend({ sort: z.enum(FEED_SORT_OPTIONS).default("new") });
 export const feedReactionListSchema = feedListSchema.extend({ reaction: z.enum(FEED_REACTIONS).optional() });
 export function feedParse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, data: unknown): T {
   const result = schema.safeParse(data);

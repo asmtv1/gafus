@@ -9,6 +9,7 @@ import type {
 import { FEED_LIMITS as L } from "../../../../types/src/feed";
 import { FeedError } from "./errors";
 import { feedReactionToKind } from "./service";
+import { lockGafusPostReactionTx, advanceGafusReactionMilestonesTx } from "../gafus/reactionRewardService";
 import type { FeedDb, FeedTx } from "./ports";
 import * as s from "./schemas";
 const kindToReaction = { heart: "❤️", laugh: "😂", dog: "🐶", fire: "🔥", like: "👍" } as const;
@@ -211,6 +212,7 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
       await auth(actorId);
       const { reaction: emoji } = s.feedParse(s.feedReactionSchema, { reaction });
       return transaction(async tx => {
+        await lockGafusPostReactionTx(tx, postId);
         const post = await readablePost(tx, postId);
         const at = now(), kind = feedReactionToKind[emoji];
         const old = await tx.feedPostReaction.findUnique({ where: { postId_userId: { postId, userId: actorId } } });
@@ -219,14 +221,17 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
             create: { postId, userId: actorId, kind }, update: { kind } });
           if (!old) await groupedReaction(tx, post.authorId, postId, null, "post_reaction", actorId, kind, at);
         }
+        await advanceGafusReactionMilestonesTx(tx, { postId, authorId: post.authorId, at });
         return { reaction: emoji };
       });
     },
     async removePostReaction(actorId: string, postId: string) {
       await auth(actorId);
       return transaction(async tx => {
-        await readablePost(tx, postId);
+        await lockGafusPostReactionTx(tx, postId);
+        const post = await readablePost(tx, postId);
         await tx.feedPostReaction.deleteMany({ where: { postId, userId: actorId } });
+        await advanceGafusReactionMilestonesTx(tx, { postId, authorId: post.authorId, at: now() });
         return { reaction: null };
       });
     },

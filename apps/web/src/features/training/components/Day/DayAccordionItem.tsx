@@ -1,6 +1,9 @@
 "use client";
 
-import { memo, useCallback, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useState, useTransition } from "react";
+import { gafusApi } from "@/features/gafus/api";
+import { trackEvent } from "@gafus/analytics";
+import type { GafusStatusDto } from "@gafus/types";
 import dynamic from "next/dynamic";
 
 import { getStepDisplayStatus, STEP_STATUS_LABELS } from "@gafus/core/utils/training";
@@ -59,6 +62,43 @@ export const DayAccordionItem = memo(function DayAccordionItem({
   const updateStepStatus = useStepStore((s) => s.updateStepStatus);
   const [isPending, startTheoryTransition] = useTransition();
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [gafusStatus, setGafusStatus] = useState<GafusStatusDto | null>(null);
+  const [gafusBusy, setGafusBusy] = useState(false);
+  const [gafusError, setGafusError] = useState<string | null>(null);
+  const gatedStepId = step.monetizationTarget?.targetId;
+
+  useEffect(() => {
+    if (!paywallOpen || !gatedStepId) return;
+    let active = true;
+    setGafusError(null);
+    void gafusApi.status().then(status => {
+      if (active) setGafusStatus(status);
+    }).catch(error => {
+      if (active) setGafusError(error instanceof Error ? error.message : "Не удалось проверить баланс");
+    });
+    return () => { active = false; };
+  }, [paywallOpen, gatedStepId]);
+
+  const handleGafusUnlock = useCallback(async () => {
+    if (!gatedStepId || gafusBusy) return;
+    setGafusBusy(true);
+    setGafusError(null);
+    try {
+      await gafusApi.unlock({
+        target: { type: "COURSE_STEP", dayOnCourseId: training.dayOnCourseId, stepOnDayId: gatedStepId },
+        clientRequestId: crypto.randomUUID(),
+      });
+      trackEvent({
+        eventName: "button_click", platform: "web",
+        pathOrScreen: "/trainings/day", elementId: "gafus-step-unlock-success",
+      });
+      window.location.reload();
+    } catch (error) {
+      setGafusError(error instanceof Error ? error.message : "Не удалось открыть шаг");
+    } finally {
+      setGafusBusy(false);
+    }
+  }, [gatedStepId, gafusBusy, training.dayOnCourseId]);
 
   const isBreakStep = step.type === "BREAK";
   const isDiaryStep = step.type === "DIARY";
@@ -216,6 +256,23 @@ export const DayAccordionItem = memo(function DayAccordionItem({
           aria-label="Доступ к шагу"
         >
           <div className={styles.paywallPanel}>
+            {gatedStepId && gafusStatus?.enabled.economy && gafusStatus.enabled.spending && (
+              <div className={styles.gafusUnlock}>
+                <strong>Открыть шаг за Гафусы</strong>
+                <span>Баланс: {gafusStatus.wallet.balance} 🐾 · Стоимость: {gafusStatus.rules.courseStepCost}</span>
+                <button
+                  type="button"
+                  onClick={() => void handleGafusUnlock()}
+                  disabled={gafusBusy || gafusStatus.wallet.balance < gafusStatus.rules.courseStepCost}
+                >
+                  {gafusBusy ? "Открываем…" : "Открыть за Гафусы"}
+                </button>
+                {gafusStatus.wallet.balance < gafusStatus.rules.courseStepCost && (
+                  <span>Недостаточно Гафусов. Их можно заработать за активность в сообществе.</span>
+                )}
+              </div>
+            )}
+            {gafusError && <p className={styles.gafusError} role="alert">{gafusError}</p>}
             <AppSubscriptionPaywall mode="embedded" onClose={() => setPaywallOpen(false)} />
           </div>
         </div>

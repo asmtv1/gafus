@@ -216,7 +216,7 @@ export function QuestionDetail({ id }: { id: string }) {
   if (query.isPending)
     return (
       <main className={s.page}>
-        <LoadingState variant="inline" size="large" message="Загрузка вопроса…" />
+        <LoadingState variant="inline" message="Загрузка вопроса…" />
       </main>
     );
   if (query.isError || !question)
@@ -413,7 +413,7 @@ export function QuestionDetail({ id }: { id: string }) {
             {query.isFetchingNextPage ? "Загрузка…" : "Ещё ответы"}
           </button>
         )}
-        {query.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем ответы…" />}
+        {query.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем ответы…" />}
       </section>
       {question.blockReason && (
         <p className={s.notice}>Публикации в разделе заблокированы: {question.blockReason}</p>

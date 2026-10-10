@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PublicPets from "@/features/profile/components/PetList/PublicPets";
 import { GalleryPreview } from "@/features/gallery";
 import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 
@@ -29,6 +30,7 @@ export default function ProfileClient({
   return (
     <main>
       <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
+      {!isOwner && <PublicPets pets={publicData.pets} />}
       {!isOwner && <GalleryPreview username={username} />}
       <ProfileFeedPreview username={username} />
       {isOwner && publicData.role === "USER" && <StudentNotes />}

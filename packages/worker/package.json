@@ -19,6 +19,11 @@
     "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
+    "smart-ml:promote": "tsx src/smart-ml-promote.ts",
+    "smart-ml:train": "tsx src/smart-ml-train.ts",
+    "smart-feed:sql-smoke": "tsx src/smart-feed-sql-smoke.ts",
+    "smart-feed:redis-smoke": "tsx src/smart-feed-redis-smoke.ts",
+    "smart-experiment:report": "tsx src/smart-experiment-report.ts",
     "profit:sync": "tsx --env-file=../../.env src/profit-finance-sync.ts"
   },
   "dependencies": {

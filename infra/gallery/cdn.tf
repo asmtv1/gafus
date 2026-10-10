@@ -83,6 +83,7 @@ resource "yandex_cdn_resource" "gallery" {
 }
 output "origin_base_url" { value = "https://${yandex_api_gateway.origin.domain}" }
 output "cdn_base_url" { value = var.deploy_cdn ? "https://${var.cdn_hostname}" : null }
+output "cdn_resource_id" { value = var.deploy_cdn ? yandex_cdn_resource.gallery[0].id : null }
 output "queue_url" { value = yandex_message_queue.process.id }
 output "dlq_url" { value = yandex_message_queue.dlq.id }
 output "function_ids" { value = { for name, function in yandex_function.gallery : name => function.id } }

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
 import { Text } from "react-native-paper";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
@@ -247,10 +246,7 @@ export default function ArticleDetailScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Ошибка" }} />
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backRowText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>
             {error instanceof Error ? error.message : "Ошибка загрузки статьи"}
@@ -264,10 +260,7 @@ export default function ArticleDetailScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backRowText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
         <Loading fullScreen message="Загрузка статьи..." />
       </SafeAreaView>
     );
@@ -290,10 +283,7 @@ export default function ArticleDetailScreen() {
         }}
         scrollEventThrottle={200}
       >
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backRowText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
 
         <Text style={styles.title}>{article.title}</Text>
         <View style={styles.metaRow}>
@@ -504,10 +494,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
     marginBottom: SPACING.md,
-    gap: 4,
   },
   backRowText: {
     fontSize: 17,

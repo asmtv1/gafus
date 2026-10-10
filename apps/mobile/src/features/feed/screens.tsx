@@ -1,30 +1,43 @@
 import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { publicationPhaseLabel, type PublicationItem } from "@gafus/core/services/feed/publication-client";
+import { mobileFeedPublications } from "./publication";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import * as Crypto from "expo-crypto";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect, type Href } from "expo-router";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FEED_REACTIONS, FEED_LIMITS, countFeedCharacters, formatFeedTime,
-  type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto,
+  type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto, type FeedSort, type FeedImpressionInput,
 } from "@gafus/types";
-import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
+import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { Button } from "@/shared/components";
 import { feedApi } from "@/shared/lib/api/feed";
 import { pickFeedMedia, uploadPickedFeedMedia, checkFeedPickedMedia, type FeedPickedMedia } from "./uploads";
-import { FeedVideo, stopFeedVideoOutsidePosts } from "./FeedVideo";
+import { stopFeedVideoOutsidePosts } from "./FeedVideo";
+import { mobileFeedTelemetry } from "./telemetry";
+import { FeedMediaViewer } from "./FeedMediaViewer";
+import { GafusReactionProgress } from "./GafusReactionProgress";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedCarouselDots } from "./FeedCarouselDots";
+import { FeedSortControl } from "./FeedSortControl";
+import { FeedSmartPreferences } from "./FeedSmartPreferences";
 import { SortableMediaStrip } from "./SortableMediaStrip";
+import { composeToolIconUri } from "./composeToolIconData";
+import { BOOKMARK_ARTWORK_URI } from "./bookmarkArtwork";
+import { MOMENTS_HEADER_URI } from "./momentsHeaderArtwork";
 
-function errorMessage(error: unknown) { return error instanceof Error ? error.message : "Не удалось загрузить ленту."; }
+const EMPTY_PUBLICATIONS: PublicationItem[] = [];
+
+function errorMessage(error: unknown) { return error instanceof Error ? error.message : "Не удалось загрузить «Моменты»."; }
 export function useFeedStatus() {
   const id = useAuthStore(state => state.user?.id);
   return useQuery({
@@ -37,9 +50,9 @@ export function useFeedStatus() {
 }
 function Muted({ children }: { children: React.ReactNode }) { return <Text style={s.muted}>{children}</Text>; }
 function Status({ status, retry }: { status: ReturnType<typeof useFeedStatus>; retry?: () => void }) {
-  if (status.isPending) return <Loading variant="inline" size="small" />;
+  if (status.isPending) return <Loading variant="inline" />;
   if (status.isError) return <View style={s.card}><Text style={s.error}>{errorMessage(status.error)}</Text><Button label="Повторить" onPress={() => void (retry?.() ?? status.refetch())} /></View>;
-  return <View style={s.card}><Muted>Лента пока недоступна.</Muted></View>;
+  return <View style={s.card}><Muted>Раздел «Моменты» пока недоступен.</Muted></View>;
 }
 // Telegram-style reactions: show only used reactions and keep the picker behind one compact button.
 function FeedReactionStrip({ reactions, myReaction, busy, onSelect }: {
@@ -90,7 +103,7 @@ function FeedReactionStrip({ reactions, myReaction, busy, onSelect }: {
       })}
       <Pressable ref={triggerRef} accessibilityRole="button" accessibilityLabel="Добавить реакцию"
         disabled={busy} hitSlop={6} onPress={openPicker} style={s.addReaction}>
-        <MaterialCommunityIcons name="emoticon-plus-outline" size={19} color={COLORS.primary} />
+        <MaterialCommunityIcons name="heart-outline" size={22} color={COLORS.primary} />
       </Pressable>
     </View>
     {pickerOpen && anchor && <Modal visible transparent statusBarTranslucent animationType="fade"
@@ -117,11 +130,31 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
   const cache = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [mediaPosition, setMediaPosition] = useState(0);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [mediaWidth, setMediaWidth] = useState(320);
-  useEffect(() => { setMediaPosition(0); }, [post.id]);
+  useEffect(() => { setMediaPosition(0); setViewerIndex(null); }, [post.id]);
   const [busy, setBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const go = () => router.push({ pathname: "/(main)/feed/[postId]", params: { postId: post.id } } as Href);
+  const recordOpen = (kind: "post_open" | "profile_open") => {
+    if (post.recommendationExposureToken && post.recommendationSessionId &&
+        post.recommendationRank !== undefined) {
+      const userId = useAuthStore.getState().user?.id;
+      if (!userId) return;
+      const telemetry = mobileFeedTelemetry(userId);
+      telemetry.enqueueOutcome({
+        eventId: Crypto.randomUUID(), postId: post.id,
+        rankingSessionId: post.recommendationSessionId,
+        algorithmVersion: "smart-rule-2026-10-a",
+        exposureToken: post.recommendationExposureToken,
+        rank: post.recommendationRank, kind,
+      });
+      void telemetry.flush();
+    }
+  };
+  const go = () => {
+    recordOpen("post_open");
+    router.push({ pathname: "/(main)/feed/[postId]", params: { postId: post.id } } as Href);
+  };
   const deletePost = async () => {
     if (actionBusy) return;
     setActionBusy(true);
@@ -141,7 +174,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       if (post.myReaction === reaction) await feedApi.removePostReaction(post.id);
       else await feedApi.setPostReaction(post.id, reaction);
       await cache.invalidateQueries({ queryKey: ["feed"] });
-    } catch (error) { Alert.alert("Лента", errorMessage(error)); }
+    } catch (error) { Alert.alert("Моменты", errorMessage(error)); }
     finally { setBusy(false); }
   };
   const media = post.attachments.filter(asset => asset.status === "ready");
@@ -164,7 +197,10 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       setMediaWidth(current => Math.abs(current - width) > 1 ? width : current);
     }}>
     <View style={s.postAuthorBar}>
-    <Pressable style={s.authorRow} accessibilityRole="button" accessibilityLabel={`Профиль ${post.author.name}`} onPress={() => router.push({ pathname: "/profile/[username]", params: { username: post.author.username } } as Href)}>
+    <Pressable style={s.authorRow} accessibilityRole="button" accessibilityLabel={`Профиль ${post.author.name}`} onPress={() => {
+      recordOpen("profile_open");
+      router.push({ pathname: "/profile/[username]", params: { username: post.author.username } } as Href);
+    }}>
       {post.author.avatarUrl ? <Image source={{ uri: post.author.avatarUrl }} style={s.avatar} cachePolicy="memory" /> :
         <View style={[s.avatar, s.avatarFallback]}><Text style={s.avatarInitial}>{post.author.name.slice(0, 1)}</Text></View>}
       <View style={{ flex: 1 }}>
@@ -172,7 +208,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
         <Muted>{formatFeedTime(post.publishedAt ?? post.createdAt)}{post.editedAt ? " · Изменён" : ""}</Muted>
       </View>
     </Pressable>
-    <FeedPostActions post={post} onEdit={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)} onDelete={() => Alert.alert("Удалить публикацию?", "Публикация исчезнет из ленты.", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive", onPress: () => void deletePost() }])} />
+    <FeedPostActions post={post} onEdit={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)} onDelete={() => Alert.alert("Удалить публикацию?", "Публикация исчезнет из раздела «Моменты».", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive", onPress: () => void deletePost() }])} />
     </View>
     {post.moderationState && post.moderationState !== "visible" && <Text style={s.error}>
       {post.moderationState === "removed" ? "Публикация удалена" : "Публикация скрыта"} из-за жалобы. {post.moderationReason}
@@ -184,13 +220,34 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       onScroll={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}
       onMomentumScrollEnd={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}>
       {media.map((asset, index) => <View style={[s.media, { width: mediaWidth, height: mediaHeight }]} key={asset.id}>
-        {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ?
-          <Pressable style={s.image} onPress={go} accessibilityRole="button" accessibilityLabel={`Открыть фото ${index + 1}`}>
-            <Image source={{ uri: asset.fullUrl ?? asset.thumbUrl ?? "" }} cachePolicy="memory" contentFit={detailed ? "contain" : "cover"} style={s.image} />
-          </Pressable> :
-          <FeedVideo postId={post.id} mediaId={asset.id} poster={asset.posterUrl} visible={index === currentMediaPosition} />}
+        <Pressable style={s.image} onPress={() => setViewerIndex(index)}
+          accessibilityRole="button"
+          accessibilityLabel={asset.kind === "photo" ? `Открыть фото ${index + 1} на весь экран` : `Открыть видео ${index + 1} на весь экран`}>
+          {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ? (
+            <Image source={{ uri: asset.fullUrl ?? asset.thumbUrl ?? "" }}
+              cachePolicy="memory" contentFit={detailed ? "contain" : "cover"} style={s.image} />
+          ) : (
+            <>
+              {!!asset.posterUrl && <Image source={{ uri: asset.posterUrl }} cachePolicy="memory"
+                contentFit="cover" style={s.image} />}
+              <View style={s.videoPlayOverlay} pointerEvents="none">
+                <View style={s.videoPlayCircle}>
+                  <MaterialCommunityIcons name="play" size={32} color="#FFF8EB" />
+                </View>
+              </View>
+            </>
+          )}
+        </Pressable>
       </View>)}
     </ScrollView>}
+    {viewerIndex !== null && media.length > 0 && (
+      <FeedMediaViewer
+        postId={post.id}
+        initialMedia={media}
+        start={viewerIndex}
+        close={() => setViewerIndex(null)}
+      />
+    )}
     <FeedCarouselDots count={media.length} position={currentMediaPosition} />
     {post.text ? <Pressable onPress={() => detailed ? undefined : setExpanded(value => !value)} accessibilityRole={detailed ? "text" : "button"} accessibilityLabel={detailed ? "Текст" : "Показать текст полностью"}>
       <Text style={[s.body, detailed && s.bodyDetailed]} numberOfLines={detailed || expanded ? undefined : 4}>{post.text}</Text>
@@ -213,10 +270,92 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
     </View>
   </View>;
 }
+function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
+  const router = useRouter();
+  const local = useSyncExternalStore(mobileFeedPublications.subscribe,
+    mobileFeedPublications.getSnapshot, () => EMPTY_PUBLICATIONS)
+    .filter(item => item.ownerId === ownerId);
+  const pending = useQuery({
+    queryKey: ["feed", "pending", ownerId],
+    queryFn: () => feedApi.listPendingPosts(),
+    enabled: !!ownerId,
+    refetchInterval: 20_000,
+  });
+  const recovered = (pending.data?.items ?? [])
+    .filter(post => !local.some(item => item.postId === post.id));
+  if (!local.length && !recovered.length) return null;
+  return <View style={s.publicationQueue} accessibilityLabel="Мои публикации в обработке">
+    {local.map(item => <View key={item.id} style={s.publicationCard}>
+      <View style={s.publicationMedia}>
+        {item.previewUri && <Image source={{ uri: item.previewUri }} style={s.publicationPreview}
+          contentFit="cover" />}
+        {(item.phase === "uploading" || item.phase === "processing") &&
+          <MascotSpinner style={{ transform: [{ scale: 0.43 }] }} />}
+      </View>
+      <View style={s.publicationBody} accessibilityLiveRegion="polite">
+        <Text style={s.publicationTitle}>{publicationPhaseLabel(item)}</Text>
+        {!!item.text && <Text numberOfLines={2} style={s.publicationExcerpt}>{item.text}</Text>}
+        {item.phase === "uploading" && item.progress !== null &&
+          <View style={s.publicationTrack} accessibilityRole="progressbar"
+            accessibilityLabel="Загрузка вложений" accessibilityValue={{ min: 0, max: 100, now: item.progress }}>
+            <View style={[s.publicationFill, { width: `${item.progress}%` }]} />
+          </View>}
+        {!!item.error && <Text style={s.error}>{item.error}</Text>}
+        {item.phase === "failed" && <View style={s.publicationActions}>
+          <Button label="Повторить" height={38} fontSize={12} variant="primary" fullWidth={false}
+            onPress={() => mobileFeedPublications.retry(item.id)} />
+          <Pressable accessibilityRole="button" onPress={() => mobileFeedPublications.dismiss(item.id)}
+            style={s.publicationDismiss}><Text style={s.publicationExcerpt}>Скрыть</Text></Pressable>
+        </View>}
+      </View>
+    </View>)}
+    {recovered.map(post => <Pressable key={post.id} style={s.publicationCard}
+      accessibilityRole="button" accessibilityLabel="Продолжить незавершённую публикацию"
+      onPress={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)}>
+      <MaterialCommunityIcons name="file-document-edit-outline" size={26} color={COLORS.primary} />
+      <View style={s.publicationBody}>
+        <Text style={s.publicationTitle}>{post.status === "pending"
+          ? "Обрабатываем публикацию…" : post.status === "failed"
+            ? "Ошибка обработки" : "Черновик публикации"}</Text>
+        {!!post.text && <Text style={s.publicationExcerpt} numberOfLines={2}>{post.text}</Text>}
+      </View>
+    </Pressable>)}
+  </View>;
+}
+
 export function FeedScreen() {
   const router = useRouter();
+  const [smartSettingsOpen, setSmartSettingsOpen] = useState(false);
+  const { width: screenWidth } = useWindowDimensions();
+  const compactControls = screenWidth < 360;
+  const [sort, setSort] = useState<FeedSort>("new");
   const userId = useAuthStore(state => state.user?.id);
   const status = useFeedStatus();
+  const feedCache = useQueryClient();
+  const publishing = useSyncExternalStore(mobileFeedPublications.subscribe,
+    mobileFeedPublications.getSnapshot, () => EMPTY_PUBLICATIONS)
+    .some(item => item.ownerId === userId && item.phase !== "published");
+  useEffect(() => {
+    const seen = new Set<string>();
+    return mobileFeedPublications.subscribe(() => {
+      for (const item of mobileFeedPublications.getSnapshot()) {
+        if (item.ownerId !== userId || item.phase !== "published" || !item.postId || seen.has(item.id)) continue;
+        seen.add(item.id);
+        void feedCache.invalidateQueries({ queryKey: ["feed"] });
+      }
+    });
+  }, [feedCache, userId]);
+  useEffect(() => {
+    let active = true;
+    if (!userId) { setSort("new"); return; }
+    void AsyncStorage.getItem(`gafus:feed:sort:${userId}`).then(value => {
+      if (!active) return;
+      if (value === "new" || value === "popular" || value === "discussed" ||
+        (value === "smart" && status.data?.smartEnabled)) setSort(value);
+      else setSort(status.data?.smartEnabled ? "smart" : "new");
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [userId, status.data?.smartEnabled]);
   const appActive = useRef(AppState.currentState === "active");
   const screenFocused = useRef(false);
   useEffect(() => {
@@ -228,47 +367,178 @@ export function FeedScreen() {
     return () => { screenFocused.current = false; };
   }, []));
   const pages = useInfiniteQuery({
-    queryKey: ["feed", "posts", userId],
-    queryFn: ({ pageParam }) => feedApi.listPosts({ cursor: pageParam }),
+    queryKey: ["feed", "posts", userId, sort],
+    queryFn: ({ pageParam }) => feedApi.listPosts({ cursor: pageParam, sort }),
     refetchInterval: 90_000,
     initialPageParam: null as string | null,
     getNextPageParam: value => value.nextCursor,
     enabled: !!userId && status.data?.enabled === true,
   });
   const posts = pages.data?.pages.flatMap(page => page.items) ?? [];
+  const smartSession = useRef<{ id: string; algorithmVersion: string } | null>(null);
+  useEffect(() => {
+    const meta = pages.data?.pages[0]?.feedMeta;
+    smartSession.current = sort === "smart" && meta?.rankingSessionId && meta.algorithmVersion
+      ? { id: meta.rankingSessionId, algorithmVersion: meta.algorithmVersion } : null;
+  }, [pages.data, sort]);
+  const telemetry = userId ? mobileFeedTelemetry(userId) : null;
+  const flushImpressions = useCallback(() => telemetry?.flush() ?? Promise.resolve(true), [telemetry]);
+  useEffect(() => { if (telemetry) void telemetry.flush(); }, [telemetry]);
+  const dwellMap = useRef(new Map<string, { since: number; post: FeedPostDto }>());
+  const flushDwell = useCallback(() => {
+    const ended = [...dwellMap.current.values()];
+    dwellMap.current.clear();
+    if (!ended.length) return;
+    flushImpressions();
+    const events = ended.flatMap(({ since, post }) => {
+      if (!post.recommendationSessionId || !post.recommendationExposureToken ||
+          post.recommendationRank === undefined) return [];
+      return [{
+        eventId: Crypto.randomUUID(), postId: post.id,
+        rankingSessionId: post.recommendationSessionId,
+        algorithmVersion: "smart-rule-2026-10-a" as const,
+        exposureToken: post.recommendationExposureToken,
+        rank: post.recommendationRank, kind: "dwell" as const,
+        durationMs: Math.min(120_000, Math.max(0, Date.now() - since)),
+      }];
+    });
+    for (const event of events.slice(0, 30)) telemetry?.enqueueOutcome(event);
+    if (events.length) void flushImpressions();
+  }, [flushImpressions, telemetry]);
+  useEffect(() => {
+    const timer = setInterval(flushImpressions, 5_000);
+    const sub = AppState.addEventListener("change", state => {
+      if (state !== "active") { flushDwell(); void flushImpressions(); }
+      else void flushImpressions();
+    });
+    return () => { clearInterval(timer); sub.remove(); flushImpressions(); flushDwell(); };
+  }, [flushImpressions, flushDwell]);
+  useFocusEffect(useCallback(() => {
+    return () => { flushImpressions(); flushDwell(); };
+  }, [flushImpressions, flushDwell]));
   const visibility = useRef({ itemVisiblePercentThreshold: 50, minimumViewTime: FEED_LIMITS.viewVisibleMilliseconds }).current;
   const seen = useRef(new Set<string>());
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: { item: FeedPostDto | null; isViewable: boolean }[] }) => {
     stopFeedVideoOutsidePosts(new Set(viewableItems.filter(entry => entry.isViewable && entry.item).map(entry => entry.item!.id)));
     if (!screenFocused.current || !appActive.current) return;
+    const visibleIds = new Set(viewableItems.filter(entry => entry.isViewable && entry.item).map(entry => entry.item!.id));
+    const elapsed: Array<{ since: number; post: FeedPostDto }> = [];
+    for (const [id, value] of dwellMap.current) {
+      if (!visibleIds.has(id)) { elapsed.push(value); dwellMap.current.delete(id); }
+    }
+    if (elapsed.length) {
+      flushImpressions();
+      const events = elapsed.flatMap(({ since, post }) =>
+        post.recommendationSessionId && post.recommendationExposureToken &&
+        post.recommendationRank !== undefined ? [{
+          eventId: Crypto.randomUUID(), postId: post.id,
+          rankingSessionId: post.recommendationSessionId,
+          algorithmVersion: "smart-rule-2026-10-a" as const,
+          exposureToken: post.recommendationExposureToken, rank: post.recommendationRank,
+          kind: "dwell" as const, durationMs: Math.min(120_000, Math.max(0, Date.now() - since)),
+        }] : [],
+      );
+      for (const event of events.slice(0, 30)) telemetry?.enqueueOutcome(event);
+      if (events.length) void flushImpressions();
+    }
     for (const { item, isViewable } of viewableItems) {
+      if (item && isViewable && item.recommendationExposureToken && !dwellMap.current.has(item.id)) {
+        dwellMap.current.set(item.id, { since: Date.now(), post: item });
+      }
       if (!item || !isViewable || item.author.id === userId || seen.current.has(item.id)) continue;
       seen.current.add(item.id);
       void feedApi.recordView(item.id).catch(() => seen.current.delete(item.id));
+      const session = smartSession.current;
+      const sessionId = item.recommendationSessionId ?? session?.id;
+      if (sort === "smart" && session && sessionId && item.recommendationRank !== undefined) {
+        telemetry?.enqueueImpression({
+          eventId: Crypto.randomUUID(), postId: item.id,
+          rankingSessionId: sessionId, algorithmVersion: session.algorithmVersion,
+          rank: item.recommendationRank, visibleMs: FEED_LIMITS.viewVisibleMilliseconds,
+          exposureToken: item.recommendationExposureToken,
+        });
+        if ((telemetry?.impressions.size ?? 0) >= 25) void flushImpressions();
+      }
     }
-  }, [userId]);
-  return <TexturedSafeAreaView style={s.screen} edges={["top", "left", "right"]}>
-    <View style={s.pageHeader}>
-      <Text accessibilityRole="header" style={s.heading}>Лента</Text>
-      {status.data?.enabled && <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Новый пост"
-        accessibilityHint="Создать публикацию"
-        onPress={() => router.push("/(main)/feed/create" as Href)}
-        style={({ pressed }) => [s.newPostButton, pressed && s.newPostPressed]}
-      >
-        <MaterialCommunityIcons name="plus" size={25} color={COLORS.onPrimary} />
-      </Pressable>}
+  }, [userId, sort, flushImpressions, telemetry]);
+  const listHeader = <>
+    <View style={s.momentsHeaderArtwork}>
+      <Image
+        source={{ uri: MOMENTS_HEADER_URI }}
+        style={s.momentsHeaderImage}
+        contentFit="cover"
+        accessible
+        accessibilityLabel="Моменты. Делитесь фотографиями, видео и историями о своих питомцах"
+      />
     </View>
-    {status.data?.enabled && <View style={{ flexDirection: "row", gap: 20, paddingHorizontal: 20, paddingBottom: 12 }}>
-      <Pressable accessibilityRole="button" onPress={() => router.push("/(main)/feed/saved" as Href)}><Text style={s.more}>Закладки</Text></Pressable>
-      <Pressable accessibilityRole="button" onPress={() => router.push("/(main)/feed/hidden-authors" as Href)}><Text style={s.more}>Скрытые авторы</Text></Pressable>
-    </View>}
+    <View style={[s.pageHeader, compactControls && s.pageHeaderCompact]}>
+      {status.data?.enabled && <FeedSortControl value={sort} compact={compactControls}
+        smartEnabled={status.data?.smartEnabled} onSettings={() => setSmartSettingsOpen(true)} onChange={next => {
+        if (next !== sort) {
+          flushImpressions();
+          flushDwell();
+          seen.current.clear();
+          stopFeedVideoOutsidePosts(new Set());
+          setSort(next);
+          if (userId) void AsyncStorage.setItem(`gafus:feed:sort:${userId}`, next);
+        }
+      }} />}
+      {status.data?.enabled && <View style={[s.headerActions, compactControls && s.headerActionsCompact]}>
+        <View style={[s.bookmarksButton, compactControls && s.bookmarksButtonCompact]}>
+          <Button
+            label=" "
+            variant="caramel"
+            accessibilityLabel="Избранные"
+            accessibilityHint="Открыть сохранённые публикации"
+            onPress={() => router.push("/(main)/feed/saved" as Href)}
+            fullWidth
+            height={44}
+            horizontalPadding={0}
+            verticalPadding={0}
+            borderRadius={14}
+            style={s.bookmarksButtonBackground}
+            animatedPress
+          />
+          <View
+            pointerEvents="none"
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            style={s.bookmarksContent}
+          >
+            <Image
+              source={{ uri: BOOKMARK_ARTWORK_URI }}
+              style={[s.bookmarksIcon, compactControls && s.bookmarksIconCompact]}
+              contentFit="contain"
+              accessible={false}
+            />
+            <Text style={[s.bookmarksText, compactControls && s.bookmarksTextCompact]} numberOfLines={1} adjustsFontSizeToFit>Избранные</Text>
+          </View>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Новый пост"
+          accessibilityHint="Создать публикацию"
+          onPress={() => router.push("/(main)/feed/create" as Href)}
+          style={({ pressed }) => [s.newPostButton, compactControls && s.newPostButtonCompact, pressed && s.newPostPressed]}
+        >
+          <MaterialCommunityIcons name="plus" size={25} color={COLORS.onPrimary} />
+        </Pressable>
+      </View>}
+    </View>
+    <FeedPublicationQueue ownerId={userId} />
+    {sort === "smart" && pages.data?.pages.some(page => page.feedMeta?.fallback === "new") &&
+      <Text style={[s.muted, { paddingHorizontal: 16, paddingBottom: 9 }]}>
+        Рекомендации пока недоступны. Показываем новые публикации.
+      </Text>}
+  </>;
+  return <TexturedSafeAreaView style={s.screen} edges={[]}>
+    <StatusBar style="dark" translucent backgroundColor="transparent" />
     {status.isPending ? <Loading fullScreen embedded /> :
-      status.data?.enabled !== true ? <View style={s.padding}><Status status={status} /></View> :
-      pages.isPending && posts.length === 0 ? <Loading fullScreen embedded /> :
+      status.data?.enabled !== true ? <View style={s.padding}>{listHeader}<Status status={status} /></View> :
       <FlashList
+        key={sort}
         data={posts}
+        ListHeaderComponent={listHeader}
         keyExtractor={item => item.id}
         renderItem={({ item }) => <View style={s.listItem}><FeedPostCard post={item} /></View>}
         viewabilityConfig={visibility}
@@ -278,9 +548,13 @@ export function FeedScreen() {
         refreshing={pages.isRefetching}
         onEndReached={() => { if (pages.hasNextPage && !pages.isFetchingNextPage) void pages.fetchNextPage(); }}
         onEndReachedThreshold={0.4}
-        ListFooterComponent={pages.isFetchingNextPage ? <MascotSpinner size="small" /> : null}
-        ListEmptyComponent={<View style={s.card}><Muted>{pages.isError ? errorMessage(pages.error) : "Здесь пока нет публикаций."}</Muted></View>}
+        ListFooterComponent={pages.isFetchingNextPage ? <MascotSpinner /> : null}
+        ListEmptyComponent={pages.isPending
+          ? <Loading variant="inline" message="Загрузка публикаций…" />
+          : publishing ? null
+          : <View style={s.card}><Muted>{pages.isError ? errorMessage(pages.error) : "Здесь пока нет публикаций."}</Muted></View>}
       />}
+    <FeedSmartPreferences visible={smartSettingsOpen} onClose={() => setSmartSettingsOpen(false)} />
   </TexturedSafeAreaView>;
 }
 export function FeedComposeScreen() {
@@ -365,6 +639,22 @@ export function FeedComposeScreen() {
   const submit = async () => {
     if (!canSubmit || busy || (isEditing && original.isPending)) return;
     setBusy(true);
+    if (!isEditing) {
+      try {
+        mobileFeedPublications.enqueue({
+          ownerId: userId!, text,
+          files: picked.map(asset => ({
+            ...asset, previewUri: asset.kind === "photo" ? asset.uri : undefined,
+          })),
+          albumPhotoIds,
+        });
+        router.replace("/(main)/(tabs)/feed" as Href);
+      } catch (error) {
+        Alert.alert("Не удалось опубликовать", errorMessage(error));
+        setBusy(false);
+      }
+      return;
+    }
     try {
       const created = draft.current ? await feedApi.getEditor(draft.current)
         : await feedApi.createPost({ clientRequestId: requestId.current });
@@ -407,11 +697,7 @@ export function FeedComposeScreen() {
     <StatusBar style="dark" translucent backgroundColor="transparent" />
     <Stack.Screen options={{ headerShown: false }} />
     <View style={[s.composeTopBar, { paddingTop: insets.top + 8 }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Назад"
-        onPress={() => router.back()} style={s.composeBackPill}>
-        <MaterialCommunityIcons name="chevron-left" size={27} color={COLORS.text} />
-        <Text style={s.composeBackLabel}>Назад</Text>
-      </Pressable>
+      <AppBackButton onPress={() => router.back()} />
       <Text accessibilityRole="header" numberOfLines={1} style={s.composeTopTitle}>
         {isEditing ? "Редактирование публикации" : "Новая публикация"}
       </Text>
@@ -422,12 +708,12 @@ export function FeedComposeScreen() {
       contentContainerStyle={s.composeContent}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
-      {status.isPending ? <Loading variant="inline" size="large" message="Проверяем доступность ленты…" /> :
-        status.data?.enabled ? isEditing && original.isPending ? <Loading variant="inline" size="large" message="Загружаем публикацию…" />
+      {status.isPending ? <Loading variant="inline" message="Проверяем доступность «Моментов»…" /> :
+        status.data?.enabled ? isEditing && original.isPending ? <Loading variant="inline" message="Загружаем публикацию…" />
         : isEditing && (original.isError || !original.data?.canEdit)
           ? <View style={s.card}>
               <Text style={s.error}>{original.isError ? errorMessage(original.error) : "Редактирование этой публикации недоступно."}</Text>
-              <Button label="Назад" variant="outline" onPress={() => router.back()} />
+              <AppBackButton onPress={() => router.back()} />
             </View>
         : <>
         <View style={s.composeEditor}>
@@ -453,14 +739,14 @@ export function FeedComposeScreen() {
         </View>}
         <View style={s.composeTools}>
           {([
-            ["library", "image-multiple-outline", "Галерея"],
-            ["camera-photo", "camera-outline", "Фото"],
-            ["camera-video", "video-outline", "Видео"],
-          ] as const).map(([source, icon, label]) => (
+            ["library", "Галерея"],
+            ["camera-photo", "Фото"],
+            ["camera-video", "Видео"],
+          ] as const).map(([source, label]) => (
             <Pressable key={source} accessibilityRole="button" accessibilityLabel={label}
               disabled={busy} onPress={() => void pick(source)}
               style={({ pressed }) => [s.composeTool, (pressed || busy) && s.composeToolPressed]}>
-              <MaterialCommunityIcons name={icon} size={22} color={COLORS.primary} />
+              <Image source={{ uri: composeToolIconUri[source] }} style={s.composeToolIcon} contentFit="contain" />
               <Text style={s.composeToolText}>{label}</Text>
             </Pressable>
           ))}
@@ -468,7 +754,7 @@ export function FeedComposeScreen() {
             accessibilityState={{ expanded: albumsOpen }} disabled={busy}
             onPress={() => setAlbumsOpen(open => !open)}
             style={({ pressed }) => [s.composeTool, albumsOpen && s.composeToolSelected, (pressed || busy) && s.composeToolPressed]}>
-            <MaterialCommunityIcons name="image-album" size={22} color={COLORS.primary} />
+            <Image source={{ uri: composeToolIconUri.album }} style={s.composeToolIcon} contentFit="contain" />
             <Text style={s.composeToolText}>Альбомы</Text>
             {albumPhotoIds.length > 0 && <View style={s.composeToolDot} />}
           </Pressable>
@@ -541,29 +827,27 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
   return <TexturedSafeAreaView style={s.screen} edges={["top","left","right"]}>
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.detailHeader}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Назад"
-          style={s.detailBack} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.primary} />
-        </Pressable>
+        <AppBackButton onPress={() => router.back()} />
         <Text style={s.detailHeading}>Публикация</Text>
       </View>
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         contentContainerStyle={s.detailContent}>
         {status.data?.enabled !== true ? <Status status={status} /> : <>
-          {post.isPending && <Loading variant="inline" size="large" message="Загрузка публикации…" />}
+          {post.isPending && <Loading variant="inline" message="Загрузка публикации…" />}
           {post.isError && <Text style={s.error}>{errorMessage(post.error)}</Text>}
           {post.data && <FeedPostCard post={post.data} detailed />}
+          {post.data?.canDelete && <GafusReactionProgress postId={post.data.id} />}
           <View style={s.commentsBlock} onLayout={event => {
             focusedY.current = event.nativeEvent.layout.y;
             if (focused.data?.postId === id) scroll.current?.scrollTo({ y: focusedY.current, animated: true });
           }}>
             <Text style={s.commentsHeading}>Комментарии{post.data ? ` · ${post.data.commentCount}` : ""}</Text>
             {commentId && <View accessibilityLabel="Комментарий из уведомления" style={s.focusedComment}>
-              {focused.isPending && <Loading variant="inline" size="small" message="Загрузка комментария…" />}
+              {focused.isPending && <Loading variant="inline" message="Загрузка комментария…" />}
               {(focused.isError || (focused.data && focused.data.postId !== id)) && <Muted>Комментарий недоступен.</Muted>}
               {focused.data?.postId === id && <CommentRow item={focused.data} onReply={startReply} />}
             </View>}
-            {comments.isPending && <Loading variant="inline" size="small" message="Загрузка комментариев…" />}
+            {comments.isPending && <Loading variant="inline" message="Загрузка комментариев…" />}
             {comments.isError && <Text style={s.error}>{errorMessage(comments.error)}</Text>}
             {comments.data?.pages.flatMap(page => page.items)
               .filter(item => item.id !== (focused.data?.postId === id ? commentId : null))
@@ -572,7 +856,7 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
               disabled={comments.isFetchingNextPage} onPress={() => void comments.fetchNextPage()}>
               <Text style={s.more}>{comments.isFetchingNextPage ? "Загрузка…" : "Показать ещё комментарии"}</Text>
             </Pressable>}
-            {comments.isFetchingNextPage && <MascotSpinner size="small" />}
+            {comments.isFetchingNextPage && <MascotSpinner />}
             {!comments.isPending && !comments.isError && !comments.data?.pages.flatMap(page => page.items).length && !focused.data &&
               <Muted>Пока нет комментариев. Напишите первым.</Muted>}
           </View>
@@ -716,7 +1000,7 @@ function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: F
       </View>
     </View>
     {showReplies && <View style={s.threadReplies}>
-      {replies.isPending && <Loading variant="inline" size="small" message="Загружаем ответы…" />}
+      {replies.isPending && <Loading variant="inline" message="Загружаем ответы…" />}
       {replies.isError && <Pressable accessibilityRole="button"
         onPress={() => void replies.refetch()} style={s.moreComments}>
         <Text style={s.more}>Повторить загрузку ответов</Text>
@@ -728,18 +1012,54 @@ function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: F
         onPress={() => void replies.fetchNextPage()}>
         <Text style={s.more}>{replies.isFetchingNextPage ? "Загрузка…" : "Ещё ответы"}</Text>
       </Pressable>}
-      {replies.isFetchingNextPage && <MascotSpinner size="small" />}
+      {replies.isFetchingNextPage && <MascotSpinner />}
     </View>}
   </View>;
 }
 const s = StyleSheet.create({
   screen: { flex: 1 }, padding: { padding: SPACING.md, paddingBottom: 100, gap: SPACING.md },
+  videoPlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  videoPlayCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: "rgba(22,31,17,0.78)", alignItems: "center", justifyContent: "center" },
   list: { paddingHorizontal: 8, paddingBottom: 80 }, listItem: { marginBottom: 7 },
-  pageHeader: { paddingHorizontal: 16, paddingTop: 3, paddingBottom: 7, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  momentsHeaderArtwork: { height: 180, marginHorizontal: -8, marginBottom: SPACING.sm },
+  momentsHeaderImage: { width: "100%", height: "100%" },
+  pageHeader: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 12, minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  pageHeaderCompact: { paddingHorizontal: 10, gap: 6 },
   heading: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 21 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
+  headerActionsCompact: { gap: 6 },
+  bookmarksButton: { width: 134, height: 44, position: "relative" },
+  bookmarksButtonCompact: { width: 112 },
+  bookmarksButtonBackground: { width: "100%", height: 44 },
+  bookmarksContent: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 7,
+  },
+  bookmarksIcon: { width: 24, height: 24, flexShrink: 0 },
+  bookmarksIconCompact: { width: 20, height: 20 },
+  bookmarksText: { color: "#503C27", fontFamily: FONTS.montserratBold, fontSize: 12, lineHeight: 17, flexShrink: 1 },
+  bookmarksTextCompact: { fontSize: 11 },
   newPostButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" },
+  newPostButtonCompact: { width: 42 },
   newPostPressed: { opacity: 0.7 },
   card: { backgroundColor: COLORS.cardBackground, borderRadius: 20, padding: 16, gap: 12 },
+  publicationQueue: { gap: 10, marginHorizontal: 8, marginBottom: 12 },
+  publicationCard: { flexDirection: "row", gap: 10, alignItems: "center", padding: 12,
+    borderRadius: 16, backgroundColor: COLORS.cardBackground },
+  publicationMedia: { width: 86, height: 88, borderRadius: 12, backgroundColor: "#e5e7da",
+    alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  publicationPreview: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
+  publicationBody: { flex: 1, minWidth: 0, gap: 7 },
+  publicationTitle: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.primary },
+  publicationExcerpt: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
+  publicationTrack: { height: 6, borderRadius: 4, backgroundColor: "#e1e4d3", overflow: "hidden" },
+  publicationFill: { height: "100%", backgroundColor: COLORS.primary },
+  publicationActions: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  publicationDismiss: { minHeight: 40, justifyContent: "center", paddingHorizontal: 8 },
   postCard: { backgroundColor: COLORS.cardBackground, borderRadius: 14, padding: 10, gap: 7 },
   postCardDetailed: { padding: 12, gap: 9, borderRadius: 16 },
   postAuthorBar: { flexDirection: "row", alignItems: "center", gap: 5 },
@@ -788,6 +1108,7 @@ const s = StyleSheet.create({
   composeCounter: { textAlign: "right", fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
   composeTools: { flexDirection: "row", gap: 7 },
   composeTool: { flex: 1, minWidth: 0, height: 58, borderRadius: 12, alignItems: "center", justifyContent: "center", gap: 3, backgroundColor: COLORS.cardBackground },
+  composeToolIcon: { width: 36, height: 36 },
   composeToolPressed: { opacity: 0.6 },
   composeToolSelected: { backgroundColor: "#DFE7D0" },
   composeToolText: { fontFamily: FONTS.montserratMedium, fontSize: 11, color: COLORS.primary },

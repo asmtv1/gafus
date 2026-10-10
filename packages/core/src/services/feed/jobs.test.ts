@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { FeedDb } from "./ports";
 import { createFeedStorageJobs } from "./jobs";
 
+// Gafus wallet events are covered by their own transactional tests.
+// This job-lease unit fixture intentionally mocks the economy tables.
+vi.mock("../gafus/reactionRewardService", () => ({
+  registerGafusPostPublicationTx: vi.fn(async () => undefined),
+}));
+
 const now = new Date("2026-10-09T11:00:00.000Z");
 const job = {
   id: "job_1", ownerId: "alice", postId: "post_1", mediaId: "asset_1",

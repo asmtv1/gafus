@@ -127,7 +127,7 @@ export function QuestionsList() {
           </div>
         </div>
       </div>
-      {query.isPending && <LoadingState variant="inline" size="large" message="Загрузка вопросов…" />}
+      {query.isPending && <LoadingState variant="inline" message="Загрузка вопросов…" />}
       {query.isError && (
         <div className={s.error} role="alert">
           {query.error.message}
@@ -176,7 +176,7 @@ export function QuestionsList() {
           {query.isFetchingNextPage ? "Загрузка…" : "Ещё вопросы"}
         </button>
       )}
-      {query.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем вопросы…" />}
+      {query.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем вопросы…" />}
     </main>
   );
 }

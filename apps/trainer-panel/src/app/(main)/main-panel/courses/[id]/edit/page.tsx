@@ -51,6 +51,7 @@ export default async function EditCoursePage({ params }: PageProps) {
   const initialValues = {
     name: course.name,
     shortDesc: course.shortDesc,
+    guideContent: course.guideContent ?? "",
     description: course.description,
     duration: course.duration,
     videoUrl: course.videoUrl ?? "",

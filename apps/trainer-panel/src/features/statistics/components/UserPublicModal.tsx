@@ -201,43 +201,12 @@ export default function UserPublicModal({ open, username, onClose }: UserPublicM
                         </Typography>
                       </Box>
                     </Box>
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1 }}>
+                    {pet.birthDate && (
                       <Chip
-                        label={`Рост: ${typeof pet.heightCm === "number" ? `${pet.heightCm} см` : "—"}`}
+                        label={`Д.р.: ${new Date(pet.birthDate).toLocaleDateString("ru-RU")}`}
                         size="small"
                         variant="outlined"
                       />
-                      <Chip
-                        label={`Вес: ${typeof pet.weightKg === "number" ? `${pet.weightKg} кг` : "—"}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                      {pet.birthDate && (
-                        <Chip
-                          label={`Д.р.: ${new Date(pet.birthDate).toLocaleDateString("ru-RU")}`}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
-                    </Box>
-                    {pet.notes && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        Заметки: {pet.notes}
-                      </Typography>
-                    )}
-                    {pet.awards && pet.awards.length > 0 && (
-                      <Box>
-                        <Typography variant="body2" color="text.primary" gutterBottom>
-                          Награды:
-                        </Typography>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                          {pet.awards.map((a) => (
-                            <Typography key={a.id} variant="caption" color="text.secondary">
-                              {a.title} {a.event ? `(${a.event})` : ""}
-                            </Typography>
-                          ))}
-                        </Box>
-                      </Box>
                     )}
                   </Paper>
                 ))}

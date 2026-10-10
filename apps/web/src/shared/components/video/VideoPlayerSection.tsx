@@ -200,7 +200,7 @@ export function VideoPlayerSection({
     if (!videoInfo) {
       return (
         <div className={styles.videoContainer}>
-          <LoadingState message="Загрузка видео…" size="small" />
+          <LoadingState message="Загрузка видео…" />
         </div>
       );
     }
@@ -235,7 +235,7 @@ export function VideoPlayerSection({
             justifyContent: "center",
           }}
         >
-          <LoadingState message="Загрузка видео…" size="small" />
+          <LoadingState message="Загрузка видео…" />
         </div>
       </div>
     );
@@ -260,7 +260,6 @@ export function VideoPlayerSection({
           }}
         >
           <LoadingState
-            size="small"
             message={videoMetadata.transcodingStatus === "PENDING"
               ? "Видео в очереди на обработку…"
               : "Видео обрабатывается…"}

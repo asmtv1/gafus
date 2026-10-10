@@ -19,6 +19,9 @@ import type { RewardedAdLifecycleEvent, RewardedAdSessionDto, RewardedPlatform }
 export const REWARDED_ACCESS_DURATION_DAYS = 7;
 const REWARDED_ACCESS_DURATION_MS = REWARDED_ACCESS_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
+/** Enable only after the Gafus app release has reached users. */
+const legacyRewardedAdSessionsDisabled = () => process.env.GAFUS_LEGACY_REWARDED_DISABLED === "true";
+
 export type RewardedAccessTargetType = "ARTICLE" | "COURSE_STEP";
 export type RewardedAccessTarget = {
   targetType: RewardedAccessTargetType;
@@ -167,7 +170,7 @@ export async function getRewardedAdStatus(input: {
     countRewardsForMoscowDay(prisma, input.userId, now),
   ]);
   const canWatchAdReason: RewardedAdStatusDto["canWatchAdReason"] =
-    !platformSettings.platformEnabled
+    (legacyRewardedAdSessionsDisabled() || !platformSettings.platformEnabled)
       ? "PLATFORM_DISABLED"
       : access
         ? "TARGET_ALREADY_ACTIVE"
@@ -177,7 +180,7 @@ export async function getRewardedAdStatus(input: {
 
   return {
     settings: {
-      platformEnabled: platformSettings.platformEnabled,
+      platformEnabled: platformSettings.platformEnabled && !legacyRewardedAdSessionsDisabled(),
       testMode: platformSettings.testMode,
     },
     canWatchAd: canWatchAdReason === "OK",
@@ -197,6 +200,8 @@ export async function createRewardedAdSession(input: {
   clientContext?: ClientAppContext;
   now?: Date;
 }): Promise<RewardedAdSessionDto> {
+  // Existing sessions can still finish; no new ones after cutover.
+  if (legacyRewardedAdSessionsDisabled()) throw new RewardedAdsDisabledError();
   const now = input.now ?? new Date();
   const platformSettings = await resolveRewardedPlatformSettings(
     input.platform,

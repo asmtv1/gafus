@@ -21,7 +21,7 @@ import {
   type QuestionAnswerDto,
   type QuestionPhotoDto,
 } from "@gafus/types";
-import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
+import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore } from "@/shared/stores";
 import { COLORS, FONTS } from "@/shared/config";
 import { questionsApi } from "@/shared/lib/api/questions";
@@ -376,13 +376,11 @@ export function QuestionDetailScreen({ id }: { id: string }) {
             />
           }
         >
-          <QButton
+          <AppBackButton
             label="Все вопросы"
-            secondary
-            icon="arrow-left"
             onPress={() => router.replace("/(main)/(tabs)/questions" as Href)}
           />
-          {query.isPending && <Loading variant="inline" size="large" message="Загрузка вопроса…" />}
+          {query.isPending && <Loading variant="inline" message="Загрузка вопроса…" />}
           {query.isError && (
             <View style={st.group}>
               <Text accessibilityRole="alert" style={st.error}>
@@ -497,7 +495,7 @@ export function QuestionDetailScreen({ id }: { id: string }) {
                     onPress={() => void query.fetchNextPage()}
                   />
                 )}
-                {query.isFetchingNextPage && <MascotSpinner size="small" />}
+                {query.isFetchingNextPage && <MascotSpinner />}
               </View>
               <QuestionPostMenu
                 title="Действия с ответом"

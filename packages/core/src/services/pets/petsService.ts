@@ -22,6 +22,7 @@ import {
 } from "@gafus/types";
 
 import type { PetType, Prisma } from "@gafus/prisma";
+import { enqueuePetVetCleanup, lockVetPet } from "./petVetVisitService";
 
 const logger = createWebLogger("core-pets");
 
@@ -46,6 +47,7 @@ export interface CreatePetInput {
 }
 
 export interface UpdatePetInput {
+  showInProfile?: boolean;
   name?: string;
   type?: string;
   breed?: string;
@@ -266,6 +268,8 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
 
   const updateData: Prisma.PetUpdateInput = {};
 
+  if (data.showInProfile !== undefined) updateData.showInProfile = data.showInProfile;
+
   if (data.name !== undefined) updateData.name = data.name;
   if (data.type !== undefined) updateData.type = data.type as PetType;
   if (data.breed !== undefined) updateData.breed = data.breed;
@@ -280,7 +284,7 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   try {
     const pet = await prisma.$transaction(async (tx) => {
       const updated = await tx.pet.update({
-        where: { id: petId },
+        where: { id: petId, ownerId: userId },
         data: updateData,
         include: { awards: true },
       });
@@ -298,39 +302,43 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
  * Обновить фото питомца (загрузка в CDN и сохранение URL в БД)
  */
 export async function updatePetPhoto(petId: string, userId: string, file: File): Promise<string> {
-  const existingPet = await prisma.pet.findFirst({
-    where: { id: petId, ownerId: userId },
-    select: { photoUrl: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    if (!owners.length) throw new Error("Пользователь не найден");
+    const existingPet = await tx.pet.findFirst({
+      where: { id: petId, ownerId: userId },
+      select: { photoUrl: true },
+    });
 
-  if (!existingPet) {
-    throw new Error("Питомец не найден или не принадлежит пользователю");
-  }
-
-  const ext = file.name.split(".").pop();
-  if (!ext) throw new Error("Не удалось определить расширение файла");
-
-  const uuid = randomUUID();
-  const relativePath = getPetPhotoPath(userId, petId, uuid, ext);
-  const photoUrl = await uploadFileToCDN(file, relativePath);
-
-  if (existingPet.photoUrl) {
-    try {
-      const oldRelativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
-      await deleteFileFromCDN(oldRelativePath);
-      logger.info(`Старое фото питомца удалено из CDN: ${oldRelativePath}`);
-    } catch (error) {
-      logger.error("Не удалось удалить старое фото питомца", error as Error);
+    if (!existingPet) {
+      throw new Error("Питомец не найден или не принадлежит пользователю");
     }
-  }
 
-  await prisma.pet.update({
-    where: { id: petId },
-    data: { photoUrl },
-  });
+    const ext = file.name.split(".").pop();
+    if (!ext) throw new Error("Не удалось определить расширение файла");
 
-  logger.info("Photo URL saved to database", { photoUrl, petId });
-  return photoUrl;
+    const uuid = randomUUID();
+    const relativePath = getPetPhotoPath(userId, petId, uuid, ext);
+    const photoUrl = await uploadFileToCDN(file, relativePath);
+
+    if (existingPet.photoUrl) {
+      try {
+        const oldRelativePath = getRelativePathFromCDNUrl(existingPet.photoUrl);
+        await deleteFileFromCDN(oldRelativePath);
+        logger.info(`Старое фото питомца удалено из CDN: ${oldRelativePath}`);
+      } catch (error) {
+        logger.error("Не удалось удалить старое фото питомца", error as Error);
+      }
+    }
+
+    await tx.pet.update({
+      where: { id: petId },
+      data: { photoUrl },
+    });
+
+    logger.info("Photo URL saved to database", { photoUrl, petId });
+    return photoUrl;
+  }, { timeout: 90_000 });
 }
 
 /**
@@ -381,51 +389,55 @@ export async function uploadPetDocument(
   userId: string,
   file: File,
 ): Promise<PetDocumentDto> {
-  const pet = await prisma.pet.findFirst({
-    where: { id: petId, ownerId: userId },
-    select: { id: true },
-  });
-  if (!pet) {
-    throw new Error("Питомец не найден");
-  }
-
-  validatePetDocumentFile(file);
-
-  const documentsCount = await prisma.petDocument.count({
-    where: { petId, ownerId: userId },
-  });
-  if (documentsCount >= PET_DOCUMENTS_MAX_PER_PET) {
-    throw new Error("Достигнут лимит документов питомца");
-  }
-
-  const ext = getDocumentExtension(file);
-  const relativePath = getPetDocumentPath(userId, petId, randomUUID(), ext);
-  const url = await uploadFileToCDN(file, relativePath);
-
-  try {
-    const createdDocument = await prisma.petDocument.create({
-      data: {
-        petId,
-        ownerId: userId,
-        name: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        url,
-      },
+  return prisma.$transaction(async (tx) => {
+    const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    if (!owners.length) throw new Error("Пользователь не найден");
+    const pet = await tx.pet.findFirst({
+      where: { id: petId, ownerId: userId },
+      select: { id: true },
     });
-    return toPetDocumentDto(createdDocument);
-  } catch (error) {
-    try {
-      await deleteFileFromCDN(relativePath);
-    } catch (cdnError) {
-      logger.error("Не удалось удалить документ после ошибки БД", cdnError as Error, {
-        petId,
-        userId,
-      });
+    if (!pet) {
+      throw new Error("Питомец не найден");
     }
-    logger.error("Ошибка при сохранении документа питомца", error as Error, { petId, userId });
-    throw new Error("Не удалось сохранить документ питомца");
-  }
+
+    validatePetDocumentFile(file);
+
+    const documentsCount = await tx.petDocument.count({
+      where: { petId, ownerId: userId },
+    });
+    if (documentsCount >= PET_DOCUMENTS_MAX_PER_PET) {
+      throw new Error("Достигнут лимит документов питомца");
+    }
+
+    const ext = getDocumentExtension(file);
+    const relativePath = getPetDocumentPath(userId, petId, randomUUID(), ext);
+    const url = await uploadFileToCDN(file, relativePath);
+
+    try {
+      const createdDocument = await tx.petDocument.create({
+        data: {
+          petId,
+          ownerId: userId,
+          name: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          url,
+        },
+      });
+      return toPetDocumentDto(createdDocument);
+    } catch (error) {
+      try {
+        await deleteFileFromCDN(relativePath);
+      } catch (cdnError) {
+        logger.error("Не удалось удалить документ после ошибки БД", cdnError as Error, {
+          petId,
+          userId,
+        });
+      }
+      logger.error("Ошибка при сохранении документа питомца", error as Error, { petId, userId });
+      throw new Error("Не удалось сохранить документ питомца");
+    }
+  }, { timeout: 90_000 });
 }
 
 /**
@@ -601,8 +613,10 @@ export async function deletePet(petId: string, userId: string): Promise<boolean>
   }
 
   try {
-    await prisma.pet.delete({
-      where: { id: petId },
+    await prisma.$transaction(async (tx) => {
+      await lockVetPet(tx, petId, userId);
+      await enqueuePetVetCleanup(tx, petId, userId);
+      await tx.pet.delete({ where: { id: petId } });
     });
     return true;
   } catch (error) {

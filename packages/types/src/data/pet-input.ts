@@ -16,6 +16,7 @@ export interface CreatePetInput {
 
 export interface UpdatePetInput {
   id: string;
+  showInProfile?: boolean;
   name?: string;
   type?: string;
   breed?: string;

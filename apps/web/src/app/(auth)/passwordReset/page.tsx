@@ -50,7 +50,7 @@ export default function PasswordResetPage() {
         Укажите email аккаунта. Если запросите новое письмо, ссылка из предыдущего перестанет
         работать.
       </p>
-      <Suspense fallback={<LoadingState variant="inline" size="small" message="Загрузка формы…" />}>
+      <Suspense fallback={<LoadingState variant="inline" message="Загрузка формы…" />}>
         <PasswordResetForm />
       </Suspense>
       <Image

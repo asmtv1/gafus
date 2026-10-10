@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Alert, FlatList, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Alert, FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Menu, Text } from "react-native-paper";
 import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -78,8 +78,8 @@ export function GalleryAlbumsScreen() {
         </> : null}
         {albums.isError ? <Failure error={albums.error} retry={() => void albums.refetch()} /> : null}
       </View></>}
-      ListEmptyComponent={albums.isPending ? <Loading variant="inline" size="large" message="Загрузка альбомов…" /> : meta?.enabled ? <Text style={s.muted}>Альбомов пока нет.</Text> : null}
-      ListFooterComponent={albums.isFetchingNextPage ? <MascotSpinner size="small" /> : null} />
+      ListEmptyComponent={albums.isPending ? <Loading variant="inline" message="Загрузка альбомов…" /> : meta?.enabled ? <Text style={s.muted}>Альбомов пока нет.</Text> : null}
+      ListFooterComponent={albums.isFetchingNextPage ? <MascotSpinner /> : null} />
     {creating ? <AlbumEditor owner={owner} close={() => setCreating(false)} /> : null}
   </SafeAreaView>;
 }
@@ -139,21 +139,17 @@ export function GalleryAlbumScreen() {
   } }]);
   return <SafeAreaView edges={["bottom", "left", "right"]} style={s.screen}>
     <StatusBar style="dark" translucent backgroundColor="transparent" />
-    <Stack.Screen options={{
-      headerShown: true,
-      title: album.data?.name ?? "Альбом",
-      headerTransparent: true,
-      headerBackground: () => null,
-      headerStyle: { backgroundColor: "transparent" },
-      headerTintColor: COLORS.text,
-      headerShadowVisible: false,
-      headerBackVisible: false,
-      headerLeft: () => <AppBackButton onPress={backToAlbums} />,
-    }} />
-    <FlatList data={meta?.enabled === false ? [] : items} numColumns={3} keyExtractor={p => p.id} contentContainerStyle={[s.content, styles.albumList, { paddingTop: insets.top + (Platform.OS === "ios" ? 48 : 56) }]} onRefresh={() => void refresh()} refreshing={refreshing}
+    <Stack.Screen options={{ headerShown: false }} />
+    <View style={[styles.albumNavigation, { paddingTop: insets.top + 8 }]}>
+      <AppBackButton onPress={backToAlbums} />
+      <Text accessibilityRole="header" numberOfLines={1} style={styles.albumNavigationTitle}>
+        {album.data?.name ?? "Альбом"}
+      </Text>
+    </View>
+    <FlatList data={meta?.enabled === false ? [] : items} numColumns={3} keyExtractor={p => p.id} contentContainerStyle={[s.content, styles.albumList]} onRefresh={() => void refresh()} refreshing={refreshing}
       automaticallyAdjustContentInsets={false} contentInsetAdjustmentBehavior="never" onEndReached={more} onEndReachedThreshold={0.5}
       ListHeaderComponent={<View style={styles.albumHeader}>
-        {album.isPending ? <Loading variant="inline" size="large" message="Загрузка альбома…" /> : null}
+        {album.isPending ? <Loading variant="inline" message="Загрузка альбома…" /> : null}
         {album.isError ? <Failure error={album.error} retry={() => void album.refetch()} /> : null}
         {album.data ? <View style={styles.albumToolbar}>
           <Text style={styles.albumMeta} numberOfLines={2}>
@@ -235,13 +231,33 @@ export function GalleryAlbumScreen() {
           </View>
         ) : null}
       </View>}
-      ListEmptyComponent={photos.isPending && album.data ? <Loading variant="inline" size="large" message="Загрузка фотографий…" /> : meta?.enabled && !album.isPending ? <Text style={s.text}>В альбоме пока нет фотографий.</Text> : null}
-      ListFooterComponent={photos.isFetchingNextPage ? <MascotSpinner size="small" /> : null} />
+      ListEmptyComponent={photos.isPending && album.data ? <Loading variant="inline" message="Загрузка фотографий…" /> : meta?.enabled && !album.isPending ? <Text style={s.text}>В альбоме пока нет фотографий.</Text> : null}
+      ListFooterComponent={photos.isFetchingNextPage ? <MascotSpinner /> : null} />
     {editing && album.data ? <AlbumEditor owner={owner} album={album.data} close={() => setEditing(false)} /> : null}
     {viewing !== null && viewing >= 0 && ready.length ? <PhotoViewer photos={ready} start={viewing} owner={owner} total={album.data?.photoCount ?? ready.length} more={more} close={closeViewer} /> : null}
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
+  albumNavigation: {
+    position: "relative",
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  albumNavigationTitle: {
+    position: "absolute",
+    left: 132,
+    right: 132,
+    bottom: 19,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 16,
+    lineHeight: 22,
+    includeFontPadding: false,
+    color: COLORS.text,
+    textAlign: "center",
+  },
   albumList: { gap: 8 },
   albumHeader: { gap: 8, marginBottom: 4 },
   albumToolbar: { flexDirection: "row", alignItems: "center", minHeight: 44, gap: 8 },

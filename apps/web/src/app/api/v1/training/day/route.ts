@@ -7,7 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { AuthorizationError } from "@gafus/core/errors";
-import { getTrainingDayWithUserSteps } from "@gafus/core/services/training";
+import { getTrainingDayWithMonetizedSteps } from "@gafus/core/services/training";
 import { checkCourseAccess } from "@gafus/core/services/course";
 import { dayOnCourseIdSchema } from "@shared/lib/validation/schemas";
 import { z } from "zod";
@@ -37,12 +37,13 @@ export async function GET(request: NextRequest) {
       createIfMissing: searchParams.get("createIfMissing") || "false",
     });
 
-    const result = await getTrainingDayWithUserSteps(
+    const result = await getTrainingDayWithMonetizedSteps(
       session.user.id,
       parsed.courseType,
       parsed.dayOnCourseId,
       {
         createIfMissing: parsed.createIfMissing,
+        platform: "WEB_DESKTOP",
       },
     );
 

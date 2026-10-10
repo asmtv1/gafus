@@ -340,7 +340,7 @@ export function ChatReactionList() {
                   );
                 })}
               </ul>
-              {loading && <LoadingState variant="inline" size="small" />}
+              {loading && <LoadingState variant="inline" />}
               {error && <p role="alert">{error}</p>}
               {!loading && !error && !rows.length && <p>Пока нет реакций</p>}
               {(next || error) && (

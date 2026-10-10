@@ -253,7 +253,6 @@ export function SurveyBlock({
     return (
       <Loading
         variant="inline"
-        size="small"
         message="Загрузка анкеты..."
         style={styles.loadingWrap}
       />

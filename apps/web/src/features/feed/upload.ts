@@ -20,24 +20,40 @@ export function validateBrowserFeedFiles(assets: readonly FeedBrowserAsset[], ex
   }
   if (videos > FEED_LIMITS.maxVideos) throw new Error("Максимум три видео в публикации.");
 }
-export async function uploadFeedBrowserAsset(postId: string, asset: FeedBrowserAsset): Promise<string> {
+export async function uploadFeedBrowserAsset(postId: string, asset: FeedBrowserAsset, onProgress?: (loaded: number, total: number) => void): Promise<string> {
   validateBrowserFeedFiles([asset]);
   const kind = ((FEED_PHOTO_MIME_TYPES as readonly string[]).includes(asset.file.type)
     ? "photo" : "video") satisfies FeedMediaKind;
-  const reserved = await feedApi.reserveUpload(postId, {
+  let reserved = await feedApi.reserveUpload(postId, {
     filename: asset.file.name, kind, declaredMime: asset.file.type as FeedMimeType,
     declaredBytes: asset.file.size, clientRequestId: asset.requestId,
   });
+  if (["uploaded", "processing", "ready"].includes(reserved.status)) return reserved.mediaId;
+  if (["expired", "failed", "cancelled"].includes(reserved.status)) {
+    reserved = await feedApi.retryUpload(reserved.uploadId, { clientRequestId: crypto.randomUUID() });
+  }
   if (!reserved.postUrl || !reserved.postFields) {
-    throw new Error("Срок ссылки загрузки истёк. Выберите файл повторно.");
+    throw new Error("Срок ссылки загрузки истёк. Попробуйте повторить чуть позже.");
   }
   const url = new URL(reserved.postUrl);
   if (url.protocol !== "https:" || url.username || url.password) throw new Error("Небезопасный адрес загрузки.");
   const fields = new FormData();
   for (const [key, value] of Object.entries(reserved.postFields)) fields.append(key, value);
   fields.append("file", asset.file, asset.file.name);
-  const upload = await fetch(url.href, { method: "POST", body: fields, credentials: "omit", cache: "no-store" });
-  if (!upload.ok) throw new Error("Не удалось загрузить вложение. Попробуйте ещё раз.");
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url.href);
+    xhr.withCredentials = false;
+    if (onProgress) xhr.upload.onprogress = event => {
+      if (event.lengthComputable && event.total > 0) onProgress(event.loaded, event.total);
+    };
+    xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+      ? resolve() : reject(new Error("Не удалось загрузить вложение. Попробуйте ещё раз."));
+    xhr.onerror = () => reject(new Error("Сеть недоступна. Повторите загрузку."));
+    xhr.ontimeout = () => reject(new Error("Превышено время загрузки. Попробуйте ещё раз."));
+    xhr.timeout = 10 * 60 * 1000;
+    xhr.send(fields);
+  });
   await feedApi.completeUpload(reserved.uploadId);
   return reserved.mediaId;
 }

@@ -9,11 +9,10 @@ import {
   View,
 } from "react-native";
 import { Button as PaperButton, Text } from "react-native-paper";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatConsultationConfirmSlotMsk } from "@gafus/consultation-shared";
 import { isLikelyValidRuPhoneInput } from "@gafus/consultation-shared";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { randomUUID } from "expo-crypto";
 import type { Href } from "expo-router";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -265,10 +264,7 @@ export default function ConsultationBookingConfirmScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-            <Text style={styles.backRowText}>Назад</Text>
-          </Pressable>
+          <AppBackButton style={styles.backRow} onPress={() => router.back()} />
           <Text style={styles.screenTitle}>Подтверждение записи</Text>
           <Text style={styles.lead}>
             Заполните данные владельца и питомца — кинолог увидит их в заявке.
@@ -453,19 +449,10 @@ export default function ConsultationBookingConfirmScreen() {
           </Text>
 
           <View style={styles.actions}>
-            <Button
+            <AppBackButton
               label="Назад к слотам"
-              variant="secondary"
               onPress={() => router.replace(`/consultations/${cynologistUserId}` as Href)}
               disabled={bookMutation.isPending}
-              height={52}
-              fontSize={18}
-              lineHeight={22}
-              fontFamily={FONTS.montserratMedium}
-              borderRadius={14}
-              animatedPress
-              style={styles.actionButton}
-              accessibilityHint="Возвращает к выбору времени без бронирования"
             />
             <PaperButton
               mode="contained"

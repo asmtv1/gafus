@@ -14,7 +14,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 import styles from "./EditBioForm.module.css";
-import { PrimaryButton } from "@/shared/components/ui";
+import { AppBackButton, PrimaryButton } from "@/shared/components/ui";
 
 import type { BioFormData, UserProfile, UpdateUserProfileInput } from "@gafus/types";
 import type { UserProfileFormSchema } from "@shared/lib/validation/authSchemas";
@@ -31,9 +31,10 @@ function profileBirthDateToDdMmYyyy(value: Date | null): string {
   return `${day.padStart(2, "0")}.${m.padStart(2, "0")}.${y}`;
 }
 
-function mapProfileToForm(profile: UserProfile): Omit<BioFormData, "userId"> {
+function mapProfileToForm(profile: UserProfile): Omit<BioFormData, "userId"> & { city: string } {
   return {
     fullName: profile.fullName || "",
+    city: (profile as UserProfile & { city?: string | null }).city || "",
     birthDate: profileBirthDateToDdMmYyyy(profile.birthDate),
     about: profile.about || "",
     telegram: profile.telegram || "",
@@ -114,8 +115,9 @@ export default function EditBioForm() {
     });
     try {
       // Преобразуем данные в формат, ожидаемый updateProfile
-      const updateData: UpdateUserProfileInput = {
+      const updateData: UpdateUserProfileInput & { city?: string } = {
         fullName: data.fullName || "",
+        city: data.city || "",
         about: data.about || "",
         telegram: data.telegram || "",
         instagram: data.instagram || "",
@@ -160,6 +162,17 @@ export default function EditBioForm() {
               form={form}
               // Валидация теперь через Zod схему
             />
+
+            <FormField
+              id="city"
+              name="city"
+              label="Город"
+              type="text"
+              placeholder="Например, Самара"
+              autoComplete="address-level2"
+              form={form}
+            />
+            <p className={styles.helperText}>Необязательно. Город будет виден в вашем публичном профиле.</p>
 
             <div>
               <FormField
@@ -238,13 +251,12 @@ export default function EditBioForm() {
             <PrimaryButton type="submit" className={styles.form_button}>
               Сохранить
             </PrimaryButton>
-            <button
+            <AppBackButton
               type="button"
               onClick={() => router.back()}
-              className={`${styles.form_button} ${styles.form_button_cancel}`}
             >
               Вернуться без сохранения
-            </button>
+            </AppBackButton>
           </div>
         </form>
       </div>

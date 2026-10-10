@@ -89,6 +89,7 @@ const createPetSchema = z.object({
 });
 
 const updatePetSchema = z.object({
+  showInProfile: z.boolean().optional(),
   name: z.string().optional(),
   type: z.string().optional(),
   breed: z.string().optional(),

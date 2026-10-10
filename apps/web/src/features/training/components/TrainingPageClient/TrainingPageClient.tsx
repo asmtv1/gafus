@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Typography } from "@mui/material";
-import Link from "next/link";
 import { trackEvent } from "@gafus/analytics";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCSRFStore } from "@gafus/csrf";
@@ -15,7 +14,7 @@ import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";
 import CourseDescriptionWithVideo from "../CourseDescriptionWithVideo";
 import TrainingDayList from "../TrainingDayList";
-import { PrimaryButton, PrimaryButtonLink } from "@/shared/components/ui";
+import { AppBackButtonLink, PrimaryButton, PrimaryButtonLink } from "@/shared/components/ui";
 
 import styles from "./TrainingPageClient.module.css";
 
@@ -324,9 +323,9 @@ export default function TrainingPageClient({
               >
                 Войти
               </PrimaryButtonLink>
-              <Link href="/courses" className={styles.btnOutline}>
+              <AppBackButtonLink href="/courses">
                 Назад к курсам
-              </Link>
+              </AppBackButtonLink>
             </div>
           ) : (
             <>
@@ -353,9 +352,9 @@ export default function TrainingPageClient({
                     Обновить
                   </button>
                 )}
-                <Link href="/courses" className={styles.btnOutline}>
+                <AppBackButtonLink href="/courses">
                   Назад к курсам
-                </Link>
+                </AppBackButtonLink>
               </div>
               <p className={styles.ofertaHint}>
                 Нажимая кнопку, я соглашаюсь с условиями{" "}
@@ -378,9 +377,9 @@ export default function TrainingPageClient({
             кинологу для получения доступа.
           </p>
           <div className={styles.buttonsRow}>
-            <PrimaryButtonLink href="/courses" className={styles.btnPrimary}>
+            <AppBackButtonLink href="/courses">
               Назад к курсам
-            </PrimaryButtonLink>
+            </AppBackButtonLink>
           </div>
         </div>
       );
@@ -390,9 +389,9 @@ export default function TrainingPageClient({
         <h2 className={styles.title}>Доступ закрыт</h2>
         <p className={styles.subtitle}>У вас нет доступа к этому курсу.</p>
         <div className={styles.buttonsRow}>
-            <PrimaryButtonLink href="/courses" className={styles.btnPrimary}>
+            <AppBackButtonLink href="/courses">
             Назад к курсам
-            </PrimaryButtonLink>
+            </AppBackButtonLink>
         </div>
       </div>
     );

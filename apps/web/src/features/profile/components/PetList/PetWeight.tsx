@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCSRFStore } from "@gafus/csrf";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import { reportClientError } from "@gafus/error-handling";
-import { PrimaryButton } from "@/shared/components/ui";
+import { CaramelButton, PrimaryButton } from "@/shared/components/ui";
 import styles from "./PetWeight.module.css";
 
 type Entry = { id: string; weightKg: number; measuredAt: string };
@@ -206,9 +206,12 @@ export function PetWeight({ petId, petName }: { petId: string; petName: string }
         <PrimaryButton onClick={() => setMode(mode === "weight" ? null : "weight")}>
           Записать вес
         </PrimaryButton>
-        <button type="button" onClick={() => setMode(mode === "goal" ? null : "goal")}>
+        <CaramelButton
+          className={styles.goalButton}
+          onClick={() => setMode(mode === "goal" ? null : "goal")}
+        >
           Цель
-        </button>
+        </CaramelButton>
       </div>
       {mode === "weight" && (
         <form

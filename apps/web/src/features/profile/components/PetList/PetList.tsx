@@ -21,10 +21,10 @@ import { getPetsPreventionEntries } from "@shared/lib/pet-prevention/pet-prevent
 import PetCard from "./PetCard";
 import styles from "./PetList.module.css";
 
-import type { PetDocumentDto, PublicProfile, PetFormData } from "@gafus/types";
+import type { PetDocumentDto, Pet, PetFormData } from "@gafus/types";
 import type { PreventionEntryDisplay } from "@/features/pet-prevention";
 
-type PetFromPublicProfile = PublicProfile["pets"][0];
+type OwnerPet = Pet;
 
 // Создаем логгер для pet-list
 const logger = createWebLogger("web-pet-list");
@@ -99,7 +99,7 @@ export default function PetList({
   pathOrScreen: pathOrScreenProp,
   revalidatePath: revalidatePathProp,
 }: {
-  pets: PetFromPublicProfile[];
+  pets: OwnerPet[];
   isOwner: boolean;
   pathOrScreen?: string;
   revalidatePath?: string;
@@ -193,14 +193,14 @@ export default function PetList({
   }, [username]);
 
   const handleEditClick = useCallback(
-    async (pet: PetFromPublicProfile) => {
+    async (pet: OwnerPet) => {
       trackEvent({
         eventName: "button_click",
         platform: "web",
         pathOrScreen,
         elementId: "profile-pet-edit-open",
       });
-      // Преобразуем PetFromPublicProfile в PetFormData для SweetAlert
+      // Преобразуем OwnerPet в PetFormData для SweetAlert
       const petForEdit: PetFormData = {
         id: pet.id,
         name: pet.name,

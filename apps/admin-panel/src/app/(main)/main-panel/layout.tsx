@@ -86,6 +86,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
               <AdsClick sx={{ mr: 1.5, fontSize: 20 }} />
               Мониторинг рекламы
             </Link>
+            <Link href="/main-panel/gafus" className={styles.button}>
+              <Pets sx={{ mr: 1.5, fontSize: 20 }} />
+              Гафусы — экономика
+            </Link>
             <Link href="/main-panel/mobile-intro" className={styles.button}>
               <Slideshow sx={{ mr: 1.5, fontSize: 20 }} />
               Презентация приложения

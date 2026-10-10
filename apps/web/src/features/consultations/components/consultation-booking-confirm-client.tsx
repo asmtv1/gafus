@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
+import { AppBackButton } from "@/shared/components/ui";
 import { trackEvent } from "@gafus/analytics";
 
 import { useCSRFStore } from "@gafus/csrf";
@@ -436,14 +437,12 @@ export function ConsultationBookingConfirmClient({
           </Alert>
         ) : null}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
-          <Button
-            variant="outlined"
-            className={styles.secondaryButton}
+          <AppBackButton
             onClick={() => router.push(`/consultations/${encodeURIComponent(cynologistUserId)}`)}
             disabled={pending}
           >
             Назад к слотам
-          </Button>
+          </AppBackButton>
           <Button
             type="button"
             variant="contained"

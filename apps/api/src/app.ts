@@ -1,6 +1,8 @@
 import { feedPlaybackResponse } from "@gafus/feed-server";
 import { internalFeedRoutes } from "./routes/internal/feed.js";
 import { questionsRoutes } from "./routes/v1/questions.js";
+import { gafusRoutes } from "./routes/v1/gafus.js";
+import { gafusAdminRoutes } from "./routes/v1/gafus-admin.js";
 import { galleryRoutes } from "./routes/v1/gallery.js";
 import { feedRoutes } from "./routes/v1/feed.js";
 import { internalGalleryRoutes } from "./routes/internal/gallery.js";
@@ -32,6 +34,7 @@ import { articlesRoutes } from "./routes/v1/articles.js";
 import { coursesRoutes } from "./routes/v1/courses.js";
 import { petsRoutes } from "./routes/v1/pets.js";
 import { petPreventionRoutes } from "./routes/v1/pet-prevention.js";
+import { petVetVisitRoutes } from "./routes/v1/pet-vet-visits.js";
 import { trainingRoutes } from "./routes/v1/training.js";
 import { dailyCourseRoutes } from "./routes/v1/daily-course.js";
 import { examRoutes } from "./routes/v1/exam.js";
@@ -89,6 +92,10 @@ app.route("/api/v1/community-chat", communityChatRoutes);
 app.use("/api/v1/questions", authMiddleware, apiRateLimiter);
 app.use("/api/v1/questions/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/questions", questionsRoutes);
+app.use("/api/v1/gafus", authMiddleware, apiRateLimiter);
+app.use("/api/v1/gafus/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/gafus", gafusRoutes);
+app.route("/api/v1/gafus/admin", gafusAdminRoutes);
 const galleryNoStore = async (c: import("hono").Context, next: () => Promise<void>) => {
   c.header("Cache-Control", "no-store");
   await next();
@@ -122,6 +129,7 @@ app.use("/api/v1/pets/*", apiRateLimiter);
 app.use("/api/v1/pets/*", authMiddleware);
 app.route("/api/v1/pets", petsRoutes);
 app.route("/api/v1/pets", petPreventionRoutes);
+app.route("/api/v1/pets", petVetVisitRoutes);
 
 // Training routes - большинство требуют JWT
 // authMiddleware пропускает маршруты /video/:videoId/manifest и /video/:videoId/segment

@@ -149,6 +149,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
         },
       },
       pets: {
+        where: { showInProfile: true },
         orderBy: { createdAt: "asc" },
         select: {
           id: true,
@@ -156,24 +157,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
           type: true,
           breed: true,
           birthDate: true,
-          heightCm: true,
-          weightKg: true,
-          neckGirthCm: true,
-          muzzleGirthCm: true,
-          bellyGirthCm: true,
           photoUrl: true,
-          notes: true,
-          ownerId: true,
-          awards: {
-            orderBy: { date: "desc" },
-            select: {
-              id: true,
-              title: true,
-              event: true,
-              date: true,
-              rank: true,
-            },
-          },
         },
       },
       authoredCourses: {
@@ -239,23 +223,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
       type: String(pet.type),
       breed: pet.breed ?? "",
       birthDate: pet.birthDate ?? null,
-      heightCm: pet.heightCm,
-      weightKg: pet.weightKg,
-      neckGirthCm: pet.neckGirthCm,
-      muzzleGirthCm: pet.muzzleGirthCm,
-      bellyGirthCm: pet.bellyGirthCm,
       photoUrl: pet.photoUrl,
-      notes: pet.notes,
-      ownerId: String(pet.ownerId),
-      awards: pet.awards
-        .filter((a): a is Required<typeof a> => a.date !== null)
-        .map((a) => ({
-          id: String(a.id),
-          title: a.title,
-          event: a.event || "",
-          date: a.date || new Date(),
-          rank: a.rank || "",
-        })),
     })),
   };
 
@@ -268,48 +236,52 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
  * Обновляет аватар пользователя
  */
 export async function updateAvatar(userId: string, file: File): Promise<string> {
-  // Определяем расширение и формируем путь
-  const ext = file.name.split(".").pop();
-  if (!ext) throw new Error("Не удалось определить расширение файла");
+  return prisma.$transaction(async (tx) => {
+    const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    if (!owners.length) throw new Error("Пользователь не найден");
+    // Определяем расширение и формируем путь
+    const ext = file.name.split(".").pop();
+    if (!ext) throw new Error("Не удалось определить расширение файла");
 
-  const uuid = randomUUID();
-  const relativePath = getUserAvatarPath(userId, uuid, ext);
+    const uuid = randomUUID();
+    const relativePath = getUserAvatarPath(userId, uuid, ext);
 
-  // Получаем старый avatarUrl для удаления
-  const existingProfile = await prisma.userProfile.findUnique({
-    where: { userId },
-    select: { avatarUrl: true },
-  });
+    // Получаем старый avatarUrl для удаления
+    const existingProfile = await tx.userProfile.findUnique({
+      where: { userId },
+      select: { avatarUrl: true },
+    });
 
-  // Загружаем новый файл в CDN
-  const avatarUrl = await uploadFileToCDN(file, relativePath);
+    // Загружаем новый файл в CDN
+    const avatarUrl = await uploadFileToCDN(file, relativePath);
 
-  // Удаляем старый файл из CDN (если есть)
-  if (existingProfile?.avatarUrl) {
-    const oldRelativePath = getRelativePathFromCDNUrl(existingProfile.avatarUrl);
-    logger.info(
-      `Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`,
-    );
-    try {
-      await deleteFileFromCDN(oldRelativePath);
-      logger.info(`Старый аватар удален из CDN: ${oldRelativePath}`);
-    } catch (error) {
-      logger.error("Не удалось удалить старый аватар", error as Error);
+    // Удаляем старый файл из CDN (если есть)
+    if (existingProfile?.avatarUrl) {
+      const oldRelativePath = getRelativePathFromCDNUrl(existingProfile.avatarUrl);
+      logger.info(
+        `Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`,
+      );
+      try {
+        await deleteFileFromCDN(oldRelativePath);
+        logger.info(`Старый аватар удален из CDN: ${oldRelativePath}`);
+      } catch (error) {
+        logger.error("Не удалось удалить старый аватар", error as Error);
+      }
     }
-  }
 
-  // Сохраняем новый avatarUrl в базе
-  await prisma.userProfile.upsert({
-    where: { userId },
-    update: { avatarUrl },
-    create: {
-      userId,
-      avatarUrl,
-    },
-  });
+    // Сохраняем новый avatarUrl в базе
+    await tx.userProfile.upsert({
+      where: { userId },
+      update: { avatarUrl },
+      create: {
+        userId,
+        avatarUrl,
+      },
+    });
 
-  logger.info("Avatar URL saved to database", { avatarUrl });
-  return avatarUrl;
+    logger.info("Avatar URL saved to database", { avatarUrl });
+    return avatarUrl;
+  }, { timeout: 90_000 });
 }
 
 // ========== Get User With Trainings ==========

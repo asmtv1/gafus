@@ -13,6 +13,7 @@
     "lint:fix": "eslint src --fix",
     "start": "PORT=3002 next start",
     "test": "vitest run --config vitest.config.ts",
+    "test:feed:telemetry-e2e": "node scripts/smart-feed-telemetry-e2e.mjs",
     "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit"

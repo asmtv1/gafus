@@ -227,7 +227,7 @@ export default function PrivateProfileSection({ user }: PrivateProfileSectionPro
             ))}
         </div>
 
-        {loading ? <LoadingState variant="inline" size="small" message="Загрузка подписки…" /> : null}
+        {loading ? <LoadingState variant="inline" message="Загрузка подписки…" /> : null}
         {error ? <p className={styles.errorText}>{error}</p> : null}
 
         {!loading && !error && status ? (

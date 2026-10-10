@@ -688,6 +688,12 @@ export default function ProfileScreen() {
           {/* Контейнер с информацией о себе */}
           <View style={styles.infoContainer}>
             <View style={styles.bioCard}>
+              {profile?.city ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <MaterialCommunityIcons name="map-marker-outline" size={19} color={COLORS.primary} />
+                  <Text style={styles.infoText}>Город: {profile.city}</Text>
+                </View>
+              ) : null}
               {age !== null && (
                 <Text style={styles.infoText}>
                   Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
@@ -714,7 +720,10 @@ export default function ProfileScreen() {
               {/* Социальные сети */}
               {hasSocialLinks && (
                 <View style={styles.socialLinksContainer}>
-                  <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
+                  <View style={styles.sectionHeading}>
+                    <ProfileIcon name="contacts" />
+                    <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
+                  </View>
                   <View style={styles.socialLinksList}>
                     {profile?.instagram && (
                       <Pressable
@@ -1584,7 +1593,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#352E2E",
-    marginBottom: SPACING.sm,
+    marginBottom: 0,
     fontFamily: FONTS.impact,
     textTransform: "uppercase",
     letterSpacing: 0.5,

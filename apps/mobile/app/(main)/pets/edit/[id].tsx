@@ -6,15 +6,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   TextInput,
 } from "react-native";
 import { Text } from "react-native-paper";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { validatePetForm, type PetFormErrors } from "@/features/pets";
@@ -170,10 +168,7 @@ export default function EditPetScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={handleBack} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={handleBack} />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -184,7 +179,7 @@ export default function EditPetScreen() {
               <View style={styles.formCard}>
                 <Text style={styles.screenTitle}>Редактировать питомца</Text>
                 <Text style={styles.errorInline}>Питомец не найден</Text>
-                <Button label="Назад" variant="outline" onPress={handleBack} />
+                <AppBackButton onPress={handleBack} />
               </View>
             </ScrollView>
           ) : (

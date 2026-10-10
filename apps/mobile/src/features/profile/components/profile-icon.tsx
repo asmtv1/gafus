@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { CONTACTS_ICON_URI } from "./contacts-icon-data";
 
 const icons = {
   reminders: require("../../../../assets/images/profile-icons/reminders.webp"),
@@ -22,10 +23,10 @@ const icons = {
   "delete-account": require("../../../../assets/images/profile-icons/delete-account.webp"),
 } as const;
 
-export function ProfileIcon({ name, size = 40 }: { name: keyof typeof icons; size?: number }) {
+export function ProfileIcon({ name, size = 40 }: { name: keyof typeof icons | "contacts"; size?: number }) {
   return (
     <Image
-      source={icons[name]}
+      source={name === "contacts" ? { uri: CONTACTS_ICON_URI } : icons[name]}
       style={{ width: size, height: size, flexShrink: 0 }}
       contentFit="contain"
       accessible={false}

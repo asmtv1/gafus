@@ -1,4 +1,6 @@
 import { prisma } from "@gafus/prisma";
+import { hasGafusUnlockForUserStep, hasGafusUnlockForVideoUrl } from "./gafusInterop";
+import { hasActiveGafusCourseStepAccess } from "../contentAccess";
 
 import { SubscriptionOrCreditsRequiredError } from "./errors";
 import type {
@@ -255,6 +257,9 @@ export async function requirePremiumOrRewardedAccessForUserStep(input: {
   if (target === undefined) {
     return requirePremiumFallback(input);
   }
+  if (target.targetType === "COURSE_STEP" && await hasGafusUnlockForUserStep(input)) {
+    return { allowed: true, source: "GAFUS", skippedDueToPremium: false, target };
+  }
   return requirePremiumOrRewardedUnlock({
     userId: input.userId,
     platform: input.platform,
@@ -273,6 +278,9 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
   if (target === null) return null;
   if (target === undefined) {
     return requirePremiumFallback(input);
+  }
+  if (target.targetType === "COURSE_STEP" && await hasGafusUnlockForVideoUrl(input)) {
+    return { allowed: true, source: "GAFUS", skippedDueToPremium: false, target };
   }
   return requirePremiumOrRewardedUnlock({
     userId: input.userId,
@@ -318,6 +326,13 @@ export async function requirePremiumOrRewardedAccessForStepNotification(input: {
   if (target === null) return null;
   if (target === undefined) {
     return requirePremiumFallback(input);
+  }
+  if (target.targetType === "COURSE_STEP" &&
+    await hasActiveGafusCourseStepAccess({
+      userId: input.userId, dayOnCourseId,
+      stepOnDayId: target.targetId, now: input.now,
+    })) {
+    return { allowed: true, source: "GAFUS", skippedDueToPremium: false, target };
   }
   return requirePremiumOrRewardedUnlock({
     userId: input.userId,

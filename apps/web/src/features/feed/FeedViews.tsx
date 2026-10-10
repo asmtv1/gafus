@@ -1,19 +1,28 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FEED_LIMITS, FEED_REACTIONS, countFeedCharacters, formatFeedTime,
-  type FeedPostDto, type FeedCommentDto, type FeedReaction,
+  type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedSort, type FeedImpressionInput,
 } from "@gafus/types";
 import { FeedActions, FeedReportForm } from "./FeedActions";
+import { publicationPhaseLabel, type PublicationItem } from "@gafus/core/services/feed/publication-client";
+import { webFeedPublications } from "./publication";
+const EMPTY_PUBLICATIONS: PublicationItem[] = [];
 import { feedApi } from "./api";
+import { webFeedTelemetry } from "./telemetry";
+import { observeFeedVisibility } from "./visibility";
 import { uploadFeedBrowserAsset, validateBrowserFeedFiles, type FeedBrowserAsset } from "./upload";
 import { FeedVideo } from "./FeedVideo";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
-import { LoadingState } from "@/shared/components/ui";
+import { FeedTopBar } from "./FeedTopBar";
+import { GafusPostProgress } from "@/features/gafus/GafusPostProgress";
+import { MOMENTS_HEADER_URI } from "./momentsHeaderArtwork";
+import { AppBackButtonLink, LoadingState } from "@/shared/components/ui";
 import styles from "./Feed.module.css";
 
 function message(error: unknown) {
@@ -35,11 +44,11 @@ function useFeedEnabled() {
   return { status, userId, enabled };
 }
 function LoadingOrDenied({ status, enabled }: ReturnType<typeof useFeedEnabled>) {
-  if (status === "loading") return <Access><LoadingState variant="inline" size="large" message="Проверяем доступность ленты…" /></Access>;
-  if (status !== "authenticated") return <Access><p>Войдите в аккаунт, чтобы пользоваться лентой.</p></Access>;
-  if (enabled.isPending) return <Access><LoadingState variant="inline" size="large" message="Проверяем доступность ленты…" /></Access>;
+  if (status === "loading") return <Access><LoadingState variant="inline" message="Проверяем доступность «Моментов»…" /></Access>;
+  if (status !== "authenticated") return <Access><p>Войдите в аккаунт, чтобы открыть «Моменты».</p></Access>;
+  if (enabled.isPending) return <Access><LoadingState variant="inline" message="Проверяем доступность «Моментов»…" /></Access>;
   if (enabled.isError) return <Access><p role="alert">{message(enabled.error)}</p><button type="button" className={styles.secondary} onClick={() => void enabled.refetch()}>Повторить</button></Access>;
-  return <Access><p>Лента пока недоступна. Ваши публикации и альбомы не затронуты.</p></Access>;
+  return <Access><p>Раздел «Моменты» пока недоступен. Ваши публикации и альбомы не затронуты.</p></Access>;
 }
 function FeedMedia({ post }: { post: FeedPostDto }) {
   const [position, setPosition] = useState(0);
@@ -116,33 +125,43 @@ function FeedMedia({ post }: { post: FeedPostDto }) {
     </dialog>
   </>;
 }
-function ViewObserver({ post }: { post: FeedPostDto }) {
+type ImpressionContext = Omit<FeedImpressionInput, "eventId" | "visibleMs">;
+function sendFeedOutcome(impression: ImpressionContext | undefined, kind: "dwell" | "post_open" | "profile_open", durationMs = 0, ownerId?: string) {
+  if (!impression?.exposureToken || !ownerId) return;
+  const telemetry = webFeedTelemetry(ownerId);
+  telemetry.enqueueOutcome({
+    ...impression, eventId: crypto.randomUUID(), exposureToken: impression.exposureToken,
+    kind, durationMs: Math.min(120000, Math.max(0, Math.round(durationMs))),
+  });
+  void telemetry.flush();
+}
+function ViewObserver({ post, impression, ownerId }: { post: FeedPostDto; impression?: ImpressionContext; ownerId?: string }) {
   const marker = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (post.canDelete) return;
     const element = marker.current?.closest("article");
     if (!element) return;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    let counted = false;
-    const stop = () => { if (timeout) clearTimeout(timeout); timeout = undefined; };
-    const observer = new IntersectionObserver(entries => {
-      const visible = entries.some(entry => entry.isIntersecting && entry.intersectionRatio >= FEED_LIMITS.viewVisibleFraction);
-      stop();
-      if (visible && document.visibilityState === "visible" && !counted) {
-        timeout = setTimeout(() => {
-          if (document.visibilityState !== "visible" || counted) return;
-          counted = true;
-          void feedApi.recordView(post.id).catch(() => { counted = false; });
-        }, FEED_LIMITS.viewVisibleMilliseconds);
-      }
-    }, { threshold: [0, FEED_LIMITS.viewVisibleFraction, 1] });
-    observer.observe(element);
-    document.addEventListener("visibilitychange", stop);
-    return () => { stop(); observer.disconnect(); document.removeEventListener("visibilitychange", stop); };
-  }, [post.id, post.canDelete]);
+    return observeFeedVisibility(element, {
+      visibleFraction: FEED_LIMITS.viewVisibleFraction,
+      qualifiedAfterMs: FEED_LIMITS.viewVisibleMilliseconds,
+      onQualified: () => {
+        void feedApi.recordView(post.id).catch(() => {});
+        if (impression?.exposureToken && ownerId) {
+          const telemetry = webFeedTelemetry(ownerId);
+          telemetry.enqueueImpression({
+            ...impression, eventId: crypto.randomUUID(),
+            visibleMs: FEED_LIMITS.viewVisibleMilliseconds,
+          });
+          void telemetry.flush();
+        }
+      },
+      onDwell: ms => sendFeedOutcome(impression, "dwell", ms, ownerId),
+    });
+  }, [post.id, post.canDelete, impression?.rankingSessionId, impression?.rank,
+    impression?.algorithmVersion, impression?.exposureToken, ownerId]);
   return <span ref={marker} hidden />;
 }
-export function FeedCard({ post, compact = false }: { post: FeedPostDto; compact?: boolean }) {
+export function FeedCard({ post, compact = false, impression, ownerId }: { post: FeedPostDto; compact?: boolean; impression?: ImpressionContext; ownerId?: string }) {
   const [expanded, setExpanded] = useState(false);
   const [reactionOpen, setReactionOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -164,12 +183,12 @@ export function FeedCard({ post, compact = false }: { post: FeedPostDto; compact
     enabled: reactionOpen,
   });
   return <article className={styles.card} aria-label="Публикация">
-    <ViewObserver post={post} />
+    <ViewObserver post={post} impression={impression} ownerId={ownerId} />
     <div className={styles.meta}>
       <span className={styles.avatar}>{post.author.avatarUrl ?
         // Signed CDN media must load directly without Next Image optimization.
         <img src={post.author.avatarUrl} alt="" /> : "🐾"}</span>
-      <span><Link className={styles.author} href={`/profile?username=${encodeURIComponent(post.author.username)}`}>{post.author.name}</Link>
+      <span><Link className={styles.author} href={`/profile?username=${encodeURIComponent(post.author.username)}`} onClick={() => sendFeedOutcome(impression, "profile_open", 0, ownerId)}>{post.author.name}</Link>
         <time className={styles.time} dateTime={date}>{formatFeedTime(date)}{post.editedAt ? " · Изменён" : ""}</time></span>
     </div>
     {post.moderationState && post.moderationState !== "visible" && <p role="status" className={styles.error}>
@@ -188,30 +207,52 @@ export function FeedCard({ post, compact = false }: { post: FeedPostDto; compact
     </div>}
     <div className={styles.stats}>
       <span aria-label="Просмотры">{post.viewCount} 👁</span>
-      <Link href={`/feed/${encodeURIComponent(post.id)}`}>{post.commentCount} комментариев</Link>
+      <Link href={`/feed/${encodeURIComponent(post.id)}`} onClick={() => sendFeedOutcome(impression, "post_open", 0, ownerId)}>{post.commentCount} комментариев</Link>
       {!compact && <button type="button" className={styles.textButton} onClick={() => setReactionOpen(!reactionOpen)}>Кто отреагировал</button>}
       {post.canEdit && <Link href={`/feed/create?edit=${encodeURIComponent(post.id)}`}>Изменить</Link>}
     </div>
     {reactionOpen && <div className={styles.comment} aria-label="Пользователи, поставившие реакции">
-      {people.isPending ? <LoadingState variant="inline" size="small" message="Загрузка реакций…" /> : people.isError ? message(people.error) : !people.data?.items.length ? "Нет реакций" :
+      {people.isPending ? <LoadingState variant="inline" message="Загрузка реакций…" /> : people.isError ? message(people.error) : !people.data?.items.length ? "Нет реакций" :
         people.data.items.map(entry => <p key={entry.user.id}><Link href={`/profile?username=${encodeURIComponent(entry.user.username)}`}>{entry.user.name}</Link> {entry.reaction}</p>)}
     </div>}
   </article>;
 }
 function FeedPendingPosts() {
   const { data: session } = useSession();
+  const local = useSyncExternalStore(webFeedPublications.subscribe, webFeedPublications.getSnapshot,
+    () => EMPTY_PUBLICATIONS).filter(item => item.ownerId === session?.user?.id);
   const pending = useQuery({
     queryKey: ["feed", "pending", session?.user?.id],
     queryFn: () => feedApi.listPendingPosts(),
     enabled: Boolean(session?.user?.id),
     refetchInterval: 20_000,
   });
-  if (!pending.data?.items.length && !pending.isError) return null;
-  return <section className={styles.card} aria-label="Мои черновики и обработка">
-    <h2>Мои незавершённые публикации</h2>
+  const serverOnly = (pending.data?.items ?? []).filter(post => !local.some(item => item.postId === post.id));
+  if (!local.length && !serverOnly.length && !pending.isError) return null;
+  return <section className={styles.pendingSection} aria-label="Мои публикации в обработке">
+    {local.map(item => <article key={item.id} className={styles.pendingPost} aria-live="polite">
+      <div className={styles.pendingMedia}>
+        {item.previewUri && <img src={item.previewUri} alt="" />}
+        {item.phase !== "failed" && item.phase !== "published" && <LoadingState variant="inline" message="" />}
+      </div>
+      <div className={styles.pendingBody}>
+        <strong>{publicationPhaseLabel(item)}</strong>
+        {item.text && <p className={styles.pendingExcerpt}>{item.text}</p>}
+        {item.phase === "uploading" && item.progress !== null && <div className={styles.pendingTrack}
+          role="progressbar" aria-label="Загрузка вложений" aria-valuenow={item.progress} aria-valuemin={0} aria-valuemax={100}>
+          <span style={{ width: `${item.progress}%` }} />
+        </div>}
+        {item.error && <p role="alert" className={styles.error}>{item.error}</p>}
+        {item.phase === "failed" && <div className={styles.actions}>
+          <button className={styles.primary} type="button" onClick={() => webFeedPublications.retry(item.id)}>Повторить</button>
+          <button className={styles.secondary} type="button" onClick={() => webFeedPublications.dismiss(item.id)}>Скрыть</button>
+        </div>}
+      </div>
+    </article>)}
+    {serverOnly.length > 0 && <strong className={styles.pendingRecovered}>Незавершённые публикации</strong>}
     {pending.isError && <p role="alert">Не удалось проверить статус. <button type="button"
       className={styles.secondary} onClick={() => void pending.refetch()}>Повторить</button></p>}
-    {pending.data?.items.map(post => <div className={styles.comment} key={post.id}>
+    {serverOnly.map(post => <div className={styles.comment} key={post.id}>
       <span>{post.text ? post.text.slice(0, 100) : "Публикация с вложениями"}</span>
       <span className={styles.muted}>{post.status === "pending" ? "Обрабатывается…" :
         post.status === "failed" ? "Ошибка обработки" : "Черновик"}</span>
@@ -222,6 +263,43 @@ function FeedPendingPosts() {
 export function FeedListPage() {
   const access = useFeedEnabled();
   const cache = useQueryClient();
+  const publishing = useSyncExternalStore(webFeedPublications.subscribe,
+    webFeedPublications.getSnapshot, () => EMPTY_PUBLICATIONS)
+    .some(item => item.ownerId === access.userId && item.phase !== "published");
+  useEffect(() => {
+    const seen = new Set<string>();
+    return webFeedPublications.subscribe(() => {
+      for (const item of webFeedPublications.getSnapshot()) {
+        if (item.ownerId !== access.userId || item.phase !== "published" || !item.postId || seen.has(item.id)) continue;
+        seen.add(item.id);
+        void cache.invalidateQueries({ queryKey: ["feed"] });
+      }
+    });
+  }, [cache, access.userId]);
+  const [sort, setSort] = useState<FeedSort>("new");
+  useEffect(() => {
+    if (!access.userId) { setSort("new"); return; }
+    const saved = localStorage.getItem(`gafus:feed:sort:${access.userId}`);
+    if (saved === "new" || saved === "popular" || saved === "discussed" ||
+      (saved === "smart" && access.enabled.data?.smartEnabled)) setSort(saved);
+    else setSort(access.enabled.data?.smartEnabled ? "smart" : "new");
+  }, [access.userId, access.enabled.data?.smartEnabled]);
+  const [showPersonalization, setShowPersonalization] = useState(false);
+  const [personalizationError, setPersonalizationError] = useState("");
+  const personalization = useQuery({
+    queryKey: ["feed", "personalization", access.userId],
+    queryFn: () => feedApi.getPersonalization(),
+    enabled: access.enabled.data?.smartEnabled === true,
+  });
+  const updatePersonalization = async (key: "enabled" | "useCity" | "usePets" | "useBehavior" | "exploration", value: boolean) => {
+    try {
+      setPersonalizationError("");
+      await feedApi.setPersonalization({ [key]: value });
+      cache.removeQueries({ queryKey: ["feed", "posts", access.userId, "smart"] });
+      await cache.invalidateQueries({ queryKey: ["feed", "personalization", access.userId] });
+      await cache.invalidateQueries({ queryKey: ["feed", "posts", access.userId] });
+    } catch (error) { setPersonalizationError(message(error)); }
+  };
   const [hiddenAuthor, setHiddenAuthor] = useState<{ id: string; name: string } | null>(null);
   const [undoError, setUndoError] = useState("");
   useEffect(() => {
@@ -230,8 +308,8 @@ export function FeedListPage() {
     return () => window.removeEventListener("feed-author-hidden", listener);
   }, []);
   const query = useInfiniteQuery({
-    queryKey: ["feed", "posts", access.userId],
-    queryFn: ({ pageParam }) => feedApi.listPosts({ cursor: pageParam }),
+    queryKey: ["feed", "posts", access.userId, sort],
+    queryFn: ({ pageParam }) => feedApi.listPosts({ cursor: pageParam, sort }),
     refetchInterval: 90_000,
     initialPageParam: null as string | null,
     getNextPageParam: page => page.nextCursor,
@@ -239,18 +317,69 @@ export function FeedListPage() {
     gcTime: 30_000,
   });
   const posts = query.data?.pages.flatMap(page => page.items) ?? [];
-  return <main className={styles.surface}>
-    <div className={styles.header}>
-      <h1 className={styles.title}>Лента</h1>
-      {access.enabled.data?.enabled && <nav className={styles.actions}>
-        <Link className={styles.secondary} href="/feed/saved">Закладки</Link>
-        <Link className={styles.secondary} href="/feed/hidden-authors">Скрытые авторы</Link>
-        <Link className={styles.secondary} href="/feed/notifications">Уведомления</Link>
-        <Link className={styles.primary} href="/feed/create">Создать пост</Link>
-      </nav>}
+  return <main className={`${styles.surface} ${styles.momentsSurface}`}>
+    <div className={styles.momentsHero}>
+      <Image
+        src={MOMENTS_HEADER_URI}
+        className={styles.momentsHeroImage}
+        alt="Моменты. Делитесь фотографиями, видео и историями о своих питомцах"
+        width={1200}
+        height={556}
+        priority
+        unoptimized
+      />
     </div>
+    <FeedTopBar active="feed" showActions={access.enabled.data?.enabled === true} />
     {!access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
       <div className={styles.feed}>
+        <div className={styles.feedSortToolbar}>
+          <label htmlFor="feed-sort" className={styles.feedSortLabel}>Сортировка</label>
+          <select id="feed-sort" className={styles.feedSortSelect} value={sort}
+            onChange={event => {
+              const next = event.target.value as FeedSort;
+              setSort(next);
+              if (access.userId) localStorage.setItem(`gafus:feed:sort:${access.userId}`, next);
+            }}>
+            {access.enabled.data?.smartEnabled && <option value="smart">Для вас</option>}
+            <option value="new">Сначала новые</option>
+            <option value="popular">Сначала популярные</option>
+            <option value="discussed">Сначала резонансные</option>
+          </select>
+          {access.enabled.data?.smartEnabled && <button type="button" className={styles.secondary}
+            aria-expanded={showPersonalization} onClick={() => setShowPersonalization(value => !value)}>
+            Настроить
+          </button>}
+        </div>
+        {showPersonalization && <section className={styles.card} aria-label="Настройки ленты">
+          <h2>Персонализация</h2>
+          {personalization.isPending ? <LoadingState variant="inline" message="Загружаем настройки…" /> :
+            personalization.isError ? <p role="alert">{message(personalization.error)}</p> :
+            ([
+              ["enabled", "Персональные рекомендации"],
+              ["useCity", "Мой город"],
+              ["usePets", "Мои питомцы"],
+              ["useBehavior", "Моя активность"],
+              ["exploration", "Новые авторы"],
+            ] as const).map(([key, label]) => <label key={key}
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <input type="checkbox" checked={personalization.data?.[key] ?? true}
+                disabled={key !== "enabled" && !personalization.data?.enabled}
+                onChange={event => void updatePersonalization(key, event.target.checked)} />
+              {label}
+            </label>)}
+          <button type="button" className={styles.secondary} onClick={async () => {
+            if (!window.confirm("Сбросить рекомендации? Реакции, комментарии и закладки сохранятся.")) return;
+            try {
+              setPersonalizationError("");
+              await feedApi.resetPersonalization();
+              cache.removeQueries({ queryKey: ["feed", "posts", access.userId, "smart"] });
+              await cache.invalidateQueries({ queryKey: ["feed", "posts", access.userId] });
+            } catch (error) { setPersonalizationError(message(error)); }
+          }}>Сбросить рекомендации</button>
+          {personalizationError && <p role="alert">{personalizationError}</p>}
+        </section>}
+        {sort === "smart" && query.data?.pages.some(page => page.feedMeta?.fallback === "new") &&
+          <p className={styles.muted}>Персонализация сейчас недоступна. Показываем новые публикации.</p>}
         {hiddenAuthor && <div className={styles.card} role="status">Публикации автора {hiddenAuthor.name} скрыты.
           <button className={styles.textButton} type="button" onClick={async () => {
             try { await feedApi.setAuthorPreference(hiddenAuthor.id, { hidden: false }); setHiddenAuthor(null); await cache.invalidateQueries({ queryKey: ["feed"] }); }
@@ -259,12 +388,20 @@ export function FeedListPage() {
           {undoError && <p role="alert">{undoError}</p>}
         </div>}
         <FeedPendingPosts />
-        {query.isPending && <LoadingState variant="inline" size="large" message="Загрузка публикаций…" />}
+        {query.isPending && <LoadingState variant="inline" message="Загрузка публикаций…" />}
         {query.isError && <p role="alert" className={styles.error}>{message(query.error)} <button type="button" onClick={() => void query.refetch()}>Повторить</button></p>}
-        {query.isSuccess && posts.length === 0 && <div className={styles.card}><p className={styles.empty}>Здесь пока нет публикаций. Расскажите о своём питомце!</p></div>}
-        {posts.map(post => <FeedCard post={post} key={post.id} />)}
+        {query.isSuccess && posts.length === 0 && !publishing && <div className={styles.card}><p className={styles.empty}>Здесь пока нет публикаций. Расскажите о своём питомце!</p></div>}
+        {posts.map(post => {
+          const meta = query.data?.pages[0]?.feedMeta;
+          const impression = sort === "smart" && meta?.algorithmVersion &&
+            (post.recommendationSessionId ?? meta.rankingSessionId) && post.recommendationRank !== undefined
+            ? { postId: post.id, rankingSessionId: (post.recommendationSessionId ?? meta.rankingSessionId)!,
+                algorithmVersion: meta.algorithmVersion, rank: post.recommendationRank,
+                exposureToken: post.recommendationExposureToken } : undefined;
+          return <FeedCard post={post} key={post.id} impression={impression} ownerId={access.userId} />;
+        })}
         {query.hasNextPage && <button className={styles.secondary} type="button" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>Показать ещё</button>}
-        {query.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем публикации…" />}
+        {query.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем публикации…" />}
       </div>}
   </main>;
 }
@@ -299,9 +436,23 @@ export function FeedComposePage({ editId }: { editId?: string }) {
     return next;
   });
   const submit = async () => {
+    if (busy) return;
     if (!text.trim() && !files.length && !albumPhotoIds.length && !(original.data?.pendingRevision?.attachmentIds.length ||
         original.data?.attachments.length)) { setError("Добавьте текст или вложение."); return; }
     setBusy(true); setError("");
+    if (!editId) {
+      try {
+        validateBrowserFeedFiles(files, albumPhotoIds.map(() => "photo" as const));
+        const uploadFiles = files.map((asset, index) => ({
+          ...asset, bytes: asset.file.size,
+          previewUri: index === 0 && asset.file.type.startsWith("image/")
+            ? URL.createObjectURL(asset.file) : undefined,
+        }));
+        webFeedPublications.enqueue({ ownerId: access.userId!, text, files: uploadFiles, albumPhotoIds });
+        router.replace("/feed");
+      } catch (err) { setError(message(err)); setBusy(false); }
+      return;
+    }
     try {
       const post = draft.current ? await feedApi.getEditor(draft.current) : await feedApi.createPost({ clientRequestId: requestId.current });
       draft.current = post.id;
@@ -336,10 +487,10 @@ export function FeedComposePage({ editId }: { editId?: string }) {
     } catch (err) { setError(message(err)); }
     finally { setBusy(false); setProgress(""); }
   };
-  return <main className={styles.surface}><div className={styles.header}><h1 className={styles.title}>{editId ? "Изменить публикацию" : "Новая публикация"}</h1><Link href="/feed">Назад в ленту</Link></div>
+  return <main className={styles.surface}><div className={styles.header}><h1 className={styles.title}>{editId ? "Изменить публикацию" : "Новая публикация"}</h1><AppBackButtonLink href="/feed">Назад в «Моменты»</AppBackButtonLink></div>
     {!access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
       <div className={styles.card}>
-        {original.isPending && editId ? <LoadingState variant="inline" size="large" message="Загружаем редактор…" /> :
+        {original.isPending && editId ? <LoadingState variant="inline" message="Загружаем редактор…" /> :
         <form className={styles.form} onSubmit={event => { event.preventDefault(); void submit(); }}>
           <label htmlFor="feed-text">Текст публикации</label>
           <textarea id="feed-text" className={styles.input} value={text} onChange={event => setText(event.target.value)} maxLength={10_000} placeholder="Расскажите о своём питомце…" />
@@ -410,25 +561,26 @@ export function FeedPostPage({ postId, commentId }: { postId: string; commentId?
     try { await feedApi.deletePost(postId); window.location.assign("/feed"); }
     catch (err) { setError(message(err)); }
   };
-  return <main className={styles.surface}><div className={styles.header}><Link href="/feed">← Лента</Link>{post.data?.canDelete && <button className={styles.textButton} onClick={() => void remove()}>Удалить публикацию</button>}</div>
+  return <main className={styles.surface}><div className={styles.header}><AppBackButtonLink href="/feed">Моменты</AppBackButtonLink>{post.data?.canDelete && <button className={styles.textButton} onClick={() => void remove()}>Удалить публикацию</button>}</div>
     {!access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
       <div className={styles.feed}>
-        {post.isPending && <LoadingState variant="inline" size="large" message="Загрузка публикации…" />}
+        {post.isPending && <LoadingState variant="inline" message="Загрузка публикации…" />}
         {post.isError && <p className={styles.error} role="alert">{message(post.error)}</p>}
         {post.data && <FeedCard key={post.data.id} post={post.data} />}
+        {post.data?.canDelete && <GafusPostProgress postId={post.data.id} />}
         <section className={styles.card} aria-label="Комментарии">
           <h2>Комментарии</h2>
           {commentId && <div ref={focusedRef} tabIndex={-1} aria-label="Комментарий из уведомления">
             <h3>Комментарий из уведомления</h3>
-            {focused.isPending && <LoadingState variant="inline" size="small" message="Загрузка комментария…" />}
+            {focused.isPending && <LoadingState variant="inline" message="Загрузка комментария…" />}
             {(focused.isError || (focused.data && focused.data.postId !== postId)) && <p role="status">Комментарий недоступен.</p>}
             {focused.data?.postId === postId && <FeedCommentRow item={focused.data} onReply={setReplyTo} />}
           </div>}
-          {comments.isPending && <LoadingState variant="inline" size="small" message="Загрузка комментариев…" />}
+          {comments.isPending && <LoadingState variant="inline" message="Загрузка комментариев…" />}
           {comments.isError && <p role="alert" className={styles.error}>{message(comments.error)}</p>}
           {comments.data?.pages.flatMap(page => page.items).map(item => <FeedCommentRow key={item.id} item={item} onReply={setReplyTo} />)}
           {comments.hasNextPage && <button type="button" className={styles.secondary} disabled={comments.isFetchingNextPage} onClick={() => void comments.fetchNextPage()}>Ещё комментарии</button>}
-          {comments.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем комментарии…" />}
+          {comments.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем комментарии…" />}
           {replyTo && <p className={styles.muted}>Ответ на комментарий <button type="button" className={styles.textButton} onClick={() => setReplyTo(null)}>Отменить</button></p>}
           <form className={styles.form} onSubmit={event => { event.preventDefault(); void send(); }}>
             <label htmlFor="feed-comment">Добавить комментарий</label>
@@ -506,7 +658,7 @@ function FeedCommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (id:
       onClick={() => setShowReplies(!showReplies)}>
       {showReplies ? "Скрыть ответы" : `Ответы (${item.replyCount})`}
     </button>}
-    {showReplies && (replies.isPending ? <LoadingState variant="inline" size="small" message="Загрузка ответов…" /> :
+    {showReplies && (replies.isPending ? <LoadingState variant="inline" message="Загрузка ответов…" /> :
       replies.isError ? <p role="alert" className={styles.error}>Не удалось загрузить ответы.
         <button type="button" onClick={() => void replies.refetch()}>Повторить</button></p> :
       <>
@@ -531,16 +683,16 @@ export function FeedAuthorPostsPage({ username }: { username: string }) {
   return <main className={styles.surface}>
     <div className={styles.header}>
       <h1 className={styles.title}>Публикации пользователя</h1>
-      <Link href={`/profile?username=${encodeURIComponent(username)}`}>← Профиль</Link>
+      <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>Профиль</AppBackButtonLink>
     </div>
     {!access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
       <div className={styles.feed}>
-        {posts.isPending && <LoadingState variant="inline" size="large" message="Загружаем публикации…" />}
+        {posts.isPending && <LoadingState variant="inline" message="Загружаем публикации…" />}
         {posts.isError && <p className={styles.error} role="alert">Не удалось загрузить публикации. <button className={styles.secondary} type="button" onClick={() => void posts.refetch()}>Повторить</button></p>}
         {posts.isSuccess && items.length === 0 && <section className={styles.card}>Публикаций пока нет.</section>}
         {items.map(post => <FeedCard key={post.id} post={post} />)}
         {posts.hasNextPage && <button className={styles.secondary} type="button" disabled={posts.isFetchingNextPage} onClick={() => void posts.fetchNextPage()}>Показать ещё</button>}
-        {posts.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем публикации…" />}
+        {posts.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем публикации…" />}
       </div>}
   </main>;
 }
@@ -549,11 +701,11 @@ export function FeedNotificationsPage() {
   const access = useFeedEnabled();
   const notifications = useQuery({ queryKey: ["feed", "notifications", access.userId], queryFn: () => feedApi.listNotifications(), enabled: !!access.enabled.data?.enabled });
   const cache = useQueryClient();
-  return <main className={styles.surface}><div className={styles.header}><h1 className={styles.title}>Уведомления</h1><Link href="/feed">← Лента</Link></div>
+  return <main className={styles.surface}><FeedTopBar active="notifications" showActions={access.enabled.data?.enabled === true} />
     {!access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
       <div className={styles.card}>
         <button className={styles.secondary} onClick={() => void feedApi.markAllNotificationsRead().then(() => cache.invalidateQueries({ queryKey: ["feed", "notifications"] }))}>Прочитать всё</button>
-        {notifications.isPending && <LoadingState variant="inline" size="large" message="Загрузка уведомлений…" />}
+        {notifications.isPending && <LoadingState variant="inline" message="Загрузка уведомлений…" />}
         {notifications.isError && <p role="alert">{message(notifications.error)}</p>}
         {notifications.data?.items.length === 0 && <p className={styles.empty}>Пока нет уведомлений.</p>}
         {notifications.data?.items.map(event => <div key={event.id} className={styles.comment}>

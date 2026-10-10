@@ -38,6 +38,23 @@
   opacity: 0.56;
 }
 
+/* Shared red action: same palette and depth as mobile Button variant="secondary". */
+.red {
+  border: 0;
+  background: linear-gradient(180deg, #d0776d 0%, #c9695e 18%, #c56255 56%, #b95145 84%, #b45044 100%);
+  color: #fff;
+  box-shadow: 0 7px 12px rgba(135, 51, 42, 0.28);
+}
+
+.red:hover:not(:disabled) {
+  background: linear-gradient(180deg, #d0776d 0%, #c9695e 18%, #c56255 56%, #b95145 84%, #b45044 100%);
+  box-shadow: 0 9px 16px rgba(135, 51, 42, 0.32);
+}
+
+.red:active:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(135, 51, 42, 0.2);
+}
+
 .fullWidth {
   width: 100%;
 }

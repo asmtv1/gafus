@@ -13,10 +13,13 @@ import type { BioProps } from "../../types";
 import { getAge, declOfNum } from "@gafus/core/utils";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 import { getTelegramUrl, getInstagramUrl } from "@gafus/core/utils/social";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import { InstagramIcon, TelegramIcon, WebsiteIcon } from "../SocialIcons";
 
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
-  const profile = publicData.profile;
+  const profile = publicData.profile as
+    | (NonNullable<typeof publicData.profile> & { city?: string | null })
+    | null;
   const diplomas = publicData.diplomas;
   const safeWebsite = profile?.website?.startsWith("http") ? profile.website : null;
 
@@ -89,6 +92,11 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
       </div>
 
       <div className={styles.container}>
+        {profile?.city && (
+          <p>
+            <LocationOnOutlinedIcon fontSize="small" aria-hidden="true" /> Город: {profile.city}
+          </p>
+        )}
         {profile?.birthDate && (
           <p>
             Возраст: {getAge(profile.birthDate)}{" "}

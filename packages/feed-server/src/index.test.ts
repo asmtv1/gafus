@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+// The HTTP dispatcher tests do not exercise Redis; do not open a real socket.
+vi.mock("@gafus/queues", () => ({ connection: { status: "end" } }));
+afterEach(() => vi.unstubAllEnvs());
 import { dispatchFeedRequest, feedHttpError } from "./index.js";
 import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
 const actor = "user_123";
@@ -19,10 +22,31 @@ function invoke(
   );
 }
 describe("feed shared HTTP dispatcher", () => {
+  it("protects personalization routes behind the migration rollout flag", async () => {
+    vi.stubEnv("FEED_SMART_ENABLED", "false");
+    await expect(invoke("personalization", "GET")).rejects.toMatchObject({
+      code: "FEED_DISABLED", status: 503,
+    });
+    await expect(invoke("personalization", "PATCH", JSON.stringify({ useCity: true })))
+      .rejects.toMatchObject({ code: "FEED_DISABLED", status: 503 });
+    await expect(invoke("personalization/reset", "POST", "{}"))
+      .rejects.toMatchObject({ code: "FEED_DISABLED", status: 503 });
+  });
   it("routes cursor query through the validated shared handler", async () => {
     const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
     await invoke("posts?pageSize=20&cursor=abc", "GET", undefined, { list });
-    expect(list).toHaveBeenCalledWith(actor, { pageSize: 20, cursor: "abc" });
+    expect(list).toHaveBeenCalledWith(actor, { pageSize: 20, cursor: "abc", sort: "new" });
+  });
+  it("accepts main feed sorts but rejects them on unrelated endpoints", async () => {
+    const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+    await invoke("posts?sort=popular", "GET", undefined, { list });
+    expect(list).toHaveBeenCalledWith(actor, { pageSize: 20, sort: "popular" });
+    await invoke("posts?sort=discussed", "GET", undefined, { list });
+    expect(list).toHaveBeenCalledWith(actor, { pageSize: 20, sort: "discussed" });
+    await invoke("posts?sort=smart", "GET", undefined, { list });
+    expect(list).toHaveBeenCalledWith(actor, { pageSize: 20, sort: "smart" });
+    await expect(invoke("posts?sort=broken")).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(invoke("me/bookmarks?sort=popular")).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
   });
   it("rejects unknown query keys, duplicate keys and oversized pages", async () => {
     for (const url of ["posts?admin=true", "posts?pageSize=20&pageSize=21", "posts?pageSize=51"]) {

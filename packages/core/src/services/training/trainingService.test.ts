@@ -27,6 +27,7 @@ const mockTransaction = vi.fn();
 const mockIsPrismaUniqueConstraintError = vi.fn();
 const mockGetPremiumOrRewardedAccess = vi.fn();
 const mockRequirePremiumOrRewardedUnlock = vi.fn();
+const mockHasActiveGafusAccess = vi.fn().mockResolvedValue(false);
 
 const txForMissingSteps = {
   userStep: {
@@ -65,6 +66,10 @@ vi.mock("@gafus/prisma", () => ({
 vi.mock("../course", () => ({
   checkCourseAccess: vi.fn().mockResolvedValue({ hasAccess: true }),
   checkCourseAccessById: (...args: unknown[]) => mockCheckCourseAccessById(...args),
+}));
+
+vi.mock("../contentAccess", () => ({
+  hasActiveGafusCourseStepAccess: (...args: unknown[]) => mockHasActiveGafusAccess(...args),
 }));
 
 vi.mock("../rewardedCredits", () => ({

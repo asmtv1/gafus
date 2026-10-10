@@ -9,7 +9,7 @@ import { galleryApi } from "./api";
 import { galleryMessage, useGalleryAlbums } from "./hooks";
 import { AlbumForm } from "./AlbumForm";
 import { UploadQueue } from "./UploadQueue";
-import { LoadingState } from "@/shared/components/ui";
+import { AppBackButtonLink, LoadingState } from "@/shared/components/ui";
 import styles from "./Gallery.module.css";
 function AlbumsContent({ username, preview = false }: { username: string; preview?: boolean }) {
   const { query, albums, info, authenticated, viewerId } = useGalleryAlbums(username, preview);
@@ -25,7 +25,7 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
       <main className={styles.surface}>
         <h1>Фотоальбомы</h1>
         <p>Галерея пока недоступна.</p>
-        <Link href="/profile">Вернуться в профиль</Link>
+        <AppBackButtonLink href="/profile">В профиль</AppBackButtonLink>
       </main>
     );
   return (
@@ -34,7 +34,7 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
       aria-label="Фотоальбомы"
     >
       {!preview && (
-        <Link href={`/profile?username=${encodeURIComponent(username)}`}>Вернуться в профиль</Link>
+        <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>В профиль</AppBackButtonLink>
       )}
       <div className={styles.header}>
         {preview ? <h2>Фотоальбомы</h2> : <h1>Фотоальбомы</h1>}
@@ -42,7 +42,7 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
           <Link href={`/profile/albums?username=${encodeURIComponent(username)}`}>Все альбомы</Link>
         )}
       </div>
-      {query.isPending && <LoadingState variant="inline" size={preview ? "small" : "large"} message="Загрузка альбомов…" />}
+      {query.isPending && <LoadingState variant="inline" message="Загрузка альбомов…" />}
       {(query.error || error) && (
         <p role="alert" className={styles.error}>
           {error || galleryMessage(query.error)}{" "}

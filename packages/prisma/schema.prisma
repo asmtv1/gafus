@@ -8,6 +8,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// No relation to User: durable cleanup outlives all cascaded records.
+model AccountStorageCleanup {
+  id              String @id
+  ownerId         String
+  scope           String
+  keys            String[] @default([])
+  prefixes        String[] @default([])
+  keyCursor       Int @default(0)
+  status          String @default("pending")
+  purgeOperations String[] @default([])
+  purgeAfter      DateTime?
+  attempts        Int @default(0)
+  errorCode       String?
+  attemptToken    String?
+  leaseUntil      DateTime?
+  availableAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@unique([ownerId, scope])
+  @@index([status, availableAt])
+}
+
 model Course {
   id                String             @id @default(cuid())
   name              String
@@ -287,6 +310,12 @@ model DailyCourseUserStep {
 
 model User {
   feedBookmarks FeedBookmark[]
+  feedPostFeedback FeedUserPostFeedback[]
+  feedPersonalization FeedPersonalizationPreference?
+  feedImpressions FeedImpression[]
+  feedRankingEvents FeedRankingEvent[]
+  feedAffinitiesAsViewer FeedUserAuthorAffinity[] @relation("FeedAffinityViewer")
+  feedAffinitiesAsAuthor FeedUserAuthorAffinity[] @relation("FeedAffinityAuthor")
   feedPreferences FeedAuthorPreference[] @relation("FeedPreferenceReader")
   feedSubscribers FeedAuthorPreference[] @relation("FeedPreferenceAuthor")
   feedPublishingBlocked Boolean @default(false)
@@ -403,6 +432,14 @@ model User {
   vkRegistrationResults            VkRegistrationContext[]          @relation("VkRegistrationContextResultUser")
   vkLoginGrants                    VkLoginGrant[]
   rewardedCreditWallet             RewardedCreditWallet?
+  gafusWallet                      GafusWallet?
+  gafusTransactions                GafusTransaction[]
+  gafusTransactionsAsAdmin         GafusTransaction[]             @relation("GafusTransactionAdminActor")
+  gafusRewardEvents                GafusRewardEvent[]
+  gafusTargetAccesses              GafusTargetAccess[]
+  gafusSettingsUpdated             GafusSettings[]                @relation("GafusSettingsUpdatedBy")
+  gafusSettingsRevisions            GafusSettingsRevision[]        @relation("GafusSettingsRevisionActor")
+  gafusAdminAudits                  GafusAdminAudit[]              @relation("GafusAdminAuditActor")
   rewardedAdSessions               RewardedAdSession[]
   rewardedTargetAccesses           RewardedTargetAccess[]
   vkIdOneTimeLogins                VkIdOneTimeLogin[]
@@ -531,6 +568,8 @@ model UserProfile {
   id        String    @id @default(cuid())
   userId    String    @unique
   fullName  String?
+  city      String?
+  cityKey   String?   @db.VarChar(160)
   birthDate DateTime?
   about     String?
   telegram  String?
@@ -540,6 +579,7 @@ model UserProfile {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([cityKey])
 }
 
 model Diploma {
@@ -596,6 +636,7 @@ model Pet {
   name              String
   type              PetType
   breed             String
+  breedKey          String?              @db.VarChar(160)
   birthDate         DateTime
   heightCm          Float?
   weightKg          Float?
@@ -604,6 +645,7 @@ model Pet {
   muzzleGirthCm     Float?
   bellyGirthCm      Float?
   photoUrl          String?
+  showInProfile     Boolean              @default(true)
   notes             String?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @default(now())
@@ -612,9 +654,45 @@ model Pet {
   owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   preventionEntries PetPreventionEntry[]
   weightEntries     PetWeightEntry[]
+  vetVisits         PetVetVisit[]
   surveyResponses   SurveyResponse[]
 
   @@unique([id, ownerId])
+  @@index([breedKey])
+}
+
+model PetVetVisit {
+  id          String @id @default(cuid())
+  petId       String
+  ownerId     String
+  visitedOn   DateTime @db.Date
+  specialty   String @db.VarChar(200)
+  doctorName  String @default("") @db.VarChar(200)
+  clinic      String @default("") @db.VarChar(300)
+  diagnosis   String @default("")
+  conclusion  String @default("")
+  notes       String @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pet         Pet @relation(fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+  attachments PetVetAttachment[]
+
+  @@index([petId, visitedOn, createdAt])
+  @@index([ownerId])
+}
+
+model PetVetAttachment {
+  id          String @id @default(cuid())
+  visitId     String
+  name        String @db.VarChar(200)
+  mimeType    String
+  sizeBytes   Int
+  originalKey String @unique
+  previewKey  String? @unique
+  createdAt   DateTime @default(now())
+  visit       PetVetVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId, createdAt])
 }
 
 model PetWeightEntry {
@@ -771,6 +849,241 @@ model AppSubscriptionSettings {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Additive Gafus economy. Do not remove the legacy rewarded-ad models during rollout.
+enum GafusTransactionKind {
+  EARN
+  SPEND
+  ADMIN_CREDIT
+  ADMIN_DEBIT
+  LEGACY_IMPORT
+}
+enum GafusRewardClass {
+  ACTIVITY
+  BONUS
+}
+enum GafusRewardKind {
+  POST_PUBLISHED
+  QUESTION_CREATED
+  ANSWER_CREATED
+  POST_REACTION_MILESTONE
+  BEST_ANSWER
+}
+enum GafusRewardDecision {
+  GRANTED
+  DENIED_ACTIVITY_LIMIT
+  DENIED_ANTI_ABUSE
+  DENIED_POLICY
+  DISABLED
+}
+enum GafusAccessTargetType {
+  COURSE_STEP
+  MINI_GUIDE
+}
+enum GafusNotificationKind {
+  REACTION_MILESTONE
+  BEST_ANSWER
+}
+enum GafusOutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+enum GafusFraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+enum GafusFraudStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model GafusWallet {
+  userId String @id
+  balance Int @default(0)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([updatedAt])
+}
+
+model GafusTransaction {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind GafusTransactionKind
+  delta Int
+  balanceBefore Int
+  balanceAfter Int
+  rewardKind GafusRewardKind?
+  sourceEntityType String? @db.VarChar(32)
+  sourceEntityId String?
+  targetType GafusAccessTargetType?
+  targetKey String?
+  idempotencyKey String @unique
+  settingsRevision Int?
+  adminActorId String?
+  adminActor User? @relation("GafusTransactionAdminActor", fields: [adminActorId], references: [id], onDelete: SetNull)
+  reason String? @db.VarChar(1000)
+  metadata Json?
+  createdAt DateTime @default(now())
+  rewardEvent GafusRewardEvent?
+  targetAccess GafusTargetAccess?
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, kind, createdAt(sort: Desc)])
+  @@index([sourceEntityType, sourceEntityId])
+  @@index([targetType, targetKey])
+}
+
+model GafusRewardEvent {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardClass GafusRewardClass
+  rewardKind GafusRewardKind
+  eventKey String @unique
+  sourceEntityId String?
+  decision GafusRewardDecision
+  amount Int
+  occurredAt DateTime
+  processedAt DateTime @default(now())
+  denialCode String? @db.VarChar(64)
+  settingsRevision Int
+  contentFingerprint String? @db.VarChar(64)
+  transactionId String? @unique
+  transaction GafusTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  metadata Json?
+  @@index([userId, rewardClass, decision, occurredAt])
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([rewardKind, occurredAt])
+}
+
+model GafusPostReactionProgram {
+  postId String @id
+  thresholdStep Int
+  highWaterReactionCount Int @default(0)
+  settingsRevision Int
+  enabledAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  milestones GafusPostReactionMilestone[]
+  @@index([enabledAt])
+}
+model GafusPostReactionMilestone {
+  id String @id @default(cuid())
+  postId String
+  program GafusPostReactionProgram @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  threshold Int
+  eligibleReactionCount Int
+  rewardEventId String @unique
+  settingsRevision Int
+  createdAt DateTime @default(now())
+  @@unique([postId, threshold])
+  @@index([postId, createdAt])
+}
+
+model GafusTargetAccess {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType GafusAccessTargetType
+  targetKey String
+  courseId String?
+  dayOnCourseId String?
+  stepOnDayId String?
+  transactionId String @unique
+  transaction GafusTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  settingsRevision Int
+  grantedAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId, targetType, targetKey, expiresAt])
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model GafusSettings {
+  key String @id @default("default") @db.VarChar(32)
+  revision Int @default(1)
+  economyEnabled Boolean @default(true)
+  earningEnabled Boolean @default(true)
+  spendingEnabled Boolean @default(true)
+  postReward Int @default(1)
+  questionReward Int @default(1)
+  answerReward Int @default(1)
+  activityLimit Int @default(3)
+  activityWindowSeconds Int @default(86400)
+  reactionThreshold Int @default(10)
+  reactionReward Int @default(1)
+  bestAnswerReward Int @default(1)
+  courseStepCost Int @default(1)
+  miniGuideCost Int @default(1)
+  accessDurationSeconds Int @default(604800)
+  updatedById String?
+  updatedBy User? @relation("GafusSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model GafusSettingsRevision {
+  revision Int @id
+  snapshot Json
+  actorId String?
+  actor User? @relation("GafusSettingsRevisionActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+model GafusAdminAudit {
+  id String @id @default(cuid())
+  actorId String
+  actor User @relation("GafusAdminAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(64)
+  targetUserId String?
+  transactionId String?
+  reason String @db.VarChar(1000)
+  before Json?
+  after Json?
+  metadata Json?
+  createdAt DateTime @default(now())
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
+}
+model GafusNotificationOutbox {
+  id String @id @default(cuid())
+  rewardEventId String @unique
+  userId String
+  kind GafusNotificationKind
+  title String @db.VarChar(200)
+  body String @db.VarChar(500)
+  url String?
+  status GafusOutboxStatus @default(PENDING)
+  availableAt DateTime @default(now())
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt, leaseUntil])
+  @@index([userId, createdAt])
+}
+model GafusFraudSignal {
+  id String @id @default(cuid())
+  userId String
+  severity GafusFraudSeverity
+  status GafusFraudStatus @default(OPEN)
+  kind String @db.VarChar(64)
+  entityType String? @db.VarChar(32)
+  entityId String?
+  metadata Json?
+  resolvedAt DateTime?
+  resolvedById String?
+  createdAt DateTime @default(now())
+  @@index([status, severity, createdAt])
+  @@index([userId, createdAt])
+  @@index([kind, createdAt])
 }
 
 model RewardedAdSettings {
@@ -2952,6 +3265,10 @@ model FeedPost {
   moderationReason String? @db.VarChar(1000)
   moderatedAt DateTime?
   bookmarks FeedBookmark[]
+  feedback FeedUserPostFeedback[]
+  impressions FeedImpression[]
+  rankingEvents FeedRankingEvent[]
+  rankingStats FeedPostStats?
   id String @id @default(cuid())
   authorId String
   status FeedPostStatus @default(draft)
@@ -3101,9 +3418,9 @@ model FeedComment {
   updatedAt DateTime @updatedAt
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  root FeedComment? @relation("FeedCommentRoot", fields: [rootId], references: [id], onDelete: NoAction)
+  root FeedComment? @relation("FeedCommentRoot", fields: [rootId], references: [id], onDelete: SetNull)
   rootedReplies FeedComment[] @relation("FeedCommentRoot")
-  replyTo FeedComment? @relation("FeedCommentReplyTo", fields: [replyToId], references: [id], onDelete: NoAction)
+  replyTo FeedComment? @relation("FeedCommentReplyTo", fields: [replyToId], references: [id], onDelete: SetNull)
   addressedReplies FeedComment[] @relation("FeedCommentReplyTo")
   reactions FeedCommentReaction[]
   notifications FeedNotification[]
@@ -3146,6 +3463,110 @@ model FeedPostView {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([postId, userId])
   @@index([postId])
+}
+
+/// Opt-in signals are controlled by the viewer, not by the content author.
+model FeedPersonalizationPreference {
+  userId String @id
+  enabled Boolean @default(true)
+  useCity Boolean @default(true)
+  usePets Boolean @default(true)
+  useBehavior Boolean @default(true)
+  exploration Boolean @default(true)
+  historyResetAt DateTime?
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Qualified exposures are separate from the lifetime FeedPostView counter.
+model FeedImpression {
+  id String @id @default(cuid())
+  eventId String @unique @db.VarChar(64)
+  userId String
+  postId String
+  rankingSessionId String @db.VarChar(64)
+  algorithmVersion String @db.VarChar(64)
+  rank Int
+  visibleMs Int @default(0)
+  features Json?
+  candidateSources String[] @default([])
+  modelVersion String? @db.VarChar(64)
+  experimentVariant String? @db.VarChar(16)
+  occurredAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@unique([userId, postId, rankingSessionId])
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([postId, occurredAt(sort: Desc)])
+  @@index([rankingSessionId])
+}
+
+/// Validated event tied to an immutable server-issued feed exposure.
+model FeedRankingEvent {
+  eventId String @id @db.VarChar(64)
+  userId String
+  postId String
+  rankingSessionId String @db.VarChar(64)
+  kind String @db.VarChar(32)
+  durationMs Int @default(0)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([rankingSessionId])
+}
+
+model FeedPostStats {
+  postId String @id
+  reactionCount Int @default(0)
+  uniqueCommenterCount Int @default(0)
+  bookmarkCount Int @default(0)
+  uniqueViewCount Int @default(0)
+  qualifiedImpressionCount Int @default(0)
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model FeedUserAuthorAffinity {
+  userId String
+  authorId String
+  score Float @default(0)
+  reactionCount Int @default(0)
+  commentCount Int @default(0)
+  bookmarkCount Int @default(0)
+  qualifiedViewCount Int @default(0)
+  lastInteractionAt DateTime?
+  updatedAt DateTime @updatedAt
+  viewer User @relation("FeedAffinityViewer", fields: [userId], references: [id], onDelete: Cascade)
+  author User @relation("FeedAffinityAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  @@id([userId, authorId])
+  @@index([userId, score(sort: Desc)])
+}
+
+model FeedUserPostFeedback {
+  userId String
+  postId String
+  kind String @db.VarChar(32)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@id([userId, postId, kind])
+  @@index([postId])
+}
+
+/// Offline-trained artifact; deployment requires manual promotion.
+model FeedSmartRankerModel {
+  id String @id @default(cuid())
+  version String @unique @db.VarChar(64)
+  artifact Json
+  active Boolean @default(false)
+  trainedAt DateTime
+  trainRows Int
+  validationRows Int
+  createdAt DateTime @default(now())
+  @@index([active, trainedAt(sort: Desc)])
 }
 
 model FeedNotification {

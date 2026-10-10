@@ -1,6 +1,5 @@
 "use client";
 
-import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
 
 import { useState, useEffect } from "react";
@@ -185,12 +184,7 @@ export function WrittenFeedback({ userStepId, stepId, onComplete, onReset }: Wri
             disabled={feedback.trim().length < 10 || isSubmitting}
           >
             {isSubmitting ? (
-              <>
-                <span style={{ display: "inline-flex", marginRight: 8 }}>
-                  <LoadingMascot pixelSize={20} />
-                </span>
-                Сохранение...
-              </>
+              "Сохранение..."
             ) : (
               "Отправить обратную связь"
             )}

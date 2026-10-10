@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { ChatOverlayRoot } from "@/features/cynologist-chat/ChatOverlayRoot";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Stack, useRouter } from "expo-router";
 
 import { COLORS } from "@/shared/config";
-import { PaperTextureBackground } from "@/shared/components";
+import { AppBackButton, PaperTextureBackground } from "@/shared/components";
 import { useAuthStore } from "@/shared/stores";
 import { MobileOnboardingTourProvider } from "@/features/onboarding-tour";
 import {
@@ -53,6 +53,7 @@ function AppSubscriptionOnboardingCoordinator() {
  */
 export default function MainLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const router = useRouter();
 
   if (!isAuthenticated) return <Redirect href="/welcome" />;
 
@@ -71,10 +72,15 @@ export default function MainLayout() {
               headerBackground: () => <PaperTextureBackground />,
               headerTintColor: COLORS.text,
               headerShadowVisible: false,
-              headerBackTitle: "Назад",
+              headerBackVisible: false,
+              headerLeft: ({ canGoBack }) => canGoBack
+                ? <AppBackButton onPress={() => router.back()} />
+                : null,
             }}
           >
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="gafus" options={{ headerShown: true, title: "Мои Гафусы" }} />
+            <Stack.Screen name="gafus-guides" options={{ headerShown: true, title: "Мини-гайды" }} />
             <Stack.Screen
               name="partner"
               options={{ headerShown: true, title: "Партнёрская программа" }}
@@ -88,21 +94,21 @@ export default function MainLayout() {
             <Stack.Screen
               name="pets/add"
               options={{
-                headerShown: true,
+                headerShown: false,
                 title: "Добавить питомца",
               }}
             />
             <Stack.Screen
               name="pets/edit/[id]"
               options={{
-                headerShown: true,
+                headerShown: false,
                 title: "Редактировать питомца",
               }}
             />
             <Stack.Screen
               name="profile/edit"
               options={{
-                headerShown: true,
+                headerShown: false,
                 title: "Редактировать профиль",
               }}
             />

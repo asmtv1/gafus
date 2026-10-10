@@ -1,4 +1,4 @@
-import { enqueueFeedAuthorPush } from "./preferences";
+import { activateFeedPostRevisionTx } from "./publish";
 import { randomUUID } from "node:crypto";
 import type { FeedDb } from "./ports";
 import { FeedError } from "./errors";
@@ -226,14 +226,13 @@ export function createFeedStorageJobs({ db, now = () => new Date() }: {
             att.media.status === "ready");
           if (ready) {
             const at = now();
-            await tx.feedPostRevision.update({ where: { id: pending.id }, data: { status: "ready" } });
-            await tx.feedPost.update({
-              where: { id: post.id }, data: {
-                activeRevisionId: pending.id, status: "published",
-                publishedAt: post.publishedAt ?? at, editedAt: post.publishedAt ? at : null,
-              },
+            await activateFeedPostRevisionTx(tx, {
+              post,
+              revisionId: pending.id,
+              text: pending.text,
+              publishedMediaCount: pending.attachments.length,
+              at,
             });
-            await enqueueFeedAuthorPush(tx, post, at);
           }
         }
       }

@@ -68,7 +68,7 @@ export default function ResetPasswordPage({
       <p className={styles.subtitle}>
         Откройте последнее письмо со ссылкой или вставьте токен из него и задайте новый пароль.
       </p>
-      <Suspense fallback={<LoadingState variant="inline" size="small" message="Загрузка формы…" />}>
+      <Suspense fallback={<LoadingState variant="inline" message="Загрузка формы…" />}>
         <ResetPasswordWithToken searchParams={searchParams} />
       </Suspense>
       <Image

@@ -100,13 +100,6 @@ export function PetWeightSection({ petId }: { petId: string }) {
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
   } as const;
-  const actionStyle = {
-    backgroundColor: "#ece5d2",
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: "center" as const,
-  };
   return (
     <View
       style={{ backgroundColor: "#FFFDF8", borderRadius: 15, padding: 12, gap: 12, shadowColor: "#433317", shadowOpacity: 0.07, shadowRadius: 13, elevation: 2 }}
@@ -247,16 +240,18 @@ export function PetWeightSection({ petId }: { petId: string }) {
             setMessage("");
           }}
         />
-        <Pressable
+        <Button
+          label="Цель"
+          variant="caramel"
+          fullWidth={false}
+          width={108}
+          animatedPress
           onPress={() => {
             setGoal(data?.targetWeightKg == null ? "" : String(data.targetWeightKg));
             setMode(mode === "goal" ? null : "goal");
             setMessage("");
           }}
-          style={actionStyle}
-        >
-          <Text style={{ color: COLORS.primaryDark, fontFamily: FONTS.montserratBold }}>Цель</Text>
-        </Pressable>
+        />
       </View>
       {mode === "weight" && (
         <View style={{ gap: 9 }}>

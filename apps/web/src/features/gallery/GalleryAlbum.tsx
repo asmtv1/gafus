@@ -1,7 +1,6 @@
 "use client";
 import { reportClientError } from "@gafus/error-handling";
 import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -14,7 +13,7 @@ import {
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { GalleryPhotoDto } from "@gafus/types";
 import { GalleryScope } from "./GalleryScope";
-import { LoadingState } from "@/shared/components/ui";
+import { AppBackButtonLink, LoadingState } from "@/shared/components/ui";
 import { galleryApi } from "./api";
 import { galleryMessage, refreshDelay, useGalleryAlbums, useGalleryIdentity } from "./hooks";
 import { AlbumForm } from "./AlbumForm";
@@ -91,7 +90,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
   if (albumQuery.isPending)
     return (
       <main className={styles.surface}>
-        <LoadingState variant="inline" size="large" message="Загрузка альбома…" />
+        <LoadingState variant="inline" message="Загрузка альбома…" />
       </main>
     );
   if (!album)
@@ -106,14 +105,14 @@ function AlbumContent({ albumId }: { albumId: string }) {
         >
           Повторить
         </Button>
-        <Link href="/profile">Вернуться в профиль</Link>
+        <AppBackButtonLink href="/profile">В профиль</AppBackButtonLink>
       </main>
     );
   return (
     <main className={styles.surface}>
-      <Link href={`/profile/albums?username=${encodeURIComponent(album.ownerUsername)}`}>
+      <AppBackButtonLink href={`/profile/albums?username=${encodeURIComponent(album.ownerUsername)}`}>
         Все альбомы
-      </Link>
+      </AppBackButtonLink>
       <div className={styles.header}>
         <h1>{album.name}</h1>
         {album.canEdit && (
@@ -170,7 +169,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
           failedPhotos={photos.filter((photo) => photo.status === "failed")}
         />
       )}
-      {photosQuery.isPending && <LoadingState variant="inline" size="large" message="Загрузка фотографий…" />}
+      {photosQuery.isPending && <LoadingState variant="inline" message="Загрузка фотографий…" />}
       {photosQuery.error && (
         <p role="alert" className={styles.error}>
           {galleryMessage(photosQuery.error)}
@@ -268,7 +267,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
           </Button>
         </div>
       )}
-      {photosQuery.isFetchingNextPage && <LoadingState variant="inline" size="small" message="Загружаем фотографии…" />}
+      {photosQuery.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем фотографии…" />}
       <PhotoViewer
         photos={photos.filter((photo) => photo.status === "ready")}
         selected={selected}

@@ -116,7 +116,7 @@ export type RewardedAdLifecycleEvent =
 
 export interface PremiumOrRewardedAccessDto {
   allowed: boolean;
-  source: "GATING_DISABLED" | "PREMIUM" | "REWARDED";
+  source: "GATING_DISABLED" | "PREMIUM" | "REWARDED" | "GAFUS";
   skippedDueToPremium: boolean;
   target: RewardedTargetInput;
 }

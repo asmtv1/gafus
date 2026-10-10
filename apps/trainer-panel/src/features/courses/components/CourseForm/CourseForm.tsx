@@ -74,6 +74,7 @@ export default function CourseForm({
     defaultValues: {
       name: "",
       shortDesc: "",
+      guideContent: "",
       description: "",
       duration: "",
       videoUrl: "",
@@ -99,6 +100,7 @@ export default function CourseForm({
       form.reset({
         name: initialValues.name ?? "",
         shortDesc: initialValues.shortDesc ?? "",
+        guideContent: initialValues.guideContent ?? "",
         description: initialValues.description ?? "",
         duration: initialValues.duration ?? "",
         videoUrl: initialValues.videoUrl ?? "",
@@ -136,6 +138,7 @@ export default function CourseForm({
           id: courseId,
           name: data.name,
           shortDesc: data.shortDesc,
+          guideContent: data.guideContent ?? "",
           description: data.description,
           duration: data.duration,
           videoUrl: data.videoUrl,
@@ -158,6 +161,7 @@ export default function CourseForm({
         const formData = new FormData();
         formData.append("name", data.name);
         formData.append("shortDesc", data.shortDesc);
+        formData.append("guideContent", data.guideContent ?? "");
         formData.append("description", data.description);
         formData.append("duration", data.duration);
         if (data.videoUrl) {
@@ -255,6 +259,13 @@ export default function CourseForm({
               </Alert>
             )}
           </Box>
+          <TextAreaField
+            id="guideContent"
+            label="HTML мини-гайда (необязательно)"
+            name="guideContent"
+            placeholder="HTML-контент мини-гайда, доступного за Гафусы"
+            form={form}
+          />
           <FormField
             id="duration"
             label="Продолжительность курса *"

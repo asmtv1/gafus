@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { getConsultationBookingEligibility, listListedCynologists } from "@gafus/core";
 import { Alert, Box, Typography } from "@mui/material";
-import Link from "next/link";
+import { AppBackButtonLink } from "@/shared/components/ui";
 import { notFound, redirect } from "next/navigation";
 
 import { ConsultationsSubNav } from "@/features/consultations";
@@ -44,9 +44,9 @@ export default async function ConsultationConfirmPage({ params, searchParams }: 
       <div className={styles.content}>
         <Box sx={{ maxWidth: 720, mx: "auto" }}>
           <ConsultationsSubNav active="none" />
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            <Link href={`/consultations/${encodeURIComponent(cynologistUserId)}`}>← Назад к слотам</Link>
-          </Typography>
+          <Box sx={{ mb: 2 }}>
+            <AppBackButtonLink href={`/consultations/${encodeURIComponent(cynologistUserId)}`}>Назад к слотам</AppBackButtonLink>
+          </Box>
           <Typography component="h1" className={styles.sectionHeading} sx={{ mb: 2 }}>
             Подтверждение консультации
           </Typography>

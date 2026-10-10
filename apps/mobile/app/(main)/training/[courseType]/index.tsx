@@ -22,8 +22,8 @@ import { WebView } from "react-native-webview";
 import { fetchProducts, initConnection } from "expo-iap";
 import type { Product } from "expo-iap";
 
-import { Button, Input, Loading, MascotSpinner } from "@/shared/components/ui";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { Button, Input, Loading } from "@/shared/components/ui";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
 import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
@@ -525,17 +525,7 @@ export default function TrainingDaysScreen() {
   if (isAccessDenied) {
     return (
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable
-          style={styles.backRow}
-          onPress={() => {
-            void hapticFeedback.light();
-            router.back();
-          }}
-          hitSlop={12}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => { void hapticFeedback.light(); router.back(); }} />
 
         <ScrollView contentContainerStyle={styles.paywallScrollContent}>
           {/* Заголовок «Содержание» как на web */}
@@ -632,15 +622,10 @@ export default function TrainingDaysScreen() {
                   <Text style={styles.ofertaHintLink}>Офертой</Text>
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.light();
-                  router.replace("/(main)/(tabs)/courses" as const);
-                }}
-                style={styles.paywallSecondaryButton}
-              >
-                <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
-              </Pressable>
+              <AppBackButton label="Назад к курсам" onPress={() => {
+                void hapticFeedback.light();
+                router.replace("/(main)/(tabs)/courses" as const);
+              }} />
               {Platform.OS !== "ios" ? (
                 <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
                   <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
@@ -669,7 +654,7 @@ export default function TrainingDaysScreen() {
               >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
-              {isPaymentChecking && <MascotSpinner size="small" />}
+              {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
             </View>
             <WebView
               source={{ uri: paymentUrl }}
@@ -696,17 +681,7 @@ export default function TrainingDaysScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 12 : 0}
         >
-          <Pressable
-            style={styles.backRow}
-            onPress={() => {
-              void hapticFeedback.light();
-              router.back();
-            }}
-            hitSlop={12}
-          >
-            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-            <Text style={styles.backText}>Назад</Text>
-          </Pressable>
+          <AppBackButton style={styles.backRow} onPress={() => { void hapticFeedback.light(); router.back(); }} />
           <ScrollView
             contentContainerStyle={styles.personalizationScrollContent}
             keyboardShouldPersistTaps="handled"
@@ -911,15 +886,10 @@ export default function TrainingDaysScreen() {
                   }}
                   disabled={isSavingPersonalization}
                 />
-                <Pressable
-                  onPress={() => {
-                    void hapticFeedback.light();
-                    router.replace("/(main)/(tabs)/courses" as const);
-                  }}
-                  style={styles.paywallSecondaryButton}
-                >
-                  <Text style={styles.paywallSecondaryButtonText}>Назад к курсам</Text>
-                </Pressable>
+                <AppBackButton label="Назад к курсам" onPress={() => {
+                  void hapticFeedback.light();
+                  router.replace("/(main)/(tabs)/courses" as const);
+                }} />
               </View>
             </View>
           </ScrollView>
@@ -958,17 +928,7 @@ export default function TrainingDaysScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable
-          style={styles.backRow}
-          onPress={() => {
-            void hapticFeedback.light();
-            router.back();
-          }}
-          hitSlop={12}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => { void hapticFeedback.light(); router.back(); }} />
         {courseData?.courseIsPersonalized && courseData?.userCoursePersonalization && (
           <Pressable
             style={styles.changePersonalizationRow}
@@ -1116,7 +1076,7 @@ export default function TrainingDaysScreen() {
               >
                 <Text style={styles.webViewCloseText}>Закрыть</Text>
               </Pressable>
-              {isPaymentChecking && <MascotSpinner size="small" />}
+              {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
             </View>
             <WebView
               source={{ uri: paymentUrl }}

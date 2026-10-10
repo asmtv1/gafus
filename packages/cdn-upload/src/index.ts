@@ -1,4 +1,7 @@
 export type { StreamFileFromCDNResult } from "./uploadToCDN";
+export { accountPublicKey, accountStorageTargets, createAccountStorageCleaner, startAccountCdnPurge, accountCdnPurgeDone } from "./accountStorageCleanup";
+export type { AccountStorageScope } from "./accountStorageCleanup";
+export { vetVisitFileKeys, uploadVetVisitFile, vetVisitMediaUrl } from "./vetVisitStorage";
 export {
   copyObjectInCDN,
   deleteFileFromCDN,

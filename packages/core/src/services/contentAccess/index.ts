@@ -1,0 +1,154 @@
+import { prisma } from "@gafus/prisma";
+import type { GafusTx } from "../gafus/types";
+import { getAppFeatureFlagEnabled, APP_FEATURE_APP_SUBSCRIPTION_GATING } from "../appFeatureFlags";
+
+const MONETIZED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "EXAMINATION", "SURVEY"]);
+
+export type CourseStepTarget = {
+  type: "COURSE_STEP";
+  targetKey: string;
+  courseId: string;
+  dayOnCourseId: string;
+  stepOnDayId: string;
+  paidOrPrivate: boolean;
+  isDailyStep: boolean;
+  monetized: boolean;
+};
+export type MiniGuideTarget = {
+  type: "MINI_GUIDE";
+  targetKey: string;
+  courseId: string;
+  paidOrPrivate: boolean;
+};
+export type ContentEntitlementSource =
+  | "GATING_DISABLED" | "DAILY_FREE" | "COURSE_ACCESS" | "PREMIUM"
+  | "GAFUS" | "DENIED";
+export type ContentEntitlement = {
+  allowed: boolean;
+  source: ContentEntitlementSource;
+  expiresAt: Date | null;
+  eligibleForGafus: boolean;
+};
+
+export async function resolveCourseStepTargetTx(
+  tx: GafusTx, dayOnCourseId: string, stepOnDayId: string,
+): Promise<CourseStepTarget | null> {
+  const [day, step] = await Promise.all([
+    tx.dayOnCourse.findUnique({
+      where: { id: dayOnCourseId },
+      select: {
+        courseId: true, dayId: true,
+        course: { select: { isPaid: true, isPrivate: true } },
+      },
+    }),
+    tx.stepOnDay.findUnique({
+      where: { id: stepOnDayId },
+      select: { dayId: true, step: { select: { type: true, isDailyCourse: true } } },
+    }),
+  ]);
+  if (!day || !step || day.dayId !== step.dayId) return null;
+  return {
+    type: "COURSE_STEP", dayOnCourseId, stepOnDayId,
+    courseId: day.courseId,
+    targetKey: `course-step:${dayOnCourseId}:${stepOnDayId}`,
+    paidOrPrivate: day.course.isPaid || day.course.isPrivate,
+    monetized: MONETIZED_STEP_TYPES.has(step.step.type),
+    isDailyStep: step.step.isDailyCourse,
+  };
+}
+
+export async function resolveMiniGuideTargetTx(
+  tx: GafusTx, courseId: string,
+): Promise<MiniGuideTarget | null> {
+  const course = await tx.course.findFirst({
+    where: { id: courseId, guideContent: { not: "" } },
+    select: { isPaid: true, isPrivate: true, id: true },
+  });
+  if (!course) return null;
+  return {
+    type: "MINI_GUIDE", targetKey: `mini-guide:${courseId}`, courseId,
+    paidOrPrivate: course.isPaid || course.isPrivate,
+  };
+}
+
+async function hasPremiumTx(tx: GafusTx, userId: string, now: Date): Promise<boolean> {
+  const user = await tx.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (user?.role === "PARTNER") return true;
+  const subscription = await tx.appSubscription.findFirst({
+    where: {
+      userId, status: "ACTIVE",
+      OR: [{ isLifetime: true }, { currentPeriodEnd: { gt: now } }],
+    },
+    select: { id: true },
+  });
+  return !!subscription;
+}
+
+async function resolveEntitlementTx(
+  tx: GafusTx,
+  userId: string,
+  target: CourseStepTarget | MiniGuideTarget,
+  now: Date,
+): Promise<ContentEntitlement> {
+  const explicit = await tx.courseAccess.findFirst({
+    where: { courseId: target.courseId, userId }, select: { courseId: true },
+  });
+  if (explicit) return { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false };
+
+  // A Gafus never purchases access to a private or paid course.
+  if (target.paidOrPrivate) {
+    return { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
+  }
+  if (target.type === "COURSE_STEP" && (!target.monetized || target.isDailyStep)) {
+    return { allowed: true, source: "DAILY_FREE", expiresAt: null, eligibleForGafus: false };
+  }
+  if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true)) {
+    return { allowed: true, source: "GATING_DISABLED", expiresAt: null, eligibleForGafus: false };
+  }
+  if (await hasPremiumTx(tx, userId, now)) {
+    return { allowed: true, source: "PREMIUM", expiresAt: null, eligibleForGafus: false };
+  }
+  const access = await tx.gafusTargetAccess.findFirst({
+    where: { userId, targetType: target.type, targetKey: target.targetKey, expiresAt: { gt: now } },
+    select: { expiresAt: true },
+    orderBy: { expiresAt: "desc" },
+  });
+  if (access) return {
+    allowed: true, source: "GAFUS", expiresAt: access.expiresAt,
+    eligibleForGafus: false,
+  };
+  return { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: true };
+}
+
+export async function resolveCourseStepAccessTx(
+  tx: GafusTx, userId: string, target: CourseStepTarget, now = new Date(),
+) {
+  return resolveEntitlementTx(tx, userId, target, now);
+}
+
+export async function resolveMiniGuideAccessTx(
+  tx: GafusTx, userId: string, target: MiniGuideTarget, now = new Date(),
+) {
+  return resolveEntitlementTx(tx, userId, target, now);
+}
+
+/** Course-occurrence-specific access. Never grant based on stepOnDayId alone. */
+export async function hasActiveGafusCourseStepAccess(input: {
+  userId: string;
+  dayOnCourseId: string;
+  stepOnDayId: string;
+  now?: Date;
+}): Promise<boolean> {
+  const target = await resolveCourseStepTargetTx(prisma, input.dayOnCourseId, input.stepOnDayId);
+  if (!target || target.paidOrPrivate || !target.monetized) return false;
+  const access = await prisma.gafusTargetAccess.findFirst({
+    where: {
+      userId: input.userId,
+      targetType: "COURSE_STEP",
+      targetKey: target.targetKey,
+      expiresAt: { gt: input.now ?? new Date() },
+    },
+    select: { id: true },
+  });
+  return Boolean(access);
+}

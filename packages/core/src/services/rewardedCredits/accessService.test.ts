@@ -4,6 +4,7 @@ import { SubscriptionOrCreditsRequiredError } from "./errors";
 
 const state = vi.hoisted(() => ({
   hasPremium: false,
+  gafusUnlocked: false,
   unlocks: new Map<string, Date>(),
   userSteps: new Map<
     string,
@@ -160,6 +161,14 @@ vi.mock("../appSubscription", () => ({
   ),
 }));
 
+vi.mock("../contentAccess", () => ({
+  hasActiveGafusCourseStepAccess: vi.fn(async () => state.gafusUnlocked),
+}));
+vi.mock("./gafusInterop", () => ({
+  hasGafusUnlockForUserStep: vi.fn(async () => state.gafusUnlocked),
+  hasGafusUnlockForVideoUrl: vi.fn(async () => state.gafusUnlocked),
+}));
+
 import {
   getPremiumOrRewardedAccess,
   requirePremiumOrRewardedAccessForStepNotification,
@@ -170,6 +179,7 @@ import {
 describe("premium or rewarded access", () => {
   beforeEach(() => {
     state.hasPremium = false;
+    state.gafusUnlocked = false;
     state.unlocks.clear();
     state.userSteps.clear();
     state.dailyUserSteps.clear();
@@ -210,6 +220,25 @@ describe("premium or rewarded access", () => {
       allowed: true,
       source: "REWARDED",
       target: { targetType: "COURSE_STEP", targetId: "step-on-day-1" },
+    });
+  });
+
+  it("accepts a Gafus-unlocked exam step without a subscription or ad credits", async () => {
+    state.gafusUnlocked = true;
+    state.userSteps.set("user-step-gafus", {
+      id: "user-step-gafus",
+      userId: "user-1",
+      stepOnDayId: "step-on-day-gafus",
+      stepType: "EXAMINATION",
+    });
+    await expect(requirePremiumOrRewardedAccessForUserStep({
+      userId: "user-1",
+      platform: "WEB_DESKTOP",
+      userStepId: "user-step-gafus",
+    })).resolves.toMatchObject({
+      allowed: true,
+      source: "GAFUS",
+      target: { targetType: "COURSE_STEP", targetId: "step-on-day-gafus" },
     });
   });
 

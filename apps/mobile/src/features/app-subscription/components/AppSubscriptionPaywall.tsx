@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, type TextInput as PaperTextInput } from "react-native-paper";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { Input, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { AppBackButton, Input, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import {
   appSubscriptionApi,
@@ -372,15 +372,7 @@ export function AppSubscriptionPaywall() {
           automaticallyAdjustKeyboardInsets
         >
           <View style={styles.contentInner}>
-            <Pressable
-              style={styles.backRow}
-              onPress={close}
-              hitSlop={12}
-              accessibilityRole="button"
-            >
-              <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-              <Text style={styles.backText}>Назад</Text>
-            </Pressable>
+            <AppBackButton style={styles.backRow} onPress={close} />
             <View style={styles.header}>
               <Text style={styles.brand}>GAFUS PREMIUM</Text>
             </View>

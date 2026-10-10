@@ -1,20 +1,29 @@
-import { assertFeedPublishingAllowed, enqueueFeedAuthorPush } from "./preferences";
+import { assertFeedPublishingAllowed } from "./preferences";
+import { activateFeedPostRevisionTx } from "./publish";
 import { enqueueFeedPostCleanup } from "./cleanup";
 import { createHash, randomUUID } from "node:crypto";
-import type { Prisma } from "@gafus/prisma";
+import { Prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
 import type {
   FeedPostDto, FeedPostEditorDto, FeedPostPageDto, FeedMediaDto, FeedUploadDto,
   FeedPostCreateInput, FeedRevisionInput, FeedPublishInput, FeedReserveUploadInput,
-  FeedCopyAlbumPhotoInput, FeedListQuery, FeedReaction, FeedReactionCountDto,
+  FeedCopyAlbumPhotoInput, FeedListQuery, FeedPostListQuery, FeedReaction, FeedReactionCountDto,
 } from "@gafus/types";
 import { FEED_LIMITS as L, FEED_ERROR_MESSAGES } from "../../../../types/src/feed";
 import type { FeedDb, FeedTx, FeedStoragePort } from "./ports";
 import { FeedError } from "./errors";
 import * as s from "./schemas";
+import { decodeRankedCursor, encodeRankedCursor } from "./ranking";
+import { rankSmartCandidates } from "./smart-data";
+import { smartRedisTimeout } from "./smart-redis";
+import type { SmartRecommendationReason } from "./smart-ranking";
+import { isSmartMlModel, smartMlPassesOfflineGate } from "./smart-ml";
+import { configuredSmartExperiment, assignSmartExperiment } from "./smart-experiment";
 
 const reactions = {
   heart: "❤️", laugh: "😂", dog: "🐶", fire: "🔥", like: "👍",
 } as const;
+const smartFeedLogger = createWebLogger("smart-moments");
 type ReactionKind = keyof typeof reactions;
 export const feedReactionToKind: Record<FeedReaction, ReactionKind> = {
   "❤️": "heart", "😂": "laugh", "🐶": "dog", "🔥": "fire", "👍": "like",
@@ -153,19 +162,231 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     const revision = await tx.feedPostRevision.findUnique({ where: { id: revisionId }, include: { attachments: { include: { media: true } } } });
     if (!post || !revision || post.deletedAt || revision.revisionNumber !== post.version || revision.status !== "pending") return false;
     if (revision.attachments.some(att => att.media.status !== "ready")) return false;
-    await tx.feedPostRevision.update({ where: { id: revisionId }, data: { status: "ready" } });
-    await tx.feedPost.update({ where: { id: postId }, data: {
-      activeRevisionId: revisionId, status: "published",
-      publishedAt: post.publishedAt ?? at,
-      editedAt: post.publishedAt ? at : null,
-    } });
-    await enqueueFeedAuthorPush(tx, post, at);
+    await activateFeedPostRevisionTx(tx, {
+      post,
+      revisionId,
+      at,
+      text: revision.text,
+      publishedMediaCount: revision.attachments.length,
+    });
     return true;
   }
   const service = {
-    async list(actorId: string, query: FeedListQuery = {}, bookmarksOnly = false): Promise<FeedPostPageDto> {
+    async list(actorId: string, query: FeedPostListQuery = {}, bookmarksOnly = false): Promise<FeedPostPageDto> {
       await actor(actorId);
-      const q = s.feedParse(s.feedListSchema, query);
+      const q = bookmarksOnly ? s.feedParse(s.feedListSchema, query) : s.feedParse(s.feedPostListSchema, query);
+      const sort = "sort" in q ? q.sort : "new";
+      if (!bookmarksOnly && sort === "smart") {
+        const rankingStartedAt = Date.now();
+        const fallback = async (): Promise<FeedPostPageDto> => {
+          const page = await service.list(actorId, { pageSize: q.pageSize, sort: "new" });
+          // A smart cursor cannot be interpreted as a chronological cursor. End
+          // the fallback snapshot instead of issuing an invalid subsequent request.
+          return {
+            ...page, nextCursor: null,
+            feedMeta: { mode: "smart", personalized: false, fallback: "new" },
+          };
+        };
+        // An independent kill switch ensures existing feed remains available
+        // even if ranking infrastructure has not been deployed yet.
+        if (process.env.FEED_SMART_ENABLED !== "true") return fallback();
+        try {
+          const preference = await db.feedPersonalizationPreference.findUnique({ where: { userId: actorId } });
+          if (preference?.enabled === false) return fallback();
+          const { connection } = await import("@gafus/queues");
+          if (connection.status !== "ready") return fallback();
+          const experimentVariant = configuredSmartExperiment(actorId);
+          type Session = {
+            actorId: string; version: string; preferencesUpdatedAt: number;
+            modelVersion: string | null; experimentVariant: "control" | "treatment" | null;
+            rows: Array<{ id: string; reason: SmartRecommendationReason; sources: string[]; features?: number[]; exposureToken: string }>;
+          };
+          const version = "smart-rule-2026-10-a";
+          if (experimentVariant === "control") {
+            let chronoCursor: string | undefined;
+            if (q.cursor) {
+              let payload: unknown;
+              try { payload = JSON.parse(Buffer.from(q.cursor, "base64url").toString("utf8")); }
+              catch { throw new FeedError("VALIDATION_ERROR", "Некорректный курсор контроля", 400); }
+              if (!Array.isArray(payload) || payload[0] !== "smart-control" ||
+                  typeof payload[1] !== "string" || payload[1].length > 1024 ||
+                  payload.length !== 2) {
+                throw new FeedError("VALIDATION_ERROR", "Некорректный курсор контроля", 400);
+              }
+              chronoCursor = payload[1];
+            }
+            const page = await service.list(actorId, { sort: "new", pageSize: q.pageSize, cursor: chronoCursor });
+            const exposureSessionId = randomUUID();
+            const controlRows = page.items.map(item => ({
+              id: item.id, reason: null, sources: ["recent"], exposureToken: randomUUID(),
+            }));
+            await smartRedisTimeout(connection.set(`feed:smart:${exposureSessionId}`, JSON.stringify({
+              actorId, version, preferencesUpdatedAt: preference?.updatedAt.getTime() ?? 0,
+              experimentVariant: "control", modelVersion: null, rows: controlRows,
+            }), "EX", 15 * 60));
+            return {
+              ...page,
+              items: page.items.map((item, index) => ({ ...item, recommendationRank: index,
+                recommendationSessionId: exposureSessionId,
+                recommendationExposureToken: controlRows[index]?.exposureToken })),
+              nextCursor: page.nextCursor
+                ? Buffer.from(JSON.stringify(["smart-control", page.nextCursor])).toString("base64url")
+                : null,
+              feedMeta: {
+                mode: "smart", personalized: false, fallback: null,
+                algorithmVersion: version, rankingSessionId: exposureSessionId,
+                experimentVariant: "control",
+              },
+            };
+          }
+          let sessionId: string;
+          let offset: number;
+          let session: Session;
+          if (q.cursor) {
+            let fields: unknown;
+            try { fields = JSON.parse(Buffer.from(q.cursor, "base64url").toString("utf8")); }
+            catch { throw new FeedError("VALIDATION_ERROR", "Некорректный курсор рекомендаций", 400); }
+            if (!Array.isArray(fields) || fields.length !== 3 || fields[0] !== "smart" ||
+              typeof fields[1] !== "string" || !/^[a-f0-9-]{36}$/.test(fields[1]) ||
+              !Number.isSafeInteger(fields[2]) || fields[2] < 0 || fields[2] > 200)
+              throw new FeedError("VALIDATION_ERROR", "Некорректный курсор рекомендаций", 400);
+            sessionId = fields[1] as string;
+            offset = fields[2] as number;
+            const raw = await smartRedisTimeout(connection.get(`feed:smart:${sessionId}`));
+            if (!raw) return fallback();
+            session = JSON.parse(raw) as Session;
+            if (session.actorId !== actorId || session.version !== version ||
+              session.preferencesUpdatedAt !== (preference?.updatedAt.getTime() ?? 0) ||
+              !Array.isArray(session.rows))
+              throw new FeedError("VALIDATION_ERROR", "Курсор рекомендаций недействителен", 400);
+          } else {
+            const candidateModel = process.env.FEED_SMART_ML_ENABLED === "true"
+              ? await db.feedSmartRankerModel.findFirst({
+                where: { active: true }, orderBy: { trainedAt: "desc" },
+                select: { version: true, artifact: true },
+              }) : null;
+            const mlModel = candidateModel && isSmartMlModel(candidateModel.artifact) &&
+              smartMlPassesOfflineGate(candidateModel.artifact) &&
+              Date.now() - Date.parse(candidateModel.artifact.trainedAt) <= 30 * 86_400_000
+              ? candidateModel.artifact : null;
+            const ranked = await rankSmartCandidates(db, actorId, now(), {
+              useCity: preference?.useCity ?? true,
+              usePets: preference?.usePets ?? true,
+              useBehavior: preference?.useBehavior ?? true,
+              exploration: preference?.exploration ?? true,
+              historyResetAt: preference?.historyResetAt,
+              multiSource: process.env.FEED_SMART_MULTI_SOURCE_ENABLED === "true",
+              mlModel,
+            });
+            sessionId = randomUUID();
+            offset = 0;
+            session = {
+              actorId, version, preferencesUpdatedAt: preference?.updatedAt.getTime() ?? 0,
+              modelVersion: mlModel?.version ?? null,
+              experimentVariant: experimentVariant === "treatment" ? "treatment" : null,
+              rows: ranked.map(({ id, reason, sources, mlFeatures }) => ({
+                id, reason, sources: sources ?? ["recent"], features: mlFeatures, exposureToken: randomUUID(),
+              })),
+            };
+            await smartRedisTimeout(connection.set(`feed:smart:${sessionId}`, JSON.stringify(session), "EX", 15 * 60));
+          }
+          const slice = session.rows.slice(offset, offset + q.pageSize);
+          const rows = slice.length ? await db.feedPost.findMany({
+            where: {
+              id: { in: slice.map(item => item.id) },
+              status: "published", moderationState: "visible", deletedAt: null,
+              feedback: { none: { userId: actorId, kind: "not_interested" } },
+              author: { feedSubscribers: { none: { userId: actorId, hidden: true } } },
+            },
+            include: postInclude,
+          }) : [];
+          const byId = new Map(rows.map(row => [row.id, row]));
+          const at = now();
+          const hydrated = await feedDto(actorId, slice.flatMap(item => {
+            const row = byId.get(item.id);
+            return row ? [row] : [];
+          }), at);
+          const reasonById = new Map(slice.map((item, index) => [item.id, { reason: item.reason, rank: offset + index }]));
+          const nextOffset = offset + slice.length;
+          if (process.env.FEED_SMART_DIAGNOSTICS === "true") {
+            smartFeedLogger.info("Smart feed page prepared", {
+              firstPage: offset === 0,
+              candidateCount: session.rows.length,
+              deliveredCount: hydrated.length,
+              elapsedMs: Date.now() - rankingStartedAt,
+            });
+          }
+          return {
+            items: hydrated.map(item => ({
+              ...item, recommendationReason: reasonById.get(item.id)?.reason,
+              recommendationRank: reasonById.get(item.id)?.rank,
+              recommendationSessionId: sessionId,
+              recommendationExposureToken: session.rows.find(row => row.id === item.id)?.exposureToken,
+            })),
+            nextCursor: nextOffset < session.rows.length
+              ? Buffer.from(JSON.stringify(["smart", sessionId, nextOffset])).toString("base64url") : null,
+            serverNow: at.toISOString(),
+            feedMeta: { mode: "smart", personalized: true, algorithmVersion: version, rankingSessionId: sessionId, fallback: null,
+              ...(session.experimentVariant === "treatment" ? { experimentVariant: "treatment" as const } : {}),
+            },
+          };
+        } catch (error) {
+          if (error instanceof FeedError) throw error;
+          if (process.env.FEED_SMART_DIAGNOSTICS === "true") {
+            smartFeedLogger.warn("Smart feed fallback", {
+              reason: error instanceof Error ? error.name : "unknown",
+              elapsedMs: Date.now() - rankingStartedAt,
+            });
+          }
+          // Fail open: recommendations must not take down Moments.
+          return fallback();
+        }
+      }
+      // Ranking must be computed by the database BEFORE pagination. Sorting loaded cards
+      // client-side would produce wrong results after the first page.
+      if (!bookmarksOnly && (sort === "popular" || sort === "discussed")) {
+        const cursor = decodeRankedCursor(sort, q.cursor);
+        const scoreSql = sort === "popular"
+          ? Prisma.sql`(SELECT COUNT(*)::integer FROM "FeedPostReaction" r WHERE r."postId" = p."id")`
+          : Prisma.sql`(SELECT COUNT(*)::integer FROM "FeedComment" c WHERE c."postId" = p."id" AND c."deletedAt" IS NULL AND c."moderationState" = 'visible')`;
+        const afterCursor = cursor
+          ? Prisma.sql`WHERE ranked.score < ${cursor.score}
+            OR (ranked.score = ${cursor.score} AND ranked."publishedAt" < ${cursor.publishedAt})
+            OR (ranked.score = ${cursor.score} AND ranked."publishedAt" = ${cursor.publishedAt} AND ranked.id < ${cursor.id})`
+          : Prisma.empty;
+        const ranked = await db.$queryRaw<Array<{ id: string; publishedAt: Date; score: number }>>(Prisma.sql`
+          SELECT ranked.id, ranked."publishedAt", ranked.score FROM (
+            SELECT p."id", p."publishedAt", ${scoreSql} AS score
+            FROM "FeedPost" p
+            WHERE p."status" = 'published'::"FeedPostStatus"
+              AND p."deletedAt" IS NULL AND p."moderationState" = 'visible'
+              AND p."publishedAt" IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM "FeedAuthorPreference" pref
+                WHERE pref."userId" = ${actorId} AND pref."authorId" = p."authorId" AND pref."hidden" = true
+              )
+          ) ranked
+          ${afterCursor}
+          ORDER BY ranked.score DESC, ranked."publishedAt" DESC, ranked.id DESC
+          LIMIT ${q.pageSize + 1}
+        `);
+        const visible = ranked.slice(0, q.pageSize);
+        const rows = visible.length ? await db.feedPost.findMany({
+          where: { id: { in: visible.map(row => row.id) } },
+          include: postInclude,
+        }) : [];
+        const byId = new Map(rows.map(row => [row.id, row]));
+        const at = now();
+        return {
+          items: await feedDto(actorId, visible.flatMap(row => {
+            const post = byId.get(row.id);
+            return post ? [post] : [];
+          }), at),
+          nextCursor: ranked.length > q.pageSize && visible.length
+            ? encodeRankedCursor(sort, visible[visible.length - 1]!) : null,
+          serverNow: at.toISOString(),
+        };
+      }
       const c = decodeCursor(q.cursor);
       const where: Prisma.FeedPostWhereInput = {
         status: "published", deletedAt: null, moderationState: "visible", publishedAt: { not: null },
@@ -178,6 +399,37 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       });
       const page = rows.slice(0, q.pageSize);
       const at = now();
+      if (!bookmarksOnly && sort === "new" &&
+          process.env.FEED_SMART_SHADOW_ENABLED === "true" &&
+          assignSmartExperiment(actorId, {
+            enabled: true,
+            enrollmentPercent: Number(process.env.FEED_SMART_SHADOW_PERCENT ?? "1"),
+            treatmentPercent: 100, key: "feed-shadow-rule-v1",
+          }) === "treatment") {
+        // Shadow computes recommendations against a sampled chronological page,
+        // emits aggregate overlap/latency only, and NEVER affects the response.
+        void (async () => {
+          const preference = await db.feedPersonalizationPreference.findUnique({ where: { userId: actorId } });
+          if (preference?.enabled === false) return;
+          const started = Date.now();
+          const ranked = await rankSmartCandidates(db, actorId, at, {
+            useCity: preference?.useCity ?? true, usePets: preference?.usePets ?? true,
+            useBehavior: preference?.useBehavior ?? true,
+            exploration: preference?.exploration ?? true,
+            historyResetAt: preference?.historyResetAt,
+            multiSource: process.env.FEED_SMART_MULTI_SOURCE_ENABLED === "true",
+          });
+          const referenceIds = new Set(page.map(post => post.id));
+          smartFeedLogger.info("Smart feed shadow comparison", {
+            referenceCount: referenceIds.size,
+            candidateCount: ranked.length,
+            overlapTop20: ranked.slice(0, 20).filter(post => referenceIds.has(post.id)).length,
+            elapsedMs: Date.now() - started,
+          });
+        })().catch(error => smartFeedLogger.warn("Smart feed shadow failed", {
+          reason: error instanceof Error ? error.name : "unknown",
+        }));
+      }
       return { items: await feedDto(actorId, page, at), nextCursor: rows.length > q.pageSize ? cursorFromPost(page[page.length - 1]!) : null, serverNow: at.toISOString() };
     },
     async listProfile(actorId: string, username: string, query: FeedListQuery = {}): Promise<FeedPostPageDto> {

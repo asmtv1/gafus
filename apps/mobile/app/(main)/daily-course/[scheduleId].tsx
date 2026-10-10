@@ -5,7 +5,7 @@ import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Button, Loading } from "@/shared/components/ui";
-import { MarkdownText, TexturedSafeAreaView } from "@/shared/components";
+import { AppBackButton, MarkdownText, TexturedSafeAreaView } from "@/shared/components";
 import { AccordionStep } from "@/features/training";
 import {
   useDailyCourseCompleteStep,
@@ -145,10 +145,7 @@ export default function DailyCourseDayScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <TexturedSafeAreaView style={styles.container} edges={["top", "bottom"]}>
-          <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-            <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-            <Text style={styles.backText}>Назад</Text>
-          </Pressable>
+          <AppBackButton style={styles.backRow} onPress={() => router.back()} />
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>Задание дня не найдено</Text>
@@ -176,10 +173,7 @@ export default function DailyCourseDayScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <TexturedSafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
 
         <ScrollView
           style={styles.scrollView}

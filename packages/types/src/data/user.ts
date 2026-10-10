@@ -30,6 +30,16 @@ export interface UserWithTrainings {
   hasVkLinked?: boolean;
 }
 
+/** Only these pet fields may be returned to profile visitors. */
+export interface PublicPet {
+  id: string;
+  name: string;
+  type: string;
+  breed: string;
+  birthDate: Date | null;
+  photoUrl: string | null;
+}
+
 export interface PublicProfile {
   chatRole?: "admin" | "trainer" | "subscriber" | null;
   username: string;
@@ -50,28 +60,7 @@ export interface PublicProfile {
     issuedAt: Date;
     url?: string;
   }[];
-  pets: {
-    id: string;
-    name: string;
-    type: string;
-    breed: string;
-    birthDate: Date | null;
-    heightCm: number | null;
-    weightKg: number | null;
-    neckGirthCm: number | null;
-    muzzleGirthCm: number | null;
-    bellyGirthCm: number | null;
-    photoUrl: string | null;
-    notes: string | null;
-    ownerId: string;
-    awards: {
-      id: string;
-      title: string;
-      event: string | null;
-      date: Date;
-      rank: string | null;
-    }[];
-  }[];
+  pets: PublicPet[];
   courses?: {
     id: string;
     name: string;

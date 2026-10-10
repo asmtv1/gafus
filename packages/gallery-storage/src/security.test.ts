@@ -37,6 +37,15 @@ describe('request authentication', () => {
   });
 });
 describe('private CDN and configuration',()=>{
+  it('allows signed vet previews and rejects medical originals at CDN origin',()=>{
+    const preview='users/owner/pets/pet/vet-visits/visit/photo/thumb.webp';
+    const url=new URL(signGalleryCdnUrl('https://images.example.org',preview,new Date((timestamp+120)*1000),secret,timestamp*1000));
+    expect(originKey('/'+preview)).toBe(preview);
+    expect(verifyGalleryCdnToken('/'+preview,Object.fromEntries(url.searchParams),secret,timestamp*1000)).toBe(true);
+    expect(()=>originKey('/users/owner/pets/pet/vet-visits/visit/photo/original.pdf')).toThrow();
+    expect(()=>originKey('/users/owner/pets/pet/vet-visits/visit/photo/original.jpg')).toThrow();
+    expect(verifyGalleryCdnToken('/'+preview.replace('owner','other'),Object.fromEntries(url.searchParams),secret,timestamp*1000)).toBe(false);
+  });
   it('uses Yandex MD5 expires+path+space+key without IP binding',()=>{
     const expires=timestamp+120;
     const url=new URL(signGalleryCdnUrl('https://images.example.org',key,new Date(expires*1000),secret,timestamp*1000));

@@ -5,6 +5,9 @@ import { reconcileQuestionNotifications, cleanupUnusedQuestionPhotos } from "@ga
  */
 
 import cron from "node-cron";
+import { processAccountStorageCleanup } from "@gafus/core/services/accountCleanup";
+import { refreshSmartFeedStats, refreshSmartAuthorAffinities, getSmartFeedHealth, pruneSmartImpressions, pruneSmartRankingEvents, trainSmartFeedRanker } from "@gafus/core/services/feed";
+import { prisma } from "@gafus/prisma";
 import { scheduleReengagementCampaigns } from "@gafus/reengagement";
 import { recordDailyMetrics } from "@gafus/reengagement";
 import { createWorkerLogger } from "@gafus/logger";
@@ -19,6 +22,7 @@ import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-re
 import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-renewal-reminders";
 import { processDueNpdReceiptOperations } from "./npd-worker";
 import { processDueNpdReceiptEmailDeliveries } from "./npd-email-worker";
+import { processGafusNotifications } from "./gafus-notifications";
 
 const logger = createWorkerLogger("cron-scheduler");
 
@@ -27,6 +31,63 @@ const logger = createWorkerLogger("cron-scheduler");
  */
 export function startCronJobs(): void {
   logger.info("Запуск cron-планировщика...");
+  // Rollout independently from wallet earning/spending; default remains off.
+  if (process.env.GAFUS_NOTIFICATIONS_ENABLED === "true") {
+    cron.schedule("* * * * *", () => {
+      void processGafusNotifications().then(result => {
+        if (result.claimed) logger.info("Gafus notifications", result);
+      }).catch(error => logger.error("Gafus notification worker failed", error as Error));
+    }, { timezone: "UTC" });
+  }
+  if (process.env.FEED_SMART_ML_TRAIN_ENABLED === "true") {
+    // Trained models are evaluated and stored as SHADOW; promotion is manual.
+    cron.schedule("0 4 * * 1", () => {
+      void trainSmartFeedRanker(prisma).then(result => logger.info("Smart ML offline training", {
+        status: result.status, samples: result.samples, version: result.version ?? null,
+      }))
+        .catch(error => logger.error("Smart ML offline training failed", error as Error));
+    }, { timezone: "UTC" });
+  }
+  if (process.env.FEED_SMART_AFFINITY_ENABLED === "true") {
+    // Materialization is additive and independent of the main feed switch.
+    // Run on one worker to avoid concurrent refresh of the same author pairs.
+    cron.schedule("7,22,37,52 * * * *", () => {
+      void refreshSmartAuthorAffinities(prisma).then(count => {
+        if (count) logger.info("Smart author affinity refreshed", { count });
+      }).catch(error => logger.error("Smart author affinity refresh failed", error as Error));
+    }, { timezone: "UTC" });
+  }
+  if (process.env.FEED_SMART_MONITOR_ENABLED === "true") {
+    cron.schedule("8,18,28,38,48,58 * * * *", () => {
+      void getSmartFeedHealth(prisma).then(health => {
+        logger.info("Smart feed health", { ...health });
+        if (health.exposureRateWarning || health.authorConcentrationWarning ||
+            health.outcomeCaptureWarning) {
+          logger.warn("Smart feed telemetry guardrail warning", { ...health });
+        }
+      }).catch(error => logger.error("Smart feed health collection failed", error as Error));
+    }, { timezone: "UTC" });
+  }
+  if (process.env.FEED_SMART_STATS_ENABLED === "true") {
+    // One SQL aggregation over a bounded recent set, independent from feed traffic.
+    cron.schedule("*/5 * * * *", () => {
+      void refreshSmartFeedStats(prisma).then(count => {
+        if (count) logger.info("Smart feed statistics refreshed", { count });
+      }).catch(error => logger.error("Smart feed aggregation failed", error as Error));
+    });
+    cron.schedule("15 3 * * *", () => {
+      void Promise.all([pruneSmartImpressions(prisma), pruneSmartRankingEvents(prisma)])
+        .then(([impressions, outcomes]) => {
+          if (impressions || outcomes) logger.info("Old feed ranking signals pruned", { impressions, outcomes });
+        }).catch(error => logger.error("Smart feed signal cleanup failed", error as Error));
+    }, { timezone: "UTC" });
+  }
+  // Account cleanup must continue independently of gallery/feed product flags.
+  if (process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === "true") {
+    cron.schedule("* * * * *", () => {
+      processAccountStorageCleanup().catch(() => logger.error("Account storage cleanup unavailable", new Error("CLEANUP_SCHEDULER_FAILED")));
+    });
+  }
   if (process.env.FEED_MAINTENANCE_ENABLED === "true") {
     cron.schedule("* * * * *", () => {
       void import("./feed-worker").then(({ processFeedBackgroundTasks }) => processFeedBackgroundTasks())

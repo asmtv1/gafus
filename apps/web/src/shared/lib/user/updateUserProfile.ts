@@ -14,11 +14,13 @@ import {
   normalizeWebsiteUrl,
 } from "@gafus/core/utils/social";
 import { updateUserProfile as updateUserProfileCore } from "@gafus/core/services/user";
+import { prisma } from "@gafus/prisma";
 
 const logger = createWebLogger("web");
 
 const updateUserProfileSchema = z.object({
   fullName: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(100).optional(),
   about: z.string().trim().max(2000).optional(),
   telegram: z
     .string()
@@ -82,14 +84,16 @@ const updateUserProfileSchema = z.object({
 
 export async function updateUserProfile({
   fullName,
+  city,
   about,
   telegram,
   instagram,
   website,
   birthDate,
-}: UpdateUserProfileInput) {
+}: UpdateUserProfileInput & { city?: string }) {
   const validatedInput = updateUserProfileSchema.parse({
     fullName,
+    city,
     about,
     telegram,
     instagram,
@@ -98,7 +102,14 @@ export async function updateUserProfile({
   });
   try {
     const userId = await getCurrentUserId();
-    return await updateUserProfileCore(userId, validatedInput);
+    const profile = await updateUserProfileCore(userId, validatedInput);
+    if (validatedInput.city === undefined) return profile;
+    const withCity = await prisma.userProfile.update({
+      where: { userId },
+      data: { city: validatedInput.city || null },
+      select: { city: true },
+    });
+    return { ...profile, city: withCity.city };
   } catch (error) {
     logger.error("Ошибка в updateUserProfile", error as Error, { operation: "error" });
     throw new Error("Ошибка при обновлении профиля. Попробуйте перезагрузить страницу.");

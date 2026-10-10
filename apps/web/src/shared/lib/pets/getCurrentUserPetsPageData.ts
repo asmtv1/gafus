@@ -2,15 +2,15 @@
 
 import { createWebLogger } from "@gafus/logger";
 
-import { getPublicProfile } from "@shared/lib/profile/getPublicProfile";
+import { getUserPets } from "@gafus/core/services/pets";
 import { getUserWithTrainings } from "@shared/lib/user/getUserWithTrainings";
 
-import type { PublicProfile } from "@gafus/types";
+import type { Pet } from "@gafus/types";
 
 const logger = createWebLogger("web-get-current-user-pets-page-data");
 
 interface CurrentUserPetsPageData {
-  pets: PublicProfile["pets"];
+  pets: Pet[];
 }
 
 /**
@@ -23,12 +23,7 @@ export async function getCurrentUserPetsPageData(): Promise<CurrentUserPetsPageD
       return null;
     }
 
-    const publicProfile = await getPublicProfile(userData.username);
-    if (!publicProfile) {
-      return null;
-    }
-
-    return { pets: publicProfile.pets };
+    return { pets: await getUserPets(userData.id) };
   } catch (error) {
     logger.error("Ошибка при получении данных страницы питомцев", error as Error);
     throw error;

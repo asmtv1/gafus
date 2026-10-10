@@ -110,18 +110,10 @@
   gap: 8px;
   margin-top: 18px;
 }
-.actions button:last-child {
-  border: 1px solid #636128;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
 .actions > :first-child { flex: 1; }
-.actions button:last-child {
-  background: transparent;
-  color: #4a4a1e;
+.goalButton {
+  flex: 0 0 clamp(112px, 22%, 154px);
+  padding: 10px 16px;
 }
 .form {
   display: flex;
@@ -184,7 +176,7 @@
   font-size: 1.3rem;
   cursor: pointer;
 }
-.section button:focus-visible,
+.section button:not(.goalButton):focus-visible,
 .section input:focus-visible {
   outline: 2px solid #009dcf;
   outline-offset: 2px;

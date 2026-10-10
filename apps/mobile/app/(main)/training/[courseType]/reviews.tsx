@@ -1,8 +1,7 @@
 import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from "react-native";
 import { Text } from "react-native-paper";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useState } from "react";
@@ -197,10 +196,7 @@ export default function ReviewsScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
-        <Pressable style={styles.backRow} onPress={() => router.back()} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backRowText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
         <Loading
           fullScreen
           embedded
@@ -217,14 +213,7 @@ export default function ReviewsScreen() {
           title: `Отзывы к курсу "${reviewsData?.courseName || ""}"`,
         }}
       />
-      <Pressable
-        style={styles.backRow}
-        onPress={() => router.back()}
-        hitSlop={12}
-      >
-        <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-        <Text style={styles.backRowText}>Назад</Text>
-      </Pressable>
+      <AppBackButton style={styles.backRow} onPress={() => router.back()} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Отзывы к курсу &quot;{reviewsData?.courseName}&quot;</Text>
 

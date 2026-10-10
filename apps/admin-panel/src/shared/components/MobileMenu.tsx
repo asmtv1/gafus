@@ -84,6 +84,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       show: userRole === "ADMIN",
     },
     {
+      href: "/main-panel/gafus",
+      icon: Pets,
+      label: "Гафусы — экономика",
+      show: userRole === "ADMIN",
+    },
+    {
       href: "/main-panel/mobile-intro",
       icon: Slideshow,
       label: "Презентация приложения",

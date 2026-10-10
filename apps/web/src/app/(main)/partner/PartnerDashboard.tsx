@@ -138,7 +138,7 @@ export default function PartnerDashboard() {
           Приглашайте новых учеников и получайте вознаграждение за их оплаченные подписки.
         </p>
 
-        {loading ? <LoadingState variant="inline" size="small" message="Загрузка кабинета…" /> : null}
+        {loading ? <LoadingState variant="inline" message="Загрузка кабинета…" /> : null}
         {error ? <p className={styles.error}>{error}</p> : null}
 
         {dashboard ? (

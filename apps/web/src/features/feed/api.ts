@@ -18,7 +18,7 @@ export const feedTransport: FeedTransport = async <T>(path: string, options: Non
   });
   const payload: { success: boolean; data?: T; error?: string; code?: string } = await result.json();
   if (!result.ok || !payload.success || payload.data === undefined) {
-    const error = new Error(payload.error ?? "Лента временно недоступна") as Error & { code?: string };
+    const error = new Error(payload.error ?? "Раздел «Моменты» временно недоступен") as Error & { code?: string };
     error.code = payload.code;
     throw error;
   }

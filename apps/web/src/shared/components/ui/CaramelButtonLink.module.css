@@ -18,12 +18,12 @@
   transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
-.root:hover {
+.root:hover:not(:disabled) {
   box-shadow: 0 9px 16px rgba(99, 78, 47, 0.28);
   transform: translateY(-2px);
 }
 
-.root:active {
+.root:active:not(:disabled) {
   box-shadow: 0 2px 4px rgba(99, 78, 47, 0.2);
   opacity: 0.94;
   transform: translateY(2px);
@@ -32,6 +32,11 @@
 .root:focus-visible {
   outline: 3px solid rgba(215, 131, 123, 0.8);
   outline-offset: 3px;
+}
+
+.root:disabled {
+  cursor: default;
+  opacity: 0.56;
 }
 
 @media (prefers-reduced-motion: reduce) {

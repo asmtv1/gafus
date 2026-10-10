@@ -1,4 +1,5 @@
 import bcryptjs from "bcryptjs";
+import { enqueueAccountStorageCleanup } from "../accountCleanup/enqueue";
 
 import { prisma } from "@gafus/prisma";
 import type { UserRole } from "@gafus/prisma";
@@ -97,7 +98,10 @@ export async function deleteUserAdmin(
     return { success: false, error: "Нельзя удалить самого себя" };
   }
   try {
-    await prisma.user.delete({ where: { id: userId } });
+    await prisma.$transaction(async (tx) => {
+      await enqueueAccountStorageCleanup(tx, userId, new Date());
+      await tx.user.delete({ where: { id: userId } });
+    });
     logger.info("Пользователь удалён", { userId, deletedBy: actorId });
     return { success: true };
   } catch (error) {

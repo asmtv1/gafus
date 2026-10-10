@@ -136,7 +136,6 @@ export function TestQuestionsBlock({
     return (
       <Loading
         variant="inline"
-        size="small"
         message="Загрузка данных..."
         style={styles.loadingWrap}
       />

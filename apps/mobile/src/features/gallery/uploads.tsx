@@ -8,7 +8,6 @@ import { File } from "expo-file-system";
 import { useQuery } from "@tanstack/react-query";
 import { GALLERY_LIMITS } from "@gafus/types";
 import { Button } from "@/shared/components/ui";
-import { MascotSpinner } from "@/shared/components";
 import { COLORS } from "@/shared/config";
 import { galleryApi } from "@/shared/lib/api/gallery";
 import { galleryError, galleryKeys, requestId, useForeground, useGalleryContext } from "./data";
@@ -120,7 +119,7 @@ function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => 
   return <View style={s.uploadNotice}>
     <View style={s.uploadNoticeRow}>
       {active ? (
-        <MascotSpinner size="small" />
+        <MaterialCommunityIcons name="progress-clock" size={20} color={COLORS.primary} />
       ) : <MaterialCommunityIcons
         name={task.status === "ready" ? "check-circle-outline" : retryable ? "alert-circle-outline" : "close-circle-outline"}
         size={20}

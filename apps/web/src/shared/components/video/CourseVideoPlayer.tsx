@@ -300,7 +300,7 @@ export function CourseVideoPlayer({
           {showPlayButton ? (
             <PlayArrowIcon className={styles.playIcon} />
           ) : (
-            <LoadingMascot pixelSize={32} />
+            <LoadingMascot />
           )}
         </button>
       )}

@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo
 import { getInfoAsync } from "expo-file-system/legacy";
 
 import { COLORS, SPACING } from "@/shared/config";
-import { Button, Loading, MascotSpinner } from "@/shared/components/ui";
+import { Button, Loading } from "@/shared/components/ui";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -328,7 +328,6 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
     return (
       <Loading
         variant="inline"
-        size="small"
         message="Загрузка данных..."
         style={styles.loadingWrap}
       />
@@ -475,7 +474,7 @@ export function VideoReportBlock({ userStepId, stepId }: VideoReportBlockProps) 
               disabled={isSubmitting || oversized}
             >
               {isSubmitting ? (
-                <MascotSpinner size="small" />
+                <Text style={styles.primaryBtnText}>Отправляем…</Text>
               ) : (
                 <>
                   <MaterialCommunityIcons name="cloud-upload" size={20} color={COLORS.surface} />

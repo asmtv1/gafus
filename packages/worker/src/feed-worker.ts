@@ -17,7 +17,7 @@ export const feedPushDelivery: FeedNotificationDelivery = {
     }[notification.kind];
     const url = `/feed/${encodeURIComponent(notification.postId)}` +
       (notification.commentId ? `?commentId=${encodeURIComponent(notification.commentId)}` : "");
-    const payload = { title: "Лента GAFUS", body: text, url };
+    const payload = { title: "Моменты GAFUS", body: text, url };
     let failures = 0;
     if (parts.web.length) {
       web ??= PushNotificationService.fromEnvironment();

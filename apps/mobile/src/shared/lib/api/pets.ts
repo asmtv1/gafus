@@ -33,6 +33,7 @@ export interface Pet {
   muzzleGirthCm: number | null;
   bellyGirthCm: number | null;
   photoUrl: string | null;
+  showInProfile: boolean;
   notes: string | null;
   createdAt: string;
 }
@@ -80,7 +81,7 @@ export interface CreatePetData {
   notes?: string;
 }
 
-export type UpdatePetData = Partial<CreatePetData>;
+export type UpdatePetData = Partial<CreatePetData> & { showInProfile?: boolean };
 export type PetDocument = PetDocumentDto;
 
 export type PetPreventionType = "VACCINATION" | "DEWORMING" | "TICKS_FLEAS";

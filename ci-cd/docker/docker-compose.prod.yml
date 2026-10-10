@@ -87,6 +87,24 @@ services:
       - GALLERY_PROCESSOR_READY=true
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Smart feed is enabled for production by default after migration deploy.
+      # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
+      - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
+      - FEED_SMART_STATS_ENABLED=${FEED_SMART_STATS_ENABLED:-true}
+      - FEED_SMART_DIAGNOSTICS=${FEED_SMART_DIAGNOSTICS:-true}
+      - FEED_SMART_MULTI_SOURCE_ENABLED=${FEED_SMART_MULTI_SOURCE_ENABLED:-true}
+      - FEED_SMART_AFFINITY_ENABLED=${FEED_SMART_AFFINITY_ENABLED:-true}
+      - FEED_SMART_EVENTS_ENABLED=${FEED_SMART_EVENTS_ENABLED:-true}
+      - FEED_SMART_EXPOSURE_TOKENS_REQUIRED=${FEED_SMART_EXPOSURE_TOKENS_REQUIRED:-true}
+      - FEED_SMART_MONITOR_ENABLED=${FEED_SMART_MONITOR_ENABLED:-true}
+      - FEED_SMART_ML_TRAIN_ENABLED=${FEED_SMART_ML_TRAIN_ENABLED:-true}
+      - FEED_SMART_ML_ENABLED=${FEED_SMART_ML_ENABLED:-true}
+      # 100% treatment so everyone receives the new feed; not a valid A/B comparison.
+      - FEED_SMART_AB_ENABLED=${FEED_SMART_AB_ENABLED:-true}
+      - FEED_SMART_AB_PERCENT=${FEED_SMART_AB_PERCENT:-100}
+      - FEED_SMART_AB_TREATMENT_PERCENT=${FEED_SMART_AB_TREATMENT_PERCENT:-100}
+      - FEED_SMART_SHADOW_ENABLED=${FEED_SMART_SHADOW_ENABLED:-true}
+      - FEED_SMART_SHADOW_PERCENT=${FEED_SMART_SHADOW_PERCENT:-1}
       - FEED_BUCKET_PUBLIC=false
       - FEED_BUCKET=gafus-feed-prod-b1gjbsvfnd1fl68k43g6
       - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
@@ -233,8 +251,35 @@ services:
     image: ghcr.io/asmtv1/gafus-worker:latest
     container_name: gafus-worker
     environment:
+      - ACCOUNT_STORAGE_CLEANUP_ENABLED=${ACCOUNT_STORAGE_CLEANUP_ENABLED:-false}
+      - CDN_CLEANUP_SERVICE_ACCOUNT_KEY=${CDN_CLEANUP_SERVICE_ACCOUNT_KEY:-}
+      - PUBLIC_CDN_RESOURCE_IDS=${PUBLIC_CDN_RESOURCE_IDS:-}
+      - GALLERY_CDN_RESOURCE_IDS=${GALLERY_CDN_RESOURCE_IDS:-}
+      - FEED_CDN_RESOURCE_IDS=${FEED_CDN_RESOURCE_IDS:-}
+      - GALLERY_BUCKET_PUBLIC=false
+      - GALLERY_BUCKET=gafus-gallery-dev-photos-b1gjbsvfnd1fl68k43g6
+      - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_S3_ACCESS_KEY_ID:-}
+      - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_S3_SECRET_ACCESS_KEY:-}
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Smart feed is enabled for production by default after migration deploy.
+      # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
+      - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
+      - FEED_SMART_STATS_ENABLED=${FEED_SMART_STATS_ENABLED:-true}
+      - FEED_SMART_DIAGNOSTICS=${FEED_SMART_DIAGNOSTICS:-true}
+      - FEED_SMART_MULTI_SOURCE_ENABLED=${FEED_SMART_MULTI_SOURCE_ENABLED:-true}
+      - FEED_SMART_AFFINITY_ENABLED=${FEED_SMART_AFFINITY_ENABLED:-true}
+      - FEED_SMART_EVENTS_ENABLED=${FEED_SMART_EVENTS_ENABLED:-true}
+      - FEED_SMART_EXPOSURE_TOKENS_REQUIRED=${FEED_SMART_EXPOSURE_TOKENS_REQUIRED:-true}
+      - FEED_SMART_MONITOR_ENABLED=${FEED_SMART_MONITOR_ENABLED:-true}
+      - FEED_SMART_ML_TRAIN_ENABLED=${FEED_SMART_ML_TRAIN_ENABLED:-true}
+      - FEED_SMART_ML_ENABLED=${FEED_SMART_ML_ENABLED:-true}
+      # 100% treatment so everyone receives the new feed; not a valid A/B comparison.
+      - FEED_SMART_AB_ENABLED=${FEED_SMART_AB_ENABLED:-true}
+      - FEED_SMART_AB_PERCENT=${FEED_SMART_AB_PERCENT:-100}
+      - FEED_SMART_AB_TREATMENT_PERCENT=${FEED_SMART_AB_TREATMENT_PERCENT:-100}
+      - FEED_SMART_SHADOW_ENABLED=${FEED_SMART_SHADOW_ENABLED:-true}
+      - FEED_SMART_SHADOW_PERCENT=${FEED_SMART_SHADOW_PERCENT:-1}
       - FEED_BUCKET_PUBLIC=false
       - FEED_BUCKET=gafus-feed-prod-b1gjbsvfnd1fl68k43g6
       - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
@@ -383,6 +428,24 @@ services:
       - GALLERY_PROCESSOR_READY=true
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Smart feed is enabled for production by default after migration deploy.
+      # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
+      - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
+      - FEED_SMART_STATS_ENABLED=${FEED_SMART_STATS_ENABLED:-true}
+      - FEED_SMART_DIAGNOSTICS=${FEED_SMART_DIAGNOSTICS:-true}
+      - FEED_SMART_MULTI_SOURCE_ENABLED=${FEED_SMART_MULTI_SOURCE_ENABLED:-true}
+      - FEED_SMART_AFFINITY_ENABLED=${FEED_SMART_AFFINITY_ENABLED:-true}
+      - FEED_SMART_EVENTS_ENABLED=${FEED_SMART_EVENTS_ENABLED:-true}
+      - FEED_SMART_EXPOSURE_TOKENS_REQUIRED=${FEED_SMART_EXPOSURE_TOKENS_REQUIRED:-true}
+      - FEED_SMART_MONITOR_ENABLED=${FEED_SMART_MONITOR_ENABLED:-true}
+      - FEED_SMART_ML_TRAIN_ENABLED=${FEED_SMART_ML_TRAIN_ENABLED:-true}
+      - FEED_SMART_ML_ENABLED=${FEED_SMART_ML_ENABLED:-true}
+      # 100% treatment so everyone receives the new feed; not a valid A/B comparison.
+      - FEED_SMART_AB_ENABLED=${FEED_SMART_AB_ENABLED:-true}
+      - FEED_SMART_AB_PERCENT=${FEED_SMART_AB_PERCENT:-100}
+      - FEED_SMART_AB_TREATMENT_PERCENT=${FEED_SMART_AB_TREATMENT_PERCENT:-100}
+      - FEED_SMART_SHADOW_ENABLED=${FEED_SMART_SHADOW_ENABLED:-true}
+      - FEED_SMART_SHADOW_PERCENT=${FEED_SMART_SHADOW_PERCENT:-1}
       - FEED_BUCKET_PUBLIC=false
       - FEED_BUCKET=gafus-feed-prod-b1gjbsvfnd1fl68k43g6
       - FEED_S3_ENDPOINT=https://storage.yandexcloud.net
@@ -440,6 +503,7 @@ services:
     command: >
       sh -c "
         echo 'Starting nginx with CDN configuration...' &&
+        rm -rf /var/cache/nginx/cdn &&
         nginx -g 'daemon off;'
       "
     restart: unless-stopped

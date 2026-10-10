@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import type { PublicPet } from "@gafus/types";
 
 import { apiClient, type ApiResponse } from "./client";
 import type { User } from "./auth";
@@ -6,6 +7,7 @@ import { API_BASE_URL } from "@/shared/config";
 
 export interface UpdateProfileData {
   fullName?: string;
+  city?: string;
   about?: string;
   telegram?: string;
   instagram?: string;
@@ -39,6 +41,7 @@ export interface PublicProfile {
   role: string;
   profile: {
     fullName: string | null;
+    city?: string | null;
     birthDate: string | null;
     about: string | null;
     telegram: string | null;
@@ -47,7 +50,7 @@ export interface PublicProfile {
     avatarUrl: string | null;
   } | null;
   diplomas?: { id: string; title: string; issuedBy: string | null; issuedAt: string }[];
-  pets?: unknown[];
+  pets?: (Omit<PublicPet, "birthDate"> & { birthDate: string | null })[];
   /** Курсы кинолога (только при role === TRAINER) */
   courses?: PublicProfileCourse[];
 }

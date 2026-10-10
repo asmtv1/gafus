@@ -28,6 +28,7 @@ const trainingLevelSchema = z.enum([
 export const createTrainerCourseSchema = z.object({
   id: z.string().uuid("Некорректный ID курса (ожидается UUID)"),
   name: z.string().min(1, "Название обязательно").max(500),
+  guideContent: z.string().max(200000).optional().nullable(),
   shortDesc: z.string().max(2000).default(""),
   description: z.string().default(""),
   duration: z.string().min(1, "Укажите длительность").max(100),
@@ -60,6 +61,7 @@ export const createTrainerCourseSchema = z.object({
 export const updateTrainerCourseSchema = z.object({
   id: z.string().min(1, "ID курса обязателен"),
   name: z.string().min(1, "Название обязательно").max(500),
+  guideContent: z.string().max(200000).optional().nullable(),
   shortDesc: z.string().max(2000).default(""),
   description: z.string().default(""),
   duration: z.string().min(1, "Укажите длительность").max(100),

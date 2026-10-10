@@ -9,6 +9,10 @@
       "types": "./dist/core/src/index.d.ts",
       "default": "./dist/core/src/index.js"
     },
+    "./services/feed/publication-client": {
+      "types": "./dist/core/src/services/feed/publication-client.d.ts",
+      "default": "./dist/core/src/services/feed/publication-client.js"
+    },
     "./services/article": {
       "types": "./dist/core/src/services/article/index.d.ts",
       "default": "./dist/core/src/services/article/index.js"
@@ -28,6 +32,10 @@
     "./services/dailyCourse": {
       "types": "./dist/core/src/services/dailyCourse/index.d.ts",
       "default": "./dist/core/src/services/dailyCourse/index.js"
+    },
+    "./services/accountCleanup": {
+      "types": "./dist/core/src/services/accountCleanup/index.d.ts",
+      "default": "./dist/core/src/services/accountCleanup/index.js"
     },
     "./services/user": {
       "types": "./dist/core/src/services/user/index.d.ts",
@@ -116,6 +124,18 @@
     "./services/rewardedCredits": {
       "types": "./dist/core/src/services/rewardedCredits/index.d.ts",
       "default": "./dist/core/src/services/rewardedCredits/index.js"
+    },
+    "./services/gafus": {
+      "types": "./dist/core/src/services/gafus/index.d.ts",
+      "default": "./dist/core/src/services/gafus/index.js"
+    },
+    "./services/contentAccess": {
+      "types": "./dist/core/src/services/contentAccess/index.d.ts",
+      "default": "./dist/core/src/services/contentAccess/index.js"
+    },
+    "./services/adminGafus": {
+      "types": "./dist/core/src/services/adminGafus/index.d.ts",
+      "default": "./dist/core/src/services/adminGafus/index.js"
     },
     "./services/video": {
       "types": "./dist/core/src/services/video/index.d.ts",

@@ -13,6 +13,7 @@ export interface Pet {
   bellyGirthCm: number | null;
   notes: string | null;
   photoUrl: string | null;
+  showInProfile: boolean;
   ownerId: string;
   createdAt: Date;
   updatedAt: Date;

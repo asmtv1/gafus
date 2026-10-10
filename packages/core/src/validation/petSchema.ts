@@ -179,6 +179,7 @@ export const petFormSchema = basePetSchema.extend({
   id: z.string().trim().optional(),
 });
 export const updatePetSchema = basePetSchema.partial().extend({
+  showInProfile: z.boolean().optional(),
   id: z.string().trim().min(1, "ID питомца обязателен"),
 });
 export const petIdSchema = z.string().trim().min(1, "ID питомца обязателен");

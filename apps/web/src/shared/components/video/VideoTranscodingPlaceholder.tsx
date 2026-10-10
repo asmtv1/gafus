@@ -60,7 +60,6 @@ export function VideoTranscodingPlaceholder({ status, error }: VideoTranscodingP
       }}
     >
       <LoadingState
-        size="small"
         message={status === "PENDING" ? "Видео в очереди на обработку" : "Обработка видео"}
       />
 

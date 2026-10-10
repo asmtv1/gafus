@@ -1,7 +1,5 @@
 "use client";
 
-import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
-
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import {
@@ -133,11 +131,6 @@ export function PaidArticleDrawer({
             fullWidth
             disabled={payLoading || csrfLoading}
             onClick={handlePay}
-            startIcon={
-              payLoading || csrfLoading ? (
-                <LoadingMascot pixelSize={20} />
-              ) : null
-            }
           >
             {payLoading || csrfLoading ? "Загрузка..." : "Оплатить статью"}
           </Button>

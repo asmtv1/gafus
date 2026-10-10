@@ -5,14 +5,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   TextInput,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
+import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { z } from "zod";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
@@ -27,6 +25,7 @@ import { useAuthStore } from "@/shared/stores";
 
 const editProfileSchema = z.object({
   fullName: z.string().trim().max(120),
+  city: z.string().trim().max(100, "Не более 100 символов"),
   about: z.string().trim().max(2000),
   telegram: z.string().trim().max(100),
   instagram: z.string().trim().max(100),
@@ -36,6 +35,7 @@ const editProfileSchema = z.object({
 
 function mapProfileToForm(profile: {
   fullName?: string | null;
+  city?: string | null;
   about?: string | null;
   telegram?: string | null;
   instagram?: string | null;
@@ -44,6 +44,7 @@ function mapProfileToForm(profile: {
 }): UpdateProfileData {
   return {
     fullName: profile.fullName || "",
+    city: profile.city || "",
     birthDate: formatIsoBirthDateToDdMmYyyy(profile.birthDate ?? ""),
     about: profile.about || "",
     telegram: profile.telegram || "",
@@ -79,6 +80,7 @@ export default function EditProfileScreen() {
 
   const [form, setForm] = useState<UpdateProfileData>({
     fullName: "",
+    city: "",
     about: "",
     telegram: "",
     instagram: "",
@@ -112,7 +114,9 @@ export default function EditProfileScreen() {
     onSuccess: (result) => {
       if (result.success && result.data) {
         setUserProfile(result.data);
-        queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["public-profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["trainer-public-profile"] });
         void hapticFeedback.success();
         setSnackbar({ visible: true, message: "Профиль обновлён" });
         if (backTimer.current !== null) clearTimeout(backTimer.current);
@@ -141,6 +145,7 @@ export default function EditProfileScreen() {
     const normalized = {
       ...form,
       fullName: (form.fullName ?? "").trim(),
+      city: (form.city ?? "").trim(),
       about: (form.about ?? "").trim(),
       telegram: (form.telegram ?? "").trim().replace(/^@/, ""),
       instagram: (form.instagram ?? "").trim().replace(/^@/, ""),
@@ -169,10 +174,7 @@ export default function EditProfileScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={handleBack} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={handleBack} />
 
         <KeyboardAvoidingView
           style={styles.keyboardView}
@@ -187,9 +189,7 @@ export default function EditProfileScreen() {
                 <Text style={styles.errorInline}>
                   {error instanceof Error ? error.message : "Не удалось загрузить профиль"}
                 </Text>
-                <Pressable style={styles.secondaryButton} onPress={handleBack}>
-                  <Text style={styles.secondaryButtonText}>Назад</Text>
-                </Pressable>
+                <AppBackButton onPress={handleBack} />
               </View>
             </ScrollView>
           ) : (
@@ -211,6 +211,18 @@ export default function EditProfileScreen() {
                   placeholderTextColor={COLORS.disabled}
                   autoCapitalize="words"
                 />
+
+                <Text style={styles.fieldLabel}>Город</Text>
+                <TextInput
+                  value={form.city || ""}
+                  onChangeText={(v) => updateField("city", v)}
+                  style={styles.input}
+                  placeholder="Например, Самара"
+                  placeholderTextColor={COLORS.disabled}
+                  autoCapitalize="words"
+                  maxLength={100}
+                />
+                <Text style={styles.hintText}>Необязательно. Город будет виден в публичном профиле.</Text>
 
                 <Text style={styles.fieldLabel}>Дата рождения</Text>
                 <TextInput

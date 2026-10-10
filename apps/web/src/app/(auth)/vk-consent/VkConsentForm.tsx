@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AppBackButtonLink } from "@/shared/components/ui";
 import { trackEvent } from "@gafus/analytics";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -62,9 +63,7 @@ export function VkConsentForm() {
     return (
       <div className={styles.form}>
         <p className={styles.info}>Ссылка устарела или недействительна.</p>
-        <Link href="/" className={styles.checkboxLink}>
-          Вернуться на главную
-        </Link>
+        <AppBackButtonLink href="/">На главную</AppBackButtonLink>
       </div>
     );
   }

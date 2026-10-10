@@ -16,6 +16,7 @@ export interface User {
   hasVkLinked?: boolean;
   profile?: {
     fullName: string | null;
+    city?: string | null;
     about: string | null;
     telegram: string | null;
     instagram: string | null;

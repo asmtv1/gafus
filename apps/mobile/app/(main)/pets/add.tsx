@@ -7,16 +7,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   TextInput,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { AppBackButton, PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { validatePetForm, type PetFormErrors } from "@/features/pets";
@@ -173,10 +171,7 @@ export default function AddPetScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <TexturedSafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <Pressable style={styles.backRow} onPress={handleBack} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.primary} />
-          <Text style={styles.backText}>Назад</Text>
-        </Pressable>
+        <AppBackButton style={styles.backRow} onPress={handleBack} />
 
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -342,22 +337,14 @@ export default function AddPetScreen() {
               ) : null}
 
               <View style={[styles.actionsRow, isTourRequiredPetCreation && styles.actionsRowTour]}>
-                <Button
-                  label={isTourRequiredPetCreation ? "Назад" : "Отмена"}
-                  variant="secondary"
-                  flex={isTourRequiredPetCreation ? undefined : 1}
-                  fullWidth={isTourRequiredPetCreation}
-                  height={48}
-                  fontFamily={FONTS.montserrat}
-                  fontWeight="600"
-                  fontSize={15}
-                  lineHeight={20}
-                  horizontalPadding={0}
-                  verticalPadding={14}
-                  borderRadius={10}
-                  onPress={handleBack}
-                  disabled={createMutation.isPending}
-                />
+                {isTourRequiredPetCreation ? (
+                  <AppBackButton onPress={handleBack} disabled={createMutation.isPending} />
+                ) : (
+                  <Button label="Отмена" variant="secondary" flex={1} height={48}
+                    fontFamily={FONTS.montserrat} fontWeight="600" fontSize={15}
+                    lineHeight={20} horizontalPadding={0} verticalPadding={14}
+                    borderRadius={10} onPress={handleBack} disabled={createMutation.isPending} />
+                )}
                 <Button
                   label={
                     createMutation.isPending
