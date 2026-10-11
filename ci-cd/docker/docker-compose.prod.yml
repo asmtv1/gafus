@@ -35,6 +35,12 @@ services:
   web:
     image: ghcr.io/asmtv1/gafus-web:latest
     container_name: gafus-web
+    # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
     environment:
       - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
       - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
@@ -131,6 +137,11 @@ services:
       - VK_WEB_REDIRECT_URI=${VK_WEB_REDIRECT_URI}
       - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
       # SMTP / Yandex 360 (транзакционная почта)
+      - MAIL_PROVIDER=${MAIL_PROVIDER:-resend}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+      - MAIL_REPLY_TO=${MAIL_REPLY_TO:-api@gafus.ru}
+      - RESEND_FROM=${RESEND_FROM:-notifications@notify.gafus.ru}
       - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}
       - SMTP_PORT=${SMTP_PORT:-465}
       - SMTP_SECURE=${SMTP_SECURE:-true}
@@ -250,6 +261,12 @@ services:
   worker:
     image: ghcr.io/asmtv1/gafus-worker:latest
     container_name: gafus-worker
+    # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
     environment:
       - ACCOUNT_STORAGE_CLEANUP_ENABLED=${ACCOUNT_STORAGE_CLEANUP_ENABLED:-false}
       - CDN_CLEANUP_SERVICE_ACCOUNT_KEY=${CDN_CLEANUP_SERVICE_ACCOUNT_KEY:-}
@@ -320,6 +337,11 @@ services:
       - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
       - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       # SMTP / Yandex 360 (фоновые задачи с @gafus/mailer / почтой)
+      - MAIL_PROVIDER=${MAIL_PROVIDER:-resend}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+      - MAIL_REPLY_TO=${MAIL_REPLY_TO:-api@gafus.ru}
+      - RESEND_FROM=${RESEND_FROM:-notifications@notify.gafus.ru}
       - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}
       - SMTP_PORT=${SMTP_PORT:-465}
       - SMTP_SECURE=${SMTP_SECURE:-true}
@@ -383,6 +405,12 @@ services:
   api:
     image: ghcr.io/asmtv1/gafus-api:latest
     container_name: gafus-api
+    # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
     environment:
       - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
       - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
@@ -464,6 +492,11 @@ services:
       - MOBILE_ANDROID_MIN_VERSION=${MOBILE_ANDROID_MIN_VERSION:-1.7.0}
       - MOBILE_IOS_STORE_URL=${MOBILE_IOS_STORE_URL:-https://apps.apple.com/ru/app/gafus/id6760964612}
       - MOBILE_ANDROID_STORE_URL=${MOBILE_ANDROID_STORE_URL:-https://www.rustore.ru/catalog/app/ru.gafus.app}
+      - MAIL_PROVIDER=${MAIL_PROVIDER:-resend}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+      - MAIL_REPLY_TO=${MAIL_REPLY_TO:-api@gafus.ru}
+      - RESEND_FROM=${RESEND_FROM:-notifications@notify.gafus.ru}
       - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}
       - SMTP_PORT=${SMTP_PORT:-465}
       - SMTP_SECURE=${SMTP_SECURE:-true}

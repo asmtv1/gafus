@@ -175,6 +175,7 @@ function wrapTransactionalEmailHtml({
 }
 
 export async function sendTransactionalEmailWithLayout(input: {
+  deliveryKey?: string;
   to: string | string[];
   subject: string;
   text: string;
@@ -188,6 +189,7 @@ export async function sendTransactionalEmailWithLayout(input: {
   });
 
   await sendTransactionalMail({
+    deliveryKey: input.deliveryKey,
     to: input.to,
     subject: input.subject,
     text: input.text,

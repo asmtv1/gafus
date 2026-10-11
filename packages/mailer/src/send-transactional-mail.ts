@@ -1,3 +1,4 @@
+import { sendResendMail } from "./resend.js";
 import nodemailer from "nodemailer";
 import type { Attachment } from "nodemailer/lib/mailer/index.js";
 import type { Transporter } from "nodemailer";
@@ -12,6 +13,7 @@ import {
 export type { Attachment };
 
 export interface SendTransactionalMailInput {
+  deliveryKey?: string;
   to: string | string[];
   subject: string;
   text: string;
@@ -25,6 +27,9 @@ export interface SendTransactionalMailInput {
  * Создаёт transporter для одной отправки или пула (без пула — вызывать из sendTransactionalMail).
  */
 export function createMailerTransporter(env: MailerEnv = mailerEnvFromProcess()): Transporter {
+  if (env.provider === "resend") {
+    throw new Error("SMTP transporter is unavailable when MAIL_PROVIDER=resend");
+  }
   if (!isMailerConfigured(env)) {
     throw new Error("Почта не настроена: задайте SMTP_HOST и MAIL_FROM");
   }
@@ -52,6 +57,10 @@ export async function sendTransactionalMail(
   input: SendTransactionalMailInput,
   env: MailerEnv = mailerEnvFromProcess(),
 ): Promise<void> {
+  if (env.provider === "resend") {
+    await sendResendMail(input, env);
+    return;
+  }
   const transporter = createMailerTransporter(env);
   const from = formatMailFromHeader(env);
 

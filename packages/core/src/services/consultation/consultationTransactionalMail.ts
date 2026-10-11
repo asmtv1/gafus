@@ -700,7 +700,7 @@ export async function sendConsultationEmailFromLog(
   const { text, blocksHtml } = buildPayload(type, b);
 
   try {
-    await sendTransactionalEmailWithLayout({ to, subject, text, blocksHtml });
+    await sendTransactionalEmailWithLayout({ to, subject, text, blocksHtml, deliveryKey: `consultation-${emailLogId}` });
   } catch (e) {
     logger.error(
       "Ошибка отправки письма по консультации",

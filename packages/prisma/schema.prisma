@@ -3659,3 +3659,27 @@ model FeedModerationAction {
   createdAt DateTime @default(now())
   @@index([reportId, createdAt])
 }
+
+// Provider acceptance is distinct from delivery; event history is append-only.
+model TransactionalMailAttempt {
+  id                String   @id @default(cuid())
+  providerMessageId String?  @unique
+  recipientCount    Int
+  status            String   @default("PENDING")
+  errorCode         String?
+  createdAt         DateTime @default(now())
+  acceptedAt        DateTime?
+
+  @@index([createdAt])
+}
+
+model TransactionalMailEvent {
+  id                String   @id
+  providerMessageId String
+  type              String
+  occurredAt        DateTime
+  receivedAt        DateTime @default(now())
+  errorCode         String?
+
+  @@index([providerMessageId, occurredAt])
+}

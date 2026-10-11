@@ -69,7 +69,8 @@
     "@gafus/chat-server": "workspace:*",
     "@gafus/questions-server": "workspace:*",
     "@gafus/gallery-server": "workspace:*",
-    "@gafus/feed-server": "workspace:*"
+    "@gafus/feed-server": "workspace:*",
+    "@gafus/mailer": "workspace:*"
   },
   "devDependencies": {
     "@asteasolutions/zod-to-openapi": "^8.1.0",

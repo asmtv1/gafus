@@ -2,7 +2,7 @@
   "name": "@gafus/mailer",
   "version": "1.7.0",
   "private": true,
-  "description": "Отправка транзакционной почты через SMTP (Яндекс 360 в production)",
+  "description": "Transactional email via Resend HTTPS API or SMTP",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -20,7 +20,9 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "nodemailer": "^7.0.10"
+    "@gafus/prisma": "workspace:*",
+    "nodemailer": "^7.0.10",
+    "svix": "1.96.1"
   },
   "devDependencies": {
     "@types/node": "20.4.8",
