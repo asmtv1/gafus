@@ -36,6 +36,9 @@ services:
     image: ghcr.io/asmtv1/gafus-web:latest
     container_name: gafus-web
     # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     dns_opt:
       - use-vc
     environment:
@@ -259,6 +262,9 @@ services:
     image: ghcr.io/asmtv1/gafus-worker:latest
     container_name: gafus-worker
     # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     dns_opt:
       - use-vc
     environment:
@@ -400,6 +406,9 @@ services:
     image: ghcr.io/asmtv1/gafus-api:latest
     container_name: gafus-api
     # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     dns_opt:
       - use-vc
     environment:
