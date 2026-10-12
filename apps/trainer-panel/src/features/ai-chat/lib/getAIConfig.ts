@@ -1,7 +1,7 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { prisma } from "@gafus/prisma";
+import { getTrainerAIConfigForSettings } from "@gafus/core";
 import { authOptions } from "@gafus/auth";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
@@ -35,14 +35,7 @@ export async function getAIConfig(): Promise<GetAIConfigResult> {
     const trainerId = session.user.id;
 
     // Получаем конфигурацию БЕЗ API ключа
-    const config = await prisma.trainerAIConfig.findUnique({
-      where: { trainerId },
-      select: {
-        model: true,
-        enabled: true,
-        apiKey: true, // Получаем только для проверки наличия индивидуального ключа
-      },
-    });
+    const config = await getTrainerAIConfigForSettings(trainerId);
 
     // Проверяем наличие общего ключа в env
     const hasCommonApiKey = !!process.env.OPENROUTER_API_KEY;
@@ -63,7 +56,7 @@ export async function getAIConfig(): Promise<GetAIConfigResult> {
       data: {
         model: config.model,
         enabled: config.enabled,
-        hasApiKey: !!config.apiKey || hasCommonApiKey,
+        hasApiKey: config.hasCustomKey || hasCommonApiKey,
       },
     };
   } catch (error) {

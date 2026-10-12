@@ -11,3 +11,5 @@ export * from "./reactionRewardService";
 export * from "./miniGuideService";
 export * from "./legacyImportService";
 export * from "./reactionProgressService";
+
+export * from "./notificationDeliveryService";

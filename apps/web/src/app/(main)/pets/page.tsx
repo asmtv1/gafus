@@ -40,6 +40,7 @@ export default async function PetsPage() {
             <PetList
               pets={pageData.pets}
               isOwner
+              layout="grid"
               pathOrScreen="/pets"
               revalidatePath="/pets"
             />

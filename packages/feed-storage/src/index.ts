@@ -1,3 +1,4 @@
+export { signFeedCloudruFallback } from './fallback.js';
 export * from "./keys.js";
 
 export { createFeedStorage, createFeedStorageFromEnv, feedStorageConfigFromEnv, signFeedCdnUrl } from "./storage.js";

@@ -1,16 +1,18 @@
-import Link from "next/link";
-import PublicPets from "@/features/profile/components/PetList/PublicPets";
-import { GalleryPreview } from "@/features/gallery";
-import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
-
-import { Bio, PrivateProfileSection, SettingsActions, StudentNotes } from "@/features/profile";
+import { FeedAuthorPostsList } from "@/features/feed/FeedViews";
+import { MyQuestionsList } from "@/features/questions/MyQuestionsList";
+import {
+  Bio,
+  NotificationStatus,
+  PrivateProfileSection,
+  PublicPets,
+  SettingsActions,
+  StudentNotes,
+} from "@/features/profile";
 
 import type { PublicProfile, UserWithTrainings } from "@gafus/types";
 
+import ProfileSections from "./ProfileSections";
 import styles from "./profile.module.css";
-
-// The achievements route remains available, but it is not part of the web-profile UI.
-const SHOW_ACHIEVEMENTS_LINK = false;
 
 interface ProfileClientProps {
   publicData: PublicProfile;
@@ -18,34 +20,62 @@ interface ProfileClientProps {
   username: string;
   userData: UserWithTrainings | null;
   linkFeedback?: string;
+  initialView?: "activity" | "questions" | "settings";
 }
 
+/** Layout only: public identity leads; private account controls are a separate view. */
 export default function ProfileClient({
   publicData,
   isOwner,
   username,
   userData,
   linkFeedback,
+  initialView = "activity",
 }: ProfileClientProps) {
   return (
-    <main>
-      <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
-      {!isOwner && <PublicPets pets={publicData.pets} />}
-      {!isOwner && <GalleryPreview username={username} />}
-      <ProfileFeedPreview username={username} />
-      {isOwner && publicData.role === "USER" && <StudentNotes />}
-      {isOwner && userData && <PrivateProfileSection user={userData} />}
-      {SHOW_ACHIEVEMENTS_LINK && isOwner && (
-        <Link href="/achievements" className={styles.achievementsLink}>
-          🏆 Достижения →
-        </Link>
-      )}
-      {isOwner && userData && (
-        <SettingsActions
-          hasVkLinked={userData.hasVkLinked ?? false}
-          linkFeedback={linkFeedback}
+    <main className={styles.profilePage}>
+      <div className={styles.profileShell}>
+        <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
+
+        <ProfileSections
+          isOwner={isOwner}
+          initialView={initialView}
+          questions={isOwner ? <MyQuestionsList /> : undefined}
+          activity={
+            <div className={`${styles.activityLayout} ${!isOwner && publicData.pets.length > 0 ? styles.visitorLayout : ""}`}>
+              <div className={styles.activityColumns}>
+                <FeedAuthorPostsList username={username} pageSize={6} />
+                {isOwner && publicData.role === "USER" && (
+                  <div className={styles.notesCard}>
+                    <StudentNotes />
+                  </div>
+                )}
+              </div>
+              {!isOwner && publicData.pets.length > 0 && (
+                <aside id="profile-pets" className={styles.petsColumn}>
+                  <PublicPets pets={publicData.pets} />
+                </aside>
+              )}
+            </div>
+          }
+          settings={
+            isOwner && userData ? (
+              <div className={styles.settingsLayout}>
+                <div className={styles.settingsMain}>
+                  <SettingsActions
+                    hasVkLinked={userData.hasVkLinked ?? false}
+                    linkFeedback={linkFeedback}
+                    notificationPanel={<NotificationStatus />}
+                  />
+                </div>
+                <aside className={styles.settingsAside} aria-label="Подписка GAFUS">
+                  <PrivateProfileSection user={userData} />
+                </aside>
+              </div>
+            ) : undefined
+          }
         />
-      )}
+      </div>
     </main>
   );
 }

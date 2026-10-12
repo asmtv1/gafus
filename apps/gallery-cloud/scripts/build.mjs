@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const cwd = fileURLToPath(new URL('../', import.meta.url));
 process.chdir(cwd);
 await rm('dist', { recursive: true, force: true });
-for (const name of ['origin','process','maintenance','dispatch']) {
+for (const name of ['origin','process','maintenance','dispatch','job']) {
   const result = await build({ entryPoints: [`src/${name}.ts`], outfile: `dist/${name}/index.js`, bundle: true, platform: 'node', target: 'node22', format: 'cjs', external: ['sharp'], metafile: true, minify: true });
   const inputs = Object.entries(result.metafile.outputs[`dist/${name}/index.js`].inputs).filter(([,v]) => v.bytesInOutput > 0).map(([k]) => k);
   const imports = result.metafile.outputs[`dist/${name}/index.js`].imports.map(value => value.path);

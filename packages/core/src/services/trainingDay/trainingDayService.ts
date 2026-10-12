@@ -15,6 +15,13 @@ import type {
 
 const logger = createWebLogger("training-day");
 
+export async function getTrainingDayForEdit(id: string) {
+  return prisma.trainingDay.findUnique({
+    where: { id },
+    include: { stepLinks: { orderBy: { order: "asc" } } },
+  });
+}
+
 /** Результат удаления дней (courseIds для инвалидации кэша в app) */
 export interface DeleteDaysResult extends ActionResult {
   courseIds?: string[];

@@ -36,7 +36,7 @@ export interface GalleryUploadClaim {
 }
 export interface GalleryStorageJobClaim {
   jobId: string;
-  kind: "publish" | "move" | "delete";
+  kind: "publish" | "move" | "delete" | "vetPreview";
   attemptToken: string;
   sourceKeys: string[];
   sourceETags: string[];

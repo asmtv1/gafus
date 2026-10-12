@@ -16,10 +16,12 @@ describe("scoped immediate publish claim", () => {
   it("selects only a registered publish job for the requested upload", async () => {
     const { worker, findMany } = setup();
     await expect(worker.claimStorageJobs({ limit: 1, uploadId: "upload-a" })).resolves.toEqual([]);
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ kind: "publish", uploadId: "upload-a" }),
-      take: 3,
-    }));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: "publish", uploadId: "upload-a" }),
+        take: 3,
+      }),
+    );
   });
 
   it("leaves the unscoped maintenance queue unchanged", async () => {
@@ -35,15 +37,18 @@ describe("scoped immediate publish claim", () => {
     await expect(worker.claimStorageJobs({ limit: 1, uploadId: "upload-a" })).resolves.toEqual([]);
     expect(findMany).not.toHaveBeenCalled();
     await worker.claimStorageJobs({ limit: 1 });
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ kind: "delete" }),
-    }));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: { in: ["delete", "vetPreview"] } }),
+      }),
+    );
   });
 
   it("rejects an invalid upload identifier before querying the database", async () => {
     const { worker, findMany } = setup();
-    await expect(worker.claimStorageJobs({ limit: 1, uploadId: "../other" }))
-      .rejects.toMatchObject({ code: "VALIDATION" });
+    await expect(worker.claimStorageJobs({ limit: 1, uploadId: "../other" })).rejects.toMatchObject(
+      { code: "VALIDATION" },
+    );
     expect(findMany).not.toHaveBeenCalled();
   });
 });

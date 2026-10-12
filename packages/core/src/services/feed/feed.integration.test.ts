@@ -56,6 +56,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     const second = await publish("Второй");
     at = new Date(at.getTime() + 60_000);
     const third = await publish("Третий");
+
     await social.setPostReaction(reader, first.id, "❤️");
     await social.setPostReaction(stranger, first.id, "🔥");
     await social.setPostReaction(reader, second.id, "❤️");
@@ -69,7 +70,6 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
       .toEqual([first.id, second.id, third.id]);
     expect((await posts.list(reader, { sort: "discussed" })).items.map(post => post.id))
       .toEqual([second.id, first.id, third.id]);
-
     for (const [sort, expected] of [
       ["popular", [first.id, second.id, third.id]],
       ["discussed", [second.id, first.id, third.id]],

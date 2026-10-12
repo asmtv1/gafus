@@ -2,10 +2,11 @@
 
 import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
 import {
   updateStep as updateStepCore,
   updateStepSchema,
+  getExaminationMechanismError,
+  getTrainerStepMediaState,
   validateStepFormData,
   hasValidationErrors,
   getValidationErrors,
@@ -73,11 +74,12 @@ export async function updateStep(
     }
 
     if (type === "EXAMINATION") {
-      if (!hasTestQuestions && !requiresVideoReport && !requiresWrittenFeedback) {
-        return {
-          error: "Для экзаменационного шага выберите хотя бы один тип экзамена",
-        };
-      }
+      const error = getExaminationMechanismError({
+        hasTestQuestions,
+        requiresVideoReport,
+        requiresWrittenFeedback,
+      });
+      if (error) return { error };
     }
 
     const duration =
@@ -108,10 +110,7 @@ export async function updateStep(
     }
     const trainerId = session.user.id;
 
-    const existingStep = await prisma.step.findUnique({
-      where: { id },
-      select: { imageUrls: true },
-    });
+    const existingStep = await getTrainerStepMediaState(id);
     const existingImageUrls = existingStep?.imageUrls ?? [];
     const remainingImageUrls = existingImageUrls.filter(
       (url) => !deletedImages.includes(url),

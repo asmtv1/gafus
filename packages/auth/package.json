@@ -19,7 +19,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && ts-add-js-extension --dir dist",
     "clean": "rimraf dist",
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "vitest run --coverage --config vitest.config.ts",
@@ -36,7 +36,8 @@
     "next": "15.5.7",
     "next-auth": "4.24.11",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "@gafus/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",
@@ -45,11 +46,13 @@
     "@vitest/coverage-v8": "^4.0.17",
     "rimraf": "5.0.1",
     "typescript": "5.8.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "ts-add-js-extension": "^1.6.6"
   },
   "peerDependencies": {
     "next": "15.5.7",
     "react": "19.2.1",
     "react-dom": "19.2.1"
-  }
+  },
+  "type": "module"
 }

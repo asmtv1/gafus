@@ -23,6 +23,7 @@ export interface PetVetAttachment {
   mimeType: string;
   sizeBytes: number;
   hasPreview: boolean;
+  previewProcessing?: boolean;
 }
 
 export interface PetVetVisit extends PetVetVisitInput {

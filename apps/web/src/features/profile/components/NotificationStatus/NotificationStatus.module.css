@@ -305,3 +305,41 @@
 .button:focus-visible, .allowButton:focus-visible, .denyButton:focus-visible { outline: 3px solid rgba(var(--accent-primary-rgb), 0.38); outline-offset: 3px; }
 
 .container h3 { display: flex; gap: 12px; align-items: center; }
+
+/* Profile sidebar: small at-a-glance controls rather than a page-wide panel. */
+.container {
+  width: 100%;
+  margin: 0;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(103, 101, 67, .17);
+  background: var(--profile-card-surface, var(--surface));
+  box-shadow: var(--profile-card-shadow, var(--shadow-card));
+}
+.container h3 { margin: 0 0 12px; font-size: 17px; text-align: left; }
+.status { gap: 7px; margin-bottom: 12px; }
+.statusItem {
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 9px 10px;
+  background: var(--surface-muted);
+  border: 1px solid #e2ddca;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.statusItem strong { color: #4e503b; font-weight: 650; }
+.statusValue { margin-left: auto; color: #586342; font-size: 12px; white-space: nowrap; }
+.actions { width: 100%; gap: 8px; }
+.allowButton, .denyButton, .button {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.help { width: 100%; }
+@media (max-width: 800px) {
+  .container { margin: 0; padding: 16px; }
+  .statusItem { flex-direction: row; align-items: center; }
+}

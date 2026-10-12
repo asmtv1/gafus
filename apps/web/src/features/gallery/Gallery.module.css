@@ -296,3 +296,72 @@
     font-size: 28px;
   }
 }
+
+/* Album index only: a deliberate compact composition rather than a 1600px canvas. */
+.surface.albumsPage {
+  width: min(900px, calc(100% - 36px));
+  max-width: 900px;
+  margin: 24px auto;
+  padding: clamp(20px, 2.5vw, 30px);
+  border: 1px solid rgba(var(--accent-primary-rgb), .13);
+  border-radius: 24px;
+  background: var(--surface, #f5f0e5);
+}
+.albumsPage .albumBack { margin-bottom: 15px; }
+.albumsPage .header {
+  justify-content: space-between;
+  gap: 12px 22px;
+  margin-bottom: 20px;
+}
+.albumsPage h1 {
+  color: var(--accent-secondary, #3b4822);
+  font-size: clamp(24px, 2.3vw, 30px);
+}
+.surface.albumsPage .grid {
+  grid-template-columns: repeat(auto-fit, minmax(195px, 240px));
+  justify-content: center;
+  gap: 18px;
+}
+.albumsPage .album {
+  padding: 10px;
+  border: 1px solid rgba(var(--accent-primary-rgb), .13);
+  border-radius: 17px;
+  background: var(--surface-muted, #eee7d2);
+  box-shadow: 0 5px 13px rgba(59, 72, 34, .06);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.albumsPage .album:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 9px 19px rgba(59, 72, 34, .12);
+}
+.albumsPage .thumb { aspect-ratio: 4 / 3; border-radius: 11px; }
+.albumsPage .album strong {
+  margin: 10px 2px 2px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--accent-secondary, #3b4822);
+}
+.albumsPage .album > .muted { display: block; margin: 0 2px 2px; font-size: 12px; }
+.albumsPage .actions { margin: 18px 0 8px; }
+.albumsPage > div:last-child > p { margin-bottom: 0; }
+.placeholder { flex-direction: column; gap: 7px; }
+.placeholderIcon { width: 32px !important; height: 32px !important; opacity: .7; }
+@media (max-width: 600px) {
+  .surface.albumsPage { width: calc(100% - 20px); padding: 16px; margin: 12px auto; }
+  .surface.albumsPage .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .albumsPage .album { padding: 8px; border-radius: 13px; }
+  .albumsPage .header { align-items: flex-start; }
+  .albumsPage .album strong { font-size: 13px; }
+  .albumsPage .thumb { aspect-ratio: 1; }
+}
+@media (max-width: 390px) {
+  .surface.albumsPage .grid { grid-template-columns: minmax(0, 1fr); }
+  .albumsPage .album { max-width: 280px; width: 100%; margin: 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .albumsPage .album { transition: none; }
+  .albumsPage .album:hover { transform: none; }
+}

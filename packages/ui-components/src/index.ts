@@ -8,3 +8,5 @@ export {
   getConsentValue,
 } from "./cookieConsentUtils";
 export type { ConsentValue } from "./cookieConsentUtils";
+
+export { VoxConsultationRoom } from "./VoxConsultationRoom";

@@ -5,6 +5,7 @@ export const USER_EMAIL_MISSING_HINT = "Email отсутствует, напиш
 
 export interface UpdateUserProfileInput {
   fullName: string;
+  city?: string;
   about: string;
   telegram: string;
   instagram: string;
@@ -46,6 +47,7 @@ export interface PublicProfile {
   role: "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER";
   profile: {
     fullName: string | null;
+    city?: string | null;
     birthDate: Date | null;
     about: string | null;
     telegram: string | null;

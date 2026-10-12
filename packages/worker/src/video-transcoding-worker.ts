@@ -10,7 +10,9 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
+import {
+  startTrainerVideoTranscoding, completeTrainerVideoTranscoding, failTrainerVideoTranscoding,
+} from "@gafus/core/services/trainerVideo";
 import { deleteFileFromCDN, streamFileFromCDN, uploadBufferToCDN } from "@gafus/cdn-upload";
 import type { VideoTranscodingJobData, VideoTranscodingResult } from "@gafus/types";
 import {
@@ -90,10 +92,7 @@ class VideoTranscodingWorker {
     });
 
     // Обновляем статус в БД на PROCESSING
-    await prisma.trainerVideo.update({
-      where: { id: videoId },
-      data: { transcodingStatus: "PROCESSING" },
-    });
+    await startTrainerVideoTranscoding(videoId);
 
     const videoDir = path.join(this.tmpDir, videoId);
     const inputPath = path.join(videoDir, "original.mp4");
@@ -161,17 +160,9 @@ class VideoTranscodingWorker {
 
       // 6. Обновляем БД (включая размер HLS файлов)
       const hlsManifestPath = `${hlsBasePath}/master.m3u8`;
-      await prisma.trainerVideo.update({
-        where: { id: videoId },
-        data: {
-          hlsManifestPath,
-          thumbnailPath: thumbnailRelativePath,
-          transcodingStatus: "COMPLETED",
-          transcodedAt: new Date(),
-          transcodingError: null,
-          durationSec: Math.round(metadata.durationSec),
-          fileSize: BigInt(hlsTotalSize), // Обновляем размер на размер HLS файлов
-        },
+      await completeTrainerVideoTranscoding({
+        videoId, hlsManifestPath, thumbnailPath: thumbnailRelativePath,
+        durationSec: metadata.durationSec, hlsTotalSize, completedAt: new Date(),
       });
 
       logger.success("✅ Транскодирование завершено", { videoId, hlsManifestPath });
@@ -201,13 +192,7 @@ class VideoTranscodingWorker {
       });
 
       // Обновляем статус в БД на FAILED
-      await prisma.trainerVideo.update({
-        where: { id: videoId },
-        data: {
-          transcodingStatus: "FAILED",
-          transcodingError: (error as Error).message,
-        },
-      });
+      await failTrainerVideoTranscoding(videoId, (error as Error).message);
 
       // Очищаем временные файлы даже при ошибке
       await this.cleanupTempFiles(videoDir);

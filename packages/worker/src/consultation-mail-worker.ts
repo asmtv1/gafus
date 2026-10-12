@@ -1,8 +1,6 @@
-import { ConsultationEmailStatus } from "@gafus/prisma";
-import { prisma } from "@gafus/prisma";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
-import { sendConsultationEmailFromLog } from "@gafus/core/services/consultation";
+import { processConsultationEmailLog } from "@gafus/core/services/consultation";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
@@ -17,39 +15,8 @@ export function startConsultationMailWorker(): void {
     "consultation-mail",
     async (job: Job<MailJobData>) => {
       const { emailLogId } = job.data;
-      const log = await prisma.consultationEmailLog.findUnique({
-        where: { id: emailLogId },
-      });
-      if (!log) {
-        logger.warn("email log missing", { emailLogId });
-        return;
-      }
-      if (log.status === ConsultationEmailStatus.SENT) {
-        return;
-      }
-
-      try {
-        await sendConsultationEmailFromLog(emailLogId, log.type);
-        await prisma.consultationEmailLog.update({
-          where: { id: emailLogId },
-          data: {
-            status: ConsultationEmailStatus.SENT,
-            sentAt: new Date(),
-            attempts: { increment: 1 },
-          },
-        });
-      } catch (e) {
-        const err = e instanceof Error ? e : new Error(String(e));
-        await prisma.consultationEmailLog.update({
-          where: { id: emailLogId },
-          data: {
-            status: ConsultationEmailStatus.FAILED,
-            attempts: { increment: 1 },
-            lastError: err.message.slice(0, 2000),
-          },
-        });
-        throw err;
-      }
+      const outcome = await processConsultationEmailLog(emailLogId);
+      if (outcome === "missing") logger.warn("email log missing", { emailLogId });
     },
     {
       connection,

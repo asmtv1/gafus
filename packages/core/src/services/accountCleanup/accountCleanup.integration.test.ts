@@ -21,6 +21,7 @@ vi.mock("@gafus/prisma", () => ({
   ),
 }));
 vi.mock("@gafus/cdn-upload", () => ({
+  DUAL_PROVIDER_CLEANUP_MARKER: "migration-dual-provider-required",
   accountStorageTargets: () => ({ prefixes: ["uploads/users/test/"], keys: [] }),
   createAccountStorageCleaner: () => ({ sweep: fixture.sweep }),
   startAccountCdnPurge: fixture.purge,
@@ -84,6 +85,17 @@ afterAll(async () => {
         url: `users/${owner}/pets/p/doc.pdf`,
       },
     });
+    const cloudDocument = `cloudru:documents:documents/uploads/users/${owner}/pets/${pet.id}/documents/private.pdf`;
+    await db.petDocument.create({
+      data: {
+        petId: pet.id,
+        ownerId: owner,
+        name: "Cloud PDF",
+        mimeType: "application/pdf",
+        sizeBytes: 10,
+        url: cloudDocument,
+      },
+    });
     const visit = await db.petVetVisit.create({
       data: { ownerId: owner, petId: pet.id, visitedOn: at, specialty: "Test" },
     });
@@ -128,12 +140,36 @@ afterAll(async () => {
         storagePath: borrowedPhoto,
       },
     });
+    const cloudQuestion = `cloudru:questions:questions/uploads/questions/${other}/borrowed.jpg`;
+    await db.questionPhoto.create({
+      data: {
+        ownerId: other,
+        answerId: answer.id,
+        url: cloudQuestion,
+        storagePath: `questions/${other}/borrowed-cloud.jpg`,
+      },
+    });
+    const interruptedCloudQuestion = `cloudru:questions:questions/uploads/questions/${owner}/unconfirmed.webp`;
+    await db.questionPhoto.create({
+      data: {
+        ownerId: owner,
+        storagePath: interruptedCloudQuestion,
+        url: "", // Crash after S3 PUT but before DB commit of the public photo link.
+      },
+    });
     const post = await db.feedPost.create({
       data: { authorId: owner, clientRequestId: randomUUID() },
     });
     const ownPostMedia = `posts/${owner}/${post.id}/attachments/media/thumb.webp`;
+    const ownSegment = `posts/${owner}/${post.id}/attachments/media/segment-0001.ts`;
     await db.feedMediaAsset.create({
-      data: { postId: post.id, ownerId: owner, kind: "photo", thumbKey: ownPostMedia },
+      data: {
+        postId: post.id,
+        ownerId: owner,
+        kind: "photo",
+        thumbKey: ownPostMedia,
+        videoSegmentKeys: [ownSegment],
+      },
     });
     const otherPost = await db.feedPost.create({
       data: { authorId: other, clientRequestId: randomUUID() },
@@ -185,7 +221,20 @@ afterAll(async () => {
       const jobs = await db.$queryRaw<
         CleanupSnapshot[]
       >`SELECT * FROM "AccountStorageCleanup" WHERE "ownerId" = ${owner}`;
-      expect(jobs.map((x) => x.scope).sort()).toEqual(["feed", "gallery", "public", "stream"]);
+      expect(jobs.map((x) => x.scope).sort()).toEqual([
+        "documents",
+        "feed",
+        "gallery",
+        "public",
+        "questions",
+        "stream",
+      ]);
+      expect(jobs.find((x) => x.scope === "gallery")?.keys).toEqual(
+        expect.arrayContaining([thumbKey, originalKey]),
+      );
+      expect(jobs.find((x) => x.scope === "feed")?.keys).toEqual(
+        expect.arrayContaining([ownPostMedia, ownSegment]),
+      );
       expect(jobs.find((x) => x.scope === "gallery").availableAt.getTime()).toBeGreaterThan(
         leaseUntil.getTime(),
       );
@@ -196,6 +245,11 @@ afterAll(async () => {
           `users/${owner}/pets/p/doc.pdf`,
         ]),
       );
+      expect(jobs.find((x) => x.scope === "questions")?.keys).toContain(cloudQuestion);
+      expect(jobs.find((x) => x.scope === "questions")?.keys).toContain(interruptedCloudQuestion);
+      expect(jobs.find((x) => x.scope === "documents")?.keys).toContain(cloudDocument);
+      expect(jobs.find((x) => x.scope === "public")?.keys).not.toContain(cloudDocument);
+      expect(jobs.find((x) => x.scope === "public")?.keys).not.toContain(cloudQuestion);
       const galleryJobs = await db.galleryStorageJob.findMany({
         where: { ownerId: owner, kind: "delete" },
       });
@@ -230,6 +284,48 @@ afterAll(async () => {
       await db.$executeRaw`DELETE FROM "AccountStorageCleanup" WHERE "ownerId" = ${owner}`;
       await db.galleryStorageJob.deleteMany({ where: { ownerId: owner } });
       await db.feedStorageJob.deleteMany({ where: { ownerId: owner } });
+    }
+  });
+  it("persists dual-provider deletion obligations across an account cascade", async () => {
+    const owner = randomUUID();
+    await db.user.create({ data: { id: owner, username: owner, password: "test" } });
+    vi.stubEnv("GALLERY_DUAL_PROVIDER_CLEANUP", "true");
+    vi.stubEnv("FEED_DUAL_PROVIDER_CLEANUP", "true");
+    try {
+      await db.$transaction(async (tx) => {
+        await enqueueAccountStorageCleanup(tx, owner, new Date());
+        await tx.user.delete({ where: { id: owner } });
+      });
+      const rows = await db.$queryRaw<{ scope: string; prefixes: string[] }[]>`
+        SELECT "scope", "prefixes" FROM "AccountStorageCleanup" WHERE "ownerId" = ${owner}`;
+      expect(rows.find((row) => row.scope === "gallery")?.prefixes).toEqual([
+        "migration-dual-provider-required",
+      ]);
+      expect(rows.find((row) => row.scope === "feed")?.prefixes).toEqual([
+        "migration-dual-provider-required",
+      ]);
+      expect(rows.find((row) => row.scope === "public")?.prefixes).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+      await db.$executeRaw`DELETE FROM "AccountStorageCleanup" WHERE "ownerId" = ${owner}`;
+      await db.user.deleteMany({ where: { id: owner } });
+    }
+  });
+  it("does not create Cloud.ru cleanup jobs for a legacy-only account", async () => {
+    const owner = randomUUID();
+    await db.user.create({ data: { id: owner, username: owner, password: "test" } });
+    try {
+      await db.$transaction(async (tx) => {
+        await enqueueAccountStorageCleanup(tx, owner, new Date());
+        await tx.user.delete({ where: { id: owner } });
+      });
+      const jobs = await db.$queryRaw<
+        { scope: string }[]
+      >`SELECT "scope" FROM "AccountStorageCleanup" WHERE "ownerId" = ${owner}`;
+      expect(jobs.map((job) => job.scope).sort()).toEqual(["feed", "gallery", "public"]);
+    } finally {
+      await db.$executeRaw`DELETE FROM "AccountStorageCleanup" WHERE "ownerId" = ${owner}`;
+      await db.user.deleteMany({ where: { id: owner } });
     }
   });
   it("rolls back snapshots and user deletion together", async () => {
@@ -269,7 +365,7 @@ afterAll(async () => {
         purgeOperations: ["operation-test"],
         attemptToken: null,
       });
-      await db.$executeRaw`UPDATE "AccountStorageCleanup" SET "availableAt" = timezone('UTC', now()), "purgeAfter" = timezone('UTC', now()) - interval '1 minute' WHERE "id" = ${id}`;
+      await db.$executeRaw`UPDATE "AccountStorageCleanup" SET "availableAt" = timezone('UTC', now()) - interval '1 second', "purgeAfter" = timezone('UTC', now()) - interval '1 minute' WHERE "id" = ${id}`;
       fixture.sweep.mockRejectedValueOnce(new Error("storage failure"));
       await processAccountStorageCleanup(1);
       [job] = await db.$queryRaw<
@@ -282,9 +378,9 @@ afterAll(async () => {
         purgeAfter: null,
         purgeOperations: [],
       });
-      await db.$executeRaw`UPDATE "AccountStorageCleanup" SET "availableAt" = timezone('UTC', now()) WHERE "id" = ${id}`;
+      await db.$executeRaw`UPDATE "AccountStorageCleanup" SET "availableAt" = timezone('UTC', now()) - interval '1 second' WHERE "id" = ${id}`;
       await processAccountStorageCleanup(1);
-      await db.$executeRaw`UPDATE "AccountStorageCleanup" SET "availableAt" = timezone('UTC', now()), "purgeAfter" = timezone('UTC', now()) - interval '1 minute' WHERE "id" = ${id}`;
+      await db.$executeRaw`UPDATE "AccountStorageCleanup" SET "availableAt" = timezone('UTC', now()) - interval '1 second', "purgeAfter" = timezone('UTC', now()) - interval '1 minute' WHERE "id" = ${id}`;
       await processAccountStorageCleanup(1);
       [job] = await db.$queryRaw<
         CleanupSnapshot[]

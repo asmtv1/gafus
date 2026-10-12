@@ -5,13 +5,14 @@ import { revalidatePath } from "next/cache";
 
 import { authOptions, storeVkIdOneTimeUser } from "@gafus/auth";
 import { getServerSession } from "next-auth";
-import { prisma, RegistrationChannel, VkRegistrationContextPurpose } from "@gafus/prisma";
 import {
   exchangeVkCodeAndGetUser,
   exchangeVkCodeForProfile,
   linkVkToUser,
-  claimVkRegistrationContextUserInTransaction,
-  hashRegistrationOpaqueValue,
+  claimVkRegistrationContextUser,
+  getValidVkRegistrationContext,
+  getVkLinkedAccountUsername,
+  REGISTRATION_CHANNEL,
 } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 
@@ -109,12 +110,9 @@ export async function GET(request: NextRequest) {
   const isLinkMode = parsedCookie.mode === "link";
 
   const registrationContext = !isLinkMode && parsedCookie.contextToken
-    ? await prisma.vkRegistrationContext.findUnique({
-        where: { contextTokenHash: hashRegistrationOpaqueValue(parsedCookie.contextToken) },
-        select: { codeVerifier: true, expiresAt: true, purpose: true },
-      })
+    ? await getValidVkRegistrationContext(parsedCookie.contextToken)
     : null;
-  if (!isLinkMode && (!registrationContext || registrationContext.expiresAt <= new Date() || registrationContext.purpose !== VkRegistrationContextPurpose.REGISTER)) {
+  if (!isLinkMode && !registrationContext) {
     return NextResponse.redirect(new URL("/login?error=vk_context_expired", baseOrigin));
   }
 
@@ -146,13 +144,9 @@ export async function GET(request: NextRequest) {
       });
       const result = await linkVkToUser(session.user.id, vkProfile);
 
-      const userForRedirect = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { username: true },
-      });
-      const usernameParam = (userForRedirect?.username ?? session.user.username ?? "")
-        ? `username=${encodeURIComponent(userForRedirect?.username ?? session.user.username ?? "")}&`
-        : "";
+      const linkedUsername = await getVkLinkedAccountUsername(session.user.id);
+      const username = linkedUsername ?? session.user.username ?? "";
+      const usernameParam = username ? `username=${encodeURIComponent(username)}&` : "";
 
       if (!result.success) {
         logger.warn("VK ID link failed", { error: result.error, userId: session.user.id });
@@ -178,14 +172,14 @@ export async function GET(request: NextRequest) {
       state: returnedState,
       redirectUri,
       clientId,
-      registrationChannel: RegistrationChannel.WEB,
+      registrationChannel: REGISTRATION_CHANNEL.WEB,
     });
 
     const { user, requiresConsent } = result;
     if (requiresConsent) {
-      await prisma.$transaction((tx) => claimVkRegistrationContextUserInTransaction(tx, {
-        contextToken: parsedCookie.contextToken!, state: returnedState, userId: user.id, purpose: VkRegistrationContextPurpose.REGISTER,
-      }));
+      await claimVkRegistrationContextUser({
+        contextToken: parsedCookie.contextToken!, state: returnedState, userId: user.id,
+      });
       const finalUrl = new URL("/vk-consent", baseOrigin);
       finalUrl.searchParams.set("context", parsedCookie.contextToken!);
       const response = NextResponse.redirect(finalUrl);

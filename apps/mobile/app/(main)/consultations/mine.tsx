@@ -177,9 +177,9 @@ export default function ConsultationsMineScreen() {
                   {[b.clientOwnerName?.trim(), b.petName?.trim()].filter(Boolean).join(" · ")}
                 </Text>
               ) : null}
-              {(b.status === "CONFIRMED" || b.status === "COMPLETED") && b.joinUrl ? (
+              {b.status === "CONFIRMED" ? (
                 <Button
-                  label="Перейти к видеовстрече"
+                  label="Видеовстреча в браузере"
                   icon="video-outline"
                   iconPosition="right"
                   fullWidth={false}
@@ -191,7 +191,7 @@ export default function ConsultationsMineScreen() {
                   verticalPadding={0}
                   borderRadius={14}
                   style={styles.videoCtaLayout}
-                  onPress={() => void Linking.openURL(b.joinUrl!)}
+                  onPress={() => void Linking.openURL(`https://gafus.ru/consultations/call/${encodeURIComponent(b.id)}`)}
                   accessibilityRole="link"
                   accessibilityLabel="Перейти к видеовстрече"
                 />

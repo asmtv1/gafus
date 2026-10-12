@@ -180,13 +180,14 @@ function Attachment({
         ) : (
           <View style={s.pdf}>
             <MaterialCommunityIcons
-              name={item.hasPreview ? "image-outline" : "file-pdf-box"}
+              name={item.mimeType === "application/pdf" ? "file-pdf-box" : "image-outline"}
               size={38}
               color={COLORS.primary}
             />
           </View>
         )}
         <Text style={s.fileName}>{item.name}</Text>
+        {item.previewProcessing && <Text style={s.caption}>Обрабатываем превью…</Text>}
       </Pressable>
       {(preview.error || previewFailed) && (
         <Pressable
@@ -267,6 +268,10 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
     queryFn: () => api.list(petId),
     gcTime: 0,
     enabled: !!petId && !!ownerId,
+    refetchInterval: (query) =>
+      query.state.data?.some((visit) => visit.attachments.some((file) => file.previewProcessing))
+        ? 5_000
+        : false,
   });
   const pet = useQuery({
     queryKey: ["pet", petId],
@@ -446,7 +451,10 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
         <ScrollView
           ref={scroll}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[s.content, { paddingTop: topInset + (Platform.OS === "ios" ? 44 : 56) + 20 }]}
+          contentContainerStyle={[
+            s.content,
+            { paddingTop: topInset + (Platform.OS === "ios" ? 44 : 56) + 20 },
+          ]}
         >
           <Text style={s.petName}>{pet.data?.name ?? "Посещения врача"}</Text>
           {(error || visits.error) && (

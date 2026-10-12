@@ -9,6 +9,7 @@ export {
   type CreatePaymentResult,
   type CreateArticlePaymentParams,
 } from "./paymentService";
+export { getArticlePaymentTarget, getAppleCoursePaymentMetadata } from "./paymentMetadata";
 export {
   verifyAppleCoursePurchase,
   type VerifyAppleCoursePurchaseParams,

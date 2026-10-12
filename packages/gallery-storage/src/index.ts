@@ -1,3 +1,4 @@
+export { signGalleryCloudruFallback } from './fallback.js';
 import type { GalleryStoragePort } from '@gafus/core/services/gallery';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { galleryStorageConfigFromEnv } from './config.js';

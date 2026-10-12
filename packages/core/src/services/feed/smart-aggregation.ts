@@ -4,7 +4,7 @@ import type { FeedDb } from "./ports";
 /** Refresh a bounded moving window; never run unbounded COUNTs over all history. */
 export async function refreshSmartFeedStats(db: FeedDb, limit = 1200): Promise<number> {
   const count = Math.max(1, Math.min(3000, Math.trunc(limit)));
-  const result = await db.$queryRaw<Array<{ updated: number }>>(Prisma.sql`
+  const result = await db.$queryRaw<{ updated: number }[]>(Prisma.sql`
     WITH candidates AS (
       SELECT p."id", p."authorId"
       FROM "FeedPost" p

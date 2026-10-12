@@ -38,18 +38,19 @@ import {
   setVkPhone,
   validateCredentials,
   validateRefreshToken,
-  claimVkRegistrationContextUserInTransaction,
+  claimVkRegistrationContextUser,
   completeVkRegistration,
-  createVkRegistrationContextInTransaction,
-  resolveRegistrationPromoCodeInTransaction,
-  hashRegistrationOpaqueValue,
+  createVkRegistrationContextWithPromo,
+  previewRegistrationPromoCode,
+  getVkConsentContextSummary,
+  getVkPendingRegistrationUsername,
+  REGISTRATION_CHANNEL,
 } from "@gafus/core/services/auth";
 import {
   APP_FEATURE_MOBILE_VK_LOGIN_IOS,
   getMobileFeatureFlagEnabled,
 } from "@gafus/core/services/appFeatureFlags";
 import { createWebLogger } from "@gafus/logger";
-import { prisma, RegistrationChannel, VkRegistrationContextPurpose } from "@gafus/prisma";
 import { getClientAppContext } from "../../lib/client-app-context.js";
 import { authMiddleware } from "../../middleware/auth.js";
 
@@ -287,7 +288,7 @@ authRoutes.post(
   zValidator("json", registrationPromoPreviewSchema),
   async (c) => {
     try {
-      const promo = await prisma.$transaction((tx) => resolveRegistrationPromoCodeInTransaction(tx, c.req.valid("json").promoCode));
+      const promo = await previewRegistrationPromoCode(c.req.valid("json").promoCode);
       return c.json({ success: true, data: { code: promo!.normalizedCode } });
     } catch (error) {
       const code = error instanceof Error && "code" in error ? String(error.code) : "PROMO_INVALID";
@@ -505,15 +506,7 @@ const vkConsentSchema = z.object({
 authRoutes.get("/vk-consent/:contextToken", async (c) => {
   const state = c.req.query("state");
   if (!state) return c.json({ success: false, code: "CONTEXT_INVALID", error: "Контекст VK не найден. Повторите вход." }, 400);
-  const context = await prisma.vkRegistrationContext.findFirst({
-    where: {
-      contextTokenHash: hashRegistrationOpaqueValue(c.req.param("contextToken")),
-      stateHash: hashRegistrationOpaqueValue(state),
-      purpose: VkRegistrationContextPurpose.REGISTER,
-      expiresAt: { gt: new Date() },
-    },
-    select: { selectedPromoCodeValue: true, completedAt: true },
-  });
+  const context = await getVkConsentContextSummary(c.req.param("contextToken"), state);
   if (!context) return c.json({ success: false, code: "CONTEXT_EXPIRED", error: "Время подтверждения истекло. Повторите вход через VK." }, 400);
   return c.json({ success: true, data: { savedPromoCode: context.selectedPromoCodeValue, completed: Boolean(context.completedAt) } });
 });
@@ -557,28 +550,21 @@ authRoutes.post(
 
       const vkRegistrationChannel =
         platform === "ios"
-          ? RegistrationChannel.IOS
+          ? REGISTRATION_CHANNEL.IOS
           : platform === "android"
-            ? RegistrationChannel.ANDROID
-            : RegistrationChannel.UNKNOWN;
+            ? REGISTRATION_CHANNEL.ANDROID
+            : REGISTRATION_CHANNEL.UNKNOWN;
 
       // Create and validate the durable consent context before consuming the
       // single-use VK OAuth code.  Previously an invalid promo or a database
       // error after findOrCreateVkUser() could leave a new user permanently
       // registrationPending without a context token with which to finish.
       const contextToken = crypto.randomBytes(32).toString("base64url");
-      await prisma.$transaction(async (tx) => {
-        const selected = promoCode
-          ? await resolveRegistrationPromoCodeInTransaction(tx, promoCode)
-          : null;
-        await createVkRegistrationContextInTransaction(tx, {
-          contextToken,
-          state,
-          codeVerifier: code_verifier,
-          purpose: VkRegistrationContextPurpose.REGISTER,
-          selectedPromoCodeId: selected?.id,
-          selectedPromoCodeValue: selected?.normalizedCode,
-        });
+      await createVkRegistrationContextWithPromo({
+        contextToken,
+        state,
+        codeVerifier: code_verifier,
+        promoCode,
       });
 
       const result = await exchangeVkCodeAndGetUser({
@@ -595,9 +581,7 @@ authRoutes.post(
       const { user, needsPhone, isNewUser } = result;
 
       if (result.requiresConsent) {
-        await prisma.$transaction(async (tx) => {
-          await claimVkRegistrationContextUserInTransaction(tx, { contextToken, state, userId: user.id, purpose: VkRegistrationContextPurpose.REGISTER });
-        });
+        await claimVkRegistrationContextUser({ contextToken, state, userId: user.id });
         logger.info("VK ID new user, needs consent", { userId: user.id });
         return c.json({
           success: true,
@@ -664,15 +648,12 @@ authRoutes.post(
       const ip =
         c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
       const userAgent = c.req.header("user-agent");
-      const pendingContext = await prisma.vkRegistrationContext.findFirst({
-        where: { contextTokenHash: hashRegistrationOpaqueValue(contextToken), stateHash: hashRegistrationOpaqueValue(state) },
-        select: { user: { select: { username: true } } },
-      });
-      if (!pendingContext?.user) return c.json({ success: false, code: "CONTEXT_EXPIRED", error: "Время подтверждения истекло. Повторите вход через VK." }, 400);
+      const pendingUsername = await getVkPendingRegistrationUsername(contextToken, state);
+      if (!pendingUsername) return c.json({ success: false, code: "CONTEXT_EXPIRED", error: "Время подтверждения истекло. Повторите вход через VK." }, 400);
 
       const completion = await completeVkRegistration({
         contextToken, state, promoCode,
-        consent: { tempSessionId: tempSessionId ?? crypto.randomUUID(), consentPayload, formData: { name: pendingContext.user.username }, ipAddress: ip, userAgent: userAgent ?? undefined, defaultVersion: CONSENT_VERSION },
+        consent: { tempSessionId: tempSessionId ?? crypto.randomUUID(), consentPayload, formData: { name: pendingUsername }, ipAddress: ip, userAgent: userAgent ?? undefined, defaultVersion: CONSENT_VERSION },
         transport: "MOBILE",
       });
       const user = await getAuthUserById(completion.user.id);

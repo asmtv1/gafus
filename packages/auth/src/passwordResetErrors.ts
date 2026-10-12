@@ -1,6 +1,1 @@
-export class InvalidPasswordResetTokenError extends Error {
-  constructor() {
-    super("Ссылка устарела или уже использована. Откройте последнее письмо или запросите новое.");
-    this.name = "InvalidPasswordResetTokenError";
-  }
-}
+export { InvalidPasswordResetTokenError } from "@gafus/core/services/auth/passwordReset";

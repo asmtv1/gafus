@@ -26,3 +26,14 @@ export type { FeedNotificationDelivery } from "./outbox";
 
 export { createFeedUploadRecovery } from "./recovery";
 export { createFeedPreferences, feedPreferenceSchema, feedReportSchema } from "./preferences";
+export { getAdminFeedReports, moderateAdminFeedReport } from "./adminModeration";
+
+export { trainCurrentSmartFeedRanker, activateCurrentSmartFeedRanker } from "./smart-ml-operations";
+
+export { refreshCurrentSmartFeedStats, refreshCurrentSmartAuthorAffinities, getCurrentSmartFeedHealth, pruneCurrentSmartFeedSignals } from "./smart-ml-operations";
+
+export { runFeedBackgroundOperations, getFeedPushSubscriptions } from "./backgroundOperations";
+
+export * from "./smartTelemetryService";
+
+export * from "./runtimeServices";

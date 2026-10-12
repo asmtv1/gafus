@@ -1,4 +1,4 @@
-import { forwardRef, useId, useMemo, type ComponentRef } from "react";
+import { forwardRef, useId, useMemo } from "react";
 import {
   InputAccessoryView,
   Keyboard,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type TextInput as NativeTextInput,
 } from "react-native";
 import { HelperText, TextInput, useTheme, type TextInputProps } from "react-native-paper";
 import { BORDER_RADIUS, SPACING, COLORS } from "@/shared/config";
@@ -31,7 +32,7 @@ interface InputProps extends Omit<TextInputProps, "mode" | "error"> {
  * Обёртка над React Native Paper TextInput (стиль как в веб)
  * Подпись/плейсхолдер — COLORS.text: иначе MD3 даёт бледный onSurfaceVariant
  */
-export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(function Input(
+export const Input = forwardRef<Pick<NativeTextInput, 'focus' | 'clear' | 'blur' | 'isFocused' | 'setNativeProps' | 'setSelection'>, InputProps>(function Input(
   { error, style, theme: themeOverride, keyboardType, keyboardDoneAccessory, ...props },
   ref,
 ) {

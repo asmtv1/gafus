@@ -17,6 +17,7 @@ export * from "./exam";
 export * from "./notes";
 export * from "./trainerCourse";
 export * from "./trainerStep";
+export * from "./trainerAI";
 export * from "./trainingDay";
 export * from "./trainerVideo";
 export * from "./offline";
@@ -36,3 +37,5 @@ export * from "./consultation";
 export * from "./appSubscription";
 
 export * from "./gallery";
+
+// Statistics is exported through its dedicated subpath to avoid shared DTO name collisions.

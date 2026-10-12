@@ -314,6 +314,17 @@ export function createGalleryService({
         photoDto(ctx, tx, await photoFor(tx, actorId, photoId), actorId),
       );
     },
+    /** Reuses the locked read authorization; never accept an object key from a client. */
+    fallbackSource(actorId: string, photoId: string, variant: "thumb" | "full") {
+      return readPhotoRequest(actorId, photoId, async (tx) => {
+        const photo = await photoFor(tx, actorId, photoId);
+        if (photo.deletedAt || !["ready", "moving"].includes(photo.status))
+          throw new GalleryError("NOT_FOUND", "Фотография недоступна", 404);
+        const key = variant === "thumb" ? photo.thumbKey : photo.fullKey;
+        if (!key) throw new GalleryError("NOT_FOUND", "Фотография недоступна", 404);
+        return { key };
+      });
+    },
     async updatePhoto(actorId: string, photoId: string, input: GalleryPhotoUpdateInput) {
       parseId(photoId);
       const data = s.galleryParse(s.galleryPhotoUpdateSchema, input);

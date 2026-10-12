@@ -11,6 +11,8 @@ function storage() {
   const accessKeyId = process.env.GALLERY_S3_ACCESS_KEY_ID ?? "";
   const secretAccessKey = process.env.GALLERY_S3_SECRET_ACCESS_KEY ?? "";
   const endpoint = process.env.GALLERY_S3_ENDPOINT ?? "https://storage.yandexcloud.net";
+  if (endpoint === "https://s3.cloud.ru" && process.env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true")
+    throw new Error("PRIVATE_VET_CDN_EDGE_UNVERIFIED");
   const base = process.env.GALLERY_CDN_BASE_URL ?? "";
   const secret = process.env.GALLERY_CDN_SECRET ?? "";
   // Never fall back to the public uploads bucket, including when the gallery product is disabled.
@@ -20,7 +22,8 @@ function storage() {
     !accessKeyId ||
     !secretAccessKey ||
     process.env.GALLERY_BUCKET_PUBLIC === "true" ||
-    endpoint !== "https://storage.yandexcloud.net" ||
+    !["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint) ||
+    (endpoint === "https://s3.cloud.ru" && bucket !== "gafus-gallery-private") ||
     !/^[A-Za-z0-9_-]{24,32}$/.test(secret)
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
@@ -39,9 +42,10 @@ function storage() {
     bucket,
     base: url.origin,
     secret,
+    endpoint,
     client: new S3Client({
       endpoint,
-      region: "ru-central1",
+      region: endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1",
       forcePathStyle: true,
       credentials: { accessKeyId, secretAccessKey },
       maxAttempts: 2,
@@ -78,6 +82,7 @@ export async function uploadVetVisitFile(
   bytes: Uint8Array,
   mime: string,
   keys: { originalKey: string; previewKey: string | null },
+  options: { asyncPreview?: boolean } = {},
 ) {
   if (
     !bytes.byteLength ||
@@ -88,7 +93,7 @@ export async function uploadVetVisitFile(
     throw new Error("INVALID_VET_UPLOAD");
   const config = storage();
   let preview: Buffer | null = null;
-  if (keys.previewKey) {
+  if (keys.previewKey && !options.asyncPreview) {
     const { default: sharp } = await import("sharp");
     preview = await sharp(bytes, { limitInputPixels: 40_000_000, failOn: "error" })
       .rotate()
@@ -105,11 +110,14 @@ export async function uploadVetVisitFile(
         ContentType: contentType,
         CacheControl: "private, no-store",
         ContentMD5: createHash("md5").update(body).digest("base64"),
+        ...(config.endpoint === "https://s3.cloud.ru" ? { IfNoneMatch: "*" } : {}),
       }),
       { abortSignal: AbortSignal.timeout(30_000) },
     );
+  const originalETag = `"${createHash("md5").update(bytes).digest("hex")}"`;
   await put(keys.originalKey, bytes, mime);
   if (preview && keys.previewKey) await put(keys.previewKey, preview, "image/webp");
+  return { originalETag };
 }
 
 export async function vetVisitMediaUrl(key: string, downloadName?: string) {

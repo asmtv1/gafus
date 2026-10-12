@@ -10,6 +10,7 @@ import {
   type QuestionListDto,
 } from "@gafus/types";
 import { QuestionError } from "./errors";
+import { presentQuestionPhotoUrl } from "./presentPhoto";
 import { awardActivityTx, awardBonusTx } from "../gafus/rewardService";
 import {
   answerCreateSchema,
@@ -279,9 +280,23 @@ export async function getQuestion(
     );
   }
   answers.sort((a, b) => Number(b.best) - Number(a.best));
+  // Resolve private Cloud.ru links at read time; never persist expiring presigns.
+  await Promise.all(
+    answers.flatMap((answer) =>
+      answer.photos.map(async (photo) => {
+        photo.url = await presentQuestionPhotoUrl(photo.url);
+      }),
+    ),
+  );
+  const photos = await Promise.all(
+    row.photos.map(async (photo) => ({
+      ...photo,
+      url: await presentQuestionPhotoUrl(photo.url),
+    })),
+  );
   return {
     ...listDto(row),
-    photos: row.photos,
+    photos,
     answers,
     nextAnswerPage: roots.length > QUESTION_LIMITS.pageSize ? filters.page + 1 : null,
     canManage: actor.isAdmin || row.authorId === userId,
@@ -304,9 +319,20 @@ export async function getQuestionReplies(userId: string, answerId: string, page:
     take: QUESTION_LIMITS.pageSize + 1,
   });
   return {
-    items: rows
-      .slice(0, QUESTION_LIMITS.pageSize)
-      .map((r) => answerDto(r, actor, question.bestAnswerId)),
+    items: await Promise.all(
+      rows.slice(0, QUESTION_LIMITS.pageSize).map(async (r) => {
+        const answer = answerDto(r, actor, question.bestAnswerId);
+        return {
+          ...answer,
+          photos: await Promise.all(
+            answer.photos.map(async (photo) => ({
+              ...photo,
+              url: await presentQuestionPhotoUrl(photo.url),
+            })),
+          ),
+        };
+      }),
+    ),
     nextPage: rows.length > QUESTION_LIMITS.pageSize ? page + 1 : null,
   };
 }
@@ -328,7 +354,15 @@ export async function createQuestion(userId: string, input: unknown) {
     const { photoIds, ...fields } = data;
     const row = await tx.question.create({ data: { ...fields, authorId: userId } });
     await bindPhotos(tx, userId, photoIds, { questionId: row.id });
-    await awardActivityTx(tx, { userId, kind: "QUESTION_CREATED", sourceEntityId: row.id, eventKey: `activity:question:${row.id}`, occurredAt: row.createdAt, title: row.title, body: row.body });
+    await awardActivityTx(tx, {
+      userId,
+      kind: "QUESTION_CREATED",
+      sourceEntityId: row.id,
+      eventKey: `activity:question:${row.id}`,
+      occurredAt: row.createdAt,
+      title: row.title,
+      body: row.body,
+    });
     return { id: row.id };
   });
 }
@@ -402,7 +436,15 @@ export async function createQuestionAnswer(userId: string, questionId: string, i
       },
     });
     await bindPhotos(tx, userId, data.photoIds, { answerId: row.id });
-    if (question.authorId !== userId) await awardActivityTx(tx, { userId, kind: "ANSWER_CREATED", sourceEntityId: row.id, eventKey: `activity:answer:${row.id}`, occurredAt: row.createdAt, body: row.body });
+    if (question.authorId !== userId)
+      await awardActivityTx(tx, {
+        userId,
+        kind: "ANSWER_CREATED",
+        sourceEntityId: row.id,
+        eventKey: `activity:answer:${row.id}`,
+        occurredAt: row.createdAt,
+        body: row.body,
+      });
     await tx.question.update({ where: { id: questionId }, data: { activityAt: new Date() } });
     await notify(
       tx,
@@ -491,9 +533,12 @@ export async function setQuestionBestAnswer(userId: string, id: string, answerId
     if (answer && answer.authorId !== question.authorId && question.bestAnswerId !== answer.id) {
       // Once per unique answer: A -> +1, A again -> +0, B -> +1.
       await awardBonusTx(tx, {
-        userId: answer.authorId, kind: "BEST_ANSWER",
-        sourceEntityId: answer.id, eventKey: `bonus:best-answer:${answer.id}`,
-        occurredAt: new Date(), metadata: { questionId: id },
+        userId: answer.authorId,
+        kind: "BEST_ANSWER",
+        sourceEntityId: answer.id,
+        eventKey: `bonus:best-answer:${answer.id}`,
+        occurredAt: new Date(),
+        metadata: { questionId: id },
       });
     }
     if (answer && question.bestAnswerId !== answer.id)

@@ -39,6 +39,7 @@
     "test:all": "turbo run test",
     "test:api": "pnpm --filter @gafus/api test",
     "test:apps": "pnpm --filter @gafus/api test && pnpm --filter @gafus/web test && pnpm --filter @gafus/mobile test",
+    "test:cloudru-media": "node infra/cloudru/s3-cors.test.mjs && node infra/cloudru/media-manifests.test.mjs && node infra/cloudru/cdn-edge-smoke.test.mjs && node infra/cloudru/migrate-legacy-media.test.mjs && node infra/cloudru/multipart-smoke.test.mjs && node infra/cloudru/production-release.test.mjs",
     "test:coverage": "turbo run test:coverage",
     "test:mobile": "pnpm --filter @gafus/mobile test",
     "test:watch": "turbo run test:watch",
@@ -100,7 +101,6 @@
       "@mui/x-data-grid": "7.8.0",
       "@mui/x-date-pickers": "7.8.0",
       "@prisma/client": "6.10.1",
-      "@types/react": "~19.1.10",
       "@types/react-dom": "19.1.7",
       "@xmldom/xmldom": "0.8.13",
       "axios@<=1.13.4": ">=1.13.5",
@@ -134,8 +134,6 @@
       "picomatch@<2.3.2": ">=2.3.2",
       "picomatch@4.0.3": "4.0.4",
       "prisma": "6.10.1",
-      "react": "19.1.0",
-      "react-dom": "19.1.0",
       "rollup@>=4.0.0 <4.59.0": ">=4.59.0",
       "rollup@<2.80.0": ">=2.80.0",
       "rollup@4.57.1": "4.59.0",
@@ -150,6 +148,8 @@
       "workbox-build>rollup": "4.59.0",
       "zod": "^3.24.1"
     },
-    "patchedDependencies": {}
+    "patchedDependencies": {
+      "@voximplant/react-native-calls@2.0.0": "patches/@voximplant__react-native-calls@2.0.0.patch"
+    }
   }
 }

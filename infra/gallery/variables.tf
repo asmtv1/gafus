@@ -96,3 +96,16 @@ variable "provisioner_ymq_secret_key" {
   type      = string
   sensitive = true
 }
+
+# Prepared only: never set on production until separately approved and CDN HIT auth verified.
+variable "cloudru_origin_hostname" {
+  type    = string
+  default = ""
+  validation {
+    condition = var.cloudru_origin_hostname == "" || (
+      can(regex("^[a-zA-Z0-9][a-zA-Z0-9.-]{3,252}[a-zA-Z0-9]$", var.cloudru_origin_hostname)) &&
+      !can(regex("(^|\\.)(localhost|yandexcloud\\.net)$", var.cloudru_origin_hostname))
+    )
+    error_message = "Cloud.ru origin must be an audited hostname without scheme, port or path."
+  }
+}

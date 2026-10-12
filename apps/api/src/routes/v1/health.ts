@@ -4,7 +4,7 @@
  * /ready - проверка подключений к БД и Redis
  */
 import { Hono } from "hono";
-import { prisma } from "@gafus/prisma";
+import { checkCoreDatabaseReady } from "@gafus/core/services/systemHealth";
 import { connection as redis } from "@gafus/queues";
 
 export const healthRoutes = new Hono();
@@ -19,7 +19,7 @@ healthRoutes.get("/health", (c) => {
 
 healthRoutes.get("/ready", async (c) => {
   try {
-    await Promise.all([prisma.$queryRaw`SELECT 1`, redis.ping()]);
+    await Promise.all([checkCoreDatabaseReady(), redis.ping()]);
     return c.json({ status: "ready" });
   } catch (error) {
     return c.json({ status: "not ready", error: String(error) }, 503);

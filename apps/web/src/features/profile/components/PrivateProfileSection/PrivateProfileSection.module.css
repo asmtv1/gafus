@@ -297,3 +297,15 @@
   outline: 2px solid #636128;
   outline-offset: 2px;
 }
+
+/* Subscription as a single compact card in the profile sidebar. */
+.section { max-width: none; margin: 0; display: block; width: 100%; }
+.subscriptionCard {
+  padding: 22px;
+  border-color: rgba(103, 101, 67, .17);
+  border-radius: 22px;
+  background: var(--profile-card-surface, var(--surface));
+  box-shadow: var(--profile-card-shadow, var(--shadow-card));
+}
+.subscriptionTitle { font: 750 17px/1.35 var(--font-montserrat), system-ui, sans-serif; }
+@media (max-width: 520px) { .subscriptionCard { padding: 17px; border-radius: 19px; } }

@@ -8,6 +8,13 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import {
+  privateMediaEnabled,
+  privateMediaKindForUpload,
+  uploadPrivateUserMedia,
+  parsePrivateMediaLocation,
+  deletePrivateUserMedia,
+} from "./privateUserMedia";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { Readable } from "stream";
 import type { ReadableStream } from "stream/web";
@@ -77,6 +84,14 @@ export async function getSignedDownloadUrl(
 }
 
 export async function uploadFileToCDN(file: File, relativePath: string): Promise<string> {
+  if (privateMediaEnabled() && privateMediaKindForUpload(relativePath) === "documents") {
+    return uploadPrivateUserMedia(
+      "documents",
+      relativePath,
+      new Uint8Array(await file.arrayBuffer()),
+      file.type,
+    );
+  }
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -95,7 +110,9 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
           Body: Readable.fromWeb(file.stream() as ReadableStream),
           ContentType: file.type,
           ContentLength: file.size,
-          CacheControl: /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath) ? "private, no-store" : "public, max-age=31536000",
+          CacheControl: /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath)
+            ? "private, no-store"
+            : "public, max-age=31536000",
           Metadata: {
             "original-name": sanitizeFileName(file.name),
             "upload-timestamp": Date.now().toString(),
@@ -350,6 +367,11 @@ export async function copyObjectInCDN(
  * @param relativePath - Относительный путь к файлу (без uploads/)
  */
 export async function deleteFileFromCDN(relativePath: string): Promise<void> {
+  // Provider must come from the stored location, never from the current upload flag.
+  if (parsePrivateMediaLocation(relativePath)) {
+    await deletePrivateUserMedia(relativePath);
+    return;
+  }
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -466,6 +488,9 @@ export async function uploadBufferToCDN(
   relativePath: string,
   contentType: string = "application/octet-stream",
 ): Promise<string> {
+  if (privateMediaEnabled() && privateMediaKindForUpload(relativePath) === "questions") {
+    return uploadPrivateUserMedia("questions", relativePath, buffer, contentType);
+  }
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -484,10 +509,18 @@ export async function uploadBufferToCDN(
       Body: buffer,
       ContentType: contentType,
       ContentLength: buffer.length,
-      CacheControl: /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath) ? "private, no-store" : "public, max-age=31536000",
+      CacheControl: /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath)
+        ? "private, no-store"
+        : "public, max-age=31536000",
     });
 
-    await uploadWithRetry(() => command, 3, /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath) ? AbortSignal.timeout(60_000) : undefined);
+    await uploadWithRetry(
+      () => command,
+      3,
+      /^(?:uploads\/)?(?:users|questions|exams)\//.test(relativePath)
+        ? AbortSignal.timeout(60_000)
+        : undefined,
+    );
 
     logger.info(`✅ Buffer загружен в CDN: ${key}`);
 

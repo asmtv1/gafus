@@ -1,12 +1,11 @@
 import NewStepForm from "@features/steps/components/NewStepForm";
 import { updateStep } from "@features/steps/lib/updateStep";
-import { prisma } from "@gafus/prisma";
+import { getStepForEdit } from "@gafus/core/services/trainerStep";
 import { notFound } from "next/navigation";
 
 import FormPageLayout from "@shared/components/FormPageLayout";
 import { getTrainerVideos } from "@features/trainer-videos/lib/getTrainerVideos";
 import { getCachedSession } from "@/shared/lib/getSessionCached";
-import type { ChecklistQuestion } from "@gafus/types";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -15,7 +14,7 @@ interface Props {
 export default async function EditStepPage({ params }: Props) {
   const { id } = await params;
   const [step, session] = await Promise.all([
-    prisma.step.findUnique({ where: { id } }),
+    getStepForEdit(id),
     getCachedSession(),
   ]);
   if (!step) return notFound();
@@ -30,32 +29,7 @@ export default async function EditStepPage({ params }: Props) {
       <NewStepForm
         serverAction={updateStep}
         trainerVideos={trainerVideos}
-        initialData={{
-          id: step.id,
-          title: step.title,
-          description: step.description,
-          durationSec: step.durationSec ?? undefined,
-          estimatedDurationSec:
-            (step as unknown as { estimatedDurationSec?: number | null }).estimatedDurationSec ??
-            null,
-          videoUrl: step.videoUrl,
-          type: (step as unknown as { type?: string }).type || "TRAINING",
-          imageUrls: step.imageUrls || [],
-          pdfUrls: step.pdfUrls || [],
-          checklist: Array.isArray((step as unknown as { checklist?: unknown }).checklist)
-            ? (step as unknown as { checklist: ChecklistQuestion[] }).checklist
-            : [],
-          requiresVideoReport:
-            (step as unknown as { requiresVideoReport?: boolean }).requiresVideoReport ?? false,
-          requiresWrittenFeedback:
-            (step as unknown as { requiresWrittenFeedback?: boolean }).requiresWrittenFeedback ??
-            false,
-          hasTestQuestions:
-            (step as unknown as { hasTestQuestions?: boolean }).hasTestQuestions ?? false,
-          isDailyCourse:
-            (step as unknown as { isDailyCourse?: boolean }).isDailyCourse ?? false,
-          surveySlug: (step as unknown as { surveySlug?: string | null }).surveySlug ?? null,
-        }}
+        initialData={step}
       />
     </FormPageLayout>
   );

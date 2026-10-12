@@ -793,7 +793,7 @@ export async function reviewExamResult(
             };
 
       try {
-        const { sendImmediatePushNotification } = await import("@gafus/webpush");
+        const { sendImmediatePushNotification } = await import("../notifications/immediatePushService");
         const pushResult = await sendImmediatePushNotification({
           userId,
           title: pushPayload.title,
@@ -881,7 +881,7 @@ export async function reviewExamResult(
           };
 
     try {
-      const { sendImmediatePushNotification } = await import("@gafus/webpush");
+      const { sendImmediatePushNotification } = await import("../notifications/immediatePushService");
       const pushResult = await sendImmediatePushNotification({
         userId,
         title: pushPayload.title,

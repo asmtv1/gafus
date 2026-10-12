@@ -34,6 +34,7 @@ export async function getUserProfile(userId: string) {
 
 interface NormalizedProfileData {
   fullName?: string;
+  city?: string;
   about?: string;
   telegram?: string;
   instagram?: string;
@@ -68,6 +69,12 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
     instagram: normalizedInstagram || null,
     website: normalizedWebsite || null,
   };
+
+  if (data.city !== undefined) {
+    const city = data.city.trim() || null;
+    updateData.city = city;
+    createData.city = city;
+  }
 
   if (normalizedBirthDate !== undefined) {
     if (normalizedBirthDate === "") {
@@ -130,6 +137,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
       profile: {
         select: {
           fullName: true,
+          city: true,
           birthDate: true,
           about: true,
           telegram: true,
@@ -236,52 +244,49 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
  * Обновляет аватар пользователя
  */
 export async function updateAvatar(userId: string, file: File): Promise<string> {
-  return prisma.$transaction(async (tx) => {
-    const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-    if (!owners.length) throw new Error("Пользователь не найден");
-    // Определяем расширение и формируем путь
-    const ext = file.name.split(".").pop();
-    if (!ext) throw new Error("Не удалось определить расширение файла");
+  const ext = file.name.split(".").pop();
+  if (!ext) throw new Error("Не удалось определить расширение файла");
 
-    const uuid = randomUUID();
-    const relativePath = getUserAvatarPath(userId, uuid, ext);
+  const relativePath = getUserAvatarPath(userId, randomUUID(), ext);
+  // Never hold a database row lock during unpredictable CDN/network I/O.
+  const avatarUrl = await uploadFileToCDN(file, relativePath);
+  let oldAvatarUrl: string | null = null;
 
-    // Получаем старый avatarUrl для удаления
-    const existingProfile = await tx.userProfile.findUnique({
-      where: { userId },
-      select: { avatarUrl: true },
+  try {
+    oldAvatarUrl = await prisma.$transaction(async tx => {
+      const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      if (!owners.length) throw new Error("Пользователь не найден");
+      const previous = await tx.userProfile.findUnique({
+        where: { userId }, select: { avatarUrl: true },
+      });
+      await tx.userProfile.upsert({
+        where: { userId },
+        update: { avatarUrl },
+        create: { userId, avatarUrl },
+      });
+      return previous?.avatarUrl ?? null;
     });
-
-    // Загружаем новый файл в CDN
-    const avatarUrl = await uploadFileToCDN(file, relativePath);
-
-    // Удаляем старый файл из CDN (если есть)
-    if (existingProfile?.avatarUrl) {
-      const oldRelativePath = getRelativePathFromCDNUrl(existingProfile.avatarUrl);
-      logger.info(
-        `Найден старый аватар для удаления: ${existingProfile.avatarUrl} -> ${oldRelativePath}`,
-      );
-      try {
-        await deleteFileFromCDN(oldRelativePath);
-        logger.info(`Старый аватар удален из CDN: ${oldRelativePath}`);
-      } catch (error) {
-        logger.error("Не удалось удалить старый аватар", error as Error);
-      }
+  } catch (error) {
+    // Failed database commit: avoid leaking the newly uploaded object.
+    try {
+      await deleteFileFromCDN(relativePath);
+    } catch (cleanupError) {
+      logger.error("Не удалось удалить новый аватар после ошибки БД", cleanupError as Error);
     }
+    throw error;
+  }
 
-    // Сохраняем новый avatarUrl в базе
-    await tx.userProfile.upsert({
-      where: { userId },
-      update: { avatarUrl },
-      create: {
-        userId,
-        avatarUrl,
-      },
-    });
+  // Old content is removed only after the new URL is durably committed.
+  if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
+    try {
+      await deleteFileFromCDN(getRelativePathFromCDNUrl(oldAvatarUrl));
+    } catch (error) {
+      logger.error("Не удалось удалить старый аватар", error as Error);
+    }
+  }
 
-    logger.info("Avatar URL saved to database", { avatarUrl });
-    return avatarUrl;
-  }, { timeout: 90_000 });
+  logger.info("Avatar URL saved to database", { avatarUrl });
+  return avatarUrl;
 }
 
 // ========== Get User With Trainings ==========
@@ -381,6 +386,7 @@ export interface UserProfileForApi {
   onboardingTourCompletedAt: string | null;
   profile: {
     fullName: string | null;
+    city: string | null;
     about: string | null;
     telegram: string | null;
     instagram: string | null;
@@ -411,6 +417,7 @@ export async function getUserProfileForApi(userId: string): Promise<UserProfileF
       profile: {
         select: {
           fullName: true,
+          city: true,
           about: true,
           telegram: true,
           instagram: true,
@@ -432,6 +439,7 @@ export async function getUserProfileForApi(userId: string): Promise<UserProfileF
     onboardingTourCompletedAt: onboardingTourCompletedAt?.toISOString() ?? null,
     profile: {
       fullName: p?.fullName ?? null,
+      city: p?.city ?? null,
       about: p?.about ?? null,
       telegram: p?.telegram ?? null,
       instagram: p?.instagram ?? null,

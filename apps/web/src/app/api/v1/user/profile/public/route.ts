@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicProfile } from "@gafus/core/services/user";
 import { createWebLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
 
 const logger = createWebLogger('api-public-profile');
 
@@ -32,19 +31,9 @@ export async function GET(request: NextRequest) {
         { status: 404 }
       );
     }
-    const user = await prisma.user.findUnique({
-      where: { username: profile.username },
-      select: { profile: { select: { city: true } } },
-    });
-    const publicProfile = {
-      ...profile,
-      profile: profile.profile
-        ? { ...profile.profile, city: user?.profile?.city ?? null }
-        : null,
-    };
 
     return NextResponse.json(
-      { success: true, data: publicProfile },
+      { success: true, data: profile },
       {
         headers: {
           "Cache-Control": "no-store",

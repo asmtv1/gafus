@@ -30,8 +30,17 @@
 }
 
 .vkLinkedBadge {
-  padding: 10px 20px;
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  padding: 9px 14px;
+  border: 1px solid #dce5d1;
+  border-radius: 12px;
+  background: #eef2e5;
+  box-sizing: border-box;
 }
+
 
 .successIcon {
   color: #4caf50 !important;
@@ -278,3 +287,83 @@
 .dangerRow {
   color: #a32424;
 }
+
+/* Profile desktop: independent, readable setting groups instead of one endless list. */
+.section {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: clamp(16px, 2vw, 28px);
+  border-radius: 24px;
+  background: rgba(255, 251, 240, 0.96);
+  border: 1px solid rgba(103, 101, 67, .16);
+  box-shadow: 0 8px 24px rgba(71, 57, 35, .06);
+}
+.buttonsContainer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.settingsGroup {
+  min-width: 0;
+  border: 1px solid #e5e1d3;
+  border-radius: 17px;
+  padding: 16px 20px;
+  background: rgba(250, 248, 239, .94);
+}
+.groupTitle,
+.groupTitle:first-child {
+  margin: 0 0 12px;
+  font: 750 17px/1.35 var(--font-montserrat), system-ui, sans-serif;
+  color: var(--accent-secondary);
+}
+.row {
+  min-height: 46px;
+  padding: 10px 5px;
+  border-color: #e7e2d6;
+  font-size: 13px;
+  transition: background 160ms ease;
+}
+.row:last-child { border-bottom: none; }
+.row:hover { background: rgba(229, 235, 216, .62); border-radius: 9px; }
+.row small { color: #847b6b; font-size: 12px; }
+@media (max-width: 710px) {
+  .buttonsContainer { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .settingsGroup { padding: 14px; }
+  .section { padding: 14px; border-radius: 19px; }
+}
+
+.settingsColumn { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 710px) { .settingsColumn { gap: 12px; } }
+
+/* Profile settings are their own view: independent groups without a card-in-card shell. */
+.section {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.settingsGroup {
+  border: 0;
+  border-radius: 18px;
+  padding: 19px 20px;
+  background: var(--profile-card-surface, var(--surface));
+  border: 1px solid var(--profile-border, rgba(var(--accent-primary-rgb), .16));
+  box-shadow: var(--profile-card-shadow, var(--shadow-card));
+}
+.groupTitle,
+.groupTitle:first-child { margin-bottom: 13px; font-size: 16px; }
+.row { min-height: 51px; font-size: 13px; }
+@media (max-width: 710px) {
+  .section { padding: 0; }
+  .settingsGroup { padding: 16px; }
+}
+
+/* Keep this after the shared row declarations so the border cannot reappear. */
+.settingsGroup .rowBeforeVkStatus { border-bottom: 0; }
+
+/* Important notifications lead the first profile-settings column. */
+.notificationPanel { min-width: 0; width: 100%; }
+.notificationPanel > * { width: 100%; margin: 0; }

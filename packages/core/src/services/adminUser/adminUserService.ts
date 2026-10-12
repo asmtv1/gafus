@@ -20,6 +20,24 @@ const logger = createWebLogger("admin-user-service");
 
 const BCRYPT_SALT_ROUNDS = 10;
 
+/** Central partner-permission policy; apps supply identity, core reads DB roles. */
+export async function partnerChangeRequiresAdmin(
+  actorId: string,
+  userId: string,
+  input: Pick<UpdateUserAdminInput, "role" | "partnerPromoCodeId">,
+): Promise<boolean> {
+  if (input.partnerPromoCodeId === undefined && input.role === undefined) return false;
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+  ]);
+  const changesPartnerRole =
+    input.role !== undefined && input.role !== target?.role &&
+    (input.role === "PARTNER" || target?.role === "PARTNER");
+  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) &&
+    actor?.role !== "ADMIN";
+}
+
 export async function getAllUsers(): Promise<AdminUserActionResult> {
   try {
     const users = await prisma.user.findMany({
@@ -48,6 +66,7 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
 export async function updateUserAdmin(
   userId: string,
   input: UpdateUserAdminInput,
+  actorId?: string,
 ): Promise<AdminUserUpdateResult> {
   try {
     if (input.role === "PARTNER" && !input.partnerPromoCodeId) {
@@ -69,6 +88,22 @@ export async function updateUserAdmin(
       updateData.password = await bcryptjs.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
     }
     await prisma.$transaction(async (tx) => {
+      // Authorization must be checked while the actor and target roles are
+      // protected by database row locks, not only in the HTTP adapter.
+      if (input.role !== undefined || input.partnerPromoCodeId !== undefined) {
+        if (!actorId) throw new ServiceError("Необходима повторная авторизация", "FORBIDDEN");
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${actorId}, ${userId}) ORDER BY "id" FOR UPDATE`;
+        const [actor, target] = await Promise.all([
+          tx.user.findUnique({ where: { id: actorId }, select: { role: true } }),
+          tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
+        ]);
+        const partnerChange = input.partnerPromoCodeId !== undefined ||
+          (input.role !== target?.role &&
+            (input.role === "PARTNER" || target?.role === "PARTNER"));
+        if (partnerChange && actor?.role !== "ADMIN") {
+          throw new ServiceError("Только администратор может управлять ролью и промокодом партнёра", "FORBIDDEN");
+        }
+      }
       await tx.user.update({ where: { id: userId }, data: updateData });
       if (input.partnerPromoCodeId !== undefined) {
         await bindPartnerPromoCodeInTransaction(tx, { userId, promoCodeId: input.partnerPromoCodeId });

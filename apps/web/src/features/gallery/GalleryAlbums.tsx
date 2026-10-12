@@ -11,6 +11,8 @@ import { AlbumForm } from "./AlbumForm";
 import { UploadQueue } from "./UploadQueue";
 import { AppBackButtonLink, LoadingState } from "@/shared/components/ui";
 import styles from "./Gallery.module.css";
+import { AlbumCover } from "./AlbumCover";
+
 function AlbumsContent({ username, preview = false }: { username: string; preview?: boolean }) {
   const { query, albums, info, authenticated, viewerId } = useGalleryAlbums(username, preview);
   const imageRetries = useRef(new Set<string>());
@@ -30,16 +32,23 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
     );
   return (
     <section
-      className={`${styles.surface} ${preview ? styles.preview : ""}`}
+      className={`${styles.surface} ${preview ? styles.preview : styles.albumsPage}`}
       aria-label="Фотоальбомы"
     >
       {!preview && (
-        <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>В профиль</AppBackButtonLink>
+        <div className={styles.albumBack}>
+          <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>В профиль</AppBackButtonLink>
+        </div>
       )}
       <div className={styles.header}>
         {preview ? <h2>Фотоальбомы</h2> : <h1>Фотоальбомы</h1>}
         {preview && (
           <Link href={`/profile/albums?username=${encodeURIComponent(username)}`}>Все альбомы</Link>
+        )}
+        {!preview && info?.isOwner && (
+          <Button variant="outlined" onClick={() => setCreating((value) => !value)}>
+            Создать альбом
+          </Button>
         )}
       </div>
       {query.isPending && <LoadingState variant="inline" message="Загрузка альбомов…" />}
@@ -56,12 +65,12 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
           </Button>
         </p>
       )}
-      {info?.isOwner && (
+      {info?.isOwner && preview && (
         <div className={styles.actions}>
           <Button variant="outlined" onClick={() => setCreating((value) => !value)}>
             Создать альбом
           </Button>
-          {preview && <span className={styles.muted}>{info.usedSlots} / 200 фотографий</span>}
+          <span className={styles.muted}>{info.usedSlots} / 200 фотографий</span>
         </div>
       )}
       {creating && (
@@ -96,23 +105,17 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
             href={`/profile/albums/${encodeURIComponent(album.id)}`}
             className={styles.album}
           >
-            {album.coverThumbUrl ? (
-              <img
-                src={album.coverThumbUrl}
-                alt=""
-                className={styles.thumb}
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                onError={() => {
-                  if (!imageRetries.current.has(album.id)) {
-                    imageRetries.current.add(album.id);
-                    void query.refetch();
-                  }
-                }}
-              />
-            ) : (
-              <div className={`${styles.thumb} ${styles.placeholder}`}>Нет обложки</div>
-            )}
+            <AlbumCover
+              albumId={album.id}
+              coverPhotoId={album.coverDisplayPhotoId ?? album.coverPhotoId}
+              url={album.coverThumbUrl}
+              onLoadError={(id) => {
+                if (!imageRetries.current.has(id)) {
+                  imageRetries.current.add(id);
+                  void query.refetch();
+                }
+              }}
+            />
             <strong>{album.name}</strong>
             <span className={styles.muted}>
               {album.photoCount} фото{album.canEdit && !album.isVisible ? " · Только вы" : ""}

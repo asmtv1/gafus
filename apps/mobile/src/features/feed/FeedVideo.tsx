@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useFocusEffect } from "expo-router";
 import { API_BASE_URL, COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { feedApi } from "@/shared/lib/api/feed";
+import { cloudruFallbackManifestUrl, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
 let active: { postId: string; stop: () => void } | undefined;
 export function stopFeedVideoOutsidePosts(visiblePostIds: Set<string>) {
   if (active && !visiblePostIds.has(active.postId)) active.stop();
@@ -30,14 +31,33 @@ export function FeedVideo({ postId, mediaId, poster, visible }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const generation = useRef(0);
+  const manifest = useRef<string | null>(null);
+  const triedDirect = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const stop = useCallback(() => {
     generation.current++;
+    manifest.current = null;
     if (timer.current) clearTimeout(timer.current);
     setUri(null); setBusy(false);
     if (active?.stop === stop) active = undefined;
   }, []);
-  const fail = useCallback(() => { stop(); setError("Видео не загрузилось. Попробуйте ещё раз."); }, [stop]);
+  const fail = useCallback(() => {
+    const current = generation.current;
+    const original = manifest.current;
+    if (triedDirect.current || !original) { stop(); setError("Видео не загрузилось. Попробуйте ещё раз."); return; }
+    triedDirect.current = true;
+    void (async () => {
+      const outage = await probeHlsCdnOutage(API_BASE_URL.replace(/\/$/, "") + original, { nativeNetwork: true });
+      if (current !== generation.current) return;
+      if (outage) {
+        setUri(API_BASE_URL.replace(/\/$/, "") + cloudruFallbackManifestUrl(original));
+        return;
+      }
+      stop(); setError("Видео не загрузилось. Попробуйте ещё раз.");
+    })().catch(() => {
+      if (current === generation.current) { stop(); setError("Видео не загрузилось. Попробуйте ещё раз."); }
+    });
+  }, [stop]);
   useEffect(() => {
     const listener = AppState.addEventListener("change", state => { if (state !== "active") stop(); });
     return () => { listener.remove(); stop(); };
@@ -46,11 +66,12 @@ export function FeedVideo({ postId, mediaId, poster, visible }: {
   useEffect(() => { if (!visible) stop(); }, [visible, stop]);
   const play = async () => {
     active?.stop(); active = { postId, stop };
-    const current = ++generation.current; setBusy(true); setError("");
+    const current = ++generation.current; triedDirect.current = false; manifest.current = null; setBusy(true); setError("");
     try {
       const ticket = await feedApi.requestPlayback(mediaId);
       if (generation.current !== current) return;
       if (!/^\/api\/v1\/feed-playback\/[A-Za-z0-9_-]+\?ticket=/.test(ticket.manifestUrl)) throw new Error("Не удалось открыть видео.");
+      manifest.current = ticket.manifestUrl;
       setUri(API_BASE_URL.replace(/\/$/, "") + ticket.manifestUrl);
       // A video lasts at most 60 s; a paused expired session is released rather than cached.
       timer.current = setTimeout(stop, 110_000);
@@ -61,7 +82,8 @@ export function FeedVideo({ postId, mediaId, poster, visible }: {
   return <View style={s.fill}>
     {uri ? <ActiveVideo uri={uri} fail={fail} /> : <Pressable style={s.preview} accessibilityRole="button"
       accessibilityLabel={busy ? "Загружаем видео" : "Смотреть видео"} disabled={busy || !visible} onPress={() => void play()}>
-      {poster && <Image source={{ uri: poster }} cachePolicy="memory" contentFit="contain" style={s.fill} />}
+      {poster && <CdnImage cdnUrl={poster} requestFallback={() => feedApi.requestMediaFallback(mediaId, "poster")}
+        contentFit="contain" style={s.fill} />}
       <View style={s.action}><Text style={s.label}>{busy ? "Загружаем видео…" : error ? "Повторить" : "Смотреть видео"}</Text></View>
     </Pressable>}
     {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}

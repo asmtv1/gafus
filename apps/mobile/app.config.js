@@ -80,10 +80,6 @@ module.exports = ({ config }) => ({
     ...config.android,
     intentFilters: [...(config.android?.intentFilters ?? []), ...vkIntentFilters],
   },
-  plugins: [
-    ...(config.plugins ?? []),
-    ["expo-web-browser", { experimentalLauncherActivity: true }],
-  ],
   extra: {
     ...config.extra,
     appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.7.0",

@@ -21,7 +21,7 @@ type PostProjection = { id: string; authorId: string; publishedAt: Date | null }
 const projection = { id: true, authorId: true, publishedAt: true } as const;
 
 export function mergeSmartSources(
-  groups: ReadonlyArray<{ source: SmartCandidateSource; posts: readonly PostProjection[] }>,
+  groups: readonly { source: SmartCandidateSource; posts: readonly PostProjection[] }[],
   limit = 500,
 ): SmartCandidate[] {
   const merged = new Map<string, SmartCandidate>();

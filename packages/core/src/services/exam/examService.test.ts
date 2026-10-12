@@ -60,7 +60,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   uploadBufferToCDN: vi.fn(),
 }));
 
-vi.mock("@gafus/webpush", () => ({
+vi.mock("../notifications/immediatePushService", () => ({
   sendImmediatePushNotification: vi.fn().mockResolvedValue({ success: true }),
 }));
 

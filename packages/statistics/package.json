@@ -4,18 +4,21 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && ts-add-js-extension --dir dist",
     "clean": "rimraf dist",
     "dev": "tsc --watch"
   },
   "dependencies": {
     "@gafus/prisma": "workspace:*",
     "@gafus/types": "workspace:*",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "@gafus/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "rimraf": "5.0.1",
-    "typescript": "^5.8.3"
-  }
+    "typescript": "^5.8.3",
+    "ts-add-js-extension": "^1.6.6"
+  },
+  "type": "module"
 }

@@ -74,7 +74,7 @@
   background:rgba(255,253,248,.95);color:#4d5c2d;font:600 12px Montserrat,Arial,sans-serif;
   padding:8px 12px;cursor:pointer}
 .feedSortSelect:focus-visible{outline:3px solid #c4b476;outline-offset:2px}
-.card{background:rgba(255,253,248,.94);border:1px solid rgba(128,106,85,.22);border-radius:22px;padding:18px;box-shadow:0 5px 15px rgba(66,48,29,.07);overflow:hidden}
+.card{background:var(--profile-feed-surface,rgba(255,253,248,.94));border:1px solid rgba(128,106,85,.22);border-radius:22px;padding:18px;box-shadow:0 5px 15px rgba(66,48,29,.07);overflow:hidden}
 .meta{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .avatar{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:#e9eadb;flex-shrink:0;overflow:hidden}
 .avatar img{width:100%;height:100%;object-fit:cover}

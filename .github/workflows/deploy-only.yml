@@ -12,6 +12,11 @@ on:
           - production
           - staging
 
+# Serializes with push-to-main deploys: never race schema changes.
+concurrency:
+  group: gafus-production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -81,6 +86,20 @@ jobs:
             # Pull latest changes
             git pull origin main
 
+            # All 8 Vox values must exist before changing the running deployment.
+            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_NAME"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_NAME"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_KEY_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_KEY_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_PRIVATE_KEY_BASE64"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
+
+            # Fail before touching runtime if this checkout has schema changes.
+            # Only the main workflow may perform coordinated Prisma cutovers.
+            bash ci-cd/scripts/assert-no-pending-schema-migrations.sh
+
             # Create .env file from GitHub Secrets
             echo "🔐 Creating .env file from GitHub Secrets..."
             {
@@ -149,9 +168,15 @@ jobs:
               echo "FEED_MAINTENANCE_ENABLED=${{ vars.FEED_MAINTENANCE_ENABLED || 'false' }}"
               echo "FEED_PUSH_ENABLED=${{ vars.FEED_PUSH_ENABLED || 'false' }}"
               echo ""
-              echo "# Яндекс Телемост (консультации)"
-              echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}"
-              echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}"
+              echo "# Voximplant (server-only consultation credentials)"
+              echo "VOXIMPLANT_ACCOUNT_ID=${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
+              echo "VOXIMPLANT_APPLICATION_ID=${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
+              echo "VOXIMPLANT_ACCOUNT_NAME=${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
+              echo "VOXIMPLANT_APPLICATION_NAME=${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
+              echo "VOXIMPLANT_KEY_ID=${{ secrets.VOXIMPLANT_KEY_ID }}"
+              echo "VOXIMPLANT_PRIVATE_KEY_BASE64=${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
+              echo "VOXIMPLANT_CREDENTIAL_SECRET=${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
+              echo "VOXIMPLANT_ADMISSION_SECRET=${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
               echo ""
               echo "# Защита видео (HLS)"
               echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"

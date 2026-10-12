@@ -2,12 +2,11 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { Add, Search } from "@mui/icons-material";
 import { QUESTION_CATEGORIES, type QuestionSort, type QuestionStatus } from "@gafus/types";
 import { LoadingState, PrimaryButtonLink } from "@/shared/components/ui";
 import { questionsApi } from "./api";
-import { Author, Status, Counts, BestLabel } from "./parts";
+import { QuestionListCard } from "./QuestionListCard";
 import s from "./Questions.module.css";
 export function QuestionsList() {
   const accountId = useSession().data?.user?.id;
@@ -151,22 +150,7 @@ export function QuestionsList() {
           )}
         </div>
       )}
-      {items.map((q) => (
-        <Link href={`/questions/${q.id}`} key={q.id} className={`${s.card} ${s.questionCard}`}>
-          <Status question={q} />
-          <h2>{q.title}</h2>
-          {q.bestAnswer && (
-            <div className={s.bestPreview}>
-              <BestLabel />
-              <div>{q.bestAnswer.body}</div>
-            </div>
-          )}
-          <div className={s.cardFooter}>
-            <Author author={q.author} date={q.createdAt} />
-            <Counts question={q} />
-          </div>
-        </Link>
-      ))}
+      {items.map((q) => <QuestionListCard key={q.id} question={q} />)}
       {query.hasNextPage && (
         <button
           className={s.secondary}

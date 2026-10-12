@@ -11,9 +11,9 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { after } from "next/server";
 
-import { authOptions, InvalidPasswordResetTokenError } from "@gafus/auth";
+import { authOptions } from "@gafus/auth";
+import { InvalidPasswordResetTokenError } from "@gafus/core/services/auth";
 import { authRegisterBodySchema } from "@gafus/core/validation/auth-register";
-import { RegistrationChannel } from "@gafus/prisma";
 import { getCurrentUserId } from "@gafus/auth/server";
 import * as authService from "@gafus/core/services/auth";
 import { getErrorMessage } from "@gafus/core/errors";
@@ -40,7 +40,6 @@ import {
 
 import { CONSENT_VERSION } from "@shared/constants/consent";
 import type { ConsentPayload } from "@shared/constants/consent";
-import { prisma, VkRegistrationContextPurpose } from "@gafus/prisma";
 
 const logger = createWebLogger("auth-actions");
 
@@ -141,18 +140,11 @@ export async function initiateVkIdAuth(
   const safeReturn = returnPath === "/" ? "/" : returnPath === "/register" ? "/register" : "/login";
   const contextToken = crypto.randomBytes(32).toString("base64url");
   try {
-    await prisma.$transaction(async (tx) => {
-      const selected = promoCode?.trim()
-        ? await authService.resolveRegistrationPromoCodeInTransaction(tx, promoCode)
-        : null;
-      await authService.createVkRegistrationContextInTransaction(tx, {
-        contextToken,
-        state: prepared.state,
-        codeVerifier: prepared.codeVerifier,
-        purpose: VkRegistrationContextPurpose.REGISTER,
-        selectedPromoCodeId: selected?.id,
-        selectedPromoCodeValue: selected?.normalizedCode,
-      });
+    await authService.createVkRegistrationContextWithPromo({
+      contextToken,
+      state: prepared.state,
+      codeVerifier: prepared.codeVerifier,
+      promoCode,
     });
   } catch (error) {
     logger.warn("VK ID registration context rejected", { code: error instanceof authService.RegistrationContractError ? error.code : "VK_CONTEXT_CREATE_FAILED" });
@@ -332,7 +324,7 @@ export async function registerUserAction(
       safeName,
       safeEmail,
       safePassword,
-      RegistrationChannel.WEB,
+      authService.REGISTRATION_CHANNEL.WEB,
       safePromoCode,
       { tempSessionId: safeSessionId, consentPayload: safeConsent, formData: { name: safeName, email: safeEmail }, ipAddress: ip, userAgent, defaultVersion: CONSENT_VERSION },
     );
@@ -360,7 +352,7 @@ export async function previewRegistrationPromoAction(promoCode: string): Promise
     return { success: false, code: "RATE_LIMITED", error: "Слишком много запросов. Попробуйте позже." };
   }
   try {
-    const promo = await prisma.$transaction((tx) => authService.resolveRegistrationPromoCodeInTransaction(tx, promoCode));
+    const promo = await authService.previewRegistrationPromoCode(promoCode);
     return { success: true, code: promo!.normalizedCode };
   } catch (error) {
     const code = error instanceof authService.RegistrationContractError ? error.code : "PROMO_INVALID";
@@ -422,15 +414,7 @@ export async function getVkConsentPromoAction(
 ): Promise<{ success: true; promoCode: string | null } | { success: false; error: string }> {
   const state = (await cookies()).get("vk_registration_state")?.value;
   if (!state) return { success: false, error: "Сессия VK истекла. Повторите вход через VK." };
-  const context = await prisma.vkRegistrationContext.findFirst({
-    where: {
-      contextTokenHash: authService.hashRegistrationOpaqueValue(contextToken),
-      stateHash: authService.hashRegistrationOpaqueValue(state),
-      purpose: VkRegistrationContextPurpose.REGISTER,
-      expiresAt: { gt: new Date() },
-    },
-    select: { selectedPromoCodeValue: true, completedAt: true },
-  });
+  const context = await authService.getVkConsentContextSummary(contextToken, state);
   if (!context || context.completedAt) return { success: false, error: "Сессия VK истекла. Повторите вход через VK." };
   return { success: true, promoCode: context.selectedPromoCodeValue };
 }

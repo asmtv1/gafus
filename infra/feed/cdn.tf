@@ -28,10 +28,14 @@ resource "yandex_cdn_origin_group" "feed" {
   name      = "${local.prefix}-origin"
   folder_id = var.folder_id
   origin {
-    source  = yandex_api_gateway.origin.domain
+    source  = var.cloudru_origin_hostname != "" ? var.cloudru_origin_hostname : yandex_api_gateway.origin.domain
     enabled = true
   }
 }
+# Existing Yandex CDN was created on 2026-10-12 as bc8ru2x6mcqxwcl6a7vj.
+# DO NOT set deploy_cdn=true in Terraform before importing that existing ID
+# into yandex_cdn_resource.feed[0] and reconciling the live config. Creating
+# a second resource with the same primary CNAME feed.gafus.ru is invalid.
 resource "yandex_cdn_resource" "feed" {
   # The provider requires the API Gateway domain to be known during planning.
   # First deploy the origin infrastructure; enable the CDN in a second plan.
@@ -42,12 +46,13 @@ resource "yandex_cdn_resource" "feed" {
   origin_group_id = yandex_cdn_origin_group.feed.id
   origin_protocol = "https"
   options {
-    secure_key             = var.cdn_secret
-    enable_ip_url_signing  = false
-    allowed_http_methods   = ["GET", "HEAD"]
-    ignore_query_params    = true
-    ignore_cookie          = true
-    custom_host_header     = yandex_api_gateway.origin.domain
+    secure_key            = var.cdn_secret
+    enable_ip_url_signing = false
+    allowed_http_methods  = ["GET", "HEAD"]
+    ignore_query_params   = true
+    ignore_cookie         = true
+    # Host must match TLS SNI of the chosen HTTPS origin; the CDN secure-key stays untouched.
+    custom_host_header     = var.cloudru_origin_hostname != "" ? var.cloudru_origin_hostname : yandex_api_gateway.origin.domain
     static_request_headers = { "x-feed-origin-secret" = var.origin_secret }
     static_response_headers = {
       "cache-control"               = "private, no-store, max-age=0"

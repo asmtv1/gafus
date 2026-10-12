@@ -41,8 +41,6 @@ export async function listAdminBookings(): Promise<ConsultationBookingDto[]> {
     clientProblem: b.clientProblem,
     clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
-    joinUrl: b.telemostJoinUrl,
-    watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
     createdAt: b.createdAt.toISOString(),
   }));

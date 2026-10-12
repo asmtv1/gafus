@@ -1,0 +1,227 @@
+/**
+ * Main-only Cloud.ru media: --plan is pure, --prepare provisions guarded
+ * immutable-image Origins and bounded jobs, --verify audits API state.
+ * No CDN changes, no database writes, no user-media operations.
+ */
+import { spawnSync } from "node:child_process";
+import { cloudruMediaManifests } from "./media-manifests.mjs";
+
+const mode = process.argv[2] ?? "--plan";
+if (!["--plan", "--prepare", "--verify"].includes(mode)) throw Error("BAD_MEDIA_RELEASE_ACTION");
+const e = process.env;
+const project = e.CLOUDRU_PROJECT_ID ?? "12345678-1234-1234-1234-123456789012";
+const sha = e.GITHUB_SHA ?? "abcdef0123456789abcdef0123456789abcdef01";
+const base = cloudruMediaManifests(project, sha);
+if (mode === "--plan") {
+  console.log(
+    JSON.stringify({
+      mode,
+      mutates: false,
+      origins: base.services.map((x) => x.name),
+      jobs: base.jobs.map((x) => x.name),
+      requiresPush: false,
+    }),
+  );
+  process.exit(0);
+}
+if (
+  e.GITHUB_REF !== "refs/heads/main" ||
+  e.GITHUB_EVENT_NAME !== "push" ||
+  e.CLOUDRU_PROD_DEPLOY_CONFIRM !== "preapproved-main-only-media-release"
+)
+  throw Error("PROD_MEDIA_RELEASE_GUARD");
+for (const name of [
+  "CLOUDRU_PROJECT_ID",
+  "CLOUDRU_KEY_ID",
+  "CLOUDRU_KEY_SECRET",
+  "CLOUDRU_S3_ACCESS_KEY_ID",
+  "CLOUDRU_S3_SECRET_ACCESS_KEY",
+  "GALLERY_CDN_SECRET",
+  "FEED_CDN_SECRET",
+  "GALLERY_ORIGIN_SECRET",
+  "FEED_ORIGIN_SECRET",
+  "GALLERY_INTERNAL_HMAC_SECRET",
+  "FEED_INTERNAL_HMAC_SECRET",
+])
+  if ((e[name] ?? "").length < 10) throw Error("MISSING_RELEASE_ENV_" + name);
+if (e.CLOUDRU_S3_ENDPOINT !== "https://s3.cloud.ru" || !/^[a-f0-9]{40}$/.test(e.GITHUB_SHA))
+  throw Error("UNEXPECTED_RELEASE_ENDPOINT_OR_SHA");
+for (const name of ["GALLERY_CDN_SECRET", "FEED_CDN_SECRET"])
+  if (!/^[A-Za-z0-9_-]{24,32}$/.test(e[name])) throw Error("INVALID_SIGNER_" + name);
+for (const name of [
+  "GALLERY_ORIGIN_SECRET",
+  "FEED_ORIGIN_SECRET",
+  "GALLERY_INTERNAL_HMAC_SECRET",
+  "FEED_INTERNAL_HMAC_SECRET",
+])
+  if (Buffer.byteLength(e[name]) < 32) throw Error("INVALID_PROTECTION_" + name);
+const image = {};
+for (const role of ["gallery-origin", "feed-origin", "gallery-worker", "feed-worker"]) {
+  const label = "gafus.cr.cloud.ru/gafus-" + role;
+  const r = spawnSync("docker", ["manifest", "inspect", "--verbose", label + ":" + sha], {
+    encoding: "utf8",
+    timeout: 55000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  if (r.status !== 0) throw Error("OCI_IMAGE_NOT_PUBLISHED_" + role);
+  const d = JSON.parse(r.stdout);
+  const descriptor = (Array.isArray(d) ? d[0] : d)?.Descriptor;
+  if (
+    descriptor?.platform?.architecture !== "amd64" ||
+    !/^sha256:[a-f0-9]{64}$/.test(descriptor.digest ?? "")
+  )
+    throw Error("OCI_IMAGE_DIGEST_INVALID_" + role);
+  image[role] = label + "@" + descriptor.digest;
+}
+const values = {
+  GALLERY_BUCKET: "gafus-gallery-private",
+  FEED_BUCKET: "gafus-feed-private",
+  GALLERY_S3_ENDPOINT: "https://s3.cloud.ru",
+  FEED_S3_ENDPOINT: "https://s3.cloud.ru",
+  GALLERY_S3_ACCESS_KEY_ID: e.CLOUDRU_S3_ACCESS_KEY_ID,
+  FEED_S3_ACCESS_KEY_ID: e.CLOUDRU_S3_ACCESS_KEY_ID,
+  GALLERY_S3_SECRET_ACCESS_KEY: e.CLOUDRU_S3_SECRET_ACCESS_KEY,
+  FEED_S3_SECRET_ACCESS_KEY: e.CLOUDRU_S3_SECRET_ACCESS_KEY,
+  GALLERY_ORIGIN_SECRET: e.GALLERY_ORIGIN_SECRET,
+  FEED_ORIGIN_SECRET: e.FEED_ORIGIN_SECRET,
+  GALLERY_CDN_SECRET: e.GALLERY_CDN_SECRET,
+  FEED_CDN_SECRET: e.FEED_CDN_SECRET,
+  GALLERY_CDN_EDGE_TOKEN_VERIFIED: "true",
+  FEED_CDN_EDGE_TOKEN_VERIFIED: "true",
+  GALLERY_CDN_EDGE_CACHE_HIT_VERIFIED: "true",
+  FEED_CDN_EDGE_CACHE_HIT_VERIFIED: "true",
+  GALLERY_ENABLED: "true",
+  GALLERY_INTERNAL_BASE_URL: "https://api.gafus.ru",
+  GALLERY_INTERNAL_HMAC_SECRET: e.GALLERY_INTERNAL_HMAC_SECRET,
+  FEED_INTERNAL_BASE_URL: "https://api.gafus.ru",
+  FEED_INTERNAL_HMAC_SECRET: e.FEED_INTERNAL_HMAC_SECRET,
+  FEED_ALBUM_BUCKET: "gafus-gallery-private",
+};
+const resources = [...base.services, ...base.jobs];
+for (const x of resources) {
+  const role =
+    (x.name.includes("gallery") ? "gallery" : "feed") +
+    "-" +
+    (x.name.endsWith("-origin") ? "origin" : "worker");
+  const c = x.template.containers[0];
+  c.image = image[role];
+  c.env = c.env.map((item) => {
+    const value =
+      item.name === "FEED_RUN_ONCE"
+        ? "true"
+        : item.name === "FEED_WORKER_TYPE"
+          ? x.name.endsWith("video")
+            ? "video"
+            : "photo"
+          : values[item.name];
+    if (value == null) throw Error("UNBOUND_MEDIA_ENV_" + item.name);
+    return { name: item.name, value };
+  });
+  if (
+    x.name.endsWith("-origin") &&
+    (x.template.scaling?.minInstanceCount !== 1 ||
+      x.template.scaling?.maxInstanceCount !== 1 ||
+      x.configuration?.ingress?.publiclyAccessible !== true)
+  )
+    throw Error("PROD_ORIGIN_MUST_BE_WARM_AND_AUTHENTICATED");
+  if (!x.name.endsWith("-origin") && x.runImmediately !== false) throw Error("MEDIA_JOB_AUTORUN");
+}
+const a = await fetch("https://iam.api.cloud.ru/api/v1/auth/token", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ keyId: e.CLOUDRU_KEY_ID, secret: e.CLOUDRU_KEY_SECRET }),
+  signal: AbortSignal.timeout(22000),
+});
+if (!a.ok) throw Error("CLOUDRU_IAM_AUTH_FAILED_" + a.status);
+const token = (await a.json()).access_token;
+if (!token) throw Error("CLOUDRU_IAM_TOKEN_MISSING");
+async function api(method, path, payload) {
+  const r = await fetch("https://containers.api.cloud.ru" + path, {
+    method,
+    headers: {
+      authorization: "Bearer " + token,
+      ...(payload ? { "content-type": "application/json" } : {}),
+    },
+    body: payload ? JSON.stringify(payload) : undefined,
+    signal: AbortSignal.timeout(35000),
+  });
+  if (!r.ok) {
+    console.error("CLOUDRU_API", method, path.split("?")[0], "status", r.status);
+    throw Error("CLOUDRU_MEDIA_API_REJECTED");
+  }
+  return r.json();
+}
+const groups = [
+  {
+    kind: "containers",
+    list: "/v1/containers?projectId=" + project + "&pageSize=100",
+    items: base.services,
+  },
+  { kind: "jobs", list: "/v2/jobs?projectId=" + project + "&pageSize=100", items: base.jobs },
+];
+for (const group of groups) {
+  const listing = await api("GET", group.list);
+  for (const item of group.items) {
+    const found = (listing.data ?? []).find((x) => x.name === item.name);
+    if (found) {
+      const getPath =
+        (group.kind === "jobs" ? "/v2/jobs/" : "/v1/containers/") +
+        item.name +
+        "?projectId=" +
+        project;
+      const current = await api("GET", getPath);
+      if (
+        current.name !== item.name ||
+        current.projectId !== project ||
+        !current.template?.containers?.[0]?.image?.startsWith("gafus.cr.cloud.ru/gafus-")
+      )
+        throw Error("CLOUDRU_EXISTING_MEDIA_RESOURCE_NOT_OWNED_" + item.name);
+      if (mode === "--prepare") {
+        const p = await api(
+          "PATCH",
+          "/v2/" + group.kind + "/" + item.name + "?projectId=" + project,
+          item,
+        );
+        console.log(
+          JSON.stringify({ resource: item.name, action: "update", operationId: p.id ?? null }),
+        );
+      } else if (current.template.containers[0].image !== item.template.containers[0].image)
+        throw Error("CLOUDRU_MEDIA_IMAGE_NOT_CURRENT_" + item.name);
+    } else if (mode === "--prepare") {
+      const p = await api("POST", "/v2/" + group.kind + "/", item);
+      console.log(
+        JSON.stringify({ resource: item.name, action: "create", operationId: p.id ?? null }),
+      );
+    } else throw Error("CLOUDRU_MEDIA_MISSING_" + item.name);
+  }
+}
+if (mode === "--prepare") {
+  for (const item of [
+    {
+      name: "gallery",
+      host: "gafus-gallery-origin.containerapps.ru",
+      secret: e.GALLERY_ORIGIN_SECRET,
+    },
+    { name: "feed", host: "gafus-feed-origin.containerapps.ru", secret: e.FEED_ORIGIN_SECRET },
+  ]) {
+    let ready = false;
+    for (let n = 0; n < 45; n++) {
+      try {
+        const url = "https://" + item.host + "/__gafus_cloudru_validation__/missing";
+        const anon = await fetch(url, { signal: AbortSignal.timeout(7000) });
+        const allowed = await fetch(url, {
+          headers: { ["x-" + item.name + "-origin-secret"]: item.secret },
+          signal: AbortSignal.timeout(7000),
+        });
+        if (anon.status === 403 && [400, 404].includes(allowed.status)) {
+          ready = true;
+          break;
+        }
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    if (!ready) throw Error("CLOUDRU_ORIGIN_UNREADY_" + item.name);
+    console.log(JSON.stringify({ origin: item.name, warm: true, anonymousDenied: true }));
+  }
+}
+console.log("CLOUDRU_MEDIA_" + (mode === "--prepare" ? "PREPARED" : "VERIFIED") + "=PASS");

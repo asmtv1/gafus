@@ -1,8 +1,8 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { prisma } from "@gafus/prisma";
 import { authOptions } from "@gafus/auth";
+import { clearTrainerAIHistory } from "@gafus/core";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createTrainerPanelLogger } from "@gafus/logger";
 
@@ -17,36 +17,12 @@ export interface ClearChatHistoryResult {
 export async function clearChatHistory(): Promise<ClearChatHistoryResult> {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return { success: false, error: "Вы не авторизованы" };
-    }
-
-    // Проверяем роль пользователя
-    if (!["TRAINER", "ADMIN", "MODERATOR"].includes(session.user.role)) {
-      return { success: false, error: "Недостаточно прав доступа" };
-    }
-
-    const trainerId = session.user.id;
-
-    // Удаляем все сообщения тренера
-    const result = await prisma.trainerAIChat.deleteMany({
-      where: { trainerId },
-    });
-
-    logger.success("Chat history cleared", {
-      trainerId,
-      deletedCount: result.count,
-    });
-
-    return {
-      success: true,
-      message: `Удалено ${result.count} сообщений`,
-    };
+    if (!session?.user?.id) return { success: false, error: "Вы не авторизованы" };
+    const count = await clearTrainerAIHistory(session.user.id);
+    logger.success("Chat history cleared", { trainerId: session.user.id, deletedCount: count });
+    return { success: true, message: `Удалено ${count} сообщений` };
   } catch (error) {
     logger.error("Error in clearChatHistory", error as Error);
-    return {
-      success: false,
-      error: getErrorMessage(error, "Неизвестная ошибка"),
-    };
+    return { success: false, error: getErrorMessage(error, "Неизвестная ошибка") };
   }
 }

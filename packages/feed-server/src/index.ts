@@ -3,19 +3,19 @@ import { createFeedService, createFeedSocial, createFeedPreferences, FeedError, 
   feedCreatePostSchema, feedRevisionSchema, feedPublishSchema, feedCommentSchema, feedCommentEditSchema,
   feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema,
   createSmartFeedPreferences, smartImpressionsSchema, smartRankingEventsSchema, smartRedisTimeout, smartFeedbackSchema, isSmartMlVector, verifySmartExposure,
+  hasSmartFeedActor, getSmartFeedTelemetryPreference,
+  eligibleSmartImpressionPostIds, recordSmartFeedImpressions,
+  createCurrentFeedRuntime, eligibleSmartOutcomePostIds, getQualifiedSmartImpressions,
+  recordSmartFeedRankingEvents, storeSmartFeedPostFeedback,
 } from "@gafus/core/services/feed";
 import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
-import { prisma } from "@gafus/prisma";
-import { createFeedStorageFromEnv } from "@gafus/feed-storage";
+import { createFeedStorageFromEnv, signFeedCloudruFallback } from "@gafus/feed-storage";
 
 export const FEED_MAX_BODY_BYTES = 65_536;
 const allowed = new Set(["GET", "POST", "PATCH", "PUT", "DELETE"]);
 const flag = () => process.env.FEED_ENABLED === "true" && process.env.FEED_PROCESSOR_READY === "true";
 const storage = createFeedStorageFromEnv();
-const service = createFeedService({ db: prisma, storage, enabled: flag });
-const social = createFeedSocial({ db: prisma, enabled: flag });
-const preferences = createFeedPreferences({ db: prisma, enabled: flag });
-const smartPreferences = createSmartFeedPreferences(prisma);
+const { service, social, preferences, smartPreferences } = createCurrentFeedRuntime(storage, flag);
 export interface FeedHttpError {
   status: number;
   body: { success: false; error: string; code: string };
@@ -120,11 +120,11 @@ export async function dispatchFeedRequest(
     return smartPreferences.reset(actorId);
   }
   if (len === 2 && one === "impressions" && two === "batch" && method === "POST") {
-    if (!await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } }))
+    if (!await hasSmartFeedActor(actorId))
       throw new FeedError("UNAUTHENTICATED", undefined, 401);
     const { events } = feedParse(smartImpressionsSchema, input);
     if (process.env.FEED_SMART_ENABLED !== "true") return { accepted: 0 };
-    const preference = await prisma.feedPersonalizationPreference.findUnique({ where: { userId: actorId } });
+    const preference = await getSmartFeedTelemetryPreference(actorId);
     if (preference?.enabled === false) return { accepted: 0 };
     const preferencesUpdatedAt = preference?.updatedAt.getTime() ?? 0;
     const { connection } = await import("@gafus/queues");
@@ -154,14 +154,8 @@ export async function dispatchFeedRequest(
         process.env.FEED_SMART_EXPOSURE_TOKENS_REQUIRED === "true");
     });
     if (!verified.length) return { accepted: 0 };
-    const visible = await prisma.feedPost.findMany({
-      where: { id: { in: verified.map(event => event.postId) }, status: "published",
-        deletedAt: null, moderationState: "visible",
-        feedback: { none: { userId: actorId, kind: "not_interested" } },
-        author: { feedSubscribers: { none: { userId: actorId, hidden: true } } } },
-      select: { id: true },
-    });
-    const allowedPosts = new Set(visible.map(post => post.id));
+    const visible = await eligibleSmartImpressionPostIds(actorId, verified.map(event => event.postId));
+    const allowedPosts = new Set(visible);
     const data = verified.filter(event => allowedPosts.has(event.postId)).map(event => {
       const session = sessions.get(event.rankingSessionId)!;
       const snapshot = session.rows[event.rank]!;
@@ -179,20 +173,18 @@ export async function dispatchFeedRequest(
       };
     });
     if (!data.length) return { accepted: 0 };
-    const written = await prisma.feedImpression.createMany({ data, skipDuplicates: true });
-    return { accepted: written.count };
+    const accepted = await recordSmartFeedImpressions(data);
+    return { accepted };
   }
   if (len === 2 && one === "ranking-events" && two === "batch" && method === "POST") {
     const { events } = feedParse(smartRankingEventsSchema, input);
     if (process.env.FEED_SMART_ENABLED !== "true" || process.env.FEED_SMART_EVENTS_ENABLED !== "true") {
       return { accepted: 0 };
     }
-    if (!await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } })) {
+    if (!await hasSmartFeedActor(actorId)) {
       throw new FeedError("UNAUTHENTICATED", undefined, 401);
     }
-    const preference = await prisma.feedPersonalizationPreference.findUnique({
-      where: { userId: actorId },
-    });
+    const preference = await getSmartFeedTelemetryPreference(actorId);
     if (preference?.enabled === false || preference?.useBehavior === false) return { accepted: 0 };
     const { connection } = await import("@gafus/queues");
     if (connection.status !== "ready") return { accepted: 0, retryable: true };
@@ -221,26 +213,15 @@ export async function dispatchFeedRequest(
     });
     if (!validated.length) return { accepted: 0 };
     // No event for hidden, removed, blocked or own content.
-    const eligible = await prisma.feedPost.findMany({
-      where: {
-        id: { in: [...new Set(validated.map(event => event.postId))] },
-        authorId: { not: actorId }, status: "published",
-        moderationState: "visible", deletedAt: null,
-        feedback: { none: { userId: actorId, kind: "not_interested" } },
-        author: { feedSubscribers: { none: { userId: actorId, hidden: true } } },
-      },
-      select: { id: true },
-    });
-    const idsAllowed = new Set(eligible.map(post => post.id));
-    const impressions = await prisma.feedImpression.findMany({
-      where: {
-        userId: actorId,
-        OR: validated.filter(event => idsAllowed.has(event.postId)).map(event => ({
-          postId: event.postId, rankingSessionId: event.rankingSessionId,
-        })),
-      },
-      select: { postId: true, rankingSessionId: true },
-    });
+    const eligible = await eligibleSmartOutcomePostIds(
+      actorId, [...new Set(validated.map(event => event.postId))],
+    );
+    const idsAllowed = new Set(eligible);
+    const impressions = await getQualifiedSmartImpressions(actorId,
+      validated.filter(event => idsAllowed.has(event.postId)).map(event => ({
+        postId: event.postId, rankingSessionId: event.rankingSessionId,
+      })),
+    );
     const qualified = new Set(impressions.map(row => `${row.rankingSessionId}:${row.postId}`));
     const accepted = validated.filter(event => idsAllowed.has(event.postId) &&
       qualified.has(`${event.rankingSessionId}:${event.postId}`)).map(event => ({
@@ -249,11 +230,22 @@ export async function dispatchFeedRequest(
       durationMs: event.kind === "dwell" ? Math.min(event.durationMs ?? 0, 120_000) : 0,
     }));
     if (!accepted.length) return { accepted: 0 };
-    const inserted = await prisma.feedRankingEvent.createMany({ data: accepted, skipDuplicates: true });
-    return { accepted: inserted.count };
+    const inserted = await recordSmartFeedRankingEvents(accepted);
+    return { accepted: inserted };
   }
   if (len === 3 && one === "media") {
     const mediaId = routeId(two!);
+    if (three === "fallback" && method === "POST") {
+      if (url.search || process.env.FEED_MEDIA_FALLBACK_ENABLED !== "true")
+        throw new FeedError("NOT_FOUND", undefined, 404);
+      if (!input || typeof input !== "object" || Array.isArray(input) ||
+          Object.keys(input).length !== 1 || !("variant" in input) ||
+          !["thumb", "full", "poster"].includes(String(input.variant)))
+        throw new FeedError("VALIDATION_ERROR", "Недопустимый вариант файла", 400);
+      const { key } = await posts.fallbackSource(actorId, mediaId, input.variant as "thumb" | "full" | "poster");
+      const fallbackUrl = await signFeedCloudruFallback(key);
+      return { url: fallbackUrl, source: "cloudru", expiresAt: new Date(Date.now() + 120_000).toISOString() };
+    }
     if (three === "playback" && method === "POST") {
       assertEmpty(input);
       if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
@@ -284,17 +276,7 @@ export async function dispatchFeedRequest(
     if (len === 3 && three === "feedback" && method === "POST") {
       if (process.env.FEED_SMART_ENABLED !== "true") throw new FeedError("FEED_DISABLED", undefined, 503);
       const { kind } = feedParse(smartFeedbackSchema, input);
-      const post = await prisma.feedPost.findFirst({
-        where: { id, status: "published", deletedAt: null, moderationState: "visible",
-          author: { feedSubscribers: { none: { userId: actorId, hidden: true } } } },
-        select: { id: true },
-      });
-      if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
-      await prisma.feedUserPostFeedback.upsert({
-        where: { userId_postId_kind: { userId: actorId, postId: id, kind } },
-        create: { userId: actorId, postId: id, kind }, update: {},
-      });
-      return { saved: true };
+      return storeSmartFeedPostFeedback({ actorId, postId: id, kind });
     }
     if (len === 2 && method === "GET") return posts.get(actorId, id);
     if (len === 2 && method === "DELETE") { assertEmpty(input); return posts.remove(actorId, id); }
@@ -362,16 +344,28 @@ export { createFeedInternalDispatcher, dispatchFeedInternalRequest, FEED_INTERNA
 function playbackService(posts: FeedService = service) {
   if (!flag() || !storage.enabled) throw new FeedError("FEED_DISABLED", undefined, 503);
   const key = Buffer.from(process.env.FEED_PLAYBACK_SECRET ?? process.env.FEED_INTERNAL_HMAC_SECRET ?? "", "utf8");
-  return createFeedPlayback({ posts, storage, key, cdnHost: new URL(process.env.FEED_CDN_BASE_URL!).hostname });
+  return createFeedPlayback({ posts, storage, key,
+    cdnHost: new URL(process.env.FEED_CDN_BASE_URL!).hostname,
+    fallbackSign: process.env.FEED_MEDIA_FALLBACK_ENABLED === "true"
+      ? (objectKey, ttl) => signFeedCloudruFallback(objectKey, ttl)
+      : undefined,
+  });
 }
 /** A narrowly scoped bearer ticket is required; this endpoint never serves sources or arbitrary keys. */
 export async function feedPlaybackResponse(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
     const match = /^\/api\/v1\/feed-playback\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
-    if (request.method !== "GET" || !match || [...url.searchParams].length !== 1 || !url.searchParams.has("ticket"))
+    const source = url.searchParams.get("source");
+    const direct = source === "cloudru";
+    const validQuery = direct
+      ? [...url.searchParams].length === 2 && url.searchParams.has("ticket")
+      : source === null && [...url.searchParams].length === 1 && url.searchParams.has("ticket");
+    if (request.method !== "GET" || !match || !validQuery ||
+        (direct && process.env.FEED_MEDIA_FALLBACK_ENABLED !== "true"))
       throw new FeedError("NOT_FOUND", undefined, 404);
-    const result = await playbackService().manifest(routeId(match[1]), url.searchParams.get("ticket")!);
+    const result = await playbackService().manifest(routeId(match[1]), url.searchParams.get("ticket")!, undefined,
+      direct ? "cloudru" : "cdn");
     return new Response(result.playlist, { headers: { "Content-Type": "application/vnd.apple.mpegurl", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
     const mapped = feedHttpError(error);

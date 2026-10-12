@@ -23,6 +23,12 @@ vi.mock("./health-server", () => ({
   startHealthServer: vi.fn(),
 }));
 
+vi.mock("./cynologist-chat-worker", () => ({
+  startCynologistChatWorker: async () => {
+    observedMaxListeners.push(process.getMaxListeners());
+  },
+}));
+
 vi.mock("./push-worker", () => recordBootstrapModule());
 vi.mock("./reengagement-worker", () => recordBootstrapModule());
 vi.mock("./video-transcoding-worker", () => recordBootstrapModule());

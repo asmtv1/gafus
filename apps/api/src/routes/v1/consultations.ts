@@ -13,7 +13,10 @@ import {
   ConsultationBookingNotIncludedError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
-  TelemostUnavailableError,
+  ConsultationVideoUnavailableError,
+  prepareConsultationCall,
+  createConsultationCallAdmission,
+  signConsultationOneTimeKey,
   adminListedCynologistsInputSchema,
   adminSetListedCynologists,
   addDayOff,
@@ -95,7 +98,7 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
   if (error instanceof ConsultationNotFoundError) {
     return c.json({ success: false, error: error.message, code: error.code }, 404);
   }
-  if (error instanceof TelemostUnavailableError) {
+  if (error instanceof ConsultationVideoUnavailableError) {
     return c.json({ success: false, error: error.message, code: error.code }, 503);
   }
   if (isZodErrorLike(error)) {
@@ -105,6 +108,35 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
   }
   return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
 }
+
+// SDK challenge exchange. Persistent service credentials are never returned.
+consultationsRoutes.post("/bookings/:bookingId/voximplant/prepare", async (c) => {
+  try {
+    const bookingId = c.req.param("bookingId");
+    const data = await prepareConsultationCall(bookingId, c.get("user").id);
+    c.header("Cache-Control", "no-store");
+    return c.json({ success: true, data });
+  } catch (error) { return handleConsultationError(c, error); }
+});
+
+consultationsRoutes.post("/bookings/:bookingId/voximplant/admission", async (c) => {
+  try {
+    const data = await createConsultationCallAdmission(c.req.param("bookingId"), c.get("user").id);
+    c.header("Cache-Control", "no-store");
+    return c.json({ success: true, data });
+  } catch (error) { return handleConsultationError(c, error); }
+});
+
+consultationsRoutes.post("/bookings/:bookingId/voximplant/sign", zValidator("json", z.object({
+  key: z.string().min(8).max(512),
+})), async (c) => {
+  try {
+    const { key } = c.req.valid("json");
+    const token = await signConsultationOneTimeKey(c.req.param("bookingId"), c.get("user").id, key);
+    c.header("Cache-Control", "no-store");
+    return c.json({ success: true, token });
+  } catch (error) { return handleConsultationError(c, error); }
+});
 
 consultationsRoutes.get("/cynologists", async (c) => {
   try {

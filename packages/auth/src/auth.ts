@@ -1,11 +1,20 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@gafus/prisma";
-import bcrypt from "bcryptjs";
-import CredentialsProvider from "next-auth/providers/credentials";
+import CredentialsProviderModule from "next-auth/providers/credentials";
+
+// next-auth v4 ships CommonJS nested default exports. Native Node ESM and
+// Next.js bundlers expose different module shapes; both must resolve the factory.
+const CredentialsProvider = (CredentialsProviderModule as unknown as {
+  default?: typeof CredentialsProviderModule;
+}).default ?? CredentialsProviderModule;
 
 import { createWebLogger } from "@gafus/logger";
 
 import type { NextAuthOptions } from "next-auth";
+import {
+  authenticatePasswordCredentials,
+  getActiveSessionUser, getSessionProfileAvatar,
+} from "@gafus/core/services/auth/identityReadService";
 import type { AuthUser } from "./next-auth.d";
 
 const logger = createWebLogger("auth");
@@ -49,26 +58,7 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        const username = credentials.username.toLowerCase().trim();
-        const user = await prisma.user.findUnique({
-          where: { username },
-          select: { id: true, username: true, role: true, password: true, passwordSetAt: true, registrationPending: true },
-        });
-
-        if (!user) throw new Error("Неверный логин или пароль");
-        if (user.registrationPending) throw new Error("Завершите регистрацию через VK ID");
-        if (user.passwordSetAt === null) {
-          throw new Error("Войдите через VK ID или установите пароль в профиле");
-        }
-
-        const valid = await bcrypt.compare(credentials.password, user.password);
-        if (!valid) throw new Error("Неверный логин или пароль");
-
-        return {
-          id: user.id,
-          username: user.username,
-          role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
-        };
+        return authenticatePasswordCredentials(credentials.username, credentials.password);
       },
     }),
   ],
@@ -105,10 +95,7 @@ export const authOptions: NextAuthOptions = {
 
         let currentUser: { role: string; passwordSetAt: Date | null; sessionsRevokedAt: Date | null; phone: string | null; email: string | null; registrationPending: boolean } | null;
         try {
-          currentUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true, passwordSetAt: true, sessionsRevokedAt: true, phone: true, email: true, registrationPending: true },
-          });
+          currentUser = await getActiveSessionUser(userId);
         } catch {
           // A database outage must not turn into an authorization decision here;
           // retain the existing JWT fallback for already authenticated users.
@@ -132,11 +119,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = currentUser.email;
 
         try {
-          const profile = await prisma.userProfile.findUnique({
-            where: { userId },
-            select: { avatarUrl: true },
-          });
-          session.user.avatarUrl = profile?.avatarUrl ?? null;
+          session.user.avatarUrl = await getSessionProfileAvatar(userId);
         } catch {
           session.user.avatarUrl = null;
         }

@@ -1,66 +1,26 @@
-import { createHash } from "node:crypto";
 import { acquireRenewalLock } from "./renewalLock";
 
-import { prisma } from "@gafus/prisma";
 import { createWorkerLogger } from "@gafus/logger";
 import {
   incrementRenewalAttemptTotal,
   incrementRenewalFailedTotal,
 } from "./app-subscription-metrics";
 import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
-import { enrichPaymentFinance, ensureNpdReceiptForSucceededPayment, recordPartnerCommissionForPayment } from "@gafus/core/services/appSubscription";
+import {
+} from "@gafus/core/services/appSubscription";
+import {
+  enrichPaymentFinance, finalizeVerifiedSubscriptionRenewal,
+  listDueYookassaSubscriptionRenewals, getRenewalBuyerEmail,
+  prepareYookassaRenewalAttempt, isYookassaRenewalStillEligible,
+  recordYookassaRenewalFailure, recordYookassaRenewalProviderId,
+  recordYookassaRenewalCanceled,
+  buildYookassaRenewalPaymentPayload, classifyYookassaRenewalProviderResponse,
+  type YookassaRenewalProviderResponse,
+} from "@gafus/core/services/appSubscription";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
 const YOOKASSA_API = "https://api.yookassa.ru/v3/payments";
-const MAX_RENEWAL_ATTEMPTS = 5;
-const RETRY_BACKOFF_MINUTES = [10, 30, 120, 360, 1440] as const;
-
-function buildIdempotenceKey(
-  userId: string,
-  subscriptionId: string,
-  periodEnd: Date,
-  attemptCount: number,
-): string {
-  return createHash("sha256")
-    .update(
-      [
-        "appsub-renewal",
-        userId,
-        subscriptionId,
-        periodEnd.toISOString(),
-        `attempt:${attemptCount}`,
-      ].join(":"),
-    )
-    .digest("hex");
-}
-
-function isPrismaUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: string }).code === "P2002"
-  );
-}
-
-function getNextAttemptAt(now: Date, attemptCount: number): Date {
-  const delayMinutes =
-    RETRY_BACKOFF_MINUTES[
-      Math.min(Math.max(attemptCount - 1, 0), RETRY_BACKOFF_MINUTES.length - 1)
-    ];
-  return new Date(now.getTime() + delayMinutes * 60 * 1000);
-}
-
-function amountsEqualToKopecks(left: unknown, right: unknown): boolean {
-  const leftAmount = Number(left);
-  const rightAmount = Number(right);
-  return (
-    Number.isFinite(leftAmount) &&
-    Number.isFinite(rightAmount) &&
-    Math.round(leftAmount * 100) === Math.round(rightAmount * 100)
-  );
-}
 
 export async function processDueYookassaAppSubscriptionRenewals(params?: { batchSize?: number }) {
   const batchSize = params?.batchSize ?? 100;
@@ -82,42 +42,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
   }
 
   try {
-    await (prisma as any).appSubscription.updateMany({
-      where: {
-        provider: "YOOKASSA",
-        status: { in: ["ACTIVE", "PAST_DUE"] },
-        currentPeriodEnd: { lt: now },
-        payments: {
-          some: {
-            provider: "YOOKASSA",
-            kind: "RENEWAL",
-            status: "PENDING",
-            attemptCount: { gte: 5 },
-          },
-        },
-      },
-      data: { status: "PAST_DUE" },
-    });
-
-    const rows = await (prisma as any).appSubscription.findMany({
-      where: {
-        provider: "YOOKASSA",
-        status: { in: ["ACTIVE", "PAST_DUE"] },
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd: { lte: now },
-        isLifetime: false,
-        yookassaPaymentMethodId: { not: null },
-      },
-      orderBy: [{ currentPeriodEnd: "asc" }, { id: "asc" }],
-      take: batchSize,
-      include: {
-        payments: {
-          where: { provider: "YOOKASSA", status: "SUCCEEDED" },
-          select: { id: true },
-          take: 1,
-        },
-      },
-    });
+    const rows = await listDueYookassaSubscriptionRenewals(now, batchSize);
 
     let processed = 0;
     let skipped = 0;
@@ -127,11 +52,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         skipped += 1;
         continue;
       }
-      const buyer = await (prisma as any).user.findUnique({
-        where: { id: row.userId },
-        select: { email: true },
-      });
-      const buyerEmail = buyer?.email?.trim();
+      const buyerEmail = await getRenewalBuyerEmail(row.userId);
       if (!buyerEmail) {
         logger.warn("Renewal skipped: buyer email is required for NPD receipt", {
           subscriptionId: row.id,
@@ -172,181 +93,28 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
       incrementRenewalAttemptTotal(1);
 
       try {
-        const periodStart = row.currentPeriodEnd;
-        const periodEnd = new Date(
-          row.currentPeriodEnd.getTime() + intervalDays * 24 * 60 * 60 * 1000,
-        );
-        const paymentKind =
-          Array.isArray(row.payments) && row.payments.length === 0 ? "INITIAL" : "RENEWAL";
-        const existingPayment = await (prisma as any).appSubscriptionPayment.findFirst({
-          where: {
-            subscriptionId: row.id,
-            provider: "YOOKASSA",
-            periodStart,
-            periodEnd,
-          },
-          orderBy: [{ attemptCount: "desc" }, { createdAt: "desc" }],
-          select: {
-            id: true,
-            status: true,
-            attemptCount: true,
-            lastAttemptAt: true,
-            nextAttemptAt: true,
-            idempotenceKey: true,
-          },
+        const preparation = await prepareYookassaRenewalAttempt({
+          row, plan, amountRub, currency, intervalDays, buyerEmail, now,
         });
-        let payment = existingPayment;
-        let attemptCountForThisRun = payment?.attemptCount ?? 1;
-        let idempotenceKey =
-          payment?.idempotenceKey ??
-          buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd, attemptCountForThisRun);
-        if (!payment) {
-          try {
-            payment = await (prisma as any).appSubscriptionPayment.create({
-              data: {
-                subscriptionId: row.id,
-                userId: row.userId,
-                provider: "YOOKASSA",
-                kind: paymentKind,
-                status: "PENDING",
-                planCode: plan.code,
-                planTitle: row.planTitle,
-                amount: amountRub,
-                originalAmount: amountRub,
-                currency,
-                buyerEmail,
-                periodStart,
-                periodEnd,
-                idempotenceKey,
-                attemptCount: 1,
-                lastAttemptAt: now,
-                nextAttemptAt: now,
-              },
-              select: { id: true, status: true, attemptCount: true, nextAttemptAt: true },
-            });
-            attemptCountForThisRun = payment?.attemptCount ?? 1;
-          } catch (error) {
-            if (!isPrismaUniqueViolation(error)) {
-              throw error;
-            }
-            payment = await (prisma as any).appSubscriptionPayment.findFirst({
-              where: {
-                subscriptionId: row.id,
-                provider: "YOOKASSA",
-                periodStart,
-                periodEnd,
-              },
-              orderBy: [{ attemptCount: "desc" }, { createdAt: "desc" }],
-              select: {
-                id: true,
-                status: true,
-                attemptCount: true,
-                lastAttemptAt: true,
-                nextAttemptAt: true,
-                idempotenceKey: true,
-              },
-            });
-            attemptCountForThisRun = payment?.attemptCount ?? 1;
-            idempotenceKey =
-              payment?.idempotenceKey ??
-              buildIdempotenceKey(row.userId, row.id, row.currentPeriodEnd, attemptCountForThisRun);
-          }
-        } else if (payment.status === "SUCCEEDED" || payment.status === "REFUNDED") {
+        if (preparation.kind === "processed") {
           processed += 1;
           continue;
-        } else if (payment.status === "CANCELED") {
-          if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
-            await (prisma as any).appSubscription.update({
-              where: { id: row.id },
-              data: { status: "PAST_DUE" },
-            });
-            skipped += 1;
-            continue;
-          }
-
-          const nextAttemptAt = getNextAttemptAt(
-            payment.lastAttemptAt instanceof Date ? payment.lastAttemptAt : now,
-            payment.attemptCount,
-          );
-          if (nextAttemptAt > now) {
-            skipped += 1;
-            continue;
-          }
-
-          attemptCountForThisRun = payment.attemptCount + 1;
-          idempotenceKey = buildIdempotenceKey(
-            row.userId,
-            row.id,
-            row.currentPeriodEnd,
-            attemptCountForThisRun,
-          );
-          payment = await (prisma as any).appSubscriptionPayment.create({
-            data: {
-              subscriptionId: row.id,
-              userId: row.userId,
-              provider: "YOOKASSA",
-              kind: paymentKind,
-              status: "PENDING",
-              planCode: plan.code,
-              planTitle: row.planTitle,
-              amount: amountRub,
-              originalAmount: amountRub,
-              currency,
-              buyerEmail,
-              periodStart,
-              periodEnd,
-              idempotenceKey,
-              attemptCount: attemptCountForThisRun,
-              lastAttemptAt: now,
-              nextAttemptAt: now,
-            },
-            select: {
-              id: true,
-              status: true,
-              attemptCount: true,
-              lastAttemptAt: true,
-              nextAttemptAt: true,
-            },
-          });
-        } else {
-          if (payment.attemptCount >= MAX_RENEWAL_ATTEMPTS) {
-            await (prisma as any).appSubscription.update({
-              where: { id: row.id },
-              data: { status: "PAST_DUE" },
-            });
-            skipped += 1;
-            continue;
-          }
-          if (payment.nextAttemptAt instanceof Date && payment.nextAttemptAt > now) {
-            skipped += 1;
-            continue;
-          }
-          attemptCountForThisRun = payment.attemptCount + 1;
-          await (prisma as any).appSubscriptionPayment.update({
-            where: { id: payment.id },
-            data: {
-              status: "PENDING",
-              attemptCount: { increment: 1 },
-              lastAttemptAt: now,
-              nextAttemptAt: now,
-              failureCode: null,
-              failureReason: null,
-            },
-          });
         }
-        if (!payment) {
+        if (preparation.kind === "skipped") {
           skipped += 1;
           continue;
         }
+        const {
+          payment, periodStart, periodEnd, paymentKind,
+          attemptCountForThisRun, idempotenceKey,
+        } = preparation;
 
         await lock.assertHeld();
         // Re-read immediately before dispatch; the batch snapshot can predate cancellation.
-        const eligible = await prisma.appSubscription.findFirst({
-          where: { id: row.id, status: { in: ["ACTIVE", "PAST_DUE"] }, cancelAtPeriodEnd: false,
-            currentPeriodEnd: row.currentPeriodEnd, yookassaPaymentMethodId: row.yookassaPaymentMethodId },
-          select: { id: true },
-        });
-        if (!eligible) { skipped += 1; continue; }
+        if (!await isYookassaRenewalStillEligible(row)) {
+          skipped += 1;
+          continue;
+        }
         const auth = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
         let res: Awaited<ReturnType<typeof fetch>>;
         try {
@@ -358,35 +126,19 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
               Authorization: `Basic ${auth}`,
               "Idempotence-Key": idempotenceKey,
             },
-            body: JSON.stringify({
-              amount: { value: amountRub.toFixed(2), currency },
-              capture: true,
-              payment_method_id: row.yookassaPaymentMethodId,
-              description: `Продление подписки Gafus Premium (${intervalDays} дн.)`,
-              metadata: {
-                kind: "app_subscription",
-                localPaymentId: payment.id,
-                userId: row.userId,
-                subscriptionId: row.id,
-                planCode: plan.code,
-                renewal: paymentKind === "RENEWAL" ? "true" : "false",
-              },
-            }),
+            body: JSON.stringify(buildYookassaRenewalPaymentPayload({
+              amountRub, currency, intervalDays,
+              paymentMethodId: row.yookassaPaymentMethodId!,
+              localPaymentId: payment.id, userId: row.userId,
+              subscriptionId: row.id, planCode: plan.code, kind: paymentKind,
+            })),
           });
         } catch (error) {
           const failureReason = error instanceof Error ? error.message : "YooKassa request failed";
-          await (prisma as any).appSubscriptionPayment.update({
-            where: { id: payment.id },
-            data: {
-              status: "FAILED",
-              failureCode: "NETWORK",
-              failureReason: failureReason.slice(0, 512),
-              nextAttemptAt: getNextAttemptAt(now, attemptCountForThisRun),
-            },
-          });
-          await (prisma as any).appSubscription.update({
-            where: { id: row.id },
-            data: { status: "PAST_DUE" },
+          await recordYookassaRenewalFailure({
+            paymentId: payment.id, subscriptionId: row.id,
+            code: "NETWORK", reason: failureReason, retry: true, pastDue: true,
+            now, attemptCount: attemptCountForThisRun,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
@@ -394,120 +146,67 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
         }
 
         if (!res.ok) {
-          const text = await res.text();
-          await (prisma as any).appSubscriptionPayment.update({
-            where: { id: payment.id },
-            data: {
-              status: "FAILED",
-              failureCode: "YOOKASSA_REJECTED",
-              failureReason: `${res.status}: ${text}`.slice(0, 512),
-              nextAttemptAt: getNextAttemptAt(now, attemptCountForThisRun),
-            },
-          });
-          await (prisma as any).appSubscription.update({
-            where: { id: row.id },
-            data: { status: "PAST_DUE" },
+          await recordYookassaRenewalFailure({
+            paymentId: payment.id, subscriptionId: row.id,
+            code: "YOOKASSA_REJECTED",
+            reason: `YooKassa HTTP ${res.status}`,
+            retry: true, pastDue: true, now,
+            attemptCount: attemptCountForThisRun,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
           continue;
         }
 
-        const data = (await res.json()) as {
-          id?: string;
-          status?: string;
-          amount?: { value?: string; currency?: string };
-          payment_method?: { id?: string; type?: string };
-          income_amount?: { value?: string; currency?: string };
-          captured_at?: string;
-        };
-        if (!data.id) {
-          await (prisma as any).appSubscriptionPayment.update({
-            where: { id: payment.id },
-            data: {
-              status: "FAILED",
-              failureCode: "INVALID_PROVIDER_RESPONSE",
-              failureReason: "Missing YooKassa payment id",
-            },
+        const data = (await res.json()) as YookassaRenewalProviderResponse;
+        const verdict = classifyYookassaRenewalProviderResponse(data, amountRub, currency);
+        if (verdict.kind === "invalid") {
+          await recordYookassaRenewalFailure({
+            paymentId: payment.id, subscriptionId: row.id,
+            code: "INVALID_PROVIDER_RESPONSE",
+            reason: "Missing YooKassa payment id",
+            retry: false, pastDue: false, now, attemptCount: attemptCountForThisRun,
           });
           incrementRenewalFailedTotal(1);
           skipped += 1;
           continue;
         }
 
-        await (prisma as any).appSubscriptionPayment.update({
-          where: { id: payment.id },
-          data: { yookassaPaymentId: data.id },
-        });
+        await recordYookassaRenewalProviderId(payment.id, verdict.paymentId);
 
-        if (data.status === "canceled") {
-          await (prisma as any).appSubscriptionPayment.update({
-            where: { id: payment.id },
-            data: { status: "CANCELED", yookassaPaymentId: data.id },
-          });
+        if (verdict.kind === "canceled") {
+          await recordYookassaRenewalCanceled(payment.id, verdict.paymentId);
           skipped += 1;
           continue;
         }
 
-        if (data.status === "succeeded") {
-          if (
-            !amountsEqualToKopecks(data.amount?.value, amountRub) ||
-            data.amount?.currency !== currency
-          ) {
-            await (prisma as any).appSubscriptionPayment.update({
-              where: { id: payment.id },
-              data: {
-                status: "FAILED",
-                failureCode: "PROVIDER_AMOUNT_MISMATCH",
-                failureReason: "YooKassa renewal amount or currency mismatch",
-              },
-            });
-            await (prisma as any).appSubscription.update({
-              where: { id: row.id },
-              data: { status: "PAST_DUE" },
-            });
-            incrementRenewalFailedTotal(1);
-            skipped += 1;
-            continue;
-          }
+        if (verdict.kind === "amount_mismatch") {
+          await recordYookassaRenewalFailure({
+            paymentId: payment.id, subscriptionId: row.id,
+            code: "PROVIDER_AMOUNT_MISMATCH",
+            reason: "YooKassa renewal amount or currency mismatch",
+            retry: false, pastDue: true, now, attemptCount: attemptCountForThisRun,
+          });
+          incrementRenewalFailedTotal(1);
+          skipped += 1;
+          continue;
+        }
+        if (verdict.kind === "succeeded") {
           await enrichPaymentFinance(payment.id, data, {
-            yookassaPaymentId: data.id,
+            yookassaPaymentId: verdict.paymentId,
             amount: amountRub,
             currency,
           });
-          await (prisma as any).$transaction(async (tx: any) => {
-            const claimed = await tx.appSubscriptionPayment.updateMany({
-              where: { id: payment.id, status: { notIn: ["SUCCEEDED", "REFUNDED"] } },
-              data: {
-                status: "SUCCEEDED",
-                planCode: plan.code,
-                yookassaPaymentId: data.id,
-                currency,
-                periodStart,
-                periodEnd,
-                succeededAt: new Date(),
-                financeRefundsIncomplete: false,
-              },
-            });
-            if (claimed.count !== 1) return;
-            await tx.appSubscription.update({
-              where: { id: row.id },
-              data: {
-                status: "ACTIVE",
-                planCode: plan.code,
-                currentPeriodStart: periodStart,
-                currentPeriodEnd: periodEnd,
-                renewalReminderSentForPeriodEnd: null,
-              },
-            });
-            await recordPartnerCommissionForPayment(tx, {
-              id: payment.id,
-              userId: row.userId,
-              planCode: plan.code,
-              subscriptionId: row.id,
-              kind: paymentKind,
-            });
-            await ensureNpdReceiptForSucceededPayment(tx, payment.id);
+          await finalizeVerifiedSubscriptionRenewal({
+            paymentId: payment.id,
+            subscriptionId: row.id,
+            userId: row.userId,
+            planCode: plan.code,
+            kind: paymentKind,
+            providerPaymentId: verdict.paymentId,
+            currency,
+            periodStart,
+            periodEnd,
           });
         }
 

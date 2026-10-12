@@ -98,11 +98,13 @@ export default function PetList({
   isOwner,
   pathOrScreen: pathOrScreenProp,
   revalidatePath: revalidatePathProp,
+  layout = "stack",
 }: {
   pets: OwnerPet[];
   isOwner: boolean;
   pathOrScreen?: string;
   revalidatePath?: string;
+  layout?: "stack" | "grid";
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -293,7 +295,7 @@ export default function PetList({
           <p>Питомцы не добавлены</p>
         </div>
       ) : (
-        <ul className={styles.dog_list}>
+        <ul className={`${styles.dog_list} ${layout === "grid" ? styles.petGrid : ""}`}>
           {pets.map((pet, index) => (
             <PetCard
               key={pet.id}

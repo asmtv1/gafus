@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const fixture = vi.hoisted(() => ({ db: null as any }));
+const fixture = vi.hoisted(() => ({ db: null as unknown as import("@gafus/prisma").PrismaClient }));
 vi.mock("@gafus/prisma", () => ({
   prisma: new Proxy({}, { get: (_target, key) => {
     const value = fixture.db[key];

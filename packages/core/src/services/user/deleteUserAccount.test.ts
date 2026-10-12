@@ -31,6 +31,7 @@ vi.mock("../auth/transactionalAuthMail", () => ({
 }));
 
 vi.mock("@gafus/cdn-upload", () => ({
+  DUAL_PROVIDER_CLEANUP_MARKER: "migration-dual-provider-required",
   deleteFileFromCDN: (...args: unknown[]) => mockDeleteFileFromCDN(...args),
   getRelativePathFromCDNUrl: (...args: unknown[]) => mockGetRelativePathFromCDNUrl(...args),
 }));
@@ -135,15 +136,20 @@ describe("deleteUserAccount", () => {
     const result = await deleteUserAccount({ actorUserId: "u1", code: "123456" });
     expect(result).toEqual({ success: true });
     const snapshotIndex = mockExecuteRaw.mock.calls.findIndex(([sql]) =>
-      (sql as TemplateStringsArray).join("").includes('INSERT INTO "AccountStorageCleanup"'));
+      (sql as TemplateStringsArray).join("").includes('INSERT INTO "AccountStorageCleanup"'),
+    );
     expect(snapshotIndex).toBeGreaterThanOrEqual(0);
-    expect(mockExecuteRaw.mock.invocationCallOrder[snapshotIndex]).toBeLessThan(mockUserDelete.mock.invocationCallOrder[0]!);
+    expect(mockExecuteRaw.mock.invocationCallOrder[snapshotIndex]).toBeLessThan(
+      mockUserDelete.mock.invocationCallOrder[0]!,
+    );
     expect(mockDeleteFileFromCDN).not.toHaveBeenCalled();
   });
 
   it("does not delete the user when persisting cleanup fails", async () => {
     mockExecuteRaw.mockRejectedValueOnce(new Error("database unavailable"));
-    expect(await deleteUserAccount({ actorUserId: "u1", code: "123456" })).toMatchObject({ success: false });
+    expect(await deleteUserAccount({ actorUserId: "u1", code: "123456" })).toMatchObject({
+      success: false,
+    });
     expect(mockUserDelete).not.toHaveBeenCalled();
   });
 
@@ -160,7 +166,9 @@ describe("deleteUserAccount", () => {
     expect(result).toMatchObject({
       success: false,
       code: "FORBIDDEN",
-      error: expect.stringContaining("Удаление аккаунта доступно только для пользователей") as string,
+      error: expect.stringContaining(
+        "Удаление аккаунта доступно только для пользователей",
+      ) as string,
     });
     expect(mockTransaction).not.toHaveBeenCalled();
   });
@@ -223,20 +231,18 @@ describe("requestAccountDeletionCode", () => {
     mockTokCreate.mockResolvedValue({});
     mockUserUpdate.mockResolvedValue({});
 
-    mockUserFindUnique.mockImplementation(
-      (args: { select: Record<string, boolean> }) => {
-        const keys = Object.keys(args.select);
-        if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
-          return Promise.resolve({ accountDeletionRequestedAt: null });
-        }
-        return Promise.resolve({
-          id: "u1",
-          username: "tester",
-          role: "USER",
-          email: "t@example.com",
-        });
-      },
-    );
+    mockUserFindUnique.mockImplementation((args: { select: Record<string, boolean> }) => {
+      const keys = Object.keys(args.select);
+      if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
+        return Promise.resolve({ accountDeletionRequestedAt: null });
+      }
+      return Promise.resolve({
+        id: "u1",
+        username: "tester",
+        role: "USER",
+        email: "t@example.com",
+      });
+    });
 
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
@@ -261,20 +267,18 @@ describe("requestAccountDeletionCode", () => {
   });
 
   it("rejects when email missing", async () => {
-    mockUserFindUnique.mockImplementation(
-      (args: { select: Record<string, boolean> }) => {
-        const keys = Object.keys(args.select);
-        if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
-          return Promise.resolve({ accountDeletionRequestedAt: null });
-        }
-        return Promise.resolve({
-          id: "u1",
-          username: "tester",
-          role: "USER",
-          email: null,
-        });
-      },
-    );
+    mockUserFindUnique.mockImplementation((args: { select: Record<string, boolean> }) => {
+      const keys = Object.keys(args.select);
+      if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
+        return Promise.resolve({ accountDeletionRequestedAt: null });
+      }
+      return Promise.resolve({
+        id: "u1",
+        username: "tester",
+        role: "USER",
+        email: null,
+      });
+    });
 
     const result = await requestAccountDeletionCode("u1");
 
@@ -284,20 +288,18 @@ describe("requestAccountDeletionCode", () => {
   });
 
   it("rejects when throttled", async () => {
-    mockUserFindUnique.mockImplementation(
-      (args: { select: Record<string, boolean> }) => {
-        const keys = Object.keys(args.select);
-        if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
-          return Promise.resolve({ accountDeletionRequestedAt: new Date() });
-        }
-        return Promise.resolve({
-          id: "u1",
-          username: "tester",
-          role: "USER",
-          email: "t@example.com",
-        });
-      },
-    );
+    mockUserFindUnique.mockImplementation((args: { select: Record<string, boolean> }) => {
+      const keys = Object.keys(args.select);
+      if (keys.includes("accountDeletionRequestedAt") && keys.length === 1) {
+        return Promise.resolve({ accountDeletionRequestedAt: new Date() });
+      }
+      return Promise.resolve({
+        id: "u1",
+        username: "tester",
+        role: "USER",
+        email: "t@example.com",
+      });
+    });
 
     const result = await requestAccountDeletionCode("u1");
 

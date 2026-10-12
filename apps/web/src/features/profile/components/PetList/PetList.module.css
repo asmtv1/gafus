@@ -861,3 +861,71 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* Desktop /pets layout. Opt-in so PetList in other features keeps its existing view. */
+.petGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 470px), 1fr));
+  align-items: start;
+  gap: 18px;
+}
+.petGrid > .dog_item {
+  width: 100%;
+  min-width: 0;
+  border-radius: 21px;
+}
+/* A single pet must not become a full-width panoramic card. */
+.petGrid > .dog_item:only-child:not(.petExpanded) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  max-width: 620px;
+}
+/* Expansion is a separate layout state, never one panoramic card in a two-column grid. */
+.petGrid:has(> .petExpanded) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 820px);
+  max-width: 820px;
+  margin-inline: auto;
+}
+.petGrid:has(> .petExpanded) > .dog_item {
+  width: 100%;
+  max-width: 820px;
+}
+/* Keep the other pet cards visually compact and centred beneath/above the open pet. */
+.petGrid:has(> .petExpanded) > .dog_item:not(.petExpanded) {
+  max-width: 620px;
+}
+.petGrid > .petExpanded { grid-column: 1 / -1; }
+.petGrid .petHero { min-height: 150px; }
+.petGrid .avatar_container {
+  width: 28%;
+  min-width: 112px;
+  max-width: 140px;
+  padding: 10px;
+}
+.petGrid .avatar_container > div,
+.petGrid .avatar_container > .MuiAvatar-root {
+  width: min(118px, 100%) !important;
+}
+.petGrid .dog_info { padding: 14px 14px 12px 0; }
+.petGrid .dog_info h3 { font-size: clamp(20px, 2.2vw, 25px); }
+.petGrid .petFacts { margin-top: 10px; }
+.petGrid .profileVisibility { padding: 7px 10px; }
+.petGrid .profileVisibilityLabel { min-height: 44px; padding: 7px 10px; }
+.petGrid .petCompactFoot { min-height: 37px; }
+
+/* With one available column, keep cards centered and limited in width. */
+@media (max-width: 1040px) {
+  .petGrid { max-width: 720px; margin-inline: auto; }
+}
+@media (max-width: 600px) {
+  .petGrid { gap: 14px; }
+  .petGrid .petHero { min-height: 148px; }
+  .petGrid .avatar_container { width: 37%; min-width: 110px; max-width: 135px; padding: 8px; }
+  .petGrid .avatar_container > div,
+  .petGrid .avatar_container > .MuiAvatar-root { width: min(118px, 100%) !important; }
+  .petGrid .dog_info { padding: 12px 10px 10px 0; }
+  .petGrid .dog_info h3 { font-size: 22px; }
+}

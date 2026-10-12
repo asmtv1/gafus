@@ -344,14 +344,14 @@ describe("updateCourse", () => {
       expect.objectContaining({
         where: { id: "guide-1" },
         data: expect.objectContaining({
-          guideContent: null,
+          guideContent: undefined,
           name: "Мини-гайд",
         }),
       }),
     );
   });
 
-  it("update with trainingDays creates links and keeps guideContent null", async () => {
+  it("update with trainingDays creates links and preserves omitted guideContent", async () => {
     mockDayOnCourseFindMany.mockResolvedValue([]);
     mockDayOnCourseCreateMany.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
@@ -374,7 +374,7 @@ describe("updateCourse", () => {
     expect(mockCourseUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          guideContent: null,
+          guideContent: undefined,
         }),
       }),
     );

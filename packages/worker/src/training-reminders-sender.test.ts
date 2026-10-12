@@ -13,6 +13,9 @@ vi.mock("@gafus/prisma", () => ({
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    trainingReminderDelivery: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

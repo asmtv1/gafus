@@ -5,7 +5,7 @@
 
 .wrapper {
   width: 100%;
-  max-width: 1440px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 16px;
   background: rgba(255, 248, 229, 0.72);
@@ -55,4 +55,18 @@
   font-size: 16px;
   text-align: center;
   font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Keep the add action readable rather than stretching it across the desktop canvas. */
+.addPetButton {
+  width: min(100%, 340px);
+  min-height: 46px;
+  margin-inline: auto;
+}
+
+@media (max-width: 600px) {
+  .page { padding: 10px; }
+  .wrapper { padding: 12px; border-radius: 18px; }
+  .title { font-size: 32px; }
+  .addPetButton { width: 100%; }
 }

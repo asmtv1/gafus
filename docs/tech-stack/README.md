@@ -72,7 +72,7 @@
 - Expo Push.
 - RuStore Push.
 - Yandex 360 SMTP transactional email via `@gafus/mailer`.
-- Yandex Telemost for consultations where configured.
+- Voximplant for consultations (Web and trainer panel use embedded conference client).
 - Yandex Metrica/AppMetrica analytics.
 - PostHog web analytics adapter exists in `@gafus/analytics`.
 

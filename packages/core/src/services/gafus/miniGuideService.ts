@@ -42,3 +42,26 @@ export async function listGafusMiniGuides(userId: string, now = new Date()) {
     return items.filter((value): value is NonNullable<typeof value> => value !== null);
   });
 }
+
+/**
+ * Authorize access before reading protected HTML. Both Web and API use this
+ * single server-side transaction rather than duplicating entitlement checks.
+ * A missing or forbidden guide returns null without exposing content.
+ */
+export async function getAuthorizedMiniGuideContent(input: {
+  userId: string;
+  courseId: string;
+  now?: Date;
+}): Promise<string | null> {
+  return prisma.$transaction(async tx => {
+    const target = await resolveMiniGuideTargetTx(tx, input.courseId);
+    if (!target) return null;
+    const access = await resolveMiniGuideAccessTx(tx, input.userId, target, input.now);
+    if (!access.allowed) return null;
+    const course = await tx.course.findUnique({
+      where: { id: input.courseId },
+      select: { guideContent: true },
+    });
+    return course?.guideContent || null;
+  });
+}

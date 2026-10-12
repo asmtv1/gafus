@@ -6,6 +6,7 @@ import { GalleryScope } from "@/features/gallery/GalleryScope";
 import { galleryApi } from "@/features/gallery/api";
 import { LoadingState } from "@/shared/components/ui";
 import styles from "./Feed.module.css";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 
 /** Album access is resolved as the authenticated owner, including hidden albums. */
 function Picker({ selected, onChange, disabled }: {
@@ -57,7 +58,9 @@ function Picker({ selected, onChange, disabled }: {
           className={styles.mediaItem} aria-pressed={selected.includes(photo.id)}
           onClick={() => toggle(photo.id)}>
           {photo.thumbUrl &&
-            <img src={photo.thumbUrl} alt={photo.caption ?? "Фотография альбома"} loading="lazy" referrerPolicy="no-referrer" />}
+            <CdnImage key={photo.id} source={photo.thumbUrl}
+              requestFallback={() => galleryApi.requestMediaFallback(photo.id, "thumb")}
+              alt={photo.caption ?? "Фотография альбома"} loading="lazy" />}
           <span>{selected.includes(photo.id) ? "✓ Выбрано" : "Выбрать"}</span>
         </button>)}
       </div>

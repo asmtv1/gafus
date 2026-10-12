@@ -4,7 +4,7 @@ import {
   ConsultationBookingRestrictedError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
-  TelemostUnavailableError,
+  ConsultationVideoUnavailableError,
 } from "@gafus/core";
 import type { Logger } from "@gafus/logger";
 import { isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
@@ -44,7 +44,7 @@ export function mapConsultationError(
   if (error instanceof ConsultationNotFoundError) {
     return { status: 404, body: { success: false, error: error.message, code: error.code } };
   }
-  if (error instanceof TelemostUnavailableError) {
+  if (error instanceof ConsultationVideoUnavailableError) {
     return { status: 503, body: { success: false, error: error.message, code: error.code } };
   }
   return null;

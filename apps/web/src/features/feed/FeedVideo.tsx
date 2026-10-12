@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type Hls from "hls.js";
 import { feedApi } from "./api";
+import { CdnImage } from "@/shared/components/media/CdnImage";
+import { cloudruFallbackManifestUrl, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
+import { sameOriginCdnProbeFetch } from "@/shared/lib/media/cdnProbe";
 import styles from "./Feed.module.css";
 let stopActiveVideo: (() => void) | undefined;
 
@@ -9,6 +12,7 @@ export function FeedVideo({ mediaId, poster }: { mediaId: string; poster: string
   const video = useRef<HTMLVideoElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const hls = useRef<Hls | null>(null);
+  const nativeFallback = useRef<(() => Promise<boolean>) | null>(null);
   const generation = useRef(0);
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [active, setActive] = useState(false);
@@ -17,25 +21,40 @@ export function FeedVideo({ mediaId, poster }: { mediaId: string; poster: string
   const stop = useCallback(() => {
     generation.current++;
     if (expiryTimer.current) clearTimeout(expiryTimer.current);
-    hls.current?.destroy(); hls.current = null;
+    hls.current?.destroy();
+    hls.current = null;
+    nativeFallback.current = null;
     const element = video.current;
-    if (element) { element.pause(); element.removeAttribute("src"); element.load(); }
-    setActive(false); setBusy(false);
+    if (element) {
+      element.pause();
+      element.removeAttribute("src");
+      element.load();
+    }
+    setActive(false);
+    setBusy(false);
     if (stopActiveVideo === stop) stopActiveVideo = undefined;
   }, []);
   useEffect(() => {
-    const visibility = () => { if (document.hidden) stop(); };
+    const visibility = () => {
+      if (document.hidden) stop();
+    };
     document.addEventListener("visibilitychange", visibility);
-    const observer = new IntersectionObserver(entries => {
-      if (entries.every(entry => !entry.isIntersecting)) stop();
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.every((entry) => !entry.isIntersecting)) stop();
     });
     if (root.current) observer.observe(root.current);
-    return () => { document.removeEventListener("visibilitychange", visibility); observer.disconnect(); stop(); };
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      observer.disconnect();
+      stop();
+    };
   }, [stop]);
   const play = async () => {
-    stopActiveVideo?.(); stopActiveVideo = stop;
+    stopActiveVideo?.();
+    stopActiveVideo = stop;
     const current = ++generation.current;
-    setBusy(true); setError("");
+    setBusy(true);
+    setError("");
     try {
       const ticket = await feedApi.requestPlayback(mediaId);
       if (generation.current !== current) return;
@@ -44,41 +63,130 @@ export function FeedVideo({ mediaId, poster }: { mediaId: string; poster: string
       setActive(true);
       expiryTimer.current = setTimeout(stop, 110_000);
       const url = ticket.manifestUrl;
-      if (!/^\/api\/v1\/feed-playback\/[A-Za-z0-9_-]+\?ticket=/.test(url)) throw new Error("Не удалось открыть видео.");
-      if (element.canPlayType("application/vnd.apple.mpegurl")) {
-        element.src = url;
-        await element.play();
-      } else {
-        const { default: HlsPlayer } = await import("hls.js");
-        if (generation.current !== current) return;
-        if (!HlsPlayer.isSupported()) throw new Error("Этот браузер не поддерживает воспроизведение видео.");
-        const player = new HlsPlayer({ maxBufferLength: 15, backBufferLength: 0,
-          fetchSetup: (context, init) => new Request(context.url, { ...init, cache: "no-store", credentials: "omit" }),
+      let directAttempted = false;
+      const switchToFallback = async (player?: Hls) => {
+        if (directAttempted || generation.current !== current) return false;
+        directAttempted = true;
+        if (!(await probeHlsCdnOutage(url, { fetcher: sameOriginCdnProbeFetch, timeoutMs: 8500 })))
+          return false;
+        if (generation.current !== current) return false;
+        const directManifest = cloudruFallbackManifestUrl(url);
+        if (player) player.loadSource(directManifest);
+        else {
+          element.src = directManifest;
+          await element.play();
+        }
+        return true;
+      };
+      if (!/^\/api\/v1\/feed-playback\/[A-Za-z0-9_-]+\?ticket=/.test(url))
+        throw new Error("Не удалось открыть видео.");
+      // Chrome can report "maybe" for native HLS but fail on actual playback.
+      // Prefer MSE/hls.js whenever available; retain native playback for Safari/iOS.
+      const { default: HlsPlayer } = await import("hls.js");
+      if (generation.current !== current) return;
+      if (HlsPlayer.isSupported()) {
+        const player = new HlsPlayer({
+          maxBufferLength: 15,
+          backBufferLength: 0,
+          fetchSetup: (context, init) =>
+            new Request(context.url, { ...init, cache: "no-store", credentials: "omit" }),
         });
         hls.current = player;
         player.on(HlsPlayer.Events.ERROR, (_event, data) => {
-          if (data.fatal && generation.current === current) { stop(); setError("Видео не загрузилось. Попробуйте ещё раз."); }
+          if (!data.fatal || generation.current !== current) return;
+          void switchToFallback(player)
+            .then((recovered) => {
+              if (!recovered && generation.current === current) {
+                stop();
+                setError("Видео не загрузилось. Попробуйте ещё раз.");
+              }
+            })
+            .catch(() => {
+              if (generation.current === current) {
+                stop();
+                setError("Видео не загрузилось. Попробуйте ещё раз.");
+              }
+            });
         });
         player.on(HlsPlayer.Events.MANIFEST_PARSED, () => {
-          if (generation.current === current) void element.play().catch(() => {
-            if (generation.current === current) setError("Нажмите воспроизведение в плеере.");
-          });
+          if (generation.current === current)
+            void element.play().catch(() => {
+              if (generation.current === current) setError("Нажмите воспроизведение в плеере.");
+            });
         });
-        player.loadSource(url); player.attachMedia(element);
+        player.loadSource(url);
+        player.attachMedia(element);
+      } else if (element.canPlayType("application/vnd.apple.mpegurl")) {
+        nativeFallback.current = () => switchToFallback();
+        element.src = url;
+        await element.play();
+      } else {
+        throw new Error("Этот браузер не поддерживает воспроизведение видео.");
       }
     } catch (failure) {
-      if (generation.current === current) { stop(); setError(failure instanceof Error ? failure.message : "Не удалось открыть видео."); }
-    } finally { if (generation.current === current) setBusy(false); }
+      if (generation.current === current) {
+        stop();
+        setError(failure instanceof Error ? failure.message : "Не удалось открыть видео.");
+      }
+    } finally {
+      if (generation.current === current) setBusy(false);
+    }
   };
-  return <div ref={root} className={styles.videoStatus}>
-    <video ref={video} controls={active} hidden={!active} playsInline preload="none"
-      poster={poster ?? undefined} aria-label="Видео публикации" onError={() => { if (active) { stop(); setError("Видео не загрузилось. Попробуйте ещё раз."); } }} />
-    {!active && <>
-      {poster && <img src={poster} alt="" referrerPolicy="no-referrer" loading="lazy" />}
-      <button type="button" className={styles.secondary} disabled={busy} onClick={() => void play()}>
-        {busy ? "Загружаем видео…" : error ? "Повторить воспроизведение" : "Смотреть видео"}
-      </button>
-    </>}
-    {!!error && <p role="alert" className={styles.muted}>{error}</p>}
-  </div>;
+  return (
+    <div ref={root} className={styles.videoStatus}>
+      <video
+        ref={video}
+        controls={active}
+        hidden={!active}
+        playsInline
+        preload="none"
+        poster={poster ?? undefined}
+        aria-label="Видео публикации"
+        onError={() => {
+          // Native Safari has no readable HTTP status; do not bypass 403/404.
+          if (active && !hls.current) {
+            const recover = nativeFallback.current;
+            void (recover?.() ?? Promise.resolve(false))
+              .then((recovered) => {
+                if (!recovered && nativeFallback.current === recover) {
+                  stop();
+                  setError("Видео не загрузилось. Попробуйте ещё раз.");
+                }
+              })
+              .catch(() => {
+                if (nativeFallback.current === recover) {
+                  stop();
+                  setError("Видео не загрузилось. Попробуйте ещё раз.");
+                }
+              });
+          }
+        }}
+      />
+      {!active && (
+        <>
+          {poster && (
+            <CdnImage
+              source={poster}
+              alt=""
+              loading="lazy"
+              requestFallback={() => feedApi.requestMediaFallback(mediaId, "poster")}
+            />
+          )}
+          <button
+            type="button"
+            className={styles.secondary}
+            disabled={busy}
+            onClick={() => void play()}
+          >
+            {busy ? "Загружаем видео…" : error ? "Повторить воспроизведение" : "Смотреть видео"}
+          </button>
+        </>
+      )}
+      {!!error && (
+        <p role="alert" className={styles.muted}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }

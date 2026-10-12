@@ -199,7 +199,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
           type Session = {
             actorId: string; version: string; preferencesUpdatedAt: number;
             modelVersion: string | null; experimentVariant: "control" | "treatment" | null;
-            rows: Array<{ id: string; reason: SmartRecommendationReason; sources: string[]; features?: number[]; exposureToken: string }>;
+            rows: { id: string; reason: SmartRecommendationReason; sources: string[]; features?: number[]; exposureToken: string }[];
           };
           const version = "smart-rule-2026-10-a";
           if (experimentVariant === "control") {
@@ -349,12 +349,17 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         const scoreSql = sort === "popular"
           ? Prisma.sql`(SELECT COUNT(*)::integer FROM "FeedPostReaction" r WHERE r."postId" = p."id")`
           : Prisma.sql`(SELECT COUNT(*)::integer FROM "FeedComment" c WHERE c."postId" = p."id" AND c."deletedAt" IS NULL AND c."moderationState" = 'visible')`;
+        // FeedPost.publishedAt is TIMESTAMP(3) WITHOUT TIME ZONE.
+        // Binding a JS Date as TIMESTAMPTZ changes keyset order on non-UTC servers,
+        // potentially repeating the same page forever. Use an explicit UTC-naive
+        // timestamp string in the SQL comparisons.
+        const utcCursorTime = cursor?.publishedAt.toISOString().slice(0, 23).replace("T", " ");
         const afterCursor = cursor
           ? Prisma.sql`WHERE ranked.score < ${cursor.score}
-            OR (ranked.score = ${cursor.score} AND ranked."publishedAt" < ${cursor.publishedAt})
-            OR (ranked.score = ${cursor.score} AND ranked."publishedAt" = ${cursor.publishedAt} AND ranked.id < ${cursor.id})`
+            OR (ranked.score = ${cursor.score} AND ranked."publishedAt" < ${utcCursorTime}::timestamp(3))
+            OR (ranked.score = ${cursor.score} AND ranked."publishedAt" = ${utcCursorTime}::timestamp(3) AND ranked.id < ${cursor.id})`
           : Prisma.empty;
-        const ranked = await db.$queryRaw<Array<{ id: string; publishedAt: Date; score: number }>>(Prisma.sql`
+        const ranked = await db.$queryRaw<{ id: string; publishedAt: Date; score: number }[]>(Prisma.sql`
           SELECT ranked.id, ranked."publishedAt", ranked.score FROM (
             SELECT p."id", p."publishedAt", ${scoreSql} AS score
             FROM "FeedPost" p
@@ -461,6 +466,23 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       return (await feedDto(actorId, [row], now()))[0]!;
     },
     editor,
+    /** Authoritative media lookup for short-lived outage fallback, never trusting a client path. */
+    async fallbackSource(actorId: string, mediaId: string, variant: "thumb" | "full" | "poster") {
+      await actor(actorId);
+      s.feedParse(s.feedIdSchema, mediaId);
+      const media = await db.feedMediaAsset.findFirst({ where: { id: mediaId, status: "ready" } });
+      if (!media || (variant === "poster" ? media.kind !== "video" : media.kind !== "photo"))
+        throw new FeedError("NOT_FOUND", undefined, 404);
+      const post = await db.feedPost.findFirst({
+        where: { id: media.postId, status: "published", deletedAt: null, moderationState: "visible" },
+      });
+      if (!post?.activeRevisionId || !await db.feedRevisionAttachment.findFirst({
+        where: { revisionId: post.activeRevisionId, mediaId }, select: { mediaId: true },
+      })) throw new FeedError("NOT_FOUND", undefined, 404);
+      const key = variant === "thumb" ? media.thumbKey : variant === "full" ? media.fullKey : media.posterKey;
+      if (!key) throw new FeedError("NOT_FOUND", undefined, 404);
+      return { key };
+    },
     async playbackSource(actorId: string, mediaId: string) {
       await actor(actorId);
       s.feedParse(s.feedIdSchema, mediaId);

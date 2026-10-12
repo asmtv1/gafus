@@ -12,9 +12,11 @@ export * from "./adminBookingQueries";
 export * from "./cynologistService";
 export * from "./availabilityService";
 export * from "./slotService";
-export * from "./telemostService";
+export * from "./voximplantService";
 export * from "./notificationService";
 export * from "./bookingService";
 export { sendConsultationEmailFromLog } from "./consultationTransactionalMail";
 
 export * from "./bookingEligibility";
+
+export { processConsultationEmailLog } from "./consultationEmailDelivery";

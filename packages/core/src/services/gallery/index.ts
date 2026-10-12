@@ -15,3 +15,5 @@ export type {
   GalleryMaintenanceResult,
 } from "./worker";
 export { enqueueGalleryAccountCleanup } from "./accountCleanup";
+
+export * from "./runtimeService";

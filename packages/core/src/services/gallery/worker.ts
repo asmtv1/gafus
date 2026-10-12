@@ -162,17 +162,64 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
         photo: { ...alive, album: alive },
       },
     });
+    const vetAttachments = await tx.petVetAttachment.count({
+      where: { OR: [{ originalKey: { in: keys } }, { previewKey: { in: keys } }] },
+    });
     const jobs = await tx.galleryStorageJob.count({
       where: {
-        kind: { in: ["publish", "move"] },
+        kind: { in: ["publish", "move", "vetPreview"] },
         status: { in: ["pending", "processing"] },
         OR: [{ sourceKeys: { hasSome: keys } }, { targetKeys: { hasSome: keys } }],
       },
     });
-    return Boolean(photos || uploads || jobs);
+    return Boolean(photos || uploads || vetAttachments || jobs);
   }
   async function reconcileJob(tx: GalleryTx, job: JobRow, at: Date) {
     if (job.kind === "delete") return true;
+    if (job.kind === "vetPreview") {
+      const match = /^vet-preview:([A-Za-z0-9_-]{1,128})$/.exec(job.dedupeKey);
+      const source = job.sourceKeys[0],
+        target = job.targetKeys[0];
+      const expectedVetSource =
+        /^users\/[A-Za-z0-9_-]+\/pets\/[A-Za-z0-9_-]+\/vet-visits\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/original\.(jpg|png|webp)$/;
+      if (
+        !match ||
+        job.sourceKeys.length !== 1 ||
+        job.sourceETags.length !== 1 ||
+        job.targetKeys.length !== 1 ||
+        !source ||
+        !target ||
+        !expectedVetSource.test(source) ||
+        target !== source.replace(/\/original\.(jpg|png|webp)$/, "/thumb.webp")
+      )
+        throw new GalleryError("UNTRUSTED_CLAIM", "Неизвестное задание превью", 409);
+      const attachment = await tx.petVetAttachment.findFirst({
+        where: { id: match[1], originalKey: source, visit: { ownerId: job.ownerId } },
+        select: { id: true, previewKey: true },
+      });
+      if (attachment?.previewKey === target) {
+        await tx.galleryStorageJob.update({
+          where: { id: job.id },
+          data: { status: "done", leaseUntil: null },
+        });
+        return false;
+      }
+      if (!attachment || attachment.previewKey !== null) {
+        await enqueueDelete(
+          tx,
+          job.ownerId,
+          [target],
+          afterLease(at, job.leaseUntil),
+          `vet-preview-abandoned:${job.id}`,
+        );
+        await tx.galleryStorageJob.update({
+          where: { id: job.id },
+          data: { status: "cancelled", leaseUntil: null },
+        });
+        return false;
+      }
+      return true;
+    }
     const photo = job.photoId
       ? await tx.galleryPhoto.findFirst({
           where: { id: job.photoId, ownerId: job.ownerId, ...alive, album: alive },
@@ -245,7 +292,15 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
       return "pending";
     }
     if (job.kind === "move") await cancelMove(tx, job, at, "failed");
-    else if (job.kind === "publish") {
+    else if (job.kind === "vetPreview") {
+      await enqueueDelete(
+        tx,
+        job.ownerId,
+        job.targetKeys,
+        afterLease(at, job.leaseUntil),
+        `vet-preview-failed:${job.id}`,
+      );
+    } else if (job.kind === "publish") {
       const upload = job.uploadId
         ? await tx.galleryUpload.findUnique({
             where: { id: job.uploadId },
@@ -460,7 +515,9 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
         where: {
           ...(data.uploadId
             ? { kind: "publish" as const, uploadId: data.uploadId }
-            : ctx.storage.enabled ? {} : { kind: "delete" as const }),
+            : ctx.storage.enabled
+              ? {}
+              : { kind: { in: ["delete", "vetPreview"] as ("delete" | "vetPreview")[] } }),
           availableAt: { lte: at },
           OR: [{ status: "pending" }, { status: "processing", leaseUntil: { lte: at } }],
         },
@@ -475,7 +532,7 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
             current = now();
           if (
             !job ||
-            (!ctx.storage.enabled && job.kind !== "delete") ||
+            (!ctx.storage.enabled && !["delete", "vetPreview"].includes(job.kind)) ||
             (data.uploadId && (job.kind !== "publish" || job.uploadId !== data.uploadId)) ||
             job.availableAt > current ||
             (job.status !== "pending" &&
@@ -557,9 +614,32 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
         if (job.status === "done" && job.attemptToken === data.attemptToken)
           return { accepted: true, status: "done" };
         if (!leaseValid(job, data.attemptToken, at)) return { accepted: false, status: job.status };
-        if (job.kind !== "delete") requireGalleryEnabled(ctx);
+        if (job.kind !== "delete" && job.kind !== "vetPreview") requireGalleryEnabled(ctx);
         if (!(await reconcileJob(tx, job, at))) return { accepted: false, status: "cancelled" };
-        if (job.kind === "delete") {
+        if (job.kind === "vetPreview") {
+          const heads = await outputHeads(ctx, job.targetKeys);
+          const source = await ctx.storage.head(job.sourceKeys[0]!);
+          if (
+            heads.length !== 1 ||
+            heads[0]?.contentType !== "image/webp" ||
+            heads[0].bytes > 1_750_000 ||
+            source?.etag !== job.sourceETags[0]
+          )
+            throw new GalleryError("COPY_MISMATCH", "Предпросмотр не подтверждён", 409);
+          if (!leaseValid(job, data.attemptToken, now()))
+            return { accepted: false, status: job.status };
+          const id = job.dedupeKey.slice("vet-preview:".length);
+          const updated = await tx.petVetAttachment.updateMany({
+            where: {
+              id,
+              originalKey: job.sourceKeys[0],
+              previewKey: null,
+              visit: { ownerId: job.ownerId },
+            },
+            data: { previewKey: job.targetKeys[0] },
+          });
+          if (updated.count !== 1) return { accepted: false, status: "unavailable" };
+        } else if (job.kind === "delete") {
           if (await keysProtected(tx, job.sourceKeys))
             return { accepted: false, status: "protected" };
           const heads = await Promise.all(job.sourceKeys.map((k) => ctx.storage.head(k)));
@@ -691,7 +771,10 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
             });
         });
       const jobs = await ctx.db.galleryStorageJob.findMany({
-        where: { status: { in: ["pending", "processing"] }, kind: { in: ["move", "publish"] } },
+        where: {
+          status: { in: ["pending", "processing"] },
+          kind: { in: ["move", "publish", "vetPreview"] },
+        },
         orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
         take: limit,
       });

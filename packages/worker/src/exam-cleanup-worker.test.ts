@@ -23,6 +23,7 @@ vi.mock("bullmq", () => ({
   },
 }));
 vi.mock("@gafus/logger", () => ({
+  createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn() }),
   createWorkerLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),

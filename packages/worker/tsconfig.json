@@ -25,12 +25,21 @@
       "@gafus/core/services/consent": [
         "../../packages/core/src/services/consent"
       ],
+      "@gafus/core/services/appSubscription/plans": ["../../packages/core/src/services/appSubscription/plans.ts"],
       "@gafus/core/services/appSubscription": [
         "../../packages/core/src/services/appSubscription/index.ts"
       ],
       "@gafus/core/services/consultation": [
         "../../packages/core/src/services/consultation/index.ts"
       ],
+      "@gafus/core/services/reminders": ["../../packages/core/src/services/reminders/index.ts"],
+      "@gafus/core/services/exam": ["../../packages/core/src/services/exam/index.ts"],
+      "@gafus/core/services/systemHealth": ["../../packages/core/src/services/systemHealth/index.ts"],
+      "@gafus/core/services/gafus": ["../../packages/core/src/services/gafus/index.ts"],
+      "@gafus/core/services/petPrevention": ["../../packages/core/src/services/petPrevention/index.ts"],
+      "@gafus/core/services/trainerVideo": ["../../packages/core/src/services/trainerVideo/index.ts"],
+      "@gafus/core/services/reengagement": ["../../packages/core/src/services/reengagement/index.ts"],
+      "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"],
       "@gafus/core/services/notifications": [
         "../../packages/core/src/services/notifications"
       ],

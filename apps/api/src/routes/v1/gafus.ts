@@ -1,12 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { prisma } from "@gafus/prisma";
 import {
   getGafusStatus, listGafusTransactions, unlockContentWithGafus, listGafusMiniGuides,
   getGafusPostReactionProgress,
+  getAuthorizedMiniGuideContent,
   GafusError,
 } from "@gafus/core/services/gafus";
-import { resolveMiniGuideTargetTx, resolveMiniGuideAccessTx } from "@gafus/core/services/contentAccess";
 import {
   updateGafusSettingsAdmin, adjustGafusBalanceAdmin, getGafusAdminDashboard,
 } from "@gafus/core/services/adminGafus";
@@ -132,16 +131,7 @@ gafusRoutes.get("/mini-guide/:courseId", async c => {
   try {
     const courseId = z.string().min(1).max(128).parse(c.req.param("courseId"));
     const userId = c.get("user").id;
-    const content = await prisma.$transaction(async tx => {
-      const target = await resolveMiniGuideTargetTx(tx, courseId);
-      if (!target) return null;
-      const access = await resolveMiniGuideAccessTx(tx, userId, target);
-      if (!access.allowed) return null;
-      const course = await tx.course.findUnique({
-        where: { id: courseId }, select: { guideContent: true },
-      });
-      return course?.guideContent ?? null;
-    });
+    const content = await getAuthorizedMiniGuideContent({ userId, courseId });
     if (!content) {
       return c.json({ success: false, error: "Откройте мини-гайд за Гафус или оформите подписку", code: "GAFUS_ACCESS_REQUIRED" }, 403);
     }

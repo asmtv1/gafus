@@ -4,7 +4,7 @@
  */
 import { serve } from "@hono/node-server";
 import { app } from "./app.js";
-import { prisma } from "@gafus/prisma";
+import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
 import { connection as redis } from "@gafus/queues";
 import { createWebLogger } from "@gafus/logger";
 
@@ -37,7 +37,7 @@ const shutdown = async (signal: string) => {
     logger.info("HTTP server closed");
 
     // Закрываем подключения к БД и Redis
-    await Promise.all([prisma.$disconnect(), redis.quit()]);
+    await Promise.all([disconnectCoreDatabase(), redis.quit()]);
     logger.info("Database and Redis connections closed");
 
     clearTimeout(forceExitTimeout);

@@ -1,0 +1,24 @@
+diff --git a/ios/CallModule/RNVICalls.mm b/ios/CallModule/RNVICalls.mm
+--- a/ios/CallModule/RNVICalls.mm
++++ b/ios/CallModule/RNVICalls.mm
+@@ -7,7 +7,7 @@
+ #if __has_include("react_native_voximplant_calls-Swift.h")
+ #import "react_native_voximplant_calls-Swift.h"
+ #else
+-#import "react_native_voximplant_calls/react_native_voximplant_core-Swift.h"
++#import "react_native_voximplant_calls/react_native_voximplant_calls-Swift.h"
+ #endif
+ 
+ @interface RNVICalls () <CallDelegate, ConferenceDelegate, EndpointDelegate>
+diff --git a/ios/VideoModule/RNVIVideo.mm b/ios/VideoModule/RNVIVideo.mm
+--- a/ios/VideoModule/RNVIVideo.mm
++++ b/ios/VideoModule/RNVIVideo.mm
+@@ -7,7 +7,7 @@
+ #if __has_include("react_native_voximplant_calls-Swift.h")
+ #import "react_native_voximplant_calls-Swift.h"
+ #else
+-#import "react_native_voximplant_calls/react_native_voximplant_core-Swift.h"
++#import "react_native_voximplant_calls/react_native_voximplant_calls-Swift.h"
+ #endif
+ 
+ @implementation RNVIVideo {

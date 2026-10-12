@@ -1,4 +1,5 @@
 export {
+  getTrainingDayForEdit,
   createTrainingDay,
   updateTrainingDay,
   deleteDays,

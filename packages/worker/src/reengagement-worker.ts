@@ -8,7 +8,10 @@ import { Worker } from "bullmq";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";
-import { prisma } from "@gafus/prisma";
+import {
+  getReengagementCampaignState, getReengagementPushSubscriptions,
+  deleteInvalidReengagementPushEndpoints,
+} from "@gafus/core/services/reengagement";
 import {
   partitionPushSubscriptions,
   sendExpoPushNotifications,
@@ -75,14 +78,7 @@ class ReengagementWorker {
       }
 
       // Проверить, что кампания активна
-      const campaign = await prisma.reengagementCampaign.findUnique({
-        where: { id: campaignId },
-        select: {
-          isActive: true,
-          returned: true,
-          unsubscribed: true,
-        },
-      });
+      const campaign = await getReengagementCampaignState(campaignId);
 
       if (!campaign) {
         logger.warn("Кампания не найдена в БД", { campaignId });
@@ -160,13 +156,7 @@ class ReengagementWorker {
       logger.info("Создана запись уведомления", { notificationId });
 
       // 6. Получить push-подписки пользователя
-      const subscriptions = await prisma.pushSubscription.findMany({
-        where: { userId },
-        select: {
-          endpoint: true,
-          keys: true,
-        },
-      });
+      const subscriptions = await getReengagementPushSubscriptions(userId);
 
       if (subscriptions.length === 0) {
         logger.warn("У пользователя нет активных push-подписок", { userId });
@@ -256,13 +246,7 @@ class ReengagementWorker {
         .map((r) => r.endpoint);
 
       if (invalidEndpoints.length > 0) {
-        await prisma.pushSubscription.deleteMany({
-          where: {
-            endpoint: {
-              in: invalidEndpoints,
-            },
-          },
-        });
+        await deleteInvalidReengagementPushEndpoints(invalidEndpoints);
 
         logger.info(`Удалено ${invalidEndpoints.length} недействительных подписок`, { userId });
       }

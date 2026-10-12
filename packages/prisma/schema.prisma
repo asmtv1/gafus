@@ -2030,11 +2030,30 @@ model Reminder {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries   TrainingReminderDelivery[]
 
   @@index([userId, type])
   @@index([enabled])
   @@index([type])
   @@index([reminderTime])
+}
+
+/// Durable per-local-day delivery record with a reclaimable worker lease.
+model TrainingReminderDelivery {
+  id             String   @id @default(cuid())
+  reminderId     String
+  localDate      String   @db.VarChar(10)
+  status         String   @default("PENDING")
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  attemptCount   Int      @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  reminder       Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, localDate])
+  @@index([status, leaseExpiresAt])
 }
 
 model ReengagementMetrics {
@@ -2637,8 +2656,8 @@ enum ConsultationEmailType {
   CLIENT_BOOKING_CANCELLED_BY_TRAINER
   TRAINER_BOOKING_CANCELLED_BY_USER
   CLIENT_BOOKING_CANCELLED_BY_SLA
-  /// Телемост не создался при записи, бронь снята системой
-  CLIENT_BOOKING_TELEMOST_FAILED
+  /// Исторический тип: сохраняет старые логи без Телемоста в публичных API.
+  CLIENT_BOOKING_VIDEO_FAILED
   /// Напоминание за 30 минут (клиент)
   CLIENT_CONSULTATION_REMINDER_30M
   /// Клиенту: консультация начинается прямо сейчас
@@ -2660,7 +2679,6 @@ model ConsultationCynologist {
   id                 String   @id @default(cuid())
   userId             String   @unique
   isListed           Boolean  @default(false)
-  telemostHostEmail  String?
   slotDurationMin    Int      @default(30)
   timezone           String   @default("Europe/Moscow")
   bookingLeadTimeMin Int      @default(60)
@@ -2756,9 +2774,6 @@ model ConsultationBooking {
   /// Как пытались решить проблему самостоятельно
   clientSelfHelpAttempt  String?
   status                 ConsultationBookingStatus @default(PENDING_TRAINER_CONFIRMATION)
-  telemostConferenceId   String?
-  telemostJoinUrl        String?
-  telemostWatchUrl       String?
   /// Set only on new COMPLETED transitions; legacy completions do not start a cooldown.
   completedAt            DateTime?
   trainerConfirmedAt     DateTime?
@@ -3097,6 +3112,7 @@ enum GalleryStorageJobKind {
   publish
   move
   delete
+  vetPreview
 }
 enum GalleryStorageJobStatus {
   pending

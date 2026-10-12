@@ -3,6 +3,8 @@ export {
   updateStep,
   deleteSteps,
   getVisibleSteps,
+  getStepForEdit,
+  getTrainerStepMediaState,
   removeStepImageUrl,
   getStepTemplates,
   getStepTemplateById,
@@ -21,6 +23,7 @@ export type {
 } from "./trainerStepService";
 export {
   createStepSchema,
+  getExaminationMechanismError,
   updateStepSchema,
   deleteStepsSchema,
   createStepFromTemplateSchema,

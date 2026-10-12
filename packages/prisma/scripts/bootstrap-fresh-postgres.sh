@@ -9,8 +9,8 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   exit 1
 fi
 
-if ! command -v psql >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
-  echo "psql and node are required to verify that the target database is empty" >&2
+if ! command -v psql >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+  echo "psql, node and python3 are required for safe empty-database bootstrap" >&2
   exit 1
 fi
 
@@ -38,7 +38,14 @@ if [[ "$(awk '{ total += $1 } END { print total + 0 }' <<<"$relations")" != "0" 
   exit 1
 fi
 
+# Prisma misses custom SQL CHECK constraints, partial indexes, and triggers.
+# Verify the checked-in SQL is synchronized before touching database schema.
+python3 packages/prisma/scripts/generate-fresh-db-extras.py --check
+
 pnpm --filter @gafus/prisma exec prisma db push --skip-generate
+
+# Apply migration-only safety invariants transactionally before baseline resolve.
+psql "$psql_database_url" -X -v ON_ERROR_STOP=1 -1 -f packages/prisma/scripts/fresh-db-extras.sql
 
 while IFS= read -r migration; do
   pnpm --filter @gafus/prisma exec prisma migrate resolve --applied "$migration" >/dev/null

@@ -14,8 +14,56 @@ import type {
   DeleteStepsInput,
   CreateStepFromTemplateInput,
 } from "./schemas";
+import { checklistSchema } from "./schemas";
 
 const logger = createWebLogger("trainer-step");
+
+/** Return only the validated data needed by the trainer edit form. */
+export async function getStepForEdit(id: string) {
+  const step = await prisma.step.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      durationSec: true,
+      estimatedDurationSec: true,
+      videoUrl: true,
+      type: true,
+      imageUrls: true,
+      pdfUrls: true,
+      checklist: true,
+      requiresVideoReport: true,
+      requiresWrittenFeedback: true,
+      hasTestQuestions: true,
+      isDailyCourse: true,
+      surveySlug: true,
+    },
+  });
+  if (!step) return null;
+  const parsedChecklist = checklistSchema.safeParse(step.checklist);
+  return {
+    id: step.id,
+    title: step.title,
+    description: step.description,
+    durationSec: step.durationSec ?? undefined,
+    estimatedDurationSec: step.estimatedDurationSec ?? null,
+    videoUrl: step.videoUrl,
+    type: step.type,
+    imageUrls: step.imageUrls,
+    pdfUrls: step.pdfUrls,
+    checklist: parsedChecklist.success ? parsedChecklist.data : [],
+    requiresVideoReport: step.requiresVideoReport,
+    requiresWrittenFeedback: step.requiresWrittenFeedback,
+    hasTestQuestions: step.hasTestQuestions,
+    isDailyCourse: step.isDailyCourse,
+    surveySlug: step.surveySlug,
+  };
+}
+
+export async function getTrainerStepMediaState(id: string) {
+  return prisma.step.findUnique({ where: { id }, select: { imageUrls: true } });
+}
 
 /** Результат успешного удаления шагов (imageUrls для удаления из CDN в app) */
 export interface DeleteStepsResult extends ActionResult {

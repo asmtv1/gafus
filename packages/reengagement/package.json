@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && ts-add-js-extension --dir dist",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "test": "vitest run --config vitest.config.ts",
@@ -16,12 +16,15 @@
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
-    "@gafus/webpush": "workspace:*"
+    "@gafus/webpush": "workspace:*",
+    "@gafus/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.17.12",
     "@vitest/coverage-v8": "^4.0.17",
     "typescript": "^5.8.3",
-    "vitest": "^4.0.17"
-  }
+    "vitest": "^4.0.17",
+    "ts-add-js-extension": "^1.6.6"
+  },
+  "type": "module"
 }

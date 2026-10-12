@@ -296,6 +296,9 @@ jobs:
   deploy:
     needs: [build-and-push, set-container-config]
     if: github.event.inputs.deploy == 'true'
+    concurrency:
+      group: gafus-production-deploy
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
@@ -346,6 +349,16 @@ jobs:
               cd /root/gafus
             }
 
+            # All 8 Vox values must exist before changing the running deployment.
+            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_NAME"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_NAME"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_KEY_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_KEY_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_PRIVATE_KEY_BASE64"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
+
             # Check if .env file exists, create if not
             if [ ! -f ci-cd/docker/.env ]; then
               echo "⚠️ .env file not found, creating from GitHub Secrets..."
@@ -386,9 +399,15 @@ jobs:
                 echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
                 echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
                 echo ""
-                echo "# Яндекс Телемост (консультации)"
-                echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}"
-                echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}"
+                echo "# Voximplant (server-only consultation credentials)"
+                echo "VOXIMPLANT_ACCOUNT_ID=${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
+                echo "VOXIMPLANT_APPLICATION_ID=${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
+                echo "VOXIMPLANT_ACCOUNT_NAME=${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
+                echo "VOXIMPLANT_APPLICATION_NAME=${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
+                echo "VOXIMPLANT_KEY_ID=${{ secrets.VOXIMPLANT_KEY_ID }}"
+                echo "VOXIMPLANT_PRIVATE_KEY_BASE64=${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
+                echo "VOXIMPLANT_CREDENTIAL_SECRET=${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
+                echo "VOXIMPLANT_ADMISSION_SECRET=${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
                 echo ""
                 echo "# Защита видео (HLS) - обязательно для API"
                 echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
@@ -545,14 +564,41 @@ jobs:
               if ! grep -q "^APPLE_PRIVATE_KEY_PATH=" ci-cd/docker/.env; then
                 echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}" >> ci-cd/docker/.env
               fi
-              if ! grep -q "^YANDEX_TELEMOST_API_BASE_URL=" ci-cd/docker/.env; then
-                echo "" >> ci-cd/docker/.env
-                echo "# Яндекс Телемост" >> ci-cd/docker/.env
-                echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^YANDEX_TELEMOST_OAUTH_TOKEN=" ci-cd/docker/.env; then
-                echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}" >> ci-cd/docker/.env
-              fi
+            fi
+
+            # Keep Vox credentials consistent with GitHub Environment Secrets
+            # on both fresh installations and existing deployments.
+            set_vox_secret() {
+              name="$1"
+              value="$2"
+              tempfile="$(mktemp)"
+              awk -v key="$name" -v val="$value" '
+                $0 ~ "^"key"=" { if (!seen++) print key"="val; next }
+                { print }
+                END { if (!seen) print key"="val }
+              ' ci-cd/docker/.env > "$tempfile"
+              chmod 600 "$tempfile"
+              mv "$tempfile" ci-cd/docker/.env
+            }
+            set_vox_secret "VOXIMPLANT_ACCOUNT_ID" "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
+            set_vox_secret "VOXIMPLANT_APPLICATION_ID" "${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
+            set_vox_secret "VOXIMPLANT_ACCOUNT_NAME" "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
+            set_vox_secret "VOXIMPLANT_APPLICATION_NAME" "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
+            set_vox_secret "VOXIMPLANT_KEY_ID" "${{ secrets.VOXIMPLANT_KEY_ID }}"
+            set_vox_secret "VOXIMPLANT_PRIVATE_KEY_BASE64" "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
+            set_vox_secret "VOXIMPLANT_CREDENTIAL_SECRET" "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
+            set_vox_secret "VOXIMPLANT_ADMISSION_SECRET" "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
+            chmod 600 ci-cd/docker/.env
+
+            # Manual one-container deployments must not release schema changes.
+            # The main CI stops every old writer before applying Prisma.
+            bash ci-cd/scripts/assert-no-pending-schema-migrations.sh
+            # Do not deploy an image built from newer code into a server running
+            # a different main commit, even when migration listing is stale.
+            if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ]; then
+              echo "BLOCKED: deployed server commit differs from the image's source commit."
+              echo "Use coordinated main CI/CD first."
+              exit 1
             fi
 
             # Pull latest image
@@ -560,11 +606,8 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
 
             if [ "${{ github.event.inputs.container }}" = "prisma" ]; then
-              echo "🗄️ Applying Prisma migrations..."
-              docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d postgres
-              sleep 10
-              docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
-              echo "✅ Prisma migrations applied successfully!"
+              echo "Prisma standalone image refresh is not a schema rollout."
+              echo "Pending Prisma migrations must run only via the main coordinated deployment."
               exit 0
             fi
 

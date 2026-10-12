@@ -12,7 +12,6 @@ import { ConsultationBookingNotIncludedError, ConsultationSlotTakenError } from 
 import { SubscriptionRequiredError } from "../appSubscription/errors";
 
 const enqueueConsultationEmail = vi.fn();
-const createTelemostConference = vi.fn();
 const queueAdd = vi.fn();
 const removeConsultationSlaJob = vi.fn();
 const removeConsultationReminderJob = vi.fn();
@@ -32,11 +31,7 @@ vi.mock("./notificationService", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
 }));
 
-vi.mock("./telemostService", () => ({
-  createTelemostConference: (...a: unknown[]) => createTelemostConference(...a),
-}));
-
-vi.mock("@gafus/webpush", () => ({
+vi.mock("../notifications/immediatePushService", () => ({
   sendImmediatePushNotification: (...a: unknown[]) => sendImmediatePushNotification(...a),
 }));
 
@@ -373,8 +368,6 @@ describe("bookSlot", () => {
         clientProblem: "Описание проблемы не менее десяти символов",
         clientSelfHelpAttempt: "Самолечение",
         cancelReason: null,
-        joinUrl: null,
-        watchUrl: null,
         confirmationDeadlineAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       },
@@ -424,8 +417,6 @@ describe("bookSlot", () => {
       clientProblem: "Описание проблемы не менее десяти символов",
       clientSelfHelpAttempt: "Самолечение",
       cancelReason: null,
-      telemostJoinUrl: null,
-      telemostWatchUrl: null,
       confirmationDeadlineAt: new Date("2026-05-01T09:00:00.000Z"),
       createdAt: new Date("2026-04-30T09:00:00.000Z"),
     });
@@ -471,8 +462,6 @@ describe("bookSlot", () => {
       clientProblem: "Описание проблемы не менее десяти символов",
       clientSelfHelpAttempt: "Самолечение",
       cancelReason: null,
-      telemostJoinUrl: null,
-      telemostWatchUrl: null,
       confirmationDeadlineAt: new Date("2026-05-01T09:00:00.000Z"),
       createdAt: new Date("2026-04-30T09:00:00.000Z"),
     });
@@ -571,11 +560,6 @@ describe("bookSlot", () => {
         },
       });
       txCreateBooking.mockResolvedValue({ id: "booking-24h" });
-      createTelemostConference.mockResolvedValue({
-        id: "telemost-1",
-        joinUrl: "https://telemost.test/join",
-        watchUrl: null,
-      });
       prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
         const tx = {
           consultationSlot: {
@@ -615,8 +599,6 @@ describe("bookSlot", () => {
           clientProblem: bookBodyBase.clientProblem,
           clientSelfHelpAttempt: bookBodyBase.clientSelfHelpAttempt,
           cancelReason: null,
-          telemostJoinUrl: "https://telemost.test/join",
-          telemostWatchUrl: null,
           confirmationDeadlineAt: new Date("2026-07-09T20:20:24.951Z"),
           createdAt: new Date("2026-07-08T20:20:24.951Z"),
         });
@@ -644,55 +626,7 @@ describe("bookSlot", () => {
     }
   });
 
-  it("при ошибке Телемоста откатывает бронь и слот", async () => {
-    idemFindUnique.mockResolvedValue(null);
-    const bookingId = "new-booking";
-    txUpdateMany.mockResolvedValue({ count: 1 });
-    const startAt = new Date(Date.now() + 50 * 60 * 60 * 1000);
-    const endAt = new Date(Date.now() + 50 * 60 * 60 * 1000 + 30 * 60 * 1000);
-    txFindUnique.mockResolvedValue({
-      id: "slot1",
-      startAt,
-      endAt,
-      cynologistId: "cy1",
-      cynologist: {
-        bookingLeadTimeMin: 0,
-        confirmationSlaMin: 60,
-      },
-    });
-    txCreateBooking.mockResolvedValue({ id: bookingId });
-    createTelemostConference.mockRejectedValue(new Error("telemost down"));
 
-    const compBookingUpdate = vi.fn().mockResolvedValue({ count: 1 });
-    const compSlotUpdate = vi.fn();
-    let txPhase = 0;
-    prismaTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-      txPhase += 1;
-      if (txPhase === 1) {
-        const tx = {
-          consultationSlot: {
-            updateMany: txUpdateMany,
-            findUnique: txFindUnique,
-          },
-          $queryRaw: vi.fn().mockResolvedValue([]),
-        consultationBooking: { create: txCreateBooking, findFirst: vi.fn().mockResolvedValue(null) },
-        };
-        return cb(tx);
-      }
-      const tx = {
-        consultationBooking: { updateMany: compBookingUpdate },
-        consultationSlot: { update: compSlotUpdate },
-      };
-      return cb(tx);
-    });
-
-    const { bookSlot } = await import("./bookingService");
-    await expect(
-      bookSlot("c1", { slotId: "slot1", idempotencyKey: "k3", ...bookBodyBase }),
-    ).rejects.toThrow("telemost down");
-    expect(compBookingUpdate).toHaveBeenCalled();
-    expect(compSlotUpdate).toHaveBeenCalled();
-  });
 });
 
 describe("subscription-only consultation access", () => {
@@ -792,8 +726,6 @@ describe("subscription-only consultation access", () => {
         clientProblem: "Описание проблемы не менее десяти символов",
         clientSelfHelpAttempt: "Самолечение",
         cancelReason: null,
-        joinUrl: null,
-        watchUrl: null,
         confirmationDeadlineAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       },

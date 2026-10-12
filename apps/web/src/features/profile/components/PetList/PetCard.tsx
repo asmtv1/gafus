@@ -491,7 +491,9 @@ const PetCard = memo(function PetCard({
     : null;
 
   return (
-    <li className={`${styles.dog_item} ${pet.type === "CAT" ? styles.catCard : ""}`}>
+    <li
+      className={`${styles.dog_item} ${pet.type === "CAT" ? styles.catCard : ""} ${isExpanded ? styles.petExpanded : ""}`}
+    >
       <div className={styles.petHero}>
         <div className={styles.avatar_container}>
           {isOwner ? (

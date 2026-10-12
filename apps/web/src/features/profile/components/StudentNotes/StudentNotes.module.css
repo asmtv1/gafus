@@ -216,3 +216,8 @@
 @media (max-width: 600px) { .container { padding: 14px; } .noteCard { padding: 16px; } }
 
 .title { display: flex; gap: 12px; align-items: center; }
+
+/* Use available width when notes sit inside a desktop profile column. */
+.container { max-width: none; width: 100%; margin: 0; align-items: stretch; }
+.title { font-size: 19px; font-weight: 750; justify-content: flex-start; }
+@media (min-width: 769px) { .container { max-width: none; margin: 0; } .title { font-size: 19px; } }

@@ -20,17 +20,17 @@ resource "yandex_api_gateway" "origin" {
           payload_format_version = "1.0"
         }
       }
-    } }, var.feed_origin_function_id != "" && var.feed_origin_service_account_id != "" ? {
+      } }, var.feed_origin_function_id != "" && var.feed_origin_service_account_id != "" ? {
       "/posts/{path+}" = {
         for method in ["get", "head"] : method => {
           operationId = "feedOrigin${title(method)}"
-          parameters = [{ name = "path", in = "path", required = true, schema = { type = "string" } }]
-          responses = { "200" = { description = "Feed media" }, "206" = { description = "Feed media range" } }
+          parameters  = [{ name = "path", in = "path", required = true, schema = { type = "string" } }]
+          responses   = { "200" = { description = "Feed media" }, "206" = { description = "Feed media range" } }
           x-yc-apigateway-integration = {
-            type = "cloud_functions"
-            function_id = var.feed_origin_function_id
-            service_account_id = var.feed_origin_service_account_id
-            tag = "$latest"
+            type                   = "cloud_functions"
+            function_id            = var.feed_origin_function_id
+            service_account_id     = var.feed_origin_service_account_id
+            tag                    = "$latest"
             payload_format_version = "1.0"
           }
         }
@@ -43,7 +43,7 @@ resource "yandex_cdn_origin_group" "gallery" {
   name      = "${local.prefix}-origin"
   folder_id = var.folder_id
   origin {
-    source  = yandex_api_gateway.origin.domain
+    source  = var.cloudru_origin_hostname != "" ? var.cloudru_origin_hostname : yandex_api_gateway.origin.domain
     enabled = true
   }
 }
@@ -57,17 +57,19 @@ resource "yandex_cdn_resource" "gallery" {
   origin_group_id = yandex_cdn_origin_group.gallery.id
   origin_protocol = "https"
   options {
-    secure_key             = var.cdn_secret
-    enable_ip_url_signing  = false
-    allowed_http_methods   = ["GET", "HEAD"]
-    ignore_query_params    = true
-    ignore_cookie          = true
-    custom_host_header     = yandex_api_gateway.origin.domain
+    secure_key            = var.cdn_secret
+    enable_ip_url_signing = false
+    allowed_http_methods  = ["GET", "HEAD"]
+    ignore_query_params   = true
+    ignore_cookie         = true
+    # Host must match TLS SNI of the chosen HTTPS origin; the CDN secure-key stays untouched.
+    custom_host_header     = var.cloudru_origin_hostname != "" ? var.cloudru_origin_hostname : yandex_api_gateway.origin.domain
     static_request_headers = { "x-gallery-origin-secret" = var.origin_secret }
     static_response_headers = {
-      "cache-control"          = "private, no-store, max-age=0"
-      "pragma"                 = "no-cache"
-      "x-content-type-options" = "nosniff"
+      "cache-control"               = "private, no-store, max-age=0"
+      "pragma"                      = "no-cache"
+      "x-content-type-options"      = "nosniff"
+      "access-control-allow-origin" = "*"
     }
     browser_cache_settings = 0
     # Custom edge TTL independent of viewer headers; verify HIT + expired token in smoke.

@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixture = vi.hoisted(() => ({
-  db: null as any,
-  uploaded: [] as any[],
+  db: null as unknown as import("@gafus/prisma").PrismaClient,
+  uploaded: [] as unknown[],
   gate: null as null | (() => Promise<void>),
 }));
 vi.mock("@gafus/prisma", () => ({
@@ -204,7 +204,7 @@ describe("vet visit validation", () => {
   });
   it("pet and account removal snapshot private files before cascade", async () => {
     await addPetVetAttachment(petId, owner, visitId, pdf());
-    await fixture.db.$transaction(async (tx: any) => {
+    await fixture.db.$transaction(async (tx: import("@gafus/prisma").Prisma.TransactionClient) => {
       await enqueuePetVetCleanup(tx, petId, owner);
       await tx.pet.delete({ where: { id: petId } });
     });
@@ -221,7 +221,7 @@ describe("vet visit validation", () => {
     });
     visitId = (await savePetVetVisit(petId, owner, input)).id;
     await addPetVetAttachment(petId, owner, visitId, pdf());
-    await fixture.db.$transaction(async (tx: any) => {
+    await fixture.db.$transaction(async (tx: import("@gafus/prisma").Prisma.TransactionClient) => {
       await enqueueGalleryAccountCleanup(tx, owner, new Date());
       await tx.user.delete({ where: { id: owner } });
     });

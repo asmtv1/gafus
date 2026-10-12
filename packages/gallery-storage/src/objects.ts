@@ -23,7 +23,7 @@ function metadata(x: { ETag?: string; ContentLength?: number; ContentType?: stri
 }
 export function createGalleryS3Client(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey'>): S3Client {
   validateGalleryObjectConfig(config);
-  return new S3Client({ endpoint: config.endpoint, region: 'ru-central1', forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
+  return new S3Client({ endpoint: config.endpoint, region: config.endpoint === 'https://s3.cloud.ru' ? 'ru-central-1' : 'ru-central1', forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
 }
 export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey'>, client = createGalleryS3Client(config)): GalleryObjectStore {
   const bucket = config.bucket;

@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { getAppSubscriptionMetricsSnapshot } from "@gafus/core/services/appSubscription";
 
 let renewalAttemptTotal = 0;
 let renewalFailedTotal = 0;
@@ -17,22 +17,10 @@ export function incrementWebhookDuplicateTotal(delta = 1) {
 }
 
 export async function renderAppSubscriptionMetricsPrometheus(): Promise<string> {
-  const [activeTotal, pastDueTotal, npdOperations, oldestNpdOperation, npdReceipts, npdConnection] = await Promise.all([
-    (prisma as any).appSubscription.count({
-      where: { status: "ACTIVE" },
-    }),
-    (prisma as any).appSubscription.count({
-      where: { status: "PAST_DUE" },
-    }),
-    (prisma as any).npdReceiptOperation.groupBy({ by: ["status", "type"], _count: { _all: true } }),
-    (prisma as any).npdReceiptOperation.findFirst({
-      where: { status: { in: ["PENDING", "RETRY", "PROCESSING"] } },
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
-    }),
-    (prisma as any).npdReceipt.groupBy({ by: ["status"], _count: { _all: true } }),
-    (prisma as any).npdConnection.findUnique({ where: { id: "default" }, select: { status: true, lastSuccessfulOperationAt: true } }),
-  ]);
+  const {
+    activeTotal, pastDueTotal, npdOperations, oldestNpdOperation,
+    npdReceipts, npdConnection,
+  } = await getAppSubscriptionMetricsSnapshot();
 
   const operationLines = (npdOperations as Array<any>).map((row) =>
     `npd_operation_total{type="${row.type}",status="${row.status}"} ${row._count._all}`,

@@ -1,4 +1,5 @@
 "use client";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import { reportClientError } from "@gafus/error-handling";
 import { useEffect, useRef, useState } from "react";
 import { Button, Dialog } from "@mui/material";
@@ -103,9 +104,10 @@ export function PhotoViewer({
             <Button onClick={() => setRefresh((value) => value + 1)}>Повторить</Button>
           </p>
         ) : photo?.fullUrl ? (
-          <img
+          <CdnImage
             className={styles.full}
-            src={photo.fullUrl}
+            source={photo.fullUrl}
+            requestFallback={() => galleryApi.requestMediaFallback(photo.id, "full")}
             alt={photo.caption || "Фотография из альбома"}
             referrerPolicy="no-referrer"
             onError={() => {

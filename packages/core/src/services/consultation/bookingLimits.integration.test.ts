@@ -4,11 +4,8 @@ import { prisma } from "@gafus/prisma";
 import { bookSlot, cancelBookingByUser, completeBookingByTrainer } from "./bookingService";
 import { getConsultationBookingEligibility } from "./bookingEligibility";
 
-vi.mock("./telemostService", () => ({ createTelemostConference: vi.fn().mockResolvedValue({
-  id: "test-conference", joinUrl: "https://example.test/join", watchUrl: null,
-}) }));
 vi.mock("./notificationService", () => ({ enqueueConsultationEmail: vi.fn() }));
-vi.mock("@gafus/webpush", () => ({ sendImmediatePushNotification: vi.fn().mockResolvedValue({ success: true }) }));
+vi.mock("../notifications/immediatePushService", () => ({ sendImmediatePushNotification: vi.fn().mockResolvedValue({ success: true }) }));
 vi.mock("@gafus/queues", () => ({
   consultationSlaQueue: { add: vi.fn() }, consultationReminderQueue: { add: vi.fn() },
   removeConsultationSlaJob: vi.fn(), removeConsultationReminderJob: vi.fn(),

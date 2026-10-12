@@ -47,6 +47,29 @@ describe("feed playback tickets and manifests", () => {
     await expect(playback.manifest("media", ticket)).rejects.toMatchObject({ status: 404 });
     expect(storage.readPlaylist).not.toHaveBeenCalled();
   });
+  it("signs every HLS segment on Cloud.ru only after fresh core authorization", async () => {
+    const initial = setup();
+    const fallbackSign = vi.fn(async (objectKey: string, ttl: number) =>
+      `https://s3.cloud.ru/gafus-feed-private/${objectKey}?X-Amz-Expires=${ttl}&X-Amz-Signature=test`);
+    const playback = createFeedPlayback({
+      posts: initial.posts, storage: initial.storage, key, cdnHost: "cdn.test",
+      fallbackSign, now: () => new Date("2026-10-09T12:00:00Z"),
+    });
+    const ticket = await playback.ticket("viewer", "media");
+    const manifest = await playback.manifest("media", ticket.ticket, "viewer", "cloudru");
+    expect(manifest.playlist).toContain(`https://s3.cloud.ru/gafus-feed-private/${prefix}segment-000.ts?`);
+    expect(fallbackSign).toHaveBeenCalledWith(prefix + "segment-000.ts", 120);
+    expect(initial.posts.playbackSource).toHaveBeenCalledTimes(2);
+    await expect(playback.manifest("media", ticket.ticket, "different", "cloudru"))
+      .rejects.toMatchObject({ status: 404 });
+    expect(fallbackSign).toHaveBeenCalledTimes(1);
+  });
+  it("rejects direct S3 playback without explicitly configured signer", async () => {
+    const { playback } = setup();
+    const { ticket } = await playback.ticket("viewer", "media");
+    await expect(playback.manifest("media", ticket, "viewer", "cloudru"))
+      .rejects.toMatchObject({ status: 503 });
+  });
   it("does not issue tickets for inaccessible media", async () => {
     const { playback, posts } = setup(); posts.playbackSource.mockRejectedValue(new Error("NOT_FOUND"));
     await expect(playback.ticket("viewer", "media")).rejects.toThrow("NOT_FOUND");

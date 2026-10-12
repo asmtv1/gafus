@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { z } from "zod";
 
-import { resetPasswordByToken } from "@gafus/auth";
+import { resetPasswordByToken } from "./passwordReset";
 import { prisma, type RegistrationChannel } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 

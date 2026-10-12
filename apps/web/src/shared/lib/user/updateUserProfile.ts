@@ -14,7 +14,6 @@ import {
   normalizeWebsiteUrl,
 } from "@gafus/core/utils/social";
 import { updateUserProfile as updateUserProfileCore } from "@gafus/core/services/user";
-import { prisma } from "@gafus/prisma";
 
 const logger = createWebLogger("web");
 
@@ -102,14 +101,7 @@ export async function updateUserProfile({
   });
   try {
     const userId = await getCurrentUserId();
-    const profile = await updateUserProfileCore(userId, validatedInput);
-    if (validatedInput.city === undefined) return profile;
-    const withCity = await prisma.userProfile.update({
-      where: { userId },
-      data: { city: validatedInput.city || null },
-      select: { city: true },
-    });
-    return { ...profile, city: withCity.city };
+    return updateUserProfileCore(userId, validatedInput);
   } catch (error) {
     logger.error("Ошибка в updateUserProfile", error as Error, { operation: "error" });
     throw new Error("Ошибка при обновлении профиля. Попробуйте перезагрузить страницу.");

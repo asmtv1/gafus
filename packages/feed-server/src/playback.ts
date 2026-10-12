@@ -9,6 +9,7 @@ export function createFeedPlayback(input: {
   storage: Pick<FeedPlaybackStoragePort, "readPlaylist" | "signCdn">;
   key: Uint8Array;
   cdnHost: string;
+  fallbackSign?: (key: string, ttlSeconds: number) => Promise<string>;
   now?: () => Date;
 }) {
   if (input.key.byteLength < 32) throw unavailable();
@@ -27,7 +28,7 @@ export function createFeedPlayback(input: {
       return data;
     } catch { throw denied(); }
   }
-  async function manifest(mediaId: string, ticket: string, actorId?: string) {
+  async function manifest(mediaId: string, ticket: string, actorId?: string, delivery: "cdn" | "cloudru" = "cdn") {
     const data = decode(ticket, mediaId);
     if (actorId !== undefined && actorId !== data.actorId) throw denied();
     // Re-authorize on every manifest request: deletion/replacement revokes new access immediately.
@@ -37,9 +38,17 @@ export function createFeedPlayback(input: {
     const raw = await input.storage.readPlaylist(source.playlistKey);
     const segments = parseFeedHlsPlaylist(raw).map(name => expected + name);
     if (!segments.length || segments.length !== source.segmentKeys.length || segments.some((key, i) => key !== source.segmentKeys[i])) throw denied();
+    if (delivery === "cloudru" && !input.fallbackSign) throw unavailable();
+    // Each segment is individually presigned: a signed .m3u8 URL alone would
+    // NOT authorize relative HLS segment requests on S3-compatible storage.
+    const remainingSeconds = Math.floor((data.expires - now().getTime()) / 1000);
+    if (delivery === "cloudru" && remainingSeconds < 30) throw denied();
     return signFeedHlsManifest({ manifest: raw, ...source,
       expiresAt: new Date(data.expires), now,
-      sign: (key, expiresAt) => input.storage.signCdn({ key, expiresAt }), allowedCdnHost: input.cdnHost,
+      sign: delivery === "cloudru"
+        ? key => input.fallbackSign!(key, Math.min(120, remainingSeconds))
+        : (key, expiresAt) => input.storage.signCdn({ key, expiresAt }),
+      allowedCdnHost: delivery === "cloudru" ? "s3.cloud.ru" : input.cdnHost,
     });
   }
   return {

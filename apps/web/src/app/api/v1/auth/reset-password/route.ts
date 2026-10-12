@@ -6,7 +6,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { InvalidPasswordResetTokenError } from "@gafus/auth";
+import { InvalidPasswordResetTokenError } from "@gafus/core/services/auth";
 import { resetPassword } from "@gafus/core/services/auth";
 import { createWebLogger } from "@gafus/logger";
 

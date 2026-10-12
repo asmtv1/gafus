@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { createWebLogger } from "@gafus/logger";
 import { preparePetDocumentDownloadForUser } from "@shared/lib/pets/server";
+import { trustedLegacyPetDocumentSource } from "@shared/lib/pets/trusted-document-source";
 
 const logger = createWebLogger("web-api-pet-document-download");
 
@@ -41,13 +42,39 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const fileResponse = await fetch(downloadPayload.downloadUrl);
+    // Private Cloud.ru objects use a short-lived, owner-approved direct S3 presign.
+    const parsedDownload = new URL(downloadPayload.downloadUrl);
+    if (parsedDownload.protocol === "https:" && parsedDownload.hostname === "s3.cloud.ru") {
+      const response = NextResponse.redirect(parsedDownload.toString(), 307);
+      response.headers.set("Cache-Control", "private, no-store");
+      response.headers.set("Referrer-Policy", "no-referrer");
+      return response;
+    }
+
+    if (!trustedLegacyPetDocumentSource(downloadPayload.downloadUrl)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Недопустимый источник документа",
+          code: "DOCUMENT_SOURCE_INVALID",
+        },
+        { status: 502 },
+      );
+    }
+    const fileResponse = await fetch(parsedDownload.toString(), {
+      redirect: "error",
+      signal: AbortSignal.timeout(20_000),
+    });
     if (!fileResponse.ok || !fileResponse.body) {
-      logger.error("Не удалось получить файл документа из CDN", new Error("DOCUMENT_FETCH_FAILED"), {
-        petId,
-        documentId,
-        status: fileResponse.status,
-      });
+      logger.error(
+        "Не удалось получить файл документа из CDN",
+        new Error("DOCUMENT_FETCH_FAILED"),
+        {
+          petId,
+          documentId,
+          status: fileResponse.status,
+        },
+      );
       return NextResponse.json(
         { success: false, error: "Не удалось скачать документ", code: "DOCUMENT_FETCH_FAILED" },
         { status: 502 },

@@ -75,7 +75,7 @@ vi.mock("./transactionalAuthMail", () => ({
   sendEmailChangeConfirmEmail: vi.fn(),
 }));
 
-vi.mock("@gafus/auth", () => ({
+vi.mock("./passwordReset", () => ({
   resetPasswordByToken: (...args: unknown[]) => mockResetPasswordByToken(...args),
 }));
 

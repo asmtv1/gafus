@@ -16,7 +16,7 @@ import { fetchProducts, initConnection } from "expo-iap";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, type TextInput as PaperTextInput } from "react-native-paper";
+import { Text } from "react-native-paper";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { AppBackButton, Input, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
@@ -122,7 +122,7 @@ export function AppSubscriptionPaywall() {
   );
   const [selectedYookassaPlanCode, setSelectedYookassaPlanCode] =
     useState<AppSubscriptionPlanCode | null>("MONTHLY");
-  const promoInputRef = useRef<ComponentRef<typeof PaperTextInput>>(null);
+  const promoInputRef = useRef<ComponentRef<typeof Input>>(null);
   const promoInputValueRef = useRef("");
   const promoInputEditedRef = useRef(false);
   const savedPromoPrefilledRef = useRef(false);

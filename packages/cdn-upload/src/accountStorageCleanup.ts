@@ -5,13 +5,19 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { constants, createHash, sign } from "node:crypto";
+import { parsePrivateMediaLocation } from "./privateUserMedia";
+import { beginCloudruCdnPurge, cloudruCdnPurgeDone } from "./cloudruCdnPurge";
 
-export type AccountStorageScope = "public" | "gallery" | "feed";
+export type AccountStorageScope = "public" | "gallery" | "feed" | "questions" | "documents";
+/** Durable account-deletion intent, not an object prefix. A provider cutover
+ * must never lose legacy cleanup obligations after a worker restart. */
+export const DUAL_PROVIDER_CLEANUP_MARKER = "migration-dual-provider-required";
 const safeId = /^[A-Za-z0-9_-]{1,128}$/;
 const safeKey = /^(?:uploads\/)?(?:users|questions|albums|posts|exams)\/[A-Za-z0-9_./-]+$/;
 
 /** Accept only our object URLs/paths. Never turn a foreign URL into an S3 key. */
 export function accountPublicKey(value: string): string | null {
+  if (parsePrivateMediaLocation(value)) return null; // Private Cloud.ru objects have their own cleanup scopes.
   let key = value;
   if (/^https?:/.test(value)) {
     const url = new URL(value);
@@ -39,25 +45,75 @@ export function accountStorageTargets(
   extraPrefixes: string[] = [],
 ) {
   if (!safeId.test(ownerId)) throw new Error("CLEANUP_UNSAFE_OWNER");
-  if (extraPrefixes.some((path) => !/^uploads\/exams\/[A-Za-z0-9_-]{1,128}\/$/.test(path)))
+  if (
+    extraPrefixes.some((path) =>
+      scope === "public"
+        ? !/^uploads\/exams\/[A-Za-z0-9_-]{1,128}\/$/.test(path)
+        : scope === "gallery" || scope === "feed"
+          ? path !== DUAL_PROVIDER_CLEANUP_MARKER
+          : true,
+    )
+  )
     throw new Error("CLEANUP_UNSAFE_PREFIX");
   if (scope === "public")
     return {
       prefixes: [`uploads/users/${ownerId}/`, `uploads/questions/${ownerId}/`, ...extraPrefixes],
       keys: [...new Set(values.map(accountPublicKey).filter((key): key is string => key !== null))],
     };
-  if (scope === "gallery")
-    return { prefixes: [`albums/${ownerId}/`, `users/${ownerId}/`], keys: [] as string[] };
-  if (scope === "feed") return { prefixes: [`posts/${ownerId}/`], keys: [] as string[] };
+  if (scope === "gallery" || scope === "feed") {
+    const prefixes =
+      scope === "gallery" ? [`albums/${ownerId}/`, `users/${ownerId}/`] : [`posts/${ownerId}/`];
+    const keys = [...new Set(values)];
+    // Invalid or foreign file keys must not be silently purged or deleted.
+    if (
+      keys.some(
+        (key) =>
+          !safeKey.test(key) ||
+          key.split("/").some((part) => part === "." || part === "..") ||
+          !prefixes.some((prefix) => key.startsWith(prefix)),
+      )
+    )
+      throw new Error("CLEANUP_INVALID_MEDIA_KEY");
+    return { prefixes, keys };
+  }
+  if (scope === "questions" || scope === "documents") {
+    const prefix =
+      scope === "questions"
+        ? `questions/uploads/questions/${ownerId}/`
+        : `documents/uploads/users/${ownerId}/pets/`;
+    const keys = values.map((value) => {
+      const parsed = parsePrivateMediaLocation(value);
+      if (!parsed || parsed.kind !== scope) throw new Error("CLEANUP_INVALID_PRIVATE_LOCATION");
+      return parsed.key;
+    });
+    return { prefixes: [prefix], keys: [...new Set(keys)] };
+  }
   throw new Error("CLEANUP_INVALID_SCOPE");
 }
 
-export function createAccountStorageCleaner(scope: AccountStorageScope, env = process.env) {
-  const prefix = scope === "gallery" ? "GALLERY" : "FEED";
+type AccountBucketCleaner = {
+  sweep(targets: { prefixes: string[]; keys: string[] }, signal: AbortSignal): Promise<number>;
+};
+export function createAccountStorageCleaner(
+  scope: AccountStorageScope,
+  env: NodeJS.ProcessEnv = process.env,
+): AccountBucketCleaner {
+  const privateCloud = scope === "questions" || scope === "documents";
+  const prefix =
+    scope === "gallery" ? "GALLERY" : scope === "feed" ? "FEED" : `CLOUDRU_${scope.toUpperCase()}`;
   const bucket = scope === "public" ? "gafus-media" : env[`${prefix}_BUCKET`];
-  const accessKeyId = scope === "public" ? env.YC_ACCESS_KEY_ID : env[`${prefix}_S3_ACCESS_KEY_ID`];
+  const accessKeyId =
+    scope === "public"
+      ? env.YC_ACCESS_KEY_ID
+      : privateCloud
+        ? env.CLOUDRU_S3_ACCESS_KEY_ID
+        : env[`${prefix}_S3_ACCESS_KEY_ID`];
   const secretAccessKey =
-    scope === "public" ? env.YC_SECRET_ACCESS_KEY : env[`${prefix}_S3_SECRET_ACCESS_KEY`];
+    scope === "public"
+      ? env.YC_SECRET_ACCESS_KEY
+      : privateCloud
+        ? env.CLOUDRU_S3_SECRET_ACCESS_KEY
+        : env[`${prefix}_S3_SECRET_ACCESS_KEY`];
   if (
     !bucket ||
     !accessKeyId ||
@@ -65,14 +121,39 @@ export function createAccountStorageCleaner(scope: AccountStorageScope, env = pr
     (scope !== "public" && (bucket === "gafus-media" || env[`${prefix}_BUCKET_PUBLIC`] === "true"))
   )
     throw new Error("CLEANUP_STORAGE_UNCONFIGURED");
+  // The public store also contains courses and avatars: never move it implicitly.
+  // Gallery/feed are dedicated private stores with an explicit, approved endpoint.
+  const endpoint =
+    scope === "public"
+      ? "https://storage.yandexcloud.net"
+      : privateCloud
+        ? (env.CLOUDRU_S3_ENDPOINT ?? "https://s3.cloud.ru")
+        : (env[`${prefix}_S3_ENDPOINT`] ?? "https://storage.yandexcloud.net");
+  if (!["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint))
+    throw new Error("CLEANUP_UNSAFE_ENDPOINT");
+  // Account erasure can destroy other tenants' data if a bucket is mispointed.
+  // Bind Cloud.ru cleanup scopes to the three private buckets verified live.
+  if (endpoint === "https://s3.cloud.ru") {
+    const expected =
+      scope === "gallery"
+        ? "gafus-gallery-private"
+        : scope === "feed"
+          ? "gafus-feed-private"
+          : "gafus-documents-private";
+    if (bucket !== expected) throw new Error("CLEANUP_STORAGE_UNCONFIGURED");
+  }
+  const versioning =
+    scope === "public" ? "enabled" : (env[`${prefix}_BUCKET_VERSIONING`] ?? "enabled");
+  if (versioning !== "enabled" && versioning !== "disabled")
+    throw new Error("CLEANUP_INVALID_VERSIONING");
   const client = new S3Client({
-    endpoint: "https://storage.yandexcloud.net",
-    region: "ru-central1",
+    endpoint,
+    region: endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1",
     credentials: { accessKeyId, secretAccessKey },
     forcePathStyle: true,
     maxAttempts: 2,
   });
-  return {
+  const primaryCleaner = {
     /** Delete versions and delete markers too. Pagination restarts after deletion, so no skipped keys. */
     async sweep(targets: { prefixes: string[]; keys: string[] }, signal: AbortSignal) {
       let removed = 0;
@@ -85,6 +166,30 @@ export function createAccountStorageCleaner(scope: AccountStorageScope, env = pr
         if (result.Errors?.length) throw new Error("CLEANUP_PARTIAL_DELETE");
         removed += objects.length;
       };
+      if (versioning === "disabled") {
+        // An explicitly non-versioned bucket may refuse ListObjectVersions.
+        // Restart each list at the beginning after deletion; paging while deleting skips keys.
+        const sweepUnversioned = async (prefix: string, exact: boolean) => {
+          for (;;) {
+            const page = await client.send(
+              new ListObjectsV2Command({
+                Bucket: bucket,
+                Prefix: prefix,
+                MaxKeys: 500,
+              }),
+              { abortSignal: signal },
+            );
+            const objects = (page.Contents ?? [])
+              .filter((row) => !exact || row.Key === prefix)
+              .map((row) => ({ Key: row.Key! }));
+            if (!objects.length) break;
+            await erase(objects);
+          }
+        };
+        for (const path of targets.prefixes) await sweepUnversioned(path, false);
+        for (const key of targets.keys) await sweepUnversioned(key, true);
+        return removed;
+      }
       for (const path of targets.prefixes) {
         for (;;) {
           const page = await client.send(
@@ -122,13 +227,51 @@ export function createAccountStorageCleaner(scope: AccountStorageScope, env = pr
       return removed;
     },
   };
+  const dual =
+    (scope === "gallery" || scope === "feed") && env[`${prefix}_DUAL_PROVIDER_CLEANUP`] === "true";
+  if (!dual) return primaryCleaner;
+  // During cutover the SAME owner's immutable keys may exist in both private
+  // buckets. Never report deletion until independent S3 sweeps BOTH pass.
+  // Explicit attestation prevents accidentally erasing an arbitrary Yandex
+  // bucket supplied by a mistyped environment variable.
+  const oldBucket = env[`${prefix}_LEGACY_BUCKET`];
+  if (
+    endpoint !== "https://s3.cloud.ru" ||
+    !oldBucket ||
+    !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(oldBucket) ||
+    ["gafus-media", "gafus-public", bucket].includes(oldBucket) ||
+    env[`${prefix}_LEGACY_BUCKET_VERIFIED`] !== "true" ||
+    env[`${prefix}_LEGACY_S3_ENDPOINT`] !== "https://storage.yandexcloud.net" ||
+    !env[`${prefix}_LEGACY_S3_ACCESS_KEY_ID`] ||
+    !env[`${prefix}_LEGACY_S3_SECRET_ACCESS_KEY`]
+  )
+    throw new Error("CLEANUP_LEGACY_PROVIDER_UNVERIFIED");
+  const oldCleaner = createAccountStorageCleaner(scope, {
+    ...env,
+    [`${prefix}_DUAL_PROVIDER_CLEANUP`]: "false",
+    [`${prefix}_BUCKET`]: oldBucket,
+    [`${prefix}_S3_ENDPOINT`]: "https://storage.yandexcloud.net",
+    [`${prefix}_S3_ACCESS_KEY_ID`]: env[`${prefix}_LEGACY_S3_ACCESS_KEY_ID`],
+    [`${prefix}_S3_SECRET_ACCESS_KEY`]: env[`${prefix}_LEGACY_S3_SECRET_ACCESS_KEY`],
+    [`${prefix}_BUCKET_VERSIONING`]: env[`${prefix}_LEGACY_BUCKET_VERSIONING`] ?? "enabled",
+  });
+  return {
+    async sweep(targets: { prefixes: string[]; keys: string[] }, signal: AbortSignal) {
+      const current = await primaryCleaner.sweep(targets, signal);
+      // Fail-closed: one provider failure leaves the durable job pending.
+      const old = await oldCleaner.sweep(targets, signal);
+      return current + old;
+    },
+  };
 }
 
-let iam: { token: string; expires: number } | undefined;
+let iam: { token: string; expires: number; fingerprint: string } | undefined;
 async function cdnIamToken() {
-  if (iam && iam.expires > Date.now()) return iam.token;
   const raw = process.env.CDN_CLEANUP_SERVICE_ACCOUNT_KEY;
   if (!raw) throw new Error("CLEANUP_CDN_UNCONFIGURED");
+  // Key rotation must never re-use an IAM token minted for an old account.
+  const fingerprint = createHash("sha256").update(raw).digest("hex");
+  if (iam && iam.fingerprint === fingerprint && iam.expires > Date.now()) return iam.token;
   const key = JSON.parse(raw) as { id: string; service_account_id: string; private_key: string };
   if (!key.id || !key.service_account_id || !key.private_key)
     throw new Error("CLEANUP_CDN_UNCONFIGURED");
@@ -154,7 +297,7 @@ async function cdnIamToken() {
   if (!response.ok) throw new Error("CLEANUP_IAM_FAILED");
   const result = (await response.json()) as { iamToken?: string };
   if (!result.iamToken) throw new Error("CLEANUP_IAM_FAILED");
-  iam = { token: result.iamToken, expires: Date.now() + 50 * 60_000 };
+  iam = { token: result.iamToken, expires: Date.now() + 50 * 60_000, fingerprint };
   return iam.token;
 }
 
@@ -191,14 +334,63 @@ export async function startAccountCdnPurge(
         .filter(Boolean),
     ),
   ];
+  // Private question/document downloads use direct short-lived S3 presigns, not CDN.
+  if (scope === "questions" || scope === "documents") return [...existing];
+  const cloudru =
+    (scope === "gallery" || scope === "feed") &&
+    process.env[`${name}_S3_ENDPOINT`] === "https://s3.cloud.ru";
+  // The deployed, signed edge remains Yandex even when storage is Cloud.ru.
+  // Only an explicitly audited provider override may target Cloud.ru CDN.
+  const provider = process.env[`${name}_CDN_PROVIDER`] ?? "yandex";
+  if (cloudru && !["cloudru", "yandex"].includes(provider))
+    throw new Error("CLEANUP_UNKNOWN_CDN_PROVIDER");
+  // Cloud.ru S3 does not imply Cloud.ru CDN. A Yandex edge stays authoritative
+  // across a Cloud.ru Origin switch; never call CDNvideo purge in this mode.
+  const yandexEdge = cloudru && provider === "yandex";
+  const dual = cloudru && process.env[`${name}_DUAL_PROVIDER_CLEANUP`] === "true";
+  const legacyResources = dual
+    ? [
+        ...new Set(
+          (process.env[`${name}_LEGACY_CDN_RESOURCE_IDS`] ?? "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+        ),
+      ]
+    : resources;
+  const yandexResources = yandexEdge ? [...new Set([...resources, ...legacyResources])] : legacyResources;
+  if (yandexEdge && !resources.length) throw new Error("CLEANUP_CDN_UNCONFIGURED");
+  // Before submitting ANY purge verify old CDN coverage. Otherwise an
+  // incorrectly configured cutover can confirm only Cloud.ru and leave Yandex
+  // edge copies readable after the account is deleted.
+  if (
+    dual &&
+    (process.env[`${name}_LEGACY_BUCKET_VERIFIED`] !== "true" ||
+      (!legacyResources.length && process.env[`${name}_LEGACY_CDN_UNCACHED_VERIFIED`] !== "true"))
+  )
+    throw new Error("CLEANUP_LEGACY_CDN_UNVERIFIED");
   // Public media uses uncached Nginx unless additional CDN resources are explicitly configured.
-  if (!resources.length && scope !== "public") throw new Error("CLEANUP_CDN_UNCONFIGURED");
+  if (!cloudru && !resources.length && scope !== "public")
+    throw new Error("CLEANUP_CDN_UNCONFIGURED");
+  if (cloudru && !yandexEdge) {
+    // Cloud.ru CDNvideo only supports exact file paths, never owner wildcards.
+    const submitted = targets.keys.length
+      ? await beginCloudruCdnPurge(
+          scope as "gallery" | "feed",
+          targets.keys.map((key) => `/${key}`),
+          existing,
+          checkpoint,
+        )
+      : [...existing];
+    if (!dual) return submitted;
+    existing = submitted;
+  }
   const paths = [
     ...new Set([...targets.prefixes.map((x) => `/${x}*`), ...targets.keys.map((x) => `/${x}*`)]),
   ];
   if (!paths.length) throw new Error("CLEANUP_EMPTY_PURGE");
   const operations: string[] = [...existing];
-  for (const resource of resources) {
+  for (const resource of yandexResources) {
     if (!/^[A-Za-z0-9_-]{1,50}$/.test(resource)) throw new Error("CLEANUP_INVALID_CDN_RESOURCE");
     for (let offset = 0; offset < paths.length; offset += 10) {
       const batch = paths.slice(offset, offset + 10);
@@ -224,6 +416,12 @@ export async function accountCdnPurgeDone(
   for (let index = 0; index < operations.length; index++) {
     const operation = operations[index]!;
     if (operation.startsWith("done:")) continue;
+    if (operation.startsWith("cloudru:")) {
+      if (!(await cloudruCdnPurgeDone(operation))) return false;
+      confirmed[index] = `done:${operation}`;
+      await checkpoint?.(confirmed);
+      continue;
+    }
     const id = operation.includes(":") ? operation.split(":")[1]! : operation;
     if (!safeId.test(id)) throw new Error("CLEANUP_INVALID_OPERATION");
     if (!(await cdnRequest(`operations/${id}`)).done) return false;

@@ -102,7 +102,7 @@ export interface SmartMlTrainingRow {
 }
 
 /** Exact pairwise ROC-AUC with ties worth half-credit. */
-export function smartRocAuc(pairs: Array<{ probability: number; label: 0 | 1 }>): number {
+export function smartRocAuc(pairs: { probability: number; label: 0 | 1 }[]): number {
   const sorted = [...pairs].sort((a, b) => a.probability - b.probability);
   const positives = pairs.filter(pair => pair.label === 1).length;
   const negatives = pairs.length - positives;

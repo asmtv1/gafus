@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
-const { getServerSessionMock, updateUserAdminMock, userFindUniqueMock } = vi.hoisted(() => ({
+const { getServerSessionMock, updateUserAdminMock, partnerChangeRequiresAdminMock } = vi.hoisted(() => ({
   getServerSessionMock: vi.fn(),
   updateUserAdminMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
+  partnerChangeRequiresAdminMock: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: getServerSessionMock }));
 vi.mock("@gafus/auth", () => ({ authOptions: {} }));
-vi.mock("@gafus/core/services/adminUser", () => ({ updateUserAdmin: updateUserAdminMock }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: userFindUniqueMock } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({
+  updateUserAdmin: updateUserAdminMock,
+  partnerChangeRequiresAdmin: partnerChangeRequiresAdminMock,
+}));
 vi.mock("@gafus/logger", () => ({
   createAdminPanelLogger: () => ({ error: vi.fn(), info: vi.fn(), warn: vi.fn() }),
 }));
@@ -30,9 +32,7 @@ describe("PUT /api/users/[id] partner controls", () => {
 
   it("uses the current database role and rejects a moderator assigning a partner", async () => {
     getServerSessionMock.mockResolvedValue({ user: { id: "moderator-1", role: "MODERATOR" } });
-    userFindUniqueMock.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "moderator-1" ? "MODERATOR" : "USER" }),
-    );
+    partnerChangeRequiresAdminMock.mockResolvedValue(true);
 
     const response = await PUT(jsonRequest({ role: "PARTNER", partnerPromoCodeId: "promo-1" }), {
       params: Promise.resolve({ id: "user-1" }),
@@ -44,13 +44,12 @@ describe("PUT /api/users/[id] partner controls", () => {
       error: "Только администратор может управлять ролью и промокодом партнёра",
     });
     expect(updateUserAdminMock).not.toHaveBeenCalled();
+    expect(partnerChangeRequiresAdminMock).toHaveBeenCalledWith("moderator-1", "user-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" });
   });
 
   it("allows a current database admin to bind the submitted promo code", async () => {
     getServerSessionMock.mockResolvedValue({ user: { id: "admin-1", role: "ADMIN" } });
-    userFindUniqueMock.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "admin-1" ? "ADMIN" : "USER" }),
-    );
+    partnerChangeRequiresAdminMock.mockResolvedValue(false);
     updateUserAdminMock.mockResolvedValue({ success: true });
 
     const response = await PUT(jsonRequest({ role: "PARTNER", partnerPromoCodeId: "promo-1" }), {
@@ -58,6 +57,7 @@ describe("PUT /api/users/[id] partner controls", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(updateUserAdminMock).toHaveBeenCalledWith("user-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" });
+    expect(updateUserAdminMock).toHaveBeenCalledWith("user-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" }, "admin-1");
+    expect(partnerChangeRequiresAdminMock).toHaveBeenCalledWith("admin-1", "user-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" });
   });
 });

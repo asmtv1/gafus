@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getServerSessionMock, revalidatePathMock, updateUserAdminMock, userFindUniqueMock } = vi.hoisted(() => ({
+const { getServerSessionMock, revalidatePathMock, updateUserAdminMock, partnerChangeRequiresAdminMock } = vi.hoisted(() => ({
   getServerSessionMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   updateUserAdminMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
+  partnerChangeRequiresAdminMock: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({
@@ -17,10 +17,7 @@ vi.mock("@gafus/auth", () => ({
 
 vi.mock("@gafus/core/services/adminUser", () => ({
   updateUserAdmin: updateUserAdminMock,
-}));
-
-vi.mock("@gafus/prisma", () => ({
-  prisma: { user: { findUnique: userFindUniqueMock } },
+  partnerChangeRequiresAdmin: partnerChangeRequiresAdminMock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -45,9 +42,8 @@ function buildFormData(fields: Record<string, string>): FormData {
 describe("updateUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    userFindUniqueMock.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "moderator-1" ? "MODERATOR" : where.id === "admin-1" ? "ADMIN" : "USER" }),
-    );
+    partnerChangeRequiresAdminMock.mockImplementation(async (actorId: string, _userId: string, input: { role?: string; partnerPromoCodeId?: string }) =>
+      actorId === "moderator-1" && (input.partnerPromoCodeId !== undefined || input.role === "PARTNER"));
   });
 
   it("rejects unauthenticated users before calling the service", async () => {
@@ -112,7 +108,7 @@ describe("updateUser", () => {
       phone: "+79999999999",
       role: "TRAINER",
       newPassword: "secret1",
-    });
+    }, "moderator-1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/main-panel/users");
   });
 
@@ -163,6 +159,6 @@ describe("updateUser", () => {
     await expect(updateUser({}, buildFormData({
       id: "user-1", username: "updated", phone: "+79999999999", role: "PARTNER", newPassword: "secret1", partnerPromoCodeId: "promo-1",
     }))).resolves.toEqual({ success: true });
-    expect(updateUserAdminMock).toHaveBeenCalledWith("user-1", expect.objectContaining({ role: "PARTNER", partnerPromoCodeId: "promo-1" }));
+    expect(updateUserAdminMock).toHaveBeenCalledWith("user-1", expect.objectContaining({ role: "PARTNER", partnerPromoCodeId: "promo-1" }), "admin-1");
   });
 });

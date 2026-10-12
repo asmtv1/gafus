@@ -113,9 +113,9 @@ export function MyConsultationsClient({ initialItems }: MyConsultationsClientPro
                     {[b.clientOwnerName?.trim(), b.petName?.trim()].filter(Boolean).join(" · ")}
                   </p>
                 ) : null}
-                {(b.status === "CONFIRMED" || b.status === "COMPLETED") && b.joinUrl ? (
+                {(b.status === "CONFIRMED") ? (
                   <p className={styles.joinLink}>
-                    <a href={b.joinUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={`/consultations/call/${encodeURIComponent(b.id)}`}>
                       Перейти к видеовстрече
                     </a>
                   </p>

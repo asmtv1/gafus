@@ -1,26 +1,20 @@
 "use server";
 
 import { getErrorMessage } from "@gafus/core/errors";
+import {
+  assertTrainerAISettingsAccess,
+  isSupportedTrainerAIModel,
+  TRAINER_AI_SUPPORTED_MODELS,
+} from "@gafus/core";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { prisma } from "@gafus/prisma";
+import { saveTrainerAIConfiguration } from "@gafus/core";
 import { authOptions } from "@gafus/auth";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { encryptApiKey } from "./encryption";
 import { callOpenRouterAPI } from "./providers/openrouter";
 
 const logger = createTrainerPanelLogger("ai-chat-save-config");
-
-// Валидация модели OpenRouter
-const VALID_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct",
-  "deepseek/deepseek-r1",
-  "meta-llama/llama-3.1-405b-instruct",
-] as const;
-
-function validateModel(model: string): model is (typeof VALID_MODELS)[number] {
-  return VALID_MODELS.includes(model as (typeof VALID_MODELS)[number]);
-}
 
 const saveAIConfigSchema = z.object({
   apiKey: z.string().optional(), // Опциональный - если не указан, используется общий ключ из env
@@ -91,10 +85,10 @@ export async function saveAIConfig(
     const { apiKey, provider, model, enabled, validateKey } = parseResult.data;
 
     // Валидация модели
-    if (!validateModel(model)) {
+    if (!isSupportedTrainerAIModel(model)) {
       return {
         success: false,
-        error: `Неподдерживаемая модель OpenRouter: ${model}. Доступны: ${VALID_MODELS.join(", ")}`,
+        error: `Неподдерживаемая модель OpenRouter: ${model}. Доступны: ${TRAINER_AI_SUPPORTED_MODELS.join(", ")}`,
       };
     }
 
@@ -130,8 +124,10 @@ export async function saveAIConfig(
     }
     // Если apiKey не указан, encryptedApiKey останется null - будет использоваться общий ключ из env
 
+    await assertTrainerAISettingsAccess(session.user.id);
+
     // Upsert конфигурации
-    await prisma.trainerAIConfig.upsert({
+    await saveTrainerAIConfiguration(session.user.id, {
       where: { trainerId },
       create: {
         trainerId,

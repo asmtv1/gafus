@@ -2,14 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@gafus/auth";
 import { withCSRFProtection } from "@gafus/csrf/middleware";
-import { prisma } from "@gafus/prisma";
 import {
   GafusError, getGafusStatus, listGafusTransactions, unlockContentWithGafus, listGafusMiniGuides,
   getGafusPostReactionProgress,
+  getAuthorizedMiniGuideContent,
 } from "@gafus/core/services/gafus";
-import {
-  resolveMiniGuideTargetTx, resolveMiniGuideAccessTx,
-} from "@gafus/core/services/contentAccess";
 import {
   getGafusAdminDashboard, updateGafusSettingsAdmin, adjustGafusBalanceAdmin,
 } from "@gafus/core/services/adminGafus";
@@ -109,16 +106,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     }
     if (request.method === "GET" && path[0] === "mini-guide" && path.length === 2) {
       const courseId = z.string().min(1).max(128).parse(path[1]);
-      const guideContent = await prisma.$transaction(async tx => {
-        const target = await resolveMiniGuideTargetTx(tx, courseId);
-        if (!target) return null;
-        const access = await resolveMiniGuideAccessTx(tx, userId, target);
-        if (!access.allowed) return null;
-        const course = await tx.course.findUnique({
-          where: { id: courseId }, select: { guideContent: true },
-        });
-        return course?.guideContent ?? null;
-      });
+      const guideContent = await getAuthorizedMiniGuideContent({ userId, courseId });
       if (!guideContent) return fail(403, "GAFUS_ACCESS_REQUIRED", "Для доступа к мини-гайду нужен Гафус или подписка");
       return NextResponse.json({ success: true, data: { courseId, guideContent } }, { headers });
     }

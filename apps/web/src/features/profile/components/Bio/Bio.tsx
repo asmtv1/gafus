@@ -4,7 +4,6 @@ import { ProfileIcon } from "../ProfileIcon";
 import styles from "./Bio.module.css";
 import { primaryButtonClassName } from "@/shared/components/ui";
 import EditableAvatar from "../EditableAvatar";
-import NotificationStatus from "../NotificationStatus";
 import ProfileAvatar from "../ProfileAvatar";
 import TrainerCoursesSection from "../TrainerCoursesSection";
 
@@ -22,6 +21,8 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
     | null;
   const diplomas = publicData.diplomas;
   const safeWebsite = profile?.website?.startsWith("http") ? profile.website : null;
+  const city = profile?.city?.trim() || null;
+  const age = profile?.birthDate ? getAge(profile.birthDate) : null;
 
   const displayRole =
     publicData.role && publicData.role !== "USER"
@@ -54,10 +55,7 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
     : "/profile";
 
   return (
-    <section className={styles.wrapper}>
-      <h2>Профиль {username}</h2>
-
-      {/* Новый дизайн в стиле баннера */}
+    <section className={styles.wrapper} aria-label="Профиль пользователя">
       <div className={styles.profileBanner}>
         <div className={styles.avatarContainer}>
           {isOwner ? (
@@ -67,52 +65,47 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           )}
         </div>
         <div className={styles.profileInfo}>
-          <div className={styles.greeting}>
-            {isOwner ? `Привет, ${profile?.fullName || username}!` : profile?.fullName || username}
+          <h1 className={styles.greeting}>{profile?.fullName || username}</h1>
+          <div className={styles.identityMeta}>
+            <span className={styles.username}>@{username}</span>
+            <span className={styles.metaSeparator} aria-hidden="true">·</span>
+            <span
+              className={`${styles.contactInfo}${
+                isOwner && !userData?.email?.trim() ? ` ${styles.contactInfoMissing}` : ""
+              }`}
+            >
+              {isOwner
+                ? userData?.email?.trim()
+                  ? userData.email.trim()
+                  : USER_EMAIL_MISSING_HINT
+                : profile?.telegram
+                  ? `@${profile.telegram}`
+                  : "Контакты не указаны"}
+            </span>
           </div>
-          <div
-            className={`${styles.contactInfo}${
-              isOwner && !userData?.email?.trim() ? ` ${styles.contactInfoMissing}` : ""
-            }`}
-          >
-            {isOwner
-              ? userData?.email?.trim()
-                ? userData.email.trim()
-                : USER_EMAIL_MISSING_HINT
-              : profile?.telegram
-                ? `@${profile.telegram}`
-                : "Контакты не указаны"}
-          </div>
-          {displayRole && (
-            <div className={`${styles.roleBadge} ${getRoleClass(publicData.role!)}`}>
-              {displayRole}
+          {(displayRole || isOwner) && (
+            <div className={styles.identityActions}>
+              {displayRole && (
+                <span className={`${styles.roleBadge} ${getRoleClass(publicData.role!)}`}>
+                  {displayRole}
+                </span>
+              )}
+              {isOwner && (
+                <ProfileAnalyticsLink
+                  className={`${styles.editBioButton} ${styles.buttonLink} ${primaryButtonClassName}`}
+                  elementId="profile-bio-edit-link-click"
+                  href="/profile/editBio"
+                  pathOrScreen={profilePathOrScreen}
+                >
+                  Редактировать профиль
+                </ProfileAnalyticsLink>
+              )}
             </div>
           )}
         </div>
-      </div>
-
-      <div className={styles.container}>
-        {profile?.city && (
-          <p>
-            <LocationOnOutlinedIcon fontSize="small" aria-hidden="true" /> Город: {profile.city}
-          </p>
-        )}
-        {profile?.birthDate && (
-          <p>
-            Возраст: {getAge(profile.birthDate)}{" "}
-            {declOfNum(getAge(profile.birthDate), ["год", "года", "лет"])}
-          </p>
-        )}
-        {profile?.about && (
-          <p>
-            <ProfileIcon name="about" /> О себе: {profile.about}
-          </p>
-        )}
-
         {/* Социальные сети */}
         {(profile?.instagram || profile?.telegram || safeWebsite) && (
           <div className={styles.socialLinksContainer}>
-            <h3 className={styles.socialLinksTitle}>Контакты</h3>
             <div className={styles.socialLinksList}>
               {profile?.instagram && (
                 <a
@@ -156,26 +149,46 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
             </div>
           </div>
         )}
-        {showEmptyNotice && <div className={styles.emptyNotice}>Информация о себе не внесена</div>}
+      </div>
 
-        {isOwner && (
-          <ProfileAnalyticsLink
-            className={`${styles.editBioButton} ${styles.buttonLink} ${primaryButtonClassName}`}
-            elementId="profile-bio-edit-link-click"
-            href="/profile/editBio"
-            pathOrScreen={profilePathOrScreen}
-          >
-            Внести/Изменить «О себе»
-          </ProfileAnalyticsLink>
-        )}
+      <div className={styles.detailsGrid}>
+        <div className={styles.descriptionColumn}>
+          {(age !== null || city || isOwner) && (
+            <div className={styles.personalFacts} aria-label="Личные сведения">
+              {(age !== null || isOwner) && (
+                <div className={styles.personalFact}>
+                  <span className={styles.factLabel}>Возраст</span>
+                  <span className={styles.factValue}>
+                    {age !== null ? `${age} ${declOfNum(age, ["год", "года", "лет"])}` : "Не указан"}
+                  </span>
+                </div>
+              )}
+              {(city || isOwner) && (
+                <div className={styles.personalFact}>
+                  <span className={styles.factLabel}>
+                    <LocationOnOutlinedIcon fontSize="inherit" aria-hidden="true" /> Город
+                  </span>
+                  <span className={city ? styles.factValue : styles.factMissing}>
+                    {city || "Не указан"}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          {profile?.about && (
+            <div className={styles.aboutBlock}>
+              <h2 className={styles.aboutTitle}>
+                <ProfileIcon name="about" /> О себе
+              </h2>
+              <p className={styles.aboutText}>{profile.about}</p>
+            </div>
+          )}
+          {showEmptyNotice && <p className={styles.emptyNotice}>Информация о себе не внесена</p>}
+        </div>
+
       </div>
 
       {publicData.role === "TRAINER" && <TrainerCoursesSection publicData={publicData} />}
-      {isOwner && (
-        <div className={styles.notificationStatus}>
-          <NotificationStatus />
-        </div>
-      )}
       {diplomas.length > 0 && (
         <div className={styles.diplomasSection}>
           <h2>Дипломы</h2>

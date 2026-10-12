@@ -18,6 +18,7 @@ vi.mock("@gafus/prisma", () => ({
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ info: vi.fn(), warn: vi.fn() }) }));
 vi.mock("./stream", () => ({ deleteAccountStreamFiles: mock.stream }));
 vi.mock("@gafus/cdn-upload", () => ({
+  DUAL_PROVIDER_CLEANUP_MARKER: "migration-dual-provider-required",
   accountStorageTargets: () => ({ prefixes: ["albums/owner/"], keys: [] }),
   createAccountStorageCleaner: () => ({ sweep: mock.sweep }),
   startAccountCdnPurge: mock.purge,
@@ -61,6 +62,17 @@ describe("durable account cleanup", () => {
     expect(mock.done).toHaveBeenCalledWith(["operation"], expect.any(Function));
     expect(statements()[0]).toContain("'done'");
   });
+  it.each(["questions", "documents"])(
+    "completes verified private %s cleanup without scheduling any CDN purge",
+    async (scope) => {
+      mock.query.mockResolvedValue([{ ...job, scope }]);
+      await processAccountStorageCleanup(1);
+      expect(mock.sweep).toHaveBeenCalledOnce();
+      expect(mock.purge).not.toHaveBeenCalled();
+      expect(mock.done).not.toHaveBeenCalled();
+      expect(statements()[0]).toContain("'done'");
+    },
+  );
   it("restarts CDN invalidation if a late object is found", async () => {
     mock.query.mockResolvedValue([
       { ...job, purgeAfter: new Date(0), purgeOperations: ["operation"] },
@@ -85,6 +97,15 @@ describe("durable account cleanup", () => {
     await processAccountStorageCleanup(1);
     expect(mock.execute.mock.calls[0]).toContain(true);
     expect(statements()[0]).not.toContain("'done'");
+  });
+  it("refuses to forget a persisted Yandex cleanup obligation after worker config drift", async () => {
+    vi.stubEnv("GALLERY_DUAL_PROVIDER_CLEANUP", "false");
+    mock.query.mockResolvedValue([{ ...job, prefixes: ["migration-dual-provider-required"] }]);
+    await processAccountStorageCleanup(1);
+    expect(mock.sweep).not.toHaveBeenCalled();
+    expect(mock.purge).not.toHaveBeenCalled();
+    expect(mock.execute.mock.calls[0]).toContain("CLEANUP_LEGACY_PROVIDER_REQUIRED");
+    vi.unstubAllEnvs();
   });
   it("refuses cleanup when the owner exists", async () => {
     mock.owner.mockResolvedValue({ id: "owner" });

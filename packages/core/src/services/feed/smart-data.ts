@@ -47,7 +47,7 @@ export async function rankSmartCandidates(
       id: true, profile: { select: { city: true } },
       pets: { where: { showInProfile: true }, select: { type: true, breed: true } },
     } }),
-    db.$queryRaw<Array<{ postId: string; reactions: number; uniqueCommenters: number; bookmarks: number; impressions: number }>>(Prisma.sql`
+    db.$queryRaw<{ postId: string; reactions: number; uniqueCommenters: number; bookmarks: number; impressions: number }[]>(Prisma.sql`
       WITH fresh AS (
         SELECT s.* FROM "FeedPostStats" s
         WHERE s."postId" IN (${Prisma.join(postIds)})

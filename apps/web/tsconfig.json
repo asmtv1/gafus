@@ -18,6 +18,7 @@
     "baseUrl": ".",
     "paths": {
       "@gafus/core/services/feed/publication-client": ["../../packages/core/src/services/feed/publication-client.ts"],
+      "@gafus/core/services/mediaDelivery": ["../../packages/core/src/services/mediaDelivery/index.ts"],
       "@gafus/core/services/questions": ["../../packages/core/src/services/questions/index.ts"],
       "@gafus/core/services/cynologistChat": ["../../packages/core/src/services/cynologistChat/index.ts"],
       "@/*": ["./src/*"],

@@ -4,7 +4,7 @@ import { reportClientError } from "@gafus/error-handling";
 import { resetCookieConsent } from "@gafus/ui-components";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { resetAnalyticsUser } from "@gafus/analytics";
 import { ProfileIcon, type ProfileIconName } from "../ProfileIcon";
@@ -20,9 +20,14 @@ const LINK_SUCCESS_DISMISS_MS = 7000; // 7 секунд
 interface SettingsActionsProps {
   hasVkLinked?: boolean;
   linkFeedback?: string;
+  notificationPanel?: ReactNode;
 }
 
-const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsProps) => {
+const SettingsActions = ({
+  hasVkLinked = false,
+  linkFeedback,
+  notificationPanel,
+}: SettingsActionsProps) => {
   const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -92,34 +97,9 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
         <div className={styles.errorBanner}>{linkFeedback}</div>
       )}
       <div className={styles.buttonsContainer}>
-        <h2 className={styles.groupTitle}>Настройки</h2>
-        <button type="button" className={styles.row} onClick={handleRestartTour}>
-          <ProfileIcon name="tour" />
-          <span>Повторить экскурсию</span>
-          <span aria-hidden="true">›</span>
-        </button>
-        {!hasVkLinked ? (
-          <button
-            type="button"
-            className={styles.row}
-            onClick={() => void handleLinkVk()}
-            disabled={isLinking}
-          >
-            <ProfileIcon name="login" />
-            <span>{isLinking ? "Подключение…" : "Подключить VK"}</span>
-            <span aria-hidden="true">›</span>
-          </button>
-        ) : (
-          <div className={styles.vkLinkedBadge}>
-            <CheckCircleIcon className={styles.successIcon} />
-            <span>VK подключён</span>
-          </div>
-        )}
-        {linkError && (
-          <p className={styles.errorText} role="alert">
-            {linkError}
-          </p>
-        )}
+        <div className={styles.settingsColumn}>
+        {notificationPanel && <div className={styles.notificationPanel}>{notificationPanel}</div>}
+        <div className={styles.settingsGroup}>
         <h2 className={styles.groupTitle}>Данные аккаунта</h2>
         <Link href="/profile/change-username" className={styles.row}>
           <ProfileIcon name="login" />
@@ -156,6 +136,44 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
             <span aria-hidden="true">›</span>
           </Link>
         )}
+        </div>
+        <div className={styles.settingsGroup}>
+        <h2 className={styles.groupTitle}>Настройки</h2>
+        <button
+          type="button"
+          className={`${styles.row} ${hasVkLinked ? styles.rowBeforeVkStatus : ""}`}
+          onClick={handleRestartTour}
+        >
+          <ProfileIcon name="tour" />
+          <span>Повторить экскурсию</span>
+          <span aria-hidden="true">›</span>
+        </button>
+        {!hasVkLinked ? (
+          <button
+            type="button"
+            className={styles.row}
+            onClick={() => void handleLinkVk()}
+            disabled={isLinking}
+          >
+            <ProfileIcon name="login" />
+            <span>{isLinking ? "Подключение…" : "Подключить VK"}</span>
+            <span aria-hidden="true">›</span>
+          </button>
+        ) : (
+          <div className={styles.vkLinkedBadge}>
+            <CheckCircleIcon className={styles.successIcon} />
+            <span>VK подключён</span>
+          </div>
+        )}
+        {linkError && (
+          <p className={styles.errorText} role="alert">
+            {linkError}
+          </p>
+        )}
+        </div>
+        </div>
+        <div className={styles.settingsColumn}>
+        <div className={styles.settingsGroup}>
         <h2 className={styles.groupTitle}>Информация</h2>
         {(
           [
@@ -184,6 +202,8 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
           <span>Управление cookies</span>
           <span aria-hidden="true">›</span>
         </button>
+        </div>
+        <div className={styles.settingsGroup}>
         <h2 className={styles.groupTitle}>Действия с аккаунтом</h2>
         <button
           type="button"
@@ -201,6 +221,8 @@ const SettingsActions = ({ hasVkLinked = false, linkFeedback }: SettingsActionsP
           <span>Удалить аккаунт</span>
           <span aria-hidden="true">›</span>
         </Link>
+        </div>
+        </div>
       </div>
     </section>
   );

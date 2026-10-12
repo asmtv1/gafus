@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { fileTypeFromBuffer } from "file-type";
 import { prisma, type Prisma } from "@gafus/prisma";
@@ -47,7 +47,7 @@ export const petVetVisitSchema = z.object({
 });
 type VisitRow = Prisma.PetVetVisitGetPayload<{ include: { attachments: true } }>;
 const include = { attachments: { orderBy: { createdAt: "asc" as const } } };
-function dto(row: VisitRow): PetVetVisit {
+function dto(row: VisitRow, pending = new Set<string>()): PetVetVisit {
   return {
     id: row.id,
     petId: row.petId,
@@ -64,6 +64,7 @@ function dto(row: VisitRow): PetVetVisit {
       mimeType: a.mimeType,
       sizeBytes: a.sizeBytes,
       hasPreview: !!a.previewKey,
+      previewProcessing: !a.previewKey && pending.has(`vet-preview:${a.id}`),
     })),
   };
 }
@@ -92,7 +93,19 @@ export async function listPetVetVisits(petId: string, ownerId: string) {
     include,
     orderBy: [{ visitedOn: "desc" }, { createdAt: "desc" }],
   });
-  return rows.map(dto);
+  const candidates = rows.flatMap((row) =>
+    row.attachments
+      .filter((a) => !a.previewKey && a.mimeType.startsWith("image/"))
+      .map((a) => `vet-preview:${a.id}`),
+  );
+  const active = candidates.length
+    ? await prisma.galleryStorageJob.findMany({
+        where: { dedupeKey: { in: candidates }, status: { in: ["pending", "processing"] } },
+        select: { dedupeKey: true },
+      })
+    : [];
+  const pending = new Set(active.map((job) => job.dedupeKey));
+  return rows.map((row) => dto(row, pending));
 }
 export async function savePetVetVisit(petId: string, ownerId: string, input: unknown, id?: string) {
   const parsed = petVetVisitSchema.parse(input);
@@ -144,6 +157,13 @@ export async function addPetVetAttachment(
     throw new VetVisitError("Разрешены фотографии JPEG, PNG, WebP и документы PDF");
   const id = randomUUID();
   const keys = vetVisitFileKeys(ownerId, petId, visitId, id, detected.mime);
+  // Gradual rollout: legacy synchronous processing stays the default until the
+  // Gallery cloud worker and its durable callback path are deployed together.
+  const asyncFlag = process.env.VET_PREVIEW_ASYNC_ENABLED;
+  if (asyncFlag && !["true", "false"].includes(asyncFlag))
+    throw new VetVisitError("Некорректная конфигурация предпросмотра", 409);
+  const asyncPreview = asyncFlag === "true" && !!keys.previewKey;
+  const originalETag = `"${createHash("md5").update(bytes).digest("hex")}"`;
   const dedupeKey = `vet-upload:${id}`;
   // Durable cleanup is reserved BEFORE storage I/O. It survives crashes, partial uploads and owner deletion.
   await prisma.$transaction(async (tx) => {
@@ -158,9 +178,14 @@ export async function addPetVetAttachment(
       dedupeKey,
     );
   });
-  await uploadVetVisitFile(bytes, detected.mime, keys);
+  await uploadVetVisitFile(bytes, detected.mime, keys, { asyncPreview });
   const rawName = file.name
-    .replace(/[\x00-\x1f\x7f/\\]/g, "")
+    .split("")
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      return code > 31 && code !== 127 && char !== "/" && char !== "\\";
+    })
+    .join("")
     .trim()
     .slice(0, 200);
   await prisma.$transaction(async (tx) => {
@@ -177,11 +202,28 @@ export async function addPetVetAttachment(
         id,
         visitId,
         ...keys,
+        previewKey: asyncPreview ? null : keys.previewKey,
         name: rawName || `Медкарта.${detected.ext}`,
         mimeType: detected.mime,
         sizeBytes: bytes.byteLength,
       },
     });
+    if (asyncPreview && keys.previewKey) {
+      // The preview is invisible until Gallery core verifies the worker's
+      // finished object and atomically commits previewKey. No polling in API.
+      await tx.galleryStorageJob.create({
+        data: {
+          id: randomUUID(),
+          dedupeKey: `vet-preview:${id}`,
+          kind: "vetPreview",
+          ownerId,
+          sourceKeys: [keys.originalKey],
+          sourceETags: [originalETag],
+          targetKeys: [keys.previewKey],
+          availableAt: new Date(),
+        },
+      });
+    }
   });
   return { id };
 }

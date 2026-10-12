@@ -9,7 +9,8 @@
  */
 import { SignJWT, jwtVerify } from "jose";
 import { createSecretKey, type KeyObject } from "crypto";
-import { prisma } from "@gafus/prisma";
+import { assertCompletedUser, sessionIsCurrent } from "@gafus/core/services/auth/identityReadService";
+export { assertCompletedUser } from "@gafus/core/services/auth/identityReadService";
 
 const JWT_ISSUER = "https://api.gafus.ru";
 const JWT_AUDIENCE = "gafus-app";
@@ -47,11 +48,6 @@ export interface AuthUser {
 }
 
 /** Call this before issuing tokens from a transport-specific flow. */
-export async function assertCompletedUser(userId: string): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
-  if (!user || user.registrationPending) throw new Error("Registration is not completed");
-}
-
 /**
  * Генерирует access token (15 минут)
  */
@@ -128,16 +124,4 @@ export async function verifyRefreshToken(
   } catch {
     return null;
   }
-}
-
-async function sessionIsCurrent(payload: { sub?: string; iat?: number; authenticatedAt?: unknown }) {
-  if (!payload.sub) return false;
-  const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    select: { sessionsRevokedAt: true, registrationPending: true },
-  });
-  if (!user || user.registrationPending) return false;
-  const issuedAt = typeof payload.authenticatedAt === "number"
-    ? payload.authenticatedAt : (payload.iat ?? 0) * 1000;
-  return !user.sessionsRevokedAt || issuedAt > user.sessionsRevokedAt.getTime();
 }

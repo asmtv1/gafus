@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
-RUN npm install --ignore-scripts --no-save esbuild@0.27.2 sharp@0.34.3 @aws-sdk/client-s3@3.980.0 @aws-sdk/s3-presigned-post@3.980.0
+RUN npm install --ignore-scripts --no-save esbuild@0.27.2 sharp@0.34.3 @aws-sdk/client-s3@3.980.0 @aws-sdk/s3-presigned-post@3.980.0 @aws-sdk/s3-request-presigner@3.980.0
 COPY apps/feed-cloud/src apps/feed-cloud/src
 COPY packages/feed-cloud/src packages/feed-cloud/src
 COPY packages/feed-storage/src packages/feed-storage/src

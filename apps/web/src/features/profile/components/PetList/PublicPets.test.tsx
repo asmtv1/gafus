@@ -4,12 +4,16 @@ import type { PublicProfile } from "@gafus/types";
 import PublicPets from "./PublicPets";
 import ProfileClient from "@/app/(main)/profile/ProfileClient";
 
-vi.mock("@/features/profile", () => ({
+vi.mock("@/features/profile", async () => ({
   Bio: () => null, PrivateProfileSection: () => null,
   SettingsActions: () => null, StudentNotes: () => null,
+  PublicPets: (await import("./PublicPets")).default,
 }));
-vi.mock("@/features/gallery", () => ({ GalleryPreview: () => null }));
-vi.mock("@/features/feed/ProfileFeedPreview", () => ({ ProfileFeedPreview: () => null }));
+vi.mock("@/features/questions/MyQuestionsList", () => ({ MyQuestionsList: () => null }));
+vi.mock("@/features/feed/FeedViews", () => ({
+  FeedAuthorPostsList: ({ username }: { username: string }) =>
+    <div data-testid="author-posts">Моменты пользователя: {username}</div>,
+}));
 vi.mock("@gafus/core/utils", async () => ({
   ...(await import("../../../../../../../packages/core/src/utils/pet")),
 }));
@@ -27,6 +31,8 @@ describe("public pets placement", () => {
     const html = renderToStaticMarkup(<ProfileClient publicData={publicData} isOwner={false} username="student" userData={null} />);
     expect(html).toContain("Лада");
     expect(html).toContain("Метис");
+    expect(html).toContain("Моменты пользователя: student");
+    expect(html).not.toContain("Фотоальбомы");
     expect(html).not.toContain("Показывать в профиле");
     expect(html).not.toContain("Изменить данные");
   });
@@ -34,5 +40,7 @@ describe("public pets placement", () => {
     const html = renderToStaticMarkup(<ProfileClient publicData={publicData} isOwner username="student" userData={null} />);
     expect(html).not.toContain("Лада");
     expect(html).not.toContain("Питомцы");
+    expect(html).toContain("Моменты пользователя: student");
+    expect(html).not.toContain("Фотоальбомы");
   });
 });

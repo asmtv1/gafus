@@ -1,6 +1,6 @@
 import CreateDayClient from "@features/steps/components/CreateDayClient";
 import { getVisibleSteps } from "@features/steps/lib/getVisibleSteps";
-import { prisma } from "@gafus/prisma";
+import { getTrainingDayForEdit } from "@gafus/core/services/trainingDay";
 import { notFound } from "next/navigation";
 import FormPageLayout from "@shared/components/FormPageLayout";
 
@@ -13,10 +13,7 @@ export default async function EditDayPage({ params }: Props) {
   if (!id) return notFound();
 
   const [day, steps] = await Promise.all([
-    prisma.trainingDay.findUnique({
-      where: { id },
-      include: { stepLinks: { orderBy: { order: "asc" } } },
-    }),
+    getTrainingDayForEdit(id),
     getVisibleSteps(),
   ]);
   if (!day) return null;

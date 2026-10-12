@@ -1,13 +1,10 @@
-import { prisma } from "@gafus/prisma";
-import { createFeedMaintenance, createFeedNotificationOutbox, type FeedNotificationDelivery } from "@gafus/core/services/feed";
+import { runFeedBackgroundOperations, getFeedPushSubscriptions, type FeedNotificationDelivery } from "@gafus/core/services/feed";
 import { PushNotificationService, partitionPushSubscriptions, sendExpoPushNotifications, sendRustorePushNotifications } from "@gafus/webpush";
 let running = false;
 let web: ReturnType<typeof PushNotificationService.fromEnvironment> | undefined;
 export const feedPushDelivery: FeedNotificationDelivery = {
   async deliver(notification) {
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId: notification.recipientId }, select: { endpoint: true, keys: true },
-    });
+    const subscriptions = await getFeedPushSubscriptions(notification.recipientId);
     if (!subscriptions.length) return;
     const parts = partitionPushSubscriptions(subscriptions);
     const text = {
@@ -38,10 +35,6 @@ export async function processFeedBackgroundTasks() {
   if (running) return { skipped: true };
   running = true;
   try {
-    const cleanup = await createFeedMaintenance({ db: prisma }).run(20);
-    const push = process.env.FEED_PUSH_ENABLED === "true"
-      ? await createFeedNotificationOutbox({ db: prisma, delivery: feedPushDelivery }).process(10)
-      : { claimed: 0, delivered: 0, completed: 0 };
-    return { cleanup, push };
+    return runFeedBackgroundOperations(feedPushDelivery, process.env.FEED_PUSH_ENABLED === "true");
   } finally { running = false; }
 }

@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import { cloudruMediaManifests } from "./media-manifests.mjs";
+const projectId = "12345678-1234-1234-1234-123456789012";
+const revision = "abcdef0123456789abcdef0123456789abcdef01";
+const { services, jobs } = cloudruMediaManifests(projectId, revision);
+assert.equal(services.length, 2);
+assert.equal(jobs.length, 3);
+for (const service of services) {
+  // Yandex CDN cannot reach a Cloud.ru private-only ingress.
+  // Origin authenticates incoming CDN requests with a 32+ byte secret header.
+  assert.equal(service.configuration.ingress.publiclyAccessible, true);
+  assert(service.template.containers[0].env.some((item) => item.name.endsWith('_ORIGIN_SECRET')));
+  assert.equal(service.template.scaling.minInstanceCount, 1);
+  assert.equal(service.template.scaling.maxInstanceCount, 1);
+  assert.equal(service.configuration.autoDeployments.enabled, false);
+  assert(
+    service.template.containers[0].env.some((item) =>
+      item.name.endsWith("_CDN_EDGE_TOKEN_VERIFIED"),
+    ),
+  );
+  assert(service.template.containers[0].env.some((item) =>
+    item.name.endsWith("_CDN_EDGE_CACHE_HIT_VERIFIED")));
+  assert.equal(service.template.scaling.minInstanceCount, 1);
+  assert.equal(service.template.scaling.maxInstanceCount, 1);
+}
+for (const job of jobs) {
+  assert.equal(job.runImmediately, false);
+  assert.equal(job.template.maxRetries, 3);
+  assert(!job.template.containers[0].env.some((item) => /YC_|YANDEX/.test(item.name)));
+}
+assert(
+  jobs.some(
+    (x) => x.name.includes("video") && x.template.containers[0].resources.memory === "4096Mi",
+  ),
+);
+assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);
+console.log("Cloud.ru manifest layout 2 services + 3 bounded durable jobs PASS");

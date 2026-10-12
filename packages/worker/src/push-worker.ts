@@ -1,4 +1,8 @@
-import { prisma } from "@gafus/prisma";
+import {
+  getPushNotificationForDelivery, getUserPushSubscriptionsForDelivery,
+  deleteInvalidPushEndpoint, recordPushNotificationDelivery,
+  getEligiblePushNotificationJob,
+} from "@gafus/core/services/notifications";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";
@@ -127,9 +131,7 @@ export class NotificationProcessor {
 
   private async fetchNotification(notificationId: string) {
     try {
-      const notification = await prisma.stepNotification.findUnique({
-        where: { id: notificationId },
-      });
+      const notification = await getPushNotificationForDelivery(notificationId);
 
       if (!notification) {
         this.logger.warn("Notification not found", { notificationId });
@@ -146,9 +148,7 @@ export class NotificationProcessor {
   private async fetchSubscriptions(userId: string): Promise<PushSubscription[]> {
     try {
       // Получаем все подписки пользователя напрямую из БД
-      const subscriptions = await prisma.pushSubscription.findMany({
-        where: { userId },
-      });
+      const subscriptions = await getUserPushSubscriptionsForDelivery(userId);
 
       this.logger.info("Found subscriptions", {
         userId,
@@ -330,9 +330,7 @@ export class NotificationProcessor {
   private async handleFailedSubscription(endpoint: string): Promise<void> {
     try {
       // Удаляем недействительную подписку из базы данных
-      await prisma.pushSubscription.deleteMany({
-        where: { endpoint },
-      });
+      await deleteInvalidPushEndpoint(endpoint);
 
       this.logger.info("Removed invalid subscription", {
         endpoint: endpoint.substring(0, 50) + "...",
@@ -346,10 +344,7 @@ export class NotificationProcessor {
 
   private async updateNotificationStatus(notificationId: string, sent: boolean): Promise<void> {
     try {
-      await prisma.stepNotification.update({
-        where: { id: notificationId },
-        data: { sent },
-      });
+      await recordPushNotificationDelivery(notificationId, sent);
 
       this.logger.success("Notification status updated", { notificationId, sent });
     } catch (error) {
@@ -385,19 +380,7 @@ class PushWorker {
       this.logger.info("Processing job", { jobId: job.id, notificationId });
 
       // АТОМАРНАЯ проверка статуса уведомления с блокировкой
-      const notification = await prisma.stepNotification.findUnique({
-        where: {
-          id: notificationId,
-          // Проверяем что jobId все еще актуален (не был изменен)
-          jobId: job.id?.toString() || "",
-        },
-        select: {
-          id: true,
-          jobId: true,
-          sent: true,
-          paused: true,
-        },
-      });
+      const notification = await getEligiblePushNotificationJob(notificationId, job.id?.toString() || "");
 
       if (!notification) {
         this.logger.info("Notification skipped - jobId mismatch or not found", {

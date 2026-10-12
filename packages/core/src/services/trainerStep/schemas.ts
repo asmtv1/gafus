@@ -52,32 +52,48 @@ const createStepBaseSchema = z.object({
   isDailyCourse: z.boolean().default(false),
 });
 
-export const createStepSchema = createStepBaseSchema
-  .refine(
-    (data) => {
-      if (data.type !== "EXAMINATION") return true;
-      return data.hasTestQuestions || data.requiresVideoReport || data.requiresWrittenFeedback;
-    },
-    { message: "Для экзаменационного шага выберите хотя бы один тип экзамена" },
-  )
-  .refine(
-    (data) => {
-      if (data.type !== "TRAINING" && data.type !== "BREAK") return true;
-      return data.durationSec != null && data.durationSec > 0;
-    },
-    { message: "Длительность обязательна для данного типа" },
-  )
-  .refine(
-    (data) => {
-      if (data.type !== "SURVEY") return true;
-      return Boolean(data.surveySlug && isKnownSurveySlug(data.surveySlug));
-    },
-    { message: "Для анкетного шага выберите доступный шаблон анкеты" },
-  );
+type StepRuleFields = Pick<
+  z.infer<typeof createStepBaseSchema>,
+  "type" | "hasTestQuestions" | "requiresVideoReport" | "requiresWrittenFeedback" | "durationSec" | "surveySlug"
+>;
+
+/** Единое правило наличия способа сдачи экзамена. */
+export function getExaminationMechanismError(data: Pick<StepRuleFields,
+  "hasTestQuestions" | "requiresVideoReport" | "requiresWrittenFeedback"
+>): string | null {
+  return data.hasTestQuestions || data.requiresVideoReport || data.requiresWrittenFeedback
+    ? null
+    : "Для экзаменационного шага выберите хотя бы один тип экзамена";
+}
+
+/** Одинаковые обязательные бизнес-правила при создании и редактировании шага. */
+function checkStepBusinessRules(data: StepRuleFields, ctx: z.RefinementCtx) {
+  if (data.type === "EXAMINATION") {
+    const error = getExaminationMechanismError(data);
+    if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error });
+  }
+  if (
+    (data.type === "TRAINING" || data.type === "BREAK") &&
+    (data.durationSec == null || data.durationSec <= 0)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Длительность обязательна для данного типа",
+    });
+  }
+  if (data.type === "SURVEY" && (!data.surveySlug || !isKnownSurveySlug(data.surveySlug))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Для анкетного шага выберите доступный шаблон анкеты",
+    });
+  }
+}
+
+export const createStepSchema = createStepBaseSchema.superRefine(checkStepBusinessRules);
 
 export const updateStepSchema = createStepBaseSchema.omit({ id: true }).extend({
   id: z.string().min(1, "ID шага обязателен"),
-});
+}).superRefine(checkStepBusinessRules);
 
 export const deleteStepsSchema = z.object({
   stepIds: z.array(z.string().min(1)).min(1, "Укажите шаги для удаления"),

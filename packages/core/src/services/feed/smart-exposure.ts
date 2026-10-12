@@ -3,7 +3,7 @@ export interface SmartExposureSnapshot {
   actorId: string;
   version: string;
   preferencesUpdatedAt: number;
-  rows: Array<{ id: string; exposureToken?: string }>;
+  rows: { id: string; exposureToken?: string }[];
 }
 export interface SmartExposureClaim {
   postId: string;

@@ -23,7 +23,6 @@ import {
   normalizeWebsiteUrl,
 } from "@gafus/core/utils/social";
 import { createWebLogger } from "@gafus/logger";
-import { prisma } from "@gafus/prisma";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -50,15 +49,8 @@ userRoutes.get("/profile/public", async (c) => {
     if (!profile) {
       return c.json({ success: false, error: "Профиль не найден" }, 404);
     }
-    const owner = await prisma.user.findUnique({
-      where: { username: profile.username },
-      select: { profile: { select: { city: true } } },
-    });
     return c.json(
-      { success: true, data: {
-        ...profile,
-        profile: profile.profile ? { ...profile.profile, city: owner?.profile?.city ?? null } : null,
-      } },
+      { success: true, data: profile },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -140,14 +132,7 @@ userRoutes.get("/profile", async (c) => {
     if (!userData) {
       return c.json({ success: false, error: "Пользователь не найден" }, 404);
     }
-    const city = await prisma.userProfile.findUnique({
-      where: { userId: user.id },
-      select: { city: true },
-    });
-    return c.json({
-      success: true,
-      data: { ...userData, profile: { ...userData.profile, city: city?.city ?? null } },
-    });
+    return c.json({ success: true, data: userData });
   } catch (error) {
     logger.error("Error getting profile", error as Error);
     return c.json({ success: false, error: "Ошибка получения профиля" }, 500);
@@ -184,14 +169,7 @@ userRoutes.put("/profile", zValidator("json", updateProfileSchema), async (c) =>
     const user = c.get("user");
     const data = c.req.valid("json");
     const profile = await updateUserProfile(user.id, data);
-    const city = data.city === undefined
-      ? profile.city
-      : (await prisma.userProfile.update({
-          where: { userId: user.id },
-          data: { city: data.city || null },
-          select: { city: true },
-        })).city;
-    return c.json({ success: true, data: { ...profile, city } });
+    return c.json({ success: true, data: profile });
   } catch (error) {
     logger.error("Error updating profile", error as Error);
     return c.json({ success: false, error: "Ошибка обновления профиля" }, 500);

@@ -21,7 +21,9 @@ export async function handler(event: OriginEvent) {
     if (!key.endsWith(".ts") && !key.endsWith(".webp")) return failure(404);
     const bucket = process.env.FEED_BUCKET ?? "";
     if (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(bucket) || /^(gafus-media|gafus-public)$/.test(bucket)) return failure(503);
-    client ??= new S3Client({ endpoint: "https://storage.yandexcloud.net", region: "ru-central1", forcePathStyle: true,
+    const endpoint = process.env.FEED_S3_ENDPOINT ?? "https://storage.yandexcloud.net";
+    if (!["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint)) throw new Error("INVALID_FEED_STORAGE_ENDPOINT");
+    client ??= new S3Client({ endpoint, region: endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1", forcePathStyle: true,
       credentials: { accessKeyId: process.env.FEED_S3_ACCESS_KEY_ID ?? "", secretAccessKey: process.env.FEED_S3_SECRET_ACCESS_KEY ?? "" },
       maxAttempts: 1, requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED" });
     const signal = AbortSignal.timeout(3500);
@@ -31,7 +33,13 @@ export async function handler(event: OriginEvent) {
     if (!result.ContentLength || result.ContentLength > 1_750_000 || result.ContentType !== expectedType) {
       stream?.destroy?.(); return failure(404);
     }
-    const outHeaders = { ...headers, "Content-Type": expectedType, "Content-Length": String(result.ContentLength), "Accept-Ranges": "bytes" };
+    // No shared-cache response until a real hot-cache signature/expiry test
+    // has passed. The CDN itself must check tokens even on a cache HIT.
+    const verifiedSharedCache = process.env.FEED_CDN_EDGE_CACHE_HIT_VERIFIED === "true" &&
+      process.env.FEED_CDN_EDGE_TOKEN_VERIFIED === "true";
+    const outHeaders = { ...headers,
+      ...(verifiedSharedCache ? { "Cache-Control": "public, max-age=600" } : {}),
+      "Content-Type": expectedType, "Content-Length": String(result.ContentLength), "Accept-Ranges": "bytes" };
     if (method === "HEAD") return { statusCode: 200, headers: outHeaders, body: "" };
     if (!stream) return failure(404);
     const chunks: Buffer[] = []; let size = 0;

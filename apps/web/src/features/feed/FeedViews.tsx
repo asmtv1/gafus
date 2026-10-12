@@ -18,6 +18,7 @@ import { webFeedTelemetry } from "./telemetry";
 import { observeFeedVisibility } from "./visibility";
 import { uploadFeedBrowserAsset, validateBrowserFeedFiles, type FeedBrowserAsset } from "./upload";
 import { FeedVideo } from "./FeedVideo";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedTopBar } from "./FeedTopBar";
 import { GafusPostProgress } from "@/features/gafus/GafusPostProgress";
@@ -86,8 +87,9 @@ function FeedMedia({ post }: { post: FeedPostDto }) {
               aria-label={`Увеличить фотографию ${currentIndex + 1}`}
               onClick={() => setViewerOpen(true)}>
               {/* Signed CDN media cannot use Next image optimization. */}
-              <img src={photoSrc} alt={`Фото ${currentIndex + 1} из ${items.length}`}
-                loading="lazy" referrerPolicy="no-referrer" />
+              <CdnImage key={`${item.id}:photo`} source={photoSrc}
+                requestFallback={() => feedApi.requestMediaFallback(item.id, item.fullUrl ? "full" : "thumb")}
+                alt={`Фото ${currentIndex + 1} из ${items.length}`} loading="lazy" />
             </button> :
             item.kind === "video" ?
               <FeedVideo key={item.id} mediaId={item.id} poster={item.posterUrl} /> :
@@ -115,8 +117,9 @@ function FeedMedia({ post }: { post: FeedPostDto }) {
       <div className={styles.dialogActions}>
         <button type="button" className={styles.secondary} onClick={() => setViewerOpen(false)}>Закрыть ×</button>
       </div>
-      {photoSrc && <img src={photoSrc} alt={`Фото ${currentIndex + 1} из ${items.length}`}
-        referrerPolicy="no-referrer" />}
+      {photoSrc && <CdnImage key={`${item.id}:dialog`} source={photoSrc}
+        requestFallback={() => feedApi.requestMediaFallback(item.id, item.fullUrl ? "full" : "thumb")}
+        alt={`Фото ${currentIndex + 1} из ${items.length}`} />}
       {items.length > 1 && <div className={styles.dialogActions}>
         <button type="button" className={styles.secondary} onClick={() => move(-1)}>← Назад</button>
         <span>{currentIndex + 1} / {items.length}</span>
@@ -669,31 +672,42 @@ function FeedCommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (id:
       </>)}
   </div>;
 }
-export function FeedAuthorPostsPage({ username }: { username: string }) {
+/** The same moments-post list is used in profiles and the dedicated author page. */
+export function FeedAuthorPostsList({
+  username,
+  pageSize,
+}: {
+  username: string;
+  pageSize?: number;
+}) {
   const access = useFeedEnabled();
   const posts = useInfiniteQuery({
-    queryKey: ["feed", "profile-posts", access.userId, username],
-    queryFn: ({ pageParam }) => feedApi.listProfilePosts(username, { cursor: pageParam }),
+    queryKey: ["feed", "profile-posts", access.userId, username, pageSize],
+    queryFn: ({ pageParam }) => feedApi.listProfilePosts(username, { cursor: pageParam, pageSize }),
     refetchInterval: 90_000,
     initialPageParam: null as string | null,
     getNextPageParam: page => page.nextCursor,
     enabled: access.enabled.data?.enabled === true && Boolean(username),
   });
   const items = posts.data?.pages.flatMap(page => page.items) ?? [];
+  return !access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
+    <div className={styles.feed}>
+      {posts.isPending && <LoadingState variant="inline" message="Загружаем публикации…" />}
+      {posts.isError && <p className={styles.error} role="alert">Не удалось загрузить публикации. <button className={styles.secondary} type="button" onClick={() => void posts.refetch()}>Повторить</button></p>}
+      {posts.isSuccess && items.length === 0 && <section className={styles.card}>Публикаций пока нет.</section>}
+      {items.map(post => <FeedCard key={post.id} post={post} />)}
+      {posts.hasNextPage && <button className={styles.secondary} type="button" disabled={posts.isFetchingNextPage} onClick={() => void posts.fetchNextPage()}>Показать ещё</button>}
+      {posts.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем публикации…" />}
+    </div>;
+}
+
+export function FeedAuthorPostsPage({ username }: { username: string }) {
   return <main className={styles.surface}>
     <div className={styles.header}>
       <h1 className={styles.title}>Публикации пользователя</h1>
       <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>Профиль</AppBackButtonLink>
     </div>
-    {!access.enabled.data?.enabled ? <LoadingOrDenied {...access} /> :
-      <div className={styles.feed}>
-        {posts.isPending && <LoadingState variant="inline" message="Загружаем публикации…" />}
-        {posts.isError && <p className={styles.error} role="alert">Не удалось загрузить публикации. <button className={styles.secondary} type="button" onClick={() => void posts.refetch()}>Повторить</button></p>}
-        {posts.isSuccess && items.length === 0 && <section className={styles.card}>Публикаций пока нет.</section>}
-        {items.map(post => <FeedCard key={post.id} post={post} />)}
-        {posts.hasNextPage && <button className={styles.secondary} type="button" disabled={posts.isFetchingNextPage} onClick={() => void posts.fetchNextPage()}>Показать ещё</button>}
-        {posts.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем публикации…" />}
-      </div>}
+    <FeedAuthorPostsList username={username} />
   </main>;
 }
 

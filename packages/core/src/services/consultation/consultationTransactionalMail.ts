@@ -28,6 +28,14 @@ function getWebMyConsultationsUrl(): string {
   return `${getPublicWebBaseUrl()}/consultations/my`;
 }
 
+function getWebConsultationCallUrl(bookingId: string): string {
+  return `${getPublicWebBaseUrl()}/consultations/call/${encodeURIComponent(bookingId)}`;
+}
+
+function getTrainerConsultationCallUrl(bookingId: string): string {
+  return `${getTrainerPanelConsultationsUrl()}/call/${encodeURIComponent(bookingId)}`;
+}
+
 const logger = createWebLogger("consultation-transactional-mail");
 
 function subjectForType(t: ConsultationEmailType): string {
@@ -46,8 +54,6 @@ function subjectForType(t: ConsultationEmailType): string {
       return `Клиент отменил заявку${SUBJECT_BRAND}`;
     case "CLIENT_BOOKING_CANCELLED_BY_SLA":
       return `Консультация не подтверждена вовремя${SUBJECT_BRAND}`;
-    case "CLIENT_BOOKING_TELEMOST_FAILED":
-      return `Техническая ошибка бронирования${SUBJECT_BRAND}`;
     case "CLIENT_CONSULTATION_REMINDER_30M":
       return `Напоминание: консультация скоро${SUBJECT_BRAND}`;
     case "CLIENT_CONSULTATION_START":
@@ -91,7 +97,6 @@ function slotMskLine(booking: { slot: { startAt: Date; endAt: Date } }): string 
 
 type BookingForMail = {
   id: string;
-  telemostJoinUrl: string | null;
   clientOwnerName: string | null;
   clientPhone: string | null;
   petName: string | null;
@@ -230,6 +235,31 @@ function buildPayload(
   const slotEsc = escapeHtml(slotLine);
 
   switch (type) {
+    // Historic notification entries are retained when replacing Telemost.
+    // This case is never enqueued by the new Voximplant booking flow.
+    case "CLIENT_BOOKING_VIDEO_FAILED": {
+      const catalogUrl = getWebConsultationsCatalogUrl();
+      return {
+        text: [
+          "Здравствуйте!",
+          "",
+          "При бронировании консультации произошла техническая ошибка видеосвязи.",
+          "Пожалуйста, выберите удобное время и оформите запись снова.",
+          "",
+          catalogUrl,
+          "",
+          "С уважением,",
+          "команда Гафус",
+        ].join("\n"),
+        blocksHtml: [
+          paragraphHtml("Здравствуйте!"),
+          paragraphHtml("При бронировании консультации произошла техническая ошибка видеосвязи."),
+          paragraphHtml("Выберите удобное время и оформите запись снова."),
+          ctaButtonHtml(catalogUrl, "Консультации на сайте"),
+          plainLinkFallbackHtml(catalogUrl),
+        ],
+      };
+    }
     case "CLIENT_BOOKING_RECEIVED": {
       const text = [
         "Здравствуйте!",
@@ -260,14 +290,14 @@ function buildPayload(
       return { text, blocksHtml };
     }
     case "CLIENT_BOOKING_CONFIRMED": {
-      const joinUrl = b.telemostJoinUrl?.trim() ?? "";
+      const joinUrl = getWebConsultationCallUrl(b.id);
       if (!joinUrl) {
-        logger.warn("CLIENT_BOOKING_CONFIRMED без ссылки Телемост", { bookingId: b.id });
+        logger.warn("CLIENT_BOOKING_CONFIRMED без адреса встречи", { bookingId: b.id });
       }
       const text = [
         "Здравствуйте!",
         "",
-        "Кинолог подтвердил вашу консультацию. Встреча пройдёт в сервисе «Яндекс Телемост» (видеовстреча в браузере или в приложении).",
+        "Кинолог подтвердил вашу консультацию. Встреча пройдёт в видеокомнате Гафус (в браузере).",
         "",
         `Время: ${slotLine}.`,
         "",
@@ -282,7 +312,7 @@ function buildPayload(
       const blocksHtml: string[] = [
         paragraphHtml("Здравствуйте!"),
         paragraphHtml(
-          "Кинолог подтвердил вашу консультацию. Консультация пройдёт в «Яндекс Телемосте» (видеовстреча в браузере или в приложении). Ниже — кнопка на комнату встречи.",
+          "Кинолог подтвердил вашу консультацию. Консультация пройдёт в видеокомнате Гафус (в браузере). Ниже — кнопка на комнату встречи.",
         ),
         paragraphHtml(`Время: ${slotEsc}.`),
         paragraphHtml(
@@ -290,7 +320,7 @@ function buildPayload(
         ),
       ];
       if (joinUrl) {
-        blocksHtml.push(ctaButtonHtml(joinUrl, "Открыть Телемост"), plainLinkFallbackHtml(joinUrl));
+        blocksHtml.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
       } else {
         blocksHtml.push(
           paragraphHtml("Ссылка на встречу появится в личном кабинете в разделе «Мои консультации» на сайте «Гафус»."),
@@ -330,7 +360,7 @@ function buildPayload(
       return { text, blocksHtml };
     }
     case "TRAINER_BOOKING_CONFIRMED": {
-      const joinUrl = b.telemostJoinUrl?.trim() ?? "";
+      const joinUrl = getTrainerConsultationCallUrl(b.id);
       const panelUrl = getTrainerPanelConsultationsUrl();
       const text = [
         "Здравствуйте!",
@@ -338,7 +368,7 @@ function buildPayload(
         `Вы подтвердили встречу с клиентом ${clientName}.`,
         `Время: ${slotLine}.`,
         "",
-        joinUrl ? `Ссылка на Телемост:\n${joinUrl}` : "",
+        joinUrl ? `Ссылка на видеовстречу:\n${joinUrl}` : "",
         "",
         "Проверьте заранее оборудование и не опаздывайте — клиент рассчитывает на начало в назначенное время по московскому времени.",
         "",
@@ -358,7 +388,7 @@ function buildPayload(
         paragraphHtml(`Время: ${slotEsc}.`),
       ];
       if (joinUrl) {
-        blocksHtml.push(ctaButtonHtml(joinUrl, "Открыть Телемост"), plainLinkFallbackHtml(joinUrl));
+        blocksHtml.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
       }
       blocksHtml.push(
         paragraphHtml(
@@ -521,41 +551,15 @@ function buildPayload(
         ],
       };
     }
-    case "CLIENT_BOOKING_TELEMOST_FAILED": {
-      const catalogUrl = getWebConsultationsCatalogUrl();
-      const text = [
-        "Здравствуйте!",
-        "",
-        "Не получилось создать комнату для видеовстречи (Яндекс Телемост) при бронировании. Запись отменена, слот снова свободен.",
-        "Пожалуйста, попробуйте выбрать время и оформить заявку ещё раз.",
-        "",
-        catalogUrl,
-        "",
-        "С уважением,",
-        "команда Гафус",
-      ].join("\n");
-      return {
-        text,
-        blocksHtml: [
-          paragraphHtml("Здравствуйте!"),
-          paragraphHtml(
-            "Не получилось автоматически создать комнату в «Яндекс Телемосте» при записи. Бронь отменена, вы ничего не оплачивали.",
-          ),
-          paragraphHtml("Попробуйте снова выбрать удобное время и оформить заявку — ссылка на каталог консультаций ниже."),
-          ctaButtonHtml(catalogUrl, "Консультации на сайте"),
-          plainLinkFallbackHtml(catalogUrl),
-        ],
-      };
-    }
     case "CLIENT_CONSULTATION_REMINDER_30M": {
       const myUrl = getWebMyConsultationsUrl();
-      const joinUrl = b.telemostJoinUrl?.trim() ?? "";
+      const joinUrl = getWebConsultationCallUrl(b.id);
       const text = [
         "Здравствуйте!",
         "",
         `Напоминание: ваша консультация с кинологом ${cynNamePlain} начнётся примерно в течение 30 минут (время: ${slotLine}).`,
         "",
-        "Проверьте заранее камеру, микрофон и интернет. Постарайтесь открыть ссылку на Телемост за несколько минут до начала.",
+        "Проверьте заранее камеру, микрофон и интернет. Постарайтесь открыть видеовстречу за несколько минут до начала.",
         joinUrl ? `Ссылка: ${joinUrl}` : "Ссылка в разделе «Мои консультации».",
         myUrl,
         "",
@@ -570,12 +574,12 @@ function buildPayload(
           `Напоминание: консультация с кинологом ${cynNameHtml} скоро начнётся. Время: ${slotEsc}.`,
         ),
         paragraphHtml(
-          "Проверьте камеру, микрофон и стабильность связи. Зайдите в Телемост за пару минут до начала.",
+          "Проверьте камеру, микрофон и стабильность связи. Откройте видеовстречу за пару минут до начала.",
         ),
       ];
       if (joinUrl) {
         blocks.push(
-          ctaButtonHtml(joinUrl, "Открыть Телемост"),
+          ctaButtonHtml(joinUrl, "Открыть видеовстречу"),
           plainLinkFallbackHtml(joinUrl),
         );
       } else {
@@ -589,12 +593,12 @@ function buildPayload(
     }
     case "TRAINER_CONSULTATION_REMINDER_30M": {
       const panelUrl = getTrainerPanelConsultationsUrl();
-      const joinUrl = b.telemostJoinUrl?.trim() ?? "";
+      const joinUrl = getTrainerConsultationCallUrl(b.id);
       const text = [
         "Здравствуйте!",
         "",
         `Напоминание: консультация с клиентом ${clientName} — примерно в течение 30 минут (${slotLine}).`,
-        joinUrl ? `Телемост: ${joinUrl}` : "Ссылка в панели кинолога.",
+        joinUrl ? `Видеовстреча: ${joinUrl}` : "Ссылка в панели кинолога.",
         panelUrl,
         "",
         "С уважением,",
@@ -610,7 +614,7 @@ function buildPayload(
         paragraphHtml("Проверьте оборудование и зайдите в комнату заранее."),
       ];
       if (joinUrl) {
-        blocks.push(ctaButtonHtml(joinUrl, "Открыть Телемост"), plainLinkFallbackHtml(joinUrl));
+        blocks.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
       }
       blocks.push(
         ctaButtonHtml(panelUrl, "Панель заявок"),
@@ -620,7 +624,7 @@ function buildPayload(
     }
     case "CLIENT_CONSULTATION_START": {
       const myUrl = getWebMyConsultationsUrl();
-      const joinUrl = b.telemostJoinUrl?.trim() ?? "";
+      const joinUrl = getWebConsultationCallUrl(b.id);
       const text = [
         "Здравствуйте!",
         "",
@@ -641,7 +645,7 @@ function buildPayload(
         paragraphHtml("Присоединяйтесь по ссылке из приложения. Кинолог вас ждёт."),
       ];
       if (joinUrl) {
-        blocks.push(ctaButtonHtml(joinUrl, "Открыть Телемост"), plainLinkFallbackHtml(joinUrl));
+        blocks.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
       } else {
         blocks.push(paragraphHtml("Ссылка на встречу в разделе «Мои консультации» на сайте."));
       }

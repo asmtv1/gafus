@@ -366,9 +366,9 @@ export function TrainerConsultationsList({ bookings }: TrainerConsultationsListP
                 {b.cancelReason.trim()}
               </p>
             ) : null}
-            {b.joinUrl && (status === "CONFIRMED" || status === "COMPLETED") ? (
+            {(status === "CONFIRMED") ? (
               <p className={styles.meetingLink}>
-                <a href={b.joinUrl} target="_blank" rel="noopener noreferrer">
+                <a href={`/main-panel/consultations/call/${encodeURIComponent(b.id)}`}>
                   Перейти к видеовстрече
                 </a>
               </p>

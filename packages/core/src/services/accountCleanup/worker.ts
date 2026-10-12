@@ -3,6 +3,7 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import {
   accountStorageTargets,
+  DUAL_PROVIDER_CLEANUP_MARKER,
   createAccountStorageCleaner,
   startAccountCdnPurge,
   accountCdnPurgeDone,
@@ -57,13 +58,23 @@ export async function processAccountStorageCleanup(limit = 3) {
             WHERE "id" = ${job.id} AND "attemptToken" = ${token} AND "leaseUntil" > timezone('UTC', now())`;
           continue;
         }
+        if (
+          job.prefixes?.includes(DUAL_PROVIDER_CLEANUP_MARKER) &&
+          process.env[`${job.scope.toUpperCase()}_DUAL_PROVIDER_CLEANUP`] !== "true"
+        )
+          throw new Error("CLEANUP_LEGACY_PROVIDER_REQUIRED");
         const targets = accountStorageTargets(job.scope, job.ownerId, job.keys, job.prefixes);
+        // Prefix sweep already handles these objects in S3. Keep the full DB
+        // snapshot for exact per-file CDN purges, but do not repeat S3 work.
+        const extraKeys = targets.keys.filter(
+          (key) => !targets.prefixes.some((prefix) => key.startsWith(prefix)),
+        );
         const cursor = job.keyCursor ?? 0;
-        const nextCursor = Math.min(cursor + 20, targets.keys.length);
+        const nextCursor = Math.min(cursor + 20, extraKeys.length);
         const removed = await createAccountStorageCleaner(job.scope).sweep(
           {
             prefixes: cursor === 0 ? targets.prefixes : [],
-            keys: targets.keys.slice(cursor, nextCursor),
+            keys: extraKeys.slice(cursor, nextCursor),
           },
           AbortSignal.timeout(45_000),
         );
@@ -73,11 +84,23 @@ export async function processAccountStorageCleanup(limit = 3) {
           await prisma.$executeRaw`UPDATE "AccountStorageCleanup" SET "purgeOperations" = ARRAY[]::text[],
             "purgeAfter" = NULL WHERE "id" = ${job.id} AND "attemptToken" = ${token} AND "leaseUntil" > timezone('UTC', now())`;
         }
-        if (nextCursor < targets.keys.length) {
+        if (nextCursor < extraKeys.length) {
           await prisma.$executeRaw`UPDATE "AccountStorageCleanup" SET "keyCursor" = ${nextCursor},
             "purgeAfter" = CASE WHEN ${removed > 0} THEN NULL ELSE "purgeAfter" END,
             "status" = 'pending', "availableAt" = timezone('UTC', now()), "leaseUntil" = NULL, "attemptToken" = NULL,
             "errorCode" = NULL, "updatedAt" = timezone('UTC', now())
+            WHERE "id" = ${job.id} AND "attemptToken" = ${token} AND "leaseUntil" > timezone('UTC', now())`;
+          continue;
+        }
+        if (job.scope === "questions" || job.scope === "documents") {
+          // These objects are served by direct private S3 presigns, never a CDN.
+          // After the verified bucket sweep there is no cache task to poll and
+          // no reason to retain the deleted user's objects for another 15m.
+          await prisma.$executeRaw`UPDATE "AccountStorageCleanup" SET
+            "status" = 'done', "keys" = ARRAY[]::text[], "keyCursor" = 0,
+            "purgeOperations" = ARRAY[]::text[], "purgeAfter" = NULL,
+            "errorCode" = NULL, "leaseUntil" = NULL, "attemptToken" = NULL,
+            "updatedAt" = timezone('UTC', now())
             WHERE "id" = ${job.id} AND "attemptToken" = ${token} AND "leaseUntil" > timezone('UTC', now())`;
           continue;
         }

@@ -26,6 +26,12 @@ import { reportClientError } from "@gafus/error-handling";
 import {
   formatConsultationConfirmSlotMsk,
   isLikelyValidRuPhoneInput,
+  isBookingIntakeValid,
+  CONSULT_NAME_MAX,
+  CONSULT_TEXT_MAX,
+  isOwnerOrPetName,
+  isProblemField,
+  isSelfHelpField,
 } from "@gafus/consultation-shared";
 import { showErrorAlert } from "@shared/utils/sweetAlert";
 
@@ -34,22 +40,6 @@ import styles from "./consultation-booking-confirm-client.module.css";
 const SLOT_TAKEN_MESSAGE =
   "Извините, этот слот уже занят. Выберите другое время.";
 
-const CONSULT_NAME_MAX = 15;
-const CONSULT_TEXT_MAX = 1000;
-const CONSULT_PROBLEM_MIN = 10;
-
-function isOwnerOrPetName(s: string): boolean {
-  const t = s.trim();
-  return t.length >= 2 && t.length <= CONSULT_NAME_MAX;
-}
-function isProblemField(s: string): boolean {
-  const t = s.trim();
-  return t.length >= CONSULT_PROBLEM_MIN && t.length <= CONSULT_TEXT_MAX;
-}
-function isSelfHelpField(s: string): boolean {
-  const t = s.trim();
-  return t.length >= 1 && t.length <= CONSULT_TEXT_MAX;
-}
 
 interface ConsultationBookingConfirmClientProps {
   slotId: string;
@@ -100,18 +90,17 @@ export function ConsultationBookingConfirmClient({
 
   const slotsHref = `/consultations/${encodeURIComponent(cynologistUserId)}`;
 
-  const canSubmit = useMemo(() => {
-    return (
-      isOwnerOrPetName(clientOwnerName) &&
-      isLikelyValidRuPhoneInput(clientPhone) &&
-      isOwnerOrPetName(petName) &&
-      (petGender === "MALE" || petGender === "FEMALE") &&
-      petAge.trim().length > 0 &&
-      petBreed.trim().length > 0 &&
-      isProblemField(clientProblem) &&
-      isSelfHelpField(clientSelfHelpAttempt)
-    );
-  }, [
+  const canSubmit = useMemo(() => isBookingIntakeValid({
+    clientOwnerName,
+    clientPhone,
+    petName,
+    petGender,
+    petAge,
+    petBreed,
+    clientProblem,
+    clientSelfHelpAttempt,
+    phoneOk: isLikelyValidRuPhoneInput,
+  }), [
     clientOwnerName,
     clientPhone,
     petName,

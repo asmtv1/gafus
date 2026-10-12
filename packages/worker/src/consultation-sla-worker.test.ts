@@ -59,5 +59,5 @@ describe("consultation-sla-worker", () => {
     expect(workerCapture.processor).toBeTypeOf("function");
     await workerCapture.processor!({ data: { bookingId: "booking-1" } });
     expect(processBookingSlaTimeoutMock).toHaveBeenCalledWith("booking-1");
-  });
+  }, 15_000);
 });

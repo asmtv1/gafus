@@ -3,7 +3,7 @@
 import "../globals.css";
 import NotificationRequesterNew from "@shared/components/ui/NotificationRequesterNew";
 import { Footer } from "@/features/footer";
-import { Header } from "@/features/header";
+import { Header } from "@/features/header/client";
 
 // Клиентский layout для страницы офлайна
 // Используем клиентский Header вместо серверного, чтобы избежать ошибок в офлайне

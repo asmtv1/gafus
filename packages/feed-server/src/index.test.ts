@@ -32,6 +32,17 @@ describe("feed shared HTTP dispatcher", () => {
     await expect(invoke("personalization/reset", "POST", "{}"))
       .rejects.toMatchObject({ code: "FEED_DISABLED", status: 503 });
   });
+  it("keeps Cloud.ru fallback unavailable by default and rejects untrusted variants", async () => {
+    const posts = { list: vi.fn(), fallbackSource: vi.fn() };
+    vi.stubEnv("FEED_MEDIA_FALLBACK_ENABLED", "false");
+    await expect(invoke("media/m1/fallback", "POST", JSON.stringify({ variant: "thumb" }), posts))
+      .rejects.toMatchObject({ status: 404 });
+    expect(posts.fallbackSource).not.toHaveBeenCalled();
+    vi.stubEnv("FEED_MEDIA_FALLBACK_ENABLED", "true");
+    await expect(invoke("media/m1/fallback", "POST", JSON.stringify({ variant: "source", key: "/private" }), posts))
+      .rejects.toMatchObject({ status: 400 });
+    expect(posts.fallbackSource).not.toHaveBeenCalled();
+  });
   it("routes cursor query through the validated shared handler", async () => {
     const list = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
     await invoke("posts?pageSize=20&cursor=abc", "GET", undefined, { list });
@@ -100,6 +111,26 @@ describe("feed shared HTTP dispatcher", () => {
   });
 });
 
+
+describe("feed S3 fallback authorization", () => {
+  it("rejects rollout-off requests without resolving keys", async () => {
+    vi.stubEnv("FEED_MEDIA_FALLBACK_ENABLED", "false");
+    const posts = { list: vi.fn(), fallbackSource: vi.fn() };
+    await expect(invoke("media/media123/fallback", "POST", '{"variant":"thumb"}', posts))
+      .rejects.toMatchObject({ status: 404 });
+    expect(posts.fallbackSource).not.toHaveBeenCalled();
+  });
+  it("refuses arbitrary sources before core lookup and never signs denied media", async () => {
+    vi.stubEnv("FEED_MEDIA_FALLBACK_ENABLED", "true");
+    const posts = { list: vi.fn(), fallbackSource: vi.fn(async () => { throw new Error("NOT_VISIBLE"); }) };
+    await expect(invoke("media/media123/fallback", "POST", '{"variant":"playlist"}', posts))
+      .rejects.toMatchObject({ status: 400 });
+    expect(posts.fallbackSource).not.toHaveBeenCalled();
+    await expect(invoke("media/media123/fallback", "POST", '{"variant":"poster"}', posts))
+      .rejects.toThrow("NOT_VISIBLE");
+    expect(posts.fallbackSource).toHaveBeenCalledWith(actor, "media123", "poster");
+  });
+});
 
 describe("feed personal actions routing", () => {
   it("routes bookmarks separately so hidden authors remain accessible there", async () => {

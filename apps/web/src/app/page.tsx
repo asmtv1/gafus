@@ -10,7 +10,7 @@ import { Suspense } from "react";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 
 import { generatePageMetadata } from "@gafus/metadata";
-import { prisma, UserRole } from "@gafus/prisma";
+import { countPlatformStudents } from "@gafus/core/services/user";
 import { VkErrorBanner } from "@shared/components/auth/VkErrorBanner";
 import { VkIdOneTap } from "@shared/components/auth/VkIdOneTap";
 import { PrimaryButtonLink } from "@shared/components/ui";
@@ -26,7 +26,7 @@ export const metadata = generatePageMetadata({
 
 // The counter is public aggregate data, refreshed hourly rather than queried per visitor.
 const getPlatformStudentCount = unstable_cache(
-  () => prisma.user.count({ where: { role: UserRole.USER } }),
+  () => countPlatformStudents(),
   ["platform-student-count"],
   { revalidate: 60 * 60 },
 );

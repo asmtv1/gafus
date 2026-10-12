@@ -21,10 +21,18 @@ vi.mock("@gafus/core/services/payments", () => ({
   createArticlePayment: createArticlePaymentMock,
   createPayment: createPaymentMock,
   verifyAppleCoursePurchase: verifyAppleCoursePurchaseMock,
+  getArticlePaymentTarget: prismaArticleFindUniqueMock,
+  getAppleCoursePaymentMetadata: prismaCourseFindUniqueMock,
 }));
 
 vi.mock("@gafus/core/services/course", () => ({
   getCourseByIdOrType: getCourseByIdOrTypeMock,
+}));
+
+// The middleware only needs registration completion; avoid pulling the full
+// auth service graph into a payments route contract test.
+vi.mock("@gafus/core/services/auth", () => ({
+  isRegistrationCompleted: vi.fn(),
 }));
 
 vi.mock("@gafus/prisma", () => ({

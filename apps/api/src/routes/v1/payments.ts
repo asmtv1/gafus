@@ -5,10 +5,11 @@ import { zValidator } from "@hono/zod-validator";
 import {
   createArticlePayment,
   createPayment,
+  getArticlePaymentTarget,
+  getAppleCoursePaymentMetadata,
   verifyAppleCoursePurchase,
 } from "@gafus/core/services/payments";
 import { getCourseByIdOrType } from "@gafus/core/services/course";
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-payments");
@@ -99,10 +100,7 @@ paymentsRoutes.post("/create", zValidator("json", createPaymentSchema), async (c
     const userAgent = c.req.header("user-agent") ?? null;
 
     if (articleId) {
-      const article = await prisma.article.findUnique({
-        where: { id: articleId },
-        select: { slug: true },
-      });
+      const article = await getArticlePaymentTarget(articleId);
       if (!article) {
         return c.json({ success: false, error: "Статья не найдена", code: "NOT_FOUND" }, 404);
       }
@@ -244,10 +242,7 @@ paymentsRoutes.get(
         return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
       }
 
-      const row = await prisma.course.findUnique({
-        where: { id: courseRef.id },
-        select: { appleIapProductId: true, isPaid: true },
-      });
+      const row = await getAppleCoursePaymentMetadata(courseRef.id);
       if (!row) {
         return c.json({ success: false, error: "Курс не найден", code: "NOT_FOUND" }, 404);
       }

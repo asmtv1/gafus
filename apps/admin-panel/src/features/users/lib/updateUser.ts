@@ -4,8 +4,7 @@ import { z } from "zod";
 
 import { createAdminPanelLogger } from "@gafus/logger";
 import { authOptions } from "@gafus/auth";
-import { updateUserAdmin } from "@gafus/core/services/adminUser";
-import { prisma } from "@gafus/prisma";
+import { updateUserAdmin, partnerChangeRequiresAdmin } from "@gafus/core/services/adminUser";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
@@ -19,19 +18,6 @@ const updateUserSchema = z.object({
   newPassword: z.string().min(6, "Пароль минимум 6 символов").optional(),
   partnerPromoCodeId: z.string().min(1).optional(),
 });
-
-async function partnerChangeRequiresAdmin(actorId: string, userId: string, input: z.infer<typeof updateUserSchema>) {
-  if (input.partnerPromoCodeId === undefined && input.role === undefined) return false;
-
-  const [actor, target] = await Promise.all([
-    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
-  ]);
-  const changesPartnerRole = input.role !== undefined && input.role !== target?.role &&
-    (input.role === "PARTNER" || target?.role === "PARTNER");
-
-  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) && actor?.role !== "ADMIN";
-}
 
 export async function updateUser(
   prevState: Record<string, unknown>,
@@ -77,7 +63,7 @@ export async function updateUser(
       role,
       newPassword,
       partnerPromoCodeId,
-    });
+    }, session.user.id);
 
     if (!result.success) {
       return { success: false, error: result.error };

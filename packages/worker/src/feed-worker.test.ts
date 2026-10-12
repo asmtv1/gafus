@@ -7,7 +7,7 @@ vi.mock("@gafus/webpush", () => ({
   PushNotificationService: { fromEnvironment: () => ({ sendNotifications: mocks.web }) },
   partitionPushSubscriptions: mocks.partition, sendExpoPushNotifications: mocks.expo, sendRustorePushNotifications: mocks.rustore,
 }));
-vi.mock("@gafus/core/services/feed", () => ({ createFeedMaintenance: vi.fn(), createFeedNotificationOutbox: vi.fn() }));
+vi.mock("@gafus/core/services/feed", () => ({ getFeedPushSubscriptions: mocks.subscriptions, runFeedBackgroundOperations: vi.fn() }));
 import { feedPushDelivery } from "./feed-worker";
 const event = { notificationId: "note", recipientId: "recipient", kind: "reply" as const,
   postId: "post", commentId: "comment", actorIds: ["actor"] };

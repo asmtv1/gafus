@@ -10,7 +10,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 
-import { deletePreventionEntry } from "@shared/lib/pet-prevention";
+import { deletePreventionEntry } from "@shared/lib/pet-prevention/deletePreventionEntry";
 
 import { PreventionEntryForm } from "./PreventionEntryForm";
 import { PREVENTION_TYPE_LABELS } from "../types";

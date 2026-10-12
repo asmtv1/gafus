@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import { StatusBar } from "expo-status-bar";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useQuery } from "@tanstack/react-query";
@@ -9,19 +10,25 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import type { FeedMediaDto } from "@gafus/types";
 import { API_BASE_URL, FONTS } from "@/shared/config";
 import { feedApi } from "@/shared/lib/api/feed";
+import { cloudruFallbackManifestUrl, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
 
 function FullscreenVideo({ media, active }: { media: FeedMediaDto; active: boolean }) {
   const [uri, setUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const currentManifest = useRef<string | null>(null);
+  const triedDirect = useRef(false);
 
   useEffect(() => {
     if (!active) {
+      currentManifest.current = null;
       setUri(null);
       return;
     }
     let mounted = true;
+    currentManifest.current = null;
+    triedDirect.current = false;
     setUri(null);
     setError("");
     setLoading(true);
@@ -30,6 +37,7 @@ function FullscreenVideo({ media, active }: { media: FeedMediaDto; active: boole
       if (!/^\/api\/v1\/feed-playback\/[A-Za-z0-9_-]+\?ticket=/.test(ticket.manifestUrl)) {
         throw new Error("Не удалось открыть видео.");
       }
+      currentManifest.current = ticket.manifestUrl;
       setUri(API_BASE_URL.replace(/\/$/, "") + ticket.manifestUrl);
     }).catch(reason => {
       if (mounted) setError(reason instanceof Error ? reason.message : "Не удалось загрузить видео.");
@@ -42,10 +50,26 @@ function FullscreenVideo({ media, active }: { media: FeedMediaDto; active: boole
   return (
     <View style={styles.media}>
       {media.posterUrl && !uri && (
-        <Image source={{ uri: media.posterUrl }} contentFit="contain" style={StyleSheet.absoluteFill} />
+        <CdnImage cdnUrl={media.posterUrl} requestFallback={() => feedApi.requestMediaFallback(media.id, "poster")}
+          contentFit="contain" style={StyleSheet.absoluteFill} />
       )}
       {uri && active ? (
-        <PlayingVideo key={uri} uri={uri} onError={() => { setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз."); }} />
+        <PlayingVideo key={uri} uri={uri} onError={() => {
+          const original = currentManifest.current;
+          if (triedDirect.current || !original) {
+            setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз."); return;
+          }
+          triedDirect.current = true;
+          void (async () => {
+            const outage = await probeHlsCdnOutage(API_BASE_URL.replace(/\/$/, "") + original, { nativeNetwork: true });
+            if (!active || currentManifest.current !== original) return;
+            if (outage) {
+              setUri(API_BASE_URL.replace(/\/$/, "") + cloudruFallbackManifestUrl(original));
+              return;
+            }
+            setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз.");
+          })().catch(() => { setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз."); });
+        }} />
       ) : (
         <View style={styles.videoFallback}>
           {loading ? (
@@ -142,8 +166,9 @@ export function FeedMediaViewer({
               <View style={[styles.slide, { width }]}>
                 {item.kind === "photo" ? (
                   item.fullUrl || item.thumbUrl ? (
-                    <Image source={{ uri: item.fullUrl ?? item.thumbUrl ?? "" }}
-                      style={styles.media} contentFit="contain" cachePolicy="memory"
+                    <CdnImage cdnUrl={item.fullUrl ?? item.thumbUrl ?? ""}
+                      requestFallback={() => feedApi.requestMediaFallback(item.id, item.fullUrl ? "full" : "thumb")}
+                      style={styles.media} contentFit="contain"
                       accessibilityLabel={`Фотография ${itemIndex + 1}`} />
                   ) : <Text style={styles.message}>Фотография недоступна.</Text>
                 ) : (

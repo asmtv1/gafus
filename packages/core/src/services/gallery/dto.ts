@@ -95,6 +95,7 @@ export async function albumDto(
     description: row.description,
     isVisible: row.isVisible,
     coverPhotoId: row.coverPhotoId,
+    coverDisplayPhotoId: cover?.id ?? null,
     coverThumbUrl:
       expires && cover?.thumbKey
         ? await ctx.storage.signCdn({ key: cover.thumbKey, expiresAt: expires })

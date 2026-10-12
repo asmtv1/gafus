@@ -2,7 +2,7 @@ import { createFeedStorageFromEnv } from "@gafus/feed-storage";
 import { z } from "zod";
 import { createFeedRequestVerifier, type FeedNonceStore } from "@gafus/feed-cloud";
 import { createFeedStorageJobs, createFeedMaintenance, createFeedUploadRecovery, FeedError } from "@gafus/core/services/feed";
-import { prisma } from "@gafus/prisma";
+import { createCurrentFeedInternalRuntime } from "@gafus/core/services/feed";
 import { connection as redis } from "@gafus/queues";
 
 export const FEED_INTERNAL_MAX_BODY_BYTES = 16_384;
@@ -113,7 +113,6 @@ export async function dispatchFeedInternalRequest(request: Request, path: string
   const key = Buffer.from(process.env.FEED_INTERNAL_HMAC_SECRET ?? "", "utf8");
   if (key.byteLength < 32) throw unavailable();
   return createFeedInternalDispatcher({ key, nonces,
-    jobs: createFeedStorageJobs({ db: prisma }), maintenance: createFeedMaintenance({ db: prisma }),
-    recovery: createFeedUploadRecovery({ db: prisma, storage: createFeedStorageFromEnv() }),
+    ...createCurrentFeedInternalRuntime(createFeedStorageFromEnv()),
   })(request, path);
 }

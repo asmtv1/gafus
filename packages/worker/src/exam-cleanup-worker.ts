@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { listExamVideosEligibleForCleanup, markExpiredExamVideoDeleted } from "@gafus/core/services/exam";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";
@@ -30,71 +30,13 @@ class ExamCleanupProcessor {
   async cleanupOldVideos(): Promise<{ deleted: number; errors: number }> {
     this.logger.info("🧹 Начинаем очистку старых видео экзаменов");
 
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-
     let deleted = 0;
     let errors = 0;
 
     try {
-      // 1. Находим зачтенные экзамены старше 30 дней с видео
-      const completedExams = await prisma.examResult.findMany({
-        where: {
-          videoReportUrl: { not: null },
-          videoDeletedAt: null, // Видео еще не удалено
-          userStep: { status: "COMPLETED" },
-          updatedAt: { lt: thirtyDaysAgo },
-        },
-        select: {
-          id: true,
-          userStepId: true,
-          videoReportUrl: true,
-          userStep: {
-            select: {
-              status: true,
-              userTraining: {
-                select: {
-                  user: { select: { username: true } },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      this.logger.info(
-        `📋 Найдено ${completedExams.length} зачтенных экзаменов старше 30 дней для удаления`,
-      );
-
-      // 2. Находим незачтенные экзамены старше 90 дней с видео
-      const pendingExams = await prisma.examResult.findMany({
-        where: {
-          videoReportUrl: { not: null },
-          videoDeletedAt: null,
-          userStep: { status: "IN_PROGRESS" },
-          createdAt: { lt: ninetyDaysAgo },
-        },
-        select: {
-          id: true,
-          userStepId: true,
-          videoReportUrl: true,
-          userStep: {
-            select: {
-              status: true,
-              userTraining: {
-                select: {
-                  user: { select: { username: true } },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      this.logger.info(
-        `📋 Найдено ${pendingExams.length} незачтенных экзаменов старше 90 дней для удаления`,
-      );
+      const { completed: completedExams, pending: pendingExams } =
+        await listExamVideosEligibleForCleanup(new Date());
+      this.logger.info(`Зачтенных видео к очистке: ${completedExams.length}; незачтенных: ${pendingExams.length}`);
 
       // 3. Удаляем видео для зачтенных экзаменов
       for (const exam of completedExams) {
@@ -183,14 +125,12 @@ class ExamCleanupProcessor {
       await deleteFileFromCDN(relativePath);
 
       // Обновляем запись в БД
-      await prisma.examResult.update({
-        where: { userStepId },
-        data: {
-          videoReportUrl: null,
-          videoDeletedAt: new Date(),
-          videoDeleteReason: reason,
-        },
+      const cleared = await markExpiredExamVideoDeleted({
+        userStepId, expectedUrl: videoUrl, reason, deletedAt: new Date(),
       });
+      if (!cleared) {
+        this.logger.warn("В БД уже выбран другой файл для экзамена", { userStepId });
+      }
 
       this.logger.success(`✅ Видео успешно удалено: ${relativePath}`);
     } catch (error) {

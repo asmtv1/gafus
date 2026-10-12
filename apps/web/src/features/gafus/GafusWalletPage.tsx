@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { useCallback, useEffect, useState } from "react";
 import type { GafusHistoryEntry, GafusHistoryPage, GafusStatusDto } from "@gafus/types";
 import { LoadingState } from "@/shared/components/ui/LoadingState";
@@ -84,7 +82,6 @@ export function GafusWalletPage() {
         <p>Один шаг курса или мини-гайд можно открыть на {Math.round(status.rules.accessDurationSeconds / 86400)} дней за {status.rules.courseStepCost} Гафус.</p>
       </div>
     </section>
-    <Link href="/gafus/guides" className={styles.action}>Смотреть мини-гайды →</Link>
     {!status.enabled.economy && <p className={styles.notice}>Новая система мотивации пока не включена.</p>}
     {error && <p role="alert" className={styles.notice}>{error}</p>}
     <section aria-label="История Гафусов" className={styles.history}>

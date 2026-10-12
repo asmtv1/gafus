@@ -200,7 +200,7 @@ export function GalleryAlbumScreen() {
       </View>}
       renderItem={({ item }) => <View style={[s.grid, styles.albumPhotoCell, { width: (width - 32) / 3 - 8 }]}>
         <Pressable style={styles.albumPhotoTap} accessibilityRole="button" accessibilityLabel={item.status === "ready" ? choosingCover ? "Сделать обложкой фотографию" : item.caption ?? "Открыть фотографию" : photoStatus[item.status]} disabled={item.status !== "ready" || (choosingCover && savingCover)} onPress={() => { if (choosingCover) void chooseCover(item.id); else setViewing(ready.findIndex(p => p.id === item.id)); }}>
-          {item.thumbUrl ? <GalleryImage source={{ uri: item.thumbUrl }} style={s.thumb} contentFit="cover" refresh={() => void photos.refetch()} /> : <View style={[s.thumb, s.placeholder]}><Text style={s.muted}>{photoStatus[item.status]}</Text></View>}
+          {item.thumbUrl ? <GalleryImage photoId={item.id} source={{ uri: item.thumbUrl }} style={s.thumb} contentFit="cover" refresh={() => void photos.refetch()} /> : <View style={[s.thumb, s.placeholder]}><Text style={s.muted}>{photoStatus[item.status]}</Text></View>}
         </Pressable>
         {item.status !== "ready" && item.thumbUrl ? <Text style={s.muted}>{photoStatus[item.status]}</Text> : null}
         {item.status === "failed" ? <Text accessibilityRole="alert" style={s.error}>{item.errorMessage ?? "Не удалось обработать фото."}</Text> : null}

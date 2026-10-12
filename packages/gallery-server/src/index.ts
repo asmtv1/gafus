@@ -1,4 +1,4 @@
-import { GalleryError, createGalleryService, galleryParse, galleryListSchema, galleryIdSchema,
+import { GalleryError, createCurrentGalleryService, galleryParse, galleryListSchema, galleryIdSchema,
   galleryAlbumCreateSchema, galleryAlbumUpdateSchema, galleryAlbumPhotosSchema,
   galleryProfileAlbumsSchema,
   galleryPhotoUpdateSchema, galleryUploadSchema, galleryUploadRetrySchema, galleryCoverSchema,
@@ -6,13 +6,12 @@ import { GalleryError, createGalleryService, galleryParse, galleryListSchema, ga
   galleryClaimStorageJobsSchema, galleryCompleteStorageJobSchema, galleryFailStorageJobSchema,
 } from "@gafus/core/services/gallery";
 import type { GalleryService } from "@gafus/core/services/gallery";
-import { prisma } from "@gafus/prisma";
 import { connection as redis } from "@gafus/queues";
-import { createGalleryStorageFromEnv } from "@gafus/gallery-storage";
+import { createGalleryStorageFromEnv, signGalleryCloudruFallback } from "@gafus/gallery-storage";
 import { INTERNAL_GALLERY_PATHS, createGalleryRequestVerifier } from "@gafus/gallery-storage/hmac";
 import type { GalleryInternalPath, NonceStore } from "@gafus/gallery-storage/hmac";
 
-const service = createGalleryService({ db: prisma, storage: createGalleryStorageFromEnv() });
+const service = createCurrentGalleryService(createGalleryStorageFromEnv());
 const MAX_BODY_BYTES = 16_384;
 const allowedMethods = new Set(["GET", "POST", "PATCH", "PUT", "DELETE"]);
 
@@ -136,6 +135,17 @@ export async function dispatchGalleryRequest(actorId: string, request: Request, 
   }
   if (parts.length >= 2 && parts[0] === "photos") {
     const photoId = galleryParse(galleryIdSchema, parts[1]);
+    if (parts.length === 3 && parts[2] === "fallback" && method === "POST") {
+      if (url.search || process.env.GALLERY_MEDIA_FALLBACK_ENABLED !== "true")
+        throw new GalleryError("NOT_FOUND", "Маршрут не найден", 404);
+      if (!bodyValue || typeof bodyValue !== "object" || Array.isArray(bodyValue) ||
+          Object.keys(bodyValue).length !== 1 || !("variant" in bodyValue) ||
+          !["thumb", "full"].includes(String(bodyValue.variant)))
+        throw new GalleryError("VALIDATION", "Недопустимый вариант файла", 400);
+      const { key } = await gallery.fallbackSource(actorId, photoId, bodyValue.variant as "thumb" | "full");
+      const fallbackUrl = await signGalleryCloudruFallback(key);
+      return { url: fallbackUrl, source: "cloudru", expiresAt: new Date(Date.now() + 120_000).toISOString() };
+    }
     if (parts.length === 2 && method === "GET") return gallery.getPhoto(actorId, photoId);
     if (parts.length === 2 && method === "PATCH") return gallery.updatePhoto(actorId, photoId, galleryParse(galleryPhotoUpdateSchema, await body()));
     if (parts.length === 2 && method === "DELETE") { assertEmptyCommandBody(bodyValue); return gallery.deletePhoto(actorId, photoId); }

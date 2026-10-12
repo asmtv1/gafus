@@ -10,15 +10,24 @@ export interface FeedCloudObjects {
 const albumFinal = /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(thumb|full)\.webp$/;
 export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): FeedCloudObjects {
   const bucket = env.FEED_BUCKET ?? "";
+  const endpoint = env.FEED_S3_ENDPOINT ?? "https://storage.yandexcloud.net";
+  const albumEndpoint = env.GALLERY_S3_ENDPOINT ?? "https://storage.yandexcloud.net";
+  const region = (value: string) => {
+    if (value === "https://s3.cloud.ru") return "ru-central-1";
+    if (value === "https://storage.yandexcloud.net") return "ru-central1";
+    throw new Error("INVALID_FEED_STORAGE_ENDPOINT");
+  };
+  region(endpoint);
+  region(albumEndpoint);
   if (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(bucket) || /^(gafus-public|gafus-media)$/.test(bucket) ||
       !env.FEED_S3_ACCESS_KEY_ID || !env.FEED_S3_SECRET_ACCESS_KEY) throw new Error("INVALID_FEED_STORAGE_CONFIG");
-  const client = new S3Client({ endpoint: "https://storage.yandexcloud.net", region: "ru-central1", forcePathStyle: true,
+  const client = new S3Client({ endpoint, region: region(endpoint), forcePathStyle: true,
     credentials: { accessKeyId: env.FEED_S3_ACCESS_KEY_ID, secretAccessKey: env.FEED_S3_SECRET_ACCESS_KEY },
     maxAttempts: 2, requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED" });
   // Album originals stay in the gallery bucket. This client is used only for reads.
   const albumBucket = env.FEED_ALBUM_BUCKET;
   const albumClient = albumBucket && env.GALLERY_S3_ACCESS_KEY_ID && env.GALLERY_S3_SECRET_ACCESS_KEY
-    ? new S3Client({ endpoint: "https://storage.yandexcloud.net", region: "ru-central1", forcePathStyle: true,
+    ? new S3Client({ endpoint: albumEndpoint, region: region(albumEndpoint), forcePathStyle: true,
         credentials: { accessKeyId: env.GALLERY_S3_ACCESS_KEY_ID, secretAccessKey: env.GALLERY_S3_SECRET_ACCESS_KEY }, maxAttempts: 2 }) : undefined;
   return {
     async download(key, file, maxBytes, signal, etag) {

@@ -42,7 +42,10 @@ const gafusAliases = {
     _path.dirname(require.resolve("@tanstack/react-query")),
     "index.js",
   ),
-  "@gafus/core/services/questions": _path.resolve(__dirname, "../../packages/core/dist/core/src/services/questions"),
+  "@gafus/core/services/questions": _path.resolve(
+    __dirname,
+    "../../packages/core/dist/core/src/services/questions",
+  ),
   "@gafus/questions-server": _path.resolve(__dirname, "../../packages/questions-server/dist"),
   "@gafus/gallery-server": _path.resolve(__dirname, "../../packages/gallery-server/dist"),
   "@gafus/core/updatePetPhoto": _path.resolve(
@@ -58,7 +61,10 @@ const gafusAliases = {
     "../../packages/core/dist/core/src/services/training",
   ),
   "@gafus/core$": _path.resolve(__dirname, "../../packages/core/src"),
-  "@gafus/core/services/course": _path.resolve(__dirname, "../../packages/core/src/services/course"),
+  "@gafus/core/services/course": _path.resolve(
+    __dirname,
+    "../../packages/core/src/services/course",
+  ),
   "@gafus/core/services/dailyCourse": _path.resolve(
     __dirname,
     "../../packages/core/src/services/dailyCourse",
@@ -124,6 +130,12 @@ const gafusAliases = {
 
 // 3. основной конфиг Next.js
 const nextConfig = {
+  // Keep an isolated verification build from racing the currently running Next dev server.
+  // The default production/runtime directory remains `.next` when this opt-in is absent.
+  ...(process.env.GAFUS_NEXT_DIST_DIR &&
+  /^\.next-[a-z0-9-]{1,45}$/.test(process.env.GAFUS_NEXT_DIST_DIR)
+    ? { distDir: process.env.GAFUS_NEXT_DIST_DIR }
+    : {}),
   // Bypass dev chunks cached by older configurations after a Next.js upgrade.
   ...(process.env.NODE_ENV === "development" && {
     deploymentId: `dev-next-${require("next/package.json").version}`,
@@ -299,9 +311,10 @@ const nextConfig = {
             key: "Cache-Control",
             // Dev chunks reuse their URLs across rebuilds and dependency upgrades.
             // Caching them as immutable mixes old modules with the new runtime.
-            value: process.env.NODE_ENV === "production"
-              ? "public, max-age=31536000, immutable"
-              : "no-store, must-revalidate",
+            value:
+              process.env.NODE_ENV === "production"
+                ? "public, max-age=31536000, immutable"
+                : "no-store, must-revalidate",
           },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],

@@ -68,7 +68,7 @@ integration("registerUserWithCredentials PostgreSQL contract", () => {
     if (!partner.result.ok) throw new Error("partner registration unexpectedly failed");
     await expect(prisma.partnerReferral.count({ where: { buyerId: partner.result.userId } })).resolves.toBe(1);
 
-    await prisma.appSubscriptionPromoCode.update({ where: { id: partnerPromo.id }, data: { isActive: false } });
+    await prisma.appSubscriptionPromoCode.update({ where: { id: partnerPromo.id }, data: { isActive: false, revision: { increment: 1 } } });
     const replay = await registerUserWithCredentials({ username: partner.username, email: partner.email, password: "Password1x", promoCode: partnerPromo.code, registrationContext: context(partner.tempSessionId, partner.username, partner.email) });
     expect(replay).toEqual({ ok: true, userId: partner.result.userId, wasCreated: false });
 

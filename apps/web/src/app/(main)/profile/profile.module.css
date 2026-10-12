@@ -1,30 +1,119 @@
-.container {
+/* GAFUS profile — identity first, content second, account management on demand. */
+.profilePage {
+  width: 100%;
+  min-width: 0;
+  padding: 18px clamp(14px, 2.5vw, 32px) 64px;
+  --profile-card-surface: var(--surface);
+  --profile-feed-surface: var(--surface);
+  --profile-muted-surface: var(--surface-muted);
+  --profile-border: rgba(var(--accent-primary-rgb), .17);
+  --profile-card-shadow: 0 7px 20px rgba(59, 72, 34, .10);
+}
+.profileShell {
+  width: min(100%, 1020px);
+  margin-inline: auto;
+  min-width: 0;
+}
+/* Compact segmented control: both destinations read as buttons, not labels. */
+.sectionNavigation {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  margin: 12px auto 18px;
+  padding: 5px;
+  border: 1px solid var(--profile-border);
+  border-radius: 15px;
+  background: var(--surface-muted);
+  box-shadow: 0 4px 12px rgba(59, 72, 34, .08);
+}
+.contentNavigation {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+.navigationItem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent-secondary);
+  font: 700 13px/1.3 var(--font-montserrat), system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+.navigationItem:hover:not(.navigationActive) {
+  background: var(--surface-strong);
+  color: var(--accent-primary);
+}
+.navigationItem:active:not(.navigationActive) { background: #e5ead7; }
+.navigationItem:focus-visible { outline: 3px solid #a6b787; outline-offset: 2px; }
+.navigationActive,
+.navigationActive:hover {
+  color: #fffdf2;
+  background: linear-gradient(180deg, #687849, var(--accent-primary) 75%, var(--accent-secondary));
+  box-shadow: 0 3px 9px rgba(56, 74, 36, .22);
+}
+.viewContent { min-width: 0; scroll-margin-top: 18px; }
+.activityLayout { min-width: 0; }
+.activityColumns {
   display: flex;
   flex-direction: column;
-  flex-wrap: nowrap;
+  gap: 18px;
   width: 100%;
-  max-width: 1600px;
-  margin: 20px auto 0;
-  padding: 0 clamp(16px, 3vw, 56px);
+  max-width: 760px;
+  min-width: 0;
+  margin-inline: auto;
 }
-
-.achievementsLink {
-  display: block;
-  margin: 16px auto;
-  text-align: center;
-  max-width: 500px;
-  padding: 12px 24px;
-  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
-  color: #ece5d2;
-  border-radius: 14px;
-  text-decoration: none;
-  font-weight: 600;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  box-shadow: var(--shadow-button);
-  transition: transform 150ms ease, box-shadow 150ms ease;
+.activityColumns > * { width: 100%; min-width: 0; }
+.notesCard, .petsColumn { min-width: 0; }
+.petsColumn > section { width: 100%; max-width: none; margin: 0; }
+.visitorLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  align-items: start;
+  gap: 18px;
 }
-
-.achievementsLink:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 7px 0 #4a4917, 0 11px 18px rgba(74, 73, 23, 0.23);
+.visitorLayout .activityColumns { grid-template-columns: minmax(0, 1fr); }
+.settingsLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(275px, 310px);
+  align-items: start;
+  gap: 18px;
+  min-width: 0;
+}
+.settingsMain, .settingsAside { min-width: 0; }
+.settingsAside { display: grid; gap: 16px; }
+.settingsAside > section, .settingsAside > div { min-width: 0; width: 100%; }
+@media (max-width: 930px) {
+  .profilePage { padding-top: 15px; }
+  .settingsLayout { grid-template-columns: minmax(0, 1fr) 270px; }
+}
+@media (max-width: 760px) {
+  .profilePage { padding-inline: 14px; }
+  .sectionNavigation { margin-top: 10px; }
+  .visitorLayout, .settingsLayout { grid-template-columns: minmax(0, 1fr); }
+  .settingsAside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .profilePage { padding: 9px 11px 44px; }
+  .sectionNavigation {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #bdc5a7 transparent;
+  }
+  .contentNavigation { flex-wrap: nowrap; }
+  .navigationItem { padding-inline: 12px; font-size: 12px; }
+  .settingsAside { grid-template-columns: minmax(0, 1fr); }
+  .activityColumns { gap: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .navigationItem { transition: none; }
 }

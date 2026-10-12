@@ -19,6 +19,19 @@ describe("private Feed origin", () => {
     config(); send.mockResolvedValue({ ContentLength: 3, ContentType: "image/webp", Body: (async function* () { yield Buffer.from("abc"); })() });
     expect(await handler(event())).toMatchObject({ statusCode: 200, body: "YWJj", isBase64Encoded: true, headers: { "Cache-Control": "private, no-store, max-age=0" } });
   });
+  it("keeps shared caching disabled until both edge HIT and token gates are verified", async () => {
+    config();
+    vi.stubEnv("FEED_CDN_EDGE_CACHE_HIT_VERIFIED", "true");
+    send.mockResolvedValue({ ContentLength: 3, ContentType: "image/webp", Body: (async function* () { yield Buffer.from("abc"); })() });
+    const blocked = await handler(event());
+    expect(blocked.headers["Cache-Control"]).toBe("private, no-store, max-age=0");
+    vi.stubEnv("FEED_CDN_EDGE_TOKEN_VERIFIED", "true");
+    send.mockResolvedValue({ ContentLength: 3, ContentType: "image/webp", Body: (async function* () { yield Buffer.from("abc"); })() });
+    const cached = await handler(event());
+    expect(cached.headers["Cache-Control"]).toBe("public, max-age=600");
+    expect((await handler({ ...event(), headers: {} })).headers["Cache-Control"])
+      .toBe("private, no-store, max-age=0");
+  });
   it("supports one bounded range and rejects malformed/unsatisfiable ranges", async () => {
     config();
     for (const [range, status, body] of [["bytes=1-2", 206, "YmM="], ["bytes=-2", 206, "YmM="], ["bytes=2-", 206, "Yw=="], ["bytes=8-", 416, ""], ["bytes=-0", 416, ""], ["bytes=0-1,2-3", 416, ""]] as const) {

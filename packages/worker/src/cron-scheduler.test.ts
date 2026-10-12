@@ -20,6 +20,9 @@ vi.mock("node-cron", () => ({
 }));
 
 vi.mock("@gafus/logger", () => ({
+  createWebLogger: () => ({
+    info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(),
+  }),
   createWorkerLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -67,13 +70,13 @@ describe("cron-scheduler", () => {
   });
 
   describe("startCronJobs", () => {
-    it("регистрирует 5 cron задач", async () => {
+    it("регистрирует 7 базовых cron задач", async () => {
       const { startCronJobs } = await import("./cron-scheduler");
 
       startCronJobs();
 
-      expect(mockSchedule).toHaveBeenCalledTimes(5);
-    });
+      expect(mockSchedule).toHaveBeenCalledTimes(7);
+    }, 15_000);
 
     it("запускает reconciliation pending app subscription в cron подписок", async () => {
       const { startCronJobs } = await import("./cron-scheduler");

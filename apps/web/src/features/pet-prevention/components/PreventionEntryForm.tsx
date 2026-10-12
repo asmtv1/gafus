@@ -29,10 +29,8 @@ import {
   type PetPreventionTypeKey,
 } from "@shared/lib/pet-prevention/constants";
 
-import {
-  createPreventionEntry,
-  updatePreventionEntry,
-} from "@shared/lib/pet-prevention";
+import { createPreventionEntry } from "@shared/lib/pet-prevention/createPreventionEntry";
+import { updatePreventionEntry } from "@shared/lib/pet-prevention/updatePreventionEntry";
 
 import { PREVENTION_TYPE_LABELS } from "../types";
 

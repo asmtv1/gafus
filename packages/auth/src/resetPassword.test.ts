@@ -143,10 +143,11 @@ describe("resetPasswordByShortCode", () => {
     mockBcryptHash.mockResolvedValue("hashed");
   });
 
-  it("success: обновляет пароль, удаляет токен", async () => {
+  it("success: обновляет пароль и отзывает сессии при коротком коде", async () => {
     const mockFindUnique = vi.fn();
     const mockUpdate = vi.fn();
     const mockDelete = vi.fn();
+    const mockRefreshUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
 
     mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
       const tx = {
@@ -155,6 +156,7 @@ describe("resetPasswordByShortCode", () => {
           delete: mockDelete,
         },
         user: { update: mockUpdate },
+        refreshToken: { updateMany: mockRefreshUpdateMany },
       };
       await cb(tx);
     });
@@ -176,7 +178,13 @@ describe("resetPasswordByShortCode", () => {
       where: { shortCode: "123456" },
       include: { user: true },
     });
-    expect(mockUpdate).toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ password: "hashed", passwordSetAt: expect.any(Date), sessionsRevokedAt: expect.any(Date) }),
+    }));
+    expect(mockRefreshUpdateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
     expect(mockDelete).toHaveBeenCalledWith({ where: { id: "token-id" } });
   });
 

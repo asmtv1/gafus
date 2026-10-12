@@ -33,6 +33,8 @@ export interface GalleryAlbumDto {
   description: string | null;
   isVisible: boolean;
   coverPhotoId: string | null;
+  /** Effective preview (first visible photo when no cover is explicitly selected). */
+  coverDisplayPhotoId?: string | null;
   coverThumbUrl?: string | null;
   urlsExpireAt: string | null;
   photoCount: number;
@@ -171,6 +173,10 @@ export function createGalleryClient(transport: GalleryTransport) {
     retryUpload: (uploadId: string, body: GalleryUploadRetryInput) =>
       transport<GalleryUploadDto>(`uploads/${id(uploadId)}/retry`, { method: "POST", body }),
     getPhoto: (photoId: string) => transport<GalleryPhotoDto>(`photos/${id(photoId)}`),
+    requestMediaFallback: (photoId: string, variant: "thumb" | "full") =>
+      transport<{ url: string; source: "cloudru"; expiresAt: string }>(`photos/${id(photoId)}/fallback`, {
+        method: "POST", body: { variant },
+      }),
     updatePhoto: (photoId: string, body: GalleryPhotoUpdateInput) =>
       transport<GalleryPhotoDto>(`photos/${id(photoId)}`, { method: "PATCH", body }),
     deletePhoto: (photoId: string) =>

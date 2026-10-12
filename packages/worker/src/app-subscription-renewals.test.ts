@@ -386,7 +386,11 @@ describe("processDueYookassaAppSubscriptionRenewals", () => {
         failureCode: "PROVIDER_AMOUNT_MISMATCH",
       }),
     });
-    expect(mockTransaction).not.toHaveBeenCalled();
+    // Failure recording is now itself atomic inside core; success finalization must not run.
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "SUCCEEDED" }) }),
+    );
   });
 
   it("skips batch when advisory lock is not acquired", async () => {

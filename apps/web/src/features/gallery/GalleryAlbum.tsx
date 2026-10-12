@@ -19,6 +19,7 @@ import { galleryMessage, refreshDelay, useGalleryAlbums, useGalleryIdentity } fr
 import { AlbumForm } from "./AlbumForm";
 import { PhotoViewer } from "./PhotoViewer";
 import { UploadQueue } from "./UploadQueue";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import styles from "./Gallery.module.css";
 function AlbumContent({ albumId }: { albumId: string }) {
   const identity = useGalleryIdentity();
@@ -199,8 +200,9 @@ function AlbumContent({ albumId }: { albumId: string }) {
               }}
             >
               {photo.thumbUrl ? (
-                <img
-                  src={photo.thumbUrl}
+                <CdnImage
+                  source={photo.thumbUrl}
+                  requestFallback={() => galleryApi.requestMediaFallback(photo.id, "thumb")}
                   className={styles.thumb}
                   alt={photo.caption || "Фотография"}
                   loading="lazy"

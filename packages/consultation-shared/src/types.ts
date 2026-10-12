@@ -45,8 +45,6 @@ export interface ConsultationBookingDto {
   clientProblem: string | null;
   clientSelfHelpAttempt: string | null;
   cancelReason: string | null;
-  joinUrl: string | null;
-  watchUrl: string | null;
   confirmationDeadlineAt: string;
   createdAt: string;
 }

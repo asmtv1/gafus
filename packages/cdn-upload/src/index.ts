@@ -1,5 +1,12 @@
 export type { StreamFileFromCDNResult } from "./uploadToCDN";
-export { accountPublicKey, accountStorageTargets, createAccountStorageCleaner, startAccountCdnPurge, accountCdnPurgeDone } from "./accountStorageCleanup";
+export {
+  accountPublicKey,
+  DUAL_PROVIDER_CLEANUP_MARKER,
+  accountStorageTargets,
+  createAccountStorageCleaner,
+  startAccountCdnPurge,
+  accountCdnPurgeDone,
+} from "./accountStorageCleanup";
 export type { AccountStorageScope } from "./accountStorageCleanup";
 export { vetVisitFileKeys, uploadVetVisitFile, vetVisitMediaUrl } from "./vetVisitStorage";
 export {
@@ -23,3 +30,13 @@ export {
   getArticleImagePath,
   getExamVideoPath,
 } from "./pathHelpers";
+
+export {
+  privateMediaEnabled,
+  privateMediaKindForUpload,
+  privateMediaLocation,
+  parsePrivateMediaLocation,
+  uploadPrivateUserMedia,
+  signPrivateUserMedia,
+  deletePrivateUserMedia,
+} from "./privateUserMedia";

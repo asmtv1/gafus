@@ -1,13 +1,5 @@
-// src/lib/actions/getUserPhoneByUsername.ts
 "use server";
-
-import { prisma } from "@gafus/prisma";
-
+import { getUserPhoneByUsername as getPhoneInCore } from "@gafus/core/services/auth/passwordReset";
 export async function getUserPhoneByUsername(username: string) {
-  const user = await prisma.user.findUnique({
-    where: { username: username.toLowerCase().trim() },
-    select: { phone: true },
-  });
-
-  return user?.phone ?? null;
+  return getPhoneInCore(username);
 }

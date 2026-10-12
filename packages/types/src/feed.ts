@@ -407,6 +407,10 @@ export function createFeedClient(transport: FeedTransport) {
         method: "POST",
         body: {},
       }),
+    requestMediaFallback: (mediaId: string, variant: "thumb" | "full" | "poster") =>
+      transport<{ url: string; source: "cloudru"; expiresAt: string }>(`media/${encodeId(mediaId)}/fallback`, {
+        method: "POST", body: { variant },
+      }),
     requestPlayback: (mediaId: string) =>
       transport<FeedPlaybackTicketDto>(`media/${encodeId(mediaId)}/playback`, {
         method: "POST",

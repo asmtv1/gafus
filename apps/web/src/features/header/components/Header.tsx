@@ -14,7 +14,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
 import { chatApi } from "@/features/cynologist-chat/api";
-import { feedApi } from "@/features/feed/api";
 import { gafusApi } from "@/features/gafus/api";
 import type { CynologistChatStateDto } from "@gafus/consultation-shared";
 
@@ -28,7 +27,6 @@ export default React.memo(function Header({
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [assignedTrainer, setAssignedTrainer] = useState(false);
-  const [feedEnabled, setFeedEnabled] = useState(false);
   const [gafusEnabled, setGafusEnabled] = useState(false);
   const accountId = useSession().data?.user?.id;
   useEffect(() => {
@@ -37,16 +35,6 @@ export default React.memo(function Header({
     if (accountId) {
       void gafusApi.status().then(result => {
         if (active) setGafusEnabled(result.enabled.economy);
-      }).catch(() => undefined);
-    }
-    return () => { active = false; };
-  }, [accountId]);
-  useEffect(() => {
-    let active = true;
-    setFeedEnabled(false);
-    if (accountId) {
-      void feedApi.status().then(result => {
-        if (active) setFeedEnabled(result.enabled);
       }).catch(() => undefined);
     }
     return () => { active = false; };
@@ -145,6 +133,131 @@ export default React.memo(function Header({
           <div className={styles.overlay} onClick={() => setMenuOpen(false)} />
           <nav className={styles.dropdownMenu} ref={menuRef} aria-label="Навигация">
             <Link
+              className={`${styles.menuButton} ${profileActive ? styles.menuButtonActive : ""}`}
+              href={{ pathname: "/profile", query: { username: userName } }}
+              aria-current={profileActive ? "page" : undefined}
+              onClick={() => {
+                trackMenuClick("tab-profile");
+                setMenuOpen(false);
+              }}
+            >
+              <div className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/profile.webp" alt="" width={32} height={32} />
+              </div>
+              <span className={styles.menuLabel}>Профиль</span>
+            </Link>
+            <Link
+              href="/pets"
+              data-tour-target="tab-pets"
+              onClick={() => {
+                trackMenuClick("tab-pets");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/pets")}
+              className={`${styles.menuButton} ${isCurrentRoute("/pets") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/pets") ? "page" : undefined}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/pets.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>Питомцы</span>
+            </Link>
+            <Link
+              href="/courses"
+              onClick={() => {
+                trackMenuClick("tab-courses");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/courses")}
+              className={`${styles.menuButton} ${isCurrentRoute("/courses") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/courses") ? "page" : undefined}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image
+                  src="/images/tab-icons/courses.webp"
+                  alt=""
+                  width={24}
+                  height={24}
+                  loading="lazy"
+                />
+              </span>
+              <span className={styles.menuLabel}>Курсы</span>
+            </Link>
+            <Link
+              href="/feed"
+              className={`${styles.menuButton} ${isCurrentRoute("/feed") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/feed") ? "page" : undefined}
+              onClick={() => {
+                trackMenuClick("tab-feed");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/feed")}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/feed.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>Моменты</span>
+            </Link>
+            <Link href="/questions" className={`${styles.menuButton} ${isCurrentRoute("/questions") ? styles.menuButtonActive : ""}`} aria-current={isCurrentRoute("/questions") ? "page" : undefined} onClick={() => { trackMenuClick("tab-questions"); setMenuOpen(false); }}>
+              <span className={styles.menuIconSlot} aria-hidden="true"><Image src="/images/tab-icons/questions.png" alt="" width={32} height={32} style={{ objectFit: "contain" }} /></span>
+              <span className={styles.menuLabel}>Вопросы</span>
+            </Link>
+            <Link
+              href="/consultations"
+              data-tour-target="tab-consultations"
+              onClick={() => {
+                trackMenuClick("tab-consultations");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/consultations")}
+              className={`${styles.menuButton} ${isCurrentRoute("/consultations") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/consultations") ? "page" : undefined}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/cynologist.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>Занятия с кинологом</span>
+            </Link>
+            <Link
+              href={assignedTrainer ? "/cynologist-chats" : "/cynologist-chat"}
+              className={`${styles.menuButton} ${isCurrentRoute(assignedTrainer ? "/cynologist-chats" : "/cynologist-chat") ? styles.menuButtonActive : ""}`}
+              aria-current={
+                isCurrentRoute(assignedTrainer ? "/cynologist-chats" : "/cynologist-chat")
+                  ? "page"
+                  : undefined
+              }
+              onClick={() => {
+                trackMenuClick("tab-cynologist-chat");
+                setMenuOpen(false);
+              }}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/chat.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>{assignedTrainer ? "Диалоги" : "Чат"}</span>
+            </Link>
+            <Link
+              href="/profile/albums"
+              className={`${styles.menuButton} ${galleryActive ? styles.menuButtonActive : ""}`}
+              aria-current={galleryActive ? "page" : undefined}
+              onClick={() => {
+                trackMenuClick("tab-gallery");
+                setMenuOpen(false);
+              }}
+              onMouseEnter={() => router.prefetch("/profile/albums")}
+            >
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image
+                  src="/images/tab-icons/albums.webp"
+                  alt=""
+                  width={34}
+                  height={34}
+                  style={{ objectFit: "contain" }}
+                />
+              </span>
+              <span className={styles.menuLabel}>Фотоальбомы</span>
+            </Link>
+            <Link
               href="/reminders"
               className={`${styles.menuButton} ${isCurrentRoute("/reminders") ? styles.menuButtonActive : ""}`}
               aria-current={isCurrentRoute("/reminders") ? "page" : undefined}
@@ -160,18 +273,19 @@ export default React.memo(function Header({
               <span className={styles.menuLabel}>Напоминания о тренировках</span>
             </Link>
             <Link
-              className={`${styles.menuButton} ${profileActive ? styles.menuButtonActive : ""}`}
-              href={{ pathname: "/profile", query: { username: userName } }}
-              aria-current={profileActive ? "page" : undefined}
+              href="/articles"
               onClick={() => {
-                trackMenuClick("tab-profile");
+                trackMenuClick("tab-articles");
                 setMenuOpen(false);
               }}
+              onMouseEnter={() => router.prefetch("/articles")}
+              className={`${styles.menuButton} ${isCurrentRoute("/articles") ? styles.menuButtonActive : ""}`}
+              aria-current={isCurrentRoute("/articles") ? "page" : undefined}
             >
-              <div className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/profile.webp" alt="" width={32} height={32} />
-              </div>
-              <span className={styles.menuLabel}>Профиль</span>
+              <span className={styles.menuIconSlot} aria-hidden="true">
+                <Image src="/images/tab-icons/articles.webp" alt="" width={32} height={32} />
+              </span>
+              <span className={styles.menuLabel}>Статьи</span>
             </Link>
             {gafusEnabled && <Link
               href="/gafus"
@@ -220,132 +334,6 @@ export default React.memo(function Header({
                 <span className={styles.menuLabel}>Партнёрская программа</span>
               </Link>
             )}
-            <Link
-              href="/pets"
-              data-tour-target="tab-pets"
-              onClick={() => {
-                trackMenuClick("tab-pets");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/pets")}
-              className={`${styles.menuButton} ${isCurrentRoute("/pets") ? styles.menuButtonActive : ""}`}
-              aria-current={isCurrentRoute("/pets") ? "page" : undefined}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/pets.webp" alt="" width={32} height={32} />
-              </span>
-              <span className={styles.menuLabel}>Питомцы</span>
-            </Link>
-            <Link
-              href="/courses"
-              onClick={() => {
-                trackMenuClick("tab-courses");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/courses")}
-              className={`${styles.menuButton} ${isCurrentRoute("/courses") ? styles.menuButtonActive : ""}`}
-              aria-current={isCurrentRoute("/courses") ? "page" : undefined}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image
-                  src="/images/tab-icons/courses.webp"
-                  alt=""
-                  width={24}
-                  height={24}
-                  loading="lazy"
-                />
-              </span>
-              <span className={styles.menuLabel}>Курсы</span>
-            </Link>
-            <Link
-              href={assignedTrainer ? "/cynologist-chats" : "/cynologist-chat"}
-              className={`${styles.menuButton} ${isCurrentRoute(assignedTrainer ? "/cynologist-chats" : "/cynologist-chat") ? styles.menuButtonActive : ""}`}
-              aria-current={
-                isCurrentRoute(assignedTrainer ? "/cynologist-chats" : "/cynologist-chat")
-                  ? "page"
-                  : undefined
-              }
-              onClick={() => {
-                trackMenuClick("tab-cynologist-chat");
-                setMenuOpen(false);
-              }}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/chat.webp" alt="" width={32} height={32} />
-              </span>
-              <span className={styles.menuLabel}>{assignedTrainer ? "Диалоги" : "Чат"}</span>
-            </Link>
-            <Link
-              href="/profile/albums"
-              className={`${styles.menuButton} ${galleryActive ? styles.menuButtonActive : ""}`}
-              aria-current={galleryActive ? "page" : undefined}
-              onClick={() => {
-                trackMenuClick("tab-gallery");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/profile/albums")}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image
-                  src="/images/tab-icons/albums.webp"
-                  alt=""
-                  width={34}
-                  height={34}
-                  style={{ objectFit: "contain" }}
-                />
-              </span>
-              <span className={styles.menuLabel}>Фотоальбомы</span>
-            </Link>
-            {feedEnabled && <Link
-              href="/feed"
-              className={`${styles.menuButton} ${isCurrentRoute("/feed") ? styles.menuButtonActive : ""}`}
-              aria-current={isCurrentRoute("/feed") ? "page" : undefined}
-              onClick={() => {
-                trackMenuClick("tab-feed");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/feed")}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/feed.webp" alt="" width={32} height={32} />
-              </span>
-              <span className={styles.menuLabel}>Моменты</span>
-            </Link>}
-            <Link href="/questions" className={`${styles.menuButton} ${isCurrentRoute("/questions") ? styles.menuButtonActive : ""}`} aria-current={isCurrentRoute("/questions") ? "page" : undefined} onClick={() => { trackMenuClick("tab-questions"); setMenuOpen(false); }}>
-              <span className={styles.menuIconSlot} aria-hidden="true"><Image src="/images/tab-icons/questions.png" alt="" width={32} height={32} style={{ objectFit: "contain" }} /></span>
-              <span className={styles.menuLabel}>Вопросы</span>
-            </Link>
-            <Link
-              href="/consultations"
-              data-tour-target="tab-consultations"
-              onClick={() => {
-                trackMenuClick("tab-consultations");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/consultations")}
-              className={`${styles.menuButton} ${isCurrentRoute("/consultations") ? styles.menuButtonActive : ""}`}
-              aria-current={isCurrentRoute("/consultations") ? "page" : undefined}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/cynologist.webp" alt="" width={32} height={32} />
-              </span>
-              <span className={styles.menuLabel}>Занятия с кинологом</span>
-            </Link>
-            <Link
-              href="/articles"
-              onClick={() => {
-                trackMenuClick("tab-articles");
-                setMenuOpen(false);
-              }}
-              onMouseEnter={() => router.prefetch("/articles")}
-              className={`${styles.menuButton} ${isCurrentRoute("/articles") ? styles.menuButtonActive : ""}`}
-              aria-current={isCurrentRoute("/articles") ? "page" : undefined}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <Image src="/images/tab-icons/articles.webp" alt="" width={32} height={32} />
-              </span>
-              <span className={styles.menuLabel}>Статьи</span>
-            </Link>
             <button
               className={`${styles.menuButton} ${styles.logoutMenuItem}`}
               type="button"

@@ -1,4 +1,4 @@
-import type { AuthRole } from "@gafus/auth";
+import type { UserRole as AuthRole } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { prisma, type UserRole } from "@gafus/prisma";
 

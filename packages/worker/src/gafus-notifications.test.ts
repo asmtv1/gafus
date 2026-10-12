@@ -30,14 +30,13 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 
-vi.mock("@gafus/webpush", () => ({
+vi.mock("@gafus/core/services/notifications", () => ({
   sendImmediatePushNotification: (...args: unknown[]) => mocks.push(...args),
 }));
 
 vi.mock("@gafus/logger", () => ({
-  createWorkerLogger: () => ({
-    info: vi.fn(), warn: vi.fn(), error: vi.fn(),
-  }),
+  createWorkerLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+  createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 }));
 
 import { processGafusNotifications } from "./gafus-notifications";

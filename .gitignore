@@ -157,3 +157,9 @@ apps/mobile/build-*.tar.gz
 /output/playwright/gallery/
 
 /output/playwright/feed/
+
+# Local isolated Web verification build: never commit generated Next.js artifacts
+/apps/web/.next-cloudru-verify/
+
+# Ephemeral production nginx maintenance lock
+ci-cd/nginx/conf.d/.release-maintenance

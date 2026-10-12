@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
-import { Image } from "expo-image";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import { useQuery } from "@tanstack/react-query";
 import type { GalleryPhotoDto } from "@gafus/types";
 import { galleryApi } from "@/shared/lib/api/gallery";
@@ -59,7 +59,9 @@ function FullPhoto({ photo, owner, active, width, close }: { photo: GalleryPhoto
   return <GestureDetector gesture={drag}><Animated.View style={[{ width, flex: 1, padding: 16 }, photoStyle]}>
     {full.isPending ? <Loading variant="inline" message="Загрузка фотографии…" /> : null}
     {full.isError ? <Failure error={full.error} retry={() => void full.refetch()} /> : null}
-    {full.data?.fullUrl ? <Image source={{ uri: full.data.fullUrl }} style={{ flex: 1, width: "100%" }} contentFit="contain" cachePolicy="memory" onError={refresh} accessibilityLabel={photo.caption ?? "Фотография"} /> : null}
+    {full.data?.fullUrl ? <CdnImage cdnUrl={full.data.fullUrl} requestFallback={() => galleryApi.requestMediaFallback(photo.id, "full")}
+      style={{ flex: 1, width: "100%" }} contentFit="contain" onError={refresh}
+      accessibilityLabel={photo.caption ?? "Фотография"} /> : null}
     {photo.caption ? <Text style={[s.viewerText, { marginTop: 12 }]} numberOfLines={4}>{photo.caption}</Text> : null}
   </Animated.View></GestureDetector>;
 }

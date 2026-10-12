@@ -12,7 +12,7 @@ import SessionWrapper from "@shared/components/ui/SessionWrapper";
 import { WebQueryProvider } from "@shared/providers/QueryProvider";
 import { WebOnboardingTourProvider } from "@/features/onboarding-tour";
 
-import { Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import type { Metadata, Viewport } from "next";
 
 import { Suspense } from "react";
@@ -57,9 +57,21 @@ export const viewport: Viewport = {
   themeColor: SITE_CONFIG.themeColor,
 };
 
-const montserrat = Montserrat({
-  subsets: ["latin", "cyrillic"],
+// Bundled SIL OFL Montserrat prevents production builds from depending on Google Fonts.
+const montserrat = localFont({
+  src: [
+    { path: "./fonts/montserrat/Montserrat-100.ttf", weight: "100", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-200.ttf", weight: "200", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-300.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-400.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-500.ttf", weight: "500", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-600.ttf", weight: "600", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-700.ttf", weight: "700", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-800.ttf", weight: "800", style: "normal" },
+    { path: "./fonts/montserrat/Montserrat-900.ttf", weight: "900", style: "normal" },
+  ],
   display: "swap",
+  preload: false,
   variable: "--font-montserrat",
 });
 
@@ -84,13 +96,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* DNS prefetch для внешних ресурсов */}
         <link rel="dns-prefetch" href="//res.cloudinary.com" />
-        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
 
         {/* Preconnect для критических доменов */}
         <link rel="preconnect" href="https://res.cloudinary.com" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
         <TracerProvider>

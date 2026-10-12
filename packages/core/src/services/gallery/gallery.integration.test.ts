@@ -629,7 +629,9 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     const job = await db!.galleryStorageJob.findFirstOrThrow({
       where: { ownerId: owner, kind: "delete", dedupeKey: { startsWith: "account:" } },
     });
-    advance(700_000);
+    // Account cleanup must respect the original upload reservation and active lease.
+    // The previous hard-coded 700_000ms could be earlier than the job availableAt.
+    at = new Date(Math.max(at.getTime() + 700_000, job.availableAt.getTime() + 1000));
     let lastToken = "";
     for (let attempt = 1; attempt <= 5; attempt++) {
       const claim = (await service.claimStorageJobs({ limit: 50 })).find(

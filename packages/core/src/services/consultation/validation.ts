@@ -149,8 +149,6 @@ const consultationBookingDtoSchema = z.object({
   clientProblem: z.string().nullable(),
   clientSelfHelpAttempt: z.string().nullable(),
   cancelReason: z.string().nullable(),
-  joinUrl: z.string().nullable(),
-  watchUrl: z.string().nullable(),
   confirmationDeadlineAt: z.string().min(1),
   createdAt: z.string().min(1),
 });

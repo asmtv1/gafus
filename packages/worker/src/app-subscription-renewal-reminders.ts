@@ -1,7 +1,7 @@
 import { sendTransactionalMail } from "@gafus/mailer";
-import { prisma } from "@gafus/prisma";
+import { listDueSubscriptionRenewalReminders, markSubscriptionRenewalReminderSent } from "@gafus/core/services/appSubscription";
 import { createWorkerLogger } from "@gafus/logger";
-import { sendImmediatePushNotification } from "@gafus/webpush";
+import { sendImmediatePushNotification } from "@gafus/core/services/notifications";
 import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
 
 const logger = createWorkerLogger("app-subscription-renewal-reminders");
@@ -40,53 +40,11 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
   const marker = early ? "renewalEmailThreeDaysSentForPeriodEnd" : "renewalReminderSentForPeriodEnd";
   const batchSize = params?.batchSize ?? 100;
   const now = new Date();
-  const chargeBefore = new Date(now.getTime() + (early ? 72 : 2) * HOUR_MS);
-
-  // Prisma filters cannot compare one column with another. The former
-  // `not: prisma.appSubscription.fields.currentPeriodEnd` was serialized as an
-  // unsupported `_ref` argument and aborted the entire cron job. Select only
-  // unsent periods in SQL first, then load their full records normally.
-  const markerColumn = early
-    ? '"renewalEmailThreeDaysSentForPeriodEnd"'
-    : '"renewalReminderSentForPeriodEnd"';
-  const candidateIds = await (prisma as any).$queryRawUnsafe(
-    `SELECT subscription.id
-       FROM "AppSubscription" AS subscription
-       ${early ? 'INNER JOIN "User" AS "user" ON "user".id = subscription."userId"' : ""}
-      WHERE subscription.provider = 'YOOKASSA'
-        AND subscription.status = 'ACTIVE'
-        AND subscription."cancelAtPeriodEnd" = false
-        AND subscription."isLifetime" = false
-        AND subscription."yookassaPaymentMethodId" IS NOT NULL
-        AND subscription."currentPeriodEnd" > $1
-        AND subscription."currentPeriodEnd" <= $2
-        ${early ? 'AND "user".email IS NOT NULL' : ""}
-        AND (${markerColumn} IS NULL OR ${markerColumn} IS DISTINCT FROM subscription."currentPeriodEnd")
-      ORDER BY subscription."currentPeriodEnd" ASC, subscription.id ASC
-      LIMIT $3`,
-    early ? new Date(now.getTime() + 2 * HOUR_MS) : now,
-    chargeBefore,
-    batchSize,
-  ) as Array<{ id: string }>;
-
-  if (candidateIds.length === 0) {
+  const rows = await listDueSubscriptionRenewalReminders(early, now, batchSize);
+  if (!rows.length) {
     logger.info("Renewal reminders processed", { sent: 0, skipped: 0, errors: 0, batchSize });
     return { sent: 0, skipped: 0, errors: 0 };
   }
-
-  const rows = await (prisma as any).appSubscription.findMany({
-    where: {
-      id: { in: candidateIds.map((candidate) => candidate.id) },
-    },
-    include: {
-      user: {
-        select: {
-          email: true,
-        },
-      },
-    },
-    orderBy: [{ currentPeriodEnd: "asc" }, { id: "asc" }],
-  });
 
   let sent = 0;
   let skipped = 0;
@@ -142,11 +100,11 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
         });
       }
 
-      await (prisma as any).appSubscription.update({
-        where: { id: row.id },
-        data: { [marker]: row.currentPeriodEnd },
+      const recorded = await markSubscriptionRenewalReminderSent({
+        subscriptionId: row.id, expectedPeriodEnd: row.currentPeriodEnd, early,
       });
-      sent += 1;
+      if (recorded) sent += 1;
+      else skipped += 1;
     } catch (error) {
       errors += 1;
       logger.error("Renewal reminder failed", error as Error, {

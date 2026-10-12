@@ -6,7 +6,6 @@
     "orientation": "default",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "extra": {
       "eas": {
         "projectId": "6c36fab5-6226-450f-8ee5-64e9beeea7db"
@@ -80,10 +79,9 @@
       "bundler": "metro",
       "output": "static"
     },
-    "notification": {
-      "icon": "./assets/images/notification-icon.png"
-    },
     "plugins": [
+      "expo-asset",
+      "expo-video",
       [
         "expo-splash-screen",
         {
@@ -106,7 +104,7 @@
           "android": {
             "minSdkVersion": 24,
             "extraMavenRepos": [
-              "https://artifactory-external.vkpartner.ru/artifactory/maven"
+              "https://nexus-external.rustore.ru/repository/maven-rustore-exposed/"
             ]
           }
         }
@@ -115,11 +113,15 @@
       "./plugins/withMinSdkFromGradleProps",
       "./plugins/withIosAppMetrica516Compatibility",
       "./plugins/withAppTracerNative",
+      "./plugins/withExpo55ReactHost",
+      "./plugins/withExpo55IosAppDelegate",
+      "./plugins/withVoximplantIosPods",
       "expo-router",
       "expo-secure-store",
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/notification-icon.png",
           "color": "#8936FF",
           "enableBackgroundRemoteNotifications": true
         }

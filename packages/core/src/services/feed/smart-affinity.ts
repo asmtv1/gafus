@@ -8,7 +8,7 @@ import type { FeedDb } from "./ports";
  */
 export async function refreshSmartAuthorAffinities(db: FeedDb, limit = 200): Promise<number> {
   const count = Math.max(1, Math.min(1000, Math.trunc(limit)));
-  const updated = await db.$queryRaw<Array<{ updated: number }>>(Prisma.sql`
+  const updated = await db.$queryRaw<{ updated: number }[]>(Prisma.sql`
     WITH active AS (
       SELECT i."userId", MAX(i."occurredAt") AS last_seen
       FROM "FeedImpression" i

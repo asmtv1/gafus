@@ -14,7 +14,12 @@ import {
   type PetVetVisit,
   type PetVetVisitInput,
 } from "@gafus/types";
-import { AppBackButtonLink, PrimaryButton, CaramelButton, SecondaryButton } from "@/shared/components/ui";
+import {
+  AppBackButtonLink,
+  PrimaryButton,
+  CaramelButton,
+  SecondaryButton,
+} from "@/shared/components/ui";
 import styles from "./VetVisits.module.css";
 
 const fields = [
@@ -156,6 +161,16 @@ export function VetVisits({ petId, petName }: { petId: string; petName: string }
     [base],
   );
   const reload = useCallback(async () => setVisits(await request<PetVetVisit[]>()), [request]);
+  const previewJobsPending = visits.some((visit) =>
+    visit.attachments.some((file) => file.previewProcessing),
+  );
+  useEffect(() => {
+    if (!previewJobsPending) return;
+    const timer = window.setInterval(() => {
+      void reload().catch(() => undefined);
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [previewJobsPending, reload]);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -433,7 +448,13 @@ export function VetVisits({ petId, petName }: { petId: string; petName: string }
                                 loading="lazy"
                               />
                             ) : (
-                              <span className={styles.pdf}>PDF</span>
+                              <span className={styles.pdf}>
+                                {a.previewProcessing
+                                  ? "Обрабатываем…"
+                                  : a.mimeType === "application/pdf"
+                                    ? "PDF"
+                                    : "Фото"}
+                              </span>
                             )}
                             <span>{a.name}</span>
                           </a>

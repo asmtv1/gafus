@@ -4,6 +4,7 @@ import { mobileFeedPublications } from "./publication";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
+import { CdnImage } from "@/shared/components/media/CdnImage";
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
@@ -224,11 +225,12 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
           accessibilityRole="button"
           accessibilityLabel={asset.kind === "photo" ? `Открыть фото ${index + 1} на весь экран` : `Открыть видео ${index + 1} на весь экран`}>
           {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ? (
-            <Image source={{ uri: asset.fullUrl ?? asset.thumbUrl ?? "" }}
-              cachePolicy="memory" contentFit={detailed ? "contain" : "cover"} style={s.image} />
+            <CdnImage cdnUrl={asset.fullUrl ?? asset.thumbUrl ?? ""}
+              requestFallback={() => feedApi.requestMediaFallback(asset.id, asset.fullUrl ? "full" : "thumb")}
+              contentFit={detailed ? "contain" : "cover"} style={s.image} />
           ) : (
             <>
-              {!!asset.posterUrl && <Image source={{ uri: asset.posterUrl }} cachePolicy="memory"
+              {!!asset.posterUrl && <CdnImage cdnUrl={asset.posterUrl} requestFallback={() => feedApi.requestMediaFallback(asset.id, "poster")}
                 contentFit="cover" style={s.image} />}
               <View style={s.videoPlayOverlay} pointerEvents="none">
                 <View style={s.videoPlayCircle}>

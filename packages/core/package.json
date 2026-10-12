@@ -97,6 +97,10 @@
       "types": "./dist/core/src/services/trainingDay/index.d.ts",
       "default": "./dist/core/src/services/trainingDay/index.js"
     },
+    "./services/reengagement": {
+      "types": "./dist/core/src/services/reengagement/index.d.ts",
+      "default": "./dist/core/src/services/reengagement/index.js"
+    },
     "./services/trainerVideo": {
       "types": "./dist/core/src/services/trainerVideo/index.d.ts",
       "default": "./dist/core/src/services/trainerVideo/index.js"
@@ -144,6 +148,10 @@
     "./services/adminUser": {
       "types": "./dist/core/src/services/adminUser/index.d.ts",
       "default": "./dist/core/src/services/adminUser/index.js"
+    },
+    "./services/systemHealth": {
+      "types": "./dist/core/src/services/systemHealth/index.d.ts",
+      "default": "./dist/core/src/services/systemHealth/index.js"
     },
     "./services/adminPurchase": {
       "types": "./dist/core/src/services/adminPurchase/index.d.ts",
@@ -300,6 +308,26 @@
     "./services/gallery/keys": {
       "types": "./dist/core/src/services/gallery/keys.d.ts",
       "default": "./dist/core/src/services/gallery/keys.js"
+    },
+    "./services/statistics": {
+      "types": "./dist/core/src/services/statistics/index.d.ts",
+      "default": "./dist/core/src/services/statistics/index.js"
+    },
+    "./services/auth/passwordReset": {
+      "types": "./dist/core/src/services/auth/passwordReset.d.ts",
+      "default": "./dist/core/src/services/auth/passwordReset.js"
+    },
+    "./services/auth/identityReadService": {
+      "types": "./dist/core/src/services/auth/identityReadService.d.ts",
+      "default": "./dist/core/src/services/auth/identityReadService.js"
+    },
+    "./services/auth/vkGrant": {
+      "types": "./dist/core/src/services/auth/vkGrant.d.ts",
+      "default": "./dist/core/src/services/auth/vkGrant.js"
+    },
+    "./services/mediaDelivery": {
+      "types": "./dist/core/src/services/mediaDelivery/index.d.ts",
+      "default": "./dist/core/src/services/mediaDelivery/index.js"
     }
   },
   "main": "./dist/core/src/index.js",
@@ -317,7 +345,6 @@
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.0.0",
-    "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/consultation-shared": "workspace:*",
     "@gafus/logger": "workspace:*",

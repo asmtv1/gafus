@@ -81,7 +81,7 @@ export function AlbumEditor({ owner, album, close }: { owner: string; album?: Ga
 export const AlbumTile = memo(function AlbumTile({ album, refresh, compact = false }: { album: GalleryAlbumDto; refresh: () => void; compact?: boolean }) {
   const router = useRouter();
   return <Pressable style={compact ? s.albumCompact : s.album} accessibilityRole="button" accessibilityLabel={`${album.name}, фотографий: ${album.photoCount}${album.isVisible ? "" : ", только для вас"}`} onPress={() => router.push({ pathname: "/profile/albums/[albumId]", params: { albumId: album.id, username: album.ownerUsername } })}>
-    {album.coverThumbUrl ? <GalleryImage source={{ uri: album.coverThumbUrl }} style={compact ? s.coverCompact : s.cover} contentFit="cover" refresh={refresh} /> : <View style={[compact ? s.coverCompact : s.cover, s.placeholder]}>{compact ? <MaterialCommunityIcons name="image-outline" size={28} color={COLORS.textSecondary} /> : <Text style={s.muted}>Нет обложки</Text>}</View>}
+    {album.coverThumbUrl ? <GalleryImage photoId={album.coverDisplayPhotoId ?? album.coverPhotoId} source={{ uri: album.coverThumbUrl }} style={compact ? s.coverCompact : s.cover} contentFit="cover" refresh={refresh} /> : <View style={[compact ? s.coverCompact : s.cover, s.placeholder]}>{compact ? <MaterialCommunityIcons name="image-outline" size={28} color={COLORS.textSecondary} /> : <Text style={s.muted}>Нет обложки</Text>}</View>}
     <Text numberOfLines={2} style={compact ? s.albumCompactName : s.text}>{album.name}</Text><Text style={s.muted}>{album.photoCount} фото{album.isVisible ? "" : " · Только для вас"}</Text>
   </Pressable>;
 });

@@ -1,4 +1,4 @@
-import { prisma } from "@gafus/prisma";
+import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
 import { syncProfitFinance } from "@gafus/core/services/appSubscription";
 
 async function main() {
@@ -24,4 +24,4 @@ main()
     );
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => disconnectCoreDatabase());

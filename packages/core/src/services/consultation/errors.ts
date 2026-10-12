@@ -29,11 +29,11 @@ export class ConsultationBookingNotIncludedError extends ServiceError {
   }
 }
 
-/** Не удалось создать конференцию в Яндекс Телемост. */
-export class TelemostUnavailableError extends ServiceError {
-  constructor(message = "Недоступна видеоконференция") {
-    super(message, "TELEMOST_UNAVAILABLE", 503);
-    this.name = "TelemostUnavailableError";
+/** Ошибка настройки или доступности Voximplant. */
+export class ConsultationVideoUnavailableError extends ServiceError {
+  constructor(message = "Видеосвязь временно недоступна") {
+    super(message, "CONSULTATION_VIDEO_UNAVAILABLE", 503);
+    this.name = "ConsultationVideoUnavailableError";
   }
 }
 

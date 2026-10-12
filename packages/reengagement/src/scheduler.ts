@@ -3,7 +3,11 @@
  * Запускается ежедневно по cron, анализирует пользователей и создает задачи
  */
 
-import { prisma } from "@gafus/prisma";
+import {
+  scheduleReengagementInCore,
+  isReengagementNotificationDue,
+  getActiveReengagementCampaignForScheduling,
+} from "@gafus/core/services/reengagement";
 import { reengagementQueue } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { findInactiveUsers } from "./analyzer";
@@ -24,59 +28,27 @@ export async function scheduleReengagementCampaigns(): Promise<{
   try {
     logger.info("Запуск планировщика re-engagement кампаний");
 
-    // 1. Проверить и закрыть кампании вернувшихся пользователей
-    const closedCampaigns = await checkAndCloseReturnedCampaigns();
-
-    // 2. Найти неактивных пользователей
-    const inactiveUsers = await findInactiveUsers();
-
-    let newCampaigns = 0;
-    let scheduledNotifications = 0;
-
-    // 3. Обработать каждого неактивного пользователя
-    for (const user of inactiveUsers) {
-      if (!user.hasActiveCampaign) {
-        // Создать новую кампанию
-        try {
-          const campaignId = await createCampaign(user.userId, user.lastActivityDate);
-          newCampaigns++;
-
-          // Добавить задачу для отправки первого уведомления
-          await addNotificationJob(campaignId, user.userId, 1);
-          scheduledNotifications++;
-        } catch (error) {
-          logger.error("Ошибка создания кампании для пользователя", error as Error, {
-            userId: user.userId,
-          });
-        }
-      } else {
-        // У пользователя есть активная кампания
-        // Проверяем, пора ли отправлять следующее уведомление
-        const shouldSend = await checkIfNotificationDue(user.userId);
-
-        if (shouldSend) {
-          const campaign = await getActiveCampaign(user.userId);
-
-          if (campaign) {
-            await addNotificationJob(campaign.id, user.userId, campaign.currentLevel);
-            scheduledNotifications++;
-          }
-        }
-      }
-    }
-
-    // 4. Логирование результатов
-    logger.success("Планировщик завершил работу", {
-      inactiveUsersFound: inactiveUsers.length,
-      newCampaignsCreated: newCampaigns,
-      notificationsScheduled: scheduledNotifications,
-      campaignsClosed: closedCampaigns,
+    const summary = await scheduleReengagementInCore({
+      findInactiveUsers,
+      checkAndCloseReturnedCampaigns,
+      createCampaign,
+      isDue: checkIfNotificationDue,
+      activeCampaign: getActiveCampaign,
+      dispatch: addNotificationJob,
+      onCampaignError(userId, error) {
+        logger.error("Ошибка создания кампании для пользователя", error as Error, { userId });
+      },
     });
-
+    logger.success("Планировщик завершил работу", {
+      inactiveUsersFound: summary.inactiveUsersFound,
+      newCampaignsCreated: summary.newCampaigns,
+      notificationsScheduled: summary.scheduledNotifications,
+      campaignsClosed: summary.closedCampaigns,
+    });
     return {
-      newCampaigns,
-      scheduledNotifications,
-      closedCampaigns,
+      newCampaigns: summary.newCampaigns,
+      scheduledNotifications: summary.scheduledNotifications,
+      closedCampaigns: summary.closedCampaigns,
     };
   } catch (error) {
     logger.error("Критическая ошибка планировщика", error as Error);
@@ -129,44 +101,16 @@ async function addNotificationJob(
  */
 async function checkIfNotificationDue(userId: string): Promise<boolean> {
   try {
-    const campaign = await prisma.reengagementCampaign.findFirst({
-      where: {
-        userId,
-        isActive: true,
-      },
-      select: {
-        nextNotificationDate: true,
-      },
-    });
-
-    if (!campaign || !campaign.nextNotificationDate) {
-      return false;
-    }
-
-    // Проверяем, наступила ли дата следующего уведомления
-    const now = new Date();
-    return campaign.nextNotificationDate <= now;
+    return await isReengagementNotificationDue(userId);
   } catch (error) {
     logger.error("Ошибка проверки даты уведомления", error as Error, { userId });
     return false;
   }
 }
 
-/**
- * Получить активную кампанию пользователя
- */
 async function getActiveCampaign(userId: string) {
   try {
-    return await prisma.reengagementCampaign.findFirst({
-      where: {
-        userId,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        currentLevel: true,
-      },
-    });
+    return await getActiveReengagementCampaignForScheduling(userId);
   } catch (error) {
     logger.error("Ошибка получения активной кампании", error as Error, { userId });
     return null;

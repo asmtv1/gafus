@@ -1,5 +1,5 @@
 import { lockConsultationClient, requireConsultationBookingEligibility } from "./bookingEligibility";
-import type { AuthRole } from "@gafus/auth";
+import type { UserRole as AuthRole } from "@gafus/prisma";
 import {
   ConsultationBookingStatus,
   ConsultationEmailType,
@@ -26,7 +26,6 @@ import {
   ConsultationSlotTakenError,
 } from "./errors";
 import { enqueueConsultationEmail } from "./notificationService";
-import { createTelemostConference } from "./telemostService";
 import type { BookSlotResult, ConsultationBookingDto } from "./types";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
 import { getAppSubscriptionAccess, getCynologistEntitlements, SubscriptionRequiredError } from "../appSubscription";
@@ -132,7 +131,7 @@ async function tryConsultationPush(
   logCtx: { bookingId?: string; kind: string },
 ): Promise<void> {
   try {
-    const { sendImmediatePushNotification } = await import("@gafus/webpush");
+    const { sendImmediatePushNotification } = await import("../notifications/immediatePushService");
     const pushResult = await sendImmediatePushNotification({ userId, title, body, url });
     if (!pushResult.success) {
       logger.warn("пуш не отправлен", { ...logCtx, error: pushResult.error });
@@ -206,8 +205,6 @@ export async function toBookingDto(bookingId: string): Promise<ConsultationBooki
     clientProblem: b.clientProblem,
     clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
-    joinUrl: b.telemostJoinUrl,
-    watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
     createdAt: b.createdAt.toISOString(),
   };
@@ -341,49 +338,9 @@ export async function bookSlot(
       },
     });
 
-    let telemost: { id: string; joinUrl: string; watchUrl: string | null };
-    try {
-      telemost = await createTelemostConference({ requestId });
-    } catch (e) {
-      await prisma.$transaction(async (tx) => {
-        const cancelled = await tx.consultationBooking.updateMany({
-          where: { id: result.bookingId, status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION },
-          data: { status: ConsultationBookingStatus.CANCELLED_BY_SYSTEM },
-        });
-        if (cancelled.count !== 1) return;
-        await tx.consultationSlot.update({
-          where: { id: input.slotId },
-          data: { status: ConsultationSlotStatus.FREE },
-        });
-      });
-      const failedBooking = await prisma.consultationBooking.findUnique({
-        where: { id: result.bookingId },
-        select: { clientId: true },
-      });
-      if (failedBooking) {
-        await enqueueConsultationEmail(
-          result.bookingId,
-          ConsultationEmailType.CLIENT_BOOKING_TELEMOST_FAILED,
-        );
-        await tryConsultationPush(
-          failedBooking.clientId,
-          "Не удалось оформить консультацию",
-          "Техническая ошибка при создании видеовстречи. Бронь отменена. Оформите запись снова при необходимости.",
-          "/consultations",
-          { bookingId: result.bookingId, kind: "telemost-fail" },
-        );
-      }
-      throw e;
-    }
-
-    await prisma.consultationBooking.update({
-      where: { id: result.bookingId },
-      data: {
-        telemostConferenceId: telemost.id,
-        telemostJoinUrl: telemost.joinUrl,
-        telemostWatchUrl: telemost.watchUrl,
-      },
-    });
+    // A Voximplant room is deterministic for the booking. Credentials and
+    // participant provisioning happen only after confirmed authorization at join.
+    // Booking no longer depends on an external conference API call.
 
     await enqueueConsultationEmail(result.bookingId, ConsultationEmailType.TRAINER_CONFIRM_REQUEST);
     await enqueueConsultationEmail(result.bookingId, ConsultationEmailType.CLIENT_BOOKING_RECEIVED);
@@ -964,8 +921,6 @@ export async function listClientBookings(
     clientProblem: b.clientProblem,
     clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
-    joinUrl: b.telemostJoinUrl,
-    watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
     createdAt: b.createdAt.toISOString(),
   }));
@@ -1038,8 +993,6 @@ export async function listTrainerBookings(
     clientProblem: b.clientProblem,
     clientSelfHelpAttempt: b.clientSelfHelpAttempt,
     cancelReason: b.cancelReason,
-    joinUrl: b.telemostJoinUrl,
-    watchUrl: b.telemostWatchUrl,
     confirmationDeadlineAt: b.confirmationDeadlineAt.toISOString(),
     createdAt: b.createdAt.toISOString(),
   }));

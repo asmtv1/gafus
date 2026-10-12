@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  findMany: vi.fn(), queryRawUnsafe: vi.fn(), update: vi.fn(), settings: vi.fn(), mail: vi.fn(), push: vi.fn(),
+  findMany: vi.fn(), queryRawUnsafe: vi.fn(), updateMany: vi.fn(), settings: vi.fn(), mail: vi.fn(), push: vi.fn(),
 }));
 vi.mock("@gafus/prisma", () => ({ prisma: {
   appSubscriptionSettings: { findUnique: mocks.settings },
-  appSubscription: { findMany: mocks.findMany, update: mocks.update },
+  appSubscription: { findMany: mocks.findMany, updateMany: mocks.updateMany },
   $queryRawUnsafe: mocks.queryRawUnsafe,
 } }));
 vi.mock("@gafus/mailer", () => ({ sendTransactionalMail: mocks.mail }));
-vi.mock("@gafus/webpush", () => ({ sendImmediatePushNotification: mocks.push }));
-vi.mock("@gafus/logger", () => ({ createWorkerLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }));
+vi.mock("@gafus/core/services/notifications", () => ({ sendImmediatePushNotification: mocks.push }));
+vi.mock("@gafus/logger", () => ({ createWorkerLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }), createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }));
 
 import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-renewal-reminders";
 
@@ -26,7 +26,7 @@ beforeEach(() => {
   mocks.findMany.mockResolvedValue([]);
   mocks.mail.mockResolvedValue(undefined);
   mocks.push.mockResolvedValue(undefined);
-  mocks.update.mockResolvedValue({});
+  mocks.updateMany.mockResolvedValue({ count: 1 });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -41,7 +41,7 @@ describe("subscription renewal reminders", () => {
     }));
     expect(mocks.mail.mock.calls[0][0].text).toContain("09.09.2026, 15:00 МСК");
     expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.update).toHaveBeenCalledWith({ where: { id: row.id }, data: { renewalEmailThreeDaysSentForPeriodEnd: periodEnd } });
+    expect(mocks.updateMany).toHaveBeenCalledWith({ where: { id: row.id, currentPeriodEnd: periodEnd }, data: { renewalEmailThreeDaysSentForPeriodEnd: periodEnd } });
   });
 
   it("filters eligible upcoming auto renewals and excludes sent periods before applying batch limit", async () => {
@@ -65,8 +65,8 @@ describe("subscription renewal reminders", () => {
     mocks.findMany.mockResolvedValueOnce([row, { ...row, id: "sub-2" }]);
     mocks.mail.mockRejectedValueOnce(new Error("SMTP unavailable"));
     expect(await sendYookassaAppSubscriptionRenewalReminders()).toEqual({ sent: 1, errors: 1, skipped: 0 });
-    expect(mocks.update).toHaveBeenCalledTimes(1);
-    expect(mocks.update.mock.calls[0][0].where.id).toBe("sub-2");
+    expect(mocks.updateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.updateMany.mock.calls[0][0].where.id).toBe("sub-2");
   });
 
   it("skips missing emails and unknown plans", async () => {
@@ -81,6 +81,6 @@ describe("subscription renewal reminders", () => {
     expect(await sendYookassaAppSubscriptionRenewalReminders()).toMatchObject({ sent: 1 });
     expect(mocks.mail.mock.calls[0][0].text).toContain("Через 2 часа");
     expect(mocks.push).toHaveBeenCalledTimes(1);
-    expect(mocks.update.mock.calls[0][0].data).toEqual({ renewalReminderSentForPeriodEnd: periodEnd });
+    expect(mocks.updateMany.mock.calls[0][0].data).toEqual({ renewalReminderSentForPeriodEnd: periodEnd });
   });
 });

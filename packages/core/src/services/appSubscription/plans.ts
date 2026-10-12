@@ -291,3 +291,18 @@ export function findAppSubscriptionPlanByAppleProductId(
     ) ?? null
   );
 }
+
+/** Renewal terms are snapshotted when the subscription is signed. */
+export function getStoredAppSubscriptionRenewalPlan(subscription: {
+  planCode: unknown;
+  renewalPriceRub?: unknown;
+  renewalIntervalDays?: number | null;
+  renewalCurrency?: string | null;
+}): { code: AppSubscriptionPlanCode; intervalDays: number; currency: "RUB"; yookassaPriceRub: number } | null {
+  const code = normalizeAppSubscriptionPlanCode(subscription.planCode);
+  const price = Number(subscription.renewalPriceRub);
+  const days = subscription.renewalIntervalDays;
+  if (!code || !Number.isFinite(price) || price <= 0 || !days
+    || !Number.isInteger(days) || days <= 0 || subscription.renewalCurrency !== "RUB") return null;
+  return { code, yookassaPriceRub: price, intervalDays: days, currency: "RUB" };
+}

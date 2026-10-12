@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, develop]
 
+# CI for different refs may run independently; all main deployments serialize.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && 'gafus-production-deploy' || format('gafus-workflow-{0}', github.ref) }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: asmtv1
@@ -110,6 +115,20 @@ jobs:
   security:
     runs-on: ubuntu-latest
     needs: prepare-deps
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gafus_ci
+          POSTGRES_PASSWORD: gafus_ci_disposable
+          POSTGRES_DB: gafus_fresh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gafus_ci -d gafus_fresh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -156,10 +175,39 @@ jobs:
       - name: Run security audit
         run: pnpm audit --audit-level high || echo "Security audit found issues, but continuing build"
 
-      - name: Run ESLint
+      - name: Run Web ESLint (blocking)
+        run: pnpm --filter @gafus/web lint
+
+      - name: Enforce core ownership of Prisma access
+        run: node scripts/check-app-prisma-boundary.mjs
+
+      - name: Guard Worker Prisma boundary
+        run: node scripts/check-worker-prisma-boundary.mjs
+
+      - name: Guard empty PostgreSQL bootstrap SQL against migration drift
+        run: python3 packages/prisma/scripts/generate-fresh-db-extras.py --check
+
+      - name: Bootstrap clean PostgreSQL with historical constraints
+        env:
+          DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@localhost:5432/gafus_fresh
         run: |
-          cd apps/web
-          pnpm lint || echo "ESLint failed, but continuing build"
+          bash packages/prisma/scripts/bootstrap-fresh-postgres.sh
+          checks=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_constraint WHERE contype='c' AND connamespace='public'::regnamespace")
+          triggers=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal")
+          partial_indexes=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexdef ILIKE '% WHERE %'")
+          test "$checks" -ge 54
+          test "$triggers" -ge 5
+          test "$partial_indexes" -ge 2
+          pnpm --filter @gafus/prisma exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel schema.prisma --exit-code
+
+      - name: Guard legacy domain adapters against direct Prisma
+        run: node scripts/check-domain-package-prisma-boundary.mjs
+
+      - name: Check workspace dependency cycles
+        run: node scripts/check-workspace-graph.mjs
+
+      - name: Guard Mobile against core server imports
+        run: node scripts/check-mobile-core-boundary.mjs
 
       - name: Check for secrets
         uses: trufflesecurity/trufflehog@main
@@ -233,6 +281,19 @@ jobs:
             pnpm turbo run build test typecheck --filter='./apps/*...[origin/main]'
           fi
 
+      - name: Mobile typecheck and unit tests (blocking)
+        run: |
+          pnpm --filter @gafus/mobile typecheck
+          pnpm --filter @gafus/mobile test
+
+      - name: Mobile Android/iOS Metro export (blocking, no publishing)
+        env:
+          NODE_ENV: production
+          EXPO_OFFLINE: "1"
+        run: |
+          pnpm --filter @gafus/mobile exec expo export --platform android --output-dir "$RUNNER_TEMP/gafus-metro-android"
+          pnpm --filter @gafus/mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/gafus-metro-ios"
+
       - name: Cache app build
         uses: actions/cache@v5
         with:
@@ -246,7 +307,7 @@ jobs:
             ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
 
   # Build worker packages for Docker - REMOVED (using multi-stage build)
-  # Mobile app (apps/mobile) не включён в CI - это Expo приложение для локальной разработки
+  # Mobile: typecheck и unit-тесты проходят в build-apps; native Expo-сборки выполняются отдельно.
 
   # Prepare Docker build context
   prepare-docker:
@@ -341,6 +402,122 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
             NEXT_PUBLIC_YM_COUNTER_ID=${{ matrix.image.name == 'web' && secrets.NEXT_PUBLIC_YM_COUNTER_ID || '' }}
 
+  cloudru-media-contracts:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Offline Cloud.ru media acceptance and production release safety tests
+        run: pnpm test:cloudru-media
+      - name: Cloud.ru scheduled processing contract
+        run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
+
+  # Four immutable, revision-tagged images are required before any production changes.
+  cloudru-build-media-images:
+    needs: [security, build-apps, cloudru-media-contracts]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
+          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
+          - { media: gallery, role: worker, dockerfile: Dockerfile }
+          - { media: feed, role: worker, dockerfile: Dockerfile }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Authorize private Cloud.ru Registry
+        uses: docker/login-action@v3
+        with:
+          registry: gafus.cr.cloud.ru
+          username: ${{ secrets.CLOUDRU_KEY_ID }}
+          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      - name: Publish Cloud.ru production revision
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.media }}-cloud/${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          tags: gafus.cr.cloud.ru/gafus-${{ matrix.media }}-${{ matrix.role }}:${{ github.sha }}
+          push: true
+          provenance: true
+
+  # Fail BEFORE touching production if S3 credentials, OCI images, Yandex CDN signer,
+  # protected origin and 3 job definitions cannot be verified.
+  cloudru-prepare-media:
+    needs: [cloudru-build-media-images]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 22
+    env:
+      GITHUB_EVENT_NAME: push
+      CLOUDRU_PROD_DEPLOY_CONFIRM: preapproved-main-only-media-release
+      CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only
+      CLOUDRU_CDN_RELEASE_CONFIRM: reviewed-main-cloudru-cdn-cutover
+      CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+      CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+      CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
+      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
+      GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
+      FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
+      YC_CDN_FOLDER_ID: b1gjbsvfnd1fl68k43g6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install cloud storage tooling from lockfile
+        run: pnpm install --frozen-lockfile
+      - uses: docker/login-action@v3
+        with:
+          registry: gafus.cr.cloud.ru
+          username: ${{ secrets.CLOUDRU_KEY_ID }}
+          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      - name: Confirm guarded OCI release plan
+        run: node infra/cloudru/production-media-release.mjs --plan
+      - name: Install Yandex Cloud CLI for CDN read-only preflight
+        run: |
+          curl --fail --location --silent --show-error https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$RUNNER_TEMP/yc-bin" -n
+          echo "$RUNNER_TEMP/yc-bin/bin" >> "$GITHUB_PATH"
+      - name: Authorize CDN read-only preflight
+        env:
+          YC_CDN_SA_KEY: ${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$YC_CDN_SA_KEY"
+          (umask 077; printf '%s' "$YC_CDN_SA_KEY" > "$RUNNER_TEMP/yc-cdn-sa.json")
+          yc config set service-account-key "$RUNNER_TEMP/yc-cdn-sa.json"
+      - name: Block production deploy if CDN signature/header/TLS is unverified
+        run: node infra/cloudru/production-cdn-release.mjs --preflight
+      - name: Confirm all three private Cloud.ru S3 buckets can read, write and delete
+        run: node infra/cloudru/production-s3-preflight.mjs --verify
+      - name: Provision and warm Cloud.ru protected Origins and bounded processing Jobs
+        run: node infra/cloudru/production-media-release.mjs --prepare
+      - name: Precreate safe Yandex CDN origin groups without switching any user traffic
+        run: node infra/cloudru/production-cdn-release.mjs --prepare
+
   # Deploy to staging (develop branch)
   # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
   deploy-staging:
@@ -353,7 +530,7 @@ jobs:
 
   # Deploy to production (main branch)
   deploy-production:
-    needs: [security, build-apps, build-images]
+    needs: [security, build-apps, build-images, cloudru-prepare-media]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -376,17 +553,74 @@ jobs:
 
             DEPLOY_ROOT="/root/gafus"
             COMPOSE_PROD="$DEPLOY_ROOT/ci-cd/docker/docker-compose.prod.yml"
-            compose_down() {
-              if [ -f "$COMPOSE_PROD" ]; then
-                docker-compose -f "$COMPOSE_PROD" down --timeout 30 || true
-              else
-                echo "⚠️ compose file отсутствует, пропуск docker-compose down"
+            RELEASE_BACKUP_DIR="/root/gafus-release-backups/${{ github.run_id }}-${{ github.run_attempt }}"
+            APP_MUTATED=false
+            CUTOVER_SCRIPT="$DEPLOY_ROOT/ci-cd/scripts/production-schema-cutover.sh"
+            MAINTENANCE_GATE="$DEPLOY_ROOT/ci-cd/nginx/conf.d/.release-maintenance"
+            restore_previous_runtime() {
+              rc="$1"
+              if [ "$rc" -eq 0 ]; then return 0; fi
+              trap - EXIT INT TERM
+              echo "Deployment failed ($rc). Checking whether schema mutation has begun."
+              if [ -f "$RELEASE_BACKUP_DIR/migration-started" ]; then
+                # Some Prisma migrations may already be committed. Restoring an
+                # older image against a newer DB is unsafe (Telemost columns gone).
+                # Keep Nginx serving 503 for a controlled, manual recovery.
+                touch "$MAINTENANCE_GATE"
+                echo "SCHEMA_MIGRATION_STARTED: retaining maintenance mode."
+                echo "DO NOT automatically restore old Docker images or old Prisma schema."
+                echo "Database backup: $RELEASE_BACKUP_DIR/database-backup-path"
+                echo "Investigate migration status and repair forward or perform a verified DB restore."
+                return 0
               fi
+              if [ "$APP_MUTATED" != "true" ]; then
+                echo "Existing application containers have not been replaced."
+                return 0
+              fi
+              set +e
+              if [ -s "$RELEASE_BACKUP_DIR/previous.sha" ]; then
+                git -C "$DEPLOY_ROOT" reset --hard "$(cat "$RELEASE_BACKUP_DIR/previous.sha")" > /dev/null ||
+                  echo "ROLLBACK_GIT_RESTORE_FAILED"
+              fi
+              if [ -s "$RELEASE_BACKUP_DIR/previous.env" ]; then
+                cp "$RELEASE_BACKUP_DIR/previous.env" "$DEPLOY_ROOT/ci-cd/docker/.env"
+                chmod 600 "$DEPLOY_ROOT/ci-cd/docker/.env"
+              fi
+              if [ -s "$RELEASE_BACKUP_DIR/images.tsv" ]; then
+                while IFS=' ' read -r reference rollback; do
+                  docker tag "$rollback" "$reference" || echo "ROLLBACK_IMAGE_TAG_FAILED"
+                done < "$RELEASE_BACKUP_DIR/images.tsv"
+              fi
+              # Keep the already-running nginx maintenance gate active until
+              # all OLD app containers are actually healthy again.
+              if docker-compose -f "$COMPOSE_PROD" up -d --no-deps --force-recreate worker api web trainer-panel admin-panel bull-board; then
+                old_healthy=true
+                for app in worker api web trainer-panel admin-panel bull-board; do
+                  app_ready=false
+                  for attempt in $(seq 1 30); do
+                    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{if .State.Running}}running{{else}}stopped{{end}}{{end}}' "gafus-$app" 2>/dev/null || true)"
+                    if [ "$health" = healthy ] || [ "$health" = running ]; then app_ready=true; break; fi
+                    sleep 3
+                  done
+                  if [ "$app_ready" != true ]; then old_healthy=false; break; fi
+                done
+                if [ "$old_healthy" = true ]; then
+                  # Restored nginx may no longer contain the maintenance guard.
+                  # Recreate it only AFTER all restored upstreams are healthy.
+                  rm -f "$MAINTENANCE_GATE"
+                  docker-compose -f "$COMPOSE_PROD" up -d --no-deps --force-recreate nginx ||
+                    echo "ROLLBACK_NGINX_RESTART_FAILED: manually restore HTTPS."
+                  echo "Old runtime restored BEFORE any migration."
+                else
+                  echo "OLD_RUNTIME_UNHEALTHY: maintenance retained for manual recovery."
+                fi
+              else
+                echo "ROLLBACK_RUNTIME_RESTART_FAILED: maintenance retained for manual recovery."
+              fi
+              return 0
             }
-
-            # trap только с абсолютным путём (раньше login шёл до cd — относительный путь ломал cleanup)
-            trap 'echo "❌ Deployment failed, cleaning up..."; compose_down; exit 1' ERR
-            trap 'echo "🛑 Deployment interrupted, cleaning up..."; compose_down; exit 1' INT TERM
+            trap 'restore_previous_runtime $?' EXIT
+            trap 'exit 130' INT TERM
 
             # Log deployment start
             echo "📅 Deployment started at: $(date)"
@@ -432,6 +666,16 @@ jobs:
             # Ensure we have the correct remote
             git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/asmtv1/gafus.git
 
+            mkdir -p "$RELEASE_BACKUP_DIR"
+            chmod 700 "$RELEASE_BACKUP_DIR"
+            if [ -d "$DEPLOY_ROOT/.git" ]; then
+              git -C "$DEPLOY_ROOT" rev-parse HEAD > "$RELEASE_BACKUP_DIR/previous.sha"
+            fi
+            if [ -f "$DEPLOY_ROOT/ci-cd/docker/.env" ]; then
+              cp "$DEPLOY_ROOT/ci-cd/docker/.env" "$RELEASE_BACKUP_DIR/previous.env"
+              chmod 600 "$RELEASE_BACKUP_DIR/previous.env"
+            fi
+
             # Pull latest changes (force update to avoid conflicts) — до GHCR login, чтобы trap видел compose
             echo "🔄 Updating repository..."
             if ! git fetch origin; then
@@ -472,6 +716,16 @@ jobs:
               exit 1
             fi
 
+            # All 8 Vox values must exist before changing the running deployment.
+            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_NAME"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_NAME"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_KEY_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_KEY_ID"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_PRIVATE_KEY_BASE64"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
+            if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
+
             # Create .env file from GitHub Secrets
             echo "🔐 Creating .env file from GitHub Secrets..."
             {
@@ -511,17 +765,45 @@ jobs:
               echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
               echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
               echo "# Gallery DEV settings (compose flag true staged, deployment gated)"
-              echo "GALLERY_DEV_WEB_S3_ACCESS_KEY_ID=${{ secrets.GALLERY_S3_ACCESS_KEY_ID }}"
-              echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.GALLERY_S3_SECRET_ACCESS_KEY }}"
+              echo "GALLERY_DEV_WEB_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
+              echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
               echo "GALLERY_DEV_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
               echo "GALLERY_DEV_INTERNAL_HMAC_SECRET=${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}"
+              echo "GALLERY_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
+              echo "GALLERY_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
+              echo "GALLERY_BUCKET=gafus-gallery-private"
+              echo "GALLERY_S3_ENDPOINT=https://s3.cloud.ru"
+              echo "GALLERY_CDN_BASE_URL=https://gallery-dev.gafus.ru"
+              echo "GALLERY_CDN_EDGE_TOKEN_VERIFIED=true"
+              echo "GALLERY_PROCESSOR_READY=true"
+              echo "GALLERY_MEDIA_FALLBACK_ENABLED=true"
+              echo "GALLERY_CDN_RESOURCE_IDS=bc8rorv3vgbgax3xesyn"
+              echo "FEED_BUCKET=gafus-feed-private"
+              echo "FEED_S3_ENDPOINT=https://s3.cloud.ru"
+              echo "FEED_CDN_BASE_URL=https://feed.gafus.ru"
+              echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
+              echo "FEED_MEDIA_FALLBACK_ENABLED=true"
+              echo "FEED_CDN_RESOURCE_IDS=bc8ru2x6mcqxwcl6a7vj"
+              echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
+              echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
+              echo "CLOUDRU_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
+              echo "CLOUDRU_USER_MEDIA_ENABLED=true"
+              echo "CLOUDRU_DOCUMENTS_BUCKET=gafus-documents-private"
+              echo "CLOUDRU_QUESTIONS_BUCKET=gafus-documents-private"
+              echo "CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=disabled"
+              echo "CLOUDRU_QUESTIONS_BUCKET_VERSIONING=disabled"
+              echo "CLOUDRU_MEDIA_JOBS_ENABLED=true"
+              echo "CLOUDRU_PROJECT_ID=${{ secrets.CLOUDRU_PROJECT_ID }}"
+              echo "CLOUDRU_KEY_ID=${{ secrets.CLOUDRU_KEY_ID }}"
+              echo "CLOUDRU_KEY_SECRET=${{ secrets.CLOUDRU_KEY_SECRET }}"
+              echo "CDN_CLEANUP_SERVICE_ACCOUNT_KEY=${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}"
               echo "# Feed production settings; activation is an explicit environment variable"
-              echo "FEED_S3_ACCESS_KEY_ID=${{ secrets.FEED_S3_ACCESS_KEY_ID }}"
-              echo "FEED_S3_SECRET_ACCESS_KEY=${{ secrets.FEED_S3_SECRET_ACCESS_KEY }}"
+              echo "FEED_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
+              echo "FEED_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
               echo "FEED_CDN_SECRET=${{ secrets.FEED_CDN_SECRET }}"
               echo "FEED_INTERNAL_HMAC_SECRET=${{ secrets.FEED_INTERNAL_HMAC_SECRET }}"
-              echo "FEED_ENABLED=${{ vars.FEED_ENABLED || 'false' }}"
-              echo "FEED_PROCESSOR_READY=${{ vars.FEED_PROCESSOR_READY || 'false' }}"
+              echo "FEED_ENABLED=true"
+              echo "FEED_PROCESSOR_READY=true"
               echo "FEED_SMART_ENABLED=${{ vars.FEED_SMART_ENABLED || 'true' }}"
               echo "FEED_SMART_STATS_ENABLED=${{ vars.FEED_SMART_STATS_ENABLED || 'true' }}"
               echo "FEED_SMART_DIAGNOSTICS=${{ vars.FEED_SMART_DIAGNOSTICS || 'true' }}"
@@ -540,9 +822,15 @@ jobs:
               echo "FEED_MAINTENANCE_ENABLED=${{ vars.FEED_MAINTENANCE_ENABLED || 'false' }}"
               echo "FEED_PUSH_ENABLED=${{ vars.FEED_PUSH_ENABLED || 'false' }}"
               echo ""
-              echo "# Яндекс Телемост (консультации; base — Variables, token — Secrets)"
-              echo "YANDEX_TELEMOST_API_BASE_URL=${{ vars.YANDEX_TELEMOST_API_BASE_URL || 'https://cloud-api.yandex.net/v1' }}"
-              echo "YANDEX_TELEMOST_OAUTH_TOKEN=${{ secrets.YANDEX_TELEMOST_OAUTH_TOKEN }}"
+              echo "# Voximplant (server-only consultation credentials from GitHub Environment Secrets)"
+              echo "VOXIMPLANT_ACCOUNT_ID=${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
+              echo "VOXIMPLANT_APPLICATION_ID=${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
+              echo "VOXIMPLANT_ACCOUNT_NAME=${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
+              echo "VOXIMPLANT_APPLICATION_NAME=${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
+              echo "VOXIMPLANT_KEY_ID=${{ secrets.VOXIMPLANT_KEY_ID }}"
+              echo "VOXIMPLANT_PRIVATE_KEY_BASE64=${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
+              echo "VOXIMPLANT_CREDENTIAL_SECRET=${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
+              echo "VOXIMPLANT_ADMISSION_SECRET=${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
               echo ""
               echo "# Защита видео (HLS)"
               echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
@@ -646,6 +934,19 @@ jobs:
               "gafus-prisma"
             )
 
+            : > "$RELEASE_BACKUP_DIR/images.tsv"
+            for image in "${images[@]}"; do
+              reference="ghcr.io/asmtv1/$image:latest"
+              previous_id="$(docker image inspect "$reference" --format '{{.Id}}' 2>/dev/null || true)"
+              if [ -z "$previous_id" ]; then
+                echo "Cannot guarantee automatic image rollback: $image is missing."
+                exit 1
+              fi
+              rollback="ghcr.io/asmtv1/$image:rollback-${{ github.run_id }}-${{ github.run_attempt }}"
+              docker tag "$previous_id" "$rollback"
+              echo "$reference $rollback" >> "$RELEASE_BACKUP_DIR/images.tsv"
+            done
+
             pull_image() {
               local image="$1"
               local reference="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$image:latest"
@@ -686,38 +987,36 @@ jobs:
             echo "🚀 Starting infrastructure services..."
 
             # 1. Start core infrastructure (database, redis)
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate postgres redis
+            docker-compose -f "$COMPOSE_PROD" up -d postgres redis
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 
-            # Verify a fresh local rollback backup before any schema changes.
-            mkdir -p /root/gafus/backups/feed
-            chmod 700 /root/gafus/backups/feed
-            FEED_BACKUP_FILE="/root/gafus/backups/feed/before-deploy-$(date -u +%Y%m%dT%H%M%SZ).dump"
-            (umask 077; docker exec gafus-postgres pg_dump -U gafus -d gafus -Fc > "$FEED_BACKUP_FILE")
-            test -s "$FEED_BACKUP_FILE"
-            docker exec -i gafus-postgres pg_restore --list < "$FEED_BACKUP_FILE" > /dev/null
-            echo "Database rollback backup verified."
+            # Coordinated schema cutover. HTTPS returns 503 before we stop app
+            # writers. Snapshot is taken with writers stopped; Prisma runs
+            # with NO old web/api/trainer/worker process remaining.
+            # Failure AFTER any Prisma invocation leaves maintenance enabled:
+            # automatically restoring old images against a new schema is unsafe.
+            APP_MUTATED=true
+            bash "$CUTOVER_SCRIPT" prepare
+            bash "$CUTOVER_SCRIPT" migrate
+            bash "$CUTOVER_SCRIPT" start
 
-            # 2. Apply database migrations before starting application containers.
-            # The Prisma service is a utility container; migrations must block deploy.
-            echo "🗄️ Applying Prisma migrations..."
-            docker-compose -f "$COMPOSE_PROD" run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
+            # Recreate reverse proxy only after new backend containers are
+            # healthy; its bound maintenance lock continues to serve HTTP 503.
+            docker-compose -f "$COMPOSE_PROD" up -d --no-deps --force-recreate nginx
 
-            # 3. Start application services
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate worker api
-            echo "⏳ Waiting for application services to be ready..."
-            sleep 10
+            # Monitoring has no consultation schema dependency.
+            docker-compose -f "$COMPOSE_PROD" up -d --no-deps --force-recreate \
+              grafana-alloy yandex-metrics-sync node-exporter postgres-exporter redis-exporter blackbox-exporter
 
-            # 4. Start web services
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate web trainer-panel admin-panel
-            echo "⏳ Waiting for web services to be ready..."
-            sleep 10
-
-            # 5. Start bull-board (critical for nginx)
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate bull-board
-            echo "⏳ Waiting for bull-board to be ready..."
-            sleep 15
+            # Keep the HTTPS configuration and the maintenance gate active.
+            # Do not temporarily replace HTTPS with an HTTP-only config while
+            # migrating user data. Standard webroot renewal is non-disruptive.
+            docker-compose -f "$COMPOSE_PROD" run --rm --no-deps certbot renew \
+              --webroot --webroot-path=/var/www/certbot --non-interactive ||
+              echo "Certificate renewal deferred; existing HTTPS remains active."
+            docker exec gafus-nginx nginx -t
+            docker exec gafus-nginx nginx -s reload
 
             # Environment Validation - best practice: verify critical environment variables
             echo "🔍 Validating environment variables..."
@@ -737,50 +1036,14 @@ jobs:
                 # Don't exit - let the service try to start
             fi
 
-            # 5. Start nginx last (depends on all upstreams)
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate nginx
-            echo "⏳ Waiting for nginx to be ready..."
-            sleep 10
-
-            # 6. Start monitoring and logging services
-            echo "📊 Starting monitoring and logging services..."
-            docker-compose -f "$COMPOSE_PROD" up -d --force-recreate \
-              grafana-alloy yandex-metrics-sync node-exporter postgres-exporter redis-exporter blackbox-exporter
-            echo "⏳ Waiting for monitoring services to be ready..."
-            sleep 10
-
-            # SSL Certificate Management - best practice: automatic certificate generation
-            echo "🔐 Setting up SSL certificates..."
-
-            # Use HTTP-only config for SSL certificate generation
-            echo "📋 Switching to HTTP-only config for SSL certificate generation..."
-            cp ci-cd/nginx/templates/gafus.ru.http-only.conf ci-cd/nginx/conf.d/gafus.ru.conf
-
-            # Restart nginx with HTTP-only config
-            docker-compose -f "$COMPOSE_PROD" restart nginx
-            echo "⏳ Waiting for nginx to restart with HTTP-only config..."
-            sleep 10
-
-            # Generate SSL certificates using HTTP-only config
-            echo "🔐 Generating SSL certificates..."
-            docker-compose -f "$COMPOSE_PROD" run --rm certbot certonly \
-                --webroot --webroot-path=/var/www/certbot \
-                --non-interactive --keep-until-expiring \
-                --email admin@gafus.ru --agree-tos --no-eff-email \
-                -d gafus.ru -d www.gafus.ru -d api.gafus.ru \
-                -d trainer-panel.gafus.ru -d monitor.gafus.ru -d adminka.gafus.ru -d queues.gafus.ru || true
-
-            # Switch back to HTTPS config
-            echo "🔄 Switching back to HTTPS config..."
-            git checkout ci-cd/nginx/conf.d/gafus.ru.conf
-
-            # Restart nginx with HTTPS config
-            docker-compose -f "$COMPOSE_PROD" restart nginx
-            echo "⏳ Waiting for nginx to be ready with SSL..."
-            sleep 15
-
             # Database seeds are run manually when needed
             # docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T prisma pnpm run db:seed || echo "Seeds failed or not available, continuing..."
+
+            # Verify all replacement containers while traffic remains gated.
+            bash "$CUTOVER_SCRIPT" verify
+            # The gate opens only now: no old process can observe the
+            # incompatible Prisma schema after the swap.
+            bash "$CUTOVER_SCRIPT" open
 
             # A responding homepage/ping alone does not prove auth or worker readiness.
             echo "🏥 Checking production readiness..."
@@ -813,8 +1076,89 @@ jobs:
             fi
             echo "🎉 Deployment completed and readiness checks passed!"
 
-            # Final cleanup
-            docker image prune -f
-            docker system prune -f
+            # Keep previous image tags for forensic recovery only: after a
+            # destructive Prisma migration, an image-only rollback is unsafe.
+            echo "Previous image tags preserved; schema-aware rollback guard active."
 
+  # Last step of the SAME main workflow: users see Cloud.ru media only after
+  # Docker+Prisma+Web/API health and fully signed CDN end-to-end checks.
+  cloudru-activate-cdn:
+    needs: [cloudru-prepare-media, deploy-production]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 38
+    env:
+      GITHUB_EVENT_NAME: push
+      CLOUDRU_CDN_RELEASE_CONFIRM: reviewed-main-cloudru-cdn-cutover
+      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
+      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
+      YC_CDN_FOLDER_ID: b1gjbsvfnd1fl68k43g6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install locked S3 SDK dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl --fail --silent --show-error --location https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$RUNNER_TEMP/yc-bin" -n
+          echo "$RUNNER_TEMP/yc-bin/bin" >> "$GITHUB_PATH"
+      - name: Authenticate CDN writer without putting keys into logs
+        env:
+          YC_CDN_SA_KEY: ${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$YC_CDN_SA_KEY"
+          (umask 077; printf '%s' "$YC_CDN_SA_KEY" > "$RUNNER_TEMP/yc-cdn-sa.json")
+          yc config set service-account-key "$RUNNER_TEMP/yc-cdn-sa.json"
+      - name: Revalidate both CDN signatures, TLS and origin secrets
+        run: node infra/cloudru/production-cdn-release.mjs --preflight
+      - name: Switch Yandex CDN to warm Cloud.ru origins and verify real signed hits
+        run: node infra/cloudru/production-cdn-release.mjs --activate
+      - name: Restore previous application if CDN cutover fails
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            DIR="/root/gafus-release-backups/${{ github.run_id }}-${{ github.run_attempt }}"
+            test -s "$DIR/previous.sha"
+            test -s "$DIR/previous.env"
+            test -s "$DIR/images.tsv"
+            # Prisma schema migration is already committed and may have removed
+            # Telemost columns. An OLD app cannot safely be redeployed merely
+            # because a CDN cutover failed; keep new compatible containers.
+            if [ -f "$DIR/migration-started" ]; then
+              echo "CDN rollback of old application SKIPPED: schema already migrated."
+              echo "Keep compatible app images; repair CDN/origin independently."
+              exit 0
+            fi
+            cd /root/gafus
+            git reset --hard "$(cat "$DIR/previous.sha")"
+            cp "$DIR/previous.env" ci-cd/docker/.env
+            chmod 600 ci-cd/docker/.env
+            while IFS=' ' read -r reference rollback; do
+              docker tag "$rollback" "$reference"
+            done < "$DIR/images.tsv"
+            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate worker api web trainer-panel admin-panel bull-board nginx
+            for endpoint in https://gafus.ru/api/ping https://api.gafus.ru/ready; do
+              curl --fail --silent --show-error --retry 6 --retry-delay 5 --max-time 10 "$endpoint" > /dev/null
+            done
+            echo "PREVIOUS_GAFUS_APP_RUNTIME_RESTORED=true"
   # Health check removed - will be handled by separate monitoring workflow

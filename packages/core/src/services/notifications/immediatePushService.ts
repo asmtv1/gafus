@@ -5,9 +5,9 @@
 
 import { prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
-import { createWorkerLogger } from "@gafus/logger";
+import { createWebLogger } from "@gafus/logger";
 
-const logger = createWorkerLogger("immediate-push");
+const logger = createWebLogger("core-immediate-push");
 
 export interface ImmediatePushOptions {
   userId: string;

@@ -6,10 +6,8 @@ const { prismaQueryRawMock, redisPingMock } = vi.hoisted(() => ({
   redisPingMock: vi.fn(),
 }));
 
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    $queryRaw: prismaQueryRawMock,
-  },
+vi.mock("@gafus/core/services/systemHealth", () => ({
+  checkCoreDatabaseReady: prismaQueryRawMock,
 }));
 
 vi.mock("@gafus/queues", () => ({

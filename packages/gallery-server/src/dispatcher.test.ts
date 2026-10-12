@@ -35,6 +35,20 @@ describe("gallery HTTP dispatch", () => {
     expect(calls[2]?.[2]).toMatchObject({ username: "gallery_qa_owner", cursor: "cursor-token", pageSize: 20 });
   });
 
+  it("does not expose Cloud.ru URL or authorize arbitrary paths when fallback disabled", async () => {
+    const { gallery, calls } = fakeGallery();
+    vi.stubEnv("GALLERY_MEDIA_FALLBACK_ENABLED", "false");
+    const invoke = (body: string) => dispatchGalleryRequest("actor", new Request("https://x/photos/p1/fallback", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body,
+    }), "/photos/p1/fallback", gallery);
+    await expect(invoke(JSON.stringify({ variant: "full" }))).rejects.toMatchObject({ status: 404 });
+    expect(calls).toHaveLength(0);
+    vi.stubEnv("GALLERY_MEDIA_FALLBACK_ENABLED", "true");
+    await expect(invoke(JSON.stringify({ variant: "full", key: "private/other" })))
+      .rejects.toMatchObject({ status: 400 });
+    expect(calls).toHaveLength(0);
+    vi.unstubAllEnvs();
+  });
   it("rejects unsupported methods, unknown paths, malformed identifiers, and oversized JSON", async () => {
     const { gallery } = fakeGallery();
     const methodError = await dispatchGalleryRequest("actor", new Request("https://x/albums", { method: "OPTIONS" }), "/albums", gallery).catch(galleryHttpError);
@@ -78,6 +92,35 @@ describe("gallery HTTP dispatch", () => {
     expect(error.status).toBe(403);
     expect(error.body.code).toBe("FORBIDDEN");
     expect(error.body.error).toBe("forbidden");
+  });
+});
+
+describe("gallery S3 fallback auth boundary", () => {
+  it("rejects fallback when rollout is off, without querying user media", async () => {
+    vi.stubEnv("GALLERY_MEDIA_FALLBACK_ENABLED", "false");
+    const gallery = { fallbackSource: vi.fn() } as unknown as GalleryService;
+    const req = new Request("https://gafus.test/api/v1/gallery/photos/photo123/fallback", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ variant: "full" }),
+    });
+    await expect(dispatchGalleryRequest("viewer", req, "/photos/photo123/fallback", gallery))
+      .rejects.toMatchObject({ status: 404 });
+    expect(gallery.fallbackSource).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+  it("rejects invalid variants before authorization and never signs denied media", async () => {
+    vi.stubEnv("GALLERY_MEDIA_FALLBACK_ENABLED", "true");
+    const gallery = { fallbackSource: vi.fn(async () => { throw new Error("MEDIA_NOT_VISIBLE"); }) } as unknown as GalleryService;
+    const request = (body: unknown) => new Request("https://gafus.test/api/v1/gallery/photos/photo123/fallback", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    });
+    await expect(dispatchGalleryRequest("viewer", request({ variant: "source" }), "/photos/photo123/fallback", gallery))
+      .rejects.toMatchObject({ status: 400 });
+    expect(gallery.fallbackSource).not.toHaveBeenCalled();
+    await expect(dispatchGalleryRequest("viewer", request({ variant: "full" }), "/photos/photo123/fallback", gallery))
+      .rejects.toThrow("MEDIA_NOT_VISIBLE");
+    expect(gallery.fallbackSource).toHaveBeenCalledWith("viewer", "photo123", "full");
+    vi.unstubAllEnvs();
   });
 });
 

@@ -1,7 +1,11 @@
 import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getServerSession } from "next-auth";
-import { prisma } from "@gafus/prisma";
+import {
+  saveTrainerAIExchange, getTrainerAIConfigForStream,
+  resolveTrainerAIStreamModel, normalizeTrainerAIStreamMessages,
+  trainerAIModelSupportsImages, TrainerAIStreamValidationError,
+} from "@gafus/core";
 import { authOptions } from "@gafus/auth";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { decryptApiKey } from "@/features/ai-chat/lib/encryption";
@@ -40,65 +44,20 @@ export async function POST(req: Request) {
     }
 
     const { messages, model: selectedModel } = await req.json();
-    
-    // Очищаем experimental_attachments из старых сообщений (они уже сохранены в БД)
-    // Оставляем attachments только в последнем сообщении, если они есть и содержат url
-    const processedMessages = messages.map((msg: any, index: number) => {
-      const isLastMessage = index === messages.length - 1;
-      // Для последнего сообщения проверяем, что attachments имеют url
-      if (isLastMessage && msg.experimental_attachments) {
-        // Фильтруем attachments, оставляя только те, у которых есть url
-        const validAttachments = msg.experimental_attachments.filter((att: any) => att.url);
-        if (validAttachments.length > 0) {
-          return { ...msg, experimental_attachments: validAttachments };
-        }
-        // Если нет валидных attachments, убираем их
-        const { experimental_attachments, ...rest } = msg;
-        return rest;
-      }
-      // Для старых сообщений убираем attachments (они уже в БД)
-      if (!isLastMessage && msg.experimental_attachments) {
-        const { experimental_attachments, ...rest } = msg;
-        return rest;
-      }
-      return msg;
-    });
-    
-    // Логируем информацию о вложениях
-    const lastMessage = processedMessages?.[processedMessages.length - 1];
-    const hasAttachments = lastMessage?.experimental_attachments?.length > 0;
-    const attachmentsInfo = hasAttachments ? lastMessage.experimental_attachments.map((att: any) => ({
-      name: att.name,
-      contentType: att.contentType,
-      urlLength: att.url?.length || 0,
-      urlPreview: att.url?.substring(0, 50) || "no url",
-    })) : [];
-    
-    // Проверяем, что все вложения - изображения
-    if (hasAttachments) {
-      const nonImageAttachments = attachmentsInfo.filter((att: any) => !att.contentType?.startsWith("image/"));
-      if (nonImageAttachments.length > 0) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Разрешены только изображения. Файлы, которые не являются изображениями, не поддерживаются." 
-          }),
-          { 
-            status: 400,
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders,
-            }
-          }
-        );
-      }
-    }
-    
+    const processedMessages = normalizeTrainerAIStreamMessages(messages);
+    const lastMessage = processedMessages[processedMessages.length - 1];
+    const lastAttachments = "experimental_attachments" in lastMessage
+      ? lastMessage.experimental_attachments as Record<string, unknown>[]
+      : [];
+    const hasAttachments = lastAttachments.length > 0;
+    const attachmentsInfo = lastAttachments.map(attachment => ({
+      name: attachment.name, contentType: attachment.contentType, size: attachment.size,
+    }));
+
     const trainerId = session.user.id;
 
     // 1. Получаем конфигурацию
-    const config = await prisma.trainerAIConfig.findUnique({
-      where: { trainerId },
-    });
+    const config = await getTrainerAIConfigForStream(trainerId);
 
     const hasCommonApiKey = !!process.env.OPENROUTER_API_KEY;
     const isEnabled = config ? config.enabled : true;
@@ -130,66 +89,19 @@ export async function POST(req: Request) {
       apiKey,
     });
 
-    const useModel = selectedModel || config?.model || "meta-llama/llama-3.3-70b-instruct";
-    
-    // Проверяем, поддерживает ли модель изображения
-    // Список моделей с поддержкой vision
-    const visionModels = [
-      "gpt-4-vision",
-      "gpt-4o",
-      "gpt-4-turbo",
-      "claude-3",
-      "claude-3.5",
-      "claude-3-opus",
-      "llama-3.2-vision",
-      "llama-3.3-vision",
-      "gemini-pro-vision",
-      "gemini-1.5",
-      "gemini-2.0-flash", // Gemini 2.0 Flash поддерживает vision
-      "qwen-2.5-vl", // Qwen2.5-VL (Vision-Language)
-      "qwen-2-vl", // Qwen2-VL
-      "nemotron-nano", // Nemotron Nano с VL в названии
-    ];
-    const supportsVision = visionModels.some(vm => useModel.toLowerCase().includes(vm.toLowerCase()));
-    
-    // Модели без поддержки vision
-    const nonVisionModels = [
-      "llama", // Все модели Llama без vision в названии
-      "deepseek-r1",
-      "deepseek-chat",
-      "mistral",
-      "mixtral",
-      "gemma", // Gemma без vision
-      "molmo", // Molmo
-    ];
-    const isNonVisionModel = nonVisionModels.some(nvm => {
-      const modelLower = useModel.toLowerCase();
-      if (nvm === "llama") {
-        return modelLower.includes("llama") && !modelLower.includes("vision");
-      }
-      return modelLower.includes(nvm.toLowerCase());
-    });
-    
-    if (hasAttachments && (isNonVisionModel || !supportsVision)) {
+    const useModel = resolveTrainerAIStreamModel(selectedModel, config?.model);
+    if (hasAttachments && !trainerAIModelSupportsImages(useModel)) {
       return new Response(
-        JSON.stringify({ 
-          error: `Модель ${useModel} не поддерживает работу с изображениями. Пожалуйста, выберите модель с поддержкой vision: Gemini 2.0 Flash (бесплатная)` 
-        }),
-        { 
-          status: 400,
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders,
-          }
-        }
+        JSON.stringify({ error: "Выбранная модель не поддерживает изображения" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
-    
+
     try {
       const result = streamText({
         model: openrouter(useModel),
         system: "Ты - помощник для кинолога (тренера собак). Отвечай профессионально и по делу. Ты можешь анализировать изображения и PDF документы, если они приложены к сообщению.",
-        messages: processedMessages,
+        messages: processedMessages as unknown as Parameters<typeof streamText>[0]["messages"],
         maxSteps: 1,
         providerOptions: {
           openrouter: {
@@ -202,32 +114,21 @@ export async function POST(req: Request) {
           const lastMessage = processedMessages[processedMessages.length - 1];
           const userContent = lastMessage?.content;
           
-          const attachmentsMetadata = lastMessage?.experimental_attachments?.map((att: any) => ({
-            name: att.name,
-            contentType: att.contentType,
-            size: att.size,
-          })) || null;
+          const attachmentsMetadata = hasAttachments
+            ? attachmentsInfo.map(att => ({
+                name: typeof att.name === "string" ? att.name : undefined,
+                contentType: typeof att.contentType === "string" ? att.contentType : undefined,
+                size: typeof att.size === "number" ? att.size : undefined,
+              }))
+            : null;
           
-          const userMessage = await prisma.trainerAIChat.create({
-            data: {
-              trainerId,
-              role: "user",
-              content: userContent,
-              model: useModel,
-              attachments: attachmentsMetadata || undefined,
-            } as any,
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, 10));
-          
-          const assistantMessage = await prisma.trainerAIChat.create({
-            data: {
-              trainerId,
-              role: "assistant",
-              content: text,
-              tokensUsed: usage.totalTokens,
-              model: useModel,
-            } as any,
+          await saveTrainerAIExchange({
+            trainerId,
+            content: typeof userContent === "string" ? userContent : JSON.stringify(userContent ?? ""),
+            reply: text,
+            model: useModel,
+            tokensUsed: usage.totalTokens,
+            attachments: attachmentsMetadata,
           });
           
           logger.success("Stream finished and messages saved", {
@@ -296,6 +197,12 @@ export async function POST(req: Request) {
       );
     }
   } catch (error) {
+    if (error instanceof TrainerAIStreamValidationError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
     logger.error("Error in chat route", error as Error);
     return new Response("Internal Server Error", { 
       status: 500,
