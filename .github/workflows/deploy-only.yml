@@ -1,342 +1,58 @@
 name: Deploy Only
 
+# Reuses the SAME coordinated production cutover as the main CI/CD pipeline.
+# Never rebuilds an image, never writes a reduced .env, never stops Postgres.
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to deploy to"
-        required: true
-        default: "production"
-        type: choice
-        options:
-          - production
-          - staging
 
-# Serializes with push-to-main deploys: never race schema changes.
+
 concurrency:
   group: gafus-production-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
-  deploy:
+  validate-release:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    outputs:
+      release_sha: ${{ steps.release.outputs.sha }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+      - name: Validate release provenance
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$GITHUB_SHA"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid main release SHA'; exit 1; }
 
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          port: ${{ secrets.SERVER_PORT }}
-          command_timeout: 60m
-          script: |
-            set -e
-            echo "🚀 Starting deployment to ${{ github.event.inputs.environment }}..."
-
-            # Install basic tools first
-            echo "🔧 Installing basic tools..."
-            apt-get update
-            apt-get install -y curl wget
-
-            # Install Docker if not present
-            if ! command -v docker &> /dev/null; then
-              echo "🐳 Installing Docker..."
-              # Use apt for Ubuntu 20.04 (focal)
-              apt-get install -y apt-transport-https ca-certificates gnupg lsb-release
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-              echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu focal stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-              apt-get update
-              apt-get install -y docker-ce docker-ce-cli containerd.io
-              systemctl start docker
-              systemctl enable docker
+          # All seven images must originate from ONE completed build-images
+          # matrix, not a mixture of mutable latest tags or unfinished builds.
+          GH_REPO="${GITHUB_REPOSITORY}"
+          gh api --paginate "repos/$GH_REPO/actions/workflows/ci-cd.yml/runs?head_sha=$sha&event=push&per_page=50"             --jq '.workflow_runs[].id' > "$RUNNER_TEMP/release-runs"
+          test -s "$RUNNER_TEMP/release-runs" || { echo 'No main CI run for this commit'; exit 1; }
+          approved=false
+          while IFS= read -r run; do
+            gh api --paginate "repos/$GH_REPO/actions/runs/$run/jobs?per_page=100"               --jq '.jobs[] | [.name,.conclusion] | @tsv' > "$RUNNER_TEMP/release-jobs"
+            if [ "$(awk -F '	' '$1 ~ /^build-images \(/ && $2 == "success" {n++} END {print n+0}' "$RUNNER_TEMP/release-jobs")" -eq 7 ] &&
+               grep -q $'cloudru-prepare-media	success' "$RUNNER_TEMP/release-jobs" &&
+               grep -q $'build-apps	success' "$RUNNER_TEMP/release-jobs" &&
+               grep -q $'security	success' "$RUNNER_TEMP/release-jobs"; then
+              approved=true
+              break
             fi
-
-            # Install Docker Compose if not present
-            if ! command -v docker-compose &> /dev/null; then
-              echo "🐳 Installing Docker Compose..."
-              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              chmod +x /usr/local/bin/docker-compose
-            fi
-
-            # Login to GitHub Container Registry
-            echo "🔐 Logging in to GitHub Container Registry..."
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
-
-            # Navigate to project directory
-            cd /root/gafus || {
-              echo "Directory /root/gafus not found, creating it..."
-              mkdir -p /root/gafus
-              cd /root/gafus
-            }
-
-            # Initialize git repository if it doesn't exist
-            if [ ! -d .git ]; then
-              echo "Git repository not found, initializing..."
-              git init
-              git remote add origin https://${{ secrets.GH_PAT }}@github.com/asmtv1/gafus.git
-            fi
-
-            # Ensure we have the correct remote
-            git remote set-url origin https://${{ secrets.GH_PAT }}@github.com/asmtv1/gafus.git
-
-            # Pull latest changes
-            git pull origin main
-
-            # All 8 Vox values must exist before changing the running deployment.
-            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_ID"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_ID"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_NAME"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_NAME"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_KEY_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_KEY_ID"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_PRIVATE_KEY_BASE64"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
-
-            # Fail before touching runtime if this checkout has schema changes.
-            # Only the main workflow may perform coordinated Prisma cutovers.
-            bash ci-cd/scripts/assert-no-pending-schema-migrations.sh
-
-            # Create .env file from GitHub Secrets
-            echo "🔐 Creating .env file from GitHub Secrets..."
-            {
-              echo "# Database"
-              echo "POSTGRES_DB=gafus"
-              echo "POSTGRES_USER=gafus"
-              echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
-              echo "DATABASE_URL=postgresql://gafus:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/gafus"
-              echo ""
-              echo "# Redis"
-              echo "REDIS_URL=redis://redis:6379"
-              echo ""
-              echo "# NextAuth секреты"
-              echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"
-              echo ""
-              echo "# JWT секреты для API"
-              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
-              echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}"
-              echo ""
-              echo "# URLs приложений"
-              echo "NEXTAUTH_URL=https://gafus.ru"
-              echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
-              echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
-              echo "NEXT_PUBLIC_APP_VERSION=1.7.0"
-              echo "NEXT_PUBLIC_ENABLE_TRACER=true"
-              echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
-              echo ""
-              echo "# Cookie домен"
-              echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
-              echo ""
-              echo "# VAPID ключи для Push уведомлений"
-              echo "VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}"
-              echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}"
-              echo "VAPID_SUBJECT=mailto:admin@gafus.ru"
-              echo ""
-              echo "# Yandex Cloud CDN"
-              echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
-              echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
-              echo "# Gallery DEV settings (compose flag true staged, deployment gated)"
-              echo "GALLERY_DEV_WEB_S3_ACCESS_KEY_ID=${{ secrets.GALLERY_S3_ACCESS_KEY_ID }}"
-              echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.GALLERY_S3_SECRET_ACCESS_KEY }}"
-              echo "GALLERY_DEV_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
-              echo "GALLERY_DEV_INTERNAL_HMAC_SECRET=${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}"
-              echo "# Feed production settings; activation is an explicit environment variable"
-              echo "FEED_S3_ACCESS_KEY_ID=${{ secrets.FEED_S3_ACCESS_KEY_ID }}"
-              echo "FEED_S3_SECRET_ACCESS_KEY=${{ secrets.FEED_S3_SECRET_ACCESS_KEY }}"
-              echo "FEED_CDN_SECRET=${{ secrets.FEED_CDN_SECRET }}"
-              echo "FEED_INTERNAL_HMAC_SECRET=${{ secrets.FEED_INTERNAL_HMAC_SECRET }}"
-              echo "FEED_ENABLED=${{ vars.FEED_ENABLED || 'false' }}"
-              echo "FEED_PROCESSOR_READY=${{ vars.FEED_PROCESSOR_READY || 'false' }}"
-              echo "FEED_SMART_ENABLED=${{ vars.FEED_SMART_ENABLED || 'true' }}"
-              echo "FEED_SMART_STATS_ENABLED=${{ vars.FEED_SMART_STATS_ENABLED || 'true' }}"
-              echo "FEED_SMART_DIAGNOSTICS=${{ vars.FEED_SMART_DIAGNOSTICS || 'true' }}"
-              echo "FEED_SMART_MULTI_SOURCE_ENABLED=${{ vars.FEED_SMART_MULTI_SOURCE_ENABLED || 'true' }}"
-              echo "FEED_SMART_AFFINITY_ENABLED=${{ vars.FEED_SMART_AFFINITY_ENABLED || 'true' }}"
-              echo "FEED_SMART_EVENTS_ENABLED=${{ vars.FEED_SMART_EVENTS_ENABLED || 'true' }}"
-              echo "FEED_SMART_EXPOSURE_TOKENS_REQUIRED=${{ vars.FEED_SMART_EXPOSURE_TOKENS_REQUIRED || 'true' }}"
-              echo "FEED_SMART_MONITOR_ENABLED=${{ vars.FEED_SMART_MONITOR_ENABLED || 'true' }}"
-              echo "FEED_SMART_ML_TRAIN_ENABLED=${{ vars.FEED_SMART_ML_TRAIN_ENABLED || 'true' }}"
-              echo "FEED_SMART_ML_ENABLED=${{ vars.FEED_SMART_ML_ENABLED || 'true' }}"
-              echo "FEED_SMART_AB_ENABLED=${{ vars.FEED_SMART_AB_ENABLED || 'true' }}"
-              echo "FEED_SMART_AB_PERCENT=${{ vars.FEED_SMART_AB_PERCENT || '100' }}"
-              echo "FEED_SMART_AB_TREATMENT_PERCENT=${{ vars.FEED_SMART_AB_TREATMENT_PERCENT || '100' }}"
-              echo "FEED_SMART_SHADOW_ENABLED=${{ vars.FEED_SMART_SHADOW_ENABLED || 'true' }}"
-              echo "FEED_SMART_SHADOW_PERCENT=${{ vars.FEED_SMART_SHADOW_PERCENT || '1' }}"
-              echo "FEED_MAINTENANCE_ENABLED=${{ vars.FEED_MAINTENANCE_ENABLED || 'false' }}"
-              echo "FEED_PUSH_ENABLED=${{ vars.FEED_PUSH_ENABLED || 'false' }}"
-              echo ""
-              echo "# Voximplant (server-only consultation credentials)"
-              echo "VOXIMPLANT_ACCOUNT_ID=${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
-              echo "VOXIMPLANT_APPLICATION_ID=${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
-              echo "VOXIMPLANT_ACCOUNT_NAME=${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
-              echo "VOXIMPLANT_APPLICATION_NAME=${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
-              echo "VOXIMPLANT_KEY_ID=${{ secrets.VOXIMPLANT_KEY_ID }}"
-              echo "VOXIMPLANT_PRIVATE_KEY_BASE64=${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
-              echo "VOXIMPLANT_CREDENTIAL_SECRET=${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
-              echo "VOXIMPLANT_ADMISSION_SECRET=${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
-              echo ""
-              echo "# Защита видео (HLS)"
-              echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
-              echo "NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${{ secrets.NEXT_PUBLIC_ENABLE_HLS_PROTECTION || 'true' }}"
-              echo ""
-              echo "# Логирование"
-              echo "DISABLE_CONSOLE_LOGGING=true"
-              echo ""
-              echo "# Next.js публичные переменные"
-              echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
-              echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
-              echo "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}"
-              echo ""
-              echo "# Инвалидация кэша web при изменении курсов (trainer-panel → web)"
-              echo "REVALIDATE_SECRET_TOKEN=${{ secrets.REVALIDATE_SECRET_TOKEN }}"
-              echo ""
-              echo "# Анализ бандла (только для разработки)"
-              echo "ANALYZE=false"
-              echo ""
-              echo "# CSRF защита"
-              echo "CSRF_STRICT=false"
-              echo ""
-              echo "# Grafana"
-              echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
-              echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
-              echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
-              echo ""
-              echo "# ЮKassa (платные курсы)"
-              echo "YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}"
-              echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}"
-              echo "# NPD secrets are consumed only by worker; keep processing disabled until live verification"
-              echo "NPD_TOKEN_ENCRYPTION_KEY=${{ secrets.NPD_TOKEN_ENCRYPTION_KEY }}"
-              echo "NPD_PROCESSING_ENABLED=${{ vars.NPD_PROCESSING_ENABLED || 'false' }}"
-              echo "NPD_API_BASE_URL=${{ vars.NPD_API_BASE_URL || 'https://lknpd.nalog.ru/api/v1' }}"
-              echo "NPD_BATCH_SIZE=${{ vars.NPD_BATCH_SIZE || '20' }}"
-              echo "NPD_REQUEST_TIMEOUT_MS=${{ vars.NPD_REQUEST_TIMEOUT_MS || '10000' }}"
-              echo "NPD_RECEIPT_EMAIL_BATCH_SIZE=${{ vars.NPD_RECEIPT_EMAIL_BATCH_SIZE || '20' }}"
-              echo "NPD_RECEIPT_EMAIL_ENABLED=${{ vars.NPD_RECEIPT_EMAIL_ENABLED || 'true' }}"
-              echo ""
-              echo "# Apple IAP (верификация покупки курса на iOS; vars → Repository / Environment)"
-              echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}"
-              echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}"
-              echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}"
-              echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}"
-              echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}"
-              echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}"
-              echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}"
-              echo ""
-              echo "# Реквизиты для ЮKassa (контакты на сайте)"
-              echo "NEXT_PUBLIC_CONTACT_EMAIL=${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}"
-              echo "NEXT_PUBLIC_CONTACT_PHONE=${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}"
-              echo "NEXT_PUBLIC_CONTACT_FIO=${{ secrets.NEXT_PUBLIC_CONTACT_FIO }}"
-              echo "NEXT_PUBLIC_CONTACT_INN=${{ secrets.NEXT_PUBLIC_CONTACT_INN }}"
-              echo ""
-              echo "# VK ID авторизация"
-              echo "VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }}"
-              echo "VK_CLIENT_ID_IOS=${{ secrets.VK_CLIENT_ID_IOS }}"
-              echo "VK_CLIENT_ID_ANDROID=${{ secrets.VK_CLIENT_ID_ANDROID }}"
-              echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
-              echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
-              echo ""
-              echo "# SMTP / Yandex 360"
-              echo "SMTP_HOST=${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
-              echo "SMTP_PORT=${{ vars.SMTP_PORT || '465' }}"
-              echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'true' }}"
-              echo "SMTP_USER=${{ secrets.SMTP_USER }}"
-              echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
-              echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
-              echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
-              echo "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}"
-              echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
-              echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
-              echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
-            } > ci-cd/docker/.env
-
-            # Set secure permissions for .env file
-            chmod 600 ci-cd/docker/.env
-            echo "✅ .env file created with secure permissions"
-
-            # Create uploads directories if they don't exist
-            mkdir -p packages/public-assets/public/uploads/avatars
-            mkdir -p packages/public-assets/public/uploads/pets
-            mkdir -p packages/public-assets/public/uploads/courses
-            mkdir -p packages/public-assets/public/uploads/shared
-            chmod -R 755 packages/public-assets/public/uploads/
-
-            # Создаем бэкап БД на Яндекс.Диск перед остановкой
-            ./ci-cd/scripts/backup-to-yandex.sh || echo "⚠️ Бэкап на Яндекс.Диск не удался, продолжаем деплой"
-
-            # Stop existing containers and clean up (сохраняем volumes для БД)
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml down --remove-orphans || true
-            docker container prune -f
-            docker image prune -f
-
-            # Pull latest images from registry in parallel (используем существующие образы)
-            echo "📥 Pulling latest Docker images in parallel..."
-            pids=""
-            docker pull ghcr.io/asmtv1/gafus-web:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-trainer-panel:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-api:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-worker:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-bull-board:latest & pids="$pids $!"
-            docker pull ghcr.io/asmtv1/gafus-prisma:latest & pids="$pids $!"
-            pull_failed=0
-            for pid in $pids; do
-              if ! wait $pid; then
-                pull_failed=1
-              fi
-            done
-            if [ "$pull_failed" -ne 0 ]; then
-              echo "❌ One or more docker pulls failed"
-              exit 1
-            fi
-
-            # Tag images for local use
-            docker tag ghcr.io/asmtv1/gafus-web:latest gafus-web:latest
-            docker tag ghcr.io/asmtv1/gafus-trainer-panel:latest trainer-panel:latest
-            docker tag ghcr.io/asmtv1/gafus-api:latest gafus-api:latest
-            docker tag ghcr.io/asmtv1/gafus-worker:latest gafus-worker:latest
-            docker tag ghcr.io/asmtv1/gafus-bull-board:latest gafus-bull-board:latest
-            docker tag ghcr.io/asmtv1/gafus-prisma:latest gafus-prisma:latest
-
-            # Start core services first, then apply migrations before app containers.
-            echo "🚀 Starting core services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate postgres redis
-
-            # Wait for core services to be ready
-            sleep 15
-
-            # Verify a fresh local rollback backup before any schema changes.
-            mkdir -p /root/gafus/backups/feed
-            chmod 700 /root/gafus/backups/feed
-            FEED_BACKUP_FILE="/root/gafus/backups/feed/before-deploy-$(date -u +%Y%m%dT%H%M%SZ).dump"
-            (umask 077; docker exec gafus-postgres pg_dump -U gafus -d gafus -Fc > "$FEED_BACKUP_FILE")
-            test -s "$FEED_BACKUP_FILE"
-            docker exec -i gafus-postgres pg_restore --list < "$FEED_BACKUP_FILE" > /dev/null
-            echo "Database rollback backup verified."
-
-            # Run Prisma migrations. Migration failures must stop deployment.
-            echo "🗄️ Applying Prisma migrations..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml exec -T postgres psql -U gafus -d gafus -c "SELECT 1;" > /dev/null 2>&1 || sleep 5
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml run --rm --no-deps prisma /app/node_modules/.bin/prisma migrate deploy --schema=/app/schema.prisma
-
-            # Start app services only after the database schema is current.
-            echo "🚀 Starting application services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate worker api web trainer-panel admin-panel bull-board nginx
-
-            echo "📊 Starting monitoring services..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate \
-              node-exporter postgres-exporter redis-exporter blackbox-exporter grafana-alloy yandex-metrics-sync
-
-            # Check service health
-            if docker-compose -f ci-cd/docker/docker-compose.prod.yml ps | grep -q "Up"; then
-              echo "✅ Deployment completed successfully!"
-              
-                          # Clean up unused images and containers
-            docker image prune -f
-            docker container prune -f
-            docker system prune -f
-            else
-              echo "❌ Deployment failed - services not running"
-              exit 1
-            fi
+          done < "$RUNNER_TEMP/release-runs"
+          test "$approved" = true || { echo 'No fully built and verified release for SHA'; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: validate-release
+    uses: ./.github/workflows/production-deploy-reusable.yml
+    with:
+      release_sha: ${{ needs.validate-release.outputs.release_sha }}
+    secrets: inherit

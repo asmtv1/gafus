@@ -71,10 +71,13 @@ describe("FeedVideo HLS engine selection", () => {
     await act(async () => root.render(<FeedVideo mediaId="media1" poster={null} />));
     await act(async () => {
       (host.querySelector("button") as HTMLButtonElement)?.click();
-      await new Promise((resolve) => setTimeout(resolve, 10));
     });
     expect(requestPlayback).toHaveBeenCalledWith("media1");
-    expect(construct).toHaveBeenCalledOnce();
+    // Dynamic HLS import can take longer on busy CI runners; do not assert
+    // against an arbitrary 10ms timer.
+    await vi.waitFor(() => expect(construct).toHaveBeenCalledOnce(), {
+      timeout: 10_000,
+    });
     expect(loadSource).toHaveBeenCalledWith(manifestUrl);
     expect(attachMedia).toHaveBeenCalledWith(host.querySelector("video"));
     expect(vi.mocked(HTMLMediaElement.prototype.play)).not.toHaveBeenCalled();
