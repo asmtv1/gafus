@@ -42,6 +42,7 @@ for (const filename of [
   }
 }
 const ci = readFileSync(".github/workflows/ci-cd.yml", "utf8");
+const deployment = readFileSync(".github/workflows/production-deploy-reusable.yml", "utf8");
 const prod = readFileSync("ci-cd/docker/docker-compose.prod.yml", "utf8");
 for (const gate of [
   "production-s3-preflight.mjs --verify",
@@ -70,7 +71,15 @@ assert(
   ci.includes("CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only"),
   "PRIVATE_BUCKET_PREFLIGHT_GUARD",
 );
-assert(ci.includes("CLOUDRU_MEDIA_JOBS_ENABLED=true"), "PRODUCTION_PROCESSORS_MUST_ACTIVATE");
+// CI/CD and Deploy Only now call the same reusable production script.
+assert(
+  ci.includes("uses: ./.github/workflows/production-deploy-reusable.yml"),
+  "PRODUCTION_MUST_USE_SHARED_RELEASE",
+);
+assert(
+  deployment.includes("CLOUDRU_MEDIA_JOBS_ENABLED=true"),
+  "PRODUCTION_PROCESSORS_MUST_ACTIVATE",
+);
 assert(ci.includes("cloudru-media-contracts:"), "BUILD_MUST_VALIDATE_MEDIA_CONTRACTS");
 assert(
   !ci.includes("production-media-mirror.mjs --apply"),
