@@ -32,7 +32,9 @@ RUN pnpm build --filter '@gafus/mailer...' && \
     pnpm build --filter '@gafus/worker...'
 
 # Берём production зависимости из манифестов и lockfile, включая зависимости core.
-RUN pnpm deploy --legacy --filter @gafus/worker --prod --no-optional /app/deploy
+# Server-only deploy subsets do not contain mobile dependencies and their patches.
+RUN printf '\nallowUnusedPatches: true\n' >> pnpm-workspace.yaml && \
+    pnpm deploy --legacy --filter @gafus/worker --prod --no-optional /app/deploy
 # Prisma генерируется после install; переносим клиент в его runtime virtual store.
 RUN node -e "const {createRequire}=require('node:module'); const {dirname,join}=require('node:path'); const {cpSync}=require('node:fs'); const source=createRequire('/app/packages/prisma/package.json'); const deployed=createRequire('/app/deploy/package.json'); const target=createRequire(deployed.resolve('@gafus/prisma')); cpSync(join(dirname(source.resolve('@prisma/client')), '../../.prisma'), join(dirname(target.resolve('@prisma/client')), '../../.prisma'), {recursive:true});"
 

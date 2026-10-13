@@ -49,7 +49,9 @@ RUN pnpm build --filter @gafus/queues
 RUN pnpm build --filter @gafus/bull-board
 
 # Готовим минимальный продовый пакет для bull-board
-RUN pnpm deploy --legacy --filter @gafus/bull-board --prod --no-optional /app/deploy
+# Server-only deploy subsets do not contain mobile dependencies and their patches.
+RUN printf '\nallowUnusedPatches: true\n' >> pnpm-workspace.yaml && \
+    pnpm deploy --legacy --filter @gafus/bull-board --prod --no-optional /app/deploy
 
 # Production stage - только runtime
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner

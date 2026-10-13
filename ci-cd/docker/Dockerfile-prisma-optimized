@@ -41,7 +41,9 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 RUN pnpm build --filter @gafus/prisma
 
 # Готовим минимальный продовый пакет для prisma (включая prisma CLI)
-RUN pnpm deploy --legacy --filter @gafus/prisma --prod --no-optional /app/deploy
+# Server-only deploy subsets do not contain mobile dependencies and their patches.
+RUN printf '\nallowUnusedPatches: true\n' >> pnpm-workspace.yaml && \
+    pnpm deploy --legacy --filter @gafus/prisma --prod --no-optional /app/deploy
 
 # Production stage - только runtime
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
