@@ -549,6 +549,8 @@ jobs:
             DEPLOY_ROOT="/root/gafus"
             COMPOSE_PROD="$DEPLOY_ROOT/ci-cd/docker/docker-compose.prod.yml"
             RELEASE_BACKUP_DIR="/root/gafus-release-backups/${{ github.run_id }}-${{ github.run_attempt }}"
+            # Child cutover commands must share this release backup and compose paths.
+            export DEPLOY_ROOT COMPOSE_PROD RELEASE_BACKUP_DIR
             APP_MUTATED=false
             CUTOVER_SCRIPT="$DEPLOY_ROOT/ci-cd/scripts/production-schema-cutover.sh"
             MAINTENANCE_GATE="$DEPLOY_ROOT/ci-cd/nginx/conf.d/.release-maintenance"
