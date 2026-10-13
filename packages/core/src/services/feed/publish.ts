@@ -1,4 +1,5 @@
 import type { FeedTx } from "./ports";
+import { FeedError } from "./errors";
 import { enqueueFeedAuthorPush } from "./preferences";
 import { registerGafusPostPublicationTx } from "../gafus/reactionRewardService";
 
@@ -17,6 +18,22 @@ export async function activateFeedPostRevisionTx(
   },
 ): Promise<void> {
   const { post, revisionId, at } = input;
+  // Polls are a first-class part of Feed, with no independent rollout flag.
+  // Validate option media on every activation (immediate or via worker).
+  const poll = await tx.feedPoll.findUnique({
+    where: { postId: post.id },
+    include: { options: { where: { imageMediaId: { not: null } }, include: { imageMedia: true } } },
+  });
+  if (input.publishedMediaCount === 0 && !input.text.trim() && !poll) {
+    throw new FeedError("EMPTY_POST", undefined, 400);
+  }
+  if (poll?.options.some(option => !option.imageMedia ||
+      option.imageMedia.postId !== post.id ||
+      option.imageMedia.ownerId !== post.authorId || option.imageMedia.kind !== "photo" ||
+      option.imageMedia.status !== "ready" ||
+      !option.imageMedia.thumbKey || !option.imageMedia.fullKey)) {
+    throw new FeedError("VALIDATION_ERROR", "Изображение варианта опроса недоступно", 400);
+  }
   await tx.feedPostRevision.update({ where: { id: revisionId }, data: { status: "ready" } });
   await tx.feedPost.update({
     where: { id: post.id },

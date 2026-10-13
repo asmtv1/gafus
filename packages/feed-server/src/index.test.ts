@@ -151,3 +151,41 @@ describe("feed personal actions routing", () => {
     expect(personal.bookmark).toHaveBeenCalledWith(actor, "post_1", true);
   });
 });
+
+describe("feed poll HTTP routing", () => {
+  it("routes read, draft save and vote through core with session actor, never a client user ID", async () => {
+    const pollActions = { get: vi.fn().mockResolvedValue({ id: "poll_1" }),
+      save: vi.fn().mockResolvedValue({ id: "poll_1" }),
+      vote: vi.fn().mockResolvedValue({ id: "poll_1" }),
+      remove: vi.fn().mockResolvedValue({ removed: true }) };
+    const run = (path: string, method: string, body?: unknown) => dispatchFeedRequest(
+      actor, new Request(`https://example.test/api/v1/feed${path}`, {
+        method, headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      }), path.split("?")[0]!, {} as FeedService, {} as FeedSocialService,
+      {} as NonNullable<Parameters<typeof dispatchFeedRequest>[5]>,
+      pollActions as unknown as NonNullable<Parameters<typeof dispatchFeedRequest>[6]>,
+    );
+    await run("/posts/post_1/poll", "GET");
+    expect(pollActions.get).toHaveBeenCalledWith(actor, "post_1");
+    const value = { expectedVersion: 0, question: "Какой ответ?", options: [
+      { text: "Да" }, { text: "Нет" },
+    ] };
+    await run("/posts/post_1/poll", "PUT", value);
+    expect(pollActions.save).toHaveBeenCalledWith(actor, "post_1", expect.objectContaining({
+      question: "Какой ответ?", options: expect.any(Array),
+    }));
+    await run("/posts/post_1/poll", "DELETE", {});
+    expect(pollActions.remove).toHaveBeenCalledWith(actor, "post_1");
+    await run("/posts/post_1/poll/vote", "POST", { optionIds: ["option_1"] });
+    expect(pollActions.vote).toHaveBeenCalledWith(actor, "post_1", { optionIds: ["option_1"] });
+    await expect(run("/posts/post_1/poll/vote", "POST", { optionIds: ["option_1"], userId: "other" }))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll", "PUT", { ...value, authorId: "other" }))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll?untrusted=x", "GET"))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll/vote?untrusted=x", "POST", { optionIds: ["option_1"] }))
+      .rejects.toMatchObject({ status: 400 });
+  });
+});

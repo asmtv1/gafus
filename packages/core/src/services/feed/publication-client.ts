@@ -3,7 +3,7 @@
  * server dependencies: clients supply API, file transport, and identity adapters.
  * This manager lives outside screens, so navigation does not cancel in-flight work.
  */
-import type { FeedPostEditorDto, FeedMediaDto } from "@gafus/types";
+import type { FeedPostEditorDto, FeedMediaDto, FeedPollSaveInput } from "@gafus/types";
 
 export type PublicationPhase = "uploading" | "processing" | "published" | "failed";
 export interface PublicationItem {
@@ -28,22 +28,29 @@ export interface PublicationApi {
   getEditor(postId: string): Promise<FeedPostEditorDto>;
   copyAlbumPhoto(postId: string, input: { photoId: string; clientRequestId: string }): Promise<FeedMediaDto>;
   saveRevision(postId: string, input: {
-    clientRequestId: string; expectedVersion: number; text: string; attachmentIds: string[];
+    clientRequestId: string; expectedVersion: number; text: string; attachmentIds: string[]; pollOnly?: true;
   }): Promise<FeedPostEditorDto>;
   publishPost(postId: string, input: { clientRequestId: string }): Promise<FeedPostEditorDto>;
+  savePoll?: (postId: string, input: FeedPollSaveInput) => Promise<unknown>;
 }
 export interface PublicationInput<T extends PublicationAsset> {
   ownerId: string;
   text: string;
   files: T[];
   albumPhotoIds: string[];
+  poll?: Omit<FeedPollSaveInput, "expectedVersion">;
+  /** Local assets indexed by their option position; not serialized to server. */
+  pollOptionImages?: { optionIndex: number; asset: T }[];
 }
 export interface PublicationDependencies<T extends PublicationAsset> {
   api: PublicationApi;
   upload: (postId: string, asset: T, report: (loaded: number, total: number) => void) => Promise<string>;
   makeId: () => string;
+  /** Poll photo upload status must be checked before poll creation/publishing. */
+  pollImageStatus?: (postId: string, asset: T, mediaId: string) => Promise<"ready" | "pending" | "failed">;
   onPublished?: (postId: string) => void;
   onRemove?: (item: PublicationItem) => void;
+  onAssetsReleased?: (input: PublicationInput<T>) => void;
 }
 
 type Job<T extends PublicationAsset> = {
@@ -55,6 +62,7 @@ type Job<T extends PublicationAsset> = {
   copied: Map<string, { requestId: string; mediaId?: string }>;
   completed: Map<string, string>;
   saved: boolean;
+  pollSaved: boolean;
   revisionBaseVersion?: number;
   running: boolean;
 };
@@ -89,6 +97,7 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
       if (jobs.get(job.item.id) === job && job.item.phase === "published") {
         jobs.delete(job.item.id);
         deps.onRemove?.(job.item);
+        deps.onAssetsReleased?.(job.input);
         emit();
       }
     }, 6000);
@@ -107,7 +116,17 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
       if (post.status === "published") { succeed(job, post.id); return; }
 
       if (post.status !== "pending") {
-        const totalBytes = input.files.reduce((total, asset) => total + asset.bytes, 0);
+        const pollPhotos = input.pollOptionImages ?? [];
+        if (pollPhotos.length && (!input.poll || !deps.pollImageStatus)) {
+          throw new Error("Загрузка фотографий для опроса недоступна.");
+        }
+        if (new Set(pollPhotos.map(item => item.optionIndex)).size !== pollPhotos.length ||
+            pollPhotos.some(item => item.optionIndex < 0 || item.optionIndex >= (input.poll?.options.length ?? 0)) ||
+            input.files.length + input.albumPhotoIds.length + pollPhotos.length > 10) {
+          throw new Error("Недопустимые изображения опроса или слишком много вложений.");
+        }
+        const totalBytes = [...input.files, ...pollPhotos.map(item => item.asset)]
+          .reduce((total, asset) => total + asset.bytes, 0);
         let doneBytes = input.files.reduce((total, asset) =>
           total + (job.completed.has(asset.requestId) ? asset.bytes : 0), 0);
         const attachmentIds: string[] = [];
@@ -129,6 +148,21 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
           attachmentIds.push(mediaId);
           if (totalBytes) update(job, { progress: Math.floor(doneBytes / totalBytes * 100) });
         }
+        for (const { asset } of pollPhotos) {
+          let mediaId = job.completed.get(asset.requestId);
+          if (!mediaId) {
+            let currentBytes = 0;
+            mediaId = await deps.upload(post.id, asset, (loaded, total) => {
+              if (total <= 0 || !Number.isFinite(loaded)) return;
+              currentBytes = Math.min(asset.bytes, Math.max(0, Math.round(loaded / total * asset.bytes)));
+              const percent = totalBytes ? Math.min(100, Math.floor((doneBytes + currentBytes) / totalBytes * 100)) : null;
+              update(job, { phase: "uploading", progress: percent });
+            });
+            job.completed.set(asset.requestId, mediaId);
+            doneBytes += asset.bytes;
+          }
+          if (totalBytes) update(job, { progress: Math.floor(doneBytes / totalBytes * 100) });
+        }
         for (const photoId of input.albumPhotoIds) {
           const copy = job.copied.get(photoId) ?? { requestId: deps.makeId() };
           job.copied.set(photoId, copy);
@@ -141,6 +175,32 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
           attachmentIds.push(copy.mediaId);
         }
         update(job, { phase: "processing", progress: totalBytes ? 100 : null });
+        if (input.poll && !job.pollSaved) {
+          if (!api.savePoll) throw new Error("Опросы пока недоступны в этом приложении.");
+          // Photo workers can finish independently of post revision activation.
+          // Do not persist option IDs until each uploaded photo is fully processed.
+          for (const { asset } of pollPhotos) {
+            const mediaId = job.completed.get(asset.requestId)!;
+            let ready = false;
+            for (let attempt = 0; attempt < 120; attempt++) {
+              const state = await deps.pollImageStatus!(post.id, asset, mediaId);
+              if (state === "ready") { ready = true; break; }
+              if (state === "failed") throw new Error("Не удалось обработать изображение варианта опроса.");
+              update(job, { phase: "processing", progress: 100 });
+              await sleep(5000);
+            }
+            if (!ready) throw new Error("Изображения опроса обрабатываются слишком долго. Повторите публикацию.");
+          }
+          const imageIds = new Map(pollPhotos.map(({ optionIndex, asset }) =>
+            [optionIndex, job.completed.get(asset.requestId)!]));
+          await api.savePoll(post.id, {
+            ...input.poll, expectedVersion: post.version,
+            options: input.poll.options.map((option, index) => ({
+              ...option, ...(imageIds.has(index) ? { imageMediaId: imageIds.get(index) } : {}),
+            })),
+          });
+          job.pollSaved = true;
+        }
         if (!job.saved) {
           // Preserve the original expected version for idempotent revision replay.
           job.revisionBaseVersion ??= post.version;
@@ -149,6 +209,7 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
             expectedVersion: job.revisionBaseVersion,
             text: input.text,
             attachmentIds,
+            ...(input.poll && !input.text.trim() && !attachmentIds.length ? { pollOnly: true as const } : {}),
           });
           job.saved = true;
         }
@@ -180,13 +241,14 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
       const id = deps.makeId();
       const job: Job<T> = {
         item: {
-          id, ownerId: input.ownerId, text: input.text,
-          attachmentCount: input.files.length + input.albumPhotoIds.length,
-          previewUri: input.files[0]?.previewUri, phase: "uploading", progress: null,
+          id, ownerId: input.ownerId, text: input.text || input.poll?.question || "",
+          attachmentCount: input.files.length + input.albumPhotoIds.length + (input.pollOptionImages?.length ?? 0),
+          previewUri: input.files[0]?.previewUri ?? input.pollOptionImages?.[0]?.asset.previewUri,
+          phase: "uploading", progress: null,
         },
         input, createRequestId: deps.makeId(), revisionRequestId: deps.makeId(),
         publishRequestId: deps.makeId(), copied: new Map(), completed: new Map(),
-        saved: false, running: false,
+        saved: false, pollSaved: false, running: false,
       };
       jobs.set(id, job);
       emit();
@@ -199,7 +261,12 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
     },
     dismiss: (id: string) => {
       const job = jobs.get(id);
-      if (job && !job.running) { jobs.delete(id); deps.onRemove?.(job.item); emit(); }
+      if (job && !job.running) {
+        jobs.delete(id);
+        deps.onRemove?.(job.item);
+        deps.onAssetsReleased?.(job.input);
+        emit();
+      }
     },
   };
 }

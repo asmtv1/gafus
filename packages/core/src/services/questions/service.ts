@@ -195,6 +195,7 @@ export async function listQuestions(userId: string, query: unknown): Promise<Que
   const filters = questionListSchema.parse(query);
   const where: Prisma.QuestionWhereInput = { ...available };
   if (filters.mine) where.authorId = userId;
+  else if (filters.author) where.author = { username: filters.author };
   if (filters.category) where.category = filters.category;
   if (filters.search)
     where.OR = [

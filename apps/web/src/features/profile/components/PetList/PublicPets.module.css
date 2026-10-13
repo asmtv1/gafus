@@ -1,12 +1,13 @@
 .section {
   width: 100%;
-  margin: 20px 0;
+  margin: 20px auto;
   font-family: var(--font-montserrat), system-ui, sans-serif;
   color: var(--text-main, #352e2e);
 }
 
 .heading {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
+  text-align: center;
   font-family: var(--font-impact), var(--font-montserrat), sans-serif;
   font-size: 20px;
   font-weight: 600;
@@ -14,15 +15,20 @@
 
 .list {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .card {
+  box-sizing: border-box;
   display: flex;
+  flex: 1 1 280px;
+  max-width: 370px;
+  min-width: 0;
   align-items: center;
   gap: 16px;
   padding: 16px;
@@ -66,4 +72,9 @@
 @media (max-width: 360px) {
   .card { gap: 12px; padding: 12px; }
   .photo { width: 64px; height: 64px; }
+}
+
+@media (max-width: 620px) {
+  .list { gap: 10px; }
+  .card { flex-basis: 100%; max-width: 100%; }
 }

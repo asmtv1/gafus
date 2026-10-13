@@ -1,21 +1,21 @@
 import { createFeedPlayback } from "./playback.js";
-import { createFeedService, createFeedSocial, createFeedPreferences, FeedError, feedParse, feedListSchema, feedPostListSchema, feedReactionListSchema,
+import { FeedError, feedParse, feedListSchema, feedPostListSchema, feedReactionListSchema,
   feedCreatePostSchema, feedRevisionSchema, feedPublishSchema, feedCommentSchema, feedCommentEditSchema,
-  feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema,
-  createSmartFeedPreferences, smartImpressionsSchema, smartRankingEventsSchema, smartRedisTimeout, smartFeedbackSchema, isSmartMlVector, verifySmartExposure,
+  feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema, feedPollSaveSchema, feedPollVoteSchema,
+  smartImpressionsSchema, smartRankingEventsSchema, smartRedisTimeout, smartFeedbackSchema, isSmartMlVector, verifySmartExposure,
   hasSmartFeedActor, getSmartFeedTelemetryPreference,
   eligibleSmartImpressionPostIds, recordSmartFeedImpressions,
   createCurrentFeedRuntime, eligibleSmartOutcomePostIds, getQualifiedSmartImpressions,
   recordSmartFeedRankingEvents, storeSmartFeedPostFeedback,
 } from "@gafus/core/services/feed";
-import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
+import type { FeedService, FeedSocialService, FeedPollService, createFeedPreferences } from "@gafus/core/services/feed";
 import { createFeedStorageFromEnv, signFeedCloudruFallback } from "@gafus/feed-storage";
 
 export const FEED_MAX_BODY_BYTES = 65_536;
 const allowed = new Set(["GET", "POST", "PATCH", "PUT", "DELETE"]);
 const flag = () => process.env.FEED_ENABLED === "true" && process.env.FEED_PROCESSOR_READY === "true";
 const storage = createFeedStorageFromEnv();
-const { service, social, preferences, smartPreferences } = createCurrentFeedRuntime(storage, flag);
+const { service, social, preferences, smartPreferences, polls } = createCurrentFeedRuntime(storage, flag);
 export interface FeedHttpError {
   status: number;
   body: { success: false; error: string; code: string };
@@ -95,6 +95,7 @@ export async function dispatchFeedRequest(
   posts: FeedService = service,
   actions: FeedSocialService = social,
   personal: ReturnType<typeof createFeedPreferences> = preferences,
+  pollActions: FeedPollService = polls,
 ): Promise<unknown> {
   const method = request.method.toUpperCase();
   if (!allowed.has(method)) throw new FeedError("VALIDATION_ERROR", "Метод не поддерживается", 405);
@@ -271,6 +272,17 @@ export async function dispatchFeedRequest(
     return posts.pending(actorId, parseQuery(url));
   if (is(1, "posts") && method === "POST")
     return posts.create(actorId, feedParse(feedCreatePostSchema, input));
+  if (len === 3 && one === "posts" && three === "poll") {
+    if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
+    const postId = routeId(two!);
+    if (method === "GET") return pollActions.get(actorId, postId);
+    if (method === "PUT") return pollActions.save(actorId, postId, feedParse(feedPollSaveSchema, input));
+    if (method === "DELETE") { assertEmpty(input); return pollActions.remove(actorId, postId); }
+  }
+  if (len === 4 && one === "posts" && three === "poll" && pathParts[3] === "vote" && method === "POST") {
+    if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
+    return pollActions.vote(actorId, routeId(two!), feedParse(feedPollVoteSchema, input));
+  }
   if (len >= 2 && one === "posts") {
     const id = routeId(two!);
     if (len === 3 && three === "feedback" && method === "POST") {

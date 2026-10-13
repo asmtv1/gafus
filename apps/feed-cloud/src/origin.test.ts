@@ -39,6 +39,18 @@ describe("private Feed origin", () => {
       expect(await handler({ ...event(), headers: { ...event().headers, Range: range } })).toMatchObject({ statusCode: status, body });
     }
   });
+  it("returns retryable 503 on S3 failures instead of negatively cacheable 404", async () => {
+    config();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      send.mockRejectedValueOnce(Object.assign(new Error("S3 connection timed out"), { name: "TimeoutError" }));
+      expect((await handler(event())).statusCode).toBe(503);
+      send.mockRejectedValueOnce(Object.assign(new Error("missing"), { $metadata: { httpStatusCode: 404 } }));
+      expect((await handler(event())).statusCode).toBe(404);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(spy.mock.calls)).not.toContain("connection timed out");
+    } finally { spy.mockRestore(); }
+  });
   it("rejects wrong MIME and truncated or oversized objects", async () => {
     config();
     for (const result of [{ ContentLength: 3, ContentType: "text/html" }, { ContentLength: 1_750_001, ContentType: "image/webp" }, { ContentLength: 5, ContentType: "image/webp", Body: (async function* () { yield Buffer.from("abc"); })() }]) {

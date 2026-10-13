@@ -30,6 +30,7 @@ function mount(isOwner: boolean, initialView: "activity" | "questions" | "settin
   return act(async () => root.render(
     <ProfileSections
       isOwner={isOwner}
+      username="admin"
       initialView={initialView}
       activity={<p>ACTIVITY_CONTENT</p>}
       questions={<p>MY_QUESTIONS_CONTENT</p>}
@@ -123,15 +124,53 @@ describe("profile sections", () => {
     expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
   });
 
-  it("never exposes a settings tab to profile visitors", async () => {
-    await mount(false, "questions");
-    expect(host.querySelector('button[aria-pressed="true"]')?.textContent).toContain("Публикации");
+  it("shows only two mutually exclusive @username radio options to visitors", async () => {
+    await mount(false);
+    const controls = [...host.querySelectorAll<HTMLButtonElement>('[role="radiogroup"] button')];
+    expect(controls.map((button) => button.textContent?.trim())).toEqual([
+      "Публикации @admin",
+      "Вопросы @admin",
+    ]);
+    expect(controls.map((button) => button.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+    ]);
     expect(host.textContent).not.toContain("Настройки аккаунта");
-    expect(host.textContent).not.toContain("Мои вопросы");
     expect(host.textContent).not.toContain("Заметки кинолога");
-    expect(host.textContent).not.toContain("CYNOLOGIST_NOTES_CONTENT");
+    await act(async () => controls[1]!.click());
+    expect(controls[0]?.getAttribute("aria-checked")).toBe("false");
+    expect(controls[1]?.getAttribute("aria-checked")).toBe("true");
+    expect(host.textContent).toContain("MY_QUESTIONS_CONTENT");
+    expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
+    expect(window.location.search).toContain("tab=questions");
+
+    await act(async () => controls[0]!.click());
+    expect(host.textContent).toContain("ACTIVITY_CONTENT");
     expect(host.textContent).not.toContain("MY_QUESTIONS_CONTENT");
-    expect(host.textContent).not.toContain("SETTINGS_CONTENT");
-    expect(host.querySelector('a[href="#profile-pets"]')).toBeNull();
+    expect(window.location.search).not.toContain("tab=questions");
+  });
+
+  it("supports direct links and back navigation for visitor questions", async () => {
+    await mount(false, "questions");
+    expect(host.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toContain(
+      "Вопросы @admin",
+    );
+    expect(host.textContent).toContain("MY_QUESTIONS_CONTENT");
+    await act(async () => {
+      window.history.replaceState({}, "", "/profile?username=admin");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(host.textContent).toContain("ACTIVITY_CONTENT");
+  });
+
+  it("supports arrow-key selection for the visitor radio group", async () => {
+    await mount(false);
+    const first = host.querySelector<HTMLButtonElement>('[role="radio"][data-profile-view="activity"]')!;
+    await act(async () => first.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "ArrowRight", bubbles: true, cancelable: true,
+    })));
+    expect(host.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toContain(
+      "Вопросы @admin",
+    );
   });
 });

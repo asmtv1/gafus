@@ -14,7 +14,7 @@ import { Stack, useLocalSearchParams, useRouter, useFocusEffect, type Href } fro
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  FEED_REACTIONS, FEED_LIMITS, countFeedCharacters, formatFeedTime,
+  FEED_REACTIONS, FEED_LIMITS, countFeedCharacters, formatFeedTime, validateFeedPollDraft,
   type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto, type FeedSort, type FeedImpressionInput,
 } from "@gafus/types";
 import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
@@ -22,13 +22,15 @@ import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { Button } from "@/shared/components";
 import { feedApi } from "@/shared/lib/api/feed";
-import { pickFeedMedia, uploadPickedFeedMedia, checkFeedPickedMedia, type FeedPickedMedia } from "./uploads";
+import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, type FeedPickedMedia } from "./uploads";
 import { stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { mobileFeedTelemetry } from "./telemetry";
 import { FeedMediaViewer } from "./FeedMediaViewer";
 import { GafusReactionProgress } from "./GafusReactionProgress";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedCarouselDots } from "./FeedCarouselDots";
+import { FeedPollCard } from "./FeedPollCard";
+import { FeedPollComposer, type MobileFeedPollDraft } from "./FeedPollComposer";
 import { FeedSortControl } from "./FeedSortControl";
 import { FeedSmartPreferences } from "./FeedSmartPreferences";
 import { SortableMediaStrip } from "./SortableMediaStrip";
@@ -251,10 +253,11 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       />
     )}
     <FeedCarouselDots count={media.length} position={currentMediaPosition} />
-    {post.text ? <Pressable onPress={() => detailed ? undefined : setExpanded(value => !value)} accessibilityRole={detailed ? "text" : "button"} accessibilityLabel={detailed ? "Текст" : "Показать текст полностью"}>
+    {post.text && !(post.hasPoll && post.text === "Опрос") ? <Pressable onPress={() => detailed ? undefined : setExpanded(value => !value)} accessibilityRole={detailed ? "text" : "button"} accessibilityLabel={detailed ? "Текст" : "Показать текст полностью"}>
       <Text style={[s.body, detailed && s.bodyDetailed]} numberOfLines={detailed || expanded ? undefined : 4}>{post.text}</Text>
       {!detailed && post.text.length > 80 && <Text style={s.more}>{expanded ? "Свернуть" : "Ещё"}</Text>}
     </Pressable> : null}
+    {post.hasPoll && <FeedPollCard postId={post.id} />}
     <View style={s.postFooter}>
       <FeedReactionStrip reactions={post.reactions} myReaction={post.myReaction}
         busy={busy} onSelect={react} />
@@ -575,6 +578,7 @@ export function FeedComposeScreen() {
     retry: 1,
   });
   const [text, setText] = useState("");
+  const [poll, setPoll] = useState<MobileFeedPollDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [picked, setPicked] = useState<FeedPickedMedia[]>([]);
@@ -600,7 +604,7 @@ export function FeedComposeScreen() {
   const attachedCount = existingMediaIds.length + picked.length + albumPhotoIds.length;
   const existingVideoCount = existingMedia.filter(asset => asset.kind === "video").length;
   const canSubmit = (!isEditing || (!!original.data && original.data.canEdit)) &&
-    (Boolean(text.trim()) || attachedCount > 0) &&
+    (Boolean(text.trim()) || attachedCount > 0 || !!poll) &&
     countFeedCharacters(text) <= FEED_LIMITS.postCharacters;
   const pick = async (source: "library" | "camera-photo" | "camera-video") => {
     try {
@@ -638,8 +642,33 @@ export function FeedComposeScreen() {
       return next;
     });
   };
+  const choosePollImage = async (index: number) => {
+    try {
+      const photo = await pickFeedPollOptionPhoto();
+      if (!photo) return;
+      setPoll(current => current ? {
+        ...current, options: current.options.map((option, i) =>
+          i === index ? { ...option, imageAsset: photo } : option),
+      } : current);
+    } catch (error) { Alert.alert("Не удалось выбрать фото", errorMessage(error)); }
+  };
+  const removePollImage = (index: number) => {
+    setPoll(current => current ? {
+      ...current, options: current.options.map((option, i) =>
+        i === index ? { ...option, imageAsset: undefined } : option),
+    } : current);
+  };
   const submit = async () => {
     if (!canSubmit || busy || (isEditing && original.isPending)) return;
+    if (poll) {
+      const issue = validateFeedPollDraft(poll);
+      if (issue) { Alert.alert("Проверьте опрос", issue); return; }
+      const count = poll.options.filter(option => option.imageAsset).length;
+      if (count + picked.length + existingMediaIds.length + albumPhotoIds.length > FEED_LIMITS.maxAttachments) {
+        Alert.alert("Слишком много фото", "Всего можно добавить максимум 10 вложений, включая варианты опроса.");
+        return;
+      }
+    }
     setBusy(true);
     if (!isEditing) {
       try {
@@ -649,6 +678,13 @@ export function FeedComposeScreen() {
             ...asset, previewUri: asset.kind === "photo" ? asset.uri : undefined,
           })),
           albumPhotoIds,
+          ...(poll ? {
+            poll: { ...poll, options: poll.options.map(({ imageAsset: _imageAsset, ...option }) => option) },
+            pollOptionImages: poll.options.flatMap((option, optionIndex) =>
+              option.imageAsset ? [{ optionIndex, asset: {
+                ...option.imageAsset, previewUri: option.imageAsset.uri,
+              } }] : []),
+          } : {}),
         });
         router.replace("/(main)/(tabs)/feed" as Href);
       } catch (error) {
@@ -779,6 +815,11 @@ export function FeedComposeScreen() {
           }
           setAlbumPhotoIds(ids);
         }} />}
+        {!isEditing && status.data?.enabled && <FeedPollComposer value={poll} onChange={setPoll} disabled={busy}
+          onPickImage={index => void choosePollImage(index)} onRemoveImage={removePollImage} />}
+        {isEditing && original.data?.hasPoll && <Text style={s.composeAlbumCount}>
+          Опрос остаётся без изменений. После публикации варианты нельзя редактировать.
+        </Text>}
         {progress ? <Text accessibilityRole="alert" style={s.composeAlbumCount}>{progress}</Text> : null}
         <Button label={busy ? (isEditing ? "Сохраняем…" : "Публикуем…") : isEditing ? "Сохранить изменения" : "Опубликовать"} variant="primary"
           height={46} fontSize={15} lineHeight={20} borderRadius={14} animatedPress

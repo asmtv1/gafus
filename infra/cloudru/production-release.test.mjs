@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 function cli(name, flag, extra = {}) {
-  return spawnSync(process.execPath, ["infra/cloudru/" + name, flag], {
+  return spawnSync(process.execPath, ["infra/cloudru/" + name, flag, ...(name === "production-cdn-release.mjs" && flag === "--activate" ? ["feed"] : [])], {
     encoding: "utf8",
     env: {
       ...process.env,
@@ -51,7 +51,8 @@ for (const gate of [
   "cloudru-prepare-media:",
   "cloudru-activate-cdn:",
   "production-media-release.mjs --prepare",
-  "production-cdn-release.mjs --activate",
+  "production-cdn-release.mjs --activate gallery",
+  "production-cdn-release.mjs --activate feed",
 ])
   assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
 assert(
@@ -62,6 +63,19 @@ assert(
   ci.indexOf("  deploy-production:") < ci.indexOf("  cloudru-activate-cdn:"),
   "CDN_MUST_ACTIVATE_AFTER_VPS_HEALTH",
 );
+assert(!ci.includes("production-cdn-release.mjs --activate\n"), "NO_JOINT_CDN_ACTIVATION");
+assert(ci.includes("steps.cdn_preflight.outcome == 'success'"), "INDEPENDENT_CUTOVER_MUST_REQUIRE_PREFLIGHT");
+assert(ci.includes("run: node infra/cloudru/production-cdn-release.mjs --activate gallery\n      - name: Activate and verify Feed CDN independently"), "CDN_STEPS_MUST_BE_INDEPENDENT");
+const activation = ci.slice(ci.indexOf("  cloudru-activate-cdn:"));
+assert.equal(activation.split('CDN_EDGE_DEGRADED_OK: "true"').length - 1, 2,
+  "ONLY_PER_RESOURCE_ACTIVATION_MAY_SOFTEN_HTTP_5XX");
+const edgeScript = readFileSync("infra/cloudru/production-cdn-release.mjs", "utf8");
+assert(edgeScript.includes("isDegradableCdnFailure(error, x.kind, fallbackVerified)"),
+  "SOFT_EDGE_FAILURE_REQUIRES_VERIFIED_S3_AND_ORIGIN");
+assert(edgeScript.includes("verifyS3Fallback(x, fixture.key, fixture.bytes)"),
+  "FEED_HLS_S3_MUST_BE_VERIFIED_BEFORE_EDGE_DEGRADATION");
+assert(edgeScript.includes("CLOUDRU_YANDEX_CDN_CUTOVER=DEGRADED_S3_FALLBACK"),
+  "DEGRADED_CDN_MUST_BE_EXPLICIT_IN_LOGS");
 assert(!ci.includes("compose_down; exit 1"), "DEPLOY_FAILURE_MUST_NOT_BRING_PRODUCTION_DOWN");
 assert(
   ci.includes("Restore previous application if CDN cutover fails"),

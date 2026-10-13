@@ -1,5 +1,6 @@
 import { FeedAuthorPostsList } from "@/features/feed/FeedViews";
 import { MyQuestionsList } from "@/features/questions/MyQuestionsList";
+import { PublicQuestionsList } from "@/features/questions/PublicQuestionsList";
 import {
   Bio,
   NotificationStatus,
@@ -37,10 +38,17 @@ export default function ProfileClient({
       <div className={styles.profileShell}>
         <Bio publicData={publicData} isOwner={isOwner} username={username} userData={userData} />
 
+        {!isOwner && publicData.pets.length > 0 && (
+          <div className={styles.publicPets}>
+            <PublicPets pets={publicData.pets} />
+          </div>
+        )}
+
         <ProfileSections
           isOwner={isOwner}
+          username={username}
           initialView={initialView}
-          questions={isOwner ? <MyQuestionsList /> : undefined}
+          questions={isOwner ? <MyQuestionsList /> : <PublicQuestionsList username={username} />}
           notes={
             isOwner ? (
               <div className={styles.notesCard}>
@@ -49,15 +57,8 @@ export default function ProfileClient({
             ) : undefined
           }
           activity={
-            <div className={`${styles.activityLayout} ${!isOwner && publicData.pets.length > 0 ? styles.visitorLayout : ""}`}>
-              <div className={styles.activityColumns}>
-                <FeedAuthorPostsList username={username} pageSize={6} />
-              </div>
-              {!isOwner && publicData.pets.length > 0 && (
-                <aside id="profile-pets" className={styles.petsColumn}>
-                  <PublicPets pets={publicData.pets} />
-                </aside>
-              )}
+            <div className={styles.activityColumns}>
+              <FeedAuthorPostsList username={username} pageSize={6} />
             </div>
           }
           settings={

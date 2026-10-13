@@ -30,13 +30,12 @@
 .feedTopBarTitle { margin: 0 0 7px; color: var(--feed-ink); font-size: clamp(30px, 4vw, 42px); font-weight: 780; letter-spacing: -.055em; line-height: 1.12; }
 .feedTopBarDescription { margin: 0; color: var(--feed-subtle); font-size: 13px; line-height: 1.55; }
 .feedTopBarActions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
-.feedNotifications, .feedCreate { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 12px; text-decoration: none; transition: background .16s ease, transform .16s ease, border-color .16s ease; }
-.feedNotifications { width: 44px; border: 1px solid var(--feed-border); background: var(--feed-paper); color: #525945; }
+/* These are shared GAFUS buttons; feed styles configure layout only, not palette or hover. */
+.feedNotifications { flex: 0 0 auto; width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 14px; }
 .feedNotifications svg { font-size: 23px; }
-.feedNotificationsActive, .feedNotifications:hover { background: #ebeee5; border-color: #c1c9b0; }
-.feedCreate { gap: 7px; padding: 10px 17px; border: 1px solid var(--feed-olive); background: var(--feed-olive); color: #fff; font-size: 13px; font-weight: 750; white-space: nowrap; }
+.feedNotificationsActive { outline: 2px solid var(--feed-olive); outline-offset: -2px; }
+.feedCreate { gap: 8px; padding: 10px 17px; border-radius: 14px; font-size: 13px; white-space: nowrap; }
 .feedCreate svg { font-size: 21px; }
-.feedCreate:hover { background: #424e2e; transform: translateY(-1px); }
 .feedNav { display: flex; gap: 25px; align-items: center; overflow-x: auto; scrollbar-width: none; }
 .feedNav::-webkit-scrollbar { display: none; }
 .feedNavItem { display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: relative; min-height: 46px; flex: 0 0 auto; padding: 10px 1px 14px; color: #77786d; font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; transition: color .16s ease; }
@@ -53,12 +52,8 @@
 .feedSortControls { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .feedSortOptions { display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 100%; padding: 1px; scrollbar-width: none; }
 .feedSortOptions::-webkit-scrollbar { display: none; }
-.feedSortOption, .feedSettingsButton { appearance: none; flex: 0 0 auto; border: 1px solid var(--feed-border); border-radius: 999px; padding: 10px 16px; min-height: 39px; font: inherit; font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
-.feedSortOption { color: #6d7062; background: #fffefa; }
-.feedSortOption:hover, .feedSettingsButton:hover { background: #eceee6; }
-.feedSortOptionActive { color: #fff; background: var(--feed-olive); border-color: var(--feed-olive); }
-.feedSortOptionActive:hover { background: #465330; }
-.feedSettingsButton { margin-left: auto; background: transparent; color: var(--feed-olive); border-color: transparent; }
+.feedSortOption, .feedSettingsButton { flex: 0 0 auto; min-height: 42px; padding: 8px 15px; border-radius: 999px; font-size: 12px; line-height: 1.3; white-space: nowrap; }
+.feedSettingsButton { margin-left: auto; }
 .feedSortSelect { min-height: 42px; border: 1px solid var(--feed-border); border-radius: 12px; color: var(--feed-olive); background: #fffefa; padding: 9px 13px; font: inherit; }
 
 .card { position: relative; min-width: 0; padding: 20px; border: 1px solid var(--feed-border); border-radius: 19px; background: #fff; box-shadow: 0 3px 14px rgba(32, 34, 24, .035); }
@@ -159,8 +154,9 @@
 .pendingRecoveredInfo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .pendingRecoveredTitle { color: #3f4539; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pendingRecoveredStatus { color: #91958a; font-size: 11px; }
-.pendingContinue { flex: 0 0 auto; padding: 8px 12px; border-radius: 9px; background: #edf0e6; color: #566842; text-decoration: none; font-size: 12px; font-weight: 700; }
-.pendingContinue:hover { background: #e3e9d8; }
+.pendingRecoveredActions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; flex-wrap: wrap; }
+.pendingRecoveredButton { min-height: 38px; padding: 8px 12px; border-radius: 10px; font-size: 12px; text-decoration: none; white-space: nowrap; }
+.pendingDeleteError { flex-basis: 100%; margin: 0; color: #a43c39; font-size: 12px; }
 
 .feedNotifications:focus-visible, .feedCreate:focus-visible, .feedNavItem:focus-visible,
 .feedSortOption:focus-visible, .feedSettingsButton:focus-visible, .postActions summary:focus-visible,
@@ -175,7 +171,7 @@
   .feedTopBarTitle { font-size: 32px; }
   .feedTopBarDescription { max-width: 270px; font-size: 12px; }
   .feedTopBarActions { gap: 6px; margin-top: 15px; }
-  .feedCreate { width: 43px; height: 43px; padding: 0; }
+  .feedCreate { min-width: 48px; width: 48px; min-height: 48px; padding: 0; }
   .feedCreate span { display: none; }
   .feedNav { gap: 23px; }
   .feedNavItem { font-size: 12px; }
@@ -192,12 +188,12 @@
   .feedSortControls { align-items: flex-start; }
   .feedSettingsButton { padding-inline: 7px; }
   .pendingMedia { width: 58px; height: 64px; }
-  .pendingRecoveredItem { align-items: flex-start; }
+  .pendingRecoveredItem { align-items: flex-start; flex-wrap: wrap; }
+  .pendingRecoveredInfo { flex: 1 1 100%; }
+  .pendingRecoveredActions { flex: 1 1 100%; justify-content: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .feedNotifications, .feedCreate, .feedNavItem, .feedSortOption, .feedSettingsButton,
-  .reaction, .primary, .secondary, .pendingTrack span { transition: none; }
-  .feedCreate:hover { transform: none; }
+  .feedNavItem, .reaction, .primary, .secondary, .pendingTrack span { transition: none; }
 }
 
 /* Редактор публикации: не переопределяем унаследованные PrimaryButton цвета. */

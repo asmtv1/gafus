@@ -1,0 +1,75 @@
+import { describe, it, expect, vi } from "vitest";
+import {
+  nextMediaCdnHealth, parseMonitorState, probeMediaCdn, sampleMediaCdnHealth,
+  createSignedMonitorUrl, monitorConfigFromEnv, type MonitorConfig,
+} from "./media-cdn-monitor";
+import { MEDIA_DELIVERY_HEALTH_KEY } from "@gafus/core/services/mediaDelivery";
+
+const now = 1791920000000;
+const config: MonitorConfig = {
+  gallery: { host: "gallery-dev.gafus.ru", secret: "A".repeat(24), enabled: true },
+  feed: { host: "feed.gafus.ru", secret: "B".repeat(24), enabled: true },
+};
+const blank = () => parseMonitorState(null, now);
+
+describe("server-side CDN health monitor", () => {
+  it("makes unique valid signed final-media probes without exposing an origin secret", () => {
+    const url = createSignedMonitorUrl("gallery", config, now, "a".repeat(32));
+    expect(url).toContain("gallery-dev.gafus.ru/albums/__cdn_monitor__/__cdn_monitor__/photos/");
+    expect(url).toContain("?md5=");
+    expect(url).not.toContain("A".repeat(24));
+    expect(createSignedMonitorUrl("feed", config, now, "b".repeat(32))).toContain("/thumb.webp");
+    expect(createSignedMonitorUrl("feed", { ...config, feed: { ...config.feed, enabled: false } }, now)).toBeNull();
+  });
+  it("treats 404 for a freshly signed nonexistent object as healthy, 504/5xx as failed", async () => {
+    for (const [status, result] of [[404, "healthy"], [504, "failed"], [503, "failed"],
+      [403, "unknown"], [302, "unknown"], [200, "unknown"]] as const) {
+      const fetcher = vi.fn(async () => new Response(null, { status }));
+      expect(await probeMediaCdn("gallery", config, fetcher, now)).toBe(result);
+      expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("gallery-dev.gafus.ru"),
+        expect.objectContaining({ method: "GET", redirect: "manual" }));
+    }
+    expect(await probeMediaCdn("feed", config,
+      async () => { throw new Error("ETIMEDOUT"); }, now)).toBe("failed");
+  });
+  it("uses two consecutive failures to bypass, two successes to recover, isolated by CDN", () => {
+    const failure = { gallery: "failed", feed: "healthy" } as const;
+    const first = nextMediaCdnHealth(blank(), failure, now);
+    expect(first.gallery).toBe("cdn");
+    const second = nextMediaCdnHealth(first, failure, now + 15_000);
+    expect(second.gallery).toBe("cloudru");
+    expect(second.feed).toBe("cdn");
+    const recoveredOne = nextMediaCdnHealth(second, { gallery: "healthy", feed: "failed" }, now + 30_000);
+    expect(recoveredOne.gallery).toBe("cloudru");
+    const recoveredTwo = nextMediaCdnHealth(recoveredOne, { gallery: "healthy", feed: "failed" }, now + 45_000);
+    expect(recoveredTwo.gallery).toBe("cdn");
+    expect(recoveredTwo.feed).toBe("cloudru");
+  });
+  it("does not switch on 403 or stale Redis records", () => {
+    const broken = nextMediaCdnHealth(blank(), { gallery: "failed", feed: "failed" }, now);
+    expect(nextMediaCdnHealth(broken, { gallery: "unknown", feed: "unknown" }, now + 15_000).gallery).toBe("cdn");
+    const down = nextMediaCdnHealth(broken, { gallery: "failed", feed: "failed" }, now + 15_000);
+    expect(parseMonitorState(JSON.stringify(down), now + 71_000).gallery).toBe("cdn");
+    expect(parseMonitorState(JSON.stringify(down), now + 20_000).gallery).toBe("cloudru");
+  });
+  it("uses Redis singleton lease; writes no media links or signed URLs", async () => {
+    const set = vi.fn(async (_key: string, _value: string, ...args: unknown[]) =>
+      args.includes("NX") ? "OK" : "OK");
+    const get = vi.fn(async () => null);
+    const redis = { get, set } as unknown as Parameters<typeof sampleMediaCdnHealth>[0];
+    const fetcher = vi.fn(async () => new Response(null, { status: 504 }));
+    const data = await sampleMediaCdnHealth(redis, config, fetcher, now);
+    expect(data?.failures.gallery).toBe(1);
+    expect(data?.failures.feed).toBe(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(set).toHaveBeenCalledWith(MEDIA_DELIVERY_HEALTH_KEY, expect.any(String), "EX", 65);
+    const published = set.mock.calls.find(call => call[0] === MEDIA_DELIVERY_HEALTH_KEY)?.[1];
+    expect(published).not.toContain("md5=");
+    expect(published).not.toContain(config.feed.secret);
+  });
+  it("monitor stays off until fallback and CDN resource configuration are valid", () => {
+    const disabled = monitorConfigFromEnv({ CDN_HEALTH_MONITOR_ENABLED: "true",
+      FEED_ENABLED: "true", FEED_MEDIA_FALLBACK_ENABLED: "false", FEED_S3_ENDPOINT: "https://s3.cloud.ru" });
+    expect(disabled.feed.enabled).toBe(false);
+  });
+});

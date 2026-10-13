@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import primaryButtonStyles from "@/shared/components/ui/PrimaryButton.module.css";
+import secondaryButtonStyles from "@/shared/components/ui/SecondaryButton.module.css";
 
 import styles from "./profile.module.css";
 
@@ -8,6 +10,7 @@ type ProfileView = "activity" | "questions" | "settings" | "notes";
 
 interface ProfileSectionsProps {
   isOwner: boolean;
+  username: string;
   initialView: ProfileView;
   activity: ReactNode;
   questions?: ReactNode;
@@ -18,23 +21,29 @@ interface ProfileSectionsProps {
 /** Profile-only navigation state. Data loading and permissions stay in the existing features/core. */
 export default function ProfileSections({
   isOwner,
+  username,
   initialView,
   activity,
   questions,
   settings,
   notes,
 }: ProfileSectionsProps) {
-  const [view, setView] = useState<ProfileView>(isOwner ? initialView : "activity");
+  const visitorView = initialView === "questions" ? "questions" : "activity";
+  const [view, setView] = useState<ProfileView>(isOwner ? initialView : visitorView);
 
   useEffect(() => {
-    setView(isOwner ? initialView : "activity");
-  }, [initialView, isOwner]);
+    setView(isOwner ? initialView : visitorView);
+  }, [initialView, isOwner, username, visitorView]);
 
   useEffect(() => {
     const syncFromUrl = () => {
       const url = new URL(window.location.href);
       const tab = url.searchParams.get("tab");
-      setView(isOwner && (tab === "settings" || tab === "questions" || tab === "notes") ? tab : "activity");
+      setView(
+        tab === "questions" || (isOwner && (tab === "settings" || tab === "notes"))
+          ? tab
+          : "activity",
+      );
     };
     window.addEventListener("popstate", syncFromUrl);
     return () => window.removeEventListener("popstate", syncFromUrl);
@@ -51,56 +60,101 @@ export default function ProfileSections({
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
+  const onVisitorKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    const next = event.key === "Home"
+      ? "activity"
+      : event.key === "End"
+        ? "questions"
+        : view === "activity" ? "questions" : "activity";
+    selectView(next);
+    const target = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
+      `[data-profile-view="${next}"]`,
+    );
+    target?.focus();
+  };
+
   return (
     <>
-      <nav className={styles.sectionNavigation} aria-label="Разделы профиля">
-        <div className={styles.contentNavigation}>
-          <button
-            type="button"
-            className={`${styles.navigationItem} ${view === "activity" ? styles.navigationActive : ""}`}
-            aria-pressed={view === "activity"}
-            onClick={() => selectView("activity")}
-          >
-            {isOwner ? "Мои публикации" : "Публикации"}
-          </button>
-          {isOwner && (
-            <button
-              type="button"
-              className={`${styles.navigationItem} ${view === "questions" ? styles.navigationActive : ""}`}
-              aria-pressed={view === "questions"}
-              onClick={() => selectView("questions")}
-            >
-              Мои вопросы
-            </button>
-          )}
-          {isOwner && (
-            <button
-              type="button"
-              className={`${styles.navigationItem} ${view === "settings" ? styles.navigationActive : ""}`}
-              aria-pressed={view === "settings"}
-              onClick={() => selectView("settings")}
-            >
-              Настройки аккаунта
-            </button>
-          )}
-          {isOwner && (
-            <button
-              type="button"
-              className={`${styles.navigationItem} ${view === "notes" ? styles.navigationActive : ""}`}
-              aria-pressed={view === "notes"}
-              onClick={() => selectView("notes")}
-            >
-              Заметки кинолога
-            </button>
-          )}
+      {!isOwner ? (
+        <div
+          className={styles.visitorNavigation}
+          role="radiogroup"
+          aria-label={`Разделы профиля @${username}`}
+        >
+          {(["activity", "questions"] as const).map((option) => {
+            const active = view === option;
+            const label = option === "activity" ? "Публикации" : "Вопросы";
+            return (
+              <button
+                key={option}
+                type="button"
+                className={`${active ? primaryButtonStyles.root : secondaryButtonStyles.root} ${styles.visitorToggle}`}
+                role="radio"
+                data-profile-view={option}
+                aria-checked={active}
+                tabIndex={active ? 0 : -1}
+                onClick={() => selectView(option)}
+                onKeyDown={onVisitorKeyDown}
+              >
+                {label} @{username}
+              </button>
+            );
+          })}
         </div>
-      </nav>
+      ) : (
+        <nav className={styles.sectionNavigation} aria-label="Разделы профиля">
+          <div className={styles.contentNavigation}>
+            <button
+              type="button"
+              className={`${styles.navigationItem} ${view === "activity" ? styles.navigationActive : ""}`}
+              aria-pressed={view === "activity"}
+              onClick={() => selectView("activity")}
+            >
+              {isOwner ? "Мои публикации" : "Публикации"}
+            </button>
+            {isOwner && (
+              <button
+                type="button"
+                className={`${styles.navigationItem} ${view === "questions" ? styles.navigationActive : ""}`}
+                aria-pressed={view === "questions"}
+                onClick={() => selectView("questions")}
+              >
+                Мои вопросы
+              </button>
+            )}
+            {isOwner && (
+              <button
+                type="button"
+                className={`${styles.navigationItem} ${view === "settings" ? styles.navigationActive : ""}`}
+                aria-pressed={view === "settings"}
+                onClick={() => selectView("settings")}
+              >
+                Настройки аккаунта
+              </button>
+            )}
+            {isOwner && (
+              <button
+                type="button"
+                className={`${styles.navigationItem} ${view === "notes" ? styles.navigationActive : ""}`}
+                aria-pressed={view === "notes"}
+                onClick={() => selectView("notes")}
+              >
+                Заметки кинолога
+              </button>
+            )}
+          </div>
+        </nav>
+      )}
 
       <div
         id={view === "settings" ? "profile-settings" : view === "questions" ? "profile-questions" : view === "notes" ? "profile-notes" : "profile-activity"}
         className={styles.viewContent}
       >
-        {view === "settings" && isOwner ? settings : view === "questions" && isOwner ? questions : view === "notes" && isOwner ? notes : activity}
+        {view === "settings" && isOwner ? settings : view === "questions" ? questions : view === "notes" && isOwner ? notes : activity}
       </div>
     </>
   );

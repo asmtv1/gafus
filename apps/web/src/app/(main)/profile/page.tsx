@@ -64,11 +64,11 @@ export default async function ProfilPage({
         userData={userData}
         linkFeedback={linkFeedback}
         initialView={
-          Boolean(linkFeedback) || params.tab === "settings"
+          isOwner && (Boolean(linkFeedback) || params.tab === "settings")
             ? "settings"
             : params.tab === "questions"
               ? "questions"
-              : params.tab === "notes"
+              : isOwner && params.tab === "notes"
                 ? "notes"
                 : "activity"
         }

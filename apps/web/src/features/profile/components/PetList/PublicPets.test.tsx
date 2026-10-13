@@ -10,12 +10,22 @@ vi.mock("@/features/profile", async () => ({
   PublicPets: (await import("./PublicPets")).default,
 }));
 vi.mock("@/features/questions/MyQuestionsList", () => ({ MyQuestionsList: () => null }));
+vi.mock("@/features/questions/PublicQuestionsList", () => ({ PublicQuestionsList: () => null }));
+vi.mock("@/shared/components/ui", () => ({
+  PrimaryButton: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+  SecondaryButton: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+}));
 vi.mock("@/features/feed/FeedViews", () => ({
   FeedAuthorPostsList: ({ username }: { username: string }) =>
     <div data-testid="author-posts">Моменты пользователя: {username}</div>,
 }));
-vi.mock("@gafus/core/utils", async () => ({
-  ...(await import("../../../../../../../packages/core/src/utils/pet")),
+vi.mock("@gafus/core/utils", () => ({
+  formatPetAge: () => "6 лет",
+  getPetTypeLabel: () => "Собака",
 }));
 
 const publicData: PublicProfile = {
@@ -31,6 +41,8 @@ describe("public pets placement", () => {
     const html = renderToStaticMarkup(<ProfileClient publicData={publicData} isOwner={false} username="student" userData={null} />);
     expect(html).toContain("Лада");
     expect(html).toContain("Метис");
+    expect(html.indexOf("Питомцы")).toBeLessThan(html.indexOf("Публикации @student"));
+    expect(html).toContain("Вопросы @student");
     expect(html).toContain("Моменты пользователя: student");
     expect(html).not.toContain("Фотоальбомы");
     expect(html).not.toContain("Показывать в профиле");

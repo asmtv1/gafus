@@ -11,7 +11,8 @@ export const feedRevisionSchema = z.object({
   expectedVersion: z.number().int().nonnegative(),
   text: postText,
   attachmentIds: z.array(feedIdSchema).max(L.maxAttachments).refine(ids => new Set(ids).size === ids.length, "Duplicate attachment"),
-}).strict().refine(v => !!v.text.trim() || !!v.attachmentIds.length, "EMPTY_POST");
+  pollOnly: z.literal(true).optional(),
+}).strict().refine(v => !!v.text.trim() || !!v.attachmentIds.length || v.pollOnly === true, "EMPTY_POST");
 export const feedPublishSchema = z.object({ clientRequestId: requestId }).strict();
 export const feedUploadSchema = z.object({
   filename: z.string().trim().min(1).max(255),
@@ -28,6 +29,36 @@ export const feedCopyPhotoSchema = z.object({ photoId: feedIdSchema, clientReque
 export const feedCommentSchema = z.object({ text: commentText, replyToId: feedIdSchema.nullable().optional(), clientRequestId: requestId }).strict();
 export const feedCommentEditSchema = z.object({ text: commentText }).strict();
 export const feedReactionSchema = z.object({ reaction: z.enum(FEED_REACTIONS) }).strict();
+export const feedPollSaveSchema = z.object({
+  expectedVersion: z.number().int().nonnegative(),
+  question: z.string().trim().min(1).max(500),
+  explanation: z.string().trim().max(2000).nullable().optional(),
+  allowMultiple: z.boolean().default(false),
+  isQuiz: z.boolean().default(false),
+  isAnonymous: z.boolean().default(false),
+  hideResults: z.boolean().default(false),
+  shuffleOptions: z.boolean().default(false),
+  endDate: z.string().datetime({ offset: true }).nullable().optional(),
+  options: z.array(z.object({
+    text: z.string().trim().min(1).max(200),
+    imageMediaId: feedIdSchema.nullable().optional(),
+    isCorrect: z.boolean().default(false),
+  }).strict()).min(2).max(10),
+}).strict().superRefine((value, ctx) => {
+  const correct = value.options.filter(option => option.isCorrect).length;
+  if ((!value.isQuiz && correct !== 0) ||
+      (value.isQuiz && (correct < 1 || (!value.allowMultiple && correct !== 1)))) {
+    ctx.addIssue({ code: "custom", message: "Некорректные ответы викторины" });
+  }
+  const normalized = value.options.map(option => option.text.toLocaleLowerCase("ru"));
+  if (new Set(normalized).size !== normalized.length) {
+    ctx.addIssue({ code: "custom", message: "Повторяющиеся варианты ответа" });
+  }
+});
+export const feedPollVoteSchema = z.object({
+  optionIds: z.array(feedIdSchema).min(1).max(10)
+    .refine(ids => new Set(ids).size === ids.length, "Повторяющиеся варианты"),
+}).strict();
 export const feedListSchema = z.object({
   cursor: z.string().min(1).max(512).nullable().optional(),
   pageSize: z.number().int().min(1).max(L.maxPageSize).default(L.pageSize),

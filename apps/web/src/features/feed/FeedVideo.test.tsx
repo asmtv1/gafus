@@ -2,6 +2,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const { prefers } = vi.hoisted(()=>({prefers:vi.fn()}));
+vi.mock("@/shared/lib/media/serverHealth",()=>({ prefersCloudruMedia: prefers }));
 
 const { requestPlayback, construct, loadSource, attachMedia, destroy } = vi.hoisted(() => ({
   requestPlayback: vi.fn(),
@@ -33,10 +35,12 @@ vi.mock("hls.js", () => ({
   },
 }));
 import { FeedVideo } from "./FeedVideo";
+import { probeCdnOutage } from '@gafus/core/services/mediaDelivery';
 
 let root: Root, host: HTMLDivElement;
 const manifestUrl = "/api/v1/feed-playback/media1?ticket=valid.ticket";
 beforeEach(() => {
+  prefers.mockResolvedValue(false);
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.stubGlobal(
     "IntersectionObserver",
@@ -56,6 +60,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(async () => {
+  prefers.mockReset();
   await act(async () => root.unmount());
   host.remove();
   vi.restoreAllMocks();
@@ -67,6 +72,16 @@ afterEach(async () => {
   destroy.mockReset();
 });
 describe("FeedVideo HLS engine selection", () => {
+  it("starts HLS on S3 immediately when server marks Feed down", async () => {
+    prefers.mockResolvedValue(true);
+    await act(async () => root.render(<FeedVideo mediaId="media1" poster={null} />));
+    await act(async () => { (host.querySelector("button") as HTMLButtonElement)?.click(); });
+    await vi.waitFor(() => expect(loadSource).toHaveBeenCalledOnce());
+    expect(prefers).toHaveBeenCalledWith("feed");
+    expect(loadSource).toHaveBeenCalledWith(manifestUrl + "&source=cloudru");
+  });
+
+
   it("uses hls.js even if Chrome claims native HLS maybe support", async () => {
     await act(async () => root.render(<FeedVideo mediaId="media1" poster={null} />));
     await act(async () => {
@@ -82,4 +97,15 @@ describe("FeedVideo HLS engine selection", () => {
     expect(attachMedia).toHaveBeenCalledWith(host.querySelector("video"));
     expect(vi.mocked(HTMLMediaElement.prototype.play)).not.toHaveBeenCalled();
   });
+  it("starts a new video using Cloud.ru HLS when Feed is in a confirmed 504 cooldown", async () => {
+    const source = `https://feed.gafus.ru/posts/owner/post/attachments/media/hls/segment-000.ts?md5=${'A'.repeat(22)}&expires=1999999999`;
+    expect(await probeCdnOutage(source, { fetcher: async () => new Response(null, { status: 504 }) })).toBe(true);
+    await act(async () => root.render(<FeedVideo mediaId="media1" poster={null} />));
+    await act(async () => {
+      (host.querySelector('button') as HTMLButtonElement)?.click();
+    });
+    await vi.waitFor(() => expect(loadSource).toHaveBeenCalledOnce());
+    expect(loadSource).toHaveBeenCalledWith(manifestUrl + '&source=cloudru');
+  });
+
 });

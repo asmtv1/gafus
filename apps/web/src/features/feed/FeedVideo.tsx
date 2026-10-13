@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type Hls from "hls.js";
 import { feedApi } from "./api";
 import { CdnImage } from "@/shared/components/media/CdnImage";
-import { cloudruFallbackManifestUrl, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
+import { cloudruFallbackManifestUrl, isMediaCdnFailoverActive, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
 import { sameOriginCdnProbeFetch } from "@/shared/lib/media/cdnProbe";
+import { prefersCloudruMedia } from "@/shared/lib/media/serverHealth";
 import styles from "./Feed.module.css";
 let stopActiveVideo: (() => void) | undefined;
 
@@ -63,11 +64,14 @@ export function FeedVideo({ mediaId, poster }: { mediaId: string; poster: string
       setActive(true);
       expiryTimer.current = setTimeout(stop, 110_000);
       const url = ticket.manifestUrl;
-      let directAttempted = false;
+      const useDirect = isMediaCdnFailoverActive("feed") || await prefersCloudruMedia("feed");
+      if (generation.current !== current) return;
+      let directAttempted = useDirect;
       const switchToFallback = async (player?: Hls) => {
         if (directAttempted || generation.current !== current) return false;
         directAttempted = true;
-        if (!(await probeHlsCdnOutage(url, { fetcher: sameOriginCdnProbeFetch, timeoutMs: 8500 })))
+        if (!isMediaCdnFailoverActive('feed') &&
+            !(await probeHlsCdnOutage(url, { fetcher: sameOriginCdnProbeFetch, timeoutMs: 8500 })))
           return false;
         if (generation.current !== current) return false;
         const directManifest = cloudruFallbackManifestUrl(url);
@@ -114,11 +118,11 @@ export function FeedVideo({ mediaId, poster }: { mediaId: string; poster: string
               if (generation.current === current) setError("Нажмите воспроизведение в плеере.");
             });
         });
-        player.loadSource(url);
+        player.loadSource(useDirect ? cloudruFallbackManifestUrl(url) : url);
         player.attachMedia(element);
       } else if (element.canPlayType("application/vnd.apple.mpegurl")) {
         nativeFallback.current = () => switchToFallback();
-        element.src = url;
+        element.src = useDirect ? cloudruFallbackManifestUrl(url) : url;
         await element.play();
       } else {
         throw new Error("Этот браузер не поддерживает воспроизведение видео.");

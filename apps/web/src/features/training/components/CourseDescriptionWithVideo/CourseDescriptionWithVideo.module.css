@@ -1,8 +1,9 @@
 /* Контейнер описания курса */
 .descriptionContainer {
-  margin-bottom: 24px;
-  max-width: 500px;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 900px;
+  margin: 0 auto 24px;
 }
 
 .descriptionContainer:not(.expanded) .descriptionHeader {

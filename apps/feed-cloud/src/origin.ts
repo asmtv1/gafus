@@ -65,5 +65,15 @@ export async function handler(event: OriginEvent) {
       }
       return { statusCode: 200, headers: outHeaders, body: bytes.toString("base64"), isBase64Encoded: true };
     } finally { stream.destroy?.(); }
-  } catch { return failure(404); }
+  } catch (error) {
+    // Do not disguise S3 timeouts/5xx as missing media: CDN can cache 404s.
+    // Path validation errors and genuinely absent private objects remain 404.
+    const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+    if ((error instanceof Error && error.message.startsWith("UNTRUSTED_FEED_")) ||
+        status === 404 || (error as Error)?.name === "NoSuchKey" ||
+        (error as Error)?.name === "NotFound") return failure(404);
+    // Never log private object keys, secrets, signed URLs or raw SDK errors.
+    console.error("FEED_ORIGIN_READ_FAILED", { status: status ?? "transport" });
+    return failure(503);
+  }
 }

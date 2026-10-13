@@ -1,3 +1,5 @@
+export { createFeedPolls } from "./polls";
+export type { FeedPollService } from "./polls";
 export { createFeedService } from "./service";
 export { createSmartFeedPreferences, smartPreferenceSchema, smartImpressionsSchema, smartRankingEventsSchema, smartFeedbackSchema } from "./smart-preferences";
 export { smartRedisTimeout } from "./smart-redis";

@@ -28,7 +28,7 @@ test("manual deploy never builds, stops the database or uses the legacy env buil
   assert.doesNotMatch(manual, /secrets\.POSTGRES_PASSWORD|secrets\.CLOUDRU_S3_SECRET_ACCESS_KEY/);
 });
 
-test("every image is release-SHA tagged and old image rollback is preserved", () => {
+test("every image is release-SHA tagged and rollback stays available during cutover", () => {
   assert.match(main, /\$\{\{ matrix\.image\.tag \}\}:sha-\$\{\{ github\.sha \}\}/);
   assert.match(shared, /\$image:sha-\$\{\{ inputs\.release_sha \}\}/);
   assert.match(shared, /RELEASE_SUPERSEDED/);
@@ -37,4 +37,18 @@ test("every image is release-SHA tagged and old image rollback is preserved", ()
   assert.match(shared, /GALLERY_S3_ENDPOINT/);
   assert.match(shared, /FEED_S3_ENDPOINT/);
   assert.match(shared, /VOXIMPLANT_ADMISSION_SECRET/);
+});
+
+test("old Docker release images are pruned without removing live images or volumes", () => {
+  assert.match(shared, /cleanup_obsolete_gafus_images\(\) \{/);
+  assert.match(shared, /ghcr\.io\/asmtv1\/gafus-\*:rollback-\*\|ghcr\.io\/asmtv1\/gafus-\*:sha-\*/);
+  assert.match(shared, /docker image rm "\$image_reference"/);
+  assert.doesNotMatch(shared, /docker (volume prune|system prune|image rm -f)/);
+  const beforePull = shared.indexOf('cleanup_obsolete_gafus_images\n\n            : >');
+  assert.notEqual(beforePull, -1, "stale images must be removed before pulling a new release");
+  const healthy = shared.indexOf('Deployment completed and readiness checks passed!');
+  const onSuccess = shared.indexOf('cleanup_obsolete_gafus_images', healthy);
+  assert.ok(onSuccess > healthy, "temporary rollback and SHA tags must be removed after readiness");
+  assert.match(shared, /if \[ "\$restore_ok" = true \]; then\s+cleanup_obsolete_gafus_images/);
+  assert.match(shared, /SCHEMA_MIGRATION_STARTED: retaining maintenance mode/);
 });

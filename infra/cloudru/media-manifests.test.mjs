@@ -23,6 +23,10 @@ for (const service of services) {
   assert.equal(service.template.scaling.minInstanceCount, 1);
   assert.equal(service.template.scaling.maxInstanceCount, 1);
 }
+// Feed needs CPU headroom for signed CDN image and MPEG-TS reads.
+const feedOrigin = services.find((service) => service.name === 'gafus-feed-origin');
+assert.equal(feedOrigin.template.containers[0].resources.cpu, '0.5');
+assert.equal(feedOrigin.template.containers[0].resources.memory, '1024Mi');
 for (const job of jobs) {
   assert.equal(job.runImmediately, false);
   assert.equal(job.template.maxRetries, 3);

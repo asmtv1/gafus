@@ -30,6 +30,7 @@ export async function verifyStableCdnGet({
   let consecutive = 0;
   let transientFailures = 0;
   let lastFailure = "none";
+  let transportFailures = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     // A newly signed request each time, not a single 150-second token.
     const url = urlForAttempt();
@@ -63,19 +64,19 @@ export async function verifyStableCdnGet({
       }
       // Fetch transport failures are retried; do not log signed URLs.
       lastFailure = "transport";
+      transportFailures++;
     }
     transientFailures++;
     consecutive = 0;
     if (attempt < maxAttempts) await wait(retryDelayMs);
   }
-  throw Error(
-    "CDN_EDGE_UNSTABLE_" +
-      kind +
-      "_after_" +
-      maxAttempts +
-      "_last_" +
-      lastFailure +
-      "_transient_" +
-      transientFailures,
+  const error = Error(
+    "CDN_EDGE_UNSTABLE_" + kind + "_after_" + maxAttempts +
+    "_last_" + lastFailure + "_transient_" + transientFailures,
   );
+  // Error metadata is intentionally not set if even one TLS/transport
+  // failure was observed. Only fully HTTP-5xx edge outages may degrade.
+  if (transportFailures === 0 && /^http_5\d\d$/.test(lastFailure))
+    error.cdnTransientOnly = true;
+  throw error;
 }

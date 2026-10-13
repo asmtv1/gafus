@@ -42,6 +42,72 @@ describe("Moments background publication manager", () => {
     expect(publicationPhaseLabel(manager.getSnapshot()[0]!)).toBe("Опубликовано!");
   });
 
+  it("persists a poll before saving an empty-text post, including idempotent retries", async () => {
+    let published = false;
+    let failures = 0;
+    const client = { ...api(() => published, () => { published = true; }),
+      savePoll: vi.fn().mockResolvedValue({ id: "poll-1" }),
+    };
+    client.publishPost.mockImplementation(async () => {
+      if (++failures === 1) throw new Error("Сбой подключения");
+      published = true;
+      return post("published");
+    });
+    const manager = createFeedPublicationManager({
+      api: client, upload: vi.fn(), makeId: () => crypto.randomUUID(),
+    });
+    const jobId = manager.enqueue({ ownerId: "me", text: "", files: [], albumPhotoIds: [],
+      poll: { question: "Какой ответ?", options: [{ text: "Первый" }, { text: "Второй" }] },
+    });
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("failed"));
+    expect(client.savePoll).toHaveBeenCalledWith("post-1", expect.objectContaining({
+      expectedVersion: 0, question: "Какой ответ?",
+    }));
+    expect(client.saveRevision).toHaveBeenCalledWith("post-1", expect.objectContaining({
+      text: "", attachmentIds: [], pollOnly: true,
+    }));
+    expect(client.savePoll.mock.invocationCallOrder[0]).toBeLessThan(client.saveRevision.mock.invocationCallOrder[0]!);
+    manager.retry(jobId);
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("published"));
+    expect(client.savePoll).toHaveBeenCalledTimes(1);
+    expect(client.saveRevision).toHaveBeenCalledTimes(1);
+    expect(client.publishPost).toHaveBeenCalledTimes(2);
+  });
+
+  it("uploads poll option photos separately and retries without duplicating media", async () => {
+    let published = false;
+    const client = { ...api(() => published, () => { published = true; }),
+      savePoll: vi.fn().mockRejectedValueOnce(new Error("Temporary connection error"))
+        .mockResolvedValue({ id: "poll1" }),
+    };
+    const asset = { requestId: "poll-image-1", bytes: 100, previewUri: "blob:preview" };
+    const uploaded = vi.fn().mockResolvedValue("poll-media-id");
+    const pollImageStatus = vi.fn().mockResolvedValue("ready" as const);
+    const manager = createFeedPublicationManager({ api: client, upload: uploaded,
+      pollImageStatus, makeId: () => crypto.randomUUID(),
+    });
+    const jobId = manager.enqueue({ ownerId: "me", text: "", files: [], albumPhotoIds: [],
+      poll: { question: "Что за собака?", options: [{ text: "Шпиц" }, { text: "Корги" }] },
+      pollOptionImages: [{ optionIndex: 1, asset }],
+    });
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("failed"));
+    expect(uploaded).toHaveBeenCalledWith("post-1", asset, expect.any(Function));
+    expect(pollImageStatus).toHaveBeenCalledWith("post-1", asset, "poll-media-id");
+    expect(client.saveRevision).not.toHaveBeenCalled();
+    manager.retry(jobId);
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("published"));
+    expect(uploaded).toHaveBeenCalledTimes(1);
+    expect(client.savePoll).toHaveBeenCalledTimes(2);
+    expect(client.savePoll).toHaveBeenLastCalledWith("post-1", expect.objectContaining({
+      expectedVersion: 0,
+      options: [{ text: "Шпиц" }, { text: "Корги", imageMediaId: "poll-media-id" }],
+    }));
+    expect(client.saveRevision).toHaveBeenCalledWith("post-1", expect.objectContaining({
+      text: "", attachmentIds: [], pollOnly: true,
+    }));
+    expect(client.publishPost).toHaveBeenCalledTimes(1);
+  });
+
   it("retries failures against the same draft without duplicate uploads or posts", async () => {
     let published = false;
     const client = api(() => published, () => { published = true; });

@@ -42,6 +42,7 @@ export const answerCreateSchema = answerEditSchema.extend({
   clientRequestId: z.string().uuid(),
 });
 export const questionListSchema = z.object({
+  author: z.string().trim().min(1).max(100).optional(),
   search: z.string().trim().max(150).default(""),
   category: z.enum(QUESTION_CATEGORIES).optional(),
   status: z.enum(["waiting", "answered", "resolved"]).optional(),

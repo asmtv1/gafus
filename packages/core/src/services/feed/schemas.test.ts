@@ -55,3 +55,27 @@ describe("feed input validation", () => {
     }
   });
 });
+
+describe("poll request schemas", () => {
+  it("bounds options, rejects invalid quizzes and duplicate selections", async () => {
+    const { feedPollSaveSchema, feedPollVoteSchema } = await import("./schemas");
+    const base = { expectedVersion: 0, question: "Выберите вариант", options: [
+      { text: "Да" }, { text: "Нет" },
+    ] };
+    expect(feedPollSaveSchema.safeParse(base).success).toBe(true);
+    expect(feedPollSaveSchema.safeParse({ ...base, options: [{ text: "Да" }] }).success).toBe(false);
+    expect(feedPollSaveSchema.safeParse({ ...base, options: [{ text: "ДА" }, { text: "да" }] }).success).toBe(false);
+    expect(feedPollSaveSchema.safeParse({ ...base, options: [{ text: "Да", isCorrect: true }, { text: "Нет" }] }).success).toBe(false);
+    expect(feedPollSaveSchema.safeParse({ ...base, isQuiz: true }).success).toBe(false);
+    expect(feedPollSaveSchema.safeParse({ ...base, isQuiz: true, options: [
+      { text: "Да", isCorrect: true }, { text: "Нет" },
+    ] }).success).toBe(true);
+    expect(feedPollSaveSchema.safeParse({ ...base, isQuiz: true, options: [
+      { text: "Да", isCorrect: true }, { text: "Нет", isCorrect: true },
+    ] }).success).toBe(false);
+    expect(feedPollSaveSchema.safeParse({ ...base, ownerId: "forged" }).success).toBe(false);
+    expect(feedPollVoteSchema.safeParse({ optionIds: ["a", "a"] }).success).toBe(false);
+    expect(feedPollVoteSchema.safeParse({ optionIds: [] }).success).toBe(false);
+    expect(feedPollVoteSchema.safeParse({ optionIds: ["a"], userId: "forged" }).success).toBe(false);
+  });
+});

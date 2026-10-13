@@ -35,6 +35,23 @@ jobs:
             APP_MUTATED=false
             CUTOVER_SCRIPT="$DEPLOY_ROOT/ci-cd/scripts/production-schema-cutover.sh"
             MAINTENANCE_GATE="$DEPLOY_ROOT/ci-cd/nginx/conf.d/.release-maintenance"
+
+            # Retain rollback tags only while a deploy is in progress. Never
+            # remove :latest, Docker volumes, or images used by containers.
+            cleanup_obsolete_gafus_images() {
+              echo "Cleaning up obsolete GAFUS rollback/SHA image tags..."
+              local image_reference
+              while IFS= read -r image_reference; do
+                case "$image_reference" in
+                  ghcr.io/asmtv1/gafus-*:rollback-*|ghcr.io/asmtv1/gafus-*:sha-*)
+                    docker image rm "$image_reference" ||
+                      echo "IMAGE_CLEANUP_DEFERRED: $image_reference"
+                    ;;
+                esac
+              done < <(docker image ls --format '{{.Repository}}:{{.Tag}}')
+              docker image prune -f || echo "DANGLING_IMAGE_PRUNE_DEFERRED"
+            }
+
             restore_previous_runtime() {
               rc="$1"
               if [ "$rc" -eq 0 ]; then return 0; fi
@@ -60,10 +77,19 @@ jobs:
                   cp "$RELEASE_BACKUP_DIR/previous.env" "$DEPLOY_ROOT/ci-cd/docker/.env"
                   chmod 600 "$DEPLOY_ROOT/ci-cd/docker/.env"
                 fi
+                restore_ok=true
                 if [ -s "$RELEASE_BACKUP_DIR/images.tsv" ]; then
                   while IFS=' ' read -r reference rollback; do
-                    docker tag "$rollback" "$reference" || echo "PREFLIGHT_IMAGE_RESTORE_FAILED"
+                    if ! docker tag "$rollback" "$reference"; then
+                      echo "PREFLIGHT_IMAGE_RESTORE_FAILED"
+                      restore_ok=false
+                    fi
                   done < "$RELEASE_BACKUP_DIR/images.tsv"
+                fi
+                if [ "$restore_ok" = true ]; then
+                  cleanup_obsolete_gafus_images
+                else
+                  echo "Keeping rollback tags for manual recovery."
                 fi
                 echo "Existing application containers have not been replaced."
                 return 0
@@ -286,6 +312,7 @@ jobs:
               echo "FEED_CDN_BASE_URL=https://feed.gafus.ru"
               echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "FEED_MEDIA_FALLBACK_ENABLED=true"
+              echo "CDN_HEALTH_MONITOR_ENABLED=true"
               echo "FEED_CDN_RESOURCE_IDS=bc8ru2x6mcqxwcl6a7vj"
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
@@ -439,6 +466,10 @@ jobs:
               "gafus-prisma"
             )
 
+            # Clear left-over tags from earlier attempts before downloading
+            # the next release; images used by running containers stay intact.
+            cleanup_obsolete_gafus_images
+
             : > "$RELEASE_BACKUP_DIR/images.tsv"
             for image in "${images[@]}"; do
               reference="ghcr.io/asmtv1/$image:latest"
@@ -585,9 +616,11 @@ jobs:
             fi
             echo "🎉 Deployment completed and readiness checks passed!"
 
-            # Keep previous image tags for forensic recovery only: after a
-            # destructive Prisma migration, an image-only rollback is unsafe.
-            echo "Previous image tags preserved; schema-aware rollback guard active."
+            # The new runtime is healthy. Old application rollback images
+            # are no longer safe after the committed Prisma schema migration.
+            # Keep only :latest and images actually used by containers.
+            cleanup_obsolete_gafus_images
+            echo "Obsolete release images removed; schema-aware rollback guard active."
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}

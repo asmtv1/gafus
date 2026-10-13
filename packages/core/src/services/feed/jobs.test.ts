@@ -42,6 +42,7 @@ function mockDb(options: {
     },
     $queryRaw: vi.fn(async () => [{ id: "post_1" }]),
     feedPost: { findUnique: vi.fn(async () => post), update: published, updateMany: vi.fn(async () => ({ count: 1 })) },
+    feedPoll: { findUnique: vi.fn(async () => null) },
     feedMediaAsset: { findFirst: vi.fn(async () => media), update: mediaUpdate, updateMany: vi.fn(async () => ({ count: 1 })) },
     feedUpload: { findUnique: vi.fn(async () => ({
       id: "upload_1", status: "uploaded", mediaId: "asset_1", sourceKey: job.sourceKeys[0],

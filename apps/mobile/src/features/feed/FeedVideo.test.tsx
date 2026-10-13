@@ -2,6 +2,8 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const { prefers } = vi.hoisted(()=>({prefers:vi.fn()}));
+vi.mock("@/shared/lib/media/serverHealth",()=>({ prefersCloudruMedia: prefers }));
 const { playback, probe, listeners, sources } = vi.hoisted(() => ({
   playback: vi.fn(),
   probe: vi.fn(),
@@ -74,10 +76,12 @@ vi.mock("expo-video", async () => {
   };
 });
 import { FeedVideo } from "./FeedVideo";
+import { probeCdnOutage } from '@gafus/core/services/mediaDelivery';
 const base = "https://api.gafus.test";
 const manifest = "/api/v1/feed-playback/video1?ticket=abc.def";
 let root: Root, host: HTMLDivElement;
 beforeEach(() => {
+  prefers.mockResolvedValue(false);
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -86,6 +90,7 @@ beforeEach(() => {
   probe.mockResolvedValue(true);
 });
 afterEach(async () => {
+  prefers.mockReset();
   await act(async () => root.unmount());
   host.remove();
   vi.restoreAllMocks();
@@ -96,6 +101,19 @@ afterEach(async () => {
   probe.mockReset();
 });
 describe("Mobile FeedVideo native source fallback", () => {
+  it("starts HLS on S3 immediately when server marks Feed down", async () => {
+    prefers.mockResolvedValue(true);
+    await act(async () => root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />));
+    await act(async () => {
+      (host.querySelector("button") as HTMLButtonElement).click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(prefers).toHaveBeenCalledWith("feed");
+    expect(sources).toEqual([base + manifest + "&source=cloudru"]);
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+
   it("reinitializes expo-video with Cloud.ru fallback manifest after an outage", async () => {
     await act(async () =>
       root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />),
@@ -138,4 +156,18 @@ describe("Mobile FeedVideo native source fallback", () => {
     expect(host.querySelector('[data-testid="native-video"]')).toBeNull();
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("Видео не загрузилось");
   });
+  it("starts a new video directly on Cloud.ru HLS during a confirmed Feed outage", async () => {
+    const source = `https://feed.gafus.ru/posts/owner/post/attachments/media/hls/segment-000.ts?md5=${'A'.repeat(22)}&expires=1999999999`;
+    expect(await probeCdnOutage(source, { fetcher: async () => new Response(null, { status: 504 }) })).toBe(true);
+    await act(async () =>
+      root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />),
+    );
+    await act(async () => {
+      (host.querySelector('button') as HTMLButtonElement).click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(sources).toEqual([base + manifest + '&source=cloudru']);
+    expect(probe).not.toHaveBeenCalled();
+  });
+
 });

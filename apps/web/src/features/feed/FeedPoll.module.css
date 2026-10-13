@@ -1,0 +1,35 @@
+.editor, .poll { display: grid; gap: 14px; min-width: 0; padding: 18px; border: 1px solid #e1e5d9; border-radius: 16px; background: #f8f9f5; color: #374031; }
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.heading strong { font-size: 15px; }
+.heading p { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: #6c7463; }
+.label { display: grid; gap: 6px; min-width: 0; font-size: 12px; font-weight: 700; }
+.input { box-sizing: border-box; width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #d5ddce; border-radius: 10px; background: #fff; color: #30372c; font: inherit; font-size: 13px; }
+.input:focus-visible { outline: 2px solid #899c70; outline-offset: 1px; }
+.choices { display: grid; gap: 8px; }
+.choiceEdit { display: flex; align-items: center; gap: 9px; }
+.choiceEdit > input[type=checkbox], .choiceEdit > input[type=radio] { width: 18px; height: 18px; accent-color: #57643b; flex: 0 0 auto; }
+.remove { width: 34px; min-width: 34px; min-height: 38px; border: 0; border-radius: 8px; background: #f4eae4; color: #8a4543; font-size: 21px; cursor: pointer; }
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 9px; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1.4; }
+.toggle input { accent-color: #57643b; }
+.hint { margin: 0; font-size: 12px; color: #97643c; }
+.question { margin: 0; color: #343b2f; font-size: 16px; font-weight: 750; line-height: 1.5; }
+.answers { display: grid; gap: 9px; }
+.answer { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 48px; padding: 10px 12px; border: 1px solid #d6ddce; border-radius: 12px; background: #fff; text-align: left; color: #3c4537; font: inherit; font-size: 13px; cursor: pointer; }
+.answer:disabled { cursor: default; }
+.answerSelected { border-color: #71865b; background: #eef3e7; }
+.answer:focus-visible { outline: 2px solid #71865b; outline-offset: 2px; }
+.answerImage { width: 58px; height: 58px; object-fit: cover; border-radius: 8px; grid-column: 2; }
+.bar { height: 6px; border-radius: 9px; background: #e8eadf; overflow: hidden; grid-column: 2 / -1; }
+.fill { display: block; height: 100%; background: #879b6d; border-radius: inherit; }
+.subtle { margin: 0; font-size: 12px; color: #747a6c; }
+.pollFooter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* Option photos remain separate from the post's gallery attachments. */
+.choiceEdit { flex-wrap: wrap; }
+.photoPicker { display: inline-flex; justify-content: center; align-items: center; flex: 0 0 auto; min-height: 38px; padding: 6px 11px; border: 1px solid #cbd6c1; border-radius: 10px; background: #fff; color: #50623f; cursor: pointer; font-size: 12px; }
+.photoPicker input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.photoPicker:focus-within { outline: 2px solid #899c70; outline-offset: 2px; }
+.photoPreview { display: flex; align-items: center; gap: 7px; width: 100%; padding-left: 25px; }
+.photoPreview img { width: 76px; height: 62px; border-radius: 9px; object-fit: contain; background: #e9ede1; }
+.photoPreview button { border: 0; border-radius: 8px; width: 32px; height: 32px; color: #8a4543; background: #f4eae4; cursor: pointer; }

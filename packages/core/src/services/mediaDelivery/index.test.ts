@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isCdnOutage, probeCdnOutage, probeHlsCdnOutage, cloudruFallbackManifestUrl, isTrustedCdnProbeUrl } from './index';
+import { isCdnOutage, isMediaCdnFailoverActive, isSignedCdnFailoverActive, MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, probeHlsCdnOutage, cloudruFallbackManifestUrl, isTrustedCdnProbeUrl } from './index';
 describe('CDN fail-closed transport fallback policy', () => {
   it('never bypasses 403/404 or any known non-5xx response', () => {
     for (const status of [200, 204, 301, 400, 401, 403, 404, 429])
@@ -53,5 +53,49 @@ describe('authorized same-origin Web CDN status proxy target', () => {
   it('rejects expired or long-lived probe URLs', () => {
     expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d+/, `expires=${Math.floor(now/1000)-200}`),allowed,now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d+/, `expires=${Math.floor(now/1000)+10000}`),allowed,now)).toBe(false);
+  });
+});
+
+
+describe('60-second per-CDN failover circuit breaker', () => {
+  const gallery = `https://gallery-dev.gafus.ru/albums/owner/album/photos/photo/full.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+  const feed = `https://feed.gafus.ru/posts/owner/post/attachments/item/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
+  it('opens only the failing CDN for 60 seconds, then retries the CDN on demand', async () => {
+    const now = Date.now() - 200_000;
+    vi.useFakeTimers({ now });
+    try {
+      const unavailable = vi.fn(async () => new Response(null, { status: 504 })) as unknown as typeof fetch;
+      expect(await probeCdnOutage(gallery, { fetcher: unavailable })).toBe(true);
+      expect(isSignedCdnFailoverActive(gallery)).toBe(true);
+      expect(isSignedCdnFailoverActive(feed)).toBe(false);
+      expect(isMediaCdnFailoverActive('gallery')).toBe(true);
+      expect(isMediaCdnFailoverActive('feed')).toBe(false);
+      vi.advanceTimersByTime(MEDIA_CDN_OUTAGE_COOLDOWN_MS - 1);
+      expect(isSignedCdnFailoverActive(gallery)).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(isSignedCdnFailoverActive(gallery)).toBe(false);
+      expect(await probeCdnOutage(feed, { fetcher: unavailable })).toBe(true);
+      expect(isMediaCdnFailoverActive('feed')).toBe(true);
+      expect(isMediaCdnFailoverActive('gallery')).toBe(false);
+      vi.advanceTimersByTime(MEDIA_CDN_OUTAGE_COOLDOWN_MS);
+      expect(isMediaCdnFailoverActive('feed')).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
+  it('does not open a CDN circuit on 403/404, native network failures or unsigned URLs', async () => {
+    const now = Date.now() - 75_000;
+    vi.useFakeTimers({ now });
+    try {
+      for (const status of [403, 404]) {
+        expect(await probeCdnOutage(feed, { fetcher: async () => new Response(null, { status }) })).toBe(false);
+        expect(isMediaCdnFailoverActive('feed')).toBe(false);
+      }
+      const networkError = async () => { throw new Error('offline'); };
+      expect(await probeCdnOutage(feed, { fetcher: networkError, nativeNetwork: true })).toBe(true);
+      expect(isMediaCdnFailoverActive('feed')).toBe(false);
+      expect(await probeCdnOutage(feed.replace('feed.gafus.ru', 'evil.example'), {
+        fetcher: async () => new Response(null, { status: 504 }),
+      })).toBe(true);
+      expect(isMediaCdnFailoverActive('feed')).toBe(false);
+    } finally { vi.useRealTimers(); }
   });
 });

@@ -6,6 +6,7 @@ import {
   PersonOffOutlined,
 } from "@mui/icons-material";
 import Link from "next/link";
+import { PrimaryButtonLink, SecondaryButtonLink } from "@/shared/components/ui";
 
 import styles from "./Feed.module.css";
 
@@ -49,19 +50,26 @@ export function FeedTopBar({
         </div>
         {showActions && (
           <div className={styles.feedTopBarActions}>
-            <Link
+            <SecondaryButtonLink
               href="/feed/notifications"
-              className={styles.feedNotifications + (active === "notifications" ? " " + styles.feedNotificationsActive : "")}
+              className={
+                styles.feedNotifications +
+                (active === "notifications" ? " " + styles.feedNotificationsActive : "")
+              }
               aria-label="Уведомления"
               aria-current={active === "notifications" ? "page" : undefined}
               title="Уведомления"
             >
               <NotificationsNoneOutlined aria-hidden="true" />
-            </Link>
-            <Link href="/feed/create" className={styles.feedCreate}>
+            </SecondaryButtonLink>
+            <PrimaryButtonLink
+              href="/feed/create"
+              className={styles.feedCreate}
+              aria-label="Новая публикация"
+            >
               <AddRounded aria-hidden="true" />
               <span>Новая публикация</span>
-            </Link>
+            </PrimaryButtonLink>
           </div>
         )}
       </div>
@@ -71,7 +79,9 @@ export function FeedTopBar({
             <Link
               key={key}
               href={href}
-              className={styles.feedNavItem + (active === key ? " " + styles.feedNavItemActive : "")}
+              className={
+                styles.feedNavItem + (active === key ? " " + styles.feedNavItemActive : "")
+              }
               aria-current={active === key ? "page" : undefined}
             >
               <Icon aria-hidden="true" />

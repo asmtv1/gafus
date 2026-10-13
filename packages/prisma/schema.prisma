@@ -321,6 +321,7 @@ model User {
   feedPublishingBlocked Boolean @default(false)
   feedPublishingBlockReason String? @db.VarChar(1000)
   feedPosts FeedPost[]
+  feedPollVotes FeedPollVote[]
   feedMediaAssets FeedMediaAsset[]
   feedUploads FeedUpload[]
   feedComments FeedComment[]
@@ -3298,6 +3299,7 @@ model FeedPost {
   updatedAt DateTime @updatedAt
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
   revisions FeedPostRevision[]
+  poll FeedPoll?
   media FeedMediaAsset[]
   uploads FeedUpload[]
   comments FeedComment[]
@@ -3349,6 +3351,7 @@ model FeedMediaAsset {
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   upload FeedUpload?
   attachments FeedRevisionAttachment[]
+  pollOptions FeedPollOption[]
   @@index([postId, status])
   @@index([ownerId, status])
 }
@@ -3362,6 +3365,64 @@ model FeedRevisionAttachment {
   @@id([revisionId, mediaId])
   @@unique([revisionId, position])
   @@index([mediaId])
+}
+
+// One optional poll per feed post. Poll mutations must follow the post's revision publication lifecycle.
+model FeedPoll {
+  id String @id @default(cuid())
+  postId String @unique
+  question String @db.VarChar(500)
+  explanation String? @db.VarChar(2000)
+  allowMultiple Boolean @default(false)
+  isQuiz Boolean @default(false)
+  isAnonymous Boolean @default(false)
+  hideResults Boolean @default(false)
+  shuffleOptions Boolean @default(false)
+  endDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options FeedPollOption[]
+  votes FeedPollVote[]
+}
+
+model FeedPollOption {
+  id String @id @default(cuid())
+  pollId String
+  position Int
+  text String @db.VarChar(200)
+  imageMediaId String?
+  isCorrect Boolean @default(false)
+  poll FeedPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  imageMedia FeedMediaAsset? @relation(fields: [imageMediaId], references: [id], onDelete: SetNull)
+  selections FeedPollVoteSelection[]
+  // Used by the composite vote-selection FK to prevent choosing an option of a different poll.
+  @@unique([pollId, id])
+  @@unique([pollId, position])
+  @@index([imageMediaId])
+}
+
+model FeedPollVote {
+  pollId String
+  userId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  poll FeedPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections FeedPollVoteSelection[]
+  // Each user has at most one vote record per poll, including multiple-choice polls.
+  @@id([pollId, userId])
+  @@index([userId])
+}
+
+model FeedPollVoteSelection {
+  pollId String
+  userId String
+  optionId String
+  vote FeedPollVote @relation(fields: [pollId, userId], references: [pollId, userId], onDelete: Cascade)
+  option FeedPollOption @relation(fields: [pollId, optionId], references: [pollId, id], onDelete: Cascade)
+  @@id([pollId, userId, optionId])
+  @@index([pollId, optionId])
 }
 
 model FeedUpload {

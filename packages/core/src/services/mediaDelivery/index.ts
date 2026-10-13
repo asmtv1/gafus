@@ -3,6 +3,43 @@ export function isCdnOutage(input: { status?: number; timedOut?: boolean; networ
   if (input.status !== undefined) return Number.isInteger(input.status) && input.status >= 500 && input.status <= 599;
   return input.timedOut === true || input.networkFailed === true;
 }
+/** Per-client, per-CDN circuit breaker. Does not store S3 URLs or authorization grants.
+ * Only a confirmed 5xx on our signed CDN URL can open it. After 60 seconds,
+ * the next media request retries the CDN; 403/404 never open the circuit.
+ */
+export type MediaCdnKind = 'gallery' | 'feed';
+export const MEDIA_CDN_OUTAGE_COOLDOWN_MS = 60_000;
+const cdnFailedUntil: Record<MediaCdnKind, number> = { gallery: 0, feed: 0 };
+
+export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
+        url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//') ||
+        [...url.searchParams.keys()].sort().join(',') !== 'expires,md5' ||
+        !/^[A-Za-z0-9_-]{22}$/.test(url.searchParams.get('md5') ?? '') ||
+        !/^\d{10}$/.test(url.searchParams.get('expires') ?? '')) return null;
+    if ((url.hostname === 'gallery-dev.gafus.ru' || url.hostname === 'gallery.gafus.ru') &&
+        /^\/albums\/[A-Za-z0-9_/-]+\.webp$/.test(url.pathname)) return 'gallery';
+    if (url.hostname === 'feed.gafus.ru' &&
+        /^\/posts\/[A-Za-z0-9_/-]+\.(?:webp|ts)$/.test(url.pathname)) return 'feed';
+  } catch { /* Unknown URLs must not affect circuit state. */ }
+  return null;
+}
+
+export function isMediaCdnFailoverActive(kind: MediaCdnKind, now = Date.now()): boolean {
+  return now < cdnFailedUntil[kind];
+}
+export function isSignedCdnFailoverActive(url: string, now = Date.now()): boolean {
+  const kind = mediaCdnKindFromSignedUrl(url);
+  return kind !== null && isMediaCdnFailoverActive(kind, now);
+}
+
+function recordSignedCdnOutage(url: string, now = Date.now()): void {
+  const kind = mediaCdnKindFromSignedUrl(url);
+  if (kind) cdnFailedUntil[kind] = now + MEDIA_CDN_OUTAGE_COOLDOWN_MS;
+}
+
 /** HEAD probes are required because <img> and native players omit HTTP error status. */
 export async function probeCdnOutage(
   url: string,
@@ -20,7 +57,11 @@ export async function probeCdnOutage(
     const response = await (options.fetcher ?? fetch)(url, {
       method: 'HEAD', signal: controller.signal, cache: 'no-store', credentials: 'omit', redirect: 'error',
     });
-    return isCdnOutage({ status: response.status });
+    const outage = isCdnOutage({ status: response.status });
+    // Cache only verified 5xx. Native network failures and browser CORS errors
+    // are ambiguous; their one-request fallback must not poison all media.
+    if (outage) recordSignedCdnOutage(url);
+    return outage;
   } catch {
     // On Web, a CORS failure is indistinguishable from HTTP 403/404: fail closed.
     return isCdnOutage({ timedOut, networkFailed: !timedOut && options.nativeNetwork === true });
@@ -74,3 +115,5 @@ export function isTrustedCdnProbeUrl(
     Number.isSafeInteger(expires) && expires > Math.floor(nowMs / 1000) - 120 &&
     expires <= Math.floor(nowMs / 1000) + 600;
 }
+
+export * from "./remote-status";

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { reportClientError } from "@gafus/error-handling";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FEED_LIMITS,
@@ -10,6 +11,7 @@ import {
   countFeedCharacters,
   formatFeedTime,
   type FeedPostDto,
+  type FeedPostPageDto,
   type FeedCommentDto,
   type FeedReaction,
   type FeedSort,
@@ -18,8 +20,6 @@ import {
 import { FeedActions, FeedReportForm } from "./FeedActions";
 import {
   ChatBubbleOutlineRounded,
-  ChevronLeftRounded,
-  ChevronRightRounded,
   FavoriteBorderRounded,
   VisibilityOutlined,
 } from "@mui/icons-material";
@@ -35,16 +35,19 @@ import { feedApi } from "./api";
 import { webFeedTelemetry } from "./telemetry";
 import { observeFeedVisibility } from "./visibility";
 import { uploadFeedBrowserAsset, validateBrowserFeedFiles, type FeedBrowserAsset } from "./upload";
-import { FeedVideo } from "./FeedVideo";
-import { CdnImage } from "@/shared/components/media/CdnImage";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedComposeMedia } from "./FeedComposeMedia";
+import { FeedMedia } from "./FeedMedia";
+import { FeedPollCard } from "./FeedPollCard";
+import { FeedPollComposer, type WebFeedPollDraft } from "./FeedPollComposer";
+import { validateFeedPollDraft } from "@gafus/types";
 import { FeedTopBar } from "./FeedTopBar";
 import { GafusPostProgress } from "@/features/gafus/GafusPostProgress";
 import {
   AppBackButtonLink,
   LoadingState,
   PrimaryButton,
+  PrimaryButtonLink,
   SecondaryButtonLink,
 } from "@/shared/components/ui";
 import styles from "./Feed.module.css";
@@ -99,164 +102,6 @@ function LoadingOrDenied({ status, enabled }: ReturnType<typeof useFeedEnabled>)
     <Access>
       <p>Раздел «Моменты» пока недоступен. Ваши публикации и альбомы не затронуты.</p>
     </Access>
-  );
-}
-function FeedMedia({ post }: { post: FeedPostDto }) {
-  const [position, setPosition] = useState(0);
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null);
-  const items = post.attachments;
-  const currentIndex = Math.min(position, items.length - 1);
-  const item = items[currentIndex];
-  const move = (delta: number) =>
-    setPosition((value) => (value + delta + items.length) % items.length);
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    if (viewerOpen && !element.open) element.showModal();
-    if (!viewerOpen && element.open) element.close();
-    return () => {
-      if (element.open) element.close();
-    };
-  }, [viewerOpen]);
-  if (!items.length || !item) return null;
-  const photoSrc = item.kind === "photo" ? (item.fullUrl ?? item.thumbUrl) : null;
-  const dotCount = Math.min(items.length, 5);
-  const firstDot = Math.max(0, Math.min(currentIndex - 2, items.length - dotCount));
-  return (
-    <>
-      <div
-        className={[styles.carousel, cardStyles.carousel].join(" ")}
-        role="region"
-        aria-roledescription="Карусель"
-        aria-label="Вложения публикации"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-            event.preventDefault();
-            move(event.key === "ArrowRight" ? 1 : -1);
-          }
-        }}
-      >
-        <div className={[styles.media, cardStyles.mediaFrame].join(" ")}>
-          {items.length > 1 && (
-            <SecondaryButton
-              type="button"
-              className={[
-                styles.carouselArrow,
-                cardStyles.mediaArrow,
-                cardStyles.mediaArrowPrevious,
-              ].join(" ")}
-              aria-label="Предыдущее вложение"
-              onClick={() => move(-1)}
-            >
-              <ChevronLeftRounded aria-hidden="true" />
-            </SecondaryButton>
-          )}
-          <div className={[styles.mediaItem, cardStyles.mediaItem].join(" ")} aria-live="polite">
-            {photoSrc ? (
-              <button
-                type="button"
-                className={styles.openPhoto}
-                aria-label={`Увеличить фотографию ${currentIndex + 1}`}
-                onClick={() => setViewerOpen(true)}
-              >
-                {/* Signed CDN media cannot use Next image optimization. */}
-                <CdnImage
-                  key={`${item.id}:photo`}
-                  source={photoSrc}
-                  requestFallback={() =>
-                    feedApi.requestMediaFallback(item.id, item.fullUrl ? "full" : "thumb")
-                  }
-                  alt={`Фото ${currentIndex + 1} из ${items.length}`}
-                  loading="lazy"
-                />
-              </button>
-            ) : item.kind === "video" ? (
-              <FeedVideo key={item.id} mediaId={item.id} poster={item.posterUrl} />
-            ) : (
-              <span className={styles.muted}>Файл обрабатывается</span>
-            )}
-          </div>
-          {items.length > 1 && (
-            <SecondaryButton
-              type="button"
-              className={[
-                styles.carouselArrow,
-                cardStyles.mediaArrow,
-                cardStyles.mediaArrowNext,
-              ].join(" ")}
-              aria-label="Следующее вложение"
-              onClick={() => move(1)}
-            >
-              <ChevronRightRounded aria-hidden="true" />
-            </SecondaryButton>
-          )}
-        </div>
-        {items.length > 1 && (
-          <div
-            className={[styles.carouselDots, cardStyles.mediaDots].join(" ")}
-            role="status"
-            aria-label={`Вложение ${currentIndex + 1} из ${items.length}`}
-          >
-            {Array.from({ length: dotCount }, (_, offset) => firstDot + offset).map(
-              (index, offset) => (
-                <span
-                  key={index}
-                  aria-hidden="true"
-                  className={[
-                    styles.carouselDot,
-                    index === currentIndex ? styles.carouselDotActive : "",
-                    index !== currentIndex &&
-                    ((offset === 0 && firstDot > 0) ||
-                      (offset === dotCount - 1 && firstDot + dotCount < items.length))
-                      ? styles.carouselDotEdge
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                />
-              ),
-            )}
-          </div>
-        )}
-      </div>
-      <dialog
-        ref={dialog}
-        className={styles.photoDialog}
-        aria-label="Просмотр фотографии"
-        onClose={() => setViewerOpen(false)}
-      >
-        <div className={styles.dialogActions}>
-          <SecondaryButton className={cardStyles.viewerAction} onClick={() => setViewerOpen(false)}>
-            Закрыть ×
-          </SecondaryButton>
-        </div>
-        {photoSrc && (
-          <CdnImage
-            key={`${item.id}:dialog`}
-            source={photoSrc}
-            requestFallback={() =>
-              feedApi.requestMediaFallback(item.id, item.fullUrl ? "full" : "thumb")
-            }
-            alt={`Фото ${currentIndex + 1} из ${items.length}`}
-          />
-        )}
-        {items.length > 1 && (
-          <div className={styles.dialogActions}>
-            <SecondaryButton className={cardStyles.viewerAction} onClick={() => move(-1)}>
-              <ChevronLeftRounded aria-hidden="true" /> Назад
-            </SecondaryButton>
-            <span>
-              {currentIndex + 1} / {items.length}
-            </span>
-            <SecondaryButton className={cardStyles.viewerAction} onClick={() => move(1)}>
-              Далее <ChevronRightRounded aria-hidden="true" />
-            </SecondaryButton>
-          </div>
-        )}
-      </dialog>
-    </>
   );
 }
 type ImpressionContext = Omit<FeedImpressionInput, "eventId" | "visibleMs">;
@@ -389,7 +234,7 @@ export function FeedCard({
         </p>
       )}
       <FeedMedia post={post} />
-      {post.text && (
+      {post.text && !(post.hasPoll && post.text === "Опрос") && (
         <div>
           <p className={`${styles.postText} ${!expanded && !compact ? styles.clamped : ""}`}>
             {post.text}
@@ -406,6 +251,7 @@ export function FeedCard({
           )}
         </div>
       )}
+      {post.hasPoll && <FeedPollCard postId={post.id} />}
       {!compact && (
         <div className={styles.reactions} aria-label="Реакции">
           {FEED_REACTIONS.map((reaction) => (
@@ -467,15 +313,54 @@ export function FeedCard({
     </article>
   );
 }
-function FeedPendingPosts() {
+export function FeedPendingPosts() {
   const { data: session } = useSession();
+  const cache = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: string; message: string } | null>(null);
+  const pendingKey = ["feed", "pending", session?.user?.id] as const;
+  async function removeDraft(postId: string) {
+    if (deletingId) return;
+    if (
+      !window.confirm(
+        "Удалить незавершённую публикацию без возможности восстановления? " +
+          "Все её вложения также будут удалены.",
+      )
+    )
+      return;
+    setDeletingId(postId);
+    setDeleteError(null);
+    try {
+      await feedApi.deletePost(postId);
+      cache.setQueryData<FeedPostPageDto>(pendingKey, (current) =>
+        current
+          ? { ...current, items: current.items.filter((post) => post.id !== postId) }
+          : current,
+      );
+      void cache.invalidateQueries({ queryKey: pendingKey });
+    } catch (error) {
+      reportClientError(error, {
+        issueKey: "FeedPendingPosts",
+        keys: { operation: "delete_draft" },
+      });
+      setDeleteError({
+        id: postId,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Не удалось удалить публикацию. Попробуйте ещё раз.",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  }
   const local = useSyncExternalStore(
     webFeedPublications.subscribe,
     webFeedPublications.getSnapshot,
     () => EMPTY_PUBLICATIONS,
   ).filter((item) => item.ownerId === session?.user?.id);
   const pending = useQuery({
-    queryKey: ["feed", "pending", session?.user?.id],
+    queryKey: pendingKey,
     queryFn: () => feedApi.listPendingPosts(),
     enabled: Boolean(session?.user?.id),
     refetchInterval: 20_000,
@@ -560,12 +445,29 @@ function FeedPendingPosts() {
                   : "Черновик"}
             </span>
           </div>
-          <Link
-            className={styles.pendingContinue}
-            href={`/feed/create?edit=${encodeURIComponent(post.id)}`}
-          >
-            Продолжить
-          </Link>
+          <div className={styles.pendingRecoveredActions}>
+            <PrimaryButtonLink
+              className={styles.pendingRecoveredButton}
+              href={`/feed/create?edit=${encodeURIComponent(post.id)}`}
+            >
+              Продолжить
+            </PrimaryButtonLink>
+            <SecondaryButton
+              className={styles.pendingRecoveredButton}
+              variant="red"
+              type="button"
+              disabled={deletingId !== null}
+              onClick={() => void removeDraft(post.id)}
+              aria-label={`Удалить незавершённую публикацию: ${post.text?.slice(0, 100) || "с вложениями"}`}
+            >
+              {deletingId === post.id ? "Удаляем…" : "Удалить"}
+            </SecondaryButton>
+          </div>
+          {deleteError?.id === post.id && (
+            <p role="alert" className={styles.pendingDeleteError}>
+              {deleteError.message}
+            </p>
+          )}
         </div>
       ))}
     </section>
@@ -675,34 +577,32 @@ export function FeedListPage() {
                     ["popular", "Популярные"],
                     ["discussed", "Обсуждаемые"],
                   ] as [FeedSort, string][]
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={
-                      styles.feedSortOption +
-                      (sort === value ? " " + styles.feedSortOptionActive : "")
-                    }
-                    aria-pressed={sort === value}
-                    onClick={() => {
-                      setSort(value);
-                      if (access.userId)
-                        localStorage.setItem("gafus:feed:sort:" + access.userId, value);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
+                ).map(([value, label]) => {
+                  const SortButton = sort === value ? PrimaryButton : SecondaryButton;
+                  return (
+                    <SortButton
+                      key={value}
+                      className={styles.feedSortOption}
+                      aria-pressed={sort === value}
+                      onClick={() => {
+                        setSort(value);
+                        if (access.userId)
+                          localStorage.setItem("gafus:feed:sort:" + access.userId, value);
+                      }}
+                    >
+                      {label}
+                    </SortButton>
+                  );
+                })}
               </div>
               {access.enabled.data?.smartEnabled && (
-                <button
-                  type="button"
+                <SecondaryButton
                   className={styles.feedSettingsButton}
                   aria-expanded={showPersonalization}
                   onClick={() => setShowPersonalization((value) => !value)}
                 >
                   Настроить
-                </button>
+                </SecondaryButton>
               )}
             </div>
           </div>
@@ -845,6 +745,16 @@ export function FeedComposePage({ editId }: { editId?: string }) {
   const router = useRouter();
   const access = useFeedEnabled();
   const [text, setText] = useState("");
+  const [poll, setPoll] = useState<WebFeedPollDraft | null>(null);
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
+  const queuedPoll = useRef(false);
+  useEffect(() => () => {
+    // Only revoke previews that were never handed over to the publication queue.
+    if (!queuedPoll.current) for (const option of pollRef.current?.options ?? []) {
+      if (option.imageAsset?.previewUri.startsWith("blob:")) URL.revokeObjectURL(option.imageAsset.previewUri);
+    }
+  }, []);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<FeedBrowserAsset[]>([]);
@@ -893,10 +803,19 @@ export function FeedComposePage({ editId }: { editId?: string }) {
       !text.trim() &&
       !files.length &&
       !albumPhotoIds.length &&
-      !(original.data?.pendingRevision?.attachmentIds.length || original.data?.attachments.length)
+      !(original.data?.pendingRevision?.attachmentIds.length || original.data?.attachments.length) && !poll
     ) {
-      setError("Добавьте текст или вложение.");
+      setError("Добавьте текст, вложение или опрос.");
       return;
+    }
+    if (poll) {
+      const issue = validateFeedPollDraft(poll);
+      if (issue) { setError(issue); return; }
+      const images = poll.options.filter(option => option.imageAsset).length;
+      if (images + files.length + albumPhotoIds.length > FEED_LIMITS.maxAttachments) {
+        setError("Всего можно добавить не более 10 фотографий и видео, включая варианты опроса.");
+        return;
+      }
     }
     setBusy(true);
     setError("");
@@ -919,7 +838,13 @@ export function FeedComposePage({ editId }: { editId?: string }) {
           text,
           files: uploadFiles,
           albumPhotoIds,
+          ...(poll ? {
+            poll: { ...poll, options: poll.options.map(({ imageAsset: _imageAsset, ...option }) => option) },
+            pollOptionImages: poll.options.flatMap((option, optionIndex) =>
+              option.imageAsset ? [{ optionIndex, asset: option.imageAsset }] : []),
+          } : {}),
         });
+        queuedPoll.current = true;
         router.replace("/feed");
       } catch (err) {
         setError(message(err));
@@ -1049,6 +974,10 @@ export function FeedComposePage({ editId }: { editId?: string }) {
               {albumPhotoIds.length > 0 && (
                 <p className={styles.muted}>Выбрано из альбомов: {albumPhotoIds.length}</p>
               )}
+              {!editId && access.enabled.data?.enabled &&
+                <FeedPollComposer value={poll} onChange={setPoll} disabled={busy} />}
+              {editId && original.data?.hasPoll &&
+                <p className={styles.muted}>Опрос сохранится без изменений. После публикации варианты ответа нельзя редактировать.</p>}
               {progress && (
                 <p role="status" className={styles.muted}>
                   {progress}
@@ -1069,7 +998,7 @@ export function FeedComposePage({ editId }: { editId?: string }) {
                     !files.length &&
                     !albumPhotoIds.length &&
                     !original.data?.attachments.length &&
-                    !original.data?.pendingRevision?.attachmentIds.length) ||
+                    !original.data?.pendingRevision?.attachmentIds.length && !poll) ||
                   countFeedCharacters(text) > FEED_LIMITS.postCharacters
                 }
               >

@@ -48,7 +48,9 @@ export function cloudruMediaManifests(projectId, revision) {
       name: "gafus-feed-origin",
       kind: "origin",
       imageRole: "feed-origin",
-      cpu: "0.2",
+      // Keep the HTTPS origin responsive within the CDN's ~5s first-byte limit.
+      // Feed performs bounded S3 reads and MPEG-TS delivery; 0.2 vCPU is fragile.
+      cpu: "0.5",
       envNames: [
         ...feedCommon,
         "FEED_ORIGIN_SECRET",

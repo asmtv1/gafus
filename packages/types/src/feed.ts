@@ -111,6 +111,8 @@ export interface FeedPostDto {
   editedAt: string | null;
   editUntil: string | null;
   version: number;
+  /** Poll exists for this post; details are fetched only for visible cards. */
+  hasPoll?: boolean;
   reactions: FeedReactionCountDto[];
   myReaction: FeedReaction | null;
   viewCount: number;
@@ -119,6 +121,82 @@ export interface FeedPostDto {
   canDelete: boolean;
   /** Optional only for detailed post/editor responses that include a server clock. */
   serverNow?: string;
+}
+
+/** Polls are immutable once their post has been published. */
+export interface FeedPollOptionInput {
+  text: string;
+  imageMediaId?: string | null;
+  isCorrect?: boolean;
+}
+export interface FeedPollSaveInput {
+  expectedVersion: number;
+  question: string;
+  explanation?: string | null;
+  allowMultiple?: boolean;
+  isQuiz?: boolean;
+  isAnonymous?: boolean;
+  hideResults?: boolean;
+  shuffleOptions?: boolean;
+  endDate?: string | null;
+  options: FeedPollOptionInput[];
+}
+export interface FeedPollVoteInput { optionIds: string[] }
+export type FeedPollDraft = Omit<FeedPollSaveInput, "expectedVersion">;
+/** Image stays local until publication. Never send imageAsset over Feed HTTP JSON. */
+export type FeedPollEditorDraft<TAsset> = Omit<FeedPollDraft, "options"> & {
+  options: (FeedPollOptionInput & { imageAsset?: TAsset })[];
+};
+/** Shared Web/Mobile preflight only; Core performs authoritative checks. */
+export function validateFeedPollDraft(poll: FeedPollDraft): string | null {
+  const question = poll.question.trim();
+  if (!question || Array.from(question).length > 500) return "Введите вопрос (до 500 символов).";
+  if (poll.options.length < 2 || poll.options.length > 10) return "Добавьте от 2 до 10 вариантов.";
+  const answers = poll.options.map(option => option.text.trim());
+  if (answers.some(answer => !answer || Array.from(answer).length > 200)) {
+    return "Каждый вариант должен содержать от 1 до 200 символов.";
+  }
+  if (new Set(answers.map(answer => answer.toLocaleLowerCase("ru"))).size !== answers.length) {
+    return "Варианты ответа не должны повторяться.";
+  }
+  const correct = poll.options.filter(option => option.isCorrect).length;
+  if ((!poll.isQuiz && correct > 0) ||
+      (poll.isQuiz && (correct === 0 || (!poll.allowMultiple && correct !== 1)))) {
+    return "Отметьте правильный ответ для викторины.";
+  }
+  if (poll.endDate && (!Number.isFinite(Date.parse(poll.endDate)) ||
+      Date.parse(poll.endDate) <= Date.now() ||
+      Date.parse(poll.endDate) > Date.now() + 365 * 24 * 60 * 60 * 1000)) {
+    return "Дата завершения должна быть в пределах следующего года.";
+  }
+  return null;
+}
+export interface FeedPollOptionDto {
+  id: string;
+  position: number;
+  text: string;
+  imageMediaId: string | null;
+  imageUrl: string | null;
+  votes: number | null;
+  isCorrect?: boolean;
+}
+export interface FeedPollDto {
+  id: string;
+  postId: string;
+  question: string;
+  explanation: string | null;
+  allowMultiple: boolean;
+  isQuiz: boolean;
+  isAnonymous: boolean;
+  hideResults: boolean;
+  shuffleOptions: boolean;
+  endDate: string | null;
+  closed: boolean;
+  totalVotes: number | null;
+  myOptionIds: string[];
+  options: FeedPollOptionDto[];
+  canEdit: boolean;
+  serverNow: string;
 }
 
 export interface FeedPostEditorDto extends FeedPostDto {
@@ -230,6 +308,8 @@ export interface FeedRevisionInput {
   text: string;
   /** Ordered IDs; all must belong to the same post. */
   attachmentIds: string[];
+  /** Explicit opt-in to an empty-text revision backed by a saved poll. */
+  pollOnly?: true;
 }
 
 export interface FeedPublishInput {
@@ -333,6 +413,13 @@ export function createFeedClient(transport: FeedTransport) {
         method: "PUT",
         body,
       }),
+    getPoll: (postId: string) => transport<FeedPollDto>(`posts/${encodeId(postId)}/poll`),
+    savePoll: (postId: string, body: FeedPollSaveInput) =>
+      transport<FeedPollDto>(`posts/${encodeId(postId)}/poll`, { method: "PUT", body }),
+    removePoll: (postId: string) =>
+      transport<{ removed: boolean }>(`posts/${encodeId(postId)}/poll`, { method: "DELETE", body: {} }),
+    votePoll: (postId: string, body: FeedPollVoteInput) =>
+      transport<FeedPollDto>(`posts/${encodeId(postId)}/poll/vote`, { method: "POST", body }),
     publishPost: (postId: string, body: FeedPublishInput) =>
       transport<FeedPostEditorDto>(`posts/${encodeId(postId)}/publish`, {
         method: "POST",

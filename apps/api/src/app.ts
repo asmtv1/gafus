@@ -46,6 +46,7 @@ import { notesRoutes } from "./routes/v1/notes.js";
 import { remindersRoutes } from "./routes/v1/reminders.js";
 import { paymentsRoutes } from "./routes/v1/payments.js";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
+import { mediaDeliveryRoutes } from "./routes/v1/media-delivery.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 import { rewardedAdsRoutes } from "./routes/v1/rewarded-ads.js";
@@ -67,6 +68,8 @@ app.route("/", healthRoutes);
 // Публичная конфигурация мобильного приложения (без JWT)
 app.use("/api/v1/public/*", apiRateLimiter);
 app.route("/api/v1/public", publicMobileRoutes);
+app.use("/api/v1/media-delivery/*", apiRateLimiter);
+app.route("/api/v1/media-delivery", mediaDeliveryRoutes);
 
 // Auth routes (rate limited) — GET username-available получает мягкий лимит
 app.use("/api/v1/auth/*", (c, next) => {

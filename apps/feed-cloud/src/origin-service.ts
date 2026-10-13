@@ -22,6 +22,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(400).end();
     return;
   }
+  const startedAt = Date.now();
   try {
     const result = await handler({
       httpMethod: req.method,
@@ -33,6 +34,9 @@ const server = createServer(async (req, res) => {
         ]),
       ),
     });
+    const elapsedMs = Date.now() - startedAt;
+    if (elapsedMs > 2500 || result.statusCode >= 500)
+      console.warn("FEED_ORIGIN_LATENCY", { status: result.statusCode, elapsedMs });
     for (const [name, value] of Object.entries(result.headers ?? {})) res.setHeader(name, value);
     const data =
       "isBase64Encoded" in result && result.isBase64Encoded

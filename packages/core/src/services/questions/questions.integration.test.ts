@@ -58,6 +58,14 @@ describe.skipIf(!enabled)("questions transactional business rules (PostgreSQL)",
     await prisma.user.deleteMany({ where: { id: { in: Object.values(ids) } } });
     await prisma.$disconnect();
   });
+  it("lists only visible questions by the requested public username", async () => {
+    const list = await listQuestions(ids.other, { author: ids.owner });
+    expect(list.items.some((item) => item.id === questionId)).toBe(true);
+    expect(list.items.every((item) => item.author.username === ids.owner)).toBe(true);
+    const mine = await listQuestions(ids.other, { mine: "true", author: ids.owner });
+    expect(mine.items.every((item) => item.author.id === ids.other)).toBe(true);
+  });
+
   it("requires an existing authenticated actor for reads", async () => {
     await expect(listQuestions("missing", {})).rejects.toMatchObject({ status: 401 });
   });

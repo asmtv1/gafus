@@ -6,7 +6,8 @@ export type FeedDb = Pick<
   "feedComment" | "feedPostReaction" | "feedCommentReaction" | "feedPostView" |
   "feedNotification" | "feedNotificationOutbox" | "feedBookmark" | "feedAuthorPreference" | "feedReport" | "feedModerationAction" |
   "feedPersonalizationPreference" | "feedImpression" | "feedUserAuthorAffinity" | "feedPostStats" | "feedUserPostFeedback" |
-  "feedSmartRankerModel" | "feedRankingEvent"
+  "feedSmartRankerModel" | "feedRankingEvent" | "feedPoll" | "feedPollOption" |
+  "feedPollVote" | "feedPollVoteSelection"
 >;
 export type FeedTx = Prisma.TransactionClient;
 export interface FeedStoragePort {

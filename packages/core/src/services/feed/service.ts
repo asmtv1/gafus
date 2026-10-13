@@ -84,7 +84,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     if (!posts.length) return [];
     const postIds = posts.map((post) => post.id);
     const activeIds = posts.map(p => p.activeRevisionId).filter((id): id is string => !!id);
-    const [versions, views, comments, counts, mine, bookmarks, preferences] = await Promise.all([
+    const [versions, views, comments, counts, mine, bookmarks, preferences, postPolls] = await Promise.all([
       db.feedPostRevision.findMany({
         where: { id: { in: activeIds } },
         include: { attachments: { orderBy: { position: "asc" }, include: { media: true } } },
@@ -95,7 +95,9 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       db.feedPostReaction.findMany({ where: { postId: { in: postIds }, userId: actorId }, select: { postId: true, kind: true } }),
       db.feedBookmark.findMany({ where: { userId: actorId, postId: { in: postIds } }, select: { postId: true } }),
       db.feedAuthorPreference.findMany({ where: { userId: actorId, authorId: { in: posts.map(p => p.authorId) } } }),
+      db.feedPoll.findMany({ where: { postId: { in: postIds } }, select: { postId: true } }),
     ]);
+    const pollsByPost = new Set(postPolls.map(row => row.postId));
     const saved = new Set(bookmarks.map(row => row.postId));
     const prefs = new Map(preferences.map(row => [row.authorId, row]));
     const versionById = new Map(versions.map(v => [v.id, v]));
@@ -122,7 +124,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       const editUntil = post.publishedAt ? new Date(post.publishedAt.getTime() + L.editSeconds * 1000) : null;
       const published = post.status === "published" && !!revision;
       return {
-        id: post.id, bookmarked: saved.has(post.id), authorHidden: prefs.get(post.authorId)?.hidden ?? false,
+        id: post.id, hasPoll: pollsByPost.has(post.id), bookmarked: saved.has(post.id), authorHidden: prefs.get(post.authorId)?.hidden ?? false,
         authorNotify: prefs.get(post.authorId)?.notify ?? false,
         moderationState: post.moderationState, moderationReason: post.authorId === actorId ? post.moderationReason : null,
         author: {
@@ -130,7 +132,12 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
           name: post.author.profile?.fullName ?? post.author.username,
           avatarUrl: post.author.profile?.avatarUrl ?? null,
         },
-        status: post.status, text: revision?.text ?? "", attachments,
+        status: post.status,
+        // Older Mobile clients do not know hasPoll; show a readable label
+        // for poll-only posts without duplicating it in newer Web/Mobile cards.
+        text: published && pollsByPost.has(post.id) && !revision?.text.trim() && !attachments.length
+          ? "Опрос" : revision?.text ?? "",
+        attachments,
         createdAt: post.createdAt.toISOString(), publishedAt: post.publishedAt?.toISOString() ?? null,
         editedAt: post.editedAt?.toISOString() ?? null, editUntil: editUntil?.toISOString() ?? null,
         version: post.version, reactions: reactionMap.get(post.id) ?? [],
@@ -476,9 +483,15 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       const post = await db.feedPost.findFirst({
         where: { id: media.postId, status: "published", deletedAt: null, moderationState: "visible" },
       });
-      if (!post?.activeRevisionId || !await db.feedRevisionAttachment.findFirst({
+      if (!post?.activeRevisionId) throw new FeedError("NOT_FOUND", undefined, 404);
+      const linked = await db.feedRevisionAttachment.findFirst({
         where: { revisionId: post.activeRevisionId, mediaId }, select: { mediaId: true },
-      })) throw new FeedError("NOT_FOUND", undefined, 404);
+      });
+      const pollPhoto = !linked && variant !== "poster"
+        ? await db.feedPollOption.findFirst({
+            where: { imageMediaId: mediaId, poll: { postId: post.id } }, select: { id: true },
+          }) : null;
+      if (!linked && !pollPhoto) throw new FeedError("NOT_FOUND", undefined, 404);
       const key = variant === "thumb" ? media.thumbKey : variant === "full" ? media.fullKey : media.posterKey;
       if (!key) throw new FeedError("NOT_FOUND", undefined, 404);
       return { key };
@@ -532,6 +545,10 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         }
         checkEditable(post, now());
         if (post.version !== value.expectedVersion) throw new FeedError("VERSION_CONFLICT", undefined, 409);
+        if (value.pollOnly) {
+          const poll = await tx.feedPoll.findUnique({ where: { postId }, select: { id: true } });
+          if (!poll) throw new FeedError("EMPTY_POST", undefined, 400);
+        }
         const media = await tx.feedMediaAsset.findMany({ where: { id: { in: value.attachmentIds }, postId, ownerId: actorId, status: { notIn: ["failed", "cancelled", "expired"] } } });
         if (media.length !== value.attachmentIds.length) throw new FeedError("VALIDATION_ERROR", "Недоступное вложение", 400);
         if (media.filter(a => a.kind === "video").length > L.maxVideos) throw new FeedError("VIDEO_LIMIT", undefined, 400);
@@ -552,6 +569,10 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         const post = await ownedPost(tx, actorId, postId);
         const latest = await tx.feedPostRevision.findFirst({ where: { postId, revisionNumber: post.version }, orderBy: { createdAt: "desc" } });
         if (!latest) throw new FeedError("EMPTY_POST", undefined, 400);
+        if (!latest.text.trim() && !await tx.feedRevisionAttachment.count({ where: { revisionId: latest.id } })) {
+          const savedPoll = await tx.feedPoll.findUnique({ where: { postId }, select: { id: true } });
+          if (!savedPoll) throw new FeedError("EMPTY_POST", undefined, 400);
+        }
         if (latest.status === "ready" || latest.status === "pending") return;
         if (latest.status !== "draft" && latest.status !== "failed") throw new FeedError("VERSION_CONFLICT", undefined, 409);
         // The edit window was checked at revision acceptance, not at processing completion.

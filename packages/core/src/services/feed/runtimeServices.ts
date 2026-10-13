@@ -1,6 +1,7 @@
 import { prisma } from "@gafus/prisma";
 import { createFeedService } from "./service";
 import { createFeedSocial } from "./social";
+import { createFeedPolls } from "./polls";
 import { createFeedPreferences } from "./preferences";
 import { createSmartFeedPreferences } from "./smart-preferences";
 import { createFeedStorageJobs } from "./jobs";
@@ -19,6 +20,7 @@ export function createCurrentFeedRuntime(
   return {
     service: createFeedService({ db: prisma, storage, enabled }),
     social: createFeedSocial({ db: prisma, enabled }),
+    polls: createFeedPolls({ db: prisma, storage, enabled }),
     preferences: createFeedPreferences({ db: prisma, enabled }),
     smartPreferences: createSmartFeedPreferences(prisma),
   };

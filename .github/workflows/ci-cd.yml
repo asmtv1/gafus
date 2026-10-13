@@ -200,6 +200,23 @@ jobs:
           test "$partial_indexes" -ge 2
           pnpm --filter @gafus/prisma exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel schema.prisma --exit-code
 
+      - name: Guard safe Feed poll rollout before production deploy
+        run: node --test ci-cd/scripts/feed-poll-release-contract.test.mjs
+
+      - name: Verify poll migration against populated isolated PostgreSQL
+        # No staging server exists. Fail CI before any production deployment.
+        # Runner PostgreSQL service is ephemeral; never use application DATABASE_URL.
+        env:
+          POLL_TEST_DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@127.0.0.1:5432/gafus_poll_ci_migration
+        run: python3 packages/prisma/scripts/test-feed-polls-ci.py
+
+      - name: Verify Web and Mobile poll composer and voting UX
+        run: |
+          pnpm --filter @gafus/web exec vitest run --config vitest.config.ts src/features/feed/FeedPollComposer.test.tsx src/features/feed/FeedPollCard.test.tsx
+          pnpm --filter @gafus/mobile exec vitest run --config vitest.config.ts src/features/feed/FeedPollComposer.test.tsx src/features/feed/FeedPollCard.test.tsx
+          pnpm --filter @gafus/core exec vitest run --config vitest.config.ts src/services/feed/publication-client.test.ts
+          pnpm exec vitest run packages/feed-server/src/index.test.ts
+
       - name: Guard legacy domain adapters against direct Prisma
         run: node scripts/check-domain-package-prisma-boundary.mjs
 
@@ -584,9 +601,22 @@ jobs:
           (umask 077; printf '%s' "$YC_CDN_SA_KEY" > "$RUNNER_TEMP/yc-cdn-sa.json")
           yc config set service-account-key "$RUNNER_TEMP/yc-cdn-sa.json"
       - name: Revalidate both CDN signatures, TLS and origin secrets
+        id: cdn_preflight
         run: node infra/cloudru/production-cdn-release.mjs --preflight
-      - name: Switch Yandex CDN to warm Cloud.ru origins and verify real signed hits
-        run: node infra/cloudru/production-cdn-release.mjs --activate
+      - name: Activate and verify Gallery CDN independently
+        if: ${{ !cancelled() && steps.cdn_preflight.outcome == 'success' }}
+        # All security/S3/Origin guards remain blocking; only verified edge 5xx
+        # may complete with a warning while API serves authorized S3 fallback.
+        env:
+          CDN_EDGE_DEGRADED_OK: "true"
+        run: node infra/cloudru/production-cdn-release.mjs --activate gallery
+      - name: Activate and verify Feed CDN independently
+        # Run even if Gallery cutover failed: each resource has its own state
+        # and a failure must not undo a previously verified resource.
+        if: ${{ !cancelled() && steps.cdn_preflight.outcome == 'success' }}
+        env:
+          CDN_EDGE_DEGRADED_OK: "true"
+        run: node infra/cloudru/production-cdn-release.mjs --activate feed
       - name: Restore previous application if CDN cutover fails
         if: failure()
         uses: appleboy/ssh-action@v1.0.3

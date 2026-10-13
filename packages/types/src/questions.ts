@@ -47,6 +47,8 @@ export interface QuestionAnswerInput {
   clientRequestId: string;
 }
 export interface QuestionListQuery {
+  /** Public, visible questions from this exact username. */
+  author?: string;
   search?: string;
   category?: string;
   status?: QuestionStatus | "";

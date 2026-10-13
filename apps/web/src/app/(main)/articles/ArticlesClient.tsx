@@ -50,8 +50,8 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isPending }: Ar
             <Image
               src={coverUrl}
               alt={article.title ? `Обложка статьи «${article.title}»` : ""}
-              width={80}
-              height={80}
+              fill
+              sizes="(min-width: 1700px) 22vw, (min-width: 1151px) 30vw, (min-width: 721px) 45vw, 92vw"
               className={styles.articleLogo}
               unoptimized={coverUrl.startsWith("http")}
             />

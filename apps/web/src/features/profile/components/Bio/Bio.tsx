@@ -2,7 +2,7 @@ import { ProfileAnalyticsLink } from "@shared/components/analytics/ProfileAnalyt
 
 import { ProfileIcon } from "../ProfileIcon";
 import styles from "./Bio.module.css";
-import { primaryButtonClassName } from "@/shared/components/ui";
+import { primaryButtonClassName, SecondaryButtonLink } from "@/shared/components/ui";
 import EditableAvatar from "../EditableAvatar";
 import ProfileAvatar from "../ProfileAvatar";
 import TrainerCoursesSection from "../TrainerCoursesSection";
@@ -13,6 +13,7 @@ import { getAge, declOfNum } from "@gafus/core/utils";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 import { getTelegramUrl, getInstagramUrl } from "@gafus/core/utils/social";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { InstagramIcon, TelegramIcon, WebsiteIcon } from "../SocialIcons";
 
 export default function Bio({ publicData, isOwner, username, userData }: BioProps) {
@@ -21,6 +22,14 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
     | null;
   const diplomas = publicData.diplomas;
   const safeWebsite = profile?.website?.startsWith("http") ? profile.website : null;
+  const websiteDisplay = (() => {
+    if (!safeWebsite) return null;
+    try {
+      return new URL(safeWebsite).hostname.replace(/^www\./, "");
+    } catch {
+      return "Открыть сайт";
+    }
+  })();
   const city = profile?.city?.trim() || null;
   const age = profile?.birthDate ? getAge(profile.birthDate) : null;
 
@@ -68,7 +77,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           <h1 className={styles.greeting}>{profile?.fullName || username}</h1>
           <div className={styles.identityMeta}>
             <span className={styles.username}>@{username}</span>
-            <span className={styles.metaSeparator} aria-hidden="true">·</span>
+            <span className={styles.metaSeparator} aria-hidden="true">
+              ·
+            </span>
             <span
               className={`${styles.contactInfo}${
                 isOwner && !userData?.email?.trim() ? ` ${styles.contactInfoMissing}` : ""
@@ -103,51 +114,66 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
             </div>
           )}
         </div>
-        {/* Социальные сети */}
         {(profile?.instagram || profile?.telegram || safeWebsite) && (
-          <div className={styles.socialLinksContainer}>
+          <nav className={styles.socialLinksContainer} aria-label="Контакты специалиста">
+            <span className={styles.contactsHeading}>Контакты</span>
             <div className={styles.socialLinksList}>
               {profile?.instagram && (
-                <a
+                <SecondaryButtonLink
                   href={getInstagramUrl(profile.instagram)}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  aria-label={`Открыть Instagram профиль ${profile.instagram} в новой вкладке`}
-                  className={`${styles.socialLink} ${styles.socialLinkInstagram}`}
+                  prefetch={false}
+                  aria-label={"Instagram: " + profile.instagram + ", откроется в новой вкладке"}
+                  title={"Instagram: " + profile.instagram}
+                  className={styles.socialLink}
                 >
                   <InstagramIcon className={styles.socialIcon} />
-                  <span className={styles.socialLabel}>Instagram</span>
-                  <span className={styles.socialUsername}>{profile.instagram}</span>
-                </a>
+                  <span className={styles.socialText}>
+                    <span className={styles.socialLabel}>Instagram</span>
+                    <span className={styles.socialUsername}>{profile.instagram}</span>
+                  </span>
+                  <OpenInNewRoundedIcon className={styles.externalIcon} aria-hidden="true" />
+                </SecondaryButtonLink>
               )}
               {profile?.telegram && (
-                <a
+                <SecondaryButtonLink
                   href={getTelegramUrl(profile.telegram)}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  aria-label={`Открыть Telegram профиль ${profile.telegram} в новой вкладке`}
-                  className={`${styles.socialLink} ${styles.socialLinkTelegram}`}
+                  prefetch={false}
+                  aria-label={"Телеграм: " + profile.telegram + ", откроется в новой вкладке"}
+                  title={"Телеграм: " + profile.telegram}
+                  className={styles.socialLink}
                 >
                   <TelegramIcon className={styles.socialIcon} />
-                  <span className={styles.socialLabel}>Telegram</span>
-                  <span className={styles.socialUsername}>{profile.telegram}</span>
-                </a>
+                  <span className={styles.socialText}>
+                    <span className={styles.socialLabel}>Телеграм</span>
+                    <span className={styles.socialUsername}>{profile.telegram}</span>
+                  </span>
+                  <OpenInNewRoundedIcon className={styles.externalIcon} aria-hidden="true" />
+                </SecondaryButtonLink>
               )}
               {safeWebsite && (
-                <a
+                <SecondaryButtonLink
                   href={safeWebsite}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
-                  aria-label={`Открыть сайт ${safeWebsite} в новой вкладке`}
-                  className={`${styles.socialLink} ${styles.socialLinkWebsite}`}
+                  prefetch={false}
+                  aria-label={"Открыть сайт " + safeWebsite + " в новой вкладке"}
+                  title={safeWebsite}
+                  className={styles.socialLink}
                 >
                   <WebsiteIcon className={styles.socialIcon} />
-                  <span className={styles.socialLabel}>Сайт</span>
-                  <span className={styles.socialUsername}>{safeWebsite}</span>
-                </a>
+                  <span className={styles.socialText}>
+                    <span className={styles.socialLabel}>Сайт</span>
+                    <span className={styles.socialUsername}>{websiteDisplay}</span>
+                  </span>
+                  <OpenInNewRoundedIcon className={styles.externalIcon} aria-hidden="true" />
+                </SecondaryButtonLink>
               )}
             </div>
-          </div>
+          </nav>
         )}
       </div>
 
@@ -159,7 +185,9 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
                 <div className={styles.personalFact}>
                   <span className={styles.factLabel}>Возраст</span>
                   <span className={styles.factValue}>
-                    {age !== null ? `${age} ${declOfNum(age, ["год", "года", "лет"])}` : "Не указан"}
+                    {age !== null
+                      ? `${age} ${declOfNum(age, ["год", "года", "лет"])}`
+                      : "Не указан"}
                   </span>
                 </div>
               )}
@@ -185,7 +213,6 @@ export default function Bio({ publicData, isOwner, username, userData }: BioProp
           )}
           {showEmptyNotice && <p className={styles.emptyNotice}>Информация о себе не внесена</p>}
         </div>
-
       </div>
 
       {publicData.role === "TRAINER" && <TrainerCoursesSection publicData={publicData} />}

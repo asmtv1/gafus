@@ -7,12 +7,14 @@ import { app } from "./app.js";
 import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
 import { connection as redis } from "@gafus/queues";
 import { createWebLogger } from "@gafus/logger";
+import { startMediaCdnMonitor } from "./lib/media-cdn-monitor.js";
 
 const logger = createWebLogger("api-server");
 const PORT = Number(process.env.API_PORT) || 3001;
 
 const server = serve({ fetch: app.fetch, port: PORT });
 logger.info(`API server running on port ${PORT}`);
+const stopMediaCdnMonitor = startMediaCdnMonitor(redis);
 
 // Graceful shutdown
 let isShuttingDown = false;
@@ -20,6 +22,7 @@ let isShuttingDown = false;
 const shutdown = async (signal: string) => {
   if (isShuttingDown) return;
   isShuttingDown = true;
+  stopMediaCdnMonitor();
 
   logger.info(`${signal} received, shutting down gracefully`);
 

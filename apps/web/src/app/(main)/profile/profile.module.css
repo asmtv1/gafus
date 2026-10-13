@@ -14,6 +14,33 @@
   margin-inline: auto;
   min-width: 0;
 }
+/* Public profile: pets first, then an inherited two-choice selector. */
+.publicPets {
+  width: min(100%, 900px);
+  margin: 22px auto 16px;
+}
+.publicPets > section { width: 100%; margin: 0; }
+.visitorNavigation {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 100%;
+  margin: 20px auto 22px;
+}
+.visitorToggle {
+  box-sizing: border-box;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 10px 20px;
+  border-radius: 13px;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.visitorToggle:focus-visible { outline-offset: 3px; }
+
 /* Compact segmented control: both destinations read as buttons, not labels. */
 .sectionNavigation {
   display: flex;
@@ -61,7 +88,6 @@
   box-shadow: 0 3px 9px rgba(56, 74, 36, .22);
 }
 .viewContent { min-width: 0; scroll-margin-top: 18px; }
-.activityLayout { min-width: 0; }
 .activityColumns {
   display: flex;
   flex-direction: column;
@@ -72,15 +98,7 @@
   margin-inline: auto;
 }
 .activityColumns > * { width: 100%; min-width: 0; }
-.notesCard, .petsColumn { min-width: 0; }
-.petsColumn > section { width: 100%; max-width: none; margin: 0; }
-.visitorLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
-  align-items: start;
-  gap: 18px;
-}
-.visitorLayout .activityColumns { grid-template-columns: minmax(0, 1fr); }
+.notesCard { min-width: 0; }
 .settingsLayout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(275px, 310px);
@@ -104,13 +122,15 @@
     scrollbar-width: thin;
     scrollbar-color: #bdc5a7 transparent;
   }
-  .visitorLayout, .settingsLayout { grid-template-columns: minmax(0, 1fr); }
+  .settingsLayout { grid-template-columns: minmax(0, 1fr); }
   .settingsAside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .profilePage { padding: 9px 11px 44px; }
   .contentNavigation { flex-wrap: nowrap; }
   .navigationItem { padding-inline: 12px; font-size: 12px; }
+  .visitorNavigation { gap: 8px; }
+  .visitorToggle { flex: 1 1 calc(50% - 4px); min-width: 0; padding-inline: 10px; font-size: 12px; }
   .settingsAside { grid-template-columns: minmax(0, 1fr); }
   .activityColumns { gap: 14px; }
 }

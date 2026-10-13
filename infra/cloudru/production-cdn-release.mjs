@@ -9,16 +9,20 @@ import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { verifyStableCdnGet } from "./cdn-stability.mjs";
+import { transientEdge5xx, isDegradableCdnFailure } from "./cdn-edge-degradation.mjs";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { verifyDirectOriginStable, probePreviousOrigin } from "./cdn-cutover-policy.mjs";
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 const mode = process.argv[2] ?? "--plan";
 if (!["--plan", "--preflight", "--prepare", "--activate"].includes(mode))
   throw Error("CDN_INVALID_ACTION");
-const specs = [
+const allSpecs = [
   {
     kind: "gallery",
     id: "bc8rorv3vgbgax3xesyn",
@@ -38,6 +42,12 @@ const specs = [
     bucket: "gafus-feed-private",
   },
 ];
+// Every live cutover is one CDN at a time: a failed Feed cannot undo Gallery.
+const scope = process.argv[3];
+if ((mode === "--activate" && !["gallery", "feed"].includes(scope)) ||
+    (mode !== "--activate" && scope !== undefined) || process.argv.length > 4)
+  throw Error("CDN_ACTIVATION_REQUIRES_EXPLICIT_SCOPE");
+const specs = mode === "--activate" ? allSpecs.filter((x) => x.kind === scope) : allSpecs;
 if (mode === "--plan") {
   console.log(
     JSON.stringify({
@@ -51,7 +61,7 @@ if (mode === "--plan") {
         "GET/HEAD/Range",
         "expired and forged signatures",
         "synthetic S3 cleanup",
-        "automatic Yandex CDN rollback",
+        "per-resource rollback only to a verified reachable previous origin",
       ],
     }),
   );
@@ -214,10 +224,29 @@ const s3 = new S3Client({
 });
 const keys = [],
   switched = [],
-  stateFile = process.env.RUNNER_TEMP
-    ? process.env.RUNNER_TEMP + "/gafus-cdn-rollback.json"
-    : "/tmp/gafus-cdn-rollback.json";
+  stateFile = (process.env.RUNNER_TEMP ?? process.cwd()) + "/gafus-cdn-rollback-" + scope + ".json";
 let committed = false;
+const degraded = [];
+async function verifyS3Fallback(x, key, expectedBytes) {
+  // Exercise the same private, expiring Cloud.ru presigned GET transport the
+  // authenticated user-facing fallback endpoints issue; no user file is read.
+  const url = await getSignedUrl(s3, new GetObjectCommand({
+    Bucket: x.bucket, Key: key, ResponseCacheControl: "private, no-store",
+  }), { expiresIn: 120 });
+  if (new URL(url).origin !== e.CLOUDRU_S3_ENDPOINT)
+    throw Error("CDN_FALLBACK_WRONG_S3_ORIGIN_" + x.kind);
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(12000), redirect: "error", cache: "no-store",
+  });
+  if (response.status !== 200 ||
+      !Buffer.from(await response.arrayBuffer()).equals(expectedBytes))
+    throw Error("CDN_SIGNED_S3_FALLBACK_FAILED_" + x.kind);
+}
+function requireEdgeStatus(x, stage, status, expected) {
+  if (status === expected) return;
+  if (status >= 500 && status <= 599) throw transientEdge5xx(x.kind, stage, status);
+  throw Error("CDN_EDGE_INVALID_" + stage + "_" + x.kind + "_HTTP_" + status);
+}
 function signed(x, path, expires) {
   const hash = createHash("md5")
     .update(String(expires) + path + " " + x.signer)
@@ -249,6 +278,8 @@ try {
         CacheControl: "public, max-age=90",
       }),
     );
+    await verifyS3Fallback(x, x.key, x.bytes);
+    x.fallbackVerified = true;
     const url = "https://" + x.origin + "/" + x.key;
     const r = await fetch(url, {
       headers: { ["x-" + x.kind + "-origin-secret"]: x.headerSecret },
@@ -258,112 +289,26 @@ try {
       throw Error("CDN_DIRECT_ORIGIN_WRONG_BYTES_" + x.kind);
     const denial = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (denial.status !== 403) throw Error("CDN_ORIGIN_ANONYMOUSLY_READABLE_" + x.kind);
-  }
-  // Persist all original states before modifying the first CDN resource.
-  await writeFile(
-    stateFile,
-    JSON.stringify(
-      specs.map((x) => ({
-        kind: x.kind,
-        id: x.id,
-        group: x.original.group,
-        host: x.original.host,
-        sni: x.original.sni,
-      })),
-    ),
-    { flag: "wx", mode: 0o600 },
-  );
-  for (const x of specs) {
-    if (!x.targetGroup) {
-      const group = yc([
-        "cdn",
-        "origin-group",
-        "create",
-        "--name",
-        x.groupName,
-        "--origin",
-        "source=" + x.origin + ",enabled=true",
-        "--folder-id",
-        e.YC_CDN_FOLDER_ID,
-      ]);
-      if (!group?.id) throw Error("CDN_GROUP_CREATE_FAILED_" + x.kind);
-      x.targetGroup = getGroup(x);
-    }
-    if (!x.targetGroup) throw Error("CDN_TARGET_GROUP_NOT_READY_" + x.kind);
-    if (
-      String(x.original.group) === String(x.targetGroup) &&
-      x.original.host === x.origin &&
-      x.original.sni === x.origin
-    )
-      console.log(JSON.stringify({ cdn: x.host, alreadyActive: true }));
-    else {
-      // Record intent before write, including if YC update returns error after applying.
-      switched.push(x);
-      setGroup(x, x.targetGroup, x.origin);
-    }
-    const path = "/" + x.key;
-    let ready = false;
-    for (let i = 0; i < 110; i++) {
-      try {
-        const u = signed(x, path, Math.floor(Date.now() / 1000) + 150);
-        const r = await fetch(u, { signal: AbortSignal.timeout(15000), cache: "no-store" });
-        if (r.status === 200 && Buffer.from(await r.arrayBuffer()).equals(x.bytes)) {
-          ready = true;
-          break;
-        }
-      } catch {}
-      await new Promise((done) => setTimeout(done, 4000));
-    }
-    if (!ready) throw Error("CDN_EDGE_PROPAGATION_FAILED_" + x.kind);
-    // Origin propagation can briefly return CDN 5xx even after its first 200.
-    // Require 15 consecutive byte-exact hits, bounded to 35 attempts.
-    // A 403/404/redirect or wrong bytes still fail immediately and roll back.
-    const stable = await verifyStableCdnGet({
+    await denial.body?.cancel();
+    // Test several fresh origin reads over time BEFORE routing live traffic.
+    // A single warm 200 cannot prove a sub-5-second origin is ready for CDN.
+    const direct = await verifyDirectOriginStable({
       kind: x.kind,
+      url,
+      headerName: "x-" + x.kind + "-origin-secret",
+      headerSecret: x.headerSecret,
       expectedBytes: x.bytes,
-      urlForAttempt: () => signed(x, path, Math.floor(Date.now() / 1000) + 150),
     });
-    console.log(JSON.stringify({
-      cdn: x.host,
-      stage: "edge-stable",
-      samples: stable.samples,
-      attempts: stable.attempts,
-      transientFailures: stable.transientFailures,
-    }));
-    const expires = Math.floor(Date.now() / 1000) + 150,
-      u = signed(x, path, expires);
-    const h = await fetch(u, { method: "HEAD", signal: AbortSignal.timeout(11000) });
-    if (h.status !== 200) throw Error("CDN_HEAD_FAIL_" + x.kind);
-    const range = await fetch(u, {
-      headers: { Range: "bytes=0-3" },
-      signal: AbortSignal.timeout(11000),
+    console.log(JSON.stringify({ cdn: x.host, stage: "direct-origin-stable", ...direct }));
+    // Never assume a previously configured origin is a healthy fallback.
+    x.previousReachable = await probePreviousOrigin({
+      hostname: x.original.host,
+      path: "/" + x.key,
+      headerName: "x-" + x.kind + "-origin-secret",
+      headerSecret: x.headerSecret,
+      expectedBytes: x.bytes,
     });
-    if (
-      range.status !== 206 ||
-      !Buffer.from(await range.arrayBuffer()).equals(x.bytes.subarray(0, 4))
-    )
-      throw Error("CDN_RANGE_FAIL_" + x.kind);
-    const bad = await fetch(
-      signed(x, path, expires).replace(/md5=[^&]+/, "md5=" + "A".repeat(22)),
-      { signal: AbortSignal.timeout(11000) },
-    );
-    if (bad.status !== 403) throw Error("CDN_TAMPERED_SIGNATURE_ACCEPTED_" + x.kind);
-    const expired = await fetch(signed(x, path, Math.floor(Date.now() / 1000) - 10), {
-      signal: AbortSignal.timeout(11000),
-    });
-    if (![403, 410].includes(expired.status))
-      throw Error("CDN_EXPIRED_SIGNATURE_ACCEPTED_" + x.kind);
-    console.log(
-      JSON.stringify({
-        cdn: x.host,
-        correctOrigin: true,
-        samples: 15,
-        head: 200,
-        range: 206,
-        badSignatureDenied: true,
-        expiredSignatureDenied: true,
-      }),
-    );
+    console.log(JSON.stringify({ cdn: x.host, previousOriginReachable: x.previousReachable }));
     if (x.kind === "feed") {
       // Video CDN acceptance: real FFmpeg MPEG-TS bytes under owner-scoped HLS key.
       const segmentPath = "/" + x.key.replace(/poster\.webp$/, "hls/segment-000.ts");
@@ -425,46 +370,188 @@ try {
       });
       if (origin.status !== 200 || !Buffer.from(await origin.arrayBuffer()).equals(fixture.bytes))
         throw Error("PRODUCTION_HLS_DIRECT_ORIGIN_NOT_READY");
-      let ready = false;
-      for (let attempt = 0; attempt < 80; attempt++) {
-        try {
-          const resp = await fetch(signed(x, segmentPath, Math.floor(Date.now() / 1000) + 160), {
-            signal: AbortSignal.timeout(13000),
-          });
-          if (resp.status === 200 && Buffer.from(await resp.arrayBuffer()).equals(fixture.bytes)) {
-            ready = true;
-            break;
-          }
-        } catch {}
-        await new Promise((done) => setTimeout(done, 4000));
+      await verifyS3Fallback(x, fixture.key, fixture.bytes);
+      x.hlsFixture = { segmentPath, fixture };
+    }
+
+  }
+  // Persist all original states before modifying the first CDN resource.
+  await writeFile(
+    stateFile,
+    JSON.stringify(
+      specs.map((x) => ({
+        kind: x.kind,
+        id: x.id,
+        group: x.original.group,
+        host: x.original.host,
+        sni: x.original.sni,
+      })),
+    ),
+    { flag: "wx", mode: 0o600 },
+  );
+  for (const x of specs) {
+    if (!x.targetGroup) {
+      const group = yc([
+        "cdn",
+        "origin-group",
+        "create",
+        "--name",
+        x.groupName,
+        "--origin",
+        "source=" + x.origin + ",enabled=true",
+        "--folder-id",
+        e.YC_CDN_FOLDER_ID,
+      ]);
+      if (!group?.id) throw Error("CDN_GROUP_CREATE_FAILED_" + x.kind);
+      x.targetGroup = getGroup(x);
+    }
+    if (!x.targetGroup) throw Error("CDN_TARGET_GROUP_NOT_READY_" + x.kind);
+    if (
+      String(x.original.group) === String(x.targetGroup) &&
+      x.original.host === x.origin &&
+      x.original.sni === x.origin
+    )
+      console.log(JSON.stringify({ cdn: x.host, alreadyActive: true }));
+    else {
+      // Record intent before write, including if YC update returns error after applying.
+      switched.push(x);
+      setGroup(x, x.targetGroup, x.origin);
+    }
+    const path = "/" + x.key;
+    try {
+    let ready = false;
+    let transientStatus = null;
+    for (let i = 0; i < 12; i++) {
+      const u = signed(x, path, Math.floor(Date.now() / 1000) + 150);
+      const r = await fetch(u, {
+        signal: AbortSignal.timeout(12000), cache: "no-store", redirect: "manual",
+      });
+      if (r.status === 200) {
+        if (!Buffer.from(await r.arrayBuffer()).equals(x.bytes))
+          throw Error("CDN_EDGE_BYTES_MISMATCH_" + x.kind);
+        ready = true;
+        break;
       }
-      if (!ready) throw Error("PRODUCTION_HLS_CDN_NOT_READY");
+      await r.body?.cancel();
+      if (r.status < 500 || r.status > 599)
+        throw Error("CDN_EDGE_HTTP_" + r.status + "_" + x.kind);
+      transientStatus = r.status;
+      if (i < 11) await new Promise((done) => setTimeout(done, 3000));
+    }
+    if (!ready) throw transientEdge5xx(x.kind, "propagation", transientStatus);
+    // Origin propagation can briefly return CDN 5xx even after its first 200.
+    // Require 15 consecutive byte-exact hits, bounded to 35 attempts.
+    // A 403/404/redirect or wrong bytes still fail immediately and roll back.
+    const stable = await verifyStableCdnGet({
+      kind: x.kind,
+      expectedBytes: x.bytes,
+      urlForAttempt: () => signed(x, path, Math.floor(Date.now() / 1000) + 150),
+    });
+    console.log(JSON.stringify({
+      cdn: x.host,
+      stage: "edge-stable",
+      samples: stable.samples,
+      attempts: stable.attempts,
+      transientFailures: stable.transientFailures,
+    }));
+    const expires = Math.floor(Date.now() / 1000) + 150,
+      u = signed(x, path, expires);
+    const h = await fetch(u, { method: "HEAD", signal: AbortSignal.timeout(11000) });
+    requireEdgeStatus(x, "head", h.status, 200);
+    const range = await fetch(u, {
+      headers: { Range: "bytes=0-3" },
+      signal: AbortSignal.timeout(11000),
+    });
+    requireEdgeStatus(x, "range", range.status, 206);
+    if (!Buffer.from(await range.arrayBuffer()).equals(x.bytes.subarray(0, 4)))
+      throw Error("CDN_RANGE_BYTES_MISMATCH_" + x.kind);
+    const bad = await fetch(
+      signed(x, path, expires).replace(/md5=[^&]+/, "md5=" + "A".repeat(22)),
+      { signal: AbortSignal.timeout(11000) },
+    );
+    requireEdgeStatus(x, "forged", bad.status, 403);
+    const expired = await fetch(signed(x, path, Math.floor(Date.now() / 1000) - 10), {
+      signal: AbortSignal.timeout(11000),
+    });
+    if (![403, 410].includes(expired.status)) {
+      if (expired.status >= 500 && expired.status <= 599)
+        throw transientEdge5xx(x.kind, "expired", expired.status);
+      throw Error("CDN_EXPIRED_SIGNATURE_ACCEPTED_" + x.kind);
+    }
+    console.log(
+      JSON.stringify({
+        cdn: x.host,
+        correctOrigin: true,
+        samples: 15,
+        head: 200,
+        range: 206,
+        badSignatureDenied: true,
+        expiredSignatureDenied: true,
+      }),
+    );
+    if (x.kind === "feed") {
+      const { segmentPath, fixture } = x.hlsFixture;
+      let ready = false;
+      let transientStatus = null;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const resp = await fetch(signed(x, segmentPath, Math.floor(Date.now() / 1000) + 160), {
+          signal: AbortSignal.timeout(13000), redirect: "manual",
+        });
+        if (resp.status === 200) {
+          if (!Buffer.from(await resp.arrayBuffer()).equals(fixture.bytes))
+            throw Error("PRODUCTION_HLS_CDN_BYTES_MISMATCH");
+          ready = true;
+          break;
+        }
+        await resp.body?.cancel();
+        if (resp.status < 500 || resp.status > 599)
+          throw Error("PRODUCTION_HLS_CDN_HTTP_" + resp.status);
+        transientStatus = resp.status;
+        if (attempt < 11) await new Promise((done) => setTimeout(done, 3000));
+      }
+      if (!ready) throw transientEdge5xx(x.kind, "hls-propagation", transientStatus);
       const segmentUrl = signed(x, segmentPath, Math.floor(Date.now() / 1000) + 145);
       for (let k = 0; k < 15; k++) {
         const check = await fetch(segmentUrl, { signal: AbortSignal.timeout(11000) });
-        if (check.status !== 200 || !Buffer.from(await check.arrayBuffer()).equals(fixture.bytes))
-          throw Error("PRODUCTION_HLS_CDN_UNSTABLE");
+        requireEdgeStatus(x, "hls-stable", check.status, 200);
+        if (!Buffer.from(await check.arrayBuffer()).equals(fixture.bytes))
+          throw Error("PRODUCTION_HLS_CDN_BYTES_MISMATCH");
       }
       const h = await fetch(segmentUrl, { method: "HEAD", signal: AbortSignal.timeout(11000) });
       const r = await fetch(segmentUrl, {
         headers: { Range: "bytes=0-3" },
         signal: AbortSignal.timeout(11000),
       });
-      if (
-        h.status !== 200 ||
-        r.status !== 206 ||
-        !Buffer.from(await r.arrayBuffer()).equals(fixture.bytes.subarray(0, 4))
-      )
-        throw Error("PRODUCTION_HLS_CDN_HEAD_RANGE_FAILED");
+      requireEdgeStatus(x, "hls-head", h.status, 200);
+      requireEdgeStatus(x, "hls-range", r.status, 206);
+      if (!Buffer.from(await r.arrayBuffer()).equals(fixture.bytes.subarray(0, 4)))
+        throw Error("PRODUCTION_HLS_CDN_RANGE_BYTES_MISMATCH");
       const forged = await fetch(segmentUrl.replace(/md5=[^&]+/, "md5=" + "A".repeat(22)), {
         signal: AbortSignal.timeout(11000),
       });
       const expired = await fetch(signed(x, segmentPath, Math.floor(Date.now() / 1000) - 10), {
         signal: AbortSignal.timeout(11000),
       });
-      if (forged.status !== 403 || ![403, 410].includes(expired.status))
+      requireEdgeStatus(x, "hls-forged", forged.status, 403);
+      if (![403, 410].includes(expired.status)) {
+        if (expired.status >= 500 && expired.status <= 599)
+          throw transientEdge5xx(x.kind, "hls-expired", expired.status);
         throw Error("PRODUCTION_HLS_CDN_SIGNATURE_FAILED");
+      }
       console.log("PRODUCTION_SIGNED_FEED_HLS_MPEGTS=PASS");
+    }
+    } catch (error) {
+      // Only a proven signed-S3 path plus direct, protected and byte-exact
+      // Origin can tolerate an edge-only 5xx. All signature/ACL/configuration,
+      // unexpected 4xx, wrong bytes and transport failures remain fatal.
+      const fallbackVerified = x.fallbackVerified === true &&
+        (x.kind !== "feed" || x.hlsFixture !== undefined);
+      if (e.CDN_EDGE_DEGRADED_OK !== "true" ||
+          !isDegradableCdnFailure(error, x.kind, fallbackVerified)) throw error;
+      degraded.push({ cdn: x.host, kind: x.kind, reason: error.message });
+      console.warn(`::warning title=CDN edge degraded ${x.kind}::` +
+        "Signed Cloud.ru S3 and protected Origin verified; application will fail over.");
+      console.log(JSON.stringify({ cdn: x.host, delivery: "cloudru-s3", state: "degraded", reason: error.message }));
     }
   }
   // Final application health belongs to this transaction. A failure must
@@ -487,11 +574,27 @@ try {
     if (!healthy) throw Error("CLOUDRU_POSTCUTOVER_APP_UNREADY");
   }
   committed = true;
-  console.log("CLOUDRU_YANDEX_CDN_CUTOVER=PASS");
+  console.log(degraded.length
+    ? "CLOUDRU_YANDEX_CDN_CUTOVER=DEGRADED_S3_FALLBACK"
+    : "CLOUDRU_YANDEX_CDN_CUTOVER=PASS");
 } finally {
   if (!committed) {
     for (const x of switched.reverse()) {
       try {
+        // If the former provider is unreachable, rolling back guarantees another
+        // outage. Preserve the Cloud.ru target for independent remediation instead.
+        const stillReachable = x.previousReachable && await probePreviousOrigin({
+          hostname: x.original.host,
+          path: "/" + x.key,
+          headerName: "x-" + x.kind + "-origin-secret",
+          headerSecret: x.headerSecret,
+          expectedBytes: x.bytes,
+        });
+        if (!stillReachable) {
+          console.error("CDN_ROLLBACK_BLOCKED_UNHEALTHY_PREVIOUS_" + x.kind);
+          process.exitCode = 1;
+          continue;
+        }
         if (x.original.sni) {
           yc([
             "cdn",

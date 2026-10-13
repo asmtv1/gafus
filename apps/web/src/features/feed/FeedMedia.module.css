@@ -1,0 +1,214 @@
+/* Compact, uncropped media previews inspired by content-first social feeds. */
+.carousel {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 15px;
+}
+.frame {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(96, 105, 71, .1);
+  border-radius: 14px;
+  background: #eeeae2;
+}
+.mediaItem {
+  display: grid;
+  flex: 1 1 auto;
+  place-items: center;
+  min-width: 0;
+  height: clamp(225px, 29vw, 315px);
+  overflow: hidden;
+}
+.photoTrigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 12px 45px;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.previewImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 340px;
+  max-height: 290px;
+  object-fit: contain;
+}
+.zoomHint {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  padding: 5px 10px;
+  border: 1px solid rgba(65, 72, 50, .13);
+  border-radius: 9px;
+  background: rgba(255, 253, 249, .91);
+  color: #59654b;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+}
+.photoTrigger:hover .zoomHint,
+.photoTrigger:focus-visible .zoomHint { opacity: 1; }
+.videoPreview {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.videoPreview video,
+.videoPreview img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.processing { color: #6f7567; font-size: 13px; }
+.arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(85, 96, 68, .17);
+  border-radius: 50%;
+  background: rgba(255, 253, 247, .96);
+  color: #536347;
+  box-shadow: 0 3px 12px rgba(38, 42, 29, .16);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.arrowPrevious { left: 10px; }
+.arrowNext { right: 10px; }
+.arrow:hover { background: #fff; }
+.arrow svg { width: 23px; height: 23px; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: 9px; }
+.dot { width: 5px; height: 5px; border-radius: 50%; background: #c0c6b7; }
+.dotActive { width: 7px; height: 7px; background: #566b3c; }
+
+/* Native dialog uses the top layer. Portaling also avoids profile-card clipping. */
+.viewer {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(calc(100vw - 32px), 980px);
+  height: min(calc(100dvh - 32px), 900px);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 18px;
+  background: #171c17;
+  color: #fffdf7;
+  box-shadow: 0 24px 70px rgba(0,0,0,.45);
+}
+.viewer:not([open]) { display: none; }
+.viewer[open] { display: flex; flex-direction: column; }
+.viewer::backdrop { background: rgba(12, 17, 12, .84); }
+.viewerToolbar {
+  display: flex;
+  flex: 0 0 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px 7px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.11);
+}
+.viewerCounter { color: #e6e8df; font-size: 13px; font-weight: 650; }
+.closeButton {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 11px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  cursor: pointer;
+}
+.closeButton:hover { background: rgba(255,255,255,.19); }
+.closeButton svg { width: 21px; height: 21px; }
+.viewerBody {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  color: #d8ddd0;
+}
+.viewerImage {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  margin: auto;
+}
+.viewerFooter {
+  display: flex;
+  flex: 0 0 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px;
+  border-top: 1px solid rgba(255,255,255,.11);
+  font-size: 12px;
+  color: #e1e6d9;
+}
+.viewerNav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 39px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 10px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.viewerNav:hover { background: rgba(255,255,255,.2); }
+.viewerNav svg { width: 19px; height: 19px; }
+.arrow:focus-visible,
+.photoTrigger:focus-visible,
+.closeButton:focus-visible,
+.viewerNav:focus-visible { outline: 3px solid #abbc93; outline-offset: 3px; }
+
+@media(max-width:720px) {
+  .mediaItem { height: clamp(220px, 55vw, 280px); }
+  .photoTrigger { padding: 10px 38px; }
+  .previewImage { max-width: 260px; max-height: 260px; }
+  .arrow { width: 32px; height: 32px; }
+  .arrowPrevious { left: 6px; }
+  .arrowNext { right: 6px; }
+  .viewer {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+  .viewerBody { padding: 8px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .zoomHint { transition: none; }
+}

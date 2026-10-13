@@ -111,6 +111,18 @@ export async function pickFeedMedia(source: "camera-photo" | "camera-video" | "l
     throw error;
   }
 }
+/** Select a single photo for a poll option (never a video or an album post). */
+export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) throw new Error("Разрешите доступ к фото в настройках приложения.");
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"], allowsMultipleSelection: false, quality: 1,
+  });
+  if (result.canceled || !result.assets[0]) return null;
+  const photo = await prepareFeedPickedMedia(result.assets[0]);
+  if (photo.kind !== "photo") throw new Error("Для варианта опроса можно выбрать только фото.");
+  return photo;
+}
 export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia, onProgress?: (loaded: number, total: number) => void): Promise<string> {
   let reserved = await feedApi.reserveUpload(postId, {
     filename: item.filename, kind: item.kind, declaredMime: item.mime,

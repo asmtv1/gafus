@@ -6,7 +6,8 @@ import { useFocusEffect } from "expo-router";
 import { API_BASE_URL, COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { feedApi } from "@/shared/lib/api/feed";
-import { cloudruFallbackManifestUrl, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
+import { prefersCloudruMedia } from "@/shared/lib/media/serverHealth";
+import { cloudruFallbackManifestUrl, isMediaCdnFailoverActive, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
 let active: { postId: string; stop: () => void } | undefined;
 export function stopFeedVideoOutsidePosts(visiblePostIds: Set<string>) {
   if (active && !visiblePostIds.has(active.postId)) active.stop();
@@ -47,7 +48,8 @@ export function FeedVideo({ postId, mediaId, poster, visible }: {
     if (triedDirect.current || !original) { stop(); setError("Видео не загрузилось. Попробуйте ещё раз."); return; }
     triedDirect.current = true;
     void (async () => {
-      const outage = await probeHlsCdnOutage(API_BASE_URL.replace(/\/$/, "") + original, { nativeNetwork: true });
+      const outage = isMediaCdnFailoverActive('feed') ||
+        await probeHlsCdnOutage(API_BASE_URL.replace(/\/$/, "") + original, { nativeNetwork: true });
       if (current !== generation.current) return;
       if (outage) {
         setUri(API_BASE_URL.replace(/\/$/, "") + cloudruFallbackManifestUrl(original));
@@ -72,7 +74,11 @@ export function FeedVideo({ postId, mediaId, poster, visible }: {
       if (generation.current !== current) return;
       if (!/^\/api\/v1\/feed-playback\/[A-Za-z0-9_-]+\?ticket=/.test(ticket.manifestUrl)) throw new Error("Не удалось открыть видео.");
       manifest.current = ticket.manifestUrl;
-      setUri(API_BASE_URL.replace(/\/$/, "") + ticket.manifestUrl);
+      const useDirect = isMediaCdnFailoverActive("feed") || await prefersCloudruMedia("feed");
+      if (generation.current !== current) return;
+      triedDirect.current = useDirect;
+      setUri(API_BASE_URL.replace(/\/$/, "") +
+        (useDirect ? cloudruFallbackManifestUrl(ticket.manifestUrl) : ticket.manifestUrl));
       // A video lasts at most 60 s; a paused expired session is released rather than cached.
       timer.current = setTimeout(stop, 110_000);
     } catch (failure) {
