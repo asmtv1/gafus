@@ -89,7 +89,16 @@ function yc(args) {
     timeout: 55000,
     maxBuffer: 3 * 1024 * 1024,
   });
-  if (r.status !== 0) throw Error("YC_CDN_COMMAND_FAILED_" + args.slice(0, 2).join("_"));
+  if (r.status !== 0) {
+    // Never log raw CLI output: resource options can contain signing/header secrets.
+    const diagnostic = (r.stderr ?? "") + " " + (r.error?.code ?? "");
+    const code = diagnostic.match(/code\s*=\s*([A-Za-z]+)/)?.[1] ??
+      ["PERMISSION_DENIED", "UNAUTHENTICATED", "PermissionDenied", "Unauthenticated",
+       "Unavailable", "DeadlineExceeded", "ETIMEDOUT", "ENOENT"]
+        .find((value) => diagnostic.includes(value)) ?? "UNKNOWN";
+    throw Error("YC_CDN_COMMAND_FAILED_" + args.slice(0, 2).join("_") +
+      "_" + code + "_EXIT_" + r.status);
+  }
   return r.stdout?.trim() ? JSON.parse(r.stdout) : {};
 }
 const current = (x) =>

@@ -12,6 +12,7 @@ RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 
 # Копируем файлы конфигурации
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY patches ./patches
 
 # Копируем исходный код
 COPY packages ./packages
