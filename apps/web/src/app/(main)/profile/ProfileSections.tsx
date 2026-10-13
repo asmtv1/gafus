@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import styles from "./profile.module.css";
 
-type ProfileView = "activity" | "questions" | "settings";
+type ProfileView = "activity" | "questions" | "settings" | "notes";
 
 interface ProfileSectionsProps {
   isOwner: boolean;
@@ -12,6 +12,7 @@ interface ProfileSectionsProps {
   activity: ReactNode;
   questions?: ReactNode;
   settings?: ReactNode;
+  notes?: ReactNode;
 }
 
 /** Profile-only navigation state. Data loading and permissions stay in the existing features/core. */
@@ -21,6 +22,7 @@ export default function ProfileSections({
   activity,
   questions,
   settings,
+  notes,
 }: ProfileSectionsProps) {
   const [view, setView] = useState<ProfileView>(isOwner ? initialView : "activity");
 
@@ -32,7 +34,7 @@ export default function ProfileSections({
     const syncFromUrl = () => {
       const url = new URL(window.location.href);
       const tab = url.searchParams.get("tab");
-      setView(isOwner && (tab === "settings" || tab === "questions") ? tab : "activity");
+      setView(isOwner && (tab === "settings" || tab === "questions" || tab === "notes") ? tab : "activity");
     };
     window.addEventListener("popstate", syncFromUrl);
     return () => window.removeEventListener("popstate", syncFromUrl);
@@ -81,14 +83,24 @@ export default function ProfileSections({
               Настройки аккаунта
             </button>
           )}
+          {isOwner && (
+            <button
+              type="button"
+              className={`${styles.navigationItem} ${view === "notes" ? styles.navigationActive : ""}`}
+              aria-pressed={view === "notes"}
+              onClick={() => selectView("notes")}
+            >
+              Заметки кинолога
+            </button>
+          )}
         </div>
       </nav>
 
       <div
-        id={view === "settings" ? "profile-settings" : view === "questions" ? "profile-questions" : "profile-activity"}
+        id={view === "settings" ? "profile-settings" : view === "questions" ? "profile-questions" : view === "notes" ? "profile-notes" : "profile-activity"}
         className={styles.viewContent}
       >
-        {view === "settings" && isOwner ? settings : view === "questions" && isOwner ? questions : activity}
+        {view === "settings" && isOwner ? settings : view === "questions" && isOwner ? questions : view === "notes" && isOwner ? notes : activity}
       </div>
     </>
   );

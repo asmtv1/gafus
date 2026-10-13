@@ -1,81 +1,67 @@
+/* Общий компактный переключатель каталога и бронирований. */
 .subNav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 20px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: min(100%, 510px);
+  margin: 0 auto 22px;
+  padding: 5px;
+  border: 1px solid rgba(96, 100, 63, 0.13);
+  border-radius: 15px;
+  background: rgba(255, 252, 244, 0.87);
+  box-shadow: 0 3px 14px rgba(44, 44, 30, 0.06);
 }
 
 .subNavLink,
 .subNavLinkActive {
   display: inline-flex;
-  flex: 1 1 260px;
   align-items: center;
   justify-content: center;
-  max-width: 390px;
-  min-height: 52px;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 12px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 13px;
+  border-radius: 11px;
   font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.35;
   text-align: center;
   text-decoration: none;
-  transition:
-    background 0.16s ease,
-    color 0.15s ease,
-    box-shadow 0.16s ease,
-    transform 0.16s ease;
+  transition: background-color 170ms ease, color 170ms ease;
 }
 
 .subNavLink {
-  background: linear-gradient(180deg, #96914d 0%, #817d40 18%, #666429 56%, #59581f 84%, #4a4917 100%);
-  color: #f6f0df;
-  box-shadow: 0 7px 12px rgba(53, 52, 16, 0.3);
+  color: #605e50;
+  background: transparent;
 }
 
 .subNavLink:hover {
-  box-shadow: 0 9px 16px rgba(53, 52, 16, 0.34);
-  transform: translateY(-2px);
-}
-
-.subNavLink:active {
-  box-shadow: 0 2px 4px rgba(53, 52, 16, 0.2);
-  transform: translateY(2px) scale(0.99);
+  color: #475432;
+  background: #f0f1e7;
 }
 
 .subNavLinkActive {
-  background: #e9e2cf;
-  color: var(--accent-secondary, #4a4917);
-  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.22), 0 1px 2px rgba(74, 74, 30, 0.1);
-  transform: translateY(3px);
-}
-
-.subNavLinkActive:active {
-  background: #e3dcc8;
-  box-shadow: inset 0 3px 6px rgba(74, 74, 30, 0.24), 0 1px 1px rgba(74, 74, 30, 0.08);
-  transform: translateY(3px) scale(0.994);
+  color: #fffdf5;
+  background: #5b663d;
+  box-shadow: 0 2px 6px rgba(50, 61, 31, 0.13);
 }
 
 .subNavLink:focus-visible,
 .subNavLinkActive:focus-visible {
-  outline: 3px solid rgba(215, 131, 123, 0.8);
+  outline: 3px solid rgba(99, 97, 40, 0.45);
   outline-offset: 3px;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 430px) {
   .subNav {
-    gap: 8px;
+    width: 100%;
+    margin-bottom: 18px;
   }
 
   .subNavLink,
   .subNavLinkActive {
-    flex-basis: 100%;
-    max-width: none;
-    min-height: 50px;
-    font-size: 15px;
+    font-size: 12px;
+    padding: 9px 8px;
   }
 }
 

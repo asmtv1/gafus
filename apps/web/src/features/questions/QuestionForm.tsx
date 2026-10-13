@@ -1,9 +1,9 @@
 "use client";
+
 import { reportClientError } from "@gafus/error-handling";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppBackButtonLink } from "@/shared/components/ui";
-import Link from "next/link";
+import { AppBackButtonLink, PrimaryButton, SecondaryButtonLink } from "@/shared/components/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   QUESTION_CATEGORIES,
@@ -15,9 +15,12 @@ import {
 import { questionsApi } from "./api";
 import { PhotoPicker } from "./parts";
 import s from "./Questions.module.css";
+
 export function QuestionForm({ initial }: { initial?: QuestionDetailDto }) {
   const router = useRouter();
   const cache = useQueryClient();
+  const formId = useId();
+  const backHref = initial ? `/questions/${initial.id}` : "/questions";
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [category, setCategory] = useState<QuestionCategory>(initial?.category ?? "Другое");
@@ -27,17 +30,21 @@ export function QuestionForm({ initial }: { initial?: QuestionDetailDto }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+
   return (
-    <main className={s.page}>
-      <AppBackButtonLink href={initial ? `/questions/${initial.id}` : "/questions"}>
+    <main className={`${s.page} ${s.questionEditorPage}`}>
+      <AppBackButtonLink className={s.editorBack} href={backHref}>
         Назад к {initial ? "вопросу" : "вопросам"}
       </AppBackButtonLink>
-      <h1>{initial ? "Редактировать вопрос" : "Задать вопрос"}</h1>
-      <p className={s.subtitle}>
-        Расскажите о ситуации — другие владельцы смогут поделиться опытом.
-      </p>
+      <header className={s.editorHeader}>
+        <h1>{initial ? "Редактировать вопрос" : "Задать вопрос"}</h1>
+        <p className={s.subtitle}>
+          Опишите ситуацию, чтобы другие владельцы могли поделиться своим опытом.
+        </p>
+      </header>
       <form
-        className={s.form}
+        className={s.questionForm}
+        aria-busy={busy || uploading}
         onSubmit={async (event) => {
           event.preventDefault();
           if (busy || uploading) return;
@@ -66,61 +73,87 @@ export function QuestionForm({ initial }: { initial?: QuestionDetailDto }) {
           }
         }}
       >
-        <label className={s.field}>
-          Заголовок
-          <textarea
-            className={s.titleInput}
-            rows={3}
-            required
-            maxLength={QUESTION_LIMITS.title}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Что вы хотите узнать?"
-          />
-        </label>
-        <label className={s.field}>
-          Подробности
-          <textarea
-            required
-            maxLength={QUESTION_LIMITS.body}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Опишите ситуацию и что уже пробовали"
-          />
-        </label>
-        <label className={s.field}>
-          Категория
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as QuestionCategory)}
-          >
-            {QUESTION_CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-        <label className={s.field}>
-          Теги через запятую · до 5
-          <input
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            maxLength={180}
-            placeholder="щенок, прогулка, поводок"
-          />
-        </label>
-        <PhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
+        <div className={s.questionFields}>
+          <div className={s.field}>
+            <label htmlFor={`${formId}-title`}>
+              Заголовок <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id={`${formId}-title`}
+              className={s.questionTitleInput}
+              type="text"
+              required
+              maxLength={QUESTION_LIMITS.title}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Что вы хотите узнать?"
+            />
+          </div>
+          <div className={s.field}>
+            <label htmlFor={`${formId}-body`}>
+              Подробности <span aria-hidden="true">*</span>
+            </label>
+            <textarea
+              id={`${formId}-body`}
+              required
+              rows={5}
+              maxLength={QUESTION_LIMITS.body}
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              placeholder="Опишите ситуацию и что уже пробовали"
+            />
+          </div>
+          <div className={s.questionFieldsRow}>
+            <div className={s.field}>
+              <label htmlFor={`${formId}-category`}>Категория</label>
+              <select
+                id={`${formId}-category`}
+                value={category}
+                onChange={(event) => setCategory(event.target.value as QuestionCategory)}
+              >
+                {QUESTION_CATEGORIES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={s.field}>
+              <label htmlFor={`${formId}-tags`}>
+                Теги <span className={s.optionalLabel}>Необязательно · до 5</span>
+              </label>
+              <input
+                id={`${formId}-tags`}
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                maxLength={180}
+                placeholder="щенок, прогулка, поводок"
+              />
+            </div>
+          </div>
+        </div>
+        <section className={s.questionPhotosSection} aria-labelledby={`${formId}-photos`}>
+          <h2 id={`${formId}-photos`}>
+            Фотографии <span className={s.optionalLabel}>Необязательно</span>
+          </h2>
+          <PhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
+        </section>
         {error && (
           <p className={s.error} role="alert">
             {error}
           </p>
         )}
-        <div className={s.actions}>
-          <button className={s.primary} disabled={busy || uploading}>
-            {busy ? "Сохранение…" : initial ? "Сохранить изменения" : "Опубликовать вопрос"}
-          </button>
-          <Link className={s.secondary} href={initial ? `/questions/${initial.id}` : "/questions"}>
-            Отмена
-          </Link>
+        <div className={s.questionFormActions}>
+          <PrimaryButton type="submit" disabled={busy || uploading}>
+            {busy
+              ? "Сохранение…"
+              : uploading
+                ? "Загрузка фото…"
+                : initial
+                  ? "Сохранить изменения"
+                  : "Опубликовать вопрос"}
+          </PrimaryButton>
+          <SecondaryButtonLink href={backHref}>Отмена</SecondaryButtonLink>
         </div>
       </form>
     </main>

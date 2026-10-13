@@ -68,7 +68,9 @@ export default async function ProfilPage({
             ? "settings"
             : params.tab === "questions"
               ? "questions"
-              : "activity"
+              : params.tab === "notes"
+                ? "notes"
+                : "activity"
         }
       />
     );

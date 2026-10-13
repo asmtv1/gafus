@@ -43,7 +43,7 @@ export default function StudentNotes() {
     return (
       <div className={styles.container}>
         <h2 className={styles.title}>
-          <ProfileIcon name="trainer-notes" /> Заметки тренера
+          <ProfileIcon name="trainer-notes" /> Заметки кинолога
         </h2>
         <LoadingState variant="inline" message="Загрузка заметок…" />
       </div>
@@ -54,7 +54,7 @@ export default function StudentNotes() {
     return (
       <div className={styles.container}>
         <h2 className={styles.title}>
-          <ProfileIcon name="trainer-notes" /> Заметки тренера
+          <ProfileIcon name="trainer-notes" /> Заметки кинолога
         </h2>
         <p className={styles.error}>Ошибка: {error}</p>
       </div>
@@ -65,12 +65,12 @@ export default function StudentNotes() {
     return (
       <div className={styles.container}>
         <h2 className={styles.title}>
-          <ProfileIcon name="trainer-notes" /> Заметки тренера
+          <ProfileIcon name="trainer-notes" /> Заметки кинолога
         </h2>
         <div style={{ textAlign: "center" }}>
           <ProfileIcon name="notes-empty" size={64} />
         </div>
-        <p className={styles.empty}>Пока нет заметок от тренера</p>
+        <p className={styles.empty}>Пока нет заметок от кинолога</p>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default function StudentNotes() {
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>
-        <ProfileIcon name="trainer-notes" /> Заметки тренера
+        <ProfileIcon name="trainer-notes" /> Заметки кинолога
       </h2>
       <div className={styles.notesList}>
         {notes.map((note) => (
@@ -87,7 +87,7 @@ export default function StudentNotes() {
 
             <div className={styles.noteMeta}>
               <span className={styles.trainerInfo}>
-                Тренер: {note.trainer.profile?.fullName || note.trainer.username}
+                Кинолог: {note.trainer.profile?.fullName || note.trainer.username}
               </span>
               <span className={styles.noteDate}>
                 {format(new Date(note.createdAt), "d MMMM yyyy", { locale: ru })}

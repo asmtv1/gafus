@@ -2,18 +2,23 @@
 import { reportClientError } from "@gafus/error-handling";
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-} from "@mui/material";
+import { Dialog, DialogActions, DialogContent, DialogTitle, TextField } from "@mui/material";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { GalleryPhotoDto } from "@gafus/types";
 import { GalleryScope } from "./GalleryScope";
-import { AppBackButtonLink, LoadingState } from "@/shared/components/ui";
+import {
+  AppBackButtonLink,
+  LoadingState,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/shared/components/ui";
+import {
+  DeleteOutline,
+  EditOutlined,
+  MoreHorizRounded,
+  PhotoLibraryOutlined,
+  WallpaperOutlined,
+} from "@mui/icons-material";
 import { galleryApi } from "./api";
 import { galleryMessage, refreshDelay, useGalleryAlbums, useGalleryIdentity } from "./hooks";
 import { AlbumForm } from "./AlbumForm";
@@ -99,38 +104,62 @@ function AlbumContent({ albumId }: { albumId: string }) {
       <main className={styles.surface}>
         <h1>Альбом недоступен</h1>
         <p role="alert">{galleryMessage(albumQuery.error)}</p>
-        <Button
+        <SecondaryButton
           onClick={() => {
             void albumQuery.refetch();
           }}
         >
           Повторить
-        </Button>
+        </SecondaryButton>
         <AppBackButtonLink href="/profile">В профиль</AppBackButtonLink>
       </main>
     );
   return (
-    <main className={styles.surface}>
-      <AppBackButtonLink href={`/profile/albums?username=${encodeURIComponent(album.ownerUsername)}`}>
+    <main className={`${styles.surface} ${styles.albumDetail}`}>
+      <AppBackButtonLink
+        className={styles.albumBack}
+        href={`/profile/albums?username=${encodeURIComponent(album.ownerUsername)}`}
+      >
         Все альбомы
       </AppBackButtonLink>
-      <div className={styles.header}>
-        <h1>{album.name}</h1>
+
+      <header className={styles.albumHero}>
+        <div className={styles.albumIdentity}>
+          <span className={styles.albumEyebrow}>Фотоальбом</span>
+          <h1>{album.name}</h1>
+          {album.description && <p className={styles.albumDescription}>{album.description}</p>}
+          <div className={styles.albumMeta}>
+            <span>
+              <PhotoLibraryOutlined aria-hidden="true" /> {album.photoCount} фото
+            </span>
+            {album.canEdit && (
+              <span>{album.isVisible ? "Виден авторизованным" : "Только для вас"}</span>
+            )}
+          </div>
+        </div>
         {album.canEdit && (
-          <Button onClick={() => setEditing((value) => !value)}>Изменить альбом</Button>
+          <SecondaryButton
+            className={styles.editAlbumButton}
+            aria-expanded={editing}
+            onClick={() => setEditing((value) => !value)}
+          >
+            <EditOutlined aria-hidden="true" className={styles.buttonIcon} />
+            {editing ? "Закрыть настройки" : "Настройки альбома"}
+          </SecondaryButton>
         )}
-      </div>
-      {album.description && <p className={styles.caption}>{album.description}</p>}
-      <p className={styles.muted}>
-        {album.photoCount} фото{album.canEdit && !album.isVisible ? " · Доступен только вам" : ""}
-      </p>
+      </header>
       {error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
+
       {editing && album.canEdit && (
-        <>
+        <section className={styles.albumEditor} aria-label="Настройки альбома">
+          <div className={styles.sectionIntro}>
+            <h2>Настройки альбома</h2>
+            <p>Измените информацию об альбоме и выберите, кто может его видеть.</p>
+          </div>
           <AlbumForm
             album={album}
             cancel={() => setEditing(false)}
@@ -138,138 +167,169 @@ function AlbumContent({ albumId }: { albumId: string }) {
               if (await perform(() => galleryApi.updateAlbum(albumId, input))) setEditing(false);
             }}
           />
-          <div className={styles.actions}>
-            <Button
-              disabled={busy}
-              onClick={() => {
-                void perform(() => galleryApi.setCover(albumId, { photoId: null }));
-              }}
-            >
-              Убрать обложку
-            </Button>
-            <Button color="error" onClick={() => setConfirm({})}>
-              Удалить альбом
-            </Button>
+          <div className={styles.albumDangerZone}>
+            <div>
+              <h3>Удаление альбома</h3>
+              <p>Альбом и все фотографии из него будут удалены без возможности восстановления.</p>
+            </div>
+            <SecondaryButton variant="red" disabled={busy} onClick={() => setConfirm({})}>
+              <DeleteOutline aria-hidden="true" className={styles.buttonIcon} /> Удалить альбом
+            </SecondaryButton>
           </div>
-        </>
+        </section>
       )}
-      {album.canEdit && (
-        <div className={styles.actions}>
-          <Button disabled={busy || !album.photoCount} onClick={() => setChoosingCover((value) => !value)}>
-            {choosingCover ? "Отменить выбор обложки" : album.coverPhotoId ? "Изменить обложку" : "Выбрать обложку"}
-          </Button>
-          {choosingCover && <p role="status">Нажмите на фотографию, чтобы сделать её обложкой.</p>}
-          {!album.photoCount && <p className={styles.muted}>Добавьте фотографии, чтобы выбрать обложку.</p>}
+
+      <section className={styles.albumPhotosSection} aria-label="Фотографии альбома">
+        <div className={styles.photosHeading}>
+          <div>
+            <h2>Фотографии</h2>
+            <p className={styles.sectionSubtitle}>Все снимки этого альбома в одном месте</p>
+          </div>
+          {album.canEdit && (
+            <div className={styles.photosToolbar}>
+              <SecondaryButton
+                disabled={busy || !album.photoCount}
+                aria-pressed={choosingCover}
+                onClick={() => setChoosingCover((value) => !value)}
+              >
+                <WallpaperOutlined aria-hidden="true" className={styles.buttonIcon} />
+                {choosingCover ? "Отменить выбор" : "Выбрать обложку"}
+              </SecondaryButton>
+              {album.coverPhotoId && (
+                <SecondaryButton
+                  disabled={busy}
+                  onClick={() => {
+                    void perform(() => galleryApi.setCover(albumId, { photoId: null }));
+                  }}
+                >
+                  Убрать обложку
+                </SecondaryButton>
+              )}
+            </div>
+          )}
         </div>
-      )}
-      {album.canEdit && (
-        <UploadQueue
-          albumId={albumId}
-          usedSlots={photosQuery.data?.pages[0]?.usedSlots ?? 0}
-          changed={changed}
-          failedPhotos={photos.filter((photo) => photo.status === "failed")}
-        />
-      )}
-      {photosQuery.isPending && <LoadingState variant="inline" message="Загрузка фотографий…" />}
-      {photosQuery.error && (
-        <p role="alert" className={styles.error}>
-          {galleryMessage(photosQuery.error)}
-          <Button
-            onClick={() => {
-              void photosQuery.refetch();
-            }}
-          >
-            Повторить
-          </Button>
-        </p>
-      )}
-      {!photosQuery.isPending && !photosQuery.error && !photos.length && (
-        <p className={styles.empty}>В альбоме пока нет фотографий.</p>
-      )}
-      <div className={styles.grid}>
-        {photos.map((photo) => (
-          <div key={photo.id}>
-            <button
-              className={styles.photo}
-              disabled={photo.status !== "ready" || (choosingCover && busy)}
-              aria-label={`${choosingCover ? "Сделать обложкой фотографию" : "Открыть фотографию"} ${photo.caption || "без подписи"}`}
-              onClick={async () => {
-                if (choosingCover && album.canEdit) {
-                  if (await perform(() => galleryApi.setCover(albumId, { photoId: photo.id }))) setChoosingCover(false);
-                } else setSelected(photo.id);
+        {choosingCover && (
+          <div className={styles.coverNotice} role="status">
+            Выберите фотографию ниже — она станет обложкой альбома.
+          </div>
+        )}
+        {album.canEdit && (
+          <UploadQueue
+            albumId={albumId}
+            usedSlots={photosQuery.data?.pages[0]?.usedSlots ?? 0}
+            changed={changed}
+            failedPhotos={photos.filter((photo) => photo.status === "failed")}
+            accent={!editing}
+          />
+        )}
+        {photosQuery.isPending && <LoadingState variant="inline" message="Загрузка фотографий…" />}
+        {photosQuery.error && (
+          <p role="alert" className={styles.error}>
+            {galleryMessage(photosQuery.error)}
+            <SecondaryButton
+              onClick={() => {
+                void photosQuery.refetch();
               }}
             >
-              {photo.thumbUrl ? (
-                <CdnImage
-                  source={photo.thumbUrl}
-                  requestFallback={() => galleryApi.requestMediaFallback(photo.id, "thumb")}
-                  className={styles.thumb}
-                  alt={photo.caption || "Фотография"}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={() => {
-                    if (!imageRetries.current.has(photo.id)) {
-                      imageRetries.current.add(photo.id);
-                      void photosQuery.refetch();
-                    }
-                  }}
-                />
-              ) : (
-                <div className={`${styles.thumb} ${styles.placeholder}`}>
-                  {
-                    {
-                      pending: "Ожидает обработки",
-                      processing: "Обрабатывается…",
-                      moving: "Перемещается…",
-                      failed: "Не удалось обработать",
-                      ready: "Фотография",
-                    }[photo.status]
-                  }
-                </div>
-              )}
-              {photo.status !== "ready" && (
-                <span role="status">
-                  {
-                    {
-                      pending: "Ожидает обработки",
-                      processing: "Обрабатывается…",
-                      moving: "Перемещается…",
-                      failed: "Ошибка обработки",
-                    }[photo.status]
-                  }
-                </span>
-              )}
-              {photo.caption && <span className={styles.caption}>{photo.caption}</span>}
-            </button>
-            {album.coverPhotoId === photo.id && <p className={styles.muted}>Обложка альбома</p>}
-            {photo.canEdit && (
-              <Button
-                size="small"
-                onClick={() => {
-                  setEditPhoto(photo);
-                  setCaption(photo.caption ?? "");
-                  setDestination("");
+              Повторить
+            </SecondaryButton>
+          </p>
+        )}
+        {!photosQuery.isPending && !photosQuery.error && !photos.length && (
+          <p className={styles.empty}>
+            В альбоме пока нет фотографий. Добавьте первые снимки выше.
+          </p>
+        )}
+        <div className={styles.grid}>
+          {photos.map((photo) => (
+            <article className={styles.photoCard} key={photo.id}>
+              <button
+                className={styles.photo}
+                disabled={photo.status !== "ready" || (choosingCover && busy)}
+                aria-label={`${choosingCover ? "Сделать обложкой фотографию" : "Открыть фотографию"} ${photo.caption || "без подписи"}`}
+                onClick={async () => {
+                  if (choosingCover && album.canEdit) {
+                    if (await perform(() => galleryApi.setCover(albumId, { photoId: photo.id })))
+                      setChoosingCover(false);
+                  } else setSelected(photo.id);
                 }}
               >
-                Управление фото
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-      {photosQuery.hasNextPage && (
-        <div className={styles.actions}>
-          <Button
-            disabled={photosQuery.isFetchingNextPage}
-            onClick={() => {
-              void photosQuery.fetchNextPage();
-            }}
-          >
-            Показать ещё фотографии
-          </Button>
+                {photo.thumbUrl ? (
+                  <CdnImage
+                    source={photo.thumbUrl}
+                    requestFallback={() => galleryApi.requestMediaFallback(photo.id, "thumb")}
+                    className={styles.thumb}
+                    alt={photo.caption || "Фотография"}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={() => {
+                      if (!imageRetries.current.has(photo.id)) {
+                        imageRetries.current.add(photo.id);
+                        void photosQuery.refetch();
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className={`${styles.thumb} ${styles.placeholder}`}>
+                    {
+                      {
+                        pending: "Ожидает обработки",
+                        processing: "Обрабатывается…",
+                        moving: "Перемещается…",
+                        failed: "Не удалось обработать",
+                        ready: "Фотография",
+                      }[photo.status]
+                    }
+                  </div>
+                )}
+                {photo.status !== "ready" && (
+                  <span role="status" className={styles.photoStatus}>
+                    {
+                      {
+                        pending: "Ожидает обработки",
+                        processing: "Обрабатывается…",
+                        moving: "Перемещается…",
+                        failed: "Ошибка обработки",
+                      }[photo.status]
+                    }
+                  </span>
+                )}
+              </button>
+              {album.coverPhotoId === photo.id && <span className={styles.coverTag}>Обложка</span>}
+              {photo.canEdit && (
+                <SecondaryButton
+                  className={styles.photoManageButton}
+                  aria-label={"Управление фотографией: " + (photo.caption || "без подписи")}
+                  title="Управление фото"
+                  onClick={() => {
+                    setEditPhoto(photo);
+                    setCaption(photo.caption ?? "");
+                    setDestination("");
+                  }}
+                >
+                  <MoreHorizRounded className={styles.buttonIcon} aria-hidden="true" />
+                </SecondaryButton>
+              )}
+              {photo.caption && <p className={styles.photoCaption}>{photo.caption}</p>}
+            </article>
+          ))}
         </div>
-      )}
-      {photosQuery.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем фотографии…" />}
+        {photosQuery.hasNextPage && (
+          <div className={styles.actions}>
+            <SecondaryButton
+              disabled={photosQuery.isFetchingNextPage}
+              onClick={() => {
+                void photosQuery.fetchNextPage();
+              }}
+            >
+              Показать ещё фотографии
+            </SecondaryButton>
+          </div>
+        )}
+        {photosQuery.isFetchingNextPage && (
+          <LoadingState variant="inline" message="Загружаем фотографии…" />
+        )}
+      </section>
       <PhotoViewer
         photos={photos.filter((photo) => photo.status === "ready")}
         selected={selected}
@@ -294,7 +354,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
             margin="normal"
           />
           <div className={styles.actions}>
-            <Button
+            <PrimaryButton
               disabled={busy}
               onClick={async () => {
                 if (
@@ -307,8 +367,8 @@ function AlbumContent({ albumId }: { albumId: string }) {
               }}
             >
               Сохранить подпись
-            </Button>
-            <Button
+            </PrimaryButton>
+            <SecondaryButton
               disabled={busy || editPhoto?.status !== "ready"}
               onClick={async () => {
                 if (
@@ -319,7 +379,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
               }}
             >
               Сделать обложкой
-            </Button>
+            </SecondaryButton>
           </div>
           <label htmlFor="gallery-destination">Переместить в альбом</label>
           <select
@@ -338,16 +398,16 @@ function AlbumContent({ albumId }: { albumId: string }) {
               ))}
           </select>
           {ownAlbums.query.hasNextPage && (
-            <Button
+            <SecondaryButton
               onClick={() => {
                 void ownAlbums.query.fetchNextPage();
               }}
             >
               Показать ещё альбомы
-            </Button>
+            </SecondaryButton>
           )}
           <div className={styles.actions}>
-            <Button
+            <SecondaryButton
               disabled={busy || !destination || editPhoto?.status !== "ready"}
               onClick={async () => {
                 if (
@@ -363,9 +423,9 @@ function AlbumContent({ albumId }: { albumId: string }) {
               }}
             >
               Переместить
-            </Button>
-            <Button
-              color="error"
+            </SecondaryButton>
+            <SecondaryButton
+              variant="red"
               disabled={busy}
               onClick={() => {
                 if (editPhoto) {
@@ -375,7 +435,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
               }}
             >
               Удалить фото
-            </Button>
+            </SecondaryButton>
           </div>
           {error && (
             <p role="alert" className={styles.error}>
@@ -384,7 +444,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditPhoto(null)}>Закрыть</Button>
+          <SecondaryButton onClick={() => setEditPhoto(null)}>Закрыть</SecondaryButton>
         </DialogActions>
       </Dialog>
       <Dialog
@@ -405,11 +465,11 @@ function AlbumContent({ albumId }: { albumId: string }) {
           {error && <p role="alert">{error}</p>}
         </DialogContent>
         <DialogActions>
-          <Button autoFocus disabled={busy} onClick={() => setConfirm(null)}>
+          <SecondaryButton autoFocus disabled={busy} onClick={() => setConfirm(null)}>
             Отмена
-          </Button>
-          <Button
-            color="error"
+          </SecondaryButton>
+          <SecondaryButton
+            variant="red"
             disabled={busy}
             onClick={async () => {
               const photo = confirm?.photo;
@@ -427,7 +487,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
             }}
           >
             Удалить
-          </Button>
+          </SecondaryButton>
         </DialogActions>
       </Dialog>
     </main>

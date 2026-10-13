@@ -9,6 +9,7 @@ import { reportClientError } from "@gafus/error-handling";
 import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
 import type { PaidCourseDrawerCourse } from "@/features/courses";
+import type { UserCoursePersonalization } from "@gafus/types";
 import { showPersonalizationAlert } from "@shared/utils/sweetAlert";
 import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";
@@ -36,7 +37,7 @@ interface TrainingPageClientProps {
     courseEquipment: string | null;
     courseTrainingLevel: string | null;
     courseIsPersonalized?: boolean;
-    userCoursePersonalization?: import("@gafus/types").UserCoursePersonalization | null;
+    userCoursePersonalization?: UserCoursePersonalization | null;
   } | null;
   initialError?: string | null;
   accessDenied?: boolean;
@@ -434,12 +435,14 @@ export default function TrainingPageClient({
         </div>
       )}
 
-      <h3 className="plan">План занятий:</h3>
-      <TrainingDayList
-        courseType={courseType}
-        initialData={initialData}
-        initialError={initialError}
-      />
+      <section className={styles.planSection} aria-labelledby="course-plan-heading">
+        <h3 id="course-plan-heading" className={styles.planHeading}>План занятий</h3>
+        <TrainingDayList
+          courseType={courseType}
+          initialData={initialData}
+          initialError={initialError}
+        />
+      </section>
     </>
   );
 }

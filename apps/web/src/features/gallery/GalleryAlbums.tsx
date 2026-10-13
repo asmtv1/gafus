@@ -2,14 +2,19 @@
 import { reportClientError } from "@gafus/error-handling";
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Button } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import { useQueryClient } from "@tanstack/react-query";
 import { GalleryScope } from "./GalleryScope";
 import { galleryApi } from "./api";
 import { galleryMessage, useGalleryAlbums } from "./hooks";
 import { AlbumForm } from "./AlbumForm";
 import { UploadQueue } from "./UploadQueue";
-import { AppBackButtonLink, LoadingState } from "@/shared/components/ui";
+import {
+  AppBackButtonLink,
+  LoadingState,
+  SecondaryButton,
+  SecondaryButtonLink,
+} from "@/shared/components/ui";
 import styles from "./Gallery.module.css";
 import { AlbumCover } from "./AlbumCover";
 
@@ -37,39 +42,43 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
     >
       {!preview && (
         <div className={styles.albumBack}>
-          <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>В профиль</AppBackButtonLink>
+          <AppBackButtonLink href={`/profile?username=${encodeURIComponent(username)}`}>
+            В профиль
+          </AppBackButtonLink>
         </div>
       )}
       <div className={styles.header}>
         {preview ? <h2>Фотоальбомы</h2> : <h1>Фотоальбомы</h1>}
         {preview && (
-          <Link href={`/profile/albums?username=${encodeURIComponent(username)}`}>Все альбомы</Link>
+          <SecondaryButtonLink href={`/profile/albums?username=${encodeURIComponent(username)}`}>
+            Все альбомы
+          </SecondaryButtonLink>
         )}
         {!preview && info?.isOwner && (
-          <Button variant="outlined" onClick={() => setCreating((value) => !value)}>
-            Создать альбом
-          </Button>
+          <SecondaryButton aria-expanded={creating} onClick={() => setCreating((value) => !value)}>
+            <AddRoundedIcon aria-hidden="true" /> Создать альбом
+          </SecondaryButton>
         )}
       </div>
       {query.isPending && <LoadingState variant="inline" message="Загрузка альбомов…" />}
       {(query.error || error) && (
         <p role="alert" className={styles.error}>
           {error || galleryMessage(query.error)}{" "}
-          <Button
+          <SecondaryButton
             onClick={() => {
               setError("");
               void query.refetch();
             }}
           >
             Повторить
-          </Button>
+          </SecondaryButton>
         </p>
       )}
       {info?.isOwner && preview && (
         <div className={styles.actions}>
-          <Button variant="outlined" onClick={() => setCreating((value) => !value)}>
-            Создать альбом
-          </Button>
+          <SecondaryButton aria-expanded={creating} onClick={() => setCreating((value) => !value)}>
+            <AddRoundedIcon aria-hidden="true" /> Создать альбом
+          </SecondaryButton>
           <span className={styles.muted}>{info.usedSlots} / 200 фотографий</span>
         </div>
       )}
@@ -125,14 +134,14 @@ function AlbumsContent({ username, preview = false }: { username: string; previe
       </div>
       {!preview && query.hasNextPage && (
         <div className={styles.actions}>
-          <Button
+          <SecondaryButton
             disabled={query.isFetchingNextPage}
             onClick={() => {
               void query.fetchNextPage();
             }}
           >
             Показать ещё альбомы
-          </Button>
+          </SecondaryButton>
         </div>
       )}
       {info?.isOwner && <UploadQueue usedSlots={info.usedSlots} changed={changed} />}

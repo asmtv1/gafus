@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 
@@ -47,7 +47,7 @@ function getConfiguredBaseOrigin(request: NextRequest): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (vkIdCallbackDebug) console.log("[VK ID callback] GET вызван, url:", request.url);
+  if (vkIdCallbackDebug) logger.debug("VK ID callback started");
 
   const baseOrigin = getConfiguredBaseOrigin(request);
 
@@ -62,7 +62,13 @@ export async function GET(request: NextRequest) {
   const device_id = searchParams.get("device_id");
   const returnedState = searchParams.get("state");
 
-  if (vkIdCallbackDebug) console.log("[VK ID callback] params: code=", !!code, "device_id=", !!device_id, "state=", !!returnedState);
+  if (vkIdCallbackDebug) {
+    logger.debug("VK ID callback parameter presence", {
+      hasCode: Boolean(code),
+      hasDeviceId: Boolean(device_id),
+      hasState: Boolean(returnedState),
+    });
+  }
 
   const cookieStore = await cookies();
   const cookieRaw = cookieStore.get("vk_id_state")?.value;
@@ -124,7 +130,7 @@ export async function GET(request: NextRequest) {
   if (!redirectUri && process.env.NODE_ENV !== "production") {
     redirectUri = `${baseOrigin}/api/auth/callback/vk-id`;
   }
-  if (vkIdCallbackDebug) console.log("[VK ID callback] state OK, redirectUri=", redirectUri, "обмениваем code на token...");
+  if (vkIdCallbackDebug) logger.debug("VK ID authorization code exchange started");
 
   try {
     if (isLinkMode) {
@@ -194,7 +200,6 @@ export async function GET(request: NextRequest) {
     }, isNewUser);
 
     logger.info("VK ID callback success", { userId: user.id, isNewUser });
-    if (vkIdCallbackDebug) console.log("[VK ID callback] success, userId=", user.id, "isNewUser=", isNewUser);
 
     // Новые VK-пользователи — на страницу согласий перед входом
     const finalPath = isNewUser ? "/vk-consent" : returnPath;

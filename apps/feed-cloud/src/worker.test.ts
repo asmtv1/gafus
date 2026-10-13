@@ -82,6 +82,31 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     await expect(worker.process(job())).rejects.toThrow("lost response");
     expect(core.failJob).not.toHaveBeenCalled(); expect(objects.delete).not.toHaveBeenCalled(); expect(written.size).toBe(2);
   });
+  it("deletes original upload, photo variants and every video/HLS object in a cleanup claim", async () => {
+    const { worker, objects, core } = setup(new Uint8Array());
+    const prefix = "posts/owner/post/";
+    const keys = [
+      prefix + "incoming/upload/source.mp4",
+      prefix + "attachments/photo/thumb.webp",
+      prefix + "attachments/photo/full.webp",
+      prefix + "attachments/video/poster.webp",
+      prefix + "attachments/video/hls/playlist.m3u8",
+      prefix + "attachments/video/hls/segment-000.ts",
+      prefix + "attachments/video/hls/segment-059.ts",
+    ];
+    await expect(worker.process({ ...job("delete_keys"), sourceKeys: keys })).resolves.toEqual({ accepted: true });
+    expect(vi.mocked(objects.delete).mock.calls.map(([key]) => key)).toEqual(keys);
+    expect(core.completeJob).toHaveBeenCalledTimes(1);
+  });
+  it("does not complete a cleanup job when S3 deletion fails, allowing a retry", async () => {
+    const { worker, objects, core } = setup(new Uint8Array());
+    vi.mocked(objects.delete).mockRejectedValueOnce(new Error("S3 temporarily unavailable"));
+    await expect(worker.process({
+      ...job("delete_keys"), sourceKeys: ["posts/owner/post/attachments/media/full.webp"],
+    })).rejects.toThrow("S3 temporarily unavailable");
+    expect(core.completeJob).not.toHaveBeenCalled();
+    expect(core.failJob).toHaveBeenCalledWith("job", expect.any(String), "MEDIA_PROCESSING_FAILED");
+  });
   it("cleanup can delete only feed keys and requires a live lease", async () => {
     const { worker, objects } = setup(new Uint8Array());
     await worker.process({ ...job("delete_keys"), sourceKeys: ["posts/owner/post/attachments/media/full.webp"] });

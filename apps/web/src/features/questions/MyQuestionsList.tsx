@@ -25,7 +25,7 @@ export function MyQuestionsList() {
     <section className={s.section} aria-label="Мои вопросы">
       <div className={s.heading}>
         <h2>Мои вопросы</h2>
-        {access?.canPublish && <PrimaryButtonLink href="/questions/new">Задать вопрос</PrimaryButtonLink>}
+        {access?.canPublish && <PrimaryButtonLink href="/questions/new" className={s.askButton}>Задать вопрос</PrimaryButtonLink>}
       </div>
       {query.isPending && <LoadingState variant="inline" message="Загружаем ваши вопросы…" />}
       {query.isError && (

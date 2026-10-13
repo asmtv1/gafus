@@ -163,3 +163,6 @@ apps/mobile/build-*.tar.gz
 
 # Ephemeral production nginx maintenance lock
 ci-cd/nginx/conf.d/.release-maintenance
+
+# Local isolated Next.js verification builds
+/apps/web/.next-*/

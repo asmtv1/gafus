@@ -172,7 +172,9 @@ export default function EditBioForm() {
               autoComplete="address-level2"
               form={form}
             />
-            <p className={styles.helperText}>Необязательно. Город будет виден в вашем публичном профиле.</p>
+            <p className={styles.helperText}>
+              Необязательно. Город будет виден в вашем публичном профиле.
+            </p>
 
             <div>
               <FormField

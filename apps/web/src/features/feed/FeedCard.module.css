@@ -1,0 +1,427 @@
+/* Same publication component in the feed, personal profile and author pages. */
+.profilePosts {
+  --feed-ink: #363b31;
+  --feed-subtle: #77786e;
+  --feed-olive: #53623b;
+  --feed-border: rgba(82, 96, 57, 0.16);
+  --feed-paper: #fffdf7;
+  width: min(100%, 720px);
+  max-width: 720px;
+  margin-inline: auto;
+  gap: 18px;
+}
+.postCard {
+  --feed-ink: #363b31;
+  --feed-subtle: #77786e;
+  --feed-olive: #53623b;
+  --feed-border: rgba(82, 96, 57, 0.16);
+  --feed-paper: #fffdf7;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(16px, 2.8vw, 24px);
+  border: 1px solid var(--feed-border);
+  border-radius: 21px;
+  background: var(--surface, #f8f4ea);
+  color: var(--feed-ink);
+  box-shadow: 0 6px 21px rgba(49, 57, 36, 0.065);
+}
+.postMeta {
+  margin-bottom: 17px;
+  min-width: 0;
+}
+.carousel {
+  margin-bottom: 13px;
+}
+.mediaFrame {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #e9e6df;
+}
+.mediaFrame .mediaItem {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  max-height: min(74vh, 600px);
+  border-radius: 0;
+  background: #e9e6df;
+}
+.mediaFrame .mediaItem img,
+.mediaFrame .mediaItem video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-height: inherit;
+}
+.mediaArrow {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  right: auto;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(71, 78, 59, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 253, 248, 0.94);
+  color: #455339;
+  box-shadow: 0 3px 12px rgba(30, 37, 24, 0.18);
+  transform: translateY(-50%);
+  z-index: 2;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+.mediaArrow:hover {
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(30, 37, 24, 0.25);
+}
+.mediaArrow svg {
+  width: 26px;
+  height: 26px;
+}
+.mediaArrowNext {
+  left: auto;
+  right: 12px;
+}
+.mediaArrowPrevious {
+  right: auto;
+  left: 12px;
+}
+.mediaDots {
+  gap: 7px;
+  padding-top: 10px;
+}
+.postStats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  margin-top: 15px;
+  padding-top: 16px;
+  border-top: 1px solid var(--feed-border);
+  color: #777b6f;
+  font-size: 12px;
+}
+.statItem,
+.statLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  white-space: nowrap;
+  font-weight: 650;
+  color: #626f50;
+}
+.statItem svg,
+.statLink svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.statLink {
+  text-decoration: none;
+}
+.statLink:hover {
+  text-decoration: underline;
+  color: #3f5333;
+}
+.postStats .reactorsButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-height: 37px;
+  margin-left: auto;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--feed-border);
+  background: #f1f0e8;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 650;
+  color: #526243;
+}
+.postStats .reactorsButton:hover:not(:disabled) {
+  background: #e9ecdf;
+  box-shadow: none;
+}
+.reactorsButton svg {
+  width: 18px;
+  height: 18px;
+}
+.reactorsButton[aria-expanded="true"] {
+  background: #e6eadb;
+  border-color: #b4c19d;
+}
+.viewerAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 42px;
+  padding: 8px 13px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.viewerAction svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Action overflow: distinct hit area, anchored popover, clear destructive state. */
+.postActionControls {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.postActionControls .menuTrigger {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  min-width: 42px;
+  padding: 0;
+  border: 1px solid var(--feed-border);
+  border-radius: 12px;
+  background: var(--surface-muted, #eee9dd);
+  color: #55634a;
+  box-shadow: none;
+}
+.postActionControls .menuTrigger:hover:not(:disabled),
+.postActionControls .menuTrigger[aria-expanded="true"] {
+  background: #e7ecdb;
+  box-shadow: none;
+}
+.menuTrigger svg {
+  width: 22px;
+  height: 22px;
+}
+.postActionControls .menuPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  width: min(285px, calc(100vw - 54px));
+  max-width: none;
+  padding: 7px;
+  border: 1px solid var(--feed-border);
+  border-radius: 15px;
+  background: #fffdf8;
+  box-shadow: 0 15px 35px rgba(38, 45, 31, 0.17);
+  z-index: 15;
+}
+.menuPanel .menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #3c4435;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+}
+.menuPanel .menuItem:hover:not(:disabled) {
+  background: #eff1e8;
+  box-shadow: none;
+  transform: none;
+}
+.menuItem svg {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  color: #647457;
+}
+.menuPanel .menuDanger {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a43e3a;
+  box-shadow: none;
+}
+.menuDanger svg {
+  color: #b5534a;
+}
+.menuPanel .menuDanger:hover:not(:disabled) {
+  background: #fff0ee;
+  box-shadow: none;
+}
+.menuDivider {
+  height: 1px;
+  margin: 5px 7px;
+  background: var(--feed-border);
+}
+.feedbackMessage {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 7px);
+  z-index: 14;
+  width: min(290px, 70vw);
+  padding: 10px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--feed-border);
+  background: #fffdf8;
+  box-shadow: 0 8px 20px #0001;
+  color: #4d6046;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .postCard {
+    padding: 14px;
+    border-radius: 17px;
+  }
+  .mediaFrame .mediaItem {
+    aspect-ratio: 1 / 1;
+  }
+  .mediaArrow {
+    width: 36px;
+    height: 36px;
+    left: 8px;
+  }
+  .mediaArrowNext {
+    left: auto;
+    right: 8px;
+  }
+  .mediaArrowPrevious {
+    left: 8px;
+    right: auto;
+  }
+  .mediaArrow svg {
+    width: 23px;
+    height: 23px;
+  }
+  .postStats {
+    gap: 6px 13px;
+  }
+}
+@media (max-width: 480px) {
+  .postStats .reactorsButton {
+    margin-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mediaArrow {
+    transition: none;
+  }
+}
+
+.postCard:has(.menuTrigger[aria-expanded="true"]) {
+  z-index: 6;
+}
+.postActionControls > .feedbackMessage {
+  top: calc(100% + 8px);
+  background: #fffdf8;
+  color: #4d6046;
+}
+.postActionControls .undoButton {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 15;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.postActionControls .reportForm button {
+  padding: 9px 14px;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.postCard .mediaFrame .mediaArrowNext {
+  left: auto;
+  right: 12px;
+}
+.postCard .mediaFrame .mediaArrowPrevious {
+  left: 12px;
+  right: auto;
+}
+@media (max-width: 720px) {
+  .postCard .mediaFrame .mediaArrowNext {
+    left: auto;
+    right: 8px;
+  }
+  .postCard .mediaFrame .mediaArrowPrevious {
+    left: 8px;
+    right: auto;
+  }
+}
+
+/* Shared GAFUS components retain their semantics; tailor only dimensions to the card. */
+.postStats .statLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 37px;
+  padding: 8px 12px;
+  border: 1px solid var(--feed-border);
+  border-radius: 12px;
+  background: #f1f0e8;
+  color: #526243;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.postStats .statLink:hover {
+  background: #e9ecdf;
+  color: #435339;
+  box-shadow: none;
+  transform: none;
+  text-decoration: none;
+}
+.postCard .mediaFrame .mediaArrow {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid rgba(71, 78, 59, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 253, 248, 0.94);
+  color: #455339;
+  box-shadow: 0 3px 12px rgba(30, 37, 24, 0.18);
+  transform: translateY(-50%);
+}
+.postCard .mediaFrame .mediaArrow:hover:not(:disabled) {
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(30, 37, 24, 0.25);
+  transform: translateY(-50%);
+}
+.postCard .mediaFrame .mediaArrow:active:not(:disabled) {
+  transform: translateY(-50%);
+}
+@media (max-width: 720px) {
+  .postCard .mediaFrame .mediaArrow {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+}

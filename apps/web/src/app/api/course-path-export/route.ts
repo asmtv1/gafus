@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { authOptions } from "@gafus/auth";
 import { getCoursePathData } from "@gafus/core/services/coursePath";

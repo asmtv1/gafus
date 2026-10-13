@@ -5,10 +5,12 @@ import {
   ChatBubbleOutline,
   VisibilityOutlined,
   Close,
+  AddPhotoAlternateOutlined,
 } from "@mui/icons-material";
 import type { QuestionAuthorDto, QuestionListItemDto, QuestionPhotoDto } from "@gafus/types";
 import { QUESTION_LIMITS } from "@gafus/types";
 import { useRef, useState } from "react";
+import { SecondaryButton } from "@/shared/components/ui";
 import { uploadQuestionPhoto, discardQuestionPhoto } from "./api";
 import s from "./Questions.module.css";
 export function Author({
@@ -124,25 +126,37 @@ export function PhotoPicker({
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
   return (
-    <div>
-      <div className={s.photos}>
-        {photos.map((p) => (
-          <div className={s.photoSlot} key={p.id}>
-            <img src={p.url} alt="Прикреплённое фото" className={s.photo} />
-            <button
-              type="button"
+    <div className={s.photoPicker}>
+      <div className={s.photoPickerGrid}>
+        {photos.map((photo, index) => (
+          <div className={s.photoSlot} key={photo.id}>
+            <img src={photo.url} alt={`Фото ${index + 1}`} className={s.photo} />
+            <SecondaryButton
+              className={s.removePhotoButton}
               disabled={busy}
-              aria-label="Убрать фото"
+              aria-label={`Убрать фото ${index + 1}`}
+              title="Убрать фото"
               onClick={() => {
-                onChange(photos.filter((x) => x.id !== p.id));
-                void discardQuestionPhoto(p.id).catch(() => undefined);
+                onChange(photos.filter((item) => item.id !== photo.id));
+                void discardQuestionPhoto(photo.id).catch(() => undefined);
               }}
             >
-              <Close fontSize="small" />
-            </button>
+              <Close fontSize="small" aria-hidden="true" />
+            </SecondaryButton>
           </div>
         ))}
+        {photos.length < QUESTION_LIMITS.photos && (
+          <SecondaryButton
+            className={s.addPhotoTile}
+            disabled={busy}
+            onClick={() => input.current?.click()}
+          >
+            <AddPhotoAlternateOutlined aria-hidden="true" />
+            <span>{busy ? "Загружаем…" : "Добавить фото"}</span>
+          </SecondaryButton>
+        )}
       </div>
       <input
         ref={input}
@@ -158,7 +172,7 @@ export function PhotoPicker({
             setError("Можно прикрепить до 5 фото");
             return;
           }
-          if (files.some((f) => f.size > QUESTION_LIMITS.photoBytes)) {
+          if (files.some((file) => file.size > QUESTION_LIMITS.photoBytes)) {
             setError("Каждое фото должно быть не больше 10 МБ");
             return;
           }
@@ -179,15 +193,9 @@ export function PhotoPicker({
           }
         }}
       />
-      <button
-        type="button"
-        className={s.secondary}
-        disabled={busy || photos.length >= QUESTION_LIMITS.photos}
-        onClick={() => input.current?.click()}
-      >
-        {busy ? "Загрузка фото…" : "Прикрепить фото"}
-      </button>
-      <p className={s.meta}>До 5 фото · JPG, PNG, WebP · до 10 МБ каждое</p>
+      <p className={s.photoHint}>
+        {photos.length} из {QUESTION_LIMITS.photos} фото · JPG, PNG, WebP · до 10 МБ каждое
+      </p>
       {error && (
         <p role="alert" className={s.error}>
           {error}

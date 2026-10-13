@@ -1,8 +1,13 @@
 "use client";
 import { reportClientError } from "@gafus/error-handling";
-import { LoadingState } from "@/shared/components/ui";
+import {
+  AppBackButtonLink,
+  LoadingState,
+  PrimaryButton,
+  SecondaryButton,
+  SecondaryButtonLink,
+} from "@/shared/components/ui";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +17,14 @@ import {
   FlagOutlined,
   ShareOutlined,
   LockOutlined,
+  MoreHoriz,
+  ChatBubbleOutline,
+  CheckCircleOutline,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
+  SendOutlined,
+  EditOutlined,
+  DeleteOutline,
 } from "@mui/icons-material";
 import {
   QUESTION_REPORT_REASONS,
@@ -22,6 +35,13 @@ import {
 import { questionsApi } from "./api";
 import { Author, Status, Counts, Photos, Body, BestLabel, PhotoPicker } from "./parts";
 import s from "./Questions.module.css";
+/** Russian answer-count inflection for discussion headings. */
+export function formatAnswerCount(count: number): string {
+  const form = new Intl.PluralRules("ru-RU").select(count);
+  const noun = form === "one" ? "ответ" : form === "few" ? "ответа" : "ответов";
+  return `${count} ${noun}`;
+}
+
 export function QuestionDetail({ id }: { id: string }) {
   const userId = useSession().data?.user?.id;
   const cache = useQueryClient();
@@ -91,128 +111,168 @@ export function QuestionDetail({ id }: { id: string }) {
     setReplyTo(null);
     setRequestId(crypto.randomUUID());
   };
-  const answerCard = (answer: QuestionAnswerDto) => (
-    <article
-      key={answer.id}
-      id={`answer-${answer.id}`}
-      className={`${s.answer} ${answer.parentId && !answer.best ? s.reply : ""} ${answer.best ? s.best : ""}`}
-    >
-      {answer.best && <BestLabel />}
-      <Author author={answer.author} date={answer.createdAt} edited={answer.editedAt} />
-      {answer.replyToName && <p className={s.meta}>В ответ {answer.replyToName}</p>}
-      <Body text={answer.body} />
-      <Photos photos={answer.photos} />
-      {!answer.deleted && !answer.hidden && (
-        <div className={s.actions}>
-          <button
-            className={`${s.heart} ${answer.liked ? s.liked : ""}`}
-            aria-label={answer.liked ? "Убрать сердечко" : "Поставить сердечко"}
-            aria-pressed={answer.liked}
-            disabled={busy || answer.author.id === userId || !!question?.blockReason}
-            onClick={() => void run(() => questionsApi.heart(answer.id, !answer.liked))}
-          >
-            {answer.liked ? <Favorite fontSize="small" /> : <FavoriteBorder fontSize="small" />}
-            {answer.hearts}
-          </button>
-          {question?.canReply && (
-            <button
-              className={s.textButton}
-              onClick={() => {
-                resetComposer();
-                setReplyTo(answer);
-                document.getElementById("reply-body")?.focus();
-              }}
-            >
-              Ответить
-            </button>
-          )}
-          {question?.canManage && (
-            <button
-              className={s.textButton}
-              disabled={busy || !!question.blockReason}
-              onClick={() => void run(() => questionsApi.best(id, answer.best ? null : answer.id))}
-            >
-              {answer.best ? "Снять лучший ответ" : "Выбрать лучшим"}
-            </button>
-          )}
-          {answer.canEdit && !question?.blockReason && (
-            <button
-              className={s.textButton}
-              onClick={() => {
-                resetComposer();
-                setEditing(answer);
-                setBody(answer.body);
-                setPhotos(answer.photos);
-                document.getElementById("reply-body")?.focus();
-              }}
-            >
-              Изменить
-            </button>
-          )}
-          {answer.canDelete && (
-            <button
-              className={s.textButton}
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm("Удалить ответ? Ответы других пользователей сохранятся."))
-                  void run(() => questionsApi.removeAnswer(answer.id));
-              }}
-            >
-              Удалить
-            </button>
-          )}
-          {!question?.blockReason && (
-            <button
-              className={s.textButton}
-              aria-label="Пожаловаться на ответ"
-              onClick={() => {
-                setReportTarget({ answerId: answer.id });
-              }}
-            >
-              <FlagOutlined fontSize="small" />
-              Жалоба
-            </button>
-          )}
-        </div>
-      )}
-      {!answer.parentId && answer.replyCount > 0 && (
-        <button
-          className={s.textButton}
-          aria-expanded={!collapsed.includes(answer.id)}
-          onClick={() =>
-            setCollapsed((v) =>
-              v.includes(answer.id) ? v.filter((x) => x !== answer.id) : [...v, answer.id],
-            )
-          }
-        >
-          {collapsed.includes(answer.id) ? "Показать ответы" : "Скрыть ответы"}
-        </button>
-      )}
-      {!answer.parentId &&
-        !collapsed.includes(answer.id) &&
-        extraReplies[answer.id]?.nextPage !== null &&
-        answer.replyCount > answers.filter((a) => a.parentId === answer.id).length && (
-          <button
-            className={s.textButton}
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                const page = await questionsApi.replies(
-                  answer.id,
-                  extraReplies[answer.id]?.nextPage ?? 2,
-                );
-                setExtraReplies((v) => ({
-                  ...v,
-                  [answer.id]: { ...page, items: [...(v[answer.id]?.items ?? []), ...page.items] },
-                }));
-              }, false)
-            }
-          >
-            Ещё ответы в ветке
-          </button>
+  const answerCard = (answer: QuestionAnswerDto) => {
+    const isCollapsed = collapsed.includes(answer.id);
+
+    return (
+      <article
+        key={answer.id}
+        id={`answer-${answer.id}`}
+        className={`${s.answer} ${s.answerItem} ${answer.parentId && !answer.best ? s.reply : ""} ${answer.best ? s.best : ""}`}
+      >
+        {answer.best && (
+          <div className={s.answerBestLabel}>
+            <BestLabel />
+          </div>
         )}
-    </article>
-  );
+        <div className={s.answerMain}>
+          <Author author={answer.author} date={answer.createdAt} edited={answer.editedAt} />
+          {answer.replyToName && <p className={s.replyTo}>В ответ {answer.replyToName}</p>}
+          <div className={s.answerText}>
+            <Body text={answer.body} />
+          </div>
+          <Photos photos={answer.photos} />
+
+          {!answer.deleted && !answer.hidden && (
+            <div className={s.answerToolbar}>
+              <button
+                type="button"
+                className={`${s.heart} ${s.answerLike} ${answer.liked ? s.liked : ""}`}
+                aria-label={answer.liked ? "Убрать сердечко" : "Поставить сердечко"}
+                aria-pressed={answer.liked}
+                disabled={busy || answer.author.id === userId || !!question?.blockReason}
+                onClick={() => void run(() => questionsApi.heart(answer.id, !answer.liked))}
+              >
+                {answer.liked ? <Favorite fontSize="small" /> : <FavoriteBorder fontSize="small" />}
+                {answer.hearts}
+              </button>
+              {question?.canReply && (
+                <button
+                  type="button"
+                  className={s.answerAction}
+                  onClick={() => {
+                    resetComposer();
+                    setReplyTo(answer);
+                    document.getElementById("reply-body")?.focus();
+                  }}
+                >
+                  <ChatBubbleOutline fontSize="small" aria-hidden="true" />
+                  Ответить
+                </button>
+              )}
+              {question?.canManage && (
+                <button
+                  type="button"
+                  className={s.answerBestAction}
+                  disabled={busy || !!question.blockReason}
+                  onClick={() =>
+                    void run(() => questionsApi.best(id, answer.best ? null : answer.id))
+                  }
+                >
+                  <CheckCircleOutline fontSize="small" aria-hidden="true" />
+                  {answer.best ? "Снять отметку" : "Лучший ответ"}
+                </button>
+              )}
+              {(answer.canEdit || answer.canDelete || !question?.blockReason) && (
+                <details className={s.answerMore}>
+                  <summary aria-label="Дополнительные действия с ответом">
+                    <MoreHoriz fontSize="small" aria-hidden="true" />
+                    <span>Ещё</span>
+                  </summary>
+                  <div className={s.answerMoreMenu} onClick={(event) => {
+                    if ((event.target as HTMLElement).closest("button")) {
+                      (event.currentTarget.parentElement as HTMLDetailsElement).open = false;
+                    }
+                  }}>
+                    {answer.canEdit && !question?.blockReason && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetComposer();
+                          setEditing(answer);
+                          setBody(answer.body);
+                          setPhotos(answer.photos);
+                          document.getElementById("reply-body")?.focus();
+                        }}
+                      >
+                        Изменить
+                      </button>
+                    )}
+                    {answer.canDelete && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          if (window.confirm("Удалить ответ? Ответы других пользователей сохранятся."))
+                            void run(() => questionsApi.removeAnswer(answer.id));
+                        }}
+                      >
+                        Удалить
+                      </button>
+                    )}
+                    {!question?.blockReason && (
+                      <button
+                        type="button"
+                        aria-label="Пожаловаться на ответ"
+                        onClick={() => setReportTarget({ answerId: answer.id })}
+                      >
+                        <FlagOutlined fontSize="small" aria-hidden="true" />
+                        Пожаловаться
+                      </button>
+                    )}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+          {!answer.parentId && answer.replyCount > 0 && (
+            <button
+              type="button"
+              className={s.threadToggle}
+              aria-expanded={!isCollapsed}
+              onClick={() =>
+                setCollapsed((v) =>
+                  v.includes(answer.id) ? v.filter((x) => x !== answer.id) : [...v, answer.id],
+                )
+              }
+            >
+              {isCollapsed ? <KeyboardArrowDown aria-hidden="true" /> : <KeyboardArrowUp aria-hidden="true" />}
+              {isCollapsed
+                ? `Показать ответы (${answer.replyCount})`
+                : `Скрыть ответы (${answer.replyCount})`}
+            </button>
+          )}
+          {!answer.parentId &&
+            !isCollapsed &&
+            extraReplies[answer.id]?.nextPage !== null &&
+            answer.replyCount > answers.filter((a) => a.parentId === answer.id).length && (
+              <button
+                type="button"
+                className={s.threadToggle}
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    const page = await questionsApi.replies(
+                      answer.id,
+                      extraReplies[answer.id]?.nextPage ?? 2,
+                    );
+                    setExtraReplies((v) => ({
+                      ...v,
+                      [answer.id]: {
+                        ...page,
+                        items: [...(v[answer.id]?.items ?? []), ...page.items],
+                      },
+                    }));
+                  }, false)
+                }
+              >
+                Ещё ответы в ветке
+              </button>
+            )}
+        </div>
+      </article>
+    );
+  };
   if (query.isPending)
     return (
       <main className={s.page}>
@@ -221,10 +281,10 @@ export function QuestionDetail({ id }: { id: string }) {
     );
   if (query.isError || !question)
     return (
-      <main className={s.page}>
-        <Link className={s.back} href="/questions">
+      <main className={`${s.page} ${s.detailPage}`}>
+        <AppBackButtonLink className={s.detailBack} href="/questions">
           Все вопросы
-        </Link>
+        </AppBackButtonLink>
         <p role="alert" className={s.error}>
           {query.error?.message ?? "Вопрос недоступен"}
         </p>
@@ -234,10 +294,10 @@ export function QuestionDetail({ id }: { id: string }) {
       </main>
     );
   return (
-    <main className={s.page}>
-      <Link className={s.back} href="/questions">
+    <main className={`${s.page} ${s.detailPage}`}>
+      <AppBackButtonLink className={s.detailBack} href="/questions">
         Все вопросы
-      </Link>
+      </AppBackButtonLink>
       {error && (
         <p role="alert" className={s.error}>
           {error}
@@ -248,82 +308,96 @@ export function QuestionDetail({ id }: { id: string }) {
           {notice}
         </p>
       )}
-      <article className={s.card}>
+      <article className={`${s.card} ${s.detailCard}`}>
         <Author author={question.author} date={question.createdAt} edited={question.editedAt} />
         <h1>{question.title}</h1>
         <Status question={question} />
-        <div style={{ marginTop: 20 }}>
+        <div className={s.detailBody}>
           <Body text={question.body} />
         </div>
         <Photos photos={question.photos} />
-        <div className={s.cardFooter}>
-          <div className={s.actions}>
-            {question.canReply && (
-              <button
-                className={s.primary}
-                onClick={() => document.getElementById("reply-body")?.focus()}
+        <div className={s.detailFooter}>
+          <div className={s.detailActionGroups}>
+            <div className={s.detailMainActions}>
+              {question.canReply && (
+                <PrimaryButton
+                  className={s.detailReplyButton}
+                  onClick={() => document.getElementById("reply-body")?.focus()}
+                >
+                  <ChatBubbleOutline fontSize="small" aria-hidden="true" />
+                  Ответить
+                </PrimaryButton>
+              )}
+              <SecondaryButton
+                className={s.detailIconButton}
+                aria-label="Поделиться вопросом"
+                title="Поделиться"
+                onClick={() =>
+                  void (async () => {
+                    try {
+                      await navigator.clipboard.writeText(window.location.href);
+                      setNotice("Ссылка скопирована");
+                    } catch (e) {
+                      reportClientError(e, { issueKey: "Questions", keys: { operation: "share" } });
+                      setError("Не удалось скопировать ссылку. Скопируйте адрес из строки браузера.");
+                    }
+                  })()
+                }
               >
-                Ответить
-              </button>
-            )}
-            <button
-              className={s.secondary}
-              aria-label="Поделиться вопросом"
-              onClick={() =>
-                void (async () => {
-                  try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    setNotice("Ссылка скопирована");
-                  } catch (e) {
-                    reportClientError(e, { issueKey: "Questions", keys: { operation: "share" } });
-                    setError("Не удалось скопировать ссылку. Скопируйте адрес из строки браузера.");
-                  }
-                })()
-              }
-            >
-              <ShareOutlined fontSize="small" />
-            </button>
-            {!question.blockReason && (
-              <button
-                className={s.secondary}
-                aria-label="Пожаловаться на вопрос"
-                onClick={() => setReportTarget({})}
-              >
-                <FlagOutlined fontSize="small" />
-              </button>
-            )}
-            {question.canManage && (
-              <button
-                className={s.secondary}
-                disabled={busy || !!question.blockReason}
-                onClick={() => void run(() => questionsApi.close(id, !question.closed))}
-              >
-                <LockOutlined fontSize="small" />
-                {question.closed ? "Открыть обсуждение" : "Закрыть обсуждение"}
-              </button>
-            )}
-            {question.canEdit && !question.blockReason && (
-              <Link className={s.textButton} href={`/questions/${id}/edit`}>
-                Изменить
-              </Link>
-            )}
-            {question.canManage && (
-              <button
-                className={s.textButton}
-                disabled={busy}
-                onClick={() => {
-                  if (window.confirm("Удалить вопрос и скрыть всё обсуждение?"))
-                    void run(async () => {
-                      await questionsApi.remove(id);
-                      router.push("/questions");
-                    });
-                }}
-              >
-                Удалить
-              </button>
+                <ShareOutlined fontSize="small" aria-hidden="true" />
+              </SecondaryButton>
+              {!question.blockReason && (
+                <SecondaryButton
+                  className={s.detailIconButton}
+                  aria-label="Пожаловаться на вопрос"
+                  title="Пожаловаться"
+                  onClick={() => setReportTarget({})}
+                >
+                  <FlagOutlined fontSize="small" aria-hidden="true" />
+                </SecondaryButton>
+              )}
+              {question.canManage && (
+                <SecondaryButton
+                  className={s.detailActionButton}
+                  disabled={busy || !!question.blockReason}
+                  onClick={() => void run(() => questionsApi.close(id, !question.closed))}
+                >
+                  <LockOutlined fontSize="small" aria-hidden="true" />
+                  {question.closed ? "Открыть обсуждение" : "Закрыть обсуждение"}
+                </SecondaryButton>
+              )}
+            </div>
+            {((question.canEdit && !question.blockReason) || question.canManage) && (
+              <div className={s.detailOwnerActions}>
+                {question.canEdit && !question.blockReason && (
+                  <SecondaryButtonLink className={s.detailActionButton} href={`/questions/${id}/edit`}>
+                    <EditOutlined fontSize="small" aria-hidden="true" />
+                    Изменить
+                  </SecondaryButtonLink>
+                )}
+                {question.canManage && (
+                  <SecondaryButton
+                    variant="red"
+                    className={s.detailActionButton}
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm("Удалить вопрос и скрыть всё обсуждение?"))
+                        void run(async () => {
+                          await questionsApi.remove(id);
+                          router.push("/questions");
+                        });
+                    }}
+                  >
+                    <DeleteOutline fontSize="small" aria-hidden="true" />
+                    Удалить
+                  </SecondaryButton>
+                )}
+              </div>
             )}
           </div>
-          <Counts question={question} />
+          <div className={s.detailCounts}>
+            <Counts question={question} />
+          </div>
         </div>
       </article>
       {reportTarget && (
@@ -367,20 +441,25 @@ export function QuestionDetail({ id }: { id: string }) {
           </div>
         </form>
       )}
-      <section className={s.answers}>
-        <div className={s.heading}>
-          <h2>{question.answerCount} ответов</h2>
-          <div className={s.tabs}>
-            {[
-              ["useful", "Полезные"],
-              ["new", "Новые"],
-            ].map(([v, text]) => (
+      <section className={`${s.answers} ${s.answersPanel}`} aria-label="Ответы на вопрос">
+        <div className={s.answersHeading}>
+          <div className={s.answersTitle}>
+            <h2>{formatAnswerCount(question.answerCount)}</h2>
+          </div>
+          <div className={s.answerSort} role="group" aria-label="Сортировка ответов">
+            {(
+              [
+                ["useful", "Полезные"],
+                ["new", "Новые"],
+              ] as const
+            ).map(([v, text]) => (
               <button
                 key={v}
-                className={`${s.secondary} ${sort === v ? s.selected : ""}`}
+                type="button"
+                className={`${s.answerSortButton} ${sort === v ? s.answerSortActive : ""}`}
                 aria-pressed={sort === v}
                 onClick={() => {
-                  setSort(v!);
+                  setSort(v);
                   setExtraReplies({});
                 }}
               >
@@ -390,22 +469,25 @@ export function QuestionDetail({ id }: { id: string }) {
           </div>
         </div>
         {!answers.length && (
-          <p className={s.meta}>
+          <p className={s.answersEmpty}>
             Пока никто не ответил.{question.canReply ? " Поделитесь опытом первым." : ""}
           </p>
         )}
-        {answers
-          .filter((a) => a.best || !a.parentId)
-          .map((root) => (
-            <div key={root.id}>
-              {answerCard(root)}
-              {!root.parentId &&
-                !collapsed.includes(root.id) &&
-                answers.filter((a) => a.parentId === root.id && !a.best).map(answerCard)}
-            </div>
-          ))}
+        <div className={s.answerThreads}>
+          {answers
+            .filter((a) => a.best || !a.parentId)
+            .map((root) => (
+              <div className={s.answerThread} key={root.id}>
+                {answerCard(root)}
+                {!root.parentId &&
+                  !collapsed.includes(root.id) &&
+                  answers.filter((a) => a.parentId === root.id && !a.best).map(answerCard)}
+              </div>
+            ))}
+        </div>
         {query.hasNextPage && (
           <button
+            type="button"
             className={s.secondary}
             disabled={query.isFetchingNextPage}
             onClick={() => void query.fetchNextPage()}
@@ -421,7 +503,7 @@ export function QuestionDetail({ id }: { id: string }) {
       {question.closed && <p className={s.notice}>Обсуждение закрыто. Новые ответы недоступны.</p>}
       {(question.canReply || editing) && (
         <form
-          className={s.form}
+          className={`${s.form} ${s.answerComposer}`}
           onSubmit={(e) => {
             e.preventDefault();
             if (uploading) return;
@@ -442,31 +524,39 @@ export function QuestionDetail({ id }: { id: string }) {
             });
           }}
         >
-          <label className={s.field}>
-            {editing
-              ? "Редактировать ответ"
-              : replyTo
-                ? `Ответ для ${replyTo.author.name}`
-                : "Ваш ответ"}
+          <div className={s.composerHeading}>
+            <div>
+              <h2>{editing ? "Редактировать ответ" : replyTo ? "Ответить пользователю" : "Ваш ответ"}</h2>
+              {replyTo && !editing && <p>В ответ {replyTo.author.name}</p>}
+            </div>
+            {(replyTo || editing) && (
+              <SecondaryButton type="button" className={s.composerCancel} onClick={resetComposer}>
+                Отмена
+              </SecondaryButton>
+            )}
+          </div>
+          <label className={s.composerField}>
+            <span className={s.visuallyHidden}>Текст ответа</span>
             <textarea
               id="reply-body"
               required
               maxLength={QUESTION_LIMITS.body}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Поделитесь своим опытом"
+              placeholder="Поделитесь своим опытом или советом…"
             />
           </label>
-          <PhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
-          <div className={s.actions}>
-            <button className={s.primary} disabled={busy || uploading || !body.trim()}>
-              {busy ? "Отправка…" : editing ? "Сохранить" : "Ответить"}
-            </button>
-            {(replyTo || editing) && (
-              <button type="button" className={s.secondary} onClick={resetComposer}>
-                Отмена
-              </button>
-            )}
+          <div className={s.composerFooter}>
+            <div className={s.composerAttachments}>
+              <PhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
+            </div>
+            <PrimaryButton
+              className={s.composerSubmit}
+              disabled={busy || uploading || !body.trim()}
+            >
+              <SendOutlined fontSize="small" aria-hidden="true" />
+              {busy ? "Отправка…" : editing ? "Сохранить" : "Опубликовать ответ"}
+            </PrimaryButton>
           </div>
         </form>
       )}

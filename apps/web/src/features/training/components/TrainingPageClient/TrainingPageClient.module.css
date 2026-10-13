@@ -197,3 +197,26 @@
   border: none;
   background: transparent;
 }
+
+/* Единая ширина плана с сеткой учебных блоков. */
+.planSection {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  margin-bottom: 36px;
+}
+
+.planHeading {
+  margin: 0 0 20px;
+  color: var(--text-primary, #352e2e);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(20px, 2vw, 25px);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+@media (max-width: 700px) {
+  .planHeading {
+    margin-bottom: 16px;
+  }
+}

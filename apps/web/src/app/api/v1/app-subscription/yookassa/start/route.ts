@@ -33,11 +33,7 @@ function getOrigin(request: NextRequest): string {
 
 export const POST = withCSRFProtection(async (request: NextRequest) => {
   const session = await getServerSession(authOptions);
-  console.log("[app-subscription/yookassa/start] request", {
-    hasSessionUserId: Boolean(session?.user?.id),
-  });
   if (!session?.user?.id) {
-    console.log("[app-subscription/yookassa/start] unauthorized");
     return NextResponse.json(
       { success: false, error: "Не авторизован", code: "UNAUTHORIZED" },
       { status: 401 },
@@ -47,11 +43,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
   const shopId = process.env.YOOKASSA_SHOP_ID;
   const secretKey = process.env.YOOKASSA_SECRET_KEY;
   if (!shopId || !secretKey) {
-    console.log("[app-subscription/yookassa/start] YooKassa config missing", {
-      userId: session.user.id,
-      hasShopId: Boolean(shopId),
-      hasSecretKey: Boolean(secretKey),
-    });
+    console.error("[app-subscription/yookassa/start] YooKassa config missing");
     return NextResponse.json(
       { success: false, error: "Платежи недоступны", code: "CONFIG" },
       { status: 500 },
@@ -70,10 +62,6 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
   let data: Awaited<ReturnType<typeof startYookassaAppSubscriptionPayment>>;
   try {
     const origin = getOrigin(request);
-    console.log("[app-subscription/yookassa/start] starting payment", {
-      userId: session.user.id,
-      origin,
-    });
     data = await startYookassaAppSubscriptionPayment({
       userId: session.user.id,
       origin,
@@ -89,13 +77,6 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
       { status: 500 },
     );
   }
-  console.log("[app-subscription/yookassa/start] payment service result", {
-    userId: session.user.id,
-    success: data.success,
-    error: data.success ? null : data.error,
-    hasConfirmationUrl: data.success ? Boolean(data.confirmationUrl) : false,
-    localSubscriptionId: data.success ? data.localSubscriptionId : null,
-  });
   if (!data.success) {
     return NextResponse.json(
       { success: false, error: data.error, code: data.code ?? "PAYMENT_ERROR" },

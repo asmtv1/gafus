@@ -16,12 +16,13 @@ export function FeedPersonalPage({ hidden = false }: { hidden?: boolean }) {
   const saved = useInfiniteQuery({ queryKey: ["feed", "saved", session?.user?.id], queryFn: ({ pageParam }) => feedApi.listBookmarks({ cursor: pageParam }), initialPageParam: null as string | null, getNextPageParam: page => page.nextCursor, enabled: !!session?.user?.id && !hidden });
   const authors = useInfiniteQuery({ queryKey: ["feed", "hidden-authors", session?.user?.id], queryFn: ({ pageParam }) => feedApi.listHiddenAuthors({ cursor: pageParam }), initialPageParam: null as string | null, getNextPageParam: page => page.nextCursor, enabled: !!session?.user?.id && hidden });
   const active = hidden ? authors : saved;
-  return <main className={styles.surface}><FeedTopBar active={hidden ? "hidden" : "saved"} showActions={!!session?.user?.id} />
+  return <main className={styles.momentsSurface}><FeedTopBar active={hidden ? "hidden" : "saved"} showActions={!!session?.user?.id} />
     {hidden && <p>Публикации этих авторов скрыты в разделе «Моменты». Их профили и сохранённые посты доступны.</p>}
     {!session?.user?.id ? <p>Войдите в аккаунт.</p> : active.isPending ? <LoadingState variant="inline" message="Загружаем…" /> : active.isError ? <p role="alert">Не удалось загрузить список. <button onClick={() => void active.refetch()}>Повторить</button></p> :
       !active.data?.pages.some(page => page.items.length) ? <p className={styles.empty}>{hidden ? "Скрытых авторов пока нет." : "Сохранённых публикаций пока нет."}</p> : null}
     {error && <p role="alert">{error}</p>}
-    {hidden ? authors.data?.pages.flatMap(page => page.items).map(author => <div className={styles.comment} key={author.id}>
+    <div className={styles.feed}>
+    {hidden ? authors.data?.pages.flatMap(page => page.items).map(author => <div className={styles.hiddenAuthorCard} key={author.id}>
       <Link href={`/profile?username=${encodeURIComponent(author.username)}`}>{author.name}</Link>
       <button className={styles.secondary} disabled={busy !== null} onClick={async () => {
         setBusy(author.id); setError("");
@@ -32,5 +33,6 @@ export function FeedPersonalPage({ hidden = false }: { hidden?: boolean }) {
     </div>) : saved.data?.pages.flatMap(page => page.items).map(post => <FeedCard key={post.id} post={post} />)}
     {active.hasNextPage && <button className={styles.secondary} disabled={active.isFetchingNextPage} onClick={() => void active.fetchNextPage()}>Показать ещё</button>}
     {active.isFetchingNextPage && <LoadingState variant="inline" message="Загружаем…" />}
+    </div>
   </main>;
 }

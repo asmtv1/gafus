@@ -1,9 +1,13 @@
 import { TrainingReminders } from "@/features/profile";
+import styles from "./reminders.module.css";
+
 export default function RemindersPage() {
   return (
-    <section style={{ width: "100%", maxWidth: 1440, margin: "24px auto", padding: "0 clamp(16px, 3vw, 56px)" }}>
-      <h1>Напоминания о тренировках</h1>
-      <TrainingReminders />
+    <section className={styles.page}>
+      <div className={styles.content}>
+        <h1 className={styles.heading}>Напоминания о тренировках</h1>
+        <TrainingReminders />
+      </div>
     </section>
   );
 }

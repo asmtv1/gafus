@@ -13,6 +13,17 @@
   color: var(--accent-secondary);
   font: 750 20px/1.35 var(--font-montserrat), system-ui, sans-serif;
 }
+.askButton {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: max-content;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  white-space: nowrap;
+}
 .list { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .list > a {
   margin: 0;

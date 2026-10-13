@@ -53,7 +53,6 @@ interface TrainingDayListDayItemProps {
   courseType: string;
   day: TrainingDayListDay;
   dayNumber: number;
-  getItemClass: (status: string, dayNumber: number) => string;
   pathname: string;
   stepStates: StepStates;
 }
@@ -62,7 +61,6 @@ const TrainingDayListDayItem = memo(function TrainingDayListDayItem({
   courseType,
   day,
   dayNumber,
-  getItemClass,
   pathname,
   stepStates,
 }: TrainingDayListDayItemProps) {
@@ -78,7 +76,26 @@ const TrainingDayListDayItem = memo(function TrainingDayListDayItem({
 
   const localStatus = calculateDayStatus(day.courseId, day.dayOnCourseId, stepStates);
   const finalStatus = getDayDisplayStatus(localStatus, day.userStatus);
-  const itemClassName = getItemClass(finalStatus, dayNumber);
+  const itemClassName = [
+    styles.item,
+    finalStatus === "IN_PROGRESS" && styles.inprogress,
+    finalStatus === "COMPLETED" && styles.completed,
+    finalStatus === "RESET" && styles.reset,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const statusLabel =
+    finalStatus === "COMPLETED"
+      ? "Пройден"
+      : finalStatus === "IN_PROGRESS"
+        ? "В процессе"
+        : finalStatus === "RESET"
+          ? "Сброшен"
+          : finalStatus === "PAUSED"
+            ? "На паузе"
+            : "Не начат";
+  const equipment = day.equipment?.trim();
+  const hasEquipment = Boolean(equipment && equipment !== "-");
   const displayTitle = getBlockTitle(day.title);
 
   const handleLinkClick = useCallback(
@@ -111,40 +128,46 @@ const TrainingDayListDayItem = memo(function TrainingDayListDayItem({
   return (
     <li className={itemClassName}>
       <Link
-        href={`/trainings/${courseType}/${day.trainingDayId}`}
-        className={`${styles.link} ${day.isLocked ? styles.locked : ""}`}
+        href={"/trainings/" + courseType + "/" + day.trainingDayId}
+        className={[styles.link, day.isLocked && styles.locked].filter(Boolean).join(" ")}
         prefetch={false}
         onClick={handleLinkClick}
+        aria-disabled={day.isLocked || undefined}
       >
-        {(day.estimatedDuration ?? 0) > 0 || (day.theoryMinutes ?? 0) > 0 ? (
-          <div className={styles.timeBadgeWrapper}>
-            {(day.estimatedDuration ?? 0) > 0 && (
-              <div className={styles.timeBadge}>
-                <div>{day.estimatedDuration}</div>
-                <span>мин</span>
-              </div>
-            )}
-            {(day.theoryMinutes ?? 0) > 0 && (
-              <div className={styles.timeBadgeTheory}>
-                <div>{day.theoryMinutes}</div>
-                <span>мин</span>
-              </div>
-            )}
+        <div className={styles.card}>
+          <div className={styles.cardMeta}>
+            <span className={styles.blockNumber}>Блок {String(dayNumber).padStart(2, "0")}</span>
+            <span className={[styles.statusBadge, day.isLocked && styles.lockBadge].filter(Boolean).join(" ")}>
+              {day.isLocked && <LockIcon className={styles.lockIcon} aria-hidden="true" />}
+              {day.isLocked ? "Закрыт" : statusLabel}
+            </span>
           </div>
-        ) : null}
-        <div className={`${styles.card} ${day.isLocked ? styles.locked : ""}`}>
-          {day.isLocked && (
-            <div className={styles.lockBadge}>
-              <LockIcon className={styles.lockIcon} />
-              <span>Заблокировано</span>
-            </div>
+
+          <h2 className={styles.dayTitle}>{displayTitle}</h2>
+          <p className={styles.subtitle}>{DAY_TYPE_LABELS[day.type] || day.type}</p>
+
+          {hasEquipment && (
+            <p className={styles.equipment}>
+              <span className={styles.equipmentLabel}>Понадобится: </span>
+              {equipment}
+            </p>
           )}
-          <div className={styles.titleWithLock}>
-            <h2 className={styles.dayTitle}>{displayTitle}</h2>
+
+          <div className={styles.cardFooter}>
+            <div className={styles.durationRow}>
+              {(day.estimatedDuration ?? 0) > 0 && (
+                <span className={styles.durationPractice}>
+                  Практика · {day.estimatedDuration} мин
+                </span>
+              )}
+              {(day.theoryMinutes ?? 0) > 0 && (
+                <span className={styles.durationTheory}>
+                  Теория · {day.theoryMinutes} мин
+                </span>
+              )}
+            </div>
+            <span className={styles.actionArrow} aria-hidden="true">→</span>
           </div>
-          <p className={styles.subtitle}>({DAY_TYPE_LABELS[day.type] || day.type})</p>
-          <p>Что понадобится:</p>
-          <p className={styles.equipment}>{day.equipment || "вкусняшки и терпение"}</p>
         </div>
       </Link>
     </li>
@@ -169,15 +192,6 @@ const TrainingDayList = memo(function TrainingDayList({
     data?.trainingDays?.[0]?.courseId ??
     "";
   const stepStates = useStepStatesForCourse(courseId);
-
-  // Добавляем в getItemClass динамику для цветов
-  const getItemClass = useCallback((status: string, dayNumber: number) => {
-    let baseClass = `${styles.item} ${styles[`day${dayNumber % 2 === 1 ? "Odd" : "Even"}`]}`;
-    if (status === "IN_PROGRESS") baseClass += ` ${styles.inprogress}`;
-    if (status === "COMPLETED") baseClass += ` ${styles.completed}`;
-    if (status === "RESET") baseClass += ` ${styles.reset}`;
-    return baseClass;
-  }, []);
 
   // Используем initialData если есть, иначе данные из хука
   const displayData = initialData || data;
@@ -228,7 +242,6 @@ const TrainingDayList = memo(function TrainingDayList({
           courseType={courseType}
           day={day}
           dayNumber={index + 1}
-          getItemClass={getItemClass}
           pathname={pathname}
           stepStates={stepStates}
         />

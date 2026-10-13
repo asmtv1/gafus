@@ -42,7 +42,7 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
         </h2>
         <p className={styles.catalogCaption}>Выберите того, с кем хотите обсудить питомца</p>
       </div>
-      <ul className={styles.list}>
+      <ul className={[styles.list, cynologists.length === 1 && styles.listSingle].filter(Boolean).join(" ")}>
         {cynologists.map((c, index) => {
           const src = resolveAvatarUrl(c.avatarUrl);
           const title = c.displayName ?? "Кинолог";
@@ -81,8 +81,8 @@ export function CynologistCatalogCards({ cynologists }: CynologistCatalogCardsPr
                 </div>
               </div>
               <div className={styles.meta}>
-                <span>Длительность слота: {c.slotDurationMin} мин.</span>
-                <span>Часовой пояс: МСК (UTC+3)</span>
+                <span>Консультация · {c.slotDurationMin} мин</span>
+                <span>МСК (UTC+3)</span>
               </div>
               <div className={styles.actions}>
                 <CaramelButtonLink

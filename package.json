@@ -39,7 +39,7 @@
     "test:all": "turbo run test",
     "test:api": "pnpm --filter @gafus/api test",
     "test:apps": "pnpm --filter @gafus/api test && pnpm --filter @gafus/web test && pnpm --filter @gafus/mobile test",
-    "test:cloudru-media": "node infra/cloudru/s3-cors.test.mjs && node infra/cloudru/media-manifests.test.mjs && node infra/cloudru/cdn-edge-smoke.test.mjs && node infra/cloudru/migrate-legacy-media.test.mjs && node infra/cloudru/multipart-smoke.test.mjs && node infra/cloudru/production-release.test.mjs",
+    "test:cloudru-media": "node infra/cloudru/s3-cors.test.mjs && node infra/cloudru/media-manifests.test.mjs && node infra/cloudru/cdn-edge-smoke.test.mjs && node infra/cloudru/cdn-stability.test.mjs && node infra/cloudru/migrate-legacy-media.test.mjs && node infra/cloudru/multipart-smoke.test.mjs && node infra/cloudru/production-release.test.mjs",
     "test:coverage": "turbo run test:coverage",
     "test:mobile": "pnpm --filter @gafus/mobile test",
     "test:watch": "turbo run test:watch",

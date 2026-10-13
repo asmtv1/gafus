@@ -2,10 +2,10 @@
 import { CdnImage } from "@/shared/components/media/CdnImage";
 import { reportClientError } from "@gafus/error-handling";
 import { useEffect, useRef, useState } from "react";
-import { Button, Dialog } from "@mui/material";
+import { Dialog } from "@mui/material";
 import type { GalleryPhotoDto } from "@gafus/types";
 import { galleryApi } from "./api";
-import { LoadingState } from "@/shared/components/ui";
+import { LoadingState, SecondaryButton } from "@/shared/components/ui";
 import { galleryMessage, refreshDelay, useGalleryIdentity } from "./hooks";
 import styles from "./Gallery.module.css";
 export function PhotoViewer({
@@ -94,14 +94,16 @@ export function PhotoViewer({
           <span>
             {index + 1} / {photos.length}
           </span>
-          <Button autoFocus onClick={close} aria-label="Закрыть просмотр фотографии">
+          <SecondaryButton autoFocus onClick={close} aria-label="Закрыть просмотр фотографии">
             Закрыть
-          </Button>
+          </SecondaryButton>
         </div>
         {error ? (
           <p role="alert">
             {error}
-            <Button onClick={() => setRefresh((value) => value + 1)}>Повторить</Button>
+            <SecondaryButton onClick={() => setRefresh((value) => value + 1)}>
+              Повторить
+            </SecondaryButton>
           </p>
         ) : photo?.fullUrl ? (
           <CdnImage
@@ -123,16 +125,20 @@ export function PhotoViewer({
         )}
         {photo?.caption && <p className={styles.caption}>{photo.caption}</p>}
         <div className={styles.viewerControls}>
-          <Button disabled={index <= 0} onClick={() => move(-1)} aria-label="Предыдущая фотография">
+          <SecondaryButton
+            disabled={index <= 0}
+            onClick={() => move(-1)}
+            aria-label="Предыдущая фотография"
+          >
             Назад
-          </Button>
-          <Button
+          </SecondaryButton>
+          <SecondaryButton
             disabled={index >= photos.length - 1}
             onClick={() => move(1)}
             aria-label="Следующая фотография"
           >
             Далее
-          </Button>
+          </SecondaryButton>
         </div>
       </div>
     </Dialog>

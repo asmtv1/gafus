@@ -125,14 +125,16 @@
   line-height: 1.4;
 }
 
+/* Give every label enough room: on compact cards the status moves onto the next row. */
 .factsRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: stretch;
   gap: 8px;
 }
 
 .fact {
-  flex: 1;
+  flex: 1 1 118px;
   min-width: 0;
   min-height: 42px;
   display: flex;

@@ -1,7 +1,10 @@
 "use client";
 import { browserStorageUploadUrl } from "@/shared/lib/media/browserStorageUploadUrl";
 import { useEffect, useRef, useState } from "react";
-import { Button, LinearProgress } from "@mui/material";
+import type { ReactNode } from "react";
+import { LinearProgress } from "@mui/material";
+import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
+import { PrimaryButton, SecondaryButton } from "@/shared/components/ui";
 import { GALLERY_LIMITS, GALLERY_MIME_TYPES, type GalleryPhotoDto } from "@gafus/types";
 import { galleryApi } from "./api";
 import { galleryMessage, useGalleryIdentity } from "./hooks";
@@ -9,16 +12,65 @@ import styles from "./Gallery.module.css";
 import { createUploadTask, type UploadEntry as Entry } from "./uploadTask";
 import { gallerySession } from "./session";
 const terminal = ["ready", "failed", "cancelled", "expired"];
+
+function FilePicker({
+  children,
+  onFiles,
+  multiple = false,
+  primary = false,
+  disabled = false,
+}: {
+  children: ReactNode;
+  onFiles: (files: FileList | null) => void;
+  multiple?: boolean;
+  primary?: boolean;
+  disabled?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const label = <>{children}</>;
+  return (
+    <>
+      {primary ? (
+        <PrimaryButton
+          className={styles.uploadPrimary}
+          disabled={disabled}
+          onClick={() => ref.current?.click()}
+        >
+          <AddPhotoAlternateOutlinedIcon aria-hidden="true" />
+          {label}
+        </PrimaryButton>
+      ) : (
+        <SecondaryButton disabled={disabled} onClick={() => ref.current?.click()}>
+          {label}
+        </SecondaryButton>
+      )}
+      <input
+        ref={ref}
+        type="file"
+        hidden
+        accept="image/jpeg,image/png,image/webp"
+        multiple={multiple}
+        onChange={(event) => {
+          onFiles(event.target.files);
+          event.target.value = "";
+        }}
+      />
+    </>
+  );
+}
+
 export function UploadQueue({
   albumId,
   usedSlots,
   changed,
   failedPhotos = [],
+  accent = true,
 }: {
   albumId?: string;
   usedSlots: number;
   changed: () => void;
   failedPhotos?: GalleryPhotoDto[];
+  accent?: boolean;
 }) {
   const { authenticated, viewerId, visible } = useGalleryIdentity();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -195,26 +247,21 @@ export function UploadQueue({
     (photo) => photo.uploadId && !entries.some((entry) => entry.uploadId === photo.uploadId),
   );
   return (
-    <div>
-      <div className={styles.actions}>
-        <Button component="label" variant="contained">
+    <div className={styles.albumUpload}>
+      <div className={styles.albumUploadBar}>
+        <FilePicker
+          primary={accent}
+          disabled={usedSlots >= 200}
+          multiple
+          onFiles={(files) => addFiles(files)}
+        >
           Добавить фотографии
-          <input
-            hidden
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
-        </Button>
-        <span className={styles.muted}>{usedSlots} / 200 фотографий</span>
+        </FilePicker>
+        <span className={styles.uploadCount}>{usedSlots} / 200 фотографий</span>
       </div>
-      <p className={styles.muted}>
-        JPG, PNG или WebP · до 10 МиБ. Можно выбрать несколько файлов.{" "}
-        {usedSlots >= 200 ? "Место заполнено — удалите ненужные фотографии." : ""}
+      <p className={styles.uploadHint}>
+        JPG, PNG или WebP · до 10 МиБ за файл. Можно выбрать несколько фотографий.
+        {usedSlots >= 200 ? " Лимит заполнен — удалите ненужные фотографии." : ""}
       </p>
       {entries.filter((entry) => entry.state === "queued").length >
         Math.max(0, 200 - usedSlots) && (
@@ -237,36 +284,27 @@ export function UploadQueue({
             {entry.error && <p className={styles.error}>{entry.error}</p>}
             {["failed", "expired"].includes(entry.state) &&
               (entry.file ? (
-                <Button
+                <SecondaryButton
                   onClick={() => {
                     patch(entry.key, { state: "queued", progress: 0 });
                   }}
                 >
                   Повторить
-                </Button>
+                </SecondaryButton>
               ) : (
-                <Button component="label">
+                <FilePicker onFiles={(files) => addFiles(files, entry)}>
                   Выбрать файл повторно
-                  <input
-                    hidden
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => {
-                      addFiles(e.target.files, entry);
-                      e.target.value = "";
-                    }}
-                  />
-                </Button>
+                </FilePicker>
               ))}
             {!terminal.includes(entry.state) && (
-              <Button
+              <SecondaryButton
                 disabled={entry.state === "cancelling"}
                 onClick={() => {
                   void task(entry).cancel(entry);
                 }}
               >
                 {entry.state === "cancel_unknown" ? "Повторить отмену" : "Отменить"}
-              </Button>
+              </SecondaryButton>
             )}
           </li>
         ))}
@@ -274,29 +312,24 @@ export function UploadQueue({
       {recovered.map((photo) => (
         <div key={photo.id}>
           <p className={styles.error}>{photo.errorMessage || "Обработка фотографии не удалась."}</p>
-          <Button component="label">
+          <FilePicker
+            onFiles={(files) => {
+              const file = files?.[0];
+              if (file) {
+                const item: Entry = {
+                  key: crypto.randomUUID(),
+                  uploadId: photo.uploadId!,
+                  name: file.name,
+                  state: "failed",
+                  progress: 0,
+                };
+                setEntries((items) => [...items, item]);
+                addFiles(files, item);
+              }
+            }}
+          >
             Выбрать файл и повторить
-            <input
-              hidden
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const item: Entry = {
-                    key: crypto.randomUUID(),
-                    uploadId: photo.uploadId!,
-                    name: file.name,
-                    state: "failed",
-                    progress: 0,
-                  };
-                  setEntries((items) => [...items, item]);
-                  addFiles(e.target.files, item);
-                }
-                e.target.value = "";
-              }}
-            />
-          </Button>
+          </FilePicker>
         </div>
       ))}
     </div>

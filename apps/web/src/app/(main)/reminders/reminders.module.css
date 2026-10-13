@@ -1,0 +1,17 @@
+.page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
+  margin: 24px auto;
+  padding: 0 clamp(16px, 3vw, 56px);
+}
+
+.content {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.heading {
+  margin: 0 0 16px;
+}

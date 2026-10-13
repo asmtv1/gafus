@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { readFile, writeFile, unlink } from "node:fs/promises";
+import { verifyStableCdnGet } from "./cdn-stability.mjs";
 import {
   S3Client,
   PutObjectCommand,
@@ -314,13 +315,23 @@ try {
       await new Promise((done) => setTimeout(done, 4000));
     }
     if (!ready) throw Error("CDN_EDGE_PROPAGATION_FAILED_" + x.kind);
+    // Origin propagation can briefly return CDN 5xx even after its first 200.
+    // Require 15 consecutive byte-exact hits, bounded to 35 attempts.
+    // A 403/404/redirect or wrong bytes still fail immediately and roll back.
+    const stable = await verifyStableCdnGet({
+      kind: x.kind,
+      expectedBytes: x.bytes,
+      urlForAttempt: () => signed(x, path, Math.floor(Date.now() / 1000) + 150),
+    });
+    console.log(JSON.stringify({
+      cdn: x.host,
+      stage: "edge-stable",
+      samples: stable.samples,
+      attempts: stable.attempts,
+      transientFailures: stable.transientFailures,
+    }));
     const expires = Math.floor(Date.now() / 1000) + 150,
       u = signed(x, path, expires);
-    for (let n = 0; n < 15; n++) {
-      const r = await fetch(u, { signal: AbortSignal.timeout(14000) });
-      if (r.status !== 200 || !Buffer.from(await r.arrayBuffer()).equals(x.bytes))
-        throw Error("CDN_EDGE_UNSTABLE_" + x.kind);
-    }
     const h = await fetch(u, { method: "HEAD", signal: AbortSignal.timeout(11000) });
     if (h.status !== 200) throw Error("CDN_HEAD_FAIL_" + x.kind);
     const range = await fetch(u, {

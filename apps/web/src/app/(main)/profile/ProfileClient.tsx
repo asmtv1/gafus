@@ -20,7 +20,7 @@ interface ProfileClientProps {
   username: string;
   userData: UserWithTrainings | null;
   linkFeedback?: string;
-  initialView?: "activity" | "questions" | "settings";
+  initialView?: "activity" | "questions" | "settings" | "notes";
 }
 
 /** Layout only: public identity leads; private account controls are a separate view. */
@@ -41,15 +41,17 @@ export default function ProfileClient({
           isOwner={isOwner}
           initialView={initialView}
           questions={isOwner ? <MyQuestionsList /> : undefined}
+          notes={
+            isOwner ? (
+              <div className={styles.notesCard}>
+                <StudentNotes />
+              </div>
+            ) : undefined
+          }
           activity={
             <div className={`${styles.activityLayout} ${!isOwner && publicData.pets.length > 0 ? styles.visitorLayout : ""}`}>
               <div className={styles.activityColumns}>
                 <FeedAuthorPostsList username={username} pageSize={6} />
-                {isOwner && publicData.role === "USER" && (
-                  <div className={styles.notesCard}>
-                    <StudentNotes />
-                  </div>
-                )}
               </div>
               {!isOwner && publicData.pets.length > 0 && (
                 <aside id="profile-pets" className={styles.petsColumn}>

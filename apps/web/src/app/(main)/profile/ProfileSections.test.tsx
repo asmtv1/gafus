@@ -26,7 +26,7 @@ afterEach(async () => {
   host.remove();
 });
 
-function mount(isOwner: boolean, initialView: "activity" | "questions" | "settings" = "activity") {
+function mount(isOwner: boolean, initialView: "activity" | "questions" | "settings" | "notes" = "activity") {
   return act(async () => root.render(
     <ProfileSections
       isOwner={isOwner}
@@ -34,6 +34,7 @@ function mount(isOwner: boolean, initialView: "activity" | "questions" | "settin
       activity={<p>ACTIVITY_CONTENT</p>}
       questions={<p>MY_QUESTIONS_CONTENT</p>}
       settings={<p>SETTINGS_CONTENT</p>}
+      notes={<p>CYNOLOGIST_NOTES_CONTENT</p>}
     />,
   ));
 }
@@ -89,11 +90,46 @@ describe("profile sections", () => {
     expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
   });
 
+  it("shows cynologist notes only as the fourth profile tab", async () => {
+    await mount(true);
+    const buttons = [...host.querySelectorAll<HTMLButtonElement>("nav button")];
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual([
+      "Мои публикации",
+      "Мои вопросы",
+      "Настройки аккаунта",
+      "Заметки кинолога",
+    ]);
+    expect(host.textContent).not.toContain("CYNOLOGIST_NOTES_CONTENT");
+    const notes = buttons[3]!;
+    await act(async () => notes.click());
+    expect(notes.getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector("#profile-notes")?.textContent).toContain("CYNOLOGIST_NOTES_CONTENT");
+    expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
+    expect(host.textContent).not.toContain("SETTINGS_CONTENT");
+    expect(host.textContent).not.toContain("MY_QUESTIONS_CONTENT");
+    expect(window.location.search).toContain("tab=notes");
+
+    await act(async () => {
+      window.history.replaceState({}, "", "/profile?username=admin&tab=questions");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(host.textContent).toContain("MY_QUESTIONS_CONTENT");
+    expect(host.textContent).not.toContain("CYNOLOGIST_NOTES_CONTENT");
+  });
+
+  it("opens cynologist notes from a direct link", async () => {
+    await mount(true, "notes");
+    expect(host.textContent).toContain("CYNOLOGIST_NOTES_CONTENT");
+    expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
+  });
+
   it("never exposes a settings tab to profile visitors", async () => {
     await mount(false, "questions");
     expect(host.querySelector('button[aria-pressed="true"]')?.textContent).toContain("Публикации");
     expect(host.textContent).not.toContain("Настройки аккаунта");
     expect(host.textContent).not.toContain("Мои вопросы");
+    expect(host.textContent).not.toContain("Заметки кинолога");
+    expect(host.textContent).not.toContain("CYNOLOGIST_NOTES_CONTENT");
     expect(host.textContent).not.toContain("MY_QUESTIONS_CONTENT");
     expect(host.textContent).not.toContain("SETTINGS_CONTENT");
     expect(host.querySelector('a[href="#profile-pets"]')).toBeNull();
