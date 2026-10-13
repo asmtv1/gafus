@@ -1,0 +1,20 @@
+# Never forward the user's site session or Origin to the storage provider.
+proxy_http_version 1.1;
+proxy_set_header Host s3.cloud.ru;
+proxy_set_header Connection "";
+proxy_set_header Cookie "";
+proxy_set_header Authorization "";
+proxy_set_header Origin "";
+proxy_set_header Referer "";
+proxy_set_header X-Real-IP "";
+proxy_set_header X-Forwarded-For "";
+proxy_ssl_server_name on;
+proxy_ssl_name s3.cloud.ru;
+proxy_ssl_verify on;
+proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+proxy_ssl_verify_depth 3;
+proxy_request_buffering off;
+proxy_buffering off;
+proxy_connect_timeout 10s;
+proxy_send_timeout 900s;
+proxy_read_timeout 120s;

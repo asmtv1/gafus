@@ -1,6 +1,7 @@
 import { FEED_LIMITS, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES,
   type FeedMediaKind, type FeedMimeType } from "@gafus/types";
 import { feedApi } from "./api";
+import { browserStorageUploadUrl } from "@/shared/lib/media/browserStorageUploadUrl";
 
 export interface FeedBrowserAsset {
   file: File;
@@ -42,7 +43,7 @@ export async function uploadFeedBrowserAsset(postId: string, asset: FeedBrowserA
   fields.append("file", asset.file, asset.file.name);
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url.href);
+    xhr.open("POST", browserStorageUploadUrl(url.href, "feed"));
     xhr.withCredentials = false;
     if (onProgress) xhr.upload.onprogress = event => {
       if (event.lengthComputable && event.total > 0) onProgress(event.loaded, event.total);

@@ -1,4 +1,5 @@
 "use client";
+import { browserStorageUploadUrl } from "@/shared/lib/media/browserStorageUploadUrl";
 import { useEffect, useRef, useState } from "react";
 import { Button, LinearProgress } from "@mui/material";
 import { GALLERY_LIMITS, GALLERY_MIME_TYPES, type GalleryPhotoDto } from "@gafus/types";
@@ -90,7 +91,7 @@ export function UploadQueue({
           form.append("file", file); // Bucket requires the file to be the final field.
           const request = new XMLHttpRequest();
           requests.current.set(entry.key, request);
-          request.open("POST", upload.postUrl!);
+          request.open("POST", browserStorageUploadUrl(upload.postUrl!, "gallery"));
           request.timeout = 120000;
           request.upload.onprogress = (event) => {
             if (current() && event.lengthComputable)
