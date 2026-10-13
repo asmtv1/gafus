@@ -142,6 +142,14 @@ resource "yandex_container_registry_iam_binding" "push" {
   role        = "container-registry.images.pusher"
   members     = ["serviceAccount:${yandex_iam_service_account.build.id}"]
 }
+# Main release preflights CDN security, prepares origin groups and activates
+# verified Cloud.ru origins. Restrict CI to CDN management in this folder.
+resource "yandex_resourcemanager_folder_iam_member" "build_cdn" {
+  folder_id = var.folder_id
+  role      = "cdn.editor"
+  member    = "serviceAccount:${yandex_iam_service_account.build.id}"
+}
+
 resource "yandex_iam_service_account_key" "build" {
   service_account_id = yandex_iam_service_account.build.id
   description        = "Feed worker image build in GitHub Actions"
