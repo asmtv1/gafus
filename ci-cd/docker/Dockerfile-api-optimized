@@ -30,7 +30,7 @@ RUN cd packages/prisma \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем API вместе со всем графом workspace-зависимостей.
-RUN pnpm --filter @gafus/mailer build && \
+RUN pnpm build --filter '@gafus/mailer...' && \
     pnpm build --filter '@gafus/api...'
 
 # pnpm deploy создаёт самодостаточный production node_modules.

@@ -39,7 +39,7 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/client/ \;
 
 # Собираем API сервис (mailer до графа с core)
-RUN pnpm --filter @gafus/mailer build && \
+RUN pnpm build --filter '@gafus/mailer...' && \
     pnpm build --filter @gafus/api
 
 # Production stage - только runtime

@@ -41,7 +41,7 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 
 # Собираем приложение с standalone режимом (mailer до графа с @gafus/core)
 ENV USE_STANDALONE=true
-RUN pnpm --filter @gafus/mailer build && \
+RUN pnpm build --filter '@gafus/mailer...' && \
     pnpm build --filter @gafus/trainer-panel
 
 # Production stage - только runtime

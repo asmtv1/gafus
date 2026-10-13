@@ -47,7 +47,7 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 # Собираем core, csrf, reengagement, ui-components и admin-panel
 # mailer до core: у @gafus/mailer types → dist, иначе tsc в core не находит модуль
 ENV USE_STANDALONE=true
-RUN pnpm --filter @gafus/mailer build && \
+RUN pnpm build --filter '@gafus/mailer...' && \
     pnpm build --filter '@gafus/core...' && \
     pnpm build --filter @gafus/csrf --filter @gafus/reengagement && \
     pnpm build --filter @gafus/ui-components && \
