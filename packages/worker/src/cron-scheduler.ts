@@ -31,6 +31,8 @@ import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-
 import { processDueNpdReceiptOperations } from "./npd-worker";
 import { processDueNpdReceiptEmailDeliveries } from "./npd-email-worker";
 import { processGafusNotifications } from "./gafus-notifications";
+import { monitorMailDelivery } from "./mail-delivery-monitor";
+import { processDueTransactionalMailOutbox } from "@gafus/mailer";
 
 const logger = createWorkerLogger("cron-scheduler");
 
@@ -39,6 +41,23 @@ const logger = createWorkerLogger("cron-scheduler");
  */
 export function startCronJobs(): void {
   logger.info("Запуск cron-планировщика...");
+  // Durable DB outbox. Atomic leases guard overlapping cron runs and multiple workers.
+  // No extra traffic until MAIL_OUTBOX_ENABLED and the encryption key are configured.
+  cron.schedule("* * * * *", () => {
+    void processDueTransactionalMailOutbox({ batchSize: 10 })
+      .then((result) => {
+        if (result.processed) logger.info("Mail outbox processed", result);
+      })
+      .catch((error) => logger.error("Mail outbox processing failed", error as Error));
+  }, { timezone: "UTC" });
+
+  // Mail failures must be visible even if an external mail provider is unreachable.
+  // Read-only, every 15 minutes; no automatic replay of stored UNKNOWN attempts.
+  cron.schedule("3,18,33,48 * * * *", () => {
+    void monitorMailDelivery().catch((error) =>
+      logger.error("Mail delivery monitoring failed", error as Error),
+    );
+  }, { timezone: "UTC" });
   // Rollout independently from wallet earning/spending; default remains off.
   if (process.env.GAFUS_NOTIFICATIONS_ENABLED === "true") {
     cron.schedule(
@@ -151,6 +170,15 @@ export function startCronJobs(): void {
       },
       { timezone: "UTC" },
     );
+  }
+  // Independent durable Beget per-object purge outbox. Disabled by default;
+  // no CDN actions until a specifically verified production release enables it.
+  if (process.env.MEDIA_CDN_PURGE_WORKER_ENABLED === "true") {
+    cron.schedule("* * * * *", () => {
+      void import("./media-cdn-purge-worker")
+        .then(({ processDueMediaCdnPurges }) => processDueMediaCdnPurges())
+        .catch(() => logger.error("Media edge purge unavailable", new Error("MEDIA_PURGE_SCHEDULER_FAILED")));
+    });
   }
   // Account cleanup must continue independently of gallery/feed product flags.
   if (process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === "true") {

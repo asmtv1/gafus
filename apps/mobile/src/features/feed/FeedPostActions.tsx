@@ -109,7 +109,10 @@ export function FeedPostActions({ post, onEdit, onDelete }: { post: FeedPostDto;
   return <>
     <Pressable ref={triggerRef} accessibilityRole="button" accessibilityLabel="Действия с публикацией"
       accessibilityState={{ expanded: open, disabled: busy }} hitSlop={4}
-      style={styles.menu} onPress={openMenu}>
+      style={styles.menu} onPress={event => {
+        event.stopPropagation();
+        openMenu();
+      }}>
       <MaterialCommunityIcons name="dots-horizontal" size={24} color={COLORS.primary} />
     </Pressable>
     <Modal visible={open} transparent statusBarTranslucent animationType="fade"

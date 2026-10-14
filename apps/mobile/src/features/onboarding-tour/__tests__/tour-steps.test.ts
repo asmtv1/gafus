@@ -22,6 +22,11 @@ describe("mobile onboarding tour steps", () => {
       "/(main)/(tabs)/consultations",
     );
     expect(steps.find((step) => step.id === "daily-course")?.targetId).toBe("daily-course-card");
+    expect(steps.find((step) => step.id === "pets")).toMatchObject({
+      route: "/(main)/(tabs)/more",
+      targetId: "menu-pets",
+    });
+    expect(steps.find((step) => step.id === "add-pet")?.secondaryTargetId).toBe("tab-more");
   });
 
   it("uses add pet as fallback for pet-only sections when user has no pets", () => {

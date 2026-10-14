@@ -20,6 +20,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      # Also guard manual Deploy Only; do not even open SSH if Beget is not
+      # demonstrably ready. No registry, Cloud.ru or CDN writes in this step.
+      - name: Validate Beget-only production readiness before SSH
+        env:
+          GAFUS_MEDIA_CDN_TARGET: ${{ vars.GAFUS_MEDIA_CDN_TARGET }}
+          BEGET_CDN_RELEASE_CONFIRM: ${{ vars.BEGET_CDN_RELEASE_CONFIRM }}
+          BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}
+          BEGET_CDN_CACHE_KEY_VERIFIED: ${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED }}
+          BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
+          BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
+          GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+          FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+          GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+          FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+          GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
+          FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
+          BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+          BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+          BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+          BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+          BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+        run: |
+          node infra/cloudru/beget-release-readiness.mjs --check
+          node infra/cloudru/beget-production-smoke.mjs
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -255,6 +283,39 @@ jobs:
             if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
             if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
 
+            # Beget/CDNvideo is the ONLY supported Gallery/Feed delivery CDN.
+            # Fail closed until explicit release approval and live purge/smoke gates.
+            # Never deploy a Yandex CDN fallback or rollback configuration.
+            if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" != "beget" ]; then
+              echo "Beget-only release not authorized: GAFUS_MEDIA_CDN_TARGET must be beget"
+              exit 1
+            fi
+                if [ "${{ vars.BEGET_CDN_RELEASE_CONFIRM }}" != "reviewed-gallery-feed-beget-cutover" ]; then
+                  echo "Beget production CDN release has not been explicitly confirmed"
+                  exit 1
+                fi
+                # Beget CDNvideo uses the EXISTING per-scope secret values.
+                # Only the signing algorithm and host change; do not rotate keys.
+                if [ -z "${{ secrets.GALLERY_CDN_SECRET }}" ] || [ -z "${{ secrets.FEED_CDN_SECRET }}" ]; then
+                  echo "Missing Gallery or Feed production CDN signing secret"
+                  exit 1
+                fi
+                # Account deletion must not be silently broken by switching
+                # delivery before the exact-path purge and edge checks work.
+                if [ -z "${{ secrets.BEGET_CDN_API_TOKEN }}" ] || \
+                   [ -z "${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}" ] || \
+                   [ -z "${{ vars.FEED_BEGET_CDN_SERVICE_ID }}" ]; then
+                  echo "Beget purge token/service IDs are not configured"
+                  exit 1
+                fi
+                if [ "${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}" != "true" ] || \
+                   [ "${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED }}" != "true" ] || \
+                   [ "${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}" != "true" ] || \
+                   [ "${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}" != "true" ]; then
+                  echo "Beget CDN live delivery or purge validation is still pending"
+                  exit 1
+                fi
+
             # Create .env file from GitHub Secrets
             echo "🔐 Creating .env file from GitHub Secrets..."
             {
@@ -290,30 +351,34 @@ jobs:
               echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}"
               echo "VAPID_SUBJECT=mailto:admin@gafus.ru"
               echo ""
-              echo "# Yandex Cloud CDN"
+              echo "# Existing Yandex credentials for unrelated services; NOT a Gallery/Feed CDN route"
               echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
               echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
               echo "# Gallery DEV settings (compose flag true staged, deployment gated)"
               echo "GALLERY_DEV_WEB_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
               echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
-              echo "GALLERY_DEV_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
+              # Beget uses the existing production signing secret value.
+              echo "GALLERY_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
               echo "GALLERY_DEV_INTERNAL_HMAC_SECRET=${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}"
               echo "GALLERY_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
               echo "GALLERY_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
               echo "GALLERY_BUCKET=gafus-gallery-private"
               echo "GALLERY_S3_ENDPOINT=https://s3.cloud.ru"
-              echo "GALLERY_CDN_BASE_URL=https://gallery-dev.gafus.ru"
+              echo "GALLERY_CDN_PROVIDER=beget"
+              echo "GALLERY_CDN_BASE_URL=https://mepsuduyokabib.begetcdn.cloud"
               echo "GALLERY_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "GALLERY_PROCESSOR_READY=true"
               echo "GALLERY_MEDIA_FALLBACK_ENABLED=true"
-              echo "GALLERY_CDN_RESOURCE_IDS=bc8rorv3vgbgax3xesyn"
+              # Old Yandex resource IDs are not active delivery or purge targets.
+              # Any historical erasure is separately gated by legacy verification.
               echo "FEED_BUCKET=gafus-feed-private"
               echo "FEED_S3_ENDPOINT=https://s3.cloud.ru"
-              echo "FEED_CDN_BASE_URL=https://feed.gafus.ru"
+              echo "FEED_CDN_PROVIDER=beget"
+              echo "FEED_CDN_BASE_URL=https://garaquachegasourn.begetcdn.cloud"
               echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "FEED_MEDIA_FALLBACK_ENABLED=true"
               echo "CDN_HEALTH_MONITOR_ENABLED=true"
-              echo "FEED_CDN_RESOURCE_IDS=bc8ru2x6mcqxwcl6a7vj"
+
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
               echo "CLOUDRU_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
@@ -327,6 +392,15 @@ jobs:
               echo "CLOUDRU_KEY_ID=${{ secrets.CLOUDRU_KEY_ID }}"
               echo "CLOUDRU_KEY_SECRET=${{ secrets.CLOUDRU_KEY_SECRET }}"
               echo "CDN_CLEANUP_SERVICE_ACCOUNT_KEY=${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}"
+              # API credential scoped to Worker only; live per-path purge must
+              # be tested before enabling any of these fail-closed flags.
+              echo "BEGET_CDN_API_TOKEN=${{ secrets.BEGET_CDN_API_TOKEN }}"
+              echo "GALLERY_BEGET_CDN_SERVICE_ID=${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}"
+              echo "FEED_BEGET_CDN_SERVICE_ID=${{ vars.FEED_BEGET_CDN_SERVICE_ID }}"
+              echo "BEGET_CDN_PURGE_API_VERIFIED=${{ vars.BEGET_CDN_PURGE_API_VERIFIED || 'false' }}"
+              echo "BEGET_CDN_CACHE_KEY_VERIFIED=${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED || 'false' }}"
+              echo "BEGET_CDN_PURGE_PROPAGATION_VERIFIED=${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}"
+              echo "MEDIA_CDN_PURGE_WORKER_ENABLED=true"
           DEPLOY_SCRIPT_2: |2+
               echo "# Feed production settings; activation is an explicit environment variable"
               echo "FEED_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
@@ -430,6 +504,12 @@ jobs:
               echo "MAIL_PROVIDER=${{ vars.MAIL_PROVIDER || 'resend' }}"
               echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
               echo "RESEND_WEBHOOK_SECRET=${{ secrets.RESEND_WEBHOOK_SECRET }}"
+              # Course content cache is enabled on all three readers/writers at first deploy.
+              # Transactional PostgreSQL revision migration is applied before containers start.
+              echo "COURSE_CACHE_SYNC_ENABLED=true"
+              echo "ENABLE_COURSE_CACHE=true"
+              echo "MAIL_OUTBOX_ENABLED=${{ vars.MAIL_OUTBOX_ENABLED || 'false' }}"
+              echo "MAIL_OUTBOX_ENCRYPTION_KEY=${{ secrets.MAIL_OUTBOX_ENCRYPTION_KEY }}"
               echo "MAIL_REPLY_TO=${{ vars.MAIL_REPLY_TO || 'api@gafus.ru' }}"
               echo "RESEND_FROM=${{ vars.RESEND_FROM || 'notifications@notify.gafus.ru' }}"
               echo "# SMTP / Yandex 360"

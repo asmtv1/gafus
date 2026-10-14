@@ -32,15 +32,17 @@
   overflow: visible;
 }
 .photoMediaItem {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
   height: auto;
-  overflow: visible;
+  overflow: hidden;
 }
 .photoTrigger {
   position: relative;
   display: grid;
   place-items: center;
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
   height: auto;
   padding: 0;
   border: 0;
@@ -50,9 +52,9 @@
 }
 .previewImage {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
-  max-width: 100%;
+  min-width: 0;
   max-height: min(70dvh, 520px);
   border-radius: 12px;
   object-fit: contain;

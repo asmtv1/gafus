@@ -18,6 +18,7 @@ import {
   type FeedImpressionInput,
 } from "@gafus/types";
 import { FeedActions, FeedReportForm } from "./FeedActions";
+import { FeedAuthorRoleBadge } from "./FeedAuthorRoleBadge";
 import {
   ChatBubbleOutlineRounded,
   FavoriteBorderRounded,
@@ -213,13 +214,16 @@ export function FeedCard({
           )}
         </span>
         <span className={styles.metaDetails}>
-          <Link
-            className={styles.author}
-            href={`/profile?username=${encodeURIComponent(post.author.username)}`}
-            onClick={() => sendFeedOutcome(impression, "profile_open", 0, ownerId)}
-          >
-            {post.author.name}
-          </Link>
+          <span className={styles.authorIdentity}>
+            <Link
+              className={styles.author}
+              href={`/profile?username=${encodeURIComponent(post.author.username)}`}
+              onClick={() => sendFeedOutcome(impression, "profile_open", 0, ownerId)}
+            >
+              {post.author.name}
+            </Link>
+            <FeedAuthorRoleBadge role={post.author.role} />
+          </span>
           <time className={styles.time} dateTime={date}>
             {formatFeedTime(date)}
             {post.editedAt ? " · Изменён" : ""}

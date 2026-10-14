@@ -1,5 +1,5 @@
 "use client";
-import { LoadingState } from "@/shared/components/ui/LoadingState";
+import { LoadingState, PrimaryButton, SecondaryButton } from "@/shared/components/ui";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -46,10 +46,14 @@ export default function ChatHub({
     const next = event.key === "Home" ? false : event.key === "End" ? true : !community;
     selectTab(next);
   }
+  const PersonalTabButton = community ? SecondaryButton : PrimaryButton;
+  const CommunityTabButton = community ? PrimaryButton : SecondaryButton;
+
   return (
     <div className={styles.hub}>
       <div className={styles.tabs} role="tablist" aria-label="Чаты" aria-orientation={verticalTabs ? "vertical" : "horizontal"} onKeyDown={navigateTab}>
-        <button className={styles.chatTab}
+        <PersonalTabButton
+          className={styles.chatTab}
           type="button"
           role="tab"
           id="chat-personal-tab"
@@ -59,8 +63,9 @@ export default function ChatHub({
           onClick={() => selectTab(false)}
         >
           Чат с кинологом
-        </button>
-        <button className={styles.chatTab}
+        </PersonalTabButton>
+        <CommunityTabButton
+          className={styles.chatTab}
           type="button"
           role="tab"
           id="chat-community-tab"
@@ -70,7 +75,7 @@ export default function ChatHub({
           onClick={() => selectTab(true)}
         >
           Общий чат
-        </button>
+        </CommunityTabButton>
       </div>
       <div
         className={styles.hubPanel}

@@ -1,7 +1,7 @@
 import { connection, FEED_PROCESSING_QUEUE_NAME } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { Worker, type Job } from "bullmq";
-import { createCloudruMediaDispatcher } from "./cloudru-media-dispatcher";
+import { createCloudruFeedPoolDispatcher } from "./cloudru-media-dispatcher";
 
 const logger = createWorkerLogger("feed-processing-trigger");
 interface FeedJob {
@@ -18,11 +18,11 @@ export function startFeedProcessingTriggerWorker(): void {
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
       process.env.FEED_PROCESSOR_READY !== "true") return;
 
-  let photo: ReturnType<typeof createCloudruMediaDispatcher>;
-  let video: ReturnType<typeof createCloudruMediaDispatcher>;
+  let photo: ReturnType<typeof createCloudruFeedPoolDispatcher>;
+  let video: ReturnType<typeof createCloudruFeedPoolDispatcher>;
   try {
-    photo = createCloudruMediaDispatcher(process.env, fetch, ["gafus-feed-photo"]);
-    video = createCloudruMediaDispatcher(process.env, fetch, ["gafus-feed-video"]);
+    photo = createCloudruFeedPoolDispatcher("photo");
+    video = createCloudruFeedPoolDispatcher("video");
   } catch {
     // Feed must not prevent unrelated worker processes from starting.
     logger.error(
@@ -46,8 +46,10 @@ export function startFeedProcessingTriggerWorker(): void {
     {
       connection,
       concurrency: 1,
-      // Burst control: a job claims one Core task, but launches have a cost.
-      limiter: { max: 1, duration: 1500 },
+      // Up to two Cloud.ru launches per second; preserve serial dispatch
+      // and Core's authoritative claims/leases to avoid duplicate processing.
+      // BullMQ retries temporary provider errors with exponential backoff.
+      limiter: { max: 1, duration: 500 },
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 500 },
     },

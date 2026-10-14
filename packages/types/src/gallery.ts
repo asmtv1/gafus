@@ -9,7 +9,7 @@ export const GALLERY_LIMITS = {
   maxPageSize: 50,
   postSeconds: 600,
   reservationSeconds: 900,
-  urlSeconds: 120,
+  urlSeconds: 300,
   leaseSeconds: 120,
   attempts: 3,
   storageAttempts: 5,

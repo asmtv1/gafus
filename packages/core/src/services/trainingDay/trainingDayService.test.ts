@@ -7,6 +7,11 @@ import {
   getVisibleDays,
 } from "./trainingDayService";
 
+const invalidateDays = vi.hoisted(() => vi.fn());
+vi.mock("../training/trainingDayContent", () => ({
+  invalidateTrainingDaysContentCache: invalidateDays,
+}));
+
 const mockTrainingDayCreate = vi.fn();
 const mockTrainingDayUpdate = vi.fn();
 const mockTrainingDayFindMany = vi.fn();
@@ -77,6 +82,7 @@ describe("updateTrainingDay", () => {
     });
 
     expect(result.success).toBe(true);
+    expect(invalidateDays).toHaveBeenCalledExactlyOnceWith(["day-1"]);
   });
 
   it("returns error when prisma throws with code", async () => {
@@ -94,6 +100,7 @@ describe("updateTrainingDay", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+    expect(invalidateDays).not.toHaveBeenCalled();
   });
 });
 
@@ -111,6 +118,7 @@ describe("deleteDays", () => {
     expect(result.success).toBe(true);
     expect(result.courseIds).toEqual(["c1"]);
     expect(result.deletedDayIds).toEqual(["d1", "d2"]);
+    expect(invalidateDays).toHaveBeenCalledExactlyOnceWith(["d1", "d2"]);
   });
 
   it("returns error on transaction failure", async () => {
@@ -121,6 +129,7 @@ describe("deleteDays", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+    expect(invalidateDays).not.toHaveBeenCalled();
   });
 });
 

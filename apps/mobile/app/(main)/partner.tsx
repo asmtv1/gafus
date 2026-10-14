@@ -4,7 +4,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 
-import { PageHeader, TexturedSafeAreaView } from "@/shared/components";
+import { Loading, PageHeader, TexturedSafeAreaView } from "@/shared/components";
 import { Button, Card, Input } from "@/shared/components/ui";
 import { partnersApi } from "@/shared/lib/api";
 import { COLORS, SPACING } from "@/shared/config";
@@ -78,7 +78,9 @@ export default function PartnerScreen() {
           title="Партнёрская программа"
           description="Приглашайте новых учеников и следите за вознаграждением."
         />
-        {dashboardQuery.isLoading ? <Text style={styles.info}>Загружаем кабинет…</Text> : null}
+        {dashboardQuery.isLoading ? (
+          <Loading variant="inline" message="Загружаем партнёрский кабинет…" />
+        ) : null}
         {dashboardQuery.isError ? (
           <Card><Card.Content><Text style={styles.error}>{dashboardQuery.error.message}</Text><Button label="Повторить" variant="outline" onPress={() => void dashboardQuery.refetch()} /></Card.Content></Card>
         ) : null}

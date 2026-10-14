@@ -306,7 +306,8 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     const dto = await service.getPhoto(viewer, r.photo.id);
     expect(dto.canEdit).toBe(false);
     expect(JSON.stringify(dto)).not.toContain("sourceKey");
-    expect(new Date(dto.urlsExpireAt!).getTime() - at.getTime()).toBe(120_000);
+    expect(new Date(dto.urlsExpireAt!).getTime() - at.getTime()).toBeGreaterThanOrEqual(270_000);
+    expect(new Date(dto.urlsExpireAt!).getTime() - at.getTime()).toBeLessThanOrEqual(300_000);
   });
   it("duplicate events/callbacks, conflicting replay, READY immutability", async () => {
     const r = await ready();

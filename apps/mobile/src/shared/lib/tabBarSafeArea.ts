@@ -1,7 +1,7 @@
 type MainTabBarPlatform = "android" | "ios" | "macos" | "web" | "windows";
 
-const BASE_TAB_BAR_MIN_HEIGHT = 72;
-const BASE_TAB_BAR_PADDING_BOTTOM = 8;
+const BASE_TAB_BAR_MIN_HEIGHT = 60;
+const BASE_TAB_BAR_PADDING_BOTTOM = 6;
 
 export function getMainTabBarSafeAreaStyle(
   platform: MainTabBarPlatform,

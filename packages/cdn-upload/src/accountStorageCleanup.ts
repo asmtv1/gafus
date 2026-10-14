@@ -6,7 +6,8 @@ import {
 } from "@aws-sdk/client-s3";
 import { constants, createHash, sign } from "node:crypto";
 import { parsePrivateMediaLocation } from "./privateUserMedia";
-import { beginCloudruCdnPurge, cloudruCdnPurgeDone } from "./cloudruCdnPurge";
+import { cloudruCdnPurgeDone } from "./cloudruCdnPurge";
+import { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
 
 export type AccountStorageScope = "public" | "gallery" | "feed" | "questions" | "documents";
 /** Durable account-deletion intent, not an object prefix. A provider cutover
@@ -339,27 +340,22 @@ export async function startAccountCdnPurge(
   const cloudru =
     (scope === "gallery" || scope === "feed") &&
     process.env[`${name}_S3_ENDPOINT`] === "https://s3.cloud.ru";
-  // The deployed, signed edge remains Yandex even when storage is Cloud.ru.
-  // Only an explicitly audited provider override may target Cloud.ru CDN.
-  const provider = process.env[`${name}_CDN_PROVIDER`] ?? "yandex";
-  if (cloudru && !["cloudru", "yandex"].includes(provider))
-    throw new Error("CLEANUP_UNKNOWN_CDN_PROVIDER");
-  // Cloud.ru S3 does not imply Cloud.ru CDN. A Yandex edge stays authoritative
-  // across a Cloud.ru Origin switch; never call CDNvideo purge in this mode.
-  const yandexEdge = cloudru && provider === "yandex";
+  // Beget is the ONLY active Gallery/Feed CDN delivery provider.
+  // Legacy edge purge, if separately verified, is a historical erasure
+  // obligation, never a fallback route for user media delivery.
+  const cdnHost = process.env[`${name}_CDN_BASE_URL`] ?? "";
+  const knownBeget = scope === "gallery" ? "https://mepsuduyokabib.begetcdn.cloud" :
+    scope === "feed" ? "https://garaquachegasourn.begetcdn.cloud" : "";
+  const provider = process.env[`${name}_CDN_PROVIDER`] ?? "beget";
+  if (cloudru && knownBeget && (provider !== "beget" || cdnHost !== knownBeget))
+    throw new Error("CLEANUP_CDN_PROVIDER_MISMATCH");
   const dual = cloudru && process.env[`${name}_DUAL_PROVIDER_CLEANUP`] === "true";
   const legacyResources = dual
-    ? [
-        ...new Set(
-          (process.env[`${name}_LEGACY_CDN_RESOURCE_IDS`] ?? "")
-            .split(",")
-            .map((value) => value.trim())
-            .filter(Boolean),
-        ),
-      ]
-    : resources;
-  const yandexResources = yandexEdge ? [...new Set([...resources, ...legacyResources])] : legacyResources;
-  if (yandexEdge && !resources.length) throw new Error("CLEANUP_CDN_UNCONFIGURED");
+    ? [...new Set((process.env[`${name}_LEGACY_CDN_RESOURCE_IDS`] ?? "")
+        .split(",").map((value) => value.trim()).filter(Boolean))]
+    : [];
+  // Old-provider erasure only: Gallery/Feed runtime never chooses this CDN.
+  const yandexResources = cloudru ? legacyResources : resources;
   // Before submitting ANY purge verify old CDN coverage. Otherwise an
   // incorrectly configured cutover can confirm only Cloud.ru and leave Yandex
   // edge copies readable after the account is deleted.
@@ -372,15 +368,18 @@ export async function startAccountCdnPurge(
   // Public media uses uncached Nginx unless additional CDN resources are explicitly configured.
   if (!cloudru && !resources.length && scope !== "public")
     throw new Error("CLEANUP_CDN_UNCONFIGURED");
-  if (cloudru && !yandexEdge) {
-    // Cloud.ru CDNvideo only supports exact file paths, never owner wildcards.
-    const submitted = targets.keys.length
-      ? await beginCloudruCdnPurge(
-          scope as "gallery" | "feed",
-          targets.keys.map((key) => `/${key}`),
-          existing,
-          checkpoint,
-        )
+  if (cloudru && provider === "beget") {
+    // Beget path purge cannot safely infer old signed cache keys from a prefix.
+    // Keep deletion pending rather than silently leave cached private media.
+    const cacheable = targets.keys.filter(key =>
+      isBegetCacheableObjectKey(scope as "gallery" | "feed", key));
+    // Incoming sources, attempts, and HLS playlists are explicitly denied by
+    // both CDN Origins. Purge only keys which a CDN can have cached.
+    if (targets.prefixes.length && !cacheable.length && !targets.keys.length)
+      throw new Error("BEGET_CDN_EXACT_KEYS_REQUIRED");
+    const submitted = cacheable.length
+      ? await beginBegetCdnPurge(scope as "gallery" | "feed",
+          cacheable.map(key => `/${key}`), existing, checkpoint)
       : [...existing];
     if (!dual) return submitted;
     existing = submitted;
@@ -416,6 +415,12 @@ export async function accountCdnPurgeDone(
   for (let index = 0; index < operations.length; index++) {
     const operation = operations[index]!;
     if (operation.startsWith("done:")) continue;
+    if (operation.startsWith("beget:")) {
+      if (!(await begetCdnPurgeDone(operation))) return false;
+      confirmed[index] = `done:${operation}`;
+      await checkpoint?.(confirmed);
+      continue;
+    }
     if (operation.startsWith("cloudru:")) {
       if (!(await cloudruCdnPurgeDone(operation))) return false;
       confirmed[index] = `done:${operation}`;

@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { FeedSort } from "@gafus/types";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from "@/shared/config";
+import { Button } from "@/shared/components/ui";
 
 const options = [
   { key: "smart", label: "Для вас" },
@@ -17,17 +18,30 @@ export function FeedSortControl({ value, onChange, compact = false, smartEnabled
   const selected = visibleOptions.find(option => option.key === value) ?? visibleOptions[0]!;
 
   return <>
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Сортировка: ${selected.label}`}
-      accessibilityState={{ expanded: open }}
-      style={[styles.sortButton, compact && styles.sortButtonCompact]}
-      onPress={() => setOpen(true)}
-    >
-      <MaterialCommunityIcons name="swap-vertical" size={compact ? 17 : 20} color="#ECE5D2" />
-      <Text style={[styles.sortButtonText, compact && styles.sortButtonTextCompact]} numberOfLines={1}>Сортировка</Text>
-      <MaterialCommunityIcons name="chevron-down" size={compact ? 14 : 18} color="#ECE5D2" />
-    </Pressable>
+    <View style={styles.sortButton}>
+      <Button
+        label=" "
+        variant="primary"
+        accessibilityLabel={`Сортировка: ${selected.label}`}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(true)}
+        fullWidth
+        height={44}
+        horizontalPadding={0}
+        verticalPadding={0}
+        borderRadius={14}
+        style={styles.sortButtonBackground}
+        animatedPress
+      />
+      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+        style={[styles.sortButtonContent, compact && styles.sortButtonContentCompact]}>
+        <MaterialCommunityIcons name="swap-vertical" size={compact ? 17 : 20} color="#F6F0DF" />
+        <Text style={[styles.sortButtonText, compact && styles.sortButtonTextCompact]} numberOfLines={1}>
+          Сортировка
+        </Text>
+        <MaterialCommunityIcons name="chevron-down" size={compact ? 14 : 18} color="#F6F0DF" />
+      </View>
+    </View>
     <Modal visible={open} transparent animationType="fade"
       onRequestClose={() => setOpen(false)}>
       <Pressable style={styles.sortOverlay} onPress={() => setOpen(false)}
@@ -56,31 +70,22 @@ export function FeedSortControl({ value, onChange, compact = false, smartEnabled
 }
 
 const styles = StyleSheet.create({
-  sortButton: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 44,
+  sortButton: { flex: 1, minWidth: 0, height: 44, position: "relative" },
+  sortButtonBackground: { width: "100%", height: 44 },
+  sortButtonContent: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 0,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  sortButtonCompact: { paddingHorizontal: 7, gap: 3 },
+  sortButtonContentCompact: { paddingHorizontal: 7, gap: 3 },
   sortButtonText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: "600",
-    color: "#ECE5D2",
-    fontFamily: FONTS.montserrat,
+    fontWeight: "700",
+    color: "#F6F0DF",
+    fontFamily: FONTS.montserratBold,
   },
   sortButtonTextCompact: { fontSize: 11 },
   sortOverlay: {

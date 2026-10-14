@@ -8,6 +8,8 @@ import { Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { handlePrismaError } from "@gafus/core/errors";
+import { invalidateStepsContentCache } from "../training/trainingDayContent";
+import { publishCourseContentChange } from "../training/trainingContentRevision";
 import type {
   CreateStepInput,
   UpdateStepInput,
@@ -220,6 +222,8 @@ export async function updateStep(
       },
     });
 
+    invalidateStepsContentCache([input.id]);
+    await publishCourseContentChange();
     logger.info("Шаг обновлён", { stepId: input.id });
     return { success: true };
   } catch (error) {
@@ -258,6 +262,8 @@ export async function deleteSteps(
 
     await prisma.step.deleteMany({ where: { id: { in: input.stepIds } } });
 
+    invalidateStepsContentCache(input.stepIds);
+    await publishCourseContentChange();
     logger.info("Шаги удалены", { count: input.stepIds.length, stepIds: input.stepIds });
     return { success: true, imageUrls: allImageUrls };
   } catch (error) {
@@ -313,6 +319,8 @@ export async function removeStepImageUrl(
       where: { id: stepId },
       data: { imageUrls: nextUrls },
     });
+    invalidateStepsContentCache([stepId]);
+    await publishCourseContentChange();
     logger.info("Изображение шага удалено из записи", { stepId });
     return { success: true };
   } catch (error) {

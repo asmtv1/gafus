@@ -80,6 +80,9 @@ async function sendRenewalReminders(params: { batchSize?: number } | undefined, 
       if (row.user?.email) {
         await sendTransactionalMail({
           to: row.user.email,
+          category: "subscription",
+          maxQueueAgeMs: early ? 3 * 60 * 60_000 : 45 * 60_000,
+          deliveryKey: `subscription-${row.id}-${row.currentPeriodEnd.getTime()}-${early ? "early" : "late"}`,
           subject,
           text: `${message}\n\nУправлять подпиской и отключить автопродление можно в профиле: https://gafus.ru/profile`,
           html: `<p>${message}</p><p>Управлять подпиской и отключить автопродление можно <a href="https://gafus.ru/profile">в профиле</a>.</p>`,

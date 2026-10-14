@@ -79,7 +79,7 @@ export default function MainLayout() {
             }}
           >
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="gafus" options={{ headerShown: true, title: "Мои Гафусы" }} />
+            <Stack.Screen name="gafus" options={{ headerShown: false }} />
             <Stack.Screen name="gafus-guides" options={{ headerShown: true, title: "Мини-гайды" }} />
             <Stack.Screen
               name="partner"

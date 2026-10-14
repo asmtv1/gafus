@@ -1,4 +1,5 @@
 import { sendResendMail } from "./resend.js";
+import { enqueueTransactionalMail, mailOutboxEnabled } from "./outbox.js";
 import nodemailer from "nodemailer";
 import type { Attachment } from "nodemailer/lib/mailer/index.js";
 import type { Transporter } from "nodemailer";
@@ -14,6 +15,12 @@ export type { Attachment };
 
 export interface SendTransactionalMailInput {
   deliveryKey?: string;
+  /** Use "immediate" for security links/one-time codes; they must not arrive late. */
+  deliveryMode?: "immediate" | "deferred";
+  /** Deferred delivery stops completely after this many milliseconds. */
+  maxQueueAgeMs?: number;
+  /** Safe category name for aggregated admin monitoring (no user metadata). */
+  category?: "auth" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
   to: string | string[];
   subject: string;
   text: string;
@@ -58,6 +65,10 @@ export async function sendTransactionalMail(
   env: MailerEnv = mailerEnvFromProcess(),
 ): Promise<void> {
   if (env.provider === "resend") {
+    if (mailOutboxEnabled() && input.deliveryMode !== "immediate") {
+      await enqueueTransactionalMail(input);
+      return;
+    }
     await sendResendMail(input, env);
     return;
   }

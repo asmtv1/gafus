@@ -8,3 +8,5 @@ export async function checkCoreDatabaseReady(): Promise<void> {
 export async function disconnectCoreDatabase(): Promise<void> {
   await prisma.$disconnect();
 }
+
+export { getAdminMailDashboard, getAdminMailAlertCount } from "./mailAdminMonitoring";

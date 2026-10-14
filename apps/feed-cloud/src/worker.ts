@@ -83,8 +83,17 @@ export function createFeedCloudWorker(input: {
             await input.objects.download(sourceKey, source, 10 * 1024 * 1024, signal, job.sourceETag);
             const result = await processFeedImage(await readFile(source), input.engine);
             const thumbKey = prefix + "thumb.webp", fullKey = prefix + "full.webp";
-            await input.objects.create(thumbKey, result.thumb.bytes, "image/webp", signal);
-            await input.objects.create(fullKey, result.full.bytes, "image/webp", signal);
+            // The two immutable outputs are independent. Transfer and verify them
+            // concurrently to avoid paying the S3 PUT + HEAD latency twice.
+            // Keep both operations joined even on failure before reporting an
+            // unsuccessful attempt (subsequent claims are idempotent).
+            const outcomes = await Promise.allSettled([
+              input.objects.create(thumbKey, result.thumb.bytes, "image/webp", signal),
+              input.objects.create(fullKey, result.full.bytes, "image/webp", signal),
+            ]);
+            for (const outcome of outcomes) {
+              if (outcome.status === "rejected") throw outcome.reason;
+            }
             output = { width: result.full.width, height: result.full.height, thumbKey, fullKey };
           }
         }

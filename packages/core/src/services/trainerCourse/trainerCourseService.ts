@@ -7,6 +7,8 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { handlePrismaError } from "@gafus/core/errors";
+import { invalidateCourseContentCache } from "../training/trainingDayContent";
+import { publishCourseContentChange } from "../training/trainingContentRevision";
 import type {
   CreateTrainerCourseInput,
   UpdateTrainerCourseInput,
@@ -278,6 +280,8 @@ export async function updateCourse(
       { maxWait: 10000, timeout: 20000 },
     );
 
+    invalidateCourseContentCache(input.id);
+    await publishCourseContentChange();
     logger.info("Курс обновлён", { courseId: input.id });
     return { success: true };
   } catch (error) {
@@ -330,6 +334,8 @@ export async function deleteCourse(
     await prisma.dayOnCourse.deleteMany({ where: { courseId } });
     await prisma.course.delete({ where: { id: courseId } });
 
+    invalidateCourseContentCache(courseId);
+    await publishCourseContentChange();
     logger.info("Курс удалён", { courseId });
     return { success: true, logoImg: course.logoImg };
   } catch (error) {

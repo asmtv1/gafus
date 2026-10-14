@@ -9,6 +9,25 @@ datasource db {
 }
 
 // No relation to User: durable cleanup outlives all cascaded records.
+// Independent, durable Beget edge revocation for individual Gallery/Feed deletion.
+// No User/Post foreign keys: deletion jobs must outlive deleted records.
+model MediaCdnPurge {
+  id              String   @id
+  scope           String   @db.VarChar(10)
+  paths           String[]
+  purgeOperations String[] @default([])
+  status          String   @default("pending") @db.VarChar(20)
+  availableAt     DateTime @default(now())
+  attemptToken    String?
+  leaseUntil      DateTime?
+  attempts        Int      @default(0)
+  errorCode       String?  @db.VarChar(64)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, availableAt])
+}
+
 model AccountStorageCleanup {
   id              String @id
   ownerId         String
@@ -3750,6 +3769,29 @@ model TransactionalMailAttempt {
   @@index([createdAt])
 }
 
+// AES-256-GCM encrypted deferred transactional email. Never store plaintext
+// recipients, reset links or attachment contents in the database.
+model TransactionalMailOutbox {
+  id           String    @id
+  status       String    @default("PENDING")
+  ciphertext   String?
+  nonce        String?
+  authTag      String?
+  category     String    @default("general")
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  nextAttemptAt DateTime @default(now())
+  attempts     Int       @default(0)
+  leaseOwner   String?
+  leaseExpiresAt DateTime?
+  lastErrorCode String?
+  acceptedAt   DateTime?
+
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
+  @@index([expiresAt])
+}
+
 model TransactionalMailEvent {
   id                String   @id
   providerMessageId String
@@ -3759,4 +3801,12 @@ model TransactionalMailEvent {
   errorCode         String?
 
   @@index([providerMessageId, occurredAt])
+}
+
+
+// Durable course/lesson cache version, advanced transactionally by PostgreSQL
+// triggers on content tables; Redis publication is only a secondary signal.
+model CourseContentRevision {
+  id       Int    @id
+  revision BigInt @default(0)
 }

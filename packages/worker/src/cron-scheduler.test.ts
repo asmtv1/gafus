@@ -40,6 +40,15 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
   reconcileStaleYookassaPendingAppSubscriptions: mockReconcileStaleYookassaPendingAppSubscriptions,
 }));
 
+const mockProcessMailOutbox = vi.fn().mockResolvedValue({ processed: 0 });
+vi.mock("@gafus/mailer", () => ({
+  processDueTransactionalMailOutbox: (...args: unknown[]) => mockProcessMailOutbox(...args),
+}));
+const mockMonitorMailDelivery = vi.fn().mockResolvedValue(undefined);
+vi.mock("./mail-delivery-monitor", () => ({
+  monitorMailDelivery: (...args: unknown[]) => mockMonitorMailDelivery(...args),
+}));
+
 vi.mock("./training-reminders-sender", () => ({
   sendTrainingReminders: vi.fn().mockResolvedValue({ sent: 0, skipped: 0, errors: 0 }),
 }));
@@ -70,13 +79,31 @@ describe("cron-scheduler", () => {
   });
 
   describe("startCronJobs", () => {
-    it("регистрирует 7 базовых cron задач", async () => {
+    it("регистрирует 9 базовых cron задач", async () => {
       const { startCronJobs } = await import("./cron-scheduler");
 
       startCronJobs();
 
-      expect(mockSchedule).toHaveBeenCalledTimes(7);
+      expect(mockSchedule).toHaveBeenCalledTimes(9);
     }, 15_000);
+
+    it("runs the deferred email outbox every minute", async () => {
+      const { startCronJobs } = await import("./cron-scheduler");
+      startCronJobs();
+      const due = mockSchedule.mock.calls.find((call) => call[0] === "* * * * *" && call[2]?.timezone === "UTC");
+      expect(due).toBeDefined();
+      await due?.[1]();
+      await vi.waitFor(() => expect(mockProcessMailOutbox).toHaveBeenCalledWith({ batchSize: 10 }));
+    });
+
+    it("checks unresolved mail every 15 minutes", async () => {
+      const { startCronJobs } = await import("./cron-scheduler");
+      startCronJobs();
+      const mailCron = mockSchedule.mock.calls.find((call) => call[0] === "3,18,33,48 * * * *");
+      expect(mailCron).toBeDefined();
+      await mailCron?.[1]();
+      expect(mockMonitorMailDelivery).toHaveBeenCalledOnce();
+    });
 
     it("запускает reconciliation pending app subscription в cron подписок", async () => {
       const { startCronJobs } = await import("./cron-scheduler");

@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { createGalleryObjectStore, objectMd5, MAX_OBJECT_BYTES } from './objects';
 const key='albums/o/a/photos/p/full.webp', bytes=Buffer.from('webp-test');
-const config={bucket:'gallery-private-test',endpoint:'https://storage.yandexcloud.net',accessKeyId:'test',secretAccessKey:'test'};
+const config={bucket:'gallery-private-test',endpoint:'https://s3.cloud.ru',accessKeyId:'test',secretAccessKey:'test'};
 const meta={ETag:objectMd5(bytes),ContentLength:bytes.length,ContentType:'image/webp'};
 function store(send: ReturnType<typeof vi.fn>) { return createGalleryObjectStore(config,{send} as unknown as S3Client); }
 describe('fail-closed object snapshots and immutable writes',()=>{

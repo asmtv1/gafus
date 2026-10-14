@@ -10,48 +10,24 @@ import { TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { chatApi } from "@/shared/lib/api/cynologistChat";
-import { feedApi } from "@/shared/lib/api/feed";
 import { gafusApi } from "@/shared/lib/api/gafus";
 import { trackEvent } from "@/shared/lib/analytics";
+import { TourTarget } from "@/shared/lib/tour-targets";
 
 const SECTIONS = [
+  { name: "profile", title: "Профиль", image: require("../../../assets/images/tab-icons/profile.webp") },
+  { name: "pets", title: "Питомцы", image: require("../../../assets/images/tab-icons/pets.webp") },
   { name: "questions", title: "Вопросы", image: require("../../../assets/images/tab-icons/questions.png") },
-  {
-    name: "articles",
-    title: "Статьи",
-    image: require("../../../assets/images/tab-icons/articles.webp"),
-  },
-  {
-    name: "consultations",
-    title: "Кинолог",
-    image: require("../../../assets/images/tab-icons/cynologist.webp"),
-  },
+  { name: "gallery", title: "Фотоальбомы", image: require("../../../assets/images/tab-icons/albums.webp") },
   { name: "chat", title: "Чат", image: require("../../../assets/images/tab-icons/chat.webp") },
-  {
-    name: "gallery",
-    title: "Фотоальбомы",
-    image: require("../../../assets/images/tab-icons/albums.webp"),
-  },
-  {
-    name: "feed",
-    title: "Моменты",
-    image: require("../../../assets/images/tab-icons/feed.webp"),
-  },
-  {
-    name: "gafus",
-    title: "Мои Гафусы",
-    image: require("../../../assets/images/tab-icons/pets.webp"),
-  },
+  { name: "consultations", title: "Кинолог", image: require("../../../assets/images/tab-icons/cynologist.webp") },
+  { name: "articles", title: "Статьи", image: require("../../../assets/images/tab-icons/articles.webp") },
   {
     name: "reminders",
     title: "Напоминания о тренировках",
     image: require("../../../assets/images/profile-icons/reminders.webp"),
   },
-  {
-    name: "profile",
-    title: "Профиль",
-    image: require("../../../assets/images/tab-icons/profile.webp"),
-  },
+  { name: "gafus", title: "Мои Гафусы", image: require("../../../assets/images/tab-icons/pets.webp") },
 ] as const;
 
 export default function MoreScreen() {
@@ -61,13 +37,6 @@ export default function MoreScreen() {
     queryKey: ["more-chat-role", userId],
     queryFn: () => chatApi<CynologistChatStateDto>(),
     enabled: Boolean(userId),
-    retry: 1,
-  });
-  const feedState = useQuery({
-    queryKey: ["more-feed-ready", userId],
-    queryFn: () => feedApi.status(),
-    enabled: Boolean(userId),
-    staleTime: 30_000,
     retry: 1,
   });
   const gafusState = useQuery({
@@ -92,13 +61,12 @@ export default function MoreScreen() {
         />
         <View style={styles.menu}>
           {SECTIONS.filter(section =>
-            (section.name !== "feed" || feedState.data?.enabled === true) &&
-            (section.name !== "gafus" || gafusState.data?.enabled.economy === true)
+            section.name !== "gafus" || gafusState.data?.enabled.economy === true
           ).map((section, index) => {
             const isChat = section.name === "chat";
             const loading = isChat && chatState.isPending;
             const failed = isChat && chatState.isError;
-            return (
+            const menuRow = (
               <Pressable
                 key={section.name}
                 accessibilityRole="button"
@@ -169,6 +137,9 @@ export default function MoreScreen() {
                 />
               </Pressable>
             );
+            return section.name === "pets" ? (
+              <TourTarget id="menu-pets" key={section.name}>{menuRow}</TourTarget>
+            ) : menuRow;
           })}
         </View>
       </ScrollView>

@@ -8,11 +8,20 @@ import {
   getFeedClockOffsetMs,
   getFeedCompositionError,
   getFeedCommentError,
+  getFeedAuthorRoleBadge,
   isFeedReaction,
   type FeedTransport,
 } from "./feed";
 
 describe("feed contracts", () => {
+  it("shows privileged author badges only for ADMIN and TRAINER", () => {
+    expect(getFeedAuthorRoleBadge("ADMIN")).toBe("Администратор");
+    expect(getFeedAuthorRoleBadge("TRAINER")).toBe("Кинолог");
+    for (const role of ["USER", "MODERATOR", "PARTNER", "", null, undefined]) {
+      expect(getFeedAuthorRoleBadge(role)).toBeNull();
+    }
+  });
+
   it("matches agreed limits", () => {
     expect(FEED_LIMITS.postCharacters).toBe(5000);
     expect(FEED_LIMITS.maxAttachments).toBe(10);

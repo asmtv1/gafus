@@ -8,6 +8,12 @@ import {
   resolveCourseStepRewardedTarget,
 } from "./trainingService.ts";
 import { checkCourseAccess } from "../course";
+import { clearTrainingDayContentCache } from "./trainingDayContent";
+
+vi.mock("./trainingContentRevision", () => ({
+  courseContentSyncEnabled: () => true,
+  getVerifiedCourseContentRevision: async () => "0",
+}));
 
 const mockCourseFindFirst = vi.fn();
 const mockCheckCourseAccessById = vi.fn();
@@ -725,14 +731,181 @@ describe("getTrainingDayWithUserSteps", () => {
         },
       ],
     },
-    userTrainings: [] as { id: string; status: string; currentStepIndex: number }[],
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clearTrainingDayContentCache();
     vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
     mockCourseFindFirst.mockResolvedValue({ isPaid: false, isPrivate: true });
+    mockUserCourseFindUnique.mockResolvedValue(null);
+    mockUserTrainingFindUnique.mockResolvedValue(null);
     mockDayOnCourseFindMany.mockResolvedValue([{ order: 1, day: { type: "regular" } }]);
+  });
+
+  it("isolates content projection from viewer grants, progress and personalization", async () => {
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+
+    await getTrainingDayWithUserSteps("u1", "main", "doc-1");
+
+    const query = mockDayOnCourseFindFirst.mock.calls[0]?.[0];
+    expect(query.where).toEqual({ id: "doc-1", course: { type: "main" } });
+    expect(query.select.userTrainings).toBeUndefined();
+    expect(query.select.course.select.userCourses).toBeUndefined();
+    expect(query.select.day.select.stepLinks.select.step.select.description).toBe(true);
+    expect(mockUserCourseFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_courseId: { userId: "u1", courseId: "course-1" } },
+      }),
+    );
+    expect(mockUserTrainingFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_dayOnCourseId: { userId: "u1", dayOnCourseId: "doc-1" } },
+      }),
+    );
+  });
+
+  it("does not read user rows when no viewer is supplied", async () => {
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+
+    const result = await getTrainingDayWithUserSteps(undefined, "main", "doc-1");
+
+    expect(result?.steps[0].status).toBe("NOT_STARTED");
+    expect(mockUserCourseFindUnique).not.toHaveBeenCalled();
+    expect(mockUserTrainingFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("applies per-user names after reading shared lesson text", async () => {
+    mockDayOnCourseFindFirst.mockResolvedValue({
+      ...baseFoundDay,
+      course: { ...baseFoundDay.course, isPersonalized: true },
+      day: {
+        ...baseFoundDay.day,
+        title: "Привет, {{userName}}",
+        stepLinks: [
+          {
+            ...baseFoundDay.day.stepLinks[0],
+            step: {
+              ...baseFoundDay.day.stepLinks[0].step,
+              description: "{{petName}} начинает урок",
+            },
+          },
+        ],
+      },
+    });
+    mockUserCourseFindUnique.mockResolvedValue({
+      userDisplayName: "Ира",
+      userGender: "female",
+      petName: "Лайка",
+      petGender: "female",
+      petNameGen: null,
+      petNameDat: null,
+      petNameAcc: null,
+      petNameIns: null,
+      petNamePre: null,
+    });
+
+    const result = await getTrainingDayWithUserSteps("u1", "main", "doc-1");
+
+    expect(result?.title).toBe("Привет, Ира");
+    expect(result?.steps[0].description).toBe("Лайка начинает урок");
+  });
+
+  it("requires personalization before revealing a personalized lesson", async () => {
+    mockDayOnCourseFindFirst.mockResolvedValue({
+      ...baseFoundDay,
+      course: { ...baseFoundDay.course, isPersonalized: true },
+    });
+
+    await expect(getTrainingDayWithUserSteps("u1", "main", "doc-1")).rejects.toThrow(
+      "PERSONALIZATION_REQUIRED",
+    );
+  });
+
+  it("keeps current progress separate across viewers", async () => {
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+    mockUserTrainingFindUnique.mockImplementation(({ where }) =>
+      where.userId_dayOnCourseId.userId === "u1"
+        ? Promise.resolve({ id: "ut-1", status: "COMPLETED", currentStepIndex: 1 })
+        : Promise.resolve(null),
+    );
+    mockUserStepFindMany.mockResolvedValue([
+      {
+        id: "us-1",
+        stepOnDayId: "sl-1",
+        status: "COMPLETED",
+        paused: false,
+        remainingSec: null,
+      },
+    ]);
+
+    const first = await getTrainingDayWithUserSteps("u1", "main", "doc-1");
+    const second = await getTrainingDayWithUserSteps("u2", "main", "doc-1");
+
+    expect(first?.steps[0].status).toBe("COMPLETED");
+    expect(second?.steps[0].status).toBe("NOT_STARTED");
+    expect(first?.steps[0].title).toBe(second?.steps[0].title);
+  });
+
+  it("rechecks paid access on every viewer request even if content was cached", async () => {
+    const originalFlag = process.env.ENABLE_COURSE_CACHE;
+    process.env.ENABLE_COURSE_CACHE = "true";
+    try {
+      mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+      mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+      vi.mocked(checkCourseAccess)
+        .mockResolvedValueOnce({ hasAccess: true })
+        .mockResolvedValueOnce({ hasAccess: false });
+
+      const entitled = await getTrainingDayWithUserSteps("entitled", "main", "doc-1");
+      const denied = await getTrainingDayWithUserSteps("revoked", "main", "doc-1");
+
+      expect(entitled?.steps).toHaveLength(1);
+      expect(denied).toBeNull();
+      expect(mockDayOnCourseFindFirst).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalFlag === undefined) delete process.env.ENABLE_COURSE_CACHE;
+      else process.env.ENABLE_COURSE_CACHE = originalFlag;
+    }
+  });
+
+  it("keeps personalization different for users sharing one cached lesson", async () => {
+    const originalFlag = process.env.ENABLE_COURSE_CACHE;
+    process.env.ENABLE_COURSE_CACHE = "true";
+    try {
+      mockDayOnCourseFindFirst.mockResolvedValue({
+        ...baseFoundDay,
+        course: { ...baseFoundDay.course, isPersonalized: true },
+        day: {
+          ...baseFoundDay.day,
+          title: "Привет, {{userName}}",
+          stepLinks: [
+            {
+              ...baseFoundDay.day.stepLinks[0],
+              step: { ...baseFoundDay.day.stepLinks[0].step, description: "Общий текст" },
+            },
+          ],
+        },
+      });
+      mockUserCourseFindUnique.mockImplementation(({ where }) =>
+        Promise.resolve({
+          userDisplayName: where.userId_courseId.userId === "alice" ? "Алиса" : "Борис",
+          userGender: "male",
+          petName: "Пёс",
+          petGender: "male",
+        }),
+      );
+
+      const alice = await getTrainingDayWithUserSteps("alice", "main", "doc-1");
+      const boris = await getTrainingDayWithUserSteps("boris", "main", "doc-1");
+
+      expect(alice?.title).toBe("Привет, Алиса");
+      expect(boris?.title).toBe("Привет, Борис");
+      expect(mockDayOnCourseFindFirst).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalFlag === undefined) delete process.env.ENABLE_COURSE_CACHE;
+      else process.env.ENABLE_COURSE_CACHE = originalFlag;
+    }
   });
 
   it("returns null when access denied", async () => {
@@ -752,10 +925,7 @@ describe("getTrainingDayWithUserSteps", () => {
   });
 
   it("returns day with NOT_STARTED steps when no userTraining and no createIfMissing", async () => {
-    mockDayOnCourseFindFirst.mockResolvedValue({
-      ...baseFoundDay,
-      userTrainings: [],
-    });
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
 
     const result = await getTrainingDayWithUserSteps("u1", "main", "doc-1");
 
@@ -765,10 +935,7 @@ describe("getTrainingDayWithUserSteps", () => {
   });
 
   it("creates userTraining when createIfMissing:true and no existing training", async () => {
-    mockDayOnCourseFindFirst.mockResolvedValue({
-      ...baseFoundDay,
-      userTrainings: [],
-    });
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
     mockUserTrainingUpsert.mockResolvedValue({ id: "ut-1" });
     mockUserStepFindMany.mockResolvedValue([]);
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
@@ -792,9 +959,11 @@ describe("getTrainingDayWithUserSteps", () => {
   });
 
   it("returns steps with isPausedOnServer and remainingSecOnServer when paused", async () => {
-    mockDayOnCourseFindFirst.mockResolvedValue({
-      ...baseFoundDay,
-      userTrainings: [{ id: "ut-1", status: "IN_PROGRESS", currentStepIndex: 0 }],
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+    mockUserTrainingFindUnique.mockResolvedValue({
+      id: "ut-1",
+      status: "IN_PROGRESS",
+      currentStepIndex: 0,
     });
     mockUserStepFindMany.mockResolvedValue([
       {
@@ -813,9 +982,11 @@ describe("getTrainingDayWithUserSteps", () => {
   });
 
   it("falls back to findMany without paused/remainingSec when first findMany throws", async () => {
-    mockDayOnCourseFindFirst.mockResolvedValue({
-      ...baseFoundDay,
-      userTrainings: [{ id: "ut-1", status: "IN_PROGRESS", currentStepIndex: 0 }],
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+    mockUserTrainingFindUnique.mockResolvedValue({
+      id: "ut-1",
+      status: "IN_PROGRESS",
+      currentStepIndex: 0,
     });
     mockUserStepFindMany
       .mockRejectedValueOnce(new Error("column not found"))
@@ -827,9 +998,11 @@ describe("getTrainingDayWithUserSteps", () => {
   });
 
   it("refreshes steps after P2002 on transaction in missing-step creation", async () => {
-    mockDayOnCourseFindFirst.mockResolvedValue({
-      ...baseFoundDay,
-      userTrainings: [{ id: "ut-1", status: "NOT_STARTED", currentStepIndex: 0 }],
+    mockDayOnCourseFindFirst.mockResolvedValue(baseFoundDay);
+    mockUserTrainingFindUnique.mockResolvedValue({
+      id: "ut-1",
+      status: "NOT_STARTED",
+      currentStepIndex: 0,
     });
     mockUserStepFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {

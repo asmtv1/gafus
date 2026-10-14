@@ -40,3 +40,5 @@ export {
   signPrivateUserMedia,
   deletePrivateUserMedia,
 } from "./privateUserMedia";
+
+export { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";

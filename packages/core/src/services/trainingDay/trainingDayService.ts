@@ -7,6 +7,8 @@ import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { handlePrismaError } from "@gafus/core/errors";
+import { invalidateTrainingDaysContentCache } from "../training/trainingDayContent";
+import { publishCourseContentChange } from "../training/trainingContentRevision";
 import type {
   CreateTrainingDayInput,
   UpdateTrainingDayInput,
@@ -119,6 +121,8 @@ export async function updateTrainingDay(
         },
       },
     });
+    invalidateTrainingDaysContentCache([input.id]);
+    await publishCourseContentChange();
     logger.info("Тренировочный день обновлён", { dayId: input.id });
     return { success: true };
   } catch (error) {
@@ -161,6 +165,8 @@ export async function deleteDays(input: DeleteDaysInput): Promise<DeleteDaysResu
       prisma.trainingDay.deleteMany({ where: { id: { in: input.dayIds } } }),
     ]);
 
+    invalidateTrainingDaysContentCache(input.dayIds);
+    await publishCourseContentChange();
     logger.info("Тренировочные дни удалены", {
       count: input.dayIds.length,
       dayIds: input.dayIds,

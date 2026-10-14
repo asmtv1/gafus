@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { enqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
 import { GALLERY_LIMITS as L } from "../../../../types/src/gallery";
 import type { GalleryContext } from "./context";
 import { requireGalleryEnabled, galleryTransaction, outputHeads } from "./context";
@@ -645,6 +646,9 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
           const heads = await Promise.all(job.sourceKeys.map((k) => ctx.storage.head(k)));
           if (heads.some(Boolean))
             throw new GalleryError("CLEANUP_INCOMPLETE", "Объекты ещё не удалены", 409);
+          // The S3 delete and CDN purge outbox must be in the same callback
+          // transaction as completion; losing a callback is safely retryable.
+          await enqueueDeletedMediaPurge(tx, "gallery", job.id, job.sourceKeys);
         } else {
           const heads = await outputHeads(ctx, job.targetKeys);
           const sources = await outputHeads(ctx, job.sourceKeys);

@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 describe("signed CDN image fallback in Web", () => {
   it("uses authorized S3 immediately on server outage status, without CDN attempt", async () => {
-    const serverSigned = `https://gallery-dev.gafus.ru/albums/a/b/photos/c/thumb.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const serverSigned = `https://mepsuduyokabib.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/a/b/photos/c/thumb.webp`;
     const s3 = "https://s3.cloud.ru/gafus-gallery-private/asset?X-Amz-Signature=fresh";
     prefers.mockResolvedValue(true);
     const fallback = vi.fn(async () => ({ url: s3 }));
@@ -61,7 +61,7 @@ describe("signed CDN image fallback in Web", () => {
     }
   });
   it("starts subsequent signed Gallery images directly on fresh S3 links after 504", async () => {
-    const signedSource = `https://gallery-dev.gafus.ru/albums/owner/album/photos/item/full.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const signedSource = `https://mepsuduyokabib.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/item/full.webp`;
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 504 })));
     expect(await probeCdnOutage(signedSource, { fetcher: fetch })).toBe(true);
     vi.mocked(fetch).mockClear();

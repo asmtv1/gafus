@@ -6,6 +6,7 @@ export interface GalleryStorageConfig {
   secretAccessKey: string;
   cdnBaseUrl: string;
   cdnSecret: string;
+  cdnProvider?: "beget";
 }
 export function galleryStorageConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
@@ -20,12 +21,15 @@ export function galleryStorageConfigFromEnv(
   const config = {
     enabled,
     bucket: env.GALLERY_BUCKET ?? "",
-    endpoint: env.GALLERY_S3_ENDPOINT ?? "https://storage.yandexcloud.net",
+    endpoint: env.GALLERY_S3_ENDPOINT ?? "https://s3.cloud.ru",
     accessKeyId: env.GALLERY_S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: env.GALLERY_S3_SECRET_ACCESS_KEY ?? "",
     cdnBaseUrl: env.GALLERY_CDN_BASE_URL ?? "",
     cdnSecret: env.GALLERY_CDN_SECRET ?? "",
+    cdnProvider: env.GALLERY_CDN_PROVIDER as "beget" | undefined,
   };
+  if (config.cdnProvider !== undefined && config.cdnProvider !== "beget")
+    throw new Error("INVALID_GALLERY_CDN_PROVIDER");
   // Cleanup still needs standalone storage credentials even with the product flag off.
   if (enabled) {
     validateGalleryObjectConfig(config);
@@ -39,13 +43,12 @@ export function galleryStorageConfigFromEnv(
       url.hash ||
       url.username ||
       url.password ||
-      !url.hostname.includes(".") ||
-      /localhost|yandexcloud\.net$/.test(url.hostname)
+      url.hostname !== "mepsuduyokabib.begetcdn.cloud"
     )
       throw new Error("UNSAFE_CDN_URL");
     config.cdnBaseUrl = url.origin;
     if (
-      !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret) ||
+      !/^[A-Za-z0-9_-]{24,128}$/.test(config.cdnSecret) ||
       !env.GALLERY_INTERNAL_BASE_URL ||
       !env.GALLERY_INTERNAL_HMAC_SECRET ||
       Buffer.byteLength(env.GALLERY_INTERNAL_HMAC_SECRET) < 32 ||
@@ -74,7 +77,7 @@ export function validateGalleryObjectConfig(
     /^(gafus-media|gafus-public)$/.test(c.bucket) ||
     !c.accessKeyId ||
     !c.secretAccessKey ||
-    !["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(c.endpoint)
+    c.endpoint !== "https://s3.cloud.ru"
   )
     throw new Error("UNSAFE_GALLERY_STORAGE_CONFIG");
 }

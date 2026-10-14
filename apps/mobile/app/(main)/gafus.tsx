@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { ScrollView, View, Text, Pressable, StyleSheet, RefreshControl } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, type Href } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { StatusBar } from "expo-status-bar";
+import { AppBackButton, TexturedSafeAreaView } from "@/shared/components";
 import { Loading } from "@/shared/components/ui";
 import { COLORS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
@@ -23,6 +24,22 @@ const TITLES: Record<string, string> = {
 };
 const nameOf = (item: GafusHistoryEntry) =>
   TITLES[item.rewardKind ?? item.kind] ?? "Операция";
+
+/** Keep the sky texture continuous beneath the status bar and the page header. */
+function GafusPage({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
+  return (
+    <TexturedSafeAreaView style={styles.screen} edges={["top"]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <View style={styles.pageHeader}>
+        <AppBackButton onPress={() => router.back()} />
+        <Text style={styles.pageTitle}>Мои Гафусы</Text>
+      </View>
+      {children}
+    </TexturedSafeAreaView>
+  );
+}
 
 export default function GafusScreen() {
   const router = useRouter();
@@ -59,22 +76,35 @@ export default function GafusScreen() {
     }
   }, [cursor, history.data?.nextCursor, moreLoading]);
 
-  if (status.isPending || history.isPending) return <Loading fullScreen message="Загружаем Гафусы" />;
+  if (status.isPending || history.isPending) {
+    return (
+      <GafusPage>
+        <Loading fullScreen embedded message="Загружаем Гафусы" />
+      </GafusPage>
+    );
+  }
   if (status.isError || history.isError || !status.data || !history.data) {
-    return <TexturedSafeAreaView style={styles.screen} edges={[]}>
+    return <GafusPage>
       <View style={styles.error}><Text style={styles.errorText}>Не удалось загрузить Гафусы</Text>
         <Pressable style={styles.button} onPress={() => void refresh()} accessibilityRole="button">
           <Text style={styles.buttonText}>Повторить</Text>
         </Pressable>
       </View>
-    </TexturedSafeAreaView>;
+    </GafusPage>;
   }
   const data = status.data;
   const allItems = [...history.data.items, ...items];
   const canMore = cursor === undefined ? history.data.nextCursor !== null : cursor !== null;
-  return <TexturedSafeAreaView style={styles.screen} edges={[]}>
-    <ScrollView contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={status.isRefetching || history.isRefetching} onRefresh={() => void refresh()} />}>
+  return <GafusPage>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={status.isRefetching || history.isRefetching}
+          onRefresh={() => void refresh()}
+        />
+      }
+    >
       <View style={styles.balanceCard}>
         <View style={styles.balanceTitle}><MaterialCommunityIcons name="paw" size={27} color="#738453" />
           <Text style={styles.balanceHeading}>Мои Гафусы</Text></View>
@@ -83,17 +113,25 @@ export default function GafusScreen() {
       </View>
       <View style={styles.card}>
         <Text style={styles.title}>Зарабатывайте за активность</Text>
-        <Text style={styles.description}>Публикуйте посты, задавайте вопросы и помогайте другим. За 24 часа можно получить до {data.activity.limit} Гафусов.</Text>
+        <Text style={styles.description}>
+          Публикуйте посты, задавайте вопросы и помогайте другим. За 24 часа можно получить до{" "}
+          {data.activity.limit} Гафусов.
+        </Text>
         <Text style={styles.highlight}>Осталось получить: {data.activity.remaining}</Text>
       </View>
       <View style={styles.card}>
         <Text style={styles.title}>Открывайте обучение</Text>
-        <Text style={styles.description}>Шаг курса — {data.rules.courseStepCost} Гафус, мини-гайд — {data.rules.miniGuideCost}. Доступ на {Math.round(data.rules.accessDurationSeconds / 86400)} дней.</Text>
+        <Text style={styles.description}>
+          Шаг курса — {data.rules.courseStepCost} Гафус, мини-гайд — {data.rules.miniGuideCost}.
+          Доступ на {Math.round(data.rules.accessDurationSeconds / 86400)} дней.
+        </Text>
       </View>
       <Pressable style={styles.button} onPress={() => router.push("/(main)/gafus-guides" as Href)}>
         <Text style={styles.buttonText}>Смотреть мини-гайды →</Text>
       </Pressable>
-      {!data.enabled.economy && <Text style={styles.note}>Система мотивации пока не включена.</Text>}
+      {!data.enabled.economy && (
+        <Text style={styles.note}>Система мотивации пока не включена.</Text>
+      )}
       <View style={styles.historyCard}>
         <Text style={styles.title}>История операций</Text>
         {allItems.length ? allItems.map(item =>
@@ -105,16 +143,32 @@ export default function GafusScreen() {
             </Text>
           </View>
         ) : <Text style={styles.description}>Пока нет операций. Первый Гафус ещё впереди!</Text>}
-        {canMore && <Pressable disabled={moreLoading} style={styles.button} onPress={() => void loadMore()}>
-          <Text style={styles.buttonText}>{moreLoading ? "Загрузка…" : "Показать ещё"}</Text>
-        </Pressable>}
+        {canMore && (
+          <Pressable disabled={moreLoading} style={styles.button} onPress={() => void loadMore()}>
+            <Text style={styles.buttonText}>{moreLoading ? "Загрузка…" : "Показать ещё"}</Text>
+          </Pressable>
+        )}
       </View>
     </ScrollView>
-  </TexturedSafeAreaView>;
+  </GafusPage>;
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.background },
+  pageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: 68,
+  },
+  pageTitle: {
+    flexShrink: 1,
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
   content: { padding: SPACING.md, paddingBottom: 44, gap: 12 },
   balanceCard: { backgroundColor: "#FFF3D1", borderColor: "#EED9A4", borderWidth: 1, borderRadius: 20, padding: 23, alignItems: "center", gap: 6 },
   balanceTitle: { flexDirection: "row", alignItems: "center", gap: 10 },

@@ -1,3 +1,4 @@
+import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
 import { GALLERY_LIMITS as L } from "../../../../types/src/gallery";
 import type { GalleryAlbumDto, GalleryPhotoDto, GalleryUploadDto } from "@gafus/types";
 import type { AlbumRow, PhotoRow, UploadRow } from "./persistence";
@@ -48,7 +49,7 @@ export async function photoDto(
     : null;
   const visible =
     !row.deletedAt && ["ready", "moving"].includes(row.status) && row.thumbKey && row.fullKey;
-  const expires = visible ? new Date(ctx.now().getTime() + L.urlSeconds * 1000) : null;
+  const expires = visible ? stableMediaExpiry(ctx.now(), L.urlSeconds) : null;
   const [thumbUrl, fullUrl] =
     visible && expires
       ? await Promise.all([
@@ -86,7 +87,7 @@ export async function albumDto(
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   const cover = photos.find((p) => p.id === row.coverPhotoId) ?? photos[0];
-  const expires = cover?.thumbKey ? new Date(ctx.now().getTime() + L.urlSeconds * 1000) : null;
+  const expires = cover?.thumbKey ? stableMediaExpiry(ctx.now(), L.urlSeconds) : null;
   return {
     id: row.id,
     ownerId: row.ownerId,

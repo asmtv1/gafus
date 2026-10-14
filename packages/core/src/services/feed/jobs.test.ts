@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FeedDb } from "./ports";
 import { createFeedStorageJobs } from "./jobs";
 
@@ -23,9 +23,10 @@ const output = {
 };
 function mockDb(options: {
   stale?: boolean; deleted?: boolean; mediaStatus?: string; pending?: boolean;
-  attempts?: number;
+  attempts?: number; kind?: "publish_photo" | "delete_keys" | "cleanup_source"; sourceKeys?: string[];
 } = {}) {
-  const j = { ...job, attempts: options.attempts ?? job.attempts };
+  const j = { ...job, attempts: options.attempts ?? job.attempts,
+    kind: options.kind ?? job.kind, sourceKeys: options.sourceKeys ?? job.sourceKeys };
   const updates = vi.fn(async () => ({ count: 1 }));
   const mediaUpdate = vi.fn(async () => ({}));
   const published = vi.fn(async () => ({}));
@@ -41,6 +42,7 @@ function mockDb(options: {
       updateMany: updates, upsert: vi.fn(async () => ({})),
     },
     $queryRaw: vi.fn(async () => [{ id: "post_1" }]),
+    $executeRaw: vi.fn(async () => 1),
     feedPost: { findUnique: vi.fn(async () => post), update: published, updateMany: vi.fn(async () => ({ count: 1 })) },
     feedPoll: { findUnique: vi.fn(async () => null) },
     feedMediaAsset: { findFirst: vi.fn(async () => media), update: mediaUpdate, updateMany: vi.fn(async () => ({ count: 1 })) },
@@ -62,6 +64,7 @@ function mockDb(options: {
   } as unknown as FeedDb;
   return { worker: createFeedStorageJobs({ db, now: () => now }), db, tx, updates, mediaUpdate, published };
 }
+afterEach(() => vi.unstubAllEnvs());
 describe("feed processing job lease and fencing", () => {
   it("issues a lease token atomically and restricts claims to 20", async () => {
     const { worker, updates } = mockDb();
@@ -107,6 +110,29 @@ describe("feed processing job lease and fencing", () => {
     expect(tx.feedPostRevision.update).toHaveBeenCalled();
     expect(updates).toHaveBeenLastCalledWith(expect.objectContaining({
       data: { status: "completed", attemptToken: null, leaseUntil: null },
+    }));
+  });
+  it("atomically enqueues Beget CDN purge after an authorized individual S3 delete callback", async () => {
+    vi.stubEnv("FEED_CDN_PROVIDER", "beget");
+    vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
+    const key = "posts/alice/post_1/attachments/asset_1/full.webp";
+    const { worker, tx, updates } = mockDb({ kind: "delete_keys", sourceKeys: [key] });
+    expect(await worker.complete(job.id, job.attemptToken)).toEqual({ accepted: true });
+    expect(tx.$executeRaw).toHaveBeenCalledOnce();
+    expect(vi.mocked(tx.$executeRaw).mock.calls[0]!.slice(1)).toEqual([
+      "feed:job_1", "feed", ["/" + key],
+    ]);
+    expect(updates).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: { status: "completed", attemptToken: null, leaseUntil: null },
+    }));
+  });
+  it("never terminalises private object deletion after the fifth failed attempt", async () => {
+    const { worker, tx, updates } = mockDb({ kind: "delete_keys", attempts: 5 });
+    expect(await worker.claim(1)).toHaveLength(1);
+    expect(tx.feedMediaAsset.updateMany).not.toHaveBeenCalled();
+    expect(await worker.fail(job.id, job.attemptToken)).toEqual({ accepted: true });
+    expect(updates).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "pending" }),
     }));
   });
   it("terminalises jobs whose final leased attempt crashed", async () => {

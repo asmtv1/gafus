@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import {
   createFeedStorage,
   feedStorageConfigFromEnv,
@@ -9,10 +10,10 @@ const key = "posts/user/post/attachments/media/full.webp";
 const config: FeedStorageConfig = {
   enabled: true,
   bucket: "gafus-private-test",
-  endpoint: "https://storage.yandexcloud.net",
+  endpoint: "https://s3.cloud.ru",
   accessKeyId: "test-access",
   secretAccessKey: "test-secret",
-  cdnBaseUrl: "https://cdn.example.com",
+  cdnBaseUrl: "https://garaquachegasourn.begetcdn.cloud",
   cdnSecret: "a".repeat(24),
 };
 describe("feed storage", () => {
@@ -71,14 +72,14 @@ describe("feed storage", () => {
       );
     }
   });
-  it("signs only final objects for at most 120 seconds", () => {
+  it("signs only final objects for at most 360 seconds", () => {
     const now = 1_800_000_000_000;
     const url = new URL(
-      signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + 120_000), config.cdnSecret, now),
+      signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + 300_000), config.cdnSecret, now),
     );
-    expect(url.pathname).toBe("/" + key);
-    expect(url.searchParams.get("md5")).toMatch(/^[A-Za-z0-9_-]{22}$/);
-    for (const delta of [0, -1000, 121_000])
+    expect(url.pathname).toMatch(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/posts\//);
+    expect(url.search).toBe("");
+    for (const delta of [0, -1000, 361_000])
       expect(() =>
         signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + delta), config.cdnSecret, now),
       ).toThrow();
@@ -91,6 +92,21 @@ describe("feed storage", () => {
         now,
       ),
     ).toThrow();
+  });
+  it("generates independently verifiable Beget/CDNvideo segment and photo signatures", () => {
+    const now = 1_800_000_000_000;
+    const expires = Math.floor(now / 1000) + 300;
+    const url = new URL(signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud", key,
+      new Date(expires * 1000), config.cdnSecret, now));
+    const expected = createHash("md5").update(`${config.cdnSecret}/${key}${expires}`).digest("base64url");
+    expect(url.pathname).toBe(`/md5(${expected},${expires})/${key}`);
+    expect(url.search).toBe("");
+    expect(() => signFeedCdnUrl("https://other.begetcdn.cloud", key,
+      new Date(expires * 1000), config.cdnSecret, now)).toThrow("UNSAFE_FEED_CDN");
+    expect(() => signFeedCdnUrl("https://cdn.example.com", key,
+      new Date(expires * 1000), config.cdnSecret, now, "beget")).toThrow("UNSAFE_FEED_CDN");
+    expect(() => signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud",
+      "posts/user/post/incoming/upload/source.mp4", new Date(expires * 1000), config.cdnSecret, now)).toThrow();
   });
   it.each([
     "http://cdn.example.com",
@@ -168,7 +184,7 @@ describe("feed storage", () => {
       maxBytes,
       expiresAt: new Date(Date.now() + 60_000),
     });
-    expect(signed.url).toBe("https://storage.yandexcloud.net/gafus-private-test");
+    expect(signed.url).toBe("https://s3.cloud.ru/gafus-private-test");
     const policy = JSON.parse(Buffer.from(signed.fields.Policy, "base64").toString());
     expect(policy.conditions).toEqual(
       expect.arrayContaining([

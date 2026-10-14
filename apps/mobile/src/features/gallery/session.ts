@@ -60,7 +60,12 @@ export function clearGallerySession() {
     void client.cancelQueries({ queryKey: ["gallery"] });
     client.removeQueries({ queryKey: ["gallery"] });
   }
+  // Signed Gallery/Feed media are now eligible for Expo's native disk cache.
+  // Remove *physical* cached bytes on logout/account switch, not only React
+  // query references or decoded memory pixels. This affects Expo's shared
+  // image cache (including public images), intentionally favoring privacy.
   void Image.clearMemoryCache().catch(() => undefined);
+  void Image.clearDiskCache().catch(() => undefined);
 }
 
 // Register once when the gallery feature loads, without importing authStore here.

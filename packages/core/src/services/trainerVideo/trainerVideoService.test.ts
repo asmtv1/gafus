@@ -3,6 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const prismaMocks = vi.hoisted(() => ({
   create: vi.fn(),
   findMany: vi.fn(),
+  stepFindMany: vi.fn(),
+  stepUpdateMany: vi.fn(),
+  stepTemplateUpdateMany: vi.fn(),
+  videoDelete: vi.fn(),
+  invalidateSteps: vi.fn(),
+}));
+
+vi.mock("../training/trainingDayContent", () => ({
+  invalidateStepsContentCache: prismaMocks.invalidateSteps,
 }));
 
 vi.mock("@gafus/prisma", () => ({
@@ -10,6 +19,14 @@ vi.mock("@gafus/prisma", () => ({
     trainerVideo: {
       create: prismaMocks.create,
       findMany: prismaMocks.findMany,
+      delete: prismaMocks.videoDelete,
+    },
+    step: {
+      findMany: prismaMocks.stepFindMany,
+      updateMany: prismaMocks.stepUpdateMany,
+    },
+    stepTemplate: {
+      updateMany: prismaMocks.stepTemplateUpdateMany,
     },
   },
 }));
@@ -32,7 +49,11 @@ vi.mock("@gafus/video-access", () => ({
   getVideoAccessService: vi.fn(),
 }));
 
-import { getTrainerVideos, registerTrainerVideo } from "./trainerVideoService";
+import {
+  deleteTrainerVideoRecord,
+  getTrainerVideos,
+  registerTrainerVideo,
+} from "./trainerVideoService";
 
 const TWO_POINT_ONE_GIB = Math.ceil(2.1 * 1024 * 1024 * 1024);
 const now = new Date("2026-07-13T00:00:00.000Z");
@@ -91,5 +112,46 @@ describe("trainer video file size", () => {
     await expect(getTrainerVideos("trainer-1")).resolves.toEqual([
       expect.objectContaining({ fileSize: TWO_POINT_ONE_GIB }),
     ]);
+  });
+});
+
+describe("video deletion invalidates affected cached lesson steps", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMocks.stepFindMany.mockResolvedValue([{ id: "step-a" }, { id: "step-b" }]);
+    prismaMocks.stepUpdateMany.mockResolvedValue({ count: 2 });
+    prismaMocks.stepTemplateUpdateMany.mockResolvedValue({ count: 0 });
+    prismaMocks.videoDelete.mockResolvedValue({});
+  });
+
+  it("invalidates all reused steps as soon as their video URLs are changed", async () => {
+    const result = await deleteTrainerVideoRecord("video-1", "https://cdn/video-1");
+
+    expect(result.success).toBe(true);
+    expect(prismaMocks.stepFindMany).toHaveBeenCalledWith({
+      where: {
+        OR: [{ videoUrl: { contains: "video-1" } }, { videoUrl: "https://cdn/video-1" }],
+      },
+      select: { id: true },
+    });
+    expect(prismaMocks.invalidateSteps).toHaveBeenCalledExactlyOnceWith(["step-a", "step-b"]);
+  });
+
+  it("does not invalidate when the DB step update fails", async () => {
+    prismaMocks.stepUpdateMany.mockRejectedValueOnce(new Error("db down"));
+
+    const result = await deleteTrainerVideoRecord("video-1", "https://cdn/video-1");
+
+    expect(result.success).toBe(false);
+    expect(prismaMocks.invalidateSteps).not.toHaveBeenCalled();
+  });
+
+  it("invalidates after step mutation even when later video deletion fails", async () => {
+    prismaMocks.videoDelete.mockRejectedValueOnce(new Error("delete failed"));
+
+    const result = await deleteTrainerVideoRecord("video-1", "https://cdn/video-1");
+
+    expect(result.success).toBe(false);
+    expect(prismaMocks.invalidateSteps).toHaveBeenCalledExactlyOnceWith(["step-a", "step-b"]);
   });
 });

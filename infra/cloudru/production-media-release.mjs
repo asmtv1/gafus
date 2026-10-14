@@ -46,8 +46,12 @@ for (const name of [
   if ((e[name] ?? "").length < 10) throw Error("MISSING_RELEASE_ENV_" + name);
 if (e.CLOUDRU_S3_ENDPOINT !== "https://s3.cloud.ru" || !/^[a-f0-9]{40}$/.test(e.GITHUB_SHA))
   throw Error("UNEXPECTED_RELEASE_ENDPOINT_OR_SHA");
-for (const name of ["GALLERY_CDN_SECRET", "FEED_CDN_SECRET"])
-  if (!/^[A-Za-z0-9_-]{24,32}$/.test(e[name])) throw Error("INVALID_SIGNER_" + name);
+// Preserve existing production CDNvideo signing values; Gallery may be longer.
+for (const name of ["GALLERY_CDN_SECRET", "FEED_CDN_SECRET"]) {
+  const format = name === "GALLERY_CDN_SECRET"
+    ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/;
+  if (!format.test(e[name])) throw Error("INVALID_SIGNER_" + name);
+}
 for (const name of [
   "GALLERY_ORIGIN_SECRET",
   "FEED_ORIGIN_SECRET",
@@ -110,9 +114,7 @@ for (const x of resources) {
       item.name === "FEED_RUN_ONCE"
         ? "true"
         : item.name === "FEED_WORKER_TYPE"
-          ? x.name.endsWith("video")
-            ? "video"
-            : "photo"
+          ? item.value
           : values[item.name];
     if (value == null) throw Error("UNBOUND_MEDIA_ENV_" + item.name);
     return { name: item.name, value };

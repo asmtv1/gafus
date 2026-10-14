@@ -13,7 +13,7 @@ export const FEED_LIMITS = {
   maxPageSize: 50,
   uploadUrlSeconds: 600,
   reservationSeconds: 900,
-  mediaUrlSeconds: 120,
+  mediaUrlSeconds: 300,
   pendingDraftSeconds: 24 * 60 * 60,
   reactionBatchSeconds: 10 * 60,
   viewVisibleFraction: 0.5,
@@ -64,6 +64,15 @@ export interface FeedAuthorDto {
   username: string;
   name: string;
   avatarUrl: string | null;
+  /** Only elevated author roles are exposed on publication cards. Older APIs may omit it. */
+  role?: "ADMIN" | "TRAINER" | null;
+}
+
+/** Only administrators and dog trainers have a public role badge in Moments. */
+export function getFeedAuthorRoleBadge(role: string | null | undefined): "Администратор" | "Кинолог" | null {
+  if (role === "ADMIN") return "Администратор";
+  if (role === "TRAINER") return "Кинолог";
+  return null;
 }
 
 export interface FeedReactionCountDto {

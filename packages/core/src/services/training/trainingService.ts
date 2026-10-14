@@ -17,6 +17,7 @@ import {
 } from "../rewardedCredits";
 import { calculateCourseStatusFromDayStatuses } from "../../utils/training";
 import { replacePersonalizationPlaceholders } from "../../utils/personalization";
+import { getTrainingDayContent } from "./trainingDayContent";
 
 import type {
   ChecklistQuestion,
@@ -519,96 +520,43 @@ export async function getTrainingDayWithUserSteps(
   if (!(await courseAllowsTrainingDetails(courseType, userId))) {
     return null;
   }
-  const userIdForQuery = userId ?? "";
-
-  const found = await prisma.dayOnCourse.findFirst({
-    where: {
-      id: dayOnCourseId,
-      course: { type: courseType },
-    },
-    select: {
-      id: true,
-      order: true,
-      courseId: true,
-      course: {
-        select: {
-          duration: true,
-          isPersonalized: true,
-          userCourses: {
-            where: { userId: userIdForQuery },
-            select: {
-              userDisplayName: true,
-              userGender: true,
-              petName: true,
-              petGender: true,
-              petNameGen: true,
-              petNameDat: true,
-              petNameAcc: true,
-              petNameIns: true,
-              petNamePre: true,
-            },
-            take: 1,
-          },
-        },
-      },
-      day: {
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          type: true,
-          showCoursePathExport: true,
-          stepLinks: {
-            orderBy: { order: "asc" },
-            select: {
-              id: true,
-              order: true,
-              step: {
-                select: {
-                  id: true,
-                  title: true,
-                  description: true,
-                  durationSec: true,
-                  estimatedDurationSec: true,
-                  videoUrl: true,
-                  imageUrls: true,
-                  pdfUrls: true,
-                  type: true,
-                  checklist: true,
-                  requiresVideoReport: true,
-                  requiresWrittenFeedback: true,
-                  hasTestQuestions: true,
-                  surveySlug: true,
-                },
-              },
-            },
-          },
-        },
-      },
-      userTrainings: {
-        where: { userId: userIdForQuery },
-        select: {
-          id: true,
-          status: true,
-          currentStepIndex: true,
-        },
-        take: 1,
-      },
-    },
-  });
-
+  // Only shared, user-independent content is read here. Access was checked above.
+  const found = await getTrainingDayContent(courseType, dayOnCourseId);
   if (!found) return null;
+
+  // Entitlement, progress and personalization are deliberately never part of
+  // the shared content read; these queries must stay fresh for every viewer.
+  const [userCourse, userTraining] = userId
+    ? await Promise.all([
+        prisma.userCourse.findUnique({
+          where: { userId_courseId: { userId, courseId: found.courseId } },
+          select: {
+            userDisplayName: true,
+            userGender: true,
+            petName: true,
+            petGender: true,
+            petNameGen: true,
+            petNameDat: true,
+            petNameAcc: true,
+            petNameIns: true,
+            petNamePre: true,
+          },
+        }),
+        prisma.userTraining.findUnique({
+          where: { userId_dayOnCourseId: { userId, dayOnCourseId: found.id } },
+          select: { id: true, status: true, currentStepIndex: true },
+        }),
+      ])
+    : [null, null];
 
   const {
     id: foundDayOnCourseId,
     order: physicalOrder,
     courseId,
-    course: { duration: courseDuration, isPersonalized, userCourses },
+    course: { duration: courseDuration, isPersonalized },
     day: { id: trainingDayId, title, description, type, stepLinks, showCoursePathExport },
-    userTrainings,
   } = found;
 
-  const userCourse = userCourses[0] ?? null;
   const hasPersonalization =
     userCourse?.userDisplayName != null && String(userCourse.userDisplayName).trim() !== "";
   const requiresPersonalization = Boolean(isPersonalized) && !hasPersonalization;
@@ -655,7 +603,6 @@ export async function getTrainingDayWithUserSteps(
   const currentDayIndex = allDays.findIndex((d) => d.order === physicalOrder);
   const displayDayNumber = calculateDisplayDayNumber(allDays, currentDayIndex) ?? physicalOrder;
 
-  const userTraining = userTrainings[0];
   let userTrainingId = userTraining?.id;
 
   if (!userTrainingId && options?.createIfMissing && userId) {

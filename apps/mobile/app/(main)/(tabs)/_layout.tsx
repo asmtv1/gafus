@@ -4,13 +4,13 @@ import { MainTabBar } from "@/shared/components/MainTabBar";
 export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <MainTabBar {...props} />}>
-      <Tabs.Screen name="pets" options={{ title: "Питомцы" }} />
+      <Tabs.Screen name="feed" options={{ title: "Моменты" }} />
       <Tabs.Screen name="index" options={{ title: "Курсы" }} />
       <Tabs.Screen name="more" options={{ title: "Меню" }} />
+      <Tabs.Screen name="pets" options={{ title: "Питомцы", href: null }} />
       <Tabs.Screen name="reminders" options={{ title: "Напоминания", href: null }} />
       <Tabs.Screen name="albums" options={{ title: "Альбомы", href: null }} />
       <Tabs.Screen name="questions" options={{ title: "Вопросы", href: null }} />
-      <Tabs.Screen name="feed" options={{ title: "Моменты", href: null }} />
       <Tabs.Screen name="articles" options={{ title: "Статьи", href: null }} />
       <Tabs.Screen name="consultations" options={{ title: "Консультации", href: null }} />
       <Tabs.Screen name="cynologist-chat" options={{ title: "Чат с кинологом", href: null }} />

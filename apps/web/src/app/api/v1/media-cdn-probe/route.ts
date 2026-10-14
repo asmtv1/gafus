@@ -5,7 +5,7 @@ import { isTrustedCdnProbeUrl } from "@gafus/core/services/mediaDelivery";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
-const allowedHosts = ["gallery-dev.gafus.ru", "feed.gafus.ru", "gallery.gafus.ru"] as const;
+const allowedHosts = ["mepsuduyokabib.begetcdn.cloud", "garaquachegasourn.begetcdn.cloud"] as const;
 
 /** Same-origin status proxy: browser cannot read CORS-blocked CDN 504 via HEAD.
  * Strict URL allowlist + authentication avoids SSRF; no response body is

@@ -55,6 +55,7 @@ import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet, type PetDocument } from "@/shared/lib/api/pets";
 import { PetProfileVisibility } from "@/features/pets/PetProfileVisibility";
 import { PetWeightSection } from "@/features/pets/PetWeightSection";
+import { PetDocumentsList } from "@/features/pets/PetDocumentsList";
 import { PetVetVisitShortcut } from "@/features/pets/PetVetVisits";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
@@ -599,114 +600,59 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
     <TourTarget id="pet-documents-section">
       <View style={styles.documentsSection}>
         <View style={styles.documentsHeader}>
-          <Image source={petDocumentsIcon} style={styles.sectionIcon} contentFit="contain" />
-          <View style={styles.documentsTitleWrap}>
-            <Text style={styles.documentsTitle}>Документы</Text>
-            <Text style={styles.documentHint}>
-              Фото ветпаспорта, справки и другие файлы питомца
-            </Text>
+          <View style={styles.documentHeading}>
+            <Image source={petDocumentsIcon} style={styles.documentSectionIcon} contentFit="contain" />
+            <View style={styles.documentsTitleWrap}>
+              <Text style={styles.documentsTitle}>Документы</Text>
+              {!isLoading && !isError && documents.length > 0 && (
+                <Text style={styles.documentHint}>
+                  {documents.length} {declOfNum(documents.length, ["документ", "документа", "документов"])}
+                </Text>
+              )}
+            </View>
           </View>
           <Button
             label="Добавить"
-            width={PET_SECTION_ADD_BUTTON_WIDTH}
+            variant="outline"
+            icon="plus"
+            width={122}
             fullWidth={false}
             height={44}
-            fontFamily={FONTS.montserrat}
-            fontWeight="600"
-            fontSize={13}
-            lineHeight={18}
-            horizontalPadding={16}
-            verticalPadding={10}
+            fontSize={12}
+            horizontalPadding={5}
+            verticalPadding={0}
             borderRadius={12}
-            animatedPress
-            onPress={handlePickDocument}
+            accessibilityLabel="Добавить документ"
             disabled={uploadDocumentMutation.isPending}
+            onPress={() => void handlePickDocument()}
           />
         </View>
 
-        {isLoading ? <Text style={styles.documentHint}>Загрузка документов...</Text> : null}
+        {isLoading ? <Text style={styles.documentHint}>Загружаем документы…</Text> : null}
         {isError ? <Text style={styles.documentError}>Не удалось загрузить документы</Text> : null}
-        {!isLoading && !isError && documents.length === 0 ? (
-          <View style={styles.sectionEmptyState}>
-            <Text style={styles.sectionEmptyText}>Документов пока нет</Text>
-          </View>
-        ) : null}
-
-        {documents.map((document) => (
-          <View key={document.id} style={styles.documentItem}>
-            <Pressable onPress={() => void handleOpenDocument(document)}>
-              {isImageDocument(document.mimeType) ? (
-                <Image
-                  source={{ uri: document.url }}
-                  style={styles.documentPreviewImage}
-                  contentFit="contain"
-                />
-              ) : (
-                <View style={styles.documentPreviewFile}>
-                  <Text style={styles.documentPreviewFileText}>PDF</Text>
-                </View>
-              )}
-            </Pressable>
-            <Text style={styles.documentName} numberOfLines={1}>
-              Название файла: {getPetDocumentDisplayName(document.name)}
-            </Text>
-            <View style={styles.documentFileActions}>
-              <View style={styles.documentFileActionsRow}>
-                <Button
-                  label="Изменить название"
-                  variant="primary"
-                  flex={1}
-                  fullWidth={false}
-                  height={52}
-                  fontFamily={FONTS.montserrat}
-                  fontWeight="600"
-                  fontSize={11}
-                  lineHeight={15}
-                  horizontalPadding={2}
-                  verticalPadding={0}
-                  borderRadius={14}
-                  icon="pencil-outline"
-                  animatedPress
-                  onPress={() => handleStartRenameDocument(document)}
-                />
-                <Button
-                  label="Поделиться файлом"
-                  variant="primary"
-                  flex={1}
-                  fullWidth={false}
-                  height={52}
-                  fontFamily={FONTS.montserrat}
-                  fontWeight="600"
-                  fontSize={11}
-                  lineHeight={15}
-                  horizontalPadding={2}
-                  verticalPadding={0}
-                  borderRadius={14}
-                  icon="share-variant-outline"
-                  animatedPress
-                  onPress={() => void handleShareDocument(document)}
-                />
-              </View>
-              <Button
-                label="Удалить файл"
-                variant="secondary"
-                height={52}
-                fontFamily={FONTS.montserrat}
-                fontWeight="600"
-                fontSize={12}
-                lineHeight={16}
-                horizontalPadding={8}
-                verticalPadding={0}
-                borderRadius={14}
-                icon="trash-can-outline"
-                animatedPress
-                onPress={() => handleDeleteDocument(document)}
-                disabled={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
-                accessibilityHint="Открывает подтверждение удаления файла"
-              />
+        {!isLoading && !isError && documents.length === 0 && (
+          <View style={styles.documentEmptyState}>
+            <MaterialCommunityIcons name="file-document-outline" size={24} color="#8A957A" />
+            <View style={styles.documentEmptyContent}>
+              <Text style={styles.documentEmptyTitle}>Документов пока нет</Text>
+              <Text style={styles.documentHint}>
+                Добавьте фото ветпаспорта или справку.
+              </Text>
             </View>
           </View>
-        ))}
+        )}
+
+        {documents.length > 0 && (
+          <PetDocumentsList
+            documents={documents}
+            busy={deleteDocumentMutation.isPending || renameDocumentMutation.isPending}
+            onOpen={(document) => void handleOpenDocument(document)}
+            onRename={handleStartRenameDocument}
+            onShare={(document) => void handleShareDocument(document)}
+            onDownload={(document) => void handleDownloadDocument(document)}
+            onDelete={handleDeleteDocument}
+          />
+        )}
 
         <Modal
           visible={pendingDocument !== null}
@@ -1961,24 +1907,26 @@ const styles = StyleSheet.create({
   documentsSection: {
     backgroundColor: "#FFFDF8",
     borderRadius: 15,
-    padding: 11,
+    padding: 12,
     gap: SPACING.xs,
-    shadowColor: "#433317",
-    shadowOpacity: 0.07,
-    shadowRadius: 13,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#EAE4D7",
   },
   documentsHeader: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: SPACING.sm,
   },
-  documentsTitleWrap: {
+  documentHeading: {
     flex: 1,
-    gap: 2,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
+  documentSectionIcon: { width: 30, height: 30 },
+  documentsTitleWrap: { flex: 1, minWidth: 0, gap: 1 },
   documentsTitle: {
     fontSize: 15,
     lineHeight: 20,
@@ -1986,47 +1934,38 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.montserratBold,
   },
   documentHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textSecondary,
     lineHeight: 16,
     fontFamily: FONTS.montserrat,
+  },
+  documentEmptyState: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FBFAF4",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginTop: SPACING.xs,
+  },
+  documentEmptyContent: { flex: 1, minWidth: 0, gap: 2 },
+  documentEmptyTitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.text,
+    fontFamily: FONTS.montserratMedium,
   },
   documentError: {
     fontSize: 12,
     color: "#8B4513",
     fontFamily: FONTS.montserrat,
   },
-  documentItem: {
-    gap: SPACING.xs,
-    paddingVertical: 2,
-  },
-  documentPreviewImage: {
-    width: "100%",
-    height: 140,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    backgroundColor: COLORS.cardBackground,
-  },
-  documentPreviewFile: {
-    height: 72,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    backgroundColor: COLORS.cardBackground,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   documentPreviewFileText: {
     fontSize: 14,
     color: COLORS.textSecondary,
     fontFamily: FONTS.montserrat,
     fontWeight: "600",
-  },
-  documentName: {
-    fontSize: 12,
-    color: COLORS.text,
-    fontFamily: FONTS.montserrat,
   },
   documentNameInput: {
     borderWidth: 1,
@@ -2043,49 +1982,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: SPACING.xs,
     flexWrap: "wrap",
-  },
-  documentFileActions: {
-    gap: SPACING.xs,
-    paddingTop: 2,
-    paddingBottom: SPACING.sm,
-  },
-  documentFileActionsRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: SPACING.xs,
-  },
-  documentSecondaryButton: {
-    minHeight: 40,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    backgroundColor: COLORS.cardBackground,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 108,
-    flexGrow: 1,
-    flexShrink: 0,
-  },
-  documentSecondaryText: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: COLORS.primary,
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  documentDeleteButton: {
-    borderColor: "#c62828",
-  },
-  documentDeleteText: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#c62828",
-    fontFamily: FONTS.montserrat,
-    fontWeight: "600",
-    textAlign: "center",
   },
   documentActionPressed: {
     opacity: 0.85,

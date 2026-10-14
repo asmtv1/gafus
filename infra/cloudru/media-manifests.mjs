@@ -131,7 +131,9 @@ export function cloudruMediaManifests(projectId, revision) {
         "FEED_INTERNAL_HMAC_SECRET",
       ],
     },
-  ].map((spec) => ({
+  ].flatMap((spec) => spec.imageRole === "feed-worker"
+    ? [spec, { ...spec, name: spec.name + "-2" }]
+    : [spec]).map((spec) => ({
     name: spec.name,
     projectId,
     description: "GAFUS durable core-owned media queue processor",
@@ -150,7 +152,7 @@ export function cloudruMediaManifests(projectId, revision) {
                   { name: "FEED_RUN_ONCE", value: "true" },
                   {
                     name: "FEED_WORKER_TYPE",
-                    value: spec.name.endsWith("-video") ? "video" : "photo",
+                    value: spec.name.includes("-video") ? "video" : "photo",
                   },
                 ],
               }

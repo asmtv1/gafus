@@ -12,9 +12,9 @@ vi.mock("@gafus/logger", () => ({
   createWorkerLogger: () => ({ success: vi.fn(), error: vi.fn() }),
 }));
 vi.mock("./cloudru-media-dispatcher", () => ({
-  createCloudruMediaDispatcher: (...args: unknown[]) => {
+  createCloudruFeedPoolDispatcher: (...args: unknown[]) => {
     mocks.createDispatcher(...args);
-    return (args[2] as string[])[0] === "gafus-feed-photo" ? mocks.photoDispatch : mocks.videoDispatch;
+    return args[0] === "photo" ? mocks.photoDispatch : mocks.videoDispatch;
   },
 }));
 vi.mock("bullmq", () => ({
@@ -61,11 +61,9 @@ describe("Feed immediate trigger worker", () => {
     vi.stubEnv("FEED_PROCESSOR_READY", "true");
     const { startFeedProcessingTriggerWorker } = await import("./feed-processing-trigger-worker");
     startFeedProcessingTriggerWorker();
-    expect(mocks.createDispatcher.mock.calls.map(call => call[2])).toEqual([
-      ["gafus-feed-photo"], ["gafus-feed-video"],
-    ]);
+    expect(mocks.createDispatcher.mock.calls.map(call => call[0])).toEqual(["photo", "video"]);
     expect(mocks.worker).toHaveBeenCalledWith("feed-processing-trigger", expect.objectContaining({
-      concurrency: 1, limiter: { max: 1, duration: 1500 },
+      concurrency: 1, limiter: { max: 1, duration: 500 },
     }));
     await mocks.processor!({ data: { uploadId, kind: "photo" } });
     expect(mocks.photoDispatch).toHaveBeenCalledOnce();

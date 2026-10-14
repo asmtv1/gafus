@@ -1,5 +1,6 @@
 import { activateFeedPostRevisionTx } from "./publish";
 import { randomUUID } from "node:crypto";
+import { enqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
 import type { FeedDb } from "./ports";
 import { FeedError } from "./errors";
 
@@ -90,7 +91,10 @@ export function createFeedStorageJobs({ db, now = () => new Date() }: {
     const claimed: FeedStorageJobClaim[] = [];
     for (const row of rows) {
       if (claimed.length >= batchSize) break;
-      if (row.attempts >= FEED_JOB_MAX_ATTEMPTS) {
+      // Deleting S3 keys and purging a private CDN must be retried indefinitely.
+      // Processing jobs are bounded, but a failed delete cannot strand private media.
+      if (row.attempts >= FEED_JOB_MAX_ATTEMPTS &&
+          row.kind !== "delete_keys" && row.kind !== "cleanup_source") {
         // A worker may crash on its last leased attempt without reporting fail.
         // Terminalise expired jobs instead of retrying forever.
         await db.$transaction(async tx => {
@@ -236,6 +240,9 @@ export function createFeedStorageJobs({ db, now = () => new Date() }: {
           }
         }
       }
+      if (job.kind === "delete_keys") {
+        await enqueueDeletedMediaPurge(tx, "feed", job.id, job.sourceKeys);
+      }
       const changed = await tx.feedStorageJob.updateMany({
         where: { id, attemptToken, status: "processing" },
         data: { status: "completed", attemptToken: null, leaseUntil: null },
@@ -251,7 +258,8 @@ export function createFeedStorageJobs({ db, now = () => new Date() }: {
         where: { id, attemptToken, status: "processing", leaseUntil: { gt: at } },
       });
       if (!job) return { accepted: false };
-      const exhausted = job.attempts >= FEED_JOB_MAX_ATTEMPTS;
+      const exhausted = job.attempts >= FEED_JOB_MAX_ATTEMPTS &&
+        job.kind !== "delete_keys" && job.kind !== "cleanup_source";
       if (exhausted && job.postId) await tx.$queryRaw`SELECT "id" FROM "FeedPost" WHERE "id" = ${job.postId} FOR UPDATE`;
       const changed = await tx.feedStorageJob.updateMany({
         where: { id, attemptToken, status: "processing", leaseUntil: { gt: at } },

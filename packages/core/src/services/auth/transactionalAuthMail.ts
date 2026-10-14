@@ -53,6 +53,8 @@ export async function sendPasswordResetLinkEmail(to: string, resetUrl: string): 
   try {
     await sendTransactionalLayout({
       to,
+      deliveryMode: "immediate",
+      category: "auth",
       subject,
       text,
       blocksHtml: [
@@ -94,6 +96,8 @@ export async function sendPasswordChangedNoticeEmail(to: string): Promise<void> 
   try {
     await sendTransactionalLayout({
       to,
+      category: "notice",
+      maxQueueAgeMs: 3600000,
       subject,
       text,
       blocksHtml: [
@@ -128,6 +132,8 @@ export async function sendUsernameChangedNoticeEmail(
   try {
     await sendTransactionalLayout({
       to,
+      category: "notice",
+      maxQueueAgeMs: 3600000,
       subject,
       text,
       blocksHtml: [
@@ -159,6 +165,8 @@ export async function sendAccountDeletionCodeEmail(to: string, code: string): Pr
   try {
     await sendTransactionalLayout({
       to,
+      deliveryMode: "immediate",
+      category: "auth",
       subject,
       text,
       blocksHtml: [
@@ -255,6 +263,8 @@ export async function sendWelcomeEmailAfterRegistration(to: string): Promise<voi
   try {
     await sendTransactionalLayout({
       to,
+      category: "welcome",
+      maxQueueAgeMs: 43200000,
       subject,
       text,
       blocksHtml: [
@@ -296,6 +306,8 @@ export async function sendEmailChangeConfirmEmail(to: string, confirmUrl: string
   try {
     await sendTransactionalLayout({
       to,
+      deliveryMode: "immediate",
+      category: "auth",
       subject,
       text,
       blocksHtml: [

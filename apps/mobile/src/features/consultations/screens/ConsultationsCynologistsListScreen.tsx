@@ -11,7 +11,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { TourTarget } from "@/shared/lib/tour-targets";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { Loading, TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -135,8 +135,10 @@ export default function ConsultationsCynologistsListScreen() {
         {query.isError ? (
           <Text style={styles.error}>Не удалось загрузить список. Попробуйте позже.</Text>
         ) : null}
-        {query.isLoading ? <Text style={styles.muted}>Загрузка…</Text> : null}
-        {!query.isLoading && items.length === 0 ? (
+        {query.isLoading ? (
+          <Loading variant="inline" message="Загружаем каталог кинологов…" />
+        ) : null}
+        {!query.isLoading && !query.isError && items.length === 0 ? (
           <Text style={styles.muted}>
             Пока нет доступных кинологов для записи. Загляните позже.
           </Text>

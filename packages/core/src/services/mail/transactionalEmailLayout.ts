@@ -180,6 +180,9 @@ export async function sendTransactionalEmailWithLayout(input: {
   subject: string;
   text: string;
   blocksHtml: string[];
+  deliveryMode?: "immediate" | "deferred";
+  maxQueueAgeMs?: number;
+  category?: "auth" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
 }): Promise<void> {
   const logoAtt = await resolveInlineLogoAttachment();
   const logoMode: WrapTransactionalEmailOptions["logoMode"] = logoAtt ? "cid" : "none";
@@ -190,6 +193,9 @@ export async function sendTransactionalEmailWithLayout(input: {
 
   await sendTransactionalMail({
     deliveryKey: input.deliveryKey,
+    deliveryMode: input.deliveryMode,
+    maxQueueAgeMs: input.maxQueueAgeMs,
+    category: input.category,
     to: input.to,
     subject: input.subject,
     text: input.text,

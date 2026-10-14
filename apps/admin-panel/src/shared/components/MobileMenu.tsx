@@ -20,6 +20,7 @@ import {
   Slideshow,
   Menu,
   Close,
+  MarkEmailUnread,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "./CookieSettingsButton";
@@ -31,9 +32,10 @@ interface MobileMenuProps {
   userName: string;
   avatarUrl: string;
   userRole: string;
+  mailAlertCount?: number;
 }
 
-export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenuProps) {
+export default function MobileMenu({ userName, avatarUrl, userRole, mailAlertCount = 0 }: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -46,6 +48,7 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
       label: "Пользователи платформы",
       show: true,
     },
+    { href: "/main-panel/mail", icon: MarkEmailUnread, label: "Почта и алерты", show: userRole === "ADMIN" },
     {
       href: "/main-panel/admin",
       icon: AdminPanelSettings,
@@ -184,6 +187,12 @@ export default function MobileMenu({ userName, avatarUrl, userRole }: MobileMenu
               >
                 <Icon sx={{ fontSize: 20, mr: 1.5 }} />
                 {item.label}
+                {item.href === "/main-panel/mail" && mailAlertCount > 0 && (
+                  <span aria-label={`Ошибок почты: ${mailAlertCount}`} style={{
+                    marginLeft: "auto", borderRadius: 999, background: "#b91c1c",
+                    color: "#fff", padding: "2px 7px", fontSize: 12, fontWeight: 700,
+                  }}>{mailAlertCount > 99 ? "99+" : mailAlertCount}</span>
+                )}
               </Link>
             );
           })}

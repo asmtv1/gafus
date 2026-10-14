@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { createGalleryStorageFromEnv } from './index';
 import { galleryStorageConfigFromEnv } from './config';
 import { canonicalGalleryRequest, signGalleryRequest, createGalleryRequestVerifier } from './hmac';
-import { signGalleryCdnUrl, verifyGalleryCdnToken } from './cdn';
+import { signGalleryCdnUrl } from './cdn';
 import { originKey } from './keys';
 const secret = '0123456789abcdef0123456789abcdef';
 const key = 'albums/o/a/photos/p/full.webp';
@@ -37,22 +37,33 @@ describe('request authentication', () => {
   });
 });
 describe('private CDN and configuration',()=>{
-  it('allows signed vet previews and rejects medical originals at CDN origin',()=>{
+  it('signs vet previews only through Beget, never signs medical originals',()=>{
     const preview='users/owner/pets/pet/vet-visits/visit/photo/thumb.webp';
-    const url=new URL(signGalleryCdnUrl('https://images.example.org',preview,new Date((timestamp+120)*1000),secret,timestamp*1000));
-    expect(originKey('/'+preview)).toBe(preview);
-    expect(verifyGalleryCdnToken('/'+preview,Object.fromEntries(url.searchParams),secret,timestamp*1000)).toBe(true);
-    expect(()=>originKey('/users/owner/pets/pet/vet-visits/visit/photo/original.pdf')).toThrow();
-    expect(()=>originKey('/users/owner/pets/pet/vet-visits/visit/photo/original.jpg')).toThrow();
-    expect(verifyGalleryCdnToken('/'+preview.replace('owner','other'),Object.fromEntries(url.searchParams),secret,timestamp*1000)).toBe(false);
-  });
-  it('uses Yandex MD5 expires+path+space+key without IP binding',()=>{
     const expires=timestamp+120;
-    const url=new URL(signGalleryCdnUrl('https://images.example.org',key,new Date(expires*1000),secret,timestamp*1000));
-    expect(url.searchParams.get('md5')).toBe(createHash('md5').update(`${expires}/${key} ${secret}`).digest('base64url'));
-    expect(verifyGalleryCdnToken('/'+key,Object.fromEntries(url.searchParams),secret,timestamp*1000)).toBe(true);
-    expect(verifyGalleryCdnToken('/'+key,Object.fromEntries(url.searchParams),secret,expires*1000)).toBe(false);
-    expect(verifyGalleryCdnToken('/'+key.replace('full','thumb'),Object.fromEntries(url.searchParams),secret,timestamp*1000)).toBe(false);
+    const url=new URL(signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',preview,new Date(expires*1000),secret,timestamp*1000));
+    const signature=createHash('md5').update(`${secret}/${preview}${expires}`).digest('base64url');
+    expect(url.pathname).toBe(`/md5(${signature},${expires})/${preview}`);
+    expect(url.search).toBe('');
+    expect(originKey('/'+preview)).toBe(preview);
+    expect(()=>originKey('/users/owner/pets/pet/vet-visits/visit/photo/original.pdf')).toThrow();
+    expect(()=>signGalleryCdnUrl('https://gallery-dev.gafus.ru',preview,new Date(expires*1000),secret,timestamp*1000)).toThrow('CDN_PROVIDER_MISMATCH');
+    expect(()=>signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud','users/owner/pets/pet/vet-visits/visit/photo/original.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
+  });
+  it('uses CDNvideo/Beget path-token syntax without exposing signing secret', () => {
+    const expires = timestamp + 300;
+    const url = new URL(signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',key,new Date(expires*1000),secret,timestamp*1000));
+    const md5 = createHash('md5').update(`${secret}/${key}${expires}`).digest('base64url');
+    expect(url.pathname).toBe(`/md5(${md5},${expires})/${key}`);
+    expect(url.search).toBe('');
+    expect(url.toString()).not.toContain(secret);
+    expect(() => signGalleryCdnUrl('https://feed.gafus.ru', key,
+      new Date(expires * 1000), secret, timestamp * 1000)).toThrow('CDN_PROVIDER_MISMATCH');
+    expect(() => signGalleryCdnUrl('https://other.begetcdn.cloud', key,
+      new Date(expires * 1000), secret, timestamp * 1000)).toThrow('CDN_PROVIDER_MISMATCH');
+    expect(() => signGalleryCdnUrl('https://images.example.org', key,
+      new Date(expires * 1000), secret, timestamp * 1000, 'beget')).toThrow('CDN_PROVIDER_MISMATCH');
+    expect(() => signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',
+      'albums/o/a/incoming/x/source.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
   });
   it('disabled HEAD without credentials cannot prove deletion',async()=>{
     const storage=createGalleryStorageFromEnv({GALLERY_ENABLED:'false'});

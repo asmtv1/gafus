@@ -7,8 +7,8 @@ import { LoadingMascot } from "./LoadingMascot";
 
 interface LoadingProps {
   message?: string;
-  /** Встроенная компоновка без карточки; размер маскота всегда стандартный (168 px). */
-  variant?: "card" | "inline";
+  /** One reusable loading card; embedded removes its frame inside an existing card. */
+  variant?: "card" | "inline" | "embedded";
   fullScreen?: boolean;
   /** Экран уже предоставляет фон и safe-area: загрузка только заполняет его содержимое. */
   embedded?: boolean;
@@ -25,26 +25,26 @@ export function Loading({
   embedded = false,
   style,
 }: LoadingProps) {
-  // Полноэкранная загрузка всегда использует общую карточку и крупного маскота.
-  const resolvedVariant = fullScreen ? "card" : variant;
   const content = (
     <View
       style={[
         styles.container,
-        resolvedVariant === "inline" && styles.inlineContainer,
+        (variant === "inline" || variant === "embedded") && styles.inlineContainer,
         fullScreen && styles.containerFullScreen,
         style,
       ]}
       accessibilityRole="progressbar"
       accessibilityLabel={message ?? "Загрузка"}
     >
-      <View style={resolvedVariant === "card" ? styles.card : styles.inlineContent}>
-        <LoadingMascot />
-        {message ? (
-          <Text style={[styles.message, resolvedVariant === "inline" && styles.inlineMessage]}>
-            {message}
+      <View style={[styles.card, variant === "embedded" && styles.embeddedCard]}>
+        <View style={styles.mascotFrame} pointerEvents="none">
+          <LoadingMascot />
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.message} numberOfLines={3}>
+            {message ?? "Загружаем…"}
           </Text>
-        ) : null}
+        </View>
       </View>
     </View>
   );
@@ -61,45 +61,53 @@ export function Loading({
 }
 
 const styles = StyleSheet.create({
-  fullScreen: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  fullScreen: { flex: 1, backgroundColor: COLORS.background },
   container: {
-    padding: SPACING.xl,
+    padding: SPACING.md,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
-  containerFullScreen: {
-    flex: 1,
-  },
-  inlineContainer: {
-    padding: 0,
-  },
-  inlineContent: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  containerFullScreen: { flex: 1 },
+  inlineContainer: { paddingVertical: SPACING.xs, paddingHorizontal: 0 },
   card: {
-    backgroundColor: "#FBF9E6",
+    width: "100%",
+    maxWidth: 440,
+    flexDirection: "column",
+    gap: 10,
+    alignItems: "center",
+    backgroundColor: "#FFFAF0",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.72)",
+    borderColor: "rgba(77, 92, 45, 0.16)",
     borderRadius: BORDER_RADIUS.lg,
-    borderCurve: "continuous",
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.lg,
+    shadowColor: "#352E2E",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  embeddedCard: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  mascotFrame: {
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 200,
-    boxShadow: "0 8px 18px rgba(53, 52, 16, 0.20)",
+    overflow: "hidden",
+    borderRadius: 12,
   },
+  content: { width: "100%", alignItems: "center" },
   message: {
-    marginTop: SPACING.md,
-    color: COLORS.text,
+    color: COLORS.primary,
     fontSize: 15,
-    fontFamily: FONTS.montserrat,
-  },
-  inlineMessage: {
-    marginTop: SPACING.sm,
+    lineHeight: 22,
+    textAlign: "center",
+    fontFamily: FONTS.montserratMedium,
   },
 });

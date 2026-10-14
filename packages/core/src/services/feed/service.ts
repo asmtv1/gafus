@@ -1,3 +1,4 @@
+import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
 import { assertFeedPublishingAllowed } from "./preferences";
 import { activateFeedPostRevisionTx } from "./publish";
 import { enqueueFeedPostCleanup } from "./cleanup";
@@ -28,7 +29,7 @@ type ReactionKind = keyof typeof reactions;
 export const feedReactionToKind: Record<FeedReaction, ReactionKind> = {
   "❤️": "heart", "😂": "laugh", "🐶": "dog", "🔥": "fire", "👍": "like",
 };
-const authorSelect = { id: true, username: true, profile: { select: { fullName: true, avatarUrl: true } } } as const;
+const authorSelect = { id: true, username: true, role: true, profile: { select: { fullName: true, avatarUrl: true } } } as const;
 const postInclude = { author: { select: authorSelect } } as const;
 type PostRow = Prisma.FeedPostGetPayload<{ include: typeof postInclude }>;
 type AssetRow = Prisma.FeedMediaAssetGetPayload<Record<string, never>>;
@@ -111,7 +112,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       reactionMap.set(row.postId, list);
     }
     const myMap = new Map(mine.map(row => [row.postId, reactions[row.kind]]));
-    const expire = new Date(at.getTime() + L.mediaUrlSeconds * 1000);
+    const expire = stableMediaExpiry(at, L.mediaUrlSeconds);
     const sign = (key: string | null) => key ? storage.signCdn({ key, expiresAt: expire }) : Promise.resolve(null);
     return Promise.all(posts.map(async post => {
       const revision = post.activeRevisionId ? versionById.get(post.activeRevisionId) : undefined;
@@ -131,6 +132,8 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
           id: post.author.id, username: post.author.username,
           name: post.author.profile?.fullName ?? post.author.username,
           avatarUrl: post.author.profile?.avatarUrl ?? null,
+          role: post.author.role === "ADMIN" || post.author.role === "TRAINER"
+            ? post.author.role : null,
         },
         status: post.status,
         // Older Mobile clients do not know hasPoll; show a readable label

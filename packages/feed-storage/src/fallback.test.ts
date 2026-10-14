@@ -6,7 +6,7 @@ const env = {
   FEED_MEDIA_FALLBACK_ENABLED: 'true', FEED_CDN_EDGE_TOKEN_VERIFIED: 'true',
   FEED_BUCKET: 'gafus-feed-private', FEED_S3_ENDPOINT: 'https://s3.cloud.ru',
   FEED_S3_ACCESS_KEY_ID: 'tenant:cloudru', FEED_S3_SECRET_ACCESS_KEY: 'fake-testing-only-secret',
-  FEED_CDN_BASE_URL: 'https://feed.example.test', FEED_CDN_SECRET: 's'.repeat(24),
+  FEED_CDN_BASE_URL: 'https://garaquachegasourn.begetcdn.cloud', FEED_CDN_SECRET: 's'.repeat(24),
   FEED_INTERNAL_HMAC_SECRET: 'h'.repeat(32),
 };
 describe('Cloud.ru feed fallback presigning', () => {

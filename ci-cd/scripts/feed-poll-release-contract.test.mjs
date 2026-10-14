@@ -30,6 +30,7 @@ test('CI exercises migrations and real PostgreSQL poll end-to-end before deployi
   assert.match(ci, /publication-client\.test\.ts/);
   assert.match(ci, /feed-poll-release-contract\.test\.mjs/);
   assert.match(ci, /deploy-production:\s+needs: \[security, build-apps, build-images, cloudru-prepare-media\]/);
+  assert.match(ci, /cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight\]/);
   assert.match(ci, /github\.ref == 'refs\/heads\/main' && github\.event_name == 'push'/);
   assert.match(sharedDeploy, /production-schema-cutover\.sh/);
 });

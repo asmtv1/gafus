@@ -16,7 +16,7 @@ export type MobileOnboardingTourStepId =
 export type MobileOnboardingTourTargetId =
   | "tab-more"
   | "consultations-list"
-  | "tab-pets"
+  | "menu-pets"
   | "pets-add-button"
   | "pet-prevention-section"
   | "pet-documents-section"
@@ -61,9 +61,9 @@ export function getMobileOnboardingTourSteps({
     {
       id: "pets",
       title: "Питомцы",
-      text: "В этом разделе хранятся профили ваших питомцев.",
-      route: "/(main)/(tabs)/pets",
-      targetId: "tab-pets",
+      text: "В разделе «Меню» откройте «Питомцы»: здесь хранятся их профили.",
+      route: "/(main)/(tabs)/more",
+      targetId: "menu-pets",
     },
     {
       id: "add-pet",
@@ -71,7 +71,7 @@ export function getMobileOnboardingTourSteps({
       text: "Добавьте питомца, чтобы вести его данные, документы и историю процедур.",
       route: "/(main)/(tabs)/pets",
       targetId: "pets-add-button",
-      secondaryTargetId: "tab-pets",
+      secondaryTargetId: "tab-more",
       primaryActionLabel: hasPets ? undefined : "Добавить питомца",
       allowSkip: hasPets,
       requiresPetCreation: !hasPets,
@@ -82,7 +82,7 @@ export function getMobileOnboardingTourSteps({
       text: "После добавления питомца здесь можно записывать прививки, обработки и напоминания.",
       route: "/(main)/(tabs)/pets",
       targetId: petPreventionTarget,
-      secondaryTargetId: "tab-pets",
+      secondaryTargetId: "tab-more",
     },
     {
       id: "documents",
@@ -90,7 +90,7 @@ export function getMobileOnboardingTourSteps({
       text: "К карточке питомца можно прикреплять документы: ветпаспорт, справки и другие файлы.",
       route: "/(main)/(tabs)/pets",
       targetId: petDocumentsTarget,
-      secondaryTargetId: "tab-pets",
+      secondaryTargetId: "tab-more",
     },
     {
       id: "daily-course",

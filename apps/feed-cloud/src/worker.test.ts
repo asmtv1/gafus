@@ -39,6 +39,46 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     expect(full.exif).toBeUndefined(); expect(full.icc).toBeUndefined();
     expect(core.completeJob).toHaveBeenCalledWith("job", expect.any(String), expect.objectContaining({ width: 600, height: 800 }));
   });
+  it("starts both S3 variant writes together and waits for both before completing", async () => {
+    const source = await sharp({ create: { width: 600, height: 480, channels: 3,
+      background: "#445533" } }).png().toBuffer();
+    const { worker, objects, core } = setup(source);
+    const resolveWrites: (() => void)[] = [];
+    vi.mocked(objects.create).mockImplementation(async () => new Promise<void>(resolve => {
+      resolveWrites.push(resolve);
+    }));
+    const processing = worker.process(job());
+    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(2));
+    expect(core.completeJob).not.toHaveBeenCalled();
+    resolveWrites[0]!();
+    await Promise.resolve();
+    expect(core.completeJob).not.toHaveBeenCalled();
+    resolveWrites[1]!();
+    await expect(processing).resolves.toEqual({ accepted: true });
+    expect(core.completeJob).toHaveBeenCalledOnce();
+  });
+
+  it("does not fail a claim until concurrent S3 writes have settled", async () => {
+    const source = await sharp({ create: { width: 200, height: 200, channels: 3,
+      background: "#445533" } }).png().toBuffer();
+    const { worker, objects, core } = setup(source);
+    let rejectFirst!: (error: Error) => void;
+    let resolveSecond!: () => void;
+    vi.mocked(objects.create)
+      .mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectFirst = reject; }))
+      .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve; }));
+    const processing = worker.process(job());
+    const completion = expect(processing).rejects.toThrow("S3 rejected one variant");
+    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(2));
+    rejectFirst(new Error("S3 rejected one variant"));
+    await Promise.resolve();
+    expect(core.failJob).not.toHaveBeenCalled();
+    resolveSecond();
+    await completion;
+    expect(core.failJob).toHaveBeenCalledOnce();
+    expect(core.completeJob).not.toHaveBeenCalled();
+  });
+
   it("creates an independent album copy without deleting album files", async () => {
     const source = await sharp({ create: { width: 80, height: 60, channels: 3, background: "#335533" } }).webp().toBuffer();
     const { objects, written, worker } = setup(source);

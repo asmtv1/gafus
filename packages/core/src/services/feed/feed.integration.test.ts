@@ -50,6 +50,23 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     await posts.publish(owner, draft.id, { clientRequestId: randomUUID() });
     return posts.get(reader, draft.id);
   }
+  it("returns an author badge role only for administrator and trainer posts", async () => {
+    const first = await publish("Роль автора");
+    expect(first.author.role).toBeNull();
+    for (const [role, expected] of [
+      ["ADMIN", "ADMIN"],
+      ["TRAINER", "TRAINER"],
+      ["MODERATOR", null],
+      ["PARTNER", null],
+      ["USER", null],
+    ] as const) {
+      await db!.user.update({ where: { id: owner }, data: { role } });
+      expect((await posts.get(reader, first.id)).author.role).toBe(expected);
+      const listed = (await posts.list(reader, { sort: "new" })).items[0]!;
+      expect(listed.author.role).toBe(expected);
+    }
+  });
+
   it("orders the full feed by newest, reactions or visible comments with paginated cursors", async () => {
     const first = await publish("Первый");
     at = new Date(at.getTime() + 60_000);

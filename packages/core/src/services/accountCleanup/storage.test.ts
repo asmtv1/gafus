@@ -275,29 +275,21 @@ describe("account storage cleanup adapter", () => {
       }),
     );
   });
-  it("purges only exact saved media paths on Cloud.ru instead of invented owner wildcards", async () => {
+  it("never accepts an alternative CDN provider for Gallery/Feed cleanup", async () => {
     vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("FEED_CDN_PROVIDER", "cloudru");
-    vi.stubEnv("CLOUDRU_CDN_PURGE_API_VERIFIED", "true");
-    vi.stubEnv("CLOUDRU_CDN_CACHE_KEY_VERIFIED", "true");
-    vi.stubEnv("CLOUDRU_CDN_ACCOUNT_NAME", "gafus-account");
-    vi.stubEnv("CLOUDRU_CDN_API_TOKEN", "fake-token-more-than-twenty-four-characters");
-    vi.stubEnv("FEED_CLOUDRU_CDN_DOMAINS", "cdn.example.com");
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ task_id: "safe-task" }));
-    vi.stubGlobal("fetch", fetchMock);
-    const target = accountStorageTargets("feed", "u", [
-      "posts/u/post/attachments/asset/thumb.webp",
-    ]);
-    const operations = await startAccountCdnPurge("feed", target);
-    expect(operations).toHaveLength(1);
-    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).paths).toEqual([
-      "/posts/u/post/attachments/asset/thumb.webp",
-    ]);
-    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).action_type).toBe("single");
+    vi.stubEnv("FEED_CDN_BASE_URL", "https://garaquachegasourn.begetcdn.cloud");
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    await expect(startAccountCdnPurge("feed", {
+      prefixes: ["posts/u/"], keys: ["posts/u/post/attachments/asset/thumb.webp"],
+    })).rejects.toThrow("CLEANUP_CDN_PROVIDER_MISMATCH");
+    expect(request).not.toHaveBeenCalled();
   });
   it("fails closed BEFORE Cloud.ru CDN purge if legacy cache verification is missing", async () => {
     vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
-    vi.stubEnv("GALLERY_CDN_PROVIDER", "cloudru");
+    vi.stubEnv("GALLERY_CDN_PROVIDER", "beget");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
     vi.stubEnv("GALLERY_DUAL_PROVIDER_CLEANUP", "true");
     vi.stubEnv("GALLERY_LEGACY_BUCKET_VERIFIED", "true");
     vi.stubEnv("GALLERY_LEGACY_CDN_RESOURCE_IDS", "");
@@ -311,99 +303,67 @@ describe("account storage cleanup adapter", () => {
     ).rejects.toThrow("CLEANUP_LEGACY_CDN_UNVERIFIED");
     expect(request).not.toHaveBeenCalled();
   });
-  it("checkpoints both Cloud.ru and Yandex CDN operations and confirms both", async () => {
-    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
-    vi.stubEnv(
-      "CDN_CLEANUP_SERVICE_ACCOUNT_KEY",
-      JSON.stringify({
-        id: "key",
-        service_account_id: "account",
-        private_key: privateKey.export({ format: "pem", type: "pkcs8" }),
-      }),
-    );
-    for (const [key, value] of Object.entries({
-      FEED_S3_ENDPOINT: "https://s3.cloud.ru",
-      FEED_CDN_PROVIDER: "cloudru", // explicit legacy-path test; Yandex is the new default
-      FEED_DUAL_PROVIDER_CLEANUP: "true",
-      FEED_LEGACY_BUCKET_VERIFIED: "true",
-      FEED_LEGACY_CDN_RESOURCE_IDS: "old-feed",
-      CLOUDRU_CDN_PURGE_API_VERIFIED: "true",
-      CLOUDRU_CDN_CACHE_KEY_VERIFIED: "true",
-      CLOUDRU_CDN_ACCOUNT_NAME: "gafus-account",
-      CLOUDRU_CDN_API_TOKEN: "fake-api-token-at-least-24-characters",
-      FEED_CLOUDRU_CDN_DOMAINS: "cdn.example.com",
-    }))
-      vi.stubEnv(key, value);
-    const request = vi.fn(async (url: string, options: { method?: string } = {}) => {
-      if (url.includes("cdnvideo.ru/") && options.method === "POST")
-        return Response.json({ task_id: "cloud-1" });
-      if (url.includes("cdnvideo.ru/") && options.method === "GET")
-        return Response.json({ status: "ok" });
-      if (url.includes("iam.api.cloud.yandex.net"))
-        return Response.json({ iamToken: "verified-test-token" });
-      if (url.includes("cdn.api.cloud.yandex.net")) return Response.json({ id: "yandex-1" });
-      if (url.includes("operation.api.cloud.yandex.net")) return Response.json({ done: true });
-      throw new Error("UNRECOGNIZED_EXTERNAL_API");
-    });
-    vi.stubGlobal("fetch", request);
-    const targets = { prefixes: ["posts/u/"], keys: ["posts/u/post/thumb.webp"] };
-    const checkpoint = vi.fn();
-    const operations = await startAccountCdnPurge("feed", targets, [], checkpoint);
-    expect(operations).toHaveLength(2);
-    expect(operations.some((op) => op.startsWith("cloudru:"))).toBe(true);
-    expect(operations.some((op) => /^[a-f0-9]{64}:yandex-1$/.test(op))).toBe(true);
-    expect(checkpoint).toHaveBeenCalledTimes(2);
-    expect(await accountCdnPurgeDone(operations)).toBe(true);
-    const postCalls = request.mock.calls.filter(
-      ([url, options]) =>
-        options?.method === "POST" &&
-        (url.includes("cdnvideo.ru") || url.includes("cdn.api.cloud.yandex.net")),
-    );
-    expect(postCalls).toHaveLength(2);
-    expect(JSON.parse((postCalls[0]![1] as { body: string }).body).paths).toEqual([
-      "/posts/u/post/thumb.webp",
-    ]);
-    expect(JSON.parse((postCalls[1]![1] as { body: string }).body).paths).toContain("/posts/u/*");
-    const beforeRetry = request.mock.calls.length;
-    expect(await startAccountCdnPurge("feed", targets, operations)).toEqual(operations);
-    expect(request).toHaveBeenCalledTimes(beforeRetry);
-  });
-  it("purges ONLY Yandex CDN when Cloud.ru S3 uses existing Yandex edge", async () => {
+  it("checkpoints Beget CDN purge and separately gated historical Yandex erasure", async () => {
     const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
     vi.stubEnv("CDN_CLEANUP_SERVICE_ACCOUNT_KEY", JSON.stringify({
       id: "key", service_account_id: "account",
       private_key: privateKey.export({ format: "pem", type: "pkcs8" }),
     }));
-    for (const [name, value] of Object.entries({
-      GALLERY_S3_ENDPOINT: "https://s3.cloud.ru",
-      // Provider omitted intentionally: Cloud.ru S3 must default to Yandex CDN.
-      GALLERY_CDN_RESOURCE_IDS: "old-gallery",
-      GALLERY_DUAL_PROVIDER_CLEANUP: "true",
-      GALLERY_LEGACY_BUCKET_VERIFIED: "true",
-      GALLERY_LEGACY_CDN_RESOURCE_IDS: "old-gallery",
-    })) vi.stubEnv(name, value);
-    const request = vi.fn(async (url: string) => {
-      if (url.includes("iam.api.cloud.yandex.net")) return Response.json({ iamToken: "test-token" });
-      if (url.includes("cdn.api.cloud.yandex.net")) return Response.json({ id: "yandex-1" });
-      if (url.includes("operation.api.cloud.yandex.net")) return Response.json({ done: true });
-      throw new Error("WRONG_CDN_PROVIDER");
+    for (const [key, value] of Object.entries({
+      FEED_S3_ENDPOINT: "https://s3.cloud.ru",
+      FEED_CDN_PROVIDER: "beget",
+      FEED_CDN_BASE_URL: "https://garaquachegasourn.begetcdn.cloud",
+      FEED_DUAL_PROVIDER_CLEANUP: "true",
+      FEED_LEGACY_BUCKET_VERIFIED: "true",
+      FEED_LEGACY_CDN_RESOURCE_IDS: "historical-feed-only",
+      BEGET_CDN_PURGE_API_VERIFIED: "true",
+      BEGET_CDN_CACHE_KEY_VERIFIED: "true",
+      BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
+      BEGET_CDN_API_TOKEN: "fake-api-token-at-least-24-characters",
+      FEED_BEGET_CDN_SERVICE_ID: "becd9e5d-4fa8-47da-878c-9b80ded74e71",
+    })) vi.stubEnv(key, value);
+    const request = vi.fn(async (url: string, options: { method?: string } = {}) => {
+      if (url.includes("api.beget.com") && options.method === "POST")
+        return Response.json({ cdn: { id: "becd9e5d-4fa8-47da-878c-9b80ded74e71" } });
+      if (url.includes("iam.api.cloud.yandex.net"))
+        return Response.json({ iamToken: "verified-test-token" });
+      if (url.includes("cdn.api.cloud.yandex.net"))
+        return Response.json({ id: "historical-op-1" });
+      if (url.includes("operation.api.cloud.yandex.net"))
+        return Response.json({ done: true });
+      throw new Error("UNRECOGNIZED_EXTERNAL_API");
     });
     vi.stubGlobal("fetch", request);
-    const targets = { prefixes: ["albums/owner/"], keys: ["albums/owner/album/photos/p/thumb.webp"] };
+    const targets = { prefixes: ["posts/u/"], keys: ["posts/u/post/attachments/asset/thumb.webp"] };
     const checkpoint = vi.fn();
-    const jobs = await startAccountCdnPurge("gallery", targets, [], checkpoint);
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0]).not.toContain("cloudru");
-    expect(await accountCdnPurgeDone(jobs, checkpoint)).toBe(true);
-    expect(request.mock.calls.every(([url]) => !url.includes("cdnvideo.ru"))).toBe(true);
+    const operations = await startAccountCdnPurge("feed", targets, [], checkpoint);
+    expect(operations).toHaveLength(2);
+    expect(operations.some(op => op.startsWith("beget:"))).toBe(true);
+    expect(operations.some(op => op.includes(":historical-op-1"))).toBe(true);
     expect(checkpoint).toHaveBeenCalledTimes(2);
+    // Beget must not be considered erased just because its API accepted POST.
+    expect(await accountCdnPurgeDone(operations)).toBe(false);
+    const beforeRetry = request.mock.calls.length;
+    expect(await startAccountCdnPurge("feed", targets, operations)).toEqual(operations);
+    expect(request).toHaveBeenCalledTimes(beforeRetry);
+    expect(request.mock.calls.some(([url]) => url.includes("cdn.api.cloud.yandex.net"))).toBe(true);
+  });
+  it("never silently routes Cloud.ru Gallery objects to Yandex if Beget host is absent", async () => {
+    vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
+    vi.stubEnv("GALLERY_CDN_RESOURCE_IDS", "old-gallery");
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    await expect(startAccountCdnPurge("gallery", {
+      prefixes: ["albums/u/"], keys: ["albums/u/a/photos/b/thumb.webp"],
+    })).rejects.toThrow("CLEANUP_CDN_PROVIDER_MISMATCH");
+    expect(request).not.toHaveBeenCalled();
   });
   it("requires Yandex CDN ids before accepting a Cloud.ru S3/Yandex CDN mode", async () => {
     vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("FEED_CDN_PROVIDER", "yandex");
     vi.stubEnv("FEED_CDN_RESOURCE_IDS", "");
     await expect(startAccountCdnPurge("feed", { prefixes: ["posts/u/"], keys: [] }))
-      .rejects.toThrow("CLEANUP_CDN_UNCONFIGURED");
+      .rejects.toThrow("CLEANUP_CDN_PROVIDER_MISMATCH");
   });
   it("does not request CDN purge for direct private S3 download scopes", async () => {
     expect(
@@ -475,11 +435,23 @@ describe("account storage cleanup adapter", () => {
       { Key: "uploads/questions/other/a.jpg", VersionId: "v1" },
     ]);
   });
-  it("keeps private CDN cleanup pending when resource IDs are missing", async () => {
-    vi.stubEnv("GALLERY_CDN_RESOURCE_IDS", "");
-    await expect(
-      startAccountCdnPurge("gallery", { prefixes: ["albums/u/"], keys: [] }),
-    ).rejects.toThrow("CLEANUP_CDN_UNCONFIGURED");
+  it("never falls back to Yandex purge for active Beget CDN URLs", async () => {
+    vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
+    vi.stubEnv("GALLERY_CDN_PROVIDER", "yandex");
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    await expect(startAccountCdnPurge("gallery", { prefixes: ["albums/u/"], keys: [] }))
+      .rejects.toThrow("CLEANUP_CDN_PROVIDER_MISMATCH");
+    expect(request).not.toHaveBeenCalled();
+  });
+  it("fails closed on private Beget cleanup when exact signing purge is not validated", async () => {
+    vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
+    vi.stubEnv("GALLERY_CDN_PROVIDER", "beget");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
+    await expect(startAccountCdnPurge("gallery", {
+      prefixes: ["albums/u/"], keys: ["albums/u/a/photos/b/thumb.webp"],
+    })).rejects.toThrow("BEGET_CDN_PURGE_NOT_VERIFIED");
   });
   it("authenticates with IAM, purges each alias, checkpoints progress and polls the operation endpoint", async () => {
     const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });

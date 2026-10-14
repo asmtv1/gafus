@@ -3,10 +3,19 @@
  * Core owns all durable claims/leases; overlapping Cloud invocations are idempotent.
  * No schedule is installed unless CLOUDRU_MEDIA_JOBS_ENABLED=true.
  */
-export const CLOUDRU_MEDIA_JOB_NAMES = [
+const DEFAULT_MEDIA_JOB_NAMES = [
   "gafus-gallery-process",
   "gafus-feed-photo",
   "gafus-feed-video",
+] as const;
+export const CLOUDRU_FEED_JOB_POOLS = {
+  photo: ["gafus-feed-photo", "gafus-feed-photo-2"],
+  video: ["gafus-feed-video", "gafus-feed-video-2"],
+} as const;
+export const CLOUDRU_MEDIA_JOB_NAMES = [
+  ...DEFAULT_MEDIA_JOB_NAMES,
+  "gafus-feed-photo-2",
+  "gafus-feed-video-2",
 ] as const;
 
 export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
@@ -14,7 +23,7 @@ type HttpFetch = typeof fetch;
 export function createCloudruMediaDispatcher(
   env: Record<string, string | undefined> = process.env,
   http: HttpFetch = fetch,
-  names: readonly CloudruMediaJobName[] = CLOUDRU_MEDIA_JOB_NAMES,
+  names: readonly CloudruMediaJobName[] = DEFAULT_MEDIA_JOB_NAMES,
 ) {
   if (env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true")
     return async () => ({ disabled: true, dispatched: 0 });
@@ -70,5 +79,25 @@ export function createCloudruMediaDispatcher(
     } finally {
       running = false;
     }
+  };
+}
+
+/** One accepted launch per upload, alternating Jobs sharing Core's durable queue.
+ * Advance before awaiting so retries also try the other Job after rejection.
+ * Recovery polling keeps its three existing launches; idle cost is unchanged.
+ */
+export function createCloudruFeedPoolDispatcher(
+  kind: keyof typeof CLOUDRU_FEED_JOB_POOLS,
+  env: Record<string, string | undefined> = process.env,
+  http: HttpFetch = fetch,
+) {
+  const dispatchers = CLOUDRU_FEED_JOB_POOLS[kind].map((name) =>
+    createCloudruMediaDispatcher(env, http, [name]),
+  );
+  let next = 0;
+  return () => {
+    const dispatch = dispatchers[next]!;
+    next = (next + 1) % dispatchers.length;
+    return dispatch();
   };
 }

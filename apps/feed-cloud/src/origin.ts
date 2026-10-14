@@ -21,9 +21,9 @@ export async function handler(event: OriginEvent) {
     if (!key.endsWith(".ts") && !key.endsWith(".webp")) return failure(404);
     const bucket = process.env.FEED_BUCKET ?? "";
     if (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(bucket) || /^(gafus-media|gafus-public)$/.test(bucket)) return failure(503);
-    const endpoint = process.env.FEED_S3_ENDPOINT ?? "https://storage.yandexcloud.net";
-    if (!["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint)) throw new Error("INVALID_FEED_STORAGE_ENDPOINT");
-    client ??= new S3Client({ endpoint, region: endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1", forcePathStyle: true,
+    const endpoint = process.env.FEED_S3_ENDPOINT ?? "https://s3.cloud.ru";
+    if (endpoint !== "https://s3.cloud.ru") throw new Error("INVALID_FEED_STORAGE_ENDPOINT");
+    client ??= new S3Client({ endpoint, region: "ru-central-1", forcePathStyle: true,
       credentials: { accessKeyId: process.env.FEED_S3_ACCESS_KEY_ID ?? "", secretAccessKey: process.env.FEED_S3_SECRET_ACCESS_KEY ?? "" },
       maxAttempts: 1, requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED" });
     const signal = AbortSignal.timeout(3500);

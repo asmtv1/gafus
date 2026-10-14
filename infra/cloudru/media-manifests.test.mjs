@@ -4,7 +4,17 @@ const projectId = "12345678-1234-1234-1234-123456789012";
 const revision = "abcdef0123456789abcdef0123456789abcdef01";
 const { services, jobs } = cloudruMediaManifests(projectId, revision);
 assert.equal(services.length, 2);
-assert.equal(jobs.length, 3);
+assert.equal(jobs.length, 5);
+assert.equal(new Set(jobs.map(job => job.name)).size, 5);
+for (const kind of ["photo", "video"]) {
+  const pool = jobs.filter(job => job.name.startsWith("gafus-feed-" + kind));
+  assert.equal(pool.length, 2);
+  for (const job of pool) {
+    assert.equal(job.template.containers[0].env.find(item => item.name === "FEED_WORKER_TYPE").value, kind);
+  }
+  assert.deepEqual(pool[0].template.containers[0].resources, pool[1].template.containers[0].resources);
+  assert.equal(pool[0].template.containers[0].image, pool[1].template.containers[0].image);
+}
 for (const service of services) {
   // Yandex CDN cannot reach a Cloud.ru private-only ingress.
   // Origin authenticates incoming CDN requests with a 32+ byte secret header.
@@ -38,4 +48,4 @@ assert(
   ),
 );
 assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);
-console.log("Cloud.ru manifest layout 2 services + 3 bounded durable jobs PASS");
+console.log("Cloud.ru manifest layout 2 services + 5 bounded durable jobs PASS");

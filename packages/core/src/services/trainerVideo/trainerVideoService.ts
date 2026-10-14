@@ -11,6 +11,8 @@ import type { ActionResult } from "@gafus/types";
 import type { TrainerVideoDto } from "@gafus/types";
 import type { TranscodingStatus } from "@gafus/prisma";
 import { handlePrismaError, ServiceError } from "@gafus/core/errors";
+import { invalidateStepsContentCache } from "../training/trainingDayContent";
+import { publishCourseContentChange } from "../training/trainingContentRevision";
 import type { RegisterTrainerVideoInput } from "./schemas";
 
 const EXTERNAL_VIDEO_PATTERNS = [
@@ -216,12 +218,21 @@ export async function deleteTrainerVideoRecord(
 ): Promise<ActionResult> {
   try {
     if (fullCdnUrl) {
+      const affectedVideoSteps = {
+        OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],
+      };
+      // Capture IDs before updating videoUrl so every reused step can be
+      // invalidated even if subsequent video-record cleanup fails.
+      const affectedSteps = await prisma.step.findMany({
+        where: affectedVideoSteps,
+        select: { id: true },
+      });
       await prisma.step.updateMany({
-        where: {
-          OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],
-        },
+        where: affectedVideoSteps,
         data: { videoUrl: null },
       });
+      invalidateStepsContentCache(affectedSteps.map((step) => step.id));
+      if (affectedSteps.length > 0) await publishCourseContentChange();
       await prisma.stepTemplate.updateMany({
         where: {
           OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],

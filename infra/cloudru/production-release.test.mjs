@@ -47,40 +47,42 @@ const prod = readFileSync("ci-cd/docker/docker-compose.prod.yml", "utf8");
 for (const gate of [
   "production-s3-preflight.mjs --verify",
   "cloudru-media-contracts:",
+  "beget-readonly-preflight:",
   "cloudru-build-media-images:",
   "cloudru-prepare-media:",
-  "cloudru-activate-cdn:",
+  "beget-verify-after-deploy:",
   "production-media-release.mjs --prepare",
-  "production-cdn-release.mjs --activate gallery",
-  "production-cdn-release.mjs --activate feed",
+  "beget-release-readiness.mjs --check",
+  "beget-production-smoke.mjs",
 ])
   assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
 assert(
-  ci.indexOf("cloudru-prepare-media:") < ci.indexOf("  deploy-production:"),
-  "MEDIA_MUST_PREPARE_BEFORE_VPS_DEPLOY",
+  ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  cloudru-build-media-images:") &&
+  ci.indexOf("  cloudru-build-media-images:") < ci.indexOf("  cloudru-prepare-media:") &&
+  ci.indexOf("  cloudru-prepare-media:") < ci.indexOf("  deploy-production:") &&
+  ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
+  "BEGET_MUST_VERIFY_BEFORE_ANY_MEDIA_PRODUCTION_PREPARATION_AND_AFTER_DEPLOY",
 );
-assert(
-  ci.indexOf("  deploy-production:") < ci.indexOf("  cloudru-activate-cdn:"),
-  "CDN_MUST_ACTIVATE_AFTER_VPS_HEALTH",
-);
-assert(!ci.includes("production-cdn-release.mjs --activate\n"), "NO_JOINT_CDN_ACTIVATION");
-assert(ci.includes("steps.cdn_preflight.outcome == 'success'"), "INDEPENDENT_CUTOVER_MUST_REQUIRE_PREFLIGHT");
-assert(ci.includes("run: node infra/cloudru/production-cdn-release.mjs --activate gallery\n      - name: Activate and verify Feed CDN independently"), "CDN_STEPS_MUST_BE_INDEPENDENT");
-const activation = ci.slice(ci.indexOf("  cloudru-activate-cdn:"));
-assert.equal(activation.split('CDN_EDGE_DEGRADED_OK: "true"').length - 1, 2,
-  "ONLY_PER_RESOURCE_ACTIVATION_MAY_SOFTEN_HTTP_5XX");
-const edgeScript = readFileSync("infra/cloudru/production-cdn-release.mjs", "utf8");
-assert(edgeScript.includes("isDegradableCdnFailure(error, x.kind, fallbackVerified)"),
-  "SOFT_EDGE_FAILURE_REQUIRES_VERIFIED_S3_AND_ORIGIN");
-assert(edgeScript.includes("verifyS3Fallback(x, fixture.key, fixture.bytes)"),
-  "FEED_HLS_S3_MUST_BE_VERIFIED_BEFORE_EDGE_DEGRADATION");
-assert(edgeScript.includes("CLOUDRU_YANDEX_CDN_CUTOVER=DEGRADED_S3_FALLBACK"),
-  "DEGRADED_CDN_MUST_BE_EXPLICIT_IN_LOGS");
+assert(/cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight\]/.test(ci),
+  "NO_PRODUCTION_IMAGE_PUBLICATION_BEFORE_BEGET_APPROVAL");
+assert(/beget-verify-after-deploy:\s+needs: \[beget-readonly-preflight, cloudru-prepare-media, deploy-production\]/.test(ci),
+  "NO_POSTDEPLOY_BEGET_VERIFY_BEFORE_HEALTHY_APP");
+for (const unsafe of [
+  /run:\s+node infra\/cloudru\/production-cdn-release\.mjs --(?:preflight|prepare|activate)/,
+  /cloudru-activate-cdn:/,
+  /YC_CDN_FOLDER_ID:/,
+  /YC_CDN_SA_KEY:/,
+  /CDN_EDGE_DEGRADED_OK:/,
+  /Install Yandex Cloud CLI/,
+  /Restore previous application if CDN cutover fails/,
+]) assert.doesNotMatch(ci, unsafe, "NO_ACTIVE_YANDEX_CDN_RELEASE_OR_ROLLBACK");
+const sharedReadiness = deployment.indexOf('Validate Beget-only production readiness before SSH');
+const sshAction = deployment.indexOf('uses: appleboy/ssh-action@v1.0.3');
+assert(sharedReadiness >= 0 && sharedReadiness < sshAction,
+  'MANUAL_AND_AUTOMATED_DEPLOY_MUST_CHECK_BEGET_BEFORE_SSH');
+assert(deployment.includes('node infra/cloudru/beget-production-smoke.mjs'),
+  'SHARED_DEPLOY_MUST_PROVE_LIVE_BEGET_SIGNING_BEFORE_SSH');
 assert(!ci.includes("compose_down; exit 1"), "DEPLOY_FAILURE_MUST_NOT_BRING_PRODUCTION_DOWN");
-assert(
-  ci.includes("Restore previous application if CDN cutover fails"),
-  "CUTOVER_MUST_RECOVER_APP",
-);
 assert(
   ci.includes("CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only"),
   "PRIVATE_BUCKET_PREFLIGHT_GUARD",

@@ -1,3 +1,4 @@
+import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
 import { Prisma } from "@gafus/prisma";
 import { createHash } from "node:crypto";
 import type { FeedPollDto, FeedPollSaveInput, FeedPollVoteInput } from "@gafus/types";
@@ -59,7 +60,7 @@ export function createFeedPolls({ db, storage, now = () => new Date(), enabled =
     const showResults = closed || (!poll.hideResults && (myOptionIds.length > 0 || post.authorId === actorId));
     const revealQuiz = poll.isQuiz && showResults && (closed || myOptionIds.length > 0 || post.authorId === actorId);
     const countsById = new Map(counts.map(row => [row.optionId, row._count._all]));
-    const expiresAt = new Date(at.getTime() + FEED_LIMITS.mediaUrlSeconds * 1000);
+    const expiresAt = stableMediaExpiry(at, FEED_LIMITS.mediaUrlSeconds);
     // Shuffle privately per viewer, keeping the order stable while results refresh.
     const orderedOptions = poll.shuffleOptions ? [...poll.options].sort((left, right) => {
       const rank = (id: string) => createHash("sha256").update(`${poll.id}:${actorId}:${id}`).digest("hex");

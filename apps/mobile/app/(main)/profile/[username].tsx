@@ -1,6 +1,6 @@
 import { GalleryPreview } from "@/features/gallery";
 import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
-import { ProfileIcon } from "@/features/profile";
+import { ProfileIcon, ProfileMetaRow } from "@/features/profile";
 import { PublicPets } from "@/features/pets/PublicPets";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
@@ -50,10 +50,9 @@ const declOfNum = (n: number, forms: [string, string, string]) => {
 function getTrainerCourseLogoCacheProps(
   course: Pick<PublicProfileCourse, "id" | "logoImg" | "updatedAt">,
 ): { logoCandidates: string[]; cacheKeyBase: string } {
-  const logoImgUri =
-    course.logoImg?.startsWith("/")
-      ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
-      : course.logoImg || undefined;
+  const logoImgUri = course.logoImg?.startsWith("/")
+    ? `${API_BASE_URL.replace(/\/$/, "")}${course.logoImg}`
+    : course.logoImg || undefined;
   const logoVersion =
     course.updatedAt != null ? new Date(course.updatedAt).getTime().toString() : "no-version";
   const logoImgVersionedUri = logoImgUri
@@ -154,7 +153,11 @@ export default function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
 
   // Загрузка публичного профиля
-  const { data: profileResponse, isLoading, refetch } = useQuery({
+  const {
+    data: profileResponse,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["public-profile", username],
     queryFn: async () => {
       const res = await userApi.getPublicProfile(username as string);
@@ -164,7 +167,11 @@ export default function PublicProfileScreen() {
     enabled: !!username,
   });
 
-  useFocusEffect(useCallback(() => { void refetch(); }, [refetch]));
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
 
   const publicData = profileResponse?.data;
   const profile = publicData?.profile;
@@ -174,10 +181,8 @@ export default function PublicProfileScreen() {
   const birthDateStr =
     rawBirth == null ? null : typeof rawBirth === "string" ? rawBirth : String(rawBirth);
   const age = birthDateStr ? getAge(birthDateStr) : null;
-  const hasSocialLinks =
-    profile?.instagram || profile?.telegram || profile?.website;
-  const rawTrainerCourses =
-    publicData?.role === "TRAINER" ? (publicData?.courses ?? []) : [];
+  const hasSocialLinks = profile?.instagram || profile?.telegram || profile?.website;
+  const rawTrainerCourses = publicData?.role === "TRAINER" ? (publicData?.courses ?? []) : [];
   const courses = rawTrainerCourses;
 
   if (isLoading) {
@@ -185,11 +190,7 @@ export default function PublicProfileScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
         <AppBackButton style={styles.backRow} onPress={() => router.back()} />
-        <Loading
-          fullScreen
-          embedded
-          message="Загрузка профиля..."
-        />
+        <Loading fullScreen embedded message="Загрузка профиля..." />
       </SafeAreaView>
     );
   }
@@ -270,17 +271,10 @@ export default function PublicProfileScreen() {
 
         {/* Информация о пользователе */}
         <View style={styles.infoContainer}>
-          {profile?.city ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <MaterialCommunityIcons name="map-marker-outline" size={19} color={COLORS.primary} />
-              <Text style={styles.infoText}>Город: {profile.city}</Text>
-            </View>
-          ) : null}
-          {age !== null && (
-            <Text style={styles.infoText}>
-              Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
-            </Text>
-          )}
+          <ProfileMetaRow
+            city={profile?.city}
+            ageLabel={age !== null ? `Возраст: ${age} ${declOfNum(age, ["год", "года", "лет"])}` : null}
+          />
 
           {/* О себе */}
           {profile?.about && (
@@ -310,27 +304,31 @@ export default function PublicProfileScreen() {
                 {profile.instagram && (
                   <Pressable
                     style={styles.socialLink}
-                    onPress={() =>
-                      Linking.openURL(
-                        `https://instagram.com/${profile.instagram}`,
-                      )
-                    }
+                    onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram}`)}
                   >
-                    <FontAwesome5 name="instagram" brand size={22} color="#C13584" style={styles.socialBrandIcon} />
+                    <FontAwesome5
+                      name="instagram"
+                      brand
+                      size={22}
+                      color="#C13584"
+                      style={styles.socialBrandIcon}
+                    />
                     <Text style={styles.socialLabel}>Instagram</Text>
-                    <Text style={styles.socialUsername}>
-                      {profile.instagram}
-                    </Text>
+                    <Text style={styles.socialUsername}>{profile.instagram}</Text>
                   </Pressable>
                 )}
                 {profile.telegram && (
                   <Pressable
                     style={styles.socialLink}
-                    onPress={() =>
-                      Linking.openURL(`https://t.me/${profile.telegram}`)
-                    }
+                    onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
                   >
-                    <FontAwesome5 name="telegram-plane" brand size={22} color="#229ED9" style={styles.socialBrandIcon} />
+                    <FontAwesome5
+                      name="telegram-plane"
+                      brand
+                      size={22}
+                      color="#229ED9"
+                      style={styles.socialBrandIcon}
+                    />
                     <Text style={styles.socialLabel}>Telegram</Text>
                     <Text style={styles.socialUsername}>{profile.telegram}</Text>
                   </Pressable>
@@ -340,7 +338,12 @@ export default function PublicProfileScreen() {
                     style={styles.socialLink}
                     onPress={() => Linking.openURL(profile.website!)}
                   >
-                    <MaterialCommunityIcons name="web" size={24} color="#636128" style={styles.socialBrandIcon} />
+                    <MaterialCommunityIcons
+                      name="web"
+                      size={24}
+                      color="#636128"
+                      style={styles.socialBrandIcon}
+                    />
                     <Text style={styles.socialLabel}>Сайт</Text>
                     <Text style={styles.socialUsername}>{profile.website}</Text>
                   </Pressable>
@@ -382,19 +385,14 @@ export default function PublicProfileScreen() {
                       <View style={styles.courseInfo}>
                         <Text style={styles.courseName}>{course.name}</Text>
                         {course.shortDesc ? (
-                          <Text style={styles.courseDescription}>
-                            {course.shortDesc}
-                          </Text>
+                          <Text style={styles.courseDescription}>{course.shortDesc}</Text>
                         ) : null}
                         <View style={styles.courseMeta}>
-                          {course.isPaid &&
-                            course.priceRub != null &&
-                            course.priceRub > 0 && (
-                              <Text style={styles.courseMetaText}>
-                                <Text style={styles.courseMetaLabel}>Цена:</Text>{" "}
-                                {course.priceRub} ₽
-                              </Text>
-                            )}
+                          {course.isPaid && course.priceRub != null && course.priceRub > 0 && (
+                            <Text style={styles.courseMetaText}>
+                              <Text style={styles.courseMetaLabel}>Цена:</Text> {course.priceRub} ₽
+                            </Text>
+                          )}
                           <Text style={styles.courseMetaText}>
                             <Text style={styles.courseMetaLabel}>Длительность:</Text>{" "}
                             {course.duration}
@@ -535,18 +533,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-  },
-  infoText: {
-    fontSize: 14,
-    color: "#352E2E",
-    marginBottom: SPACING.sm,
-    padding: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: "#ECE5D2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    fontFamily: FONTS.montserrat,
   },
   aboutContainer: {
     width: "100%",

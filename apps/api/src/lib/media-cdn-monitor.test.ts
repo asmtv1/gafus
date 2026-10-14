@@ -7,26 +7,39 @@ import { MEDIA_DELIVERY_HEALTH_KEY } from "@gafus/core/services/mediaDelivery";
 
 const now = 1791920000000;
 const config: MonitorConfig = {
-  gallery: { host: "gallery-dev.gafus.ru", secret: "A".repeat(24), enabled: true },
-  feed: { host: "feed.gafus.ru", secret: "B".repeat(24), enabled: true },
+  gallery: { host: "mepsuduyokabib.begetcdn.cloud", secret: "A".repeat(24), enabled: true, provider: "beget" },
+  feed: { host: "garaquachegasourn.begetcdn.cloud", secret: "B".repeat(24), enabled: true, provider: "beget" },
 };
 const blank = () => parseMonitorState(null, now);
 
 describe("server-side CDN health monitor", () => {
   it("makes unique valid signed final-media probes without exposing an origin secret", () => {
     const url = createSignedMonitorUrl("gallery", config, now, "a".repeat(32));
-    expect(url).toContain("gallery-dev.gafus.ru/albums/__cdn_monitor__/__cdn_monitor__/photos/");
-    expect(url).toContain("?md5=");
+    expect(url).toMatch(/^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\/__cdn_monitor__\/__cdn_monitor__\/photos\//);
+    expect(url).toContain("/md5(");
     expect(url).not.toContain("A".repeat(24));
     expect(createSignedMonitorUrl("feed", config, now, "b".repeat(32))).toContain("/thumb.webp");
     expect(createSignedMonitorUrl("feed", { ...config, feed: { ...config.feed, enabled: false } }, now)).toBeNull();
+  });
+  it("signs Beget monitoring paths without query tokens", () => {
+    const beget = monitorConfigFromEnv({
+      GALLERY_CDN_BASE_URL: "https://mepsuduyokabib.begetcdn.cloud",
+      GALLERY_CDN_SECRET: "A".repeat(24), GALLERY_ENABLED: "true",
+      GALLERY_S3_ENDPOINT: "https://s3.cloud.ru", GALLERY_MEDIA_FALLBACK_ENABLED: "true",
+      FEED_CDN_BASE_URL: "https://garaquachegasourn.begetcdn.cloud",
+      FEED_CDN_SECRET: "B".repeat(24), FEED_ENABLED: "true",
+      FEED_S3_ENDPOINT: "https://s3.cloud.ru", FEED_MEDIA_FALLBACK_ENABLED: "true",
+    });
+    expect(createSignedMonitorUrl("gallery", beget, now, "a".repeat(32))).toMatch(
+      /^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\//);
+    expect(createSignedMonitorUrl("feed", beget, now, "b".repeat(32))).not.toContain("?md5=");
   });
   it("treats 404 for a freshly signed nonexistent object as healthy, 504/5xx as failed", async () => {
     for (const [status, result] of [[404, "healthy"], [504, "failed"], [503, "failed"],
       [403, "unknown"], [302, "unknown"], [200, "unknown"]] as const) {
       const fetcher = vi.fn(async () => new Response(null, { status }));
       expect(await probeMediaCdn("gallery", config, fetcher, now)).toBe(result);
-      expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("gallery-dev.gafus.ru"),
+      expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("mepsuduyokabib.begetcdn.cloud"),
         expect.objectContaining({ method: "GET", redirect: "manual" }));
     }
     expect(await probeMediaCdn("feed", config,

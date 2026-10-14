@@ -1,4 +1,5 @@
 import { authOptions } from "@gafus/auth";
+import { getAdminMailAlertCount } from "@gafus/core/services/systemHealth";
 import Image from "next/image";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
@@ -16,6 +17,7 @@ import {
   AdsClick,
   Handshake,
   Slideshow,
+  MarkEmailUnread,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -30,11 +32,14 @@ export default async function MainPanelLayout({ children }: { children: React.Re
 
   const userName = session.user.username;
   const avatarUrl = session.user.avatarUrl ?? "/uploads/avatar.svg";
+  const mailAlertCount = session.user.role === "ADMIN"
+    ? await getAdminMailAlertCount().catch(() => 0)
+    : 0;
 
   return (
     <div className={styles.container}>
       {/* Мобильное меню */}
-      <MobileMenu userName={userName} avatarUrl={avatarUrl} userRole={session.user.role} />
+      <MobileMenu userName={userName} avatarUrl={avatarUrl} userRole={session.user.role} mailAlertCount={mailAlertCount} />
 
       <aside className={styles.sidebar}>
         <div className={styles.profilWrapper}>
@@ -49,6 +54,13 @@ export default async function MainPanelLayout({ children }: { children: React.Re
           <People sx={{ mr: 1.5, fontSize: 20 }} />
           Пользователи платформы
         </Link>
+        {session.user.role === "ADMIN" && (
+          <Link href="/main-panel/mail" className={styles.button}>
+            <MarkEmailUnread sx={{ mr: 1.5, fontSize: 20 }} />
+            Почта и алерты
+            {mailAlertCount > 0 && <span className={styles.alertCount}>{Math.min(mailAlertCount, 99)}{mailAlertCount > 99 ? "+" : ""}</span>}
+          </Link>
+        )}
         <Link href="/main-panel/admin" className={styles.button}>
           <AdminPanelSettings sx={{ mr: 1.5, fontSize: 20 }} />
           Администрирование

@@ -98,7 +98,7 @@ describe("FeedVideo HLS engine selection", () => {
     expect(vi.mocked(HTMLMediaElement.prototype.play)).not.toHaveBeenCalled();
   });
   it("starts a new video using Cloud.ru HLS when Feed is in a confirmed 504 cooldown", async () => {
-    const source = `https://feed.gafus.ru/posts/owner/post/attachments/media/hls/segment-000.ts?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const source = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/posts/owner/post/attachments/media/hls/segment-000.ts`;
     expect(await probeCdnOutage(source, { fetcher: async () => new Response(null, { status: 504 }) })).toBe(true);
     await act(async () => root.render(<FeedVideo mediaId="media1" poster={null} />));
     await act(async () => {

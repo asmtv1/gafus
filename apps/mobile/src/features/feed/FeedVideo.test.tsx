@@ -157,7 +157,7 @@ describe("Mobile FeedVideo native source fallback", () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("Видео не загрузилось");
   });
   it("starts a new video directly on Cloud.ru HLS during a confirmed Feed outage", async () => {
-    const source = `https://feed.gafus.ru/posts/owner/post/attachments/media/hls/segment-000.ts?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const source = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/posts/owner/post/attachments/media/hls/segment-000.ts`;
     expect(await probeCdnOutage(source, { fetcher: async () => new Response(null, { status: 504 }) })).toBe(true);
     await act(async () =>
       root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />),

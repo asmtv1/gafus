@@ -11,18 +11,21 @@ export type MediaCdnKind = 'gallery' | 'feed';
 export const MEDIA_CDN_OUTAGE_COOLDOWN_MS = 60_000;
 const cdnFailedUntil: Record<MediaCdnKind, number> = { gallery: 0, feed: 0 };
 
+/** Classify signed, exact-host CDN URLs for isolated per-service failover. */
 export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
   try {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
-        url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//') ||
-        [...url.searchParams.keys()].sort().join(',') !== 'expires,md5' ||
-        !/^[A-Za-z0-9_-]{22}$/.test(url.searchParams.get('md5') ?? '') ||
-        !/^\d{10}$/.test(url.searchParams.get('expires') ?? '')) return null;
-    if ((url.hostname === 'gallery-dev.gafus.ru' || url.hostname === 'gallery.gafus.ru') &&
-        /^\/albums\/[A-Za-z0-9_/-]+\.webp$/.test(url.pathname)) return 'gallery';
-    if (url.hostname === 'feed.gafus.ru' &&
-        /^\/posts\/[A-Za-z0-9_/-]+\.(?:webp|ts)$/.test(url.pathname)) return 'feed';
+        url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//')) return null;
+    const gallery = url.hostname === 'mepsuduyokabib.begetcdn.cloud';
+    const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
+    if (!gallery && !feed || url.search) return null;
+    const path = url.pathname.replace(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/, '');
+    if (path === url.pathname) return null;
+    if (gallery && /^\/albums\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+\/(?:thumb|full)\.webp$/.test(path)) return 'gallery';
+    if (gallery && /^\/users\/[A-Za-z0-9_-]+\/pets\/[A-Za-z0-9_-]+\/vet-visits\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/thumb\.webp$/.test(path)) return 'gallery';
+    if (feed && /^\/posts\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/attachments\/[A-Za-z0-9_-]+\/(?:thumb|full|poster)\.webp$/.test(path)) return 'feed';
+    if (feed && /^\/posts\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/attachments\/[A-Za-z0-9_-]+\/hls\/segment-[0-9]{3,5}\.ts$/.test(path)) return 'feed';
   } catch { /* Unknown URLs must not affect circuit state. */ }
   return null;
 }
@@ -81,7 +84,7 @@ export async function probeHlsCdnOutage(
     if (segments.length === 0 || segments.length > 128) return false;
     const first = new URL(segments[0]!);
     if (first.protocol !== 'https:' || !/\/hls\/segment-[0-9]+\.ts$/.test(first.pathname) ||
-        !first.searchParams.has('md5') || !first.searchParams.has('expires')) return false;
+        mediaCdnKindFromSignedUrl(first.toString()) !== 'feed') return false;
     return probeCdnOutage(first.toString(), options);
   } catch { return false; }
 }
@@ -104,14 +107,19 @@ export function isTrustedCdnProbeUrl(
   let url: URL;
   try { url = new URL(raw); } catch { return false; }
   if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
-      !allowedHosts.includes(url.hostname) ||
-      !/^\/(?:albums|posts)\/[a-zA-Z0-9_/-]+\.(?:webp|jpg|jpeg|png|ts)$/.test(url.pathname) ||
-      url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./') ||
-      [...url.searchParams.keys()].sort().join(',') !== 'expires,md5') return false;
-  const signature = url.searchParams.get('md5') ?? '';
-  const expiresRaw = url.searchParams.get('expires') ?? '';
+      !allowedHosts.includes(url.hostname) || url.pathname.includes('%') ||
+      url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./')) return false;
+  if (!['mepsuduyokabib.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname) || url.search)
+    return false;
+  const match = /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|posts)\/[A-Za-z0-9_/-]+\.(?:webp|ts))$/.exec(url.pathname);
+  if (!match) return false;
+  const signature = match[1]!;
+  const expiresRaw = match[2]!;
+  const path = match[3]!;
+  if (mediaCdnKindFromSignedUrl(raw) === null) return false;
   const expires = Number(expiresRaw);
-  return /^[A-Za-z0-9_-]{22}$/.test(signature) && /^\d{10}$/.test(expiresRaw) &&
+  return /^\/(?:albums|posts)\/[A-Za-z0-9_/-]+\.(?:webp|ts)$/.test(path) &&
+    /^[A-Za-z0-9_-]{22}$/.test(signature) && /^\d{10}$/.test(expiresRaw) &&
     Number.isSafeInteger(expires) && expires > Math.floor(nowMs / 1000) - 120 &&
     expires <= Math.floor(nowMs / 1000) + 600;
 }

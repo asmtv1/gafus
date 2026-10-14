@@ -16,3 +16,5 @@ export const {
   checkDayAccess,
 } = trainingService;
 export type { StepOperation } from "./trainingService";
+
+export { getCourseCacheMetricsSnapshot, canReadCourseCacheMetrics } from "./trainingContentMetrics";

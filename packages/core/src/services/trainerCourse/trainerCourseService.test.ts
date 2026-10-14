@@ -9,6 +9,15 @@ import {
 } from "./trainerCourseService";
 import { NotFoundError, ConflictError } from "../../errors/ServiceError";
 
+const invalidateCourse = vi.hoisted(() => vi.fn());
+const publishRevision = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../training/trainingContentRevision", () => ({
+  publishCourseContentChange: publishRevision,
+}));
+vi.mock("../training/trainingDayContent", () => ({
+  invalidateCourseContentCache: invalidateCourse,
+}));
+
 const mockHandlePrismaError = vi.fn(() => {
   throw new NotFoundError("Курс");
 });
@@ -56,9 +65,7 @@ const txStub = {
   },
 };
 
-const mockTransaction = vi.fn((fn: (tx: typeof txStub) => Promise<unknown>) =>
-  fn(txStub),
-);
+const mockTransaction = vi.fn((fn: (tx: typeof txStub) => Promise<unknown>) => fn(txStub));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -163,10 +170,7 @@ describe("createCourse", () => {
             ],
           },
           access: {
-            create: [
-              { user: { connect: { id: "u1" } } },
-              { user: { connect: { id: "u2" } } },
-            ],
+            create: [{ user: { connect: { id: "u1" } } }, { user: { connect: { id: "u2" } } }],
           },
         }),
       }),
@@ -207,9 +211,7 @@ describe("createCourse", () => {
   });
 
   it("returns handlePrismaError message on P2002 during createCourse", async () => {
-    mockCourseCreate.mockRejectedValueOnce(
-      Object.assign(new Error("unique"), { code: "P2002" }),
-    );
+    mockCourseCreate.mockRejectedValueOnce(Object.assign(new Error("unique"), { code: "P2002" }));
     mockHandlePrismaError.mockImplementationOnce(() => {
       throw new ConflictError("Уже существует");
     });
@@ -241,10 +243,7 @@ describe("updateCourse", () => {
   });
 
   it("does not remove access for paid users when updating allowedUsers", async () => {
-    mockCourseAccessFindMany.mockResolvedValue([
-      { userId: "paid-u" },
-      { userId: "u1" },
-    ]);
+    mockCourseAccessFindMany.mockResolvedValue([{ userId: "paid-u" }, { userId: "u1" }]);
     mockPaymentFindMany.mockResolvedValue([{ userId: "paid-u" }]);
     mockCourseAccessCreate.mockResolvedValue({});
 
@@ -287,6 +286,8 @@ describe("updateCourse", () => {
     expect(result.success).toBe(true);
     expect(mockCourseUpdate).toHaveBeenCalled();
     expect(mockDayOnCourseFindMany).toHaveBeenCalled();
+    expect(invalidateCourse).toHaveBeenCalledExactlyOnceWith("c1");
+    expect(publishRevision).toHaveBeenCalledTimes(1);
   });
 
   it("returns error when prisma throws known error", async () => {
@@ -312,12 +313,12 @@ describe("updateCourse", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+    expect(invalidateCourse).not.toHaveBeenCalled();
+    expect(publishRevision).not.toHaveBeenCalled();
   });
 
   it("update with empty trainingDays removes all existing day links", async () => {
-    mockDayOnCourseFindMany.mockResolvedValue([
-      { id: "link-1", dayId: "day-old", order: 1 },
-    ]);
+    mockDayOnCourseFindMany.mockResolvedValue([{ id: "link-1", dayId: "day-old", order: 1 }]);
     mockDayOnCourseDeleteMany.mockResolvedValue({ count: 1 });
     mockDayOnCourseUpdate.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
@@ -403,6 +404,7 @@ describe("deleteCourse", () => {
 
     expect(result.success).toBe(true);
     expect(result.logoImg).toBe("https://cdn/logo.jpg");
+    expect(invalidateCourse).toHaveBeenCalledExactlyOnceWith("c1");
     expect(mockCourseDelete).toHaveBeenCalledWith({ where: { id: "c1" } });
   });
 
@@ -539,4 +541,3 @@ describe("getCourseDraftWithRelations", () => {
     expect(result).toBeNull();
   });
 });
-

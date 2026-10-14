@@ -47,6 +47,12 @@ pnpm --filter @gafus/prisma exec prisma db push --skip-generate
 # Apply migration-only safety invariants transactionally before baseline resolve.
 psql "$psql_database_url" -X -v ON_ERROR_STOP=1 -1 -f packages/prisma/scripts/fresh-db-extras.sql
 
+# A clean Prisma db push creates the cache revision table but does not insert
+# the singleton row. Historical migration 20261015020000 inserts it during
+# regular migrate deploy, which fresh-baseline resolution intentionally skips.
+# Seed the same row here before enabling the cache in any new installation.
+psql "$psql_database_url" -X -v ON_ERROR_STOP=1 -c 'INSERT INTO "CourseContentRevision" ("id", "revision") VALUES (1, 0) ON CONFLICT ("id") DO NOTHING'
+
 while IFS= read -r migration; do
   pnpm --filter @gafus/prisma exec prisma migrate resolve --applied "$migration" >/dev/null
 done < <(find packages/prisma/migrations -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)

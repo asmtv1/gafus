@@ -11,13 +11,13 @@ import { TourTarget } from "@/shared/lib/tour-targets";
 import { MENU_TAB_ICON_SOURCE } from "./menuTabIconSource";
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
-const TAB_LABEL_FONT_SIZE = 12;
+const TAB_LABEL_FONT_SIZE = 11;
 const ITEMS = [
   {
-    name: "pets",
-    label: "Питомцы",
-    targetId: "tab-pets",
-    image: require("../../../assets/images/tab-icons/pets.webp"),
+    name: "feed",
+    label: "Моменты",
+    targetId: "tab-feed",
+    image: require("../../../assets/images/tab-icons/feed.webp"),
   },
   {
     name: "index",
@@ -32,16 +32,16 @@ const ITEMS = [
 export function MainTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const currentName = state.routes[state.index]?.name;
-  const selectedName = currentName === "pets" || currentName === "index" ? currentName : "more";
+  const selectedName = currentName === "feed" || currentName === "index" ? currentName : "more";
   const safeAreaStyle = getMainTabBarSafeAreaStyle(Platform.OS, insets.bottom);
 
   return (
     <View
       style={{
         flexDirection: "row",
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingTop: 11,
+        gap: 7,
+        paddingHorizontal: 20,
+        paddingTop: 7,
         backgroundColor: COLORS.cardBackground,
         boxShadow: "0 -5px 14px rgba(74, 74, 30, 0.12)",
         ...safeAreaStyle,
@@ -80,12 +80,12 @@ export function MainTabBar({ state, navigation }: TabBarProps) {
               styles.tabButton,
               {
                 flex: 1,
-                minHeight: 58,
+                minHeight: 48,
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 2,
+                gap: 1,
                 paddingHorizontal: 4,
-                paddingVertical: 3,
+                paddingVertical: 2,
               },
               focused && styles.tabButtonSelected,
               pressed && styles.tabButtonPressed,
@@ -95,7 +95,7 @@ export function MainTabBar({ state, navigation }: TabBarProps) {
               <View style={styles.tabIconWrap}>
                 <Image
                   source={item.image}
-                  style={{ width: item.name === "more" ? 34 : 24, height: item.name === "more" ? 28 : 24 }}
+                  style={{ width: item.name === "more" ? 29 : 21, height: item.name === "more" ? 24 : 21 }}
                   contentFit="contain"
                   accessible={false}
                 />
@@ -117,7 +117,7 @@ export function MainTabBar({ state, navigation }: TabBarProps) {
 const styles = {
   tabButton: {
     backgroundColor: "#FBF7EF",
-    borderRadius: 18,
+    borderRadius: 15,
     borderCurve: "continuous" as const,
     boxShadow: "0 4px 8px rgba(74, 74, 30, 0.18)",
     elevation: 5,
@@ -135,8 +135,8 @@ const styles = {
     transform: [{ translateY: 4 }, { scale: 0.98 }],
   },
   tabIconWrap: {
-    minWidth: 36,
-    height: 28,
+    minWidth: 30,
+    height: 24,
     alignItems: "center" as const,
     justifyContent: "center" as const,
   },

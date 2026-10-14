@@ -106,29 +106,23 @@ describe("closed lightweight origin", () => {
       });
     }
   });
-  it("optional defense token rejects expiry; default permits CDN query stripping", async () => {
+  it("requires the protected Origin header and only receives the stripped CDNvideo object path", async () => {
     const x = setup();
     const now = 1800000000000;
-    const url = new URL(
-      signGalleryCdnUrl(
-        "https://images.example.org",
-        path.slice(1),
-        new Date(now + 120000),
-        secret,
-        now,
-      ),
-    );
-    const origin = createGalleryOrigin({
-      objects: x.objects,
+    const signed = new URL(signGalleryCdnUrl(
+      "https://mepsuduyokabib.begetcdn.cloud",
+      path.slice(1),
+      new Date(now + 120000),
       secret,
-      cdnSecret: secret,
-      now: () => now + 120000,
-    });
-    expect(
-      (await origin({ ...x.event, queryStringParameters: Object.fromEntries(url.searchParams) }))
-        .statusCode,
-    ).toBe(403);
+      now,
+    ));
+    expect(signed.pathname).toMatch(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\//);
+    expect(signed.search).toBe("");
+    // Beget validates and strips /md5(...) before calling this private Origin.
     expect((await x.origin(x.event)).statusCode).toBe(200);
+    // The edge signature is NOT an Origin authorization bypass.
+    expect((await x.origin({ ...x.event, path: signed.pathname })).statusCode).toBe(400);
+    expect((await x.origin({ ...x.event, headers: {} })).statusCode).toBe(403);
   });
   it("maps storage failure to retryable 503 without details", async () => {
     const x = setup();

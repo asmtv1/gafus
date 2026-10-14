@@ -26,7 +26,7 @@ prometheus.remote_write "yc" {
 prometheus.relabel "yc_allowlist" {
   rule {
     source_labels = ["__name__"]
-    regex         = "probe_success|pg_up|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes"
+    regex         = "probe_success|pg_up|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes|gafus_mail_(stalled_pending|unresolved_unknown|expired_unknown|recent_failed|delivery_failures_24h|queue_failed|queue_expired|queue_stalled)"
     action        = "keep"
   }
   forward_to = [prometheus.remote_write.yc.receiver]
@@ -70,4 +70,18 @@ prometheus.scrape "services_health" {
   clustering {
     enabled = false
   }
+}
+
+
+// Read-only mail delivery counters. Keep these separate from other worker metrics
+// to ensure a slow NPD/subscription snapshot cannot hide mail delivery failures.
+prometheus.scrape "worker_mail" {
+  targets = [{
+    __address__ = "worker:3003",
+    instance    = "gafus-worker-mail",
+    job         = "worker-mail",
+  }]
+  metrics_path    = "/metrics/mail"
+  scrape_interval = "60s"
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
 }

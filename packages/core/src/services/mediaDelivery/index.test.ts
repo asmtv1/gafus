@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isCdnOutage, isMediaCdnFailoverActive, isSignedCdnFailoverActive, MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, probeHlsCdnOutage, cloudruFallbackManifestUrl, isTrustedCdnProbeUrl } from './index';
+import { isCdnOutage, isMediaCdnFailoverActive, isSignedCdnFailoverActive, MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, probeHlsCdnOutage, cloudruFallbackManifestUrl, isTrustedCdnProbeUrl, mediaCdnKindFromSignedUrl } from './index';
 describe('CDN fail-closed transport fallback policy', () => {
   it('never bypasses 403/404 or any known non-5xx response', () => {
     for (const status of [200, 204, 301, 400, 401, 403, 404, 429])
@@ -22,7 +22,7 @@ describe('CDN fail-closed transport fallback policy', () => {
   it('requires a CDN segment, never treats an API manifest 5xx as CDN outage', async () => {
     const fetcher = vi.fn(async () => new Response('', { status: 503 })) as unknown as typeof fetch;
     expect(await probeHlsCdnOutage('https://api.gafus.test/manifest', { fetcher })).toBe(false);
-    const segment = `https://cdn.gafus.test/posts/a/b/attachments/c/hls/segment-000.ts?md5=abc&expires=123`;
+    const segment = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/posts/a/b/attachments/c/hls/segment-000.ts`;
     const manifest = `#EXTM3U\n#EXTINF:2,\n${segment}\n#EXT-X-ENDLIST\n`;
     const good = vi.fn(async (url: string) => url.includes('manifest')
       ? new Response(manifest) : new Response(null, { status: 503 })) as unknown as typeof fetch;
@@ -38,30 +38,40 @@ describe('CDN fail-closed transport fallback policy', () => {
 describe('authorized same-origin Web CDN status proxy target', () => {
   const now = 1791820000000;
   const path = '/posts/owner/post/attachments/media/thumb.webp';
-  const signed = `https://feed.gafus.ru${path}?md5=${'A'.repeat(22)}&expires=${Math.floor(now / 1000) + 90}`;
-  const allowed = ['feed.gafus.ru', 'gallery-dev.gafus.ru'];
+  const signed = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},${Math.floor(now / 1000) + 90})${path}`;
+  const allowed = ['garaquachegasourn.begetcdn.cloud', 'mepsuduyokabib.begetcdn.cloud'];
   it('accepts only supported signed media path on explicitly approved hosts', () => {
     expect(isTrustedCdnProbeUrl(signed, allowed, now)).toBe(true);
-    expect(isTrustedCdnProbeUrl(signed.replace('feed.gafus.ru', 'evil.example'), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('garaquachegasourn.begetcdn.cloud', 'evil.example'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('https:', 'http:'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('/posts/', '/admin/'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed + '&source=cloudru', allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('thumb.webp', 'secret.txt'), allowed, now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace('expires=', 'xexpires='), allowed, now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace('feed.gafus.ru', 'feed.gafus.ru:444'), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('md5(', 'bad('), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('garaquachegasourn.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud:444'), allowed, now)).toBe(false);
+  });
+  it('accepts only signed Beget URLs on exact approved service hosts', () => {
+    const expires = Math.floor(now / 1000) + 300;
+    const beget = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},${expires})${path}`;
+    expect(isTrustedCdnProbeUrl(beget, [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(true);
+    expect(isTrustedCdnProbeUrl(beget + '?x=1', [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(beget.replace('/posts/','/incoming/'), [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(beget, allowed.filter(host => host !== 'garaquachegasourn.begetcdn.cloud'), now)).toBe(false);
+    expect(mediaCdnKindFromSignedUrl(beget)).toBe('feed');
+    expect(mediaCdnKindFromSignedUrl(beget.replace('garaquachegasourn.begetcdn.cloud','evil.begetcdn.cloud'))).toBeNull();
   });
   it('rejects expired or long-lived probe URLs', () => {
-    expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d+/, `expires=${Math.floor(now/1000)-200}`),allowed,now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d+/, `expires=${Math.floor(now/1000)+10000}`),allowed,now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace(/,\d{10}\)/, `,${Math.floor(now/1000)-200})`),allowed,now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace(/,\d{10}\)/, `,${Math.floor(now/1000)+10000})`),allowed,now)).toBe(false);
   });
 });
 
 
 describe('60-second per-CDN failover circuit breaker', () => {
-  const gallery = `https://gallery-dev.gafus.ru/albums/owner/album/photos/photo/full.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
-  const feed = `https://feed.gafus.ru/posts/owner/post/attachments/item/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
+  const gallery = `https://mepsuduyokabib.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/photo/full.webp`;
+  const feed = `https://garaquachegasourn.begetcdn.cloud/md5(${'B'.repeat(22)},1999999999)/posts/owner/post/attachments/item/poster.webp`;
   it('opens only the failing CDN for 60 seconds, then retries the CDN on demand', async () => {
-    const now = Date.now() - 200_000;
+    const now = Date.now() + 200_000;
     vi.useFakeTimers({ now });
     try {
       const unavailable = vi.fn(async () => new Response(null, { status: 504 })) as unknown as typeof fetch;
@@ -82,7 +92,7 @@ describe('60-second per-CDN failover circuit breaker', () => {
     } finally { vi.useRealTimers(); }
   });
   it('does not open a CDN circuit on 403/404, native network failures or unsigned URLs', async () => {
-    const now = Date.now() - 75_000;
+    const now = Date.now() + 400_000;
     vi.useFakeTimers({ now });
     try {
       for (const status of [403, 404]) {
@@ -92,7 +102,7 @@ describe('60-second per-CDN failover circuit breaker', () => {
       const networkError = async () => { throw new Error('offline'); };
       expect(await probeCdnOutage(feed, { fetcher: networkError, nativeNetwork: true })).toBe(true);
       expect(isMediaCdnFailoverActive('feed')).toBe(false);
-      expect(await probeCdnOutage(feed.replace('feed.gafus.ru', 'evil.example'), {
+      expect(await probeCdnOutage(feed.replace('garaquachegasourn.begetcdn.cloud', 'evil.example'), {
         fetcher: async () => new Response(null, { status: 504 }),
       })).toBe(true);
       expect(isMediaCdnFailoverActive('feed')).toBe(false);

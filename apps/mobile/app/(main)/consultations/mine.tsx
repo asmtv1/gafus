@@ -12,7 +12,7 @@ import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { TexturedSafeAreaView } from "@/shared/components";
+import { Loading, TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -124,7 +124,9 @@ export default function ConsultationsMineScreen() {
           <Text style={styles.hint}>Все консультации отображаются по времени МСК (UTC+3).</Text>
         </View>
 
-        {query.isLoading ? <Text style={styles.muted}>Загрузка…</Text> : null}
+        {query.isLoading ? (
+          <Loading variant="inline" message="Загружаем ваши консультации…" />
+        ) : null}
         {query.isError ? <Text style={styles.error}>Не удалось загрузить записи.</Text> : null}
         {items.length === 0 && !query.isLoading && !query.isError ? (
           <View style={styles.emptyCard}>

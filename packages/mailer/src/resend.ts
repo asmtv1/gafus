@@ -1,8 +1,46 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import { prisma } from "@gafus/prisma";
 import { formatMailFromHeader, isMailerConfigured, type MailerEnv } from "./env.js";
 import type { Attachment, SendTransactionalMailInput } from "./send-transactional-mail.js";
+
+const MAX_ATTEMPTS = 3;
+const MAX_IDEMPOTENCY_AGE_MS = 23 * 60 * 60 * 1000;
+const BACKOFF_MS = [400, 1200];
+
+// Only record well-known transport codes. Never persist raw exception messages:
+// undici/provider errors can contain recipient data, URLs, headers or tokens.
+const NETWORK_CODES = new Set([
+  "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT",
+  "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "ENETUNREACH", "EHOSTUNREACH",
+  "EAI_AGAIN", "ENOTFOUND", "ERR_TLS_CERT_ALTNAME_INVALID",
+  "CERT_HAS_EXPIRED", "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+]);
+
+function classifyNetworkError(error: unknown): string {
+  const seen = new Set<unknown>();
+  const codes: string[] = [];
+  function visit(candidate: unknown, depth: number): void {
+    if (depth > 4 || !candidate || typeof candidate !== "object" || seen.has(candidate)) return;
+    seen.add(candidate);
+    const value = candidate as { code?: unknown; name?: unknown; cause?: unknown; errors?: unknown };
+    if (typeof value.code === "string" && NETWORK_CODES.has(value.code)) codes.push(value.code);
+    if (value.name === "TimeoutError" || value.name === "AbortError") codes.push("TIMEOUT");
+    visit(value.cause, depth + 1);
+    if (Array.isArray(value.errors)) {
+      for (const nested of value.errors.slice(0, 4)) visit(nested, depth + 1);
+    }
+  }
+  visit(error, 0);
+  return `NETWORK_${codes[0] ?? "OTHER"}`;
+}
+
+function providerErrorCode(payload: { name?: unknown } | null, status: number): string {
+  // The provider error name is a bounded identifier, never the error message.
+  const name = typeof payload?.name === "string" ? payload.name : "";
+  return name.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || `HTTP_${status}`;
+}
 
 async function encodeAttachment(attachment: Attachment) {
   let content: Buffer;
@@ -35,47 +73,72 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
     update: {},
   });
   if (attempt.status === "ACCEPTED") return;
-  if ((attempt.status === "UNKNOWN" || attempt.status === "PENDING") &&
-      Date.now() - attempt.createdAt.getTime() > 23 * 60 * 60 * 1000) {
-    throw new Error(`Resend acceptance requires reconciliation (attempt ${attempt.id})`);
-  }
-  let response: Response;
-  try {
-    response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.resendApiKey}`,
-        "Content-Type": "application/json",
-        "Idempotency-Key": attempt.id,
-      },
-      body: JSON.stringify({
-        from: formatMailFromHeader(env),
-        to: recipients,
-        subject: input.subject,
-        text: input.text,
-        html: input.html,
-        reply_to: input.replyTo || env.mailReplyTo,
-        attachments,
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-  } catch {
+
+  const assertWithinIdempotencyWindow = () => {
+    // Resend only retains keys for 24h; never silently create a duplicate beyond that.
+    if (Date.now() - attempt.createdAt.getTime() > MAX_IDEMPOTENCY_AGE_MS) {
+      throw new Error(`Resend acceptance requires reconciliation (attempt ${attempt.id})`);
+    }
+  };
+  assertWithinIdempotencyWindow();
+
+  // Every retry reuses the *identical* body and provider idempotency key.
+  // There is intentionally no SMTP fallback and no automatic background replay of old messages.
+  const body = JSON.stringify({
+    from: formatMailFromHeader(env),
+    to: recipients,
+    subject: input.subject,
+    text: input.text,
+    html: input.html,
+    reply_to: input.replyTo || env.mailReplyTo,
+    attachments,
+  });
+
+  for (let number = 0; number < MAX_ATTEMPTS; number++) {
+    if (number > 0) {
+      await delay(BACKOFF_MS[number - 1]);
+      assertWithinIdempotencyWindow();
+    }
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.resendApiKey}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": attempt.id,
+        },
+        body,
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch (error) {
+      const code = classifyNetworkError(error);
+      await prisma.transactionalMailAttempt.update({
+        where: { id: attempt.id }, data: { status: "UNKNOWN", errorCode: code },
+      });
+      if (number < MAX_ATTEMPTS - 1) continue;
+      throw new Error(`Resend transport failed (${code}); acceptance unknown (attempt ${attempt.id})`);
+    }
+
+    const payload = await response.json().catch(() => null) as { id?: unknown; name?: unknown } | null;
+    if (response.ok && typeof payload?.id === "string" && payload.id) {
+      await prisma.transactionalMailAttempt.update({
+        where: { id: attempt.id },
+        data: { status: "ACCEPTED", providerMessageId: payload.id, acceptedAt: new Date() },
+      });
+      return;
+    }
+
+    // 5xx or malformed 2xx may mean acceptance happened; use the same key to retry.
+    // 429, 401, validation failures and other 4xx are not retried automatically.
+    const ambiguous = response.status >= 500 || response.ok;
+    const code = response.ok ? "INVALID_PROVIDER_RESPONSE" : providerErrorCode(payload, response.status);
     await prisma.transactionalMailAttempt.update({
-      where: { id: attempt.id }, data: { status: "UNKNOWN", errorCode: "NETWORK_OR_TIMEOUT" },
+      where: { id: attempt.id },
+      data: { status: ambiguous ? "UNKNOWN" : "FAILED", errorCode: code },
     });
-    throw new Error(`Resend transport failed; acceptance unknown (attempt ${attempt.id})`);
-  }
-  const payload = await response.json().catch(() => null) as { id?: string; name?: string } | null;
-  if (!response.ok || typeof payload?.id !== "string" || !payload.id) {
-    // Provider messages can contain recipient addresses; only retain a bounded code.
-    const code = payload?.name?.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || `HTTP_${response.status}`;
-    await prisma.transactionalMailAttempt.update({
-      where: { id: attempt.id }, data: { status: response.ok || response.status >= 500 ? "UNKNOWN" : "FAILED", errorCode: code },
-    });
+    if (ambiguous && number < MAX_ATTEMPTS - 1) continue;
     throw new Error(`Resend ${code} (attempt ${attempt.id})`);
   }
-  await prisma.transactionalMailAttempt.update({
-    where: { id: attempt.id },
-    data: { status: "ACCEPTED", providerMessageId: payload.id, acceptedAt: new Date() },
-  });
 }

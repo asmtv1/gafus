@@ -11,7 +11,7 @@ import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
 import { StatusBar } from "expo-status-bar";
 
-import { ProfileIcon } from "@/features/profile";
+import { ProfileIcon, ProfileMetaRow } from "@/features/profile";
 import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 
 import { Button, Card } from "@/shared/components/ui";
@@ -123,9 +123,7 @@ function MobileAppSubscriptionCard() {
           <ProfileIcon name="premium" />
           <Text style={styles.subscriptionTitle}>Подписка Gafus Premium</Text>
           <View style={[styles.subscriptionStatusBadge, styles.subscriptionStatusInactive]}>
-            <Text style={[styles.subscriptionStatusText, { color: "#A83C24" }]}>
-              Не активна
-            </Text>
+            <Text style={[styles.subscriptionStatusText, { color: "#A83C24" }]}>Не активна</Text>
           </View>
         </View>
         <Text style={styles.subscriptionMuted}>
@@ -688,17 +686,10 @@ export default function ProfileScreen() {
           {/* Контейнер с информацией о себе */}
           <View style={styles.infoContainer}>
             <View style={styles.bioCard}>
-              {profile?.city ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={19} color={COLORS.primary} />
-                  <Text style={styles.infoText}>Город: {profile.city}</Text>
-                </View>
-              ) : null}
-              {age !== null && (
-                <Text style={styles.infoText}>
-                  Возраст: {age} {declOfNum(age, ["год", "года", "лет"])}
-                </Text>
-              )}
+              <ProfileMetaRow
+                city={profile?.city}
+                ageLabel={age !== null ? `Возраст: ${age} ${declOfNum(age, ["год", "года", "лет"])}` : null}
+              />
 
               {/* О себе */}
               {(profile?.about || !age) && (
@@ -732,7 +723,13 @@ export default function ProfileScreen() {
                           Linking.openURL(`https://instagram.com/${profile.instagram}`)
                         }
                       >
-                        <FontAwesome5 name="instagram" brand size={22} color="#C13584" style={styles.socialBrandIcon} />
+                        <FontAwesome5
+                          name="instagram"
+                          brand
+                          size={22}
+                          color="#C13584"
+                          style={styles.socialBrandIcon}
+                        />
                         <Text style={styles.socialLabel}>Instagram</Text>
                         <Text style={styles.socialUsername}>{profile.instagram}</Text>
                       </Pressable>
@@ -742,7 +739,13 @@ export default function ProfileScreen() {
                         style={styles.socialLink}
                         onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
                       >
-                        <FontAwesome5 name="telegram-plane" brand size={22} color="#229ED9" style={styles.socialBrandIcon} />
+                        <FontAwesome5
+                          name="telegram-plane"
+                          brand
+                          size={22}
+                          color="#229ED9"
+                          style={styles.socialBrandIcon}
+                        />
                         <Text style={styles.socialLabel}>Telegram</Text>
                         <Text style={styles.socialUsername}>{profile.telegram}</Text>
                       </Pressable>
@@ -752,7 +755,12 @@ export default function ProfileScreen() {
                         style={styles.socialLink}
                         onPress={() => Linking.openURL(profile.website!)}
                       >
-                        <MaterialCommunityIcons name="web" size={24} color="#636128" style={styles.socialBrandIcon} />
+                        <MaterialCommunityIcons
+                          name="web"
+                          size={24}
+                          color="#636128"
+                          style={styles.socialBrandIcon}
+                        />
                         <Text style={styles.socialLabel}>Сайт</Text>
                         <Text style={styles.socialUsername}>{profile.website}</Text>
                       </Pressable>
@@ -799,12 +807,24 @@ export default function ProfileScreen() {
                   <Text style={styles.notifyStatusLabel}>Разрешение телефона</Text>
                   <Text style={styles.notifyRowSubtitle}>Чтобы получать уведомления</Text>
                 </View>
-                <View style={[styles.notifyStatusBadge,
-                  osPermission === "granted" ? styles.notifyBadgeOk
-                    : osPermission === "denied" ? styles.notifyBadgeFail : styles.notifyBadgeWarn]}>
+                <View
+                  style={[
+                    styles.notifyStatusBadge,
+                    osPermission === "granted"
+                      ? styles.notifyBadgeOk
+                      : osPermission === "denied"
+                        ? styles.notifyBadgeFail
+                        : styles.notifyBadgeWarn,
+                  ]}
+                >
                   <Text style={styles.notifyBadgeText}>
-                    {enablePushMutation.isPending ? "Загрузка…" : osPermission === "granted"
-                      ? "Разрешено" : osPermission === "denied" ? "Запрещено" : "Не запрошено"}
+                    {enablePushMutation.isPending
+                      ? "Загрузка…"
+                      : osPermission === "granted"
+                        ? "Разрешено"
+                        : osPermission === "denied"
+                          ? "Запрещено"
+                          : "Не запрошено"}
                   </Text>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={21} color="#352E2E" />
@@ -813,10 +833,15 @@ export default function ProfileScreen() {
                 style={styles.notifyStatusRow}
                 accessibilityRole="button"
                 accessibilityLabel="Подписка на этом устройстве. Настроить уведомления"
-                disabled={enablePushMutation.isPending || disablePushMutation.isPending || pushDeviceStatusPending}
+                disabled={
+                  enablePushMutation.isPending ||
+                  disablePushMutation.isPending ||
+                  pushDeviceStatusPending
+                }
                 onPress={() => {
                   if (osPermission === "denied") void Linking.openSettings();
-                  else if (pushServerDetermined && hasThisDevicePushOnServer) disablePushMutation.mutate();
+                  else if (pushServerDetermined && hasThisDevicePushOnServer)
+                    disablePushMutation.mutate();
                   else enablePushMutation.mutate();
                 }}
               >
@@ -825,15 +850,34 @@ export default function ProfileScreen() {
                   <Text style={styles.notifyStatusLabel}>Подписка на этом устройстве</Text>
                   <Text style={styles.notifyRowSubtitle}>Уведомления в приложении</Text>
                 </View>
-                <View style={[styles.notifyStatusBadge,
-                  pushDeviceStatusPending || enablePushMutation.isPending || disablePushMutation.isPending
-                    ? styles.notifyBadgeChecking : pushDeviceStatusError ? styles.notifyBadgeFail
-                    : !pushServerDetermined ? styles.notifyBadgeWarn
-                    : hasThisDevicePushOnServer ? styles.notifyBadgeOk : styles.notifyBadgeFail]}>
+                <View
+                  style={[
+                    styles.notifyStatusBadge,
+                    pushDeviceStatusPending ||
+                    enablePushMutation.isPending ||
+                    disablePushMutation.isPending
+                      ? styles.notifyBadgeChecking
+                      : pushDeviceStatusError
+                        ? styles.notifyBadgeFail
+                        : !pushServerDetermined
+                          ? styles.notifyBadgeWarn
+                          : hasThisDevicePushOnServer
+                            ? styles.notifyBadgeOk
+                            : styles.notifyBadgeFail,
+                  ]}
+                >
                   <Text style={styles.notifyBadgeText}>
-                    {enablePushMutation.isPending || disablePushMutation.isPending ? "Загрузка…"
-                      : pushDeviceStatusPending ? "Проверка…" : pushDeviceStatusError ? "Ошибка"
-                      : !pushServerDetermined ? "Нет токена" : hasThisDevicePushOnServer ? "Активна" : "Неактивна"}
+                    {enablePushMutation.isPending || disablePushMutation.isPending
+                      ? "Загрузка…"
+                      : pushDeviceStatusPending
+                        ? "Проверка…"
+                        : pushDeviceStatusError
+                          ? "Ошибка"
+                          : !pushServerDetermined
+                            ? "Нет токена"
+                            : hasThisDevicePushOnServer
+                              ? "Активна"
+                              : "Неактивна"}
                   </Text>
                 </View>
                 <MaterialCommunityIcons name="chevron-right" size={21} color="#352E2E" />
@@ -1147,7 +1191,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   menuGroup: { backgroundColor: COLORS.cardBackground, borderRadius: 22, paddingVertical: 4 },
-  accountActions: { gap: 12, padding: SPACING.md, backgroundColor: COLORS.cardBackground, borderRadius: 22 },
+  accountActions: {
+    gap: 12,
+    padding: SPACING.md,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 22,
+  },
   notesHeading: { marginBottom: 6 },
   notesEmptyState: { alignItems: "center", gap: 12, paddingTop: 4, paddingBottom: 16 },
   subscriptionBenefits: { gap: 12, paddingVertical: 8 },
@@ -1243,8 +1292,11 @@ const styles = StyleSheet.create({
     fontSize: 19,
     color: "#ECE5D2",
     fontFamily: FONTS.impact,
-    lineHeight: 20,
-    textAlign: "center",
+    lineHeight: 23,
+    textAlign: "left",
+    paddingLeft: 8,
+    alignSelf: "stretch",
+    flexShrink: 1,
   },
   roleBadge: {
     paddingVertical: 4,
@@ -1261,18 +1313,6 @@ const styles = StyleSheet.create({
   },
   // Контейнер с информацией о себе
   infoContainer: { width: "100%", marginBottom: SPACING.md },
-  infoText: {
-    fontSize: 14,
-    color: "#352E2E",
-    marginBottom: SPACING.sm,
-    padding: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: "#ECE5D2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-    fontFamily: FONTS.montserrat,
-  },
   emptyNotice: {
     backgroundColor: COLORS.cardBackground,
     color: "#636128",

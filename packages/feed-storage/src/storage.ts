@@ -12,20 +12,13 @@ export interface FeedStorageConfig {
   secretAccessKey: string;
   cdnBaseUrl: string;
   cdnSecret: string;
+  cdnProvider?: "beget";
 }
 function safeOrigin(value: string): string {
   const url = new URL(value);
-  if (
-    url.protocol !== "https:" ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash ||
-    url.username ||
-    url.password ||
-    url.port ||
-    !url.hostname.includes(".") ||
-    /localhost|(?:^|\.)yandexcloud\.net$/.test(url.hostname)
-  )
+  if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash ||
+      url.username || url.password || url.port ||
+      url.hostname !== "garaquachegasourn.begetcdn.cloud")
     throw new Error("UNSAFE_FEED_CDN");
   return url.origin;
 }
@@ -40,12 +33,15 @@ export function feedStorageConfigFromEnv(
   const config: FeedStorageConfig = {
     enabled: env.FEED_ENABLED === "true" && env.FEED_PROCESSOR_READY === "true",
     bucket: env.FEED_BUCKET ?? "",
-    endpoint: env.FEED_S3_ENDPOINT ?? "https://storage.yandexcloud.net",
+    endpoint: env.FEED_S3_ENDPOINT ?? "https://s3.cloud.ru",
     accessKeyId: env.FEED_S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: env.FEED_S3_SECRET_ACCESS_KEY ?? "",
     cdnBaseUrl: env.FEED_CDN_BASE_URL ?? "",
     cdnSecret: env.FEED_CDN_SECRET ?? "",
+    cdnProvider: env.FEED_CDN_PROVIDER as "beget" | undefined,
   };
+  if (config.cdnProvider !== undefined && config.cdnProvider !== "beget")
+    throw new Error("INVALID_FEED_CDN_PROVIDER");
   if (config.enabled) {
     validateFeedStorageConfig(config);
     if (config.endpoint === "https://s3.cloud.ru" && env.FEED_CDN_EDGE_TOKEN_VERIFIED !== "true")
@@ -59,7 +55,7 @@ function validateFeedStorageConfig(config: FeedStorageConfig) {
   if (
     !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(config.bucket) ||
     /^(gafus-media|gafus-public)$/.test(config.bucket) ||
-    !["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(config.endpoint) ||
+    config.endpoint !== "https://s3.cloud.ru" ||
     !config.accessKeyId ||
     !config.secretAccessKey ||
     !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret)
@@ -73,6 +69,7 @@ export function signFeedCdnUrl(
   expiresAt: Date,
   secret: string,
   now = Date.now(),
+  provider?: "beget",
 ) {
   assertFeedFinalKey(key);
   const origin = safeOrigin(baseUrl);
@@ -81,11 +78,14 @@ export function signFeedCdnUrl(
     !/^[A-Za-z0-9_-]{24,32}$/.test(secret) ||
     !Number.isSafeInteger(expires) ||
     expires <= Math.floor(now / 1000) ||
-    expires > Math.floor(now / 1000) + 120
+    expires > Math.floor(now / 1000) + 360
   )
     throw new Error("INVALID_FEED_CDN_SIGNING_INPUT");
-  const md5 = createHash("md5").update(`${expires}/${key} ${secret}`).digest("base64url");
-  return `${origin}/${key}?md5=${md5}&expires=${expires}`;
+  if (provider !== undefined && provider !== "beget")
+    throw new Error("CDN_PROVIDER_MISMATCH");
+  const path = `/${key}`;
+  const md5 = createHash("md5").update(`${secret}${path}${expires}`).digest("base64url");
+  return `${origin}/md5(${md5},${expires})${path}`;
 }
 export interface FeedPlaybackStoragePort extends FeedStoragePort {
   readPlaylist(key: string): Promise<string>;
@@ -100,7 +100,7 @@ export function createFeedStorage(
     hasCredentials &&
     (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(config.bucket) ||
       /^(gafus-media|gafus-public)$/.test(config.bucket) ||
-      !["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(config.endpoint))
+      config.endpoint !== "https://s3.cloud.ru")
   )
     throw new Error("INVALID_FEED_STORAGE_CONFIG");
   const client =
@@ -224,7 +224,7 @@ export function createFeedStorage(
     },
     async signCdn(input) {
       requireClient();
-      return signFeedCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret);
+      return signFeedCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret, Date.now(), config.cdnProvider);
     },
   };
 }

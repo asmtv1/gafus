@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GalleryUploadDto } from "@gafus/types";
-vi.mock("expo-image", () => ({ Image: { clearMemoryCache: vi.fn().mockResolvedValue(undefined) } }));
+vi.mock("expo-image", () => ({ Image: { clearMemoryCache: vi.fn().mockResolvedValue(undefined), clearDiskCache: vi.fn().mockResolvedValue(undefined) } }));
 import { canDismissUploadTask, clearGallerySession, dismissUploadTask, updateTask, useGallerySession } from "./session";
 import { cancelTask, pollTask, runUpload } from "./queue";
 

@@ -64,21 +64,26 @@ export function parseMonitorState(raw: string | null, now: number): MediaCdnHeal
   } catch { return fallback; }
 }
 
-export type MonitorConfig = Record<Kind, { host: string; secret: string; enabled: boolean }>;
+export type MonitorConfig = Record<Kind, { host: string; secret: string; enabled: boolean; provider?: "beget" }>;
 export function monitorConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): MonitorConfig {
   return {
     gallery: {
-      host: env.GALLERY_CDN_BASE_URL === "https://gallery-dev.gafus.ru" ?
-        "gallery-dev.gafus.ru" : "",
+      host: env.GALLERY_CDN_BASE_URL === "https://mepsuduyokabib.begetcdn.cloud" &&
+        (!env.GALLERY_CDN_PROVIDER || env.GALLERY_CDN_PROVIDER === "beget")
+        ? "mepsuduyokabib.begetcdn.cloud" : "",
+      provider: "beget",
       secret: env.GALLERY_CDN_SECRET ?? "",
       enabled: env.GALLERY_ENABLED === "true" &&
         env.GALLERY_MEDIA_FALLBACK_ENABLED === "true" &&
         env.GALLERY_S3_ENDPOINT === "https://s3.cloud.ru",
     },
     feed: {
-      host: env.FEED_CDN_BASE_URL === "https://feed.gafus.ru" ? "feed.gafus.ru" : "",
+      host: env.FEED_CDN_BASE_URL === "https://garaquachegasourn.begetcdn.cloud" &&
+        (!env.FEED_CDN_PROVIDER || env.FEED_CDN_PROVIDER === "beget")
+        ? "garaquachegasourn.begetcdn.cloud" : "",
+      provider: "beget",
       secret: env.FEED_CDN_SECRET ?? "",
       enabled: env.FEED_ENABLED === "true" &&
         env.FEED_MEDIA_FALLBACK_ENABLED === "true" &&
@@ -93,17 +98,19 @@ export function monitorConfigFromEnv(
  */
 export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
   now = Date.now(), id = randomUUID().replace(/-/g, "")): string | null {
-  const { host, secret, enabled } = config[kind];
+  const { host, secret, enabled, provider } = config[kind];
   if (!enabled || !host ||
-      !(kind === "gallery" ? /^[A-Za-z0-9_-]{6,32}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret) ||
+      !(kind === "gallery" ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret) ||
       !/^[a-f0-9]{32}$/.test(id)) return null;
   const key = kind === "gallery"
     ? `albums/__cdn_monitor__/__cdn_monitor__/photos/${id}/thumb.webp`
     : `posts/__cdn_monitor__/__cdn_monitor__/attachments/${id}/thumb.webp`;
   const path = `/${key}`;
   const expires = Math.floor(now / 1000) + 90;
-  const md5 = createHash("md5").update(`${expires}${path} ${secret}`).digest("base64url");
-  return `https://${host}${path}?md5=${md5}&expires=${expires}`;
+  if (provider !== "beget" || host !== (kind === "gallery" ? "mepsuduyokabib.begetcdn.cloud" : "garaquachegasourn.begetcdn.cloud"))
+    return null;
+  const md5 = createHash("md5").update(`${secret}${path}${expires}`).digest("base64url");
+  return `https://${host}/md5(${md5},${expires})${path}`;
 }
 
 export async function probeMediaCdn(kind: Kind, config: MonitorConfig,

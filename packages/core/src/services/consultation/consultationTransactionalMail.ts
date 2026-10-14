@@ -704,7 +704,14 @@ export async function sendConsultationEmailFromLog(
   const { text, blocksHtml } = buildPayload(type, b);
 
   try {
-    await sendTransactionalEmailWithLayout({ to, subject, text, blocksHtml, deliveryKey: `consultation-${emailLogId}` });
+    const isTimeCritical = type === "CLIENT_CONSULTATION_REMINDER_30M" ||
+      type === "TRAINER_CONSULTATION_REMINDER_30M" ||
+      type === "CLIENT_CONSULTATION_START";
+    await sendTransactionalEmailWithLayout({
+      to, subject, text, blocksHtml, deliveryKey: `consultation-${emailLogId}`,
+      category: "consultation",
+      maxQueueAgeMs: isTimeCritical ? 10 * 60_000 : 4 * 60 * 60_000,
+    });
   } catch (e) {
     logger.error(
       "Ошибка отправки письма по консультации",

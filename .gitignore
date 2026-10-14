@@ -166,3 +166,7 @@ ci-cd/nginx/conf.d/.release-maintenance
 
 # Local isolated Next.js verification builds
 /apps/web/.next-*/
+
+# Local Expo / Metro verification artifacts (never publish in release commits)
+/.expo/
+/apps/mobile/.build-validation-*/

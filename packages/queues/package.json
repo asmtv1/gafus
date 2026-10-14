@@ -10,6 +10,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./course-cache-sync": {
+      "types": "./dist/course-cache-sync.d.ts",
+      "import": "./dist/course-cache-sync.js",
+      "default": "./dist/course-cache-sync.js"
     }
   },
   "scripts": {

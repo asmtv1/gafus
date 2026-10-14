@@ -48,14 +48,14 @@ async function finish(db: Db, delivery: Delivery, data: Record<string, unknown>)
   await db.npdReceiptEmailDelivery.updateMany({ where: { id: delivery.id, status: "PROCESSING", leaseOwner: delivery.leaseOwner }, data: { ...data, leaseOwner: null, leaseExpiresAt: null } });
 }
 
-async function processOne(db: Db, delivery: Delivery, send: (data: { recipientEmail: string; receipt: { serviceName: string; amountKopecks: number; operationAt: Date; printUrl: string } }) => Promise<void>): Promise<"sent" | "skipped" | "failed"> {
+async function processOne(db: Db, delivery: Delivery, send: (data: { deliveryId: string; recipientEmail: string; receipt: { serviceName: string; amountKopecks: number; operationAt: Date; printUrl: string } }) => Promise<void>): Promise<"sent" | "skipped" | "failed"> {
   const receipt = delivery.receipt;
   if (!receipt || receipt.status !== "ISSUED" || !receipt.providerReceiptId || !validPrintUrl(receipt.printUrl) || !delivery.recipientEmail) {
     await finish(db, delivery, { status: "SKIPPED", lastErrorCode: "RECEIPT_NOT_DELIVERABLE", lastErrorRedacted: "Receipt is not issued or has no confirmed print URL" });
     return "skipped";
   }
   try {
-    await send({ recipientEmail: delivery.recipientEmail, receipt: {
+    await send({ deliveryId: delivery.id, recipientEmail: delivery.recipientEmail, receipt: {
       serviceName: receipt.serviceName, amountKopecks: receipt.amountKopecks,
       operationAt: receipt.operationAt, printUrl: receipt.printUrl,
     } });
@@ -70,7 +70,7 @@ async function processOne(db: Db, delivery: Delivery, send: (data: { recipientEm
 }
 
 export async function processDueNpdReceiptEmailDeliveriesCore(
-  send: (data: { recipientEmail: string; receipt: { serviceName: string; amountKopecks: number; operationAt: Date; printUrl: string } }) => Promise<void>,
+  send: (data: { deliveryId: string; recipientEmail: string; receipt: { serviceName: string; amountKopecks: number; operationAt: Date; printUrl: string } }) => Promise<void>,
   params: { batchSize?: number; db?: Db } = {},
 ): Promise<NpdEmailWorkerResult> {
   const db = params.db ?? (prisma as Db);

@@ -187,6 +187,9 @@ jobs:
       - name: Guard empty PostgreSQL bootstrap SQL against migration drift
         run: python3 packages/prisma/scripts/generate-fresh-db-extras.py --check
 
+      - name: Verify production course caching is automatic and migration-safe
+        run: node --test ci-cd/scripts/course-cache-production-contract.test.mjs
+
       - name: Bootstrap clean PostgreSQL with historical constraints
         env:
           DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@localhost:5432/gafus_fresh
@@ -438,14 +441,53 @@ jobs:
         run: node --test ci-cd/scripts/deploy-only-contract.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
+      - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
+        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
       - name: Cloud.ru scheduled processing contract
         run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
 
+  # Fail closed BEFORE publishing production images or changing Cloud.ru/VPS.
+  # The synthetic final objects must be provisioned separately with approval;
+  # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
+  beget-readonly-preflight:
+    needs: [security, build-apps, cloudru-media-contracts]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    env:
+      GAFUS_MEDIA_CDN_TARGET: ${{ vars.GAFUS_MEDIA_CDN_TARGET }}
+      BEGET_CDN_RELEASE_CONFIRM: ${{ vars.BEGET_CDN_RELEASE_CONFIRM }}
+      BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}
+      BEGET_CDN_CACHE_KEY_VERIFIED: ${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED }}
+      BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
+      BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
+      GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
+      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Validate Beget-only production approvals and existing secret bindings
+        run: node infra/cloudru/beget-release-readiness.mjs --check
+      - name: Verify both protected Beget edges with real signed final objects (read-only)
+        run: node infra/cloudru/beget-production-smoke.mjs
+
   # Four immutable, revision-tagged images are required before any production changes.
   cloudru-build-media-images:
-    needs: [security, build-apps, cloudru-media-contracts]
+    needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -469,8 +511,8 @@ jobs:
       - name: Publish Cloud.ru production revision (retry temporary registry 429/5xx)
         run: bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
 
-  # Fail BEFORE touching production if S3 credentials, OCI images, Yandex CDN signer,
-  # protected origin and 3 job definitions cannot be verified.
+  # Only private Cloud.ru S3, protected Origins and bounded processing Jobs.
+  # Beget live signing/edge readiness was verified BEFORE image publication.
   cloudru-prepare-media:
     needs: [cloudru-build-media-images]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -481,7 +523,6 @@ jobs:
       GITHUB_EVENT_NAME: push
       CLOUDRU_PROD_DEPLOY_CONFIRM: preapproved-main-only-media-release
       CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only
-      CLOUDRU_CDN_RELEASE_CONFIRM: reviewed-main-cloudru-cdn-cutover
       CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
       CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
       CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
@@ -494,7 +535,6 @@ jobs:
       FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
       GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
       FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
-      YC_CDN_FOLDER_ID: b1gjbsvfnd1fl68k43g6
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -513,26 +553,10 @@ jobs:
           password: ${{ secrets.CLOUDRU_KEY_SECRET }}
       - name: Confirm guarded OCI release plan
         run: node infra/cloudru/production-media-release.mjs --plan
-      - name: Install Yandex Cloud CLI for CDN read-only preflight
-        run: |
-          curl --fail --location --silent --show-error https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$RUNNER_TEMP/yc-bin" -n
-          echo "$RUNNER_TEMP/yc-bin/bin" >> "$GITHUB_PATH"
-      - name: Authorize CDN read-only preflight
-        env:
-          YC_CDN_SA_KEY: ${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}
-        run: |
-          set -euo pipefail
-          test -n "$YC_CDN_SA_KEY"
-          (umask 077; printf '%s' "$YC_CDN_SA_KEY" > "$RUNNER_TEMP/yc-cdn-sa.json")
-          yc config set service-account-key "$RUNNER_TEMP/yc-cdn-sa.json"
-      - name: Block production deploy if CDN signature/header/TLS is unverified
-        run: node infra/cloudru/production-cdn-release.mjs --preflight
       - name: Confirm all three private Cloud.ru S3 buckets can read, write and delete
         run: node infra/cloudru/production-s3-preflight.mjs --verify
       - name: Provision and warm Cloud.ru protected Origins and bounded processing Jobs
         run: node infra/cloudru/production-media-release.mjs --prepare
-      - name: Precreate safe Yandex CDN origin groups without switching any user traffic
-        run: node infra/cloudru/production-cdn-release.mjs --prepare
 
   # Deploy to staging (develop branch)
   # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
@@ -553,103 +577,25 @@ jobs:
       release_sha: ${{ github.sha }}
     secrets: inherit
 
-  # Last step of the SAME main workflow: users see Cloud.ru media only after
-  # Docker+Prisma+Web/API health and fully signed CDN end-to-end checks.
-  cloudru-activate-cdn:
-    needs: [cloudru-prepare-media, deploy-production]
+  # Post-deploy read-only verification. Never switch, mutate, prepare,
+  # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
+  beget-verify-after-deploy:
+    needs: [beget-readonly-preflight, cloudru-prepare-media, deploy-production]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 38
+    timeout-minutes: 12
     env:
-      GITHUB_EVENT_NAME: push
-      CLOUDRU_CDN_RELEASE_CONFIRM: reviewed-main-cloudru-cdn-cutover
-      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
-      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
-      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
-      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
-      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
-      YC_CDN_FOLDER_ID: b1gjbsvfnd1fl68k43g6
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.4
       - uses: actions/setup-node@v5
         with:
-          node-version: "24"
-          cache: pnpm
-      - name: Install locked S3 SDK dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Install FFmpeg for signed Feed HLS acceptance
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg
-          ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libx264
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl --fail --silent --show-error --location https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i "$RUNNER_TEMP/yc-bin" -n
-          echo "$RUNNER_TEMP/yc-bin/bin" >> "$GITHUB_PATH"
-      - name: Authenticate CDN writer without putting keys into logs
-        env:
-          YC_CDN_SA_KEY: ${{ secrets.FEED_YC_SERVICE_ACCOUNT_KEY }}
-        run: |
-          set -euo pipefail
-          test -n "$YC_CDN_SA_KEY"
-          (umask 077; printf '%s' "$YC_CDN_SA_KEY" > "$RUNNER_TEMP/yc-cdn-sa.json")
-          yc config set service-account-key "$RUNNER_TEMP/yc-cdn-sa.json"
-      - name: Revalidate both CDN signatures, TLS and origin secrets
-        id: cdn_preflight
-        run: node infra/cloudru/production-cdn-release.mjs --preflight
-      - name: Activate and verify Gallery CDN independently
-        if: ${{ !cancelled() && steps.cdn_preflight.outcome == 'success' }}
-        # All security/S3/Origin guards remain blocking; only verified edge 5xx
-        # may complete with a warning while API serves authorized S3 fallback.
-        env:
-          CDN_EDGE_DEGRADED_OK: "true"
-        run: node infra/cloudru/production-cdn-release.mjs --activate gallery
-      - name: Activate and verify Feed CDN independently
-        # Run even if Gallery cutover failed: each resource has its own state
-        # and a failure must not undo a previously verified resource.
-        if: ${{ !cancelled() && steps.cdn_preflight.outcome == 'success' }}
-        env:
-          CDN_EDGE_DEGRADED_OK: "true"
-        run: node infra/cloudru/production-cdn-release.mjs --activate feed
-      - name: Restore previous application if CDN cutover fails
-        if: failure()
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          command_timeout: 20m
-          script: |
-            set -euo pipefail
-            DIR="/root/gafus-release-backups/${{ github.run_id }}-${{ github.run_attempt }}"
-            test -s "$DIR/previous.sha"
-            test -s "$DIR/previous.env"
-            test -s "$DIR/images.tsv"
-            # Prisma schema migration is already committed and may have removed
-            # Telemost columns. An OLD app cannot safely be redeployed merely
-            # because a CDN cutover failed; keep new compatible containers.
-            if [ -f "$DIR/migration-started" ]; then
-              echo "CDN rollback of old application SKIPPED: schema already migrated."
-              echo "Keep compatible app images; repair CDN/origin independently."
-              exit 0
-            fi
-            cd /root/gafus
-            git reset --hard "$(cat "$DIR/previous.sha")"
-            cp "$DIR/previous.env" ci-cd/docker/.env
-            chmod 600 ci-cd/docker/.env
-            while IFS=' ' read -r reference rollback; do
-              docker tag "$rollback" "$reference"
-            done < "$DIR/images.tsv"
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate worker api web trainer-panel admin-panel bull-board nginx
-            for endpoint in https://gafus.ru/api/ping https://api.gafus.ru/ready; do
-              curl --fail --silent --show-error --retry 6 --retry-delay 5 --max-time 10 "$endpoint" > /dev/null
-            done
-            echo "PREVIOUS_GAFUS_APP_RUNTIME_RESTORED=true"
-  # Health check removed - will be handled by separate monitoring workflow
+          node-version: '24'
+      - name: Verify Beget Gallery and Feed signed delivery after application health
+        run: node infra/cloudru/beget-production-smoke.mjs

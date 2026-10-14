@@ -39,8 +39,8 @@ export function ProfileFeedPreview({ username }: { username: string }) {
     staleTime: 30_000,
   });
   if (!viewerId) return null;
-  if (status.isPending) return <Loading variant="inline" message="Загрузка публикаций…" />;
-  if (status.data?.enabled !== true) return null;
+  // Render the section's header and stable container even before the status query resolves.
+  if (!status.isPending && status.data?.enabled !== true) return null;
   return <View style={styles.card} accessibilityLabel="Публикации пользователя">
     <View style={styles.header}>
       <Image
@@ -51,7 +51,9 @@ export function ProfileFeedPreview({ username }: { username: string }) {
       />
       <Text style={styles.title}>Публикации</Text>
     </View>
-    {posts.isPending && <Loading variant="inline" message="Загрузка публикаций…" />}
+    {(status.isPending || posts.isPending) && (
+      <Loading variant="embedded" message="Загрузка публикаций…" />
+    )}
     {posts.isError && <Pressable
       accessibilityRole="button"
       style={styles.stateAction}
@@ -90,7 +92,7 @@ export function ProfileFeedPreview({ username }: { username: string }) {
       </View>
       <MaterialCommunityIcons name="chevron-right" size={21} color={COLORS.primary} />
     </Pressable>)}
-    <Pressable
+    {!status.isPending && !posts.isPending && <Pressable
       accessibilityRole="button"
       accessibilityLabel="Все публикации пользователя"
       onPress={() => router.push({ pathname: "/(main)/feed/profile/[username]", params: { username } } as Href)}
@@ -100,7 +102,7 @@ export function ProfileFeedPreview({ username }: { username: string }) {
       <View style={styles.footerIcon}>
         <MaterialCommunityIcons name="arrow-right" size={19} color={COLORS.primary} />
       </View>
-    </Pressable>
+    </Pressable>}
   </View>;
 }
 const styles = StyleSheet.create({

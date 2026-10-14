@@ -9,6 +9,8 @@ import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import type { ChecklistQuestion } from "@gafus/types";
 import { randomUUID } from "crypto";
 import { estimateDayDurations } from "../../utils/training";
+import { invalidateStepsContentCache } from "../training/trainingDayContent";
+import { publishCourseContentChange } from "../training/trainingContentRevision";
 import {
   parseDailyCourseImportFile,
   type ParsedDailyCourseImportDay,
@@ -1421,6 +1423,12 @@ export async function cleanupDailyCourseContent(
     };
   });
 
+  // Cleanup is a real Step deletion (unlike progress updates). Any cached
+  // regular course referring to a deleted shared step must be invalidated.
+  if (deleted.steps > 0) {
+    invalidateStepsContentCache(plan.stepIds);
+    await publishCourseContentChange();
+  }
   return { preview: plan.preview, deleted };
 }
 

@@ -1,14 +1,34 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, type ImageProps } from 'expo-image';
 import { isSignedCdnFailoverActive, mediaCdnKindFromSignedUrl, probeCdnOutage } from '@gafus/core/services/mediaDelivery';
 import { prefersCloudruMedia } from "@/shared/lib/media/serverHealth";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { scopedMediaCacheKey } from "./scopedMediaCache";
 /** Shared mobile transport; source authorization belongs exclusively to core on API. */
 export function CdnImage({ cdnUrl, requestFallback, onError, ...props }:
   Omit<ImageProps, 'source' | 'cachePolicy'> & {
     cdnUrl: string;
     requestFallback: () => Promise<{ url: string }>;
   }) {
-  const [url, setUrl] = useState<string | undefined>(undefined);
+  const viewer = useAuthStore(state => state.isAuthenticated ? state.user?.id ?? "" : "");
+  const [resolved, setResolved] = useState<{ url: string; viewer: string } | null>(null);
+  // Prevent even a single React render of the previous account's image while
+  // the new viewer's health check/fallback request is pending.
+  const url = resolved?.viewer === viewer ? resolved.url : undefined;
+  const setUrl = useCallback((next: string | undefined) => {
+    setResolved(next ? { url: next, viewer } : null);
+  }, [viewer]);
+  const [cacheSlot, setCacheSlot] = useState(() => Math.floor(Date.now() / 180_000));
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const update = () => {
+      const current = Date.now();
+      setCacheSlot(Math.floor(current / 180_000));
+      timer = setTimeout(update, 180_000 - (current % 180_000) + 10);
+    };
+    update();
+    return () => clearTimeout(timer);
+  }, []);
   const tried = useRef(false);
   const generation = useRef(0);
   const fallbackRef = useRef(requestFallback);
@@ -40,8 +60,14 @@ export function CdnImage({ cdnUrl, requestFallback, onError, ...props }:
       }
     })();
     return () => { generation.current++; };
-  }, [cdnUrl]);
-  return <Image {...props} source={url ? { uri: url } : undefined} cachePolicy="memory" onError={event => {
+  }, [cdnUrl, viewer, setUrl]);
+  let cacheKey: string | undefined;
+  if (url && viewer) {
+    try { cacheKey = scopedMediaCacheKey(url, viewer, cacheSlot * 180_000); }
+    catch { /* Unrecognized URL is never written to the persistent private cache. */ }
+  }
+  return <Image {...props} source={url ? { uri: url, ...(cacheKey ? { cacheKey } : {}) } : undefined}
+    cachePolicy={cacheKey ? "memory-disk" : "memory"} onError={event => {
     if (tried.current || url !== cdnUrl || !cdnUrl) { onError?.(event); return; }
     tried.current = true;
     const expected = generation.current;

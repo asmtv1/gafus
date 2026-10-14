@@ -2,7 +2,7 @@ import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
 import { publicationPhaseLabel, type PublicationItem } from "@gafus/core/services/feed/publication-client";
 import { mobileFeedPublications } from "./publication";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { CdnImage } from "@/shared/components/media/CdnImage";
 import { StatusBar } from "expo-status-bar";
@@ -15,6 +15,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FEED_REACTIONS, FEED_LIMITS, countFeedCharacters, formatFeedTime, validateFeedPollDraft,
+  getFeedAuthorRoleBadge,
   type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto, type FeedSort, type FeedImpressionInput,
 } from "@gafus/types";
 import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
@@ -26,9 +27,11 @@ import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFee
 import { stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { mobileFeedTelemetry } from "./telemetry";
 import { FeedMediaViewer } from "./FeedMediaViewer";
+import { getFeedPreviewHeight } from "./feedMediaLayout";
 import { GafusReactionProgress } from "./GafusReactionProgress";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedCarouselDots } from "./FeedCarouselDots";
+import { FeedPublicationProgress } from "./FeedPublicationProgress";
 import { FeedPollCard } from "./FeedPollCard";
 import { FeedPollComposer, type MobileFeedPollDraft } from "./FeedPollComposer";
 import { FeedSortControl } from "./FeedSortControl";
@@ -98,14 +101,20 @@ function FeedReactionStrip({ reactions, myReaction, busy, onSelect }: {
         return <Pressable key={emoji} accessibilityRole="button"
           accessibilityLabel={`Реакция ${emoji}, ${count}`}
           accessibilityState={{ selected: myReaction === emoji, disabled: busy }}
-          disabled={busy} hitSlop={6} onPress={() => void onSelect(emoji)}
+          disabled={busy} hitSlop={6} onPress={event => {
+            event.stopPropagation();
+            void onSelect(emoji);
+          }}
           style={[s.reactionPill, myReaction === emoji && s.reactionPillSelected]}>
           <Text style={s.reactionEmoji}>{emoji}</Text>
           {count > 0 && <Text style={s.reactionCount}>{count}</Text>}
         </Pressable>;
       })}
       <Pressable ref={triggerRef} accessibilityRole="button" accessibilityLabel="Добавить реакцию"
-        disabled={busy} hitSlop={6} onPress={openPicker} style={s.addReaction}>
+        disabled={busy} hitSlop={6} onPress={event => {
+          event.stopPropagation();
+          openPicker();
+        }} style={s.addReaction}>
         <MaterialCommunityIcons name="heart-outline" size={22} color={COLORS.primary} />
       </Pressable>
     </View>
@@ -135,6 +144,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
   const [mediaPosition, setMediaPosition] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [mediaWidth, setMediaWidth] = useState(320);
+  const { height: viewportHeight } = useWindowDimensions();
   useEffect(() => { setMediaPosition(0); setViewerIndex(null); }, [post.id]);
   const [busy, setBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
@@ -188,26 +198,42 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       Math.max(0, Math.round(offset / (mediaWidth + 8))));
     setMediaPosition(previous => previous === next ? previous : next);
   };
+  // One stable frame per carousel (based on the first attachment); all images
+  // fit inside it without cropping, including portrait and panoramic photos.
   const firstMedia = media[0];
-  const aspectRatio = firstMedia?.width && firstMedia.height
-    ? firstMedia.width / firstMedia.height : 4 / 3;
-  const mediaHeight = detailed
-    ? 226
-    : Math.max(155, Math.min(mediaWidth / aspectRatio, aspectRatio < 1 ? 280 : 218));
-  return <View style={[s.postCard, detailed && s.postCardDetailed]}
+  const mediaHeight = getFeedPreviewHeight(
+    mediaWidth, firstMedia?.width, firstMedia?.height, viewportHeight,
+  );
+  return <Pressable
+    style={[s.postCard, detailed && s.postCardDetailed]}
+    accessible={false}
+    disabled={detailed}
+    onPress={go}
     onLayout={event => {
       const width = Math.max(1, event.nativeEvent.layout.width - (detailed ? 24 : 0));
       setMediaWidth(current => Math.abs(current - width) > 1 ? width : current);
     }}>
     <View style={s.postAuthorBar}>
-    <Pressable style={s.authorRow} accessibilityRole="button" accessibilityLabel={`Профиль ${post.author.name}`} onPress={() => {
+    <Pressable style={s.authorRow} accessibilityRole="button" accessibilityLabel={`Профиль ${post.author.name}`} onPress={event => {
+      event.stopPropagation();
       recordOpen("profile_open");
       router.push({ pathname: "/profile/[username]", params: { username: post.author.username } } as Href);
     }}>
       {post.author.avatarUrl ? <Image source={{ uri: post.author.avatarUrl }} style={s.avatar} cachePolicy="memory" /> :
         <View style={[s.avatar, s.avatarFallback]}><Text style={s.avatarInitial}>{post.author.name.slice(0, 1)}</Text></View>}
-      <View style={{ flex: 1 }}>
-        <Text style={s.authorName} numberOfLines={1}>{post.author.name}</Text>
+      <View style={s.authorInfo}>
+        <View style={s.authorIdentity}>
+          <Text style={s.authorName} numberOfLines={1}>{post.author.name}</Text>
+          {getFeedAuthorRoleBadge(post.author.role) && (
+            <View style={[s.authorRoleBadge,
+              post.author.role === "ADMIN" ? s.authorRoleAdmin : s.authorRoleTrainer]}>
+              <Text style={[s.authorRoleText,
+                post.author.role === "ADMIN" ? s.authorRoleTextAdmin : s.authorRoleTextTrainer]}>
+                {getFeedAuthorRoleBadge(post.author.role)}
+              </Text>
+            </View>
+          )}
+        </View>
         <Muted>{formatFeedTime(post.publishedAt ?? post.createdAt)}{post.editedAt ? " · Изменён" : ""}</Muted>
       </View>
     </Pressable>
@@ -223,17 +249,20 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       onScroll={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}
       onMomentumScrollEnd={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}>
       {media.map((asset, index) => <View style={[s.media, { width: mediaWidth, height: mediaHeight }]} key={asset.id}>
-        <Pressable style={s.image} onPress={() => setViewerIndex(index)}
+        <Pressable style={s.image} onPress={event => {
+          event.stopPropagation();
+          setViewerIndex(index);
+        }}
           accessibilityRole="button"
           accessibilityLabel={asset.kind === "photo" ? `Открыть фото ${index + 1} на весь экран` : `Открыть видео ${index + 1} на весь экран`}>
           {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ? (
             <CdnImage cdnUrl={asset.fullUrl ?? asset.thumbUrl ?? ""}
               requestFallback={() => feedApi.requestMediaFallback(asset.id, asset.fullUrl ? "full" : "thumb")}
-              contentFit={detailed ? "contain" : "cover"} style={s.image} />
+              contentFit="contain" style={s.image} />
           ) : (
             <>
               {!!asset.posterUrl && <CdnImage cdnUrl={asset.posterUrl} requestFallback={() => feedApi.requestMediaFallback(asset.id, "poster")}
-                contentFit="cover" style={s.image} />}
+                contentFit="contain" style={s.image} />}
               <View style={s.videoPlayOverlay} pointerEvents="none">
                 <View style={s.videoPlayCircle}>
                   <MaterialCommunityIcons name="play" size={32} color="#FFF8EB" />
@@ -253,17 +282,39 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       />
     )}
     <FeedCarouselDots count={media.length} position={currentMediaPosition} />
-    {post.text && !(post.hasPoll && post.text === "Опрос") ? <Pressable onPress={() => detailed ? undefined : setExpanded(value => !value)} accessibilityRole={detailed ? "text" : "button"} accessibilityLabel={detailed ? "Текст" : "Показать текст полностью"}>
-      <Text style={[s.body, detailed && s.bodyDetailed]} numberOfLines={detailed || expanded ? undefined : 4}>{post.text}</Text>
-      {!detailed && post.text.length > 80 && <Text style={s.more}>{expanded ? "Свернуть" : "Ещё"}</Text>}
-    </Pressable> : null}
-    {post.hasPoll && <FeedPollCard postId={post.id} />}
+    {post.text && !(post.hasPoll && post.text === "Опрос") ? (
+      <View>
+        <Text style={[s.body, detailed && s.bodyDetailed]} numberOfLines={detailed || expanded ? undefined : 4}>
+          {post.text}
+        </Text>
+        {!detailed && post.text.length > 80 && (
+          <Pressable
+            style={s.expandText}
+            accessibilityRole="button"
+            accessibilityLabel={expanded ? "Свернуть текст публикации" : "Развернуть текст публикации"}
+            onPress={event => {
+              event.stopPropagation();
+              setExpanded(value => !value);
+            }}>
+            <Text style={s.more}>{expanded ? "Свернуть" : "Ещё"}</Text>
+          </Pressable>
+        )}
+      </View>
+    ) : null}
+    {post.hasPoll && (
+      <Pressable accessible={false} onPress={event => event.stopPropagation()}>
+        <FeedPollCard postId={post.id} />
+      </Pressable>
+    )}
     <View style={s.postFooter}>
       <FeedReactionStrip reactions={post.reactions} myReaction={post.myReaction}
         busy={busy} onSelect={react} />
       <View style={s.postStats}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Комментарии: ${post.commentCount}`}
-          onPress={go} style={s.postStat}>
+          onPress={event => {
+            event.stopPropagation();
+            go();
+          }} style={s.postStat}>
           <MaterialCommunityIcons name="comment-outline" size={17} color={COLORS.primary} />
           <Text style={s.postStatText}>{post.commentCount}</Text>
         </Pressable>
@@ -273,7 +324,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
         </View>
       </View>
     </View>
-  </View>;
+  </Pressable>;
 }
 function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
   const router = useRouter();
@@ -295,16 +346,15 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
         {item.previewUri && <Image source={{ uri: item.previewUri }} style={s.publicationPreview}
           contentFit="cover" />}
         {(item.phase === "uploading" || item.phase === "processing") &&
-          <MascotSpinner style={{ transform: [{ scale: 0.43 }] }} />}
+          <ActivityIndicator size="small" color={COLORS.primary}
+            accessibilityLabel="Обрабатываем публикацию" />}
       </View>
       <View style={s.publicationBody} accessibilityLiveRegion="polite">
         <Text style={s.publicationTitle}>{publicationPhaseLabel(item)}</Text>
         {!!item.text && <Text numberOfLines={2} style={s.publicationExcerpt}>{item.text}</Text>}
-        {item.phase === "uploading" && item.progress !== null &&
-          <View style={s.publicationTrack} accessibilityRole="progressbar"
-            accessibilityLabel="Загрузка вложений" accessibilityValue={{ min: 0, max: 100, now: item.progress }}>
-            <View style={[s.publicationFill, { width: `${item.progress}%` }]} />
-          </View>}
+        {(item.phase === "uploading" || item.phase === "processing") && (
+          <FeedPublicationProgress phase={item.phase} progress={item.progress} />
+        )}
         {!!item.error && <Text style={s.error}>{item.error}</Text>}
         {item.phase === "failed" && <View style={s.publicationActions}>
           <Button label="Повторить" height={38} fontSize={12} variant="primary" fullWidth={false}
@@ -323,6 +373,7 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
           ? "Обрабатываем публикацию…" : post.status === "failed"
             ? "Ошибка обработки" : "Черновик публикации"}</Text>
         {!!post.text && <Text style={s.publicationExcerpt} numberOfLines={2}>{post.text}</Text>}
+        {post.status === "pending" && <FeedPublicationProgress phase="processing" />}
       </View>
     </Pressable>)}
   </View>;
@@ -519,15 +570,26 @@ export function FeedScreen() {
             <Text style={[s.bookmarksText, compactControls && s.bookmarksTextCompact]} numberOfLines={1} adjustsFontSizeToFit>Избранные</Text>
           </View>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Новый пост"
-          accessibilityHint="Создать публикацию"
-          onPress={() => router.push("/(main)/feed/create" as Href)}
-          style={({ pressed }) => [s.newPostButton, compactControls && s.newPostButtonCompact, pressed && s.newPostPressed]}
-        >
-          <MaterialCommunityIcons name="plus" size={25} color={COLORS.onPrimary} />
-        </Pressable>
+        <View style={[s.newPostButton, compactControls && s.newPostButtonCompact]}>
+          <Button
+            label=" "
+            variant="primary"
+            accessibilityLabel="Новый пост"
+            accessibilityHint="Создать публикацию"
+            onPress={() => router.push("/(main)/feed/create" as Href)}
+            fullWidth
+            height={44}
+            horizontalPadding={0}
+            verticalPadding={0}
+            borderRadius={14}
+            style={s.newPostButtonBackground}
+            animatedPress
+          />
+          <View style={s.newPostIcon} pointerEvents="none" accessible={false}
+            importantForAccessibility="no-hide-descendants">
+            <MaterialCommunityIcons name="plus" size={25} color="#F6F0DF" />
+          </View>
+        </View>
       </View>}
     </View>
     <FeedPublicationQueue ownerId={userId} />
@@ -1086,21 +1148,20 @@ const s = StyleSheet.create({
   bookmarksIconCompact: { width: 20, height: 20 },
   bookmarksText: { color: "#503C27", fontFamily: FONTS.montserratBold, fontSize: 12, lineHeight: 17, flexShrink: 1 },
   bookmarksTextCompact: { fontSize: 11 },
-  newPostButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" },
+  newPostButton: { width: 44, height: 44, position: "relative" },
   newPostButtonCompact: { width: 42 },
-  newPostPressed: { opacity: 0.7 },
+  newPostButtonBackground: { width: "100%", height: 44 },
+  newPostIcon: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   card: { backgroundColor: COLORS.cardBackground, borderRadius: 20, padding: 16, gap: 12 },
   publicationQueue: { gap: 10, marginHorizontal: 8, marginBottom: 12 },
   publicationCard: { flexDirection: "row", gap: 10, alignItems: "center", padding: 12,
     borderRadius: 16, backgroundColor: COLORS.cardBackground },
-  publicationMedia: { width: 86, height: 88, borderRadius: 12, backgroundColor: "#e5e7da",
+  publicationMedia: { width: 88, height: 88, borderRadius: 12, backgroundColor: COLORS.cardBackground,
     alignItems: "center", justifyContent: "center", overflow: "hidden" },
   publicationPreview: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   publicationBody: { flex: 1, minWidth: 0, gap: 7 },
   publicationTitle: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.primary },
   publicationExcerpt: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
-  publicationTrack: { height: 6, borderRadius: 4, backgroundColor: "#e1e4d3", overflow: "hidden" },
-  publicationFill: { height: "100%", backgroundColor: COLORS.primary },
   publicationActions: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
   publicationDismiss: { minHeight: 40, justifyContent: "center", paddingHorizontal: 8 },
   postCard: { backgroundColor: COLORS.cardBackground, borderRadius: 14, padding: 10, gap: 7 },
@@ -1111,11 +1172,20 @@ const s = StyleSheet.create({
   avatar: { height: 34, width: 34, borderRadius: 17 },
   avatarFallback: { backgroundColor: "#e5e5cf", justifyContent: "center", alignItems: "center" },
   avatarInitial: { fontFamily: FONTS.montserratBold, color: COLORS.primary, fontSize: 15 },
-  authorName: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 13 },
+  authorInfo: { flex: 1, minWidth: 0, gap: 3 },
+  authorIdentity: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0 },
+  authorName: { color: COLORS.text, fontFamily: FONTS.montserratMedium, fontSize: 13, flexShrink: 1 },
+  authorRoleBadge: { flexShrink: 0, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 6 },
+  authorRoleAdmin: { backgroundColor: "#F4E3CD" },
+  authorRoleTrainer: { backgroundColor: "#E4EBD6" },
+  authorRoleText: { fontFamily: FONTS.montserratMedium, fontSize: 10 },
+  authorRoleTextAdmin: { color: "#885327" },
+  authorRoleTextTrainer: { color: "#4E6337" },
   text: { fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 15 },
   muted: { fontFamily: FONTS.montserrat, color: COLORS.textSecondary, fontSize: 11, lineHeight: 16 },
   body: { fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 14, lineHeight: 20 },
   bodyDetailed: { fontSize: 15, lineHeight: 24 },
+  expandText: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center", paddingRight: 18 },
   more: { fontFamily: FONTS.montserratMedium, color: COLORS.primary, fontSize: 13 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, justifyContent: "space-between", flexWrap: "wrap" },
   postFooter: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", columnGap: 8, rowGap: 2 },
@@ -1138,7 +1208,7 @@ const s = StyleSheet.create({
   reactionPaletteItem: { flex: 1, minWidth: 0, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   reactionPaletteEmoji: { fontSize: 23 },
   feedCarousel: { marginHorizontal: -10, borderRadius: 8 },
-  carousel: { gap: 8 }, media: { width: 295, height: 226, backgroundColor: "#E6E0D2", borderRadius: 8, overflow: "hidden" },
+  carousel: { gap: 8 }, media: { width: 295, height: 226, borderRadius: 8, overflow: "hidden" },
   image: { width: "100%", height: "100%" }, videoPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center" },
   input: { borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: 12, minHeight: 120, padding: 12, fontFamily: FONTS.montserrat, fontSize: 15, color: COLORS.text, backgroundColor: "#FFFEF9" },
   composeContent: { paddingHorizontal: SPACING.md, paddingTop: 6, paddingBottom: 44, gap: 12 },

@@ -10,7 +10,7 @@ function storage() {
   const bucket = process.env.GALLERY_BUCKET ?? "";
   const accessKeyId = process.env.GALLERY_S3_ACCESS_KEY_ID ?? "";
   const secretAccessKey = process.env.GALLERY_S3_SECRET_ACCESS_KEY ?? "";
-  const endpoint = process.env.GALLERY_S3_ENDPOINT ?? "https://storage.yandexcloud.net";
+  const endpoint = process.env.GALLERY_S3_ENDPOINT ?? "https://s3.cloud.ru";
   if (endpoint === "https://s3.cloud.ru" && process.env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true")
     throw new Error("PRIVATE_VET_CDN_EDGE_UNVERIFIED");
   const base = process.env.GALLERY_CDN_BASE_URL ?? "";
@@ -22,9 +22,9 @@ function storage() {
     !accessKeyId ||
     !secretAccessKey ||
     process.env.GALLERY_BUCKET_PUBLIC === "true" ||
-    !["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint) ||
-    (endpoint === "https://s3.cloud.ru" && bucket !== "gafus-gallery-private") ||
-    !/^[A-Za-z0-9_-]{24,32}$/.test(secret)
+    endpoint !== "https://s3.cloud.ru" ||
+    bucket !== "gafus-gallery-private" ||
+    !/^[A-Za-z0-9_-]{24,128}$/.test(secret)
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
   const url = new URL(base);
@@ -35,7 +35,7 @@ function storage() {
     url.hash ||
     url.username ||
     url.password ||
-    /localhost|yandexcloud\.net$/.test(url.hostname)
+    url.hostname !== "mepsuduyokabib.begetcdn.cloud"
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
   return {
@@ -45,7 +45,7 @@ function storage() {
     endpoint,
     client: new S3Client({
       endpoint,
-      region: endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1",
+      region: "ru-central-1",
       forcePathStyle: true,
       credentials: { accessKeyId, secretAccessKey },
       maxAttempts: 2,
@@ -124,12 +124,16 @@ export async function vetVisitMediaUrl(key: string, downloadName?: string) {
   if (!keyPattern.test(key)) throw new Error("INVALID_VET_KEY");
   const config = storage();
   if (key.endsWith("/thumb.webp")) {
-    const expires = Math.floor(Date.now() / 1000) + 120;
+    // These private veterinary thumbnails share the Gallery CDN. Their originals
+    // remain short-lived direct Cloud.ru downloads and never traverse Beget.
+    const expires = Math.floor((Date.now() + 300_000) / 30_000) * 30;
     const path = `/${key}`;
+    if (process.env.GALLERY_CDN_PROVIDER !== undefined && process.env.GALLERY_CDN_PROVIDER !== "beget")
+      throw new Error("PRIVATE_VET_CDN_PROVIDER_INVALID");
     const token = createHash("md5")
-      .update(`${expires}${path} ${config.secret}`)
+      .update(`${config.secret}${path}${expires}`)
       .digest("base64url");
-    return `${config.base}${path}?md5=${token}&expires=${expires}`;
+    return `${config.base}/md5(${token},${expires})${path}`;
   }
   // Originals bypass the function response size limit; private Object Storage signs the download.
   const disposition = downloadName

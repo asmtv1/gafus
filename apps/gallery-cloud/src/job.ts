@@ -14,7 +14,7 @@ const worker = createGalleryCloudWorker({
   }),
   objects: createGalleryObjectStore({
     bucket: process.env.GALLERY_BUCKET ?? "",
-    endpoint: process.env.GALLERY_S3_ENDPOINT ?? "https://storage.yandexcloud.net",
+    endpoint: process.env.GALLERY_S3_ENDPOINT ?? "https://s3.cloud.ru",
     accessKeyId: process.env.GALLERY_S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: process.env.GALLERY_S3_SECRET_ACCESS_KEY ?? "",
   }),

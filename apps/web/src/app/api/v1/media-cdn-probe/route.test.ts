@@ -3,7 +3,7 @@ const { session } = vi.hoisted(() => ({ session: vi.fn() }));
 vi.mock("next-auth", () => ({ getServerSession: session }));
 vi.mock("@gafus/auth", () => ({ authOptions: {} }));
 import { GET } from "./route";
-const media = `https://feed.gafus.ru/posts/owner/post/attachments/item/thumb.webp?md5=${"A".repeat(22)}&expires=${Math.floor(Date.now()/1000)+85}`;
+const media = `https://garaquachegasourn.begetcdn.cloud/md5(${"A".repeat(22)},${Math.floor(Date.now()/1000)+85})/posts/owner/post/attachments/item/thumb.webp`;
 const request = (url: string) => new Request("https://gafus.ru/api/v1/media-cdn-probe?url="+encodeURIComponent(url));
 beforeEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); session.mockReset(); session.mockResolvedValue({user:{id:"authorized"}}); });
 describe("authenticated Web CDN status proxy (no storage URL disclosed)", () => {
@@ -15,7 +15,7 @@ describe("authenticated Web CDN status proxy (no storage URL disclosed)", () => 
   });
   it("rejects arbitrary external hosts and paths (SSRF closed)", async () => {
     const fn = vi.fn(); vi.stubGlobal("fetch",fn);
-    for(const bad of [media.replace("feed.gafus.ru","localhost"),media.replace("/posts/","/admin/"),media+"&redirect=x"]) {
+    for(const bad of [media.replace("garaquachegasourn.begetcdn.cloud","localhost"),media.replace("/posts/","/admin/"),media+"&redirect=x"]) {
       expect((await GET(request(bad))).status).toBe(400);
     }
     expect(fn).not.toHaveBeenCalled();
