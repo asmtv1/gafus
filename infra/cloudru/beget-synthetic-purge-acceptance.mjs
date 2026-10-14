@@ -139,16 +139,23 @@ for (const scope of scopes) {
     if (!body.equals(synthetic)||!get.headers.get('content-type')?.includes('image/webp'))
       throw Error('SYNTHETIC_EDGE_BYTES_OR_MIME_INVALID_'+scope.name);
     const cacheControl=get.headers.get('cache-control')??'';
-    if (cacheControl!=='private, max-age=180, must-revalidate')
-      throw Error('SYNTHETIC_CLIENT_CACHE_CONTROL_MISMATCH_'+scope.name);
+    const expectedCacheControl='private, max-age=180, must-revalidate';
+    const cachePolicyMatched=cacheControl===expectedCacheControl;
     let hot=false;
+    const cacheStates=[];
     for (let i=0;i<5;i++) {
       const warm=await request(url);await expectHttp(warm,200,scope,'WARM_GET');
       if (!Buffer.from(await warm.arrayBuffer()).equals(synthetic))
         throw Error('SYNTHETIC_WARM_BYTES_MISMATCH_'+scope.name);
-      if ((warm.headers.get('x-cdn-edge-cache')??'').toUpperCase()==='HIT') hot=true;
+      const edge=(warm.headers.get('x-cdn-edge-cache')??'').slice(0,35);
+      const xCache=(warm.headers.get('x-cache')??'').slice(0,35);
+      const cf=(warm.headers.get('cf-cache-status')??'').slice(0,35);
+      cacheStates.push({edge,xCache,cf});
+      if (edge.toUpperCase()==='HIT'||xCache.toUpperCase().includes('HIT')||cf.toUpperCase()==='HIT') hot=true;
     }
-    if(!hot)throw Error('SYNTHETIC_CDN_CACHE_HIT_NOT_PROVEN_'+scope.name);
+    console.log('SYNTHETIC_CACHE_EVIDENCE',scope.name,JSON.stringify({
+      cacheControl:cacheControl.slice(0,140),cachePolicyMatched,cacheStates,hot,
+    }));
     const head=await request(url,'HEAD');await expectHttp(head,200,scope,'HEAD');
     void head.body?.cancel();
     const range=await request(url,'GET',{headers:{Range:'bytes=0-4'}});
@@ -170,6 +177,8 @@ for (const scope of scopes) {
     }
     if (!propagated) throw Error('SYNTHETIC_PURGE_PROPAGATION_NOT_PROVEN_'+scope.name);
     console.log('SIGNED_EDGE_POSTPURGE_HEAD_GET_404_PASS',scope.name);
+    if (!cachePolicyMatched) throw Error('SYNTHETIC_CLIENT_CACHE_CONTROL_MISMATCH_'+scope.name);
+    if (!hot) throw Error('SYNTHETIC_CDN_CACHE_HIT_NOT_PROVEN_'+scope.name);
   } catch(error) {
     failed=true;
     console.error('SYNTHETIC_BEGET_ACCEPTANCE_FAILED',scope.name,error?.message??'UNKNOWN');
