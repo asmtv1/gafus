@@ -70,7 +70,9 @@ export default async function ProfilPage({
               ? "questions"
               : isOwner && params.tab === "notes"
                 ? "notes"
-                : "activity"
+                : isOwner && params.tab === "gafus"
+                  ? "gafus"
+                  : "activity"
         }
       />
     );

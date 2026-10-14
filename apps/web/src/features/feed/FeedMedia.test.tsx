@@ -10,8 +10,10 @@ vi.mock("@mui/icons-material", () => ({
   CloseRounded: () => <span aria-hidden="true">×</span>,
 }));
 vi.mock("@/shared/components/media/CdnImage", () => ({
-  CdnImage: ({ source, alt, className }: { source: string; alt: string; className?: string }) =>
-    <img src={source} alt={alt} className={className} />,
+  CdnImage: ({
+    source, alt, className, width, height,
+  }: { source: string; alt: string; className?: string; width?: number; height?: number }) =>
+    <img src={source} alt={alt} className={className} width={width} height={height} />,
 }));
 vi.mock("./FeedVideo", () => ({
   FeedVideo: () => <span>Видеоплеер</span>,
@@ -29,6 +31,8 @@ const post = {
       kind: "photo",
       fullUrl: "https://images.example.test/dog.jpg",
       thumbUrl: null,
+      width: 800,
+      height: 1060,
     },
     {
       id: "photo-2",
@@ -73,6 +77,10 @@ describe("FeedMedia photo UX", () => {
     const preview = host.querySelector("img");
     expect(preview?.getAttribute("alt")).toBe("Фото 1 из 2");
     expect(preview?.getAttribute("src")).toContain("dog.jpg");
+    expect(preview?.getAttribute("width")).toBe("800");
+    expect(preview?.getAttribute("height")).toBe("1060");
+    expect(host.querySelector('[class*="photoFrame"]')).not.toBeNull();
+    expect(host.querySelector('[class*="photoMediaItem"]')).not.toBeNull();
 
     await act(async () => {
       host.querySelector<HTMLButtonElement>('button[aria-label="Увеличить фотографию 1"]')?.click();
@@ -112,6 +120,7 @@ describe("FeedMedia photo UX", () => {
     } as FeedPostDto;
     await act(async () => root.render(<FeedMedia post={videoPost} />));
     expect(host.textContent).toContain("Видеоплеер");
+    expect(host.querySelector('[class*="photoFrame"]')).toBeNull();
     expect(host.querySelector('button[aria-label^="Увеличить фотографию"]')).toBeNull();
   });
 });

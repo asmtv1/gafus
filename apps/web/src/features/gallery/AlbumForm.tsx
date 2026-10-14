@@ -36,6 +36,7 @@ export function AlbumForm({
         <TextField
           fullWidth
           label="Название альбома"
+          autoFocus={!album}
           value={name}
           required
           inputProps={{ maxLength: GALLERY_LIMITS.albumName }}

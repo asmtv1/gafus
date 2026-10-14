@@ -38,6 +38,26 @@ Only the pure processor subpath `@gafus/core/services/gallery/imageProcessing` i
 
 Disabled factories reject POST/signing. Missing storage configuration makes HEAD throw `MISSING_GALLERY_STORAGE`; it never reports a nonexistent object. Only an actual storage 404 becomes `null`. Neither browser callers nor arbitrary custom endpoints/keys can select public destinations.
 
+## Cloud.ru immediate processing wake-up (2026-10-14)
+
+When Cloud.ru media jobs are enabled, successful `POST /uploads/{id}/complete`
+commits `uploaded` in Core and **then** queues a BullMQ `gallery-processing-trigger`
+job keyed by upload ID. Queue dispatch waits at most 1.2 seconds; a Redis outage
+never changes an already-committed upload to failure. The GAFUS Worker consumes
+this signal, runs only the allowlisted `gafus-gallery-process` Container Job,
+and caps job launches to one every 1.5 seconds. Cloud.ru credentials remain
+server-side in Worker; browser and API enqueue no direct Cloud.ru requests.
+
+`CLOUDRU_MEDIA_JOBS_ENABLED=true` and `GALLERY_PROCESSOR_READY=true` must be set
+for this route; otherwise it is inert. The existing once-per-minute Cloud.ru
+media dispatcher and Core-backed lease/retry/reconciliation paths remain intact
+as fallback when the queue/worker/provider is unavailable. A successful Container
+Job launch acknowledges the trigger, **not** completion of the photo. Core still
+owns upload processing, final publication, and status polling. On production
+rollout, monitor latency from `uploaded` to `ready`, queue failures, Cloud.ru
+execution acceptance and Core lease retries. No live execution was performed by
+this local change.
+
 ## Transport handoff
 
 All endpoints accept POST and return the bare core DTO JSON, without a response envelope:

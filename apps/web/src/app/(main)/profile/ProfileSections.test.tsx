@@ -26,7 +26,7 @@ afterEach(async () => {
   host.remove();
 });
 
-function mount(isOwner: boolean, initialView: "activity" | "questions" | "settings" | "notes" = "activity") {
+function mount(isOwner: boolean, initialView: "activity" | "questions" | "settings" | "notes" | "gafus" = "activity") {
   return act(async () => root.render(
     <ProfileSections
       isOwner={isOwner}
@@ -36,6 +36,7 @@ function mount(isOwner: boolean, initialView: "activity" | "questions" | "settin
       questions={<p>MY_QUESTIONS_CONTENT</p>}
       settings={<p>SETTINGS_CONTENT</p>}
       notes={<p>CYNOLOGIST_NOTES_CONTENT</p>}
+      wallet={<p>MY_GAFUS_WALLET_CONTENT</p>}
     />,
   ));
 }
@@ -91,7 +92,7 @@ describe("profile sections", () => {
     expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
   });
 
-  it("shows cynologist notes only as the fourth profile tab", async () => {
+  it("shows cynologist notes as the fourth profile tab", async () => {
     await mount(true);
     const buttons = [...host.querySelectorAll<HTMLButtonElement>("nav button")];
     expect(buttons.map((button) => button.textContent?.trim())).toEqual([
@@ -99,6 +100,7 @@ describe("profile sections", () => {
       "Мои вопросы",
       "Настройки аккаунта",
       "Заметки кинолога",
+      "Мои Гафусы",
     ]);
     expect(host.textContent).not.toContain("CYNOLOGIST_NOTES_CONTENT");
     const notes = buttons[3]!;
@@ -124,6 +126,28 @@ describe("profile sections", () => {
     expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
   });
 
+  it("opens the wallet as the fifth owner-only tab and restores it from direct links", async () => {
+    await mount(true);
+    const buttons = [...host.querySelectorAll<HTMLButtonElement>("nav button")];
+    expect(buttons).toHaveLength(5);
+    await act(async () => buttons[4]!.click());
+    expect(buttons[4]?.getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector("#profile-gafus")?.textContent).toContain("MY_GAFUS_WALLET_CONTENT");
+    expect(host.textContent).not.toContain("ACTIVITY_CONTENT");
+    expect(window.location.search).toContain("tab=gafus");
+    await act(async () => {
+      window.history.replaceState({}, "", "/profile?username=admin&tab=notes");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(host.textContent).toContain("CYNOLOGIST_NOTES_CONTENT");
+    expect(host.textContent).not.toContain("MY_GAFUS_WALLET_CONTENT");
+  });
+
+  it("opens the wallet from a direct link", async () => {
+    await mount(true, "gafus");
+    expect(host.querySelector("#profile-gafus")?.textContent).toContain("MY_GAFUS_WALLET_CONTENT");
+  });
+
   it("shows only two mutually exclusive @username radio options to visitors", async () => {
     await mount(false);
     const controls = [...host.querySelectorAll<HTMLButtonElement>('[role="radiogroup"] button')];
@@ -137,6 +161,7 @@ describe("profile sections", () => {
     ]);
     expect(host.textContent).not.toContain("Настройки аккаунта");
     expect(host.textContent).not.toContain("Заметки кинолога");
+    expect(host.textContent).not.toContain("Мои Гафусы");
     await act(async () => controls[1]!.click());
     expect(controls[0]?.getAttribute("aria-checked")).toBe("false");
     expect(controls[1]?.getAttribute("aria-checked")).toBe("true");

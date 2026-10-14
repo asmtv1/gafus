@@ -1,7 +1,7 @@
 "use client";
 
 import { resetAnalyticsUser, trackEvent } from "@gafus/analytics";
-import { Groups as GroupsIcon, PetsOutlined as GafusPawIcon } from "@mui/icons-material";
+import { Groups as GroupsIcon } from "@mui/icons-material";
 import { AppBackButton } from "@/shared/components/ui";
 import { BurgerIcon } from "@shared/components/ui/BurgerIcon";
 import { useSession } from "next-auth/react";
@@ -14,7 +14,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import styles from "./Header.module.css";
 import { chatApi } from "@/features/cynologist-chat/api";
-import { gafusApi } from "@/features/gafus/api";
 import type { CynologistChatStateDto } from "@gafus/consultation-shared";
 
 import type { HeaderProps } from "../types";
@@ -27,18 +26,7 @@ export default React.memo(function Header({
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [assignedTrainer, setAssignedTrainer] = useState(false);
-  const [gafusEnabled, setGafusEnabled] = useState(false);
   const accountId = useSession().data?.user?.id;
-  useEffect(() => {
-    let active = true;
-    setGafusEnabled(false);
-    if (accountId) {
-      void gafusApi.status().then(result => {
-        if (active) setGafusEnabled(result.enabled.economy);
-      }).catch(() => undefined);
-    }
-    return () => { active = false; };
-  }, [accountId]);
   useEffect(() => {
     let alive = true;
     setAssignedTrainer(false);
@@ -287,18 +275,6 @@ export default React.memo(function Header({
               </span>
               <span className={styles.menuLabel}>Статьи</span>
             </Link>
-            {gafusEnabled && <Link
-              href="/gafus"
-              className={`${styles.menuButton} ${isCurrentRoute("/gafus") ? styles.menuButtonActive : ""}`}
-              aria-current={isCurrentRoute("/gafus") ? "page" : undefined}
-              onClick={() => { trackMenuClick("tab-gafus"); setMenuOpen(false); }}
-              onMouseEnter={() => router.prefetch("/gafus")}
-            >
-              <span className={styles.menuIconSlot} aria-hidden="true">
-                <GafusPawIcon sx={{ fontSize: 26, color: "var(--bg-2, #636128)" }} />
-              </span>
-              <span className={styles.menuLabel}>Мои Гафусы</span>
-            </Link>}
             {trainerOnly && process.env.NEXT_PUBLIC_TRAINER_PANEL_URL && (
               <Link
                 href={process.env.NEXT_PUBLIC_TRAINER_PANEL_URL}

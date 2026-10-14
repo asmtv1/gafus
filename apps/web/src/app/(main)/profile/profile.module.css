@@ -53,6 +53,10 @@
   border-radius: 15px;
   background: var(--surface-muted);
   box-shadow: 0 4px 12px rgba(59, 72, 34, .08);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #bdc5a7 transparent;
 }
 .contentNavigation {
   display: flex;
@@ -112,6 +116,9 @@
 @media (max-width: 930px) {
   .profilePage { padding-top: 15px; }
   .settingsLayout { grid-template-columns: minmax(0, 1fr) 270px; }
+}
+@media (min-width: 561px) and (max-width: 850px) {
+  .navigationItem { padding-inline: 12px; font-size: 12px; }
 }
 @media (max-width: 760px) {
   .profilePage { padding-inline: 14px; }

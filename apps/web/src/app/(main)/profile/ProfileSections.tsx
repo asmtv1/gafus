@@ -6,7 +6,7 @@ import secondaryButtonStyles from "@/shared/components/ui/SecondaryButton.module
 
 import styles from "./profile.module.css";
 
-type ProfileView = "activity" | "questions" | "settings" | "notes";
+type ProfileView = "activity" | "questions" | "settings" | "notes" | "gafus";
 
 interface ProfileSectionsProps {
   isOwner: boolean;
@@ -16,6 +16,7 @@ interface ProfileSectionsProps {
   questions?: ReactNode;
   settings?: ReactNode;
   notes?: ReactNode;
+  wallet?: ReactNode;
 }
 
 /** Profile-only navigation state. Data loading and permissions stay in the existing features/core. */
@@ -27,6 +28,7 @@ export default function ProfileSections({
   questions,
   settings,
   notes,
+  wallet,
 }: ProfileSectionsProps) {
   const visitorView = initialView === "questions" ? "questions" : "activity";
   const [view, setView] = useState<ProfileView>(isOwner ? initialView : visitorView);
@@ -40,7 +42,7 @@ export default function ProfileSections({
       const url = new URL(window.location.href);
       const tab = url.searchParams.get("tab");
       setView(
-        tab === "questions" || (isOwner && (tab === "settings" || tab === "notes"))
+        tab === "questions" || (isOwner && (tab === "settings" || tab === "notes" || tab === "gafus"))
           ? tab
           : "activity",
       );
@@ -146,15 +148,25 @@ export default function ProfileSections({
                 Заметки кинолога
               </button>
             )}
+            {isOwner && (
+              <button
+                type="button"
+                className={`${styles.navigationItem} ${view === "gafus" ? styles.navigationActive : ""}`}
+                aria-pressed={view === "gafus"}
+                onClick={() => selectView("gafus")}
+              >
+                Мои Гафусы
+              </button>
+            )}
           </div>
         </nav>
       )}
 
       <div
-        id={view === "settings" ? "profile-settings" : view === "questions" ? "profile-questions" : view === "notes" ? "profile-notes" : "profile-activity"}
+        id={view === "settings" ? "profile-settings" : view === "questions" ? "profile-questions" : view === "notes" ? "profile-notes" : view === "gafus" ? "profile-gafus" : "profile-activity"}
         className={styles.viewContent}
       >
-        {view === "settings" && isOwner ? settings : view === "questions" ? questions : view === "notes" && isOwner ? notes : activity}
+        {view === "settings" && isOwner ? settings : view === "questions" ? questions : view === "notes" && isOwner ? notes : view === "gafus" && isOwner ? wallet : activity}
       </div>
     </>
   );

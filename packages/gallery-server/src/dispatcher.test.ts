@@ -35,6 +35,69 @@ describe("gallery HTTP dispatch", () => {
     expect(calls[2]?.[2]).toMatchObject({ username: "gallery_qa_owner", cursor: "cursor-token", pageSize: 20 });
   });
 
+  it("wakes Cloud.ru immediately only after a confirmed upload", async () => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("GALLERY_PROCESSOR_READY", "true");
+    try {
+      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+      const confirmUpload = vi.fn().mockResolvedValue({ uploadId, status: "uploaded" });
+      const gallery = { confirmUpload } as unknown as GalleryService;
+      const enqueue = vi.fn().mockResolvedValue(undefined);
+      const request = () => new Request(`https://x/uploads/${uploadId}/complete`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      });
+      await expect(dispatchGalleryRequest("actor", request(), `/uploads/${uploadId}/complete`, gallery, enqueue))
+        .resolves.toMatchObject({ status: "uploaded" });
+      expect(enqueue).toHaveBeenCalledExactlyOnceWith(uploadId);
+      expect(confirmUpload).toHaveBeenCalledExactlyOnceWith("actor", uploadId);
+
+      confirmUpload.mockResolvedValueOnce({ uploadId, status: "ready" });
+      await dispatchGalleryRequest("actor", request(), `/uploads/${uploadId}/complete`, gallery, enqueue);
+      expect(enqueue).toHaveBeenCalledTimes(1);
+
+      confirmUpload.mockRejectedValueOnce(new Error("failed before commit"));
+      await expect(dispatchGalleryRequest("actor", request(), `/uploads/${uploadId}/complete`, gallery, enqueue))
+        .rejects.toThrow("failed before commit");
+      expect(enqueue).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("preserves committed uploads when the immediate Redis enqueue fails", async () => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("GALLERY_PROCESSOR_READY", "true");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+      const gallery = { confirmUpload: vi.fn().mockResolvedValue({ uploadId, status: "uploaded" }) } as unknown as GalleryService;
+      const enqueue = vi.fn().mockRejectedValue(new Error("Redis offline"));
+      const response = await dispatchGalleryRequest("actor", new Request(`https://x/uploads/${uploadId}/complete`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      }), `/uploads/${uploadId}/complete`, gallery, enqueue);
+      expect(response).toMatchObject({ status: "uploaded" });
+      expect(warning).toHaveBeenCalledWith("GALLERY_IMMEDIATE_TRIGGER_DEFERRED_TO_RECOVERY");
+    } finally {
+      warning.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("does not enqueue on disabled Cloud.ru processing", async () => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "false");
+    try {
+      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+      const gallery = { confirmUpload: vi.fn().mockResolvedValue({ uploadId, status: "uploaded" }) } as unknown as GalleryService;
+      const enqueue = vi.fn();
+      await dispatchGalleryRequest("actor", new Request(`https://x/uploads/${uploadId}/complete`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      }), `/uploads/${uploadId}/complete`, gallery, enqueue);
+      expect(enqueue).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("does not expose Cloud.ru URL or authorize arbitrary paths when fallback disabled", async () => {
     const { gallery, calls } = fakeGallery();
     vi.stubEnv("GALLERY_MEDIA_FALLBACK_ENABLED", "false");

@@ -8,6 +8,7 @@ export type UploadEntry = {
   state: string;
   error?: string;
   progress: number;
+  processingStartedAt?: number;
   generation?: number;
   pendingRetry?: { parentId: string; clientRequestId: string };
   needsConfirm?: boolean;
@@ -44,6 +45,7 @@ export function createUploadTask(options: {
     entry.pendingRetry = undefined;
     entry.needsConfirm = false;
     entry.reservationStarted = false;
+    entry.processingStartedAt = undefined;
     entry.error = undefined;
     options.publish();
     options.changed?.();
@@ -54,15 +56,31 @@ export function createUploadTask(options: {
       cancelled(entry);
       return;
     }
+    const previousState = entry.state;
+    const previousError = entry.error;
+    const previousPhotoStatus = entry.upload?.photo?.status;
     entry.upload = upload;
     entry.uploadId = upload.uploadId;
+    if (upload.status === "uploaded" || upload.status === "processing") {
+      entry.processingStartedAt ??= Date.now();
+    } else {
+      entry.processingStartedAt = undefined;
+    }
     entry.state = upload.status;
     entry.error =
       upload.status === "failed"
         ? upload.errorMessage || "Обработка фотографии не удалась."
         : undefined;
-    options.publish();
-    options.changed?.();
+    // Polling the same pending state must not invalidate every gallery query.
+    // A real status/photo change still refreshes album counts and images.
+    if (
+      previousState !== entry.state ||
+      previousError !== entry.error ||
+      previousPhotoStatus !== upload.photo?.status
+    ) {
+      options.publish();
+      options.changed?.();
+    }
   };
   const resolve = async (
     entry: UploadEntry,

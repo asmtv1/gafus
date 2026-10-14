@@ -74,6 +74,7 @@ export function UploadQueue({
 }) {
   const { authenticated, viewerId, visible } = useGalleryIdentity();
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [clock, setClock] = useState(0);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
   const active = useRef(0);
@@ -146,8 +147,10 @@ export function UploadQueue({
           request.open("POST", browserStorageUploadUrl(upload.postUrl!, "gallery"));
           request.timeout = 120000;
           request.upload.onprogress = (event) => {
-            if (current() && event.lengthComputable)
-              patch(entry.key, { progress: Math.round((event.loaded / event.total) * 100) });
+            if (current() && event.lengthComputable && event.total > 0) {
+              const progress = Math.round((event.loaded / event.total) * 100);
+              if (entry.progress !== progress) patch(entry.key, { progress });
+            }
           };
           request.onload = () =>
             request.status >= 200 && request.status < 300
@@ -187,6 +190,12 @@ export function UploadQueue({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, authenticated]);
   const processing = entries.some((entry) => ["uploaded", "processing"].includes(entry.state));
+  useEffect(() => {
+    if (!processing) return;
+    setClock(Date.now());
+    const timer = window.setInterval(() => setClock(Date.now()), 10000);
+    return () => window.clearInterval(timer);
+  }, [processing]);
   useEffect(() => {
     if (!visible || !authenticated || !processing) return;
     const timer = window.setInterval(() => {
@@ -270,44 +279,78 @@ export function UploadQueue({
           загрузке.
         </p>
       )}
-      <ul className={styles.queue} aria-live="polite">
-        {entries.map((entry) => (
-          <li key={entry.key}>
-            <strong>{entry.name}</strong> — {labels[entry.state] || entry.state}
-            {entry.state === "uploading" && (
-              <LinearProgress
-                variant="determinate"
-                value={entry.progress}
-                aria-label={`Загрузка ${entry.name}`}
-              />
-            )}
-            {entry.error && <p className={styles.error}>{entry.error}</p>}
-            {["failed", "expired"].includes(entry.state) &&
-              (entry.file ? (
-                <SecondaryButton
-                  onClick={() => {
-                    patch(entry.key, { state: "queued", progress: 0 });
-                  }}
-                >
-                  Повторить
-                </SecondaryButton>
-              ) : (
-                <FilePicker onFiles={(files) => addFiles(files, entry)}>
-                  Выбрать файл повторно
-                </FilePicker>
-              ))}
-            {!terminal.includes(entry.state) && (
-              <SecondaryButton
-                disabled={entry.state === "cancelling"}
-                onClick={() => {
-                  void task(entry).cancel(entry);
-                }}
-              >
-                {entry.state === "cancel_unknown" ? "Повторить отмену" : "Отменить"}
-              </SecondaryButton>
-            )}
-          </li>
-        ))}
+      <ul className={styles.queue} aria-label="Загрузка фотографий">
+        {entries.map((entry) => {
+          const uploading = entry.state === "uploading";
+          const processing = entry.state === "uploaded" || entry.state === "processing";
+          const showProgress = uploading || processing;
+          const progressLabel = uploading
+            ? `Загрузка ${entry.name}: ${entry.progress}%`
+            : entry.state === "uploaded"
+              ? `${entry.name}: ожидает обработки`
+              : `${entry.name}: обрабатывается`;
+          return (
+            <li key={entry.key} className={styles.uploadQueueItem}>
+              <div className={styles.uploadQueueMain}>
+                <div className={styles.uploadQueueHeading}>
+                  <strong className={styles.uploadFilename} title={entry.name}>
+                    {entry.name}
+                  </strong>
+                  <span className={styles.uploadQueueStatus} aria-live="polite">
+                    {labels[entry.state] || entry.state}
+                  </span>
+                  {uploading && (
+                    <span className={styles.uploadQueuePercentage} aria-hidden="true">
+                      {entry.progress}%
+                    </span>
+                  )}
+                </div>
+                {showProgress && (
+                  <LinearProgress
+                    className={styles.uploadProgress}
+                    variant={uploading ? "determinate" : "indeterminate"}
+                    value={uploading ? entry.progress : undefined}
+                    aria-label={progressLabel}
+                  />
+                )}
+                {processing &&
+                  entry.processingStartedAt &&
+                  clock - entry.processingStartedAt >= 60000 && (
+                    <p className={styles.uploadDelayHint}>
+                      Обработка занимает больше обычного. Фотография появится после завершения.
+                    </p>
+                  )}
+                {entry.error && <p className={styles.error}>{entry.error}</p>}
+              </div>
+              <div className={styles.uploadQueueActions}>
+                {["failed", "expired"].includes(entry.state) &&
+                  (entry.file ? (
+                    <SecondaryButton
+                      onClick={() => {
+                        patch(entry.key, { state: "queued", progress: 0, error: undefined });
+                      }}
+                    >
+                      Повторить
+                    </SecondaryButton>
+                  ) : (
+                    <FilePicker onFiles={(files) => addFiles(files, entry)}>
+                      Выбрать файл повторно
+                    </FilePicker>
+                  ))}
+                {!terminal.includes(entry.state) && (
+                  <SecondaryButton
+                    disabled={entry.state === "cancelling"}
+                    onClick={() => {
+                      void task(entry).cancel(entry);
+                    }}
+                  >
+                    {entry.state === "cancel_unknown" ? "Повторить отмену" : "Отменить"}
+                  </SecondaryButton>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {recovered.map((photo) => (
         <div key={photo.id}>

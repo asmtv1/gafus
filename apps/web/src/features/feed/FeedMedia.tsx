@@ -64,7 +64,7 @@ export function FeedMedia({ post }: { post: FeedPostDto }) {
           }
         }}
       >
-        <div className={styles.frame}>
+        <div className={[styles.frame, photoUrl ? styles.photoFrame : ""].filter(Boolean).join(" ")}>
           {total > 1 && (
             <button
               type="button"
@@ -75,7 +75,10 @@ export function FeedMedia({ post }: { post: FeedPostDto }) {
               <ChevronLeftRounded aria-hidden="true" />
             </button>
           )}
-          <div className={styles.mediaItem} aria-live="polite">
+          <div
+            className={[styles.mediaItem, photoUrl ? styles.photoMediaItem : ""].filter(Boolean).join(" ")}
+            aria-live="polite"
+          >
             {photoUrl ? (
               <button
                 type="button"
@@ -89,6 +92,8 @@ export function FeedMedia({ post }: { post: FeedPostDto }) {
                   requestFallback={requestFallback}
                   alt={"Фото " + (index + 1) + " из " + total}
                   loading="lazy"
+                  width={item.width ?? undefined}
+                  height={item.height ?? undefined}
                   className={styles.previewImage}
                 />
                 <span className={styles.zoomHint}>Увеличить</span>

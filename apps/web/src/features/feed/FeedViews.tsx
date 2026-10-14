@@ -373,10 +373,24 @@ export function FeedPendingPosts() {
     <section className={styles.pendingSection} aria-label="Мои публикации в обработке">
       {local.map((item) => (
         <article key={item.id} className={styles.pendingPost} aria-live="polite">
-          <div className={styles.pendingMedia}>
-            {item.previewUri && <img src={item.previewUri} alt="" />}
-            {item.phase !== "failed" && item.phase !== "published" && (
-              <LoadingState variant="inline" message="" />
+          <div className={styles.pendingMedia} aria-hidden="true">
+            {item.phase !== "failed" && item.phase !== "published" ? (
+              <>
+                <img
+                  src="/images/loading-mascot-router-poster.webp"
+                  alt=""
+                  className={styles.pendingMascotPoster}
+                />
+                <img
+                  src="/images/loading-mascot-router.webp"
+                  alt=""
+                  className={styles.pendingMascotAnimated}
+                />
+              </>
+            ) : item.previewUri ? (
+              <img src={item.previewUri} alt="" />
+            ) : (
+              <img src="/images/loading-mascot-router-poster.webp" alt="" />
             )}
           </div>
           <div className={styles.pendingBody}>

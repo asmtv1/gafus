@@ -270,6 +270,8 @@ export interface FeedReactionUserPageDto extends FeedPageDto<FeedReactionUserDto
 }
 
 export interface FeedUploadDto {
+  /** Server-verified source type, used to wake only the correct media processor. */
+  kind: FeedMediaKind;
   uploadId: string;
   postId: string;
   mediaId: string;

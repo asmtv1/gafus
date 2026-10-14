@@ -1,6 +1,6 @@
 .page{max-width:920px;margin:0 auto;padding:clamp(16px,3vw,36px);color:#3e4738;}
 .header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;}
-.header h1{font-size:clamp(24px,3vw,32px);line-height:1.2;margin:3px 0 0;font-weight:750;}
+.header h1,.header h2{font-size:clamp(24px,3vw,32px);line-height:1.2;margin:3px 0 0;font-weight:750;}
 .eyebrow{font-size:12px;font-weight:750;letter-spacing:.08em;color:#7e8a58;}
 .balance{display:flex;align-items:center;gap:11px;padding:13px 18px;border:1px solid #eed9a4;border-radius:20px;background:#fff3d1;font-size:24px;box-shadow:0 3px 15px #8c784b14;}
 .balance strong{font-variant-numeric:tabular-nums;}

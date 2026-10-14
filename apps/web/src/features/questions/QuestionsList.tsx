@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Add, Search } from "@mui/icons-material";
+import { Add, KeyboardArrowDownRounded, Search } from "@mui/icons-material";
 import { QUESTION_CATEGORIES, type QuestionSort, type QuestionStatus } from "@gafus/types";
 import { LoadingState, PrimaryButtonLink } from "@/shared/components/ui";
 import { questionsApi } from "./api";
@@ -69,26 +69,32 @@ export function QuestionsList() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select
-            aria-label="Категория"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">Все категории</option>
-            {QUESTION_CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Статус вопроса"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as QuestionStatus | "")}
-          >
-            <option value="">Все статусы</option>
-            <option value="waiting">Ждёт ответа</option>
-            <option value="answered">Есть ответы</option>
-            <option value="resolved">Решён</option>
-          </select>
+          <div className={s.questionSelect}>
+            <select
+              aria-label="Категория"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Все категории</option>
+              {QUESTION_CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+            <KeyboardArrowDownRounded className={s.questionSelectIcon} aria-hidden="true" />
+          </div>
+          <div className={s.questionSelect}>
+            <select
+              aria-label="Статус вопроса"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as QuestionStatus | "")}
+            >
+              <option value="">Все статусы</option>
+              <option value="waiting">Ждёт ответа</option>
+              <option value="answered">Есть ответы</option>
+              <option value="resolved">Решён</option>
+            </select>
+            <KeyboardArrowDownRounded className={s.questionSelectIcon} aria-hidden="true" />
+          </div>
         </div>
         <div className={s.questionOptions}>
           <div className={`${s.tabs} ${s.questionScope}`} role="group" aria-label="Чьи вопросы">

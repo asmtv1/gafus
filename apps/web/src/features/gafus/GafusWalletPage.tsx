@@ -22,7 +22,9 @@ function transactionTitle(item: GafusHistoryEntry) {
   return item.rewardKind ? titles[item.rewardKind] ?? "Начисление" : titles[item.kind] ?? "Операция";
 }
 
-export function GafusWalletPage() {
+export function GafusWalletPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const Container = embedded ? "section" : "main";
+  const Heading = embedded ? "h2" : "h1";
   const [status, setStatus] = useState<GafusStatusDto | null>(null);
   const [history, setHistory] = useState<GafusHistoryPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,14 +61,14 @@ export function GafusWalletPage() {
   }, [history, moreLoading]);
 
   if (loading) return <LoadingState message="Загружаем Гафусы" />;
-  if (!status) return <div className={styles.page} role="alert">
+  if (!status) return <Container className={styles.page} role="alert">
     {error ?? "Данные временно недоступны"}
     <button className={styles.action} onClick={() => void refresh()} type="button">Повторить</button>
-  </div>;
+  </Container>;
 
-  return <main className={styles.page}>
+  return <Container className={styles.page}>
     <header className={styles.header}>
-      <div><span className={styles.eyebrow}>МОЯ МОТИВАЦИЯ</span><h1>Мои Гафусы</h1></div>
+      <div><span className={styles.eyebrow}>МОЯ МОТИВАЦИЯ</span><Heading>Мои Гафусы</Heading></div>
       <div className={styles.balance} aria-label={`Баланс: ${status.wallet.balance} Гафусов`}>
         <span aria-hidden="true">🐾</span><strong>{status.wallet.balance}</strong>
       </div>
@@ -100,5 +102,5 @@ export function GafusWalletPage() {
         {moreLoading ? "Загружаем…" : "Показать ещё"}
       </button>}
     </section>
-  </main>;
+  </Container>;
 }

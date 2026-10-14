@@ -87,6 +87,18 @@ vi.mock("./schedules/pet-prevention-reminder-schedule", () => ({
   setupPetPreventionReminderSchedule: vi.fn(async () => {}),
 }));
 
+vi.mock("./feed-processing-trigger-worker", () => ({
+  startFeedProcessingTriggerWorker: () => {
+    startCalls.push("feed-processing-trigger");
+  },
+}));
+
+vi.mock("./gallery-processing-trigger-worker", () => ({
+  startGalleryProcessingTriggerWorker: () => {
+    startCalls.push("gallery-processing-trigger");
+  },
+}));
+
 vi.mock("./cron-scheduler", () => ({
   startCronJobs: () => {
     observedMaxListeners.push(process.getMaxListeners());
@@ -117,6 +129,8 @@ describe("worker bootstrap", () => {
       "consultation-sla",
       "consultation-mail",
       "consultation-reminder",
+      "gallery-processing-trigger",
+      "feed-processing-trigger",
       "cron",
     ]);
   });

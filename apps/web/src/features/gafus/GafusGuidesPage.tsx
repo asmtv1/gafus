@@ -64,7 +64,7 @@ export function GafusGuidesPage() {
 
   return <main className={styles.page}>
     <header className={styles.header}>
-      <Link href="/gafus" className={styles.back}>← Мои Гафусы</Link>
+      <Link href="/profile?tab=gafus" className={styles.back}>← Мои Гафусы</Link>
       <h1>Мини-гайды</h1>
       <p>Полезные материалы, которые можно открыть за Гафусы на ограниченный срок.</p>
     </header>

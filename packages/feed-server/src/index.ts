@@ -88,6 +88,33 @@ function parseQuery(url: URL, reaction = false, postSort = false) {
 }
 function routeId(input: string) { return feedParse(feedIdSchema, input); }
 
+/**
+ * Wake only after Core committed uploaded + a durable processing job. Redis
+ * outages cannot make a completed S3 transfer appear failed to the user:
+ * the existing periodic Cloud.ru dispatcher retries Core's pending jobs.
+ */
+async function signalFeedProcessing(
+  uploadId: string,
+  kind: "photo" | "video",
+  enqueue: (id: string, type: "photo" | "video") => Promise<void>,
+): Promise<void> {
+  if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
+      process.env.FEED_PROCESSOR_READY !== "true") return;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      enqueue(uploadId, kind),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error("FEED_TRIGGER_TIMEOUT")), 1200);
+      }),
+    ]);
+  } catch {
+    console.warn("FEED_IMMEDIATE_TRIGGER_DEFERRED_TO_RECOVERY");
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 export async function dispatchFeedRequest(
   actorId: string,
   request: Request,
@@ -96,6 +123,10 @@ export async function dispatchFeedRequest(
   actions: FeedSocialService = social,
   personal: ReturnType<typeof createFeedPreferences> = preferences,
   pollActions: FeedPollService = polls,
+  enqueue: (id: string, kind: "photo" | "video") => Promise<void> = async (id, kind) => {
+    const { enqueueFeedProcessing } = await import("@gafus/queues");
+    await enqueueFeedProcessing(id, kind);
+  },
 ): Promise<unknown> {
   const method = request.method.toUpperCase();
   if (!allowed.has(method)) throw new FeedError("VALIDATION_ERROR", "Метод не поддерживается", 405);
@@ -317,7 +348,11 @@ export async function dispatchFeedRequest(
     }
     if (len === 3 && three === "complete" && method === "POST") {
       assertEmpty(input);
-      return posts.completeUpload(actorId, uploadId);
+      const upload = await posts.completeUpload(actorId, uploadId);
+      if (upload.status === "uploaded" && (upload.kind === "photo" || upload.kind === "video")) {
+        await signalFeedProcessing(upload.uploadId, upload.kind, enqueue);
+      }
+      return upload;
     }
     if (len === 3 && three === "retry" && method === "POST") {
       const body = feedParse(feedCreatePostSchema, input);

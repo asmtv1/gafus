@@ -37,6 +37,27 @@ describe("Cloud.ru durable media job trigger", () => {
         true,
       );
   });
+  it("wakes only Gallery on immediate upload and does not require Feed readiness", async () => {
+    const req = vi.fn(async (url: string) =>
+      url.includes("auth/token")
+        ? { ok: true, json: async () => ({ access_token: "test-token" }) }
+        : { ok: true, status: 200 },
+    );
+    const dispatch = createCloudruMediaDispatcher(
+      { ...env, FEED_PROCESSOR_READY: "false" },
+      req as never,
+      ["gafus-gallery-process"],
+    );
+    expect(await dispatch()).toEqual({ dispatched: 1 });
+    expect(req).toHaveBeenCalledTimes(2);
+    expect(req.mock.calls[1]?.[0]).toContain("/gafus-gallery-process:execute");
+    expect(req.mock.calls.some(([url]) => String(url).includes("gafus-feed"))).toBe(false);
+  });
+  it("rejects an empty dispatch allowlist", () => {
+    expect(() => createCloudruMediaDispatcher(env, fetch, [])).toThrow(
+      "CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION",
+    );
+  });
   it("does not report completed release if any job trigger fails", async () => {
     const req = vi.fn(async (url: string) => {
       if (url.includes("auth/token"))

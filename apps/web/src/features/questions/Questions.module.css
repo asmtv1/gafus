@@ -437,6 +437,37 @@ a.card:hover {
   cursor: pointer;
 }
 
+/* Keep one consistent chevron instead of browser-specific select arrows. */
+.questionSelect {
+  position: relative;
+  min-width: 0;
+}
+
+.questionFilters .questionSelect select {
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding-inline: 13px 40px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.questionSelectIcon {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  color: #576647;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.questionSelect:focus-within .questionSelectIcon {
+  color: #3d512c;
+}
+
 .questionFilters :is(input, select):hover {
   border-color: #959b80;
 }
@@ -633,10 +664,6 @@ a.card:hover {
 
   .questionFilters {
     gap: 8px;
-  }
-
-  .questionFilters select {
-    padding-inline: 8px;
   }
 
   .questionOptions {

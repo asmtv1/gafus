@@ -9,10 +9,12 @@ export const CLOUDRU_MEDIA_JOB_NAMES = [
   "gafus-feed-video",
 ] as const;
 
+export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
 type HttpFetch = typeof fetch;
 export function createCloudruMediaDispatcher(
   env: Record<string, string | undefined> = process.env,
   http: HttpFetch = fetch,
+  names: readonly CloudruMediaJobName[] = CLOUDRU_MEDIA_JOB_NAMES,
 ) {
   if (env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true")
     return async () => ({ disabled: true, dispatched: 0 });
@@ -20,8 +22,10 @@ export function createCloudruMediaDispatcher(
     !/^[a-f0-9-]{32,40}$/.test(env.CLOUDRU_PROJECT_ID ?? "") ||
     !env.CLOUDRU_KEY_ID ||
     !env.CLOUDRU_KEY_SECRET ||
-    env.FEED_PROCESSOR_READY !== "true" ||
-    env.GALLERY_PROCESSOR_READY !== "true"
+    (names.some((name) => name.startsWith("gafus-feed")) && env.FEED_PROCESSOR_READY !== "true") ||
+    (names.includes("gafus-gallery-process") && env.GALLERY_PROCESSOR_READY !== "true") ||
+    names.length === 0 ||
+    names.some((name) => !CLOUDRU_MEDIA_JOB_NAMES.includes(name))
   ) {
     throw Error("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
   }
@@ -46,7 +50,7 @@ export function createCloudruMediaDispatcher(
         cachedToken = json.access_token;
         tokenExpires = Date.now() + 4 * 60_000;
       }
-      for (const name of CLOUDRU_MEDIA_JOB_NAMES) {
+      for (const name of names) {
         const result = await http("https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
           method: "POST",
           headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },

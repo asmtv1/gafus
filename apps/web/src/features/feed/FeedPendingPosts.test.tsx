@@ -4,11 +4,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedPendingPosts } from "./FeedViews";
+import type { PublicationItem } from "@gafus/core/services/feed/publication-client";
 
 const { listPendingPosts, deletePost } = vi.hoisted(() => ({
   listPendingPosts: vi.fn(),
   deletePost: vi.fn(),
 }));
+const localStore = vi.hoisted(() => ({ snapshot: [] as PublicationItem[] }));
 
 vi.mock("@mui/icons-material", () => ({
   ChatBubbleOutlineRounded: () => null,
@@ -40,17 +42,14 @@ vi.mock("next-auth/react", () => ({
 vi.mock("./api", () => ({
   feedApi: { listPendingPosts, deletePost },
 }));
-vi.mock("./publication", () => {
-  const empty: [] = [];
-  return {
-    webFeedPublications: {
-      subscribe: () => () => undefined,
-      getSnapshot: () => empty,
-      retry: vi.fn(),
-      dismiss: vi.fn(),
-    },
-  };
-});
+vi.mock("./publication", () => ({
+  webFeedPublications: {
+    subscribe: () => () => undefined,
+    getSnapshot: () => localStore.snapshot,
+    retry: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}));
 vi.mock("@gafus/error-handling", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/components/ui", () => ({
   SecondaryButton: ({
@@ -93,6 +92,7 @@ const draft = {
 };
 
 beforeEach(() => {
+  localStore.snapshot = [];
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.stubGlobal(
     "confirm",
@@ -174,5 +174,32 @@ describe("FeedPendingPosts", () => {
     );
     expect(removeButton()).not.toBeNull();
     expect(host.textContent).toContain("Публикация с вложениями");
+  });
+
+  it("shows a full opaque mascot while processing, without a faded photo overlay", async () => {
+    localStore.snapshot = [{
+      id: "local-processing", ownerId: "owner-1", text: "Меняю интерфейс",
+      previewUri: "blob:dog-preview", attachmentCount: 1,
+      phase: "processing", progress: null,
+    }];
+    await render();
+    const mascot = host.querySelector<HTMLImageElement>(
+      'img[src="/images/loading-mascot-router.webp"]',
+    );
+    expect(mascot).not.toBeNull();
+    expect(host.querySelector('img[src="/images/loading-mascot-router-poster.webp"]')).not.toBeNull();
+    expect(host.querySelector('img[src="blob:dog-preview"]')).toBeNull();
+    expect(host.textContent).toContain("Обрабатываем публикацию…");
+  });
+
+  it("shows the publication preview when the upload fails", async () => {
+    localStore.snapshot = [{
+      id: "local-failed", ownerId: "owner-1", text: "Мой пост",
+      previewUri: "blob:failed-preview", attachmentCount: 1,
+      phase: "failed", progress: null,
+    }];
+    await render();
+    expect(host.querySelector('img[src="blob:failed-preview"]')).not.toBeNull();
+    expect(host.querySelector('img[src="/images/loading-mascot-router.webp"]')).toBeNull();
   });
 });

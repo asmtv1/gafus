@@ -41,11 +41,13 @@ function setup() {
   };
   const transfer = vi.fn().mockResolvedValue(undefined);
   const publish = vi.fn();
+  const changed = vi.fn();
   let valid = true;
   const task = createUploadTask({
     api,
     transfer,
     publish,
+    changed,
     valid: () => valid,
     abort: vi.fn(),
     message: (error) => String(error),
@@ -55,6 +57,7 @@ function setup() {
     entry,
     transfer,
     publish,
+    changed,
     task,
     expire: () => {
       valid = false;
@@ -97,6 +100,33 @@ describe("upload operation recovery and cancellation", () => {
       expect(transfer).not.toHaveBeenCalled();
     },
   );
+  it("avoids refreshing gallery lists every time a pending state is polled", async () => {
+    const { api, entry, task, changed, publish } = setup();
+    await task.run(entry);
+    const refreshed = changed.mock.calls.length;
+    const published = publish.mock.calls.length;
+    api.getUpload.mockResolvedValueOnce(dto("processing"));
+    await task.poll(entry);
+    expect(changed).toHaveBeenCalledTimes(refreshed);
+    expect(publish).toHaveBeenCalledTimes(published);
+    api.getUpload.mockResolvedValueOnce(dto("ready"));
+    await task.poll(entry);
+    expect(changed).toHaveBeenCalledTimes(refreshed + 1);
+    expect(publish).toHaveBeenCalledTimes(published + 1);
+  });
+  it("preserves elapsed processing time across status polling and clears it on completion", async () => {
+    const { api, entry, task } = setup();
+    await task.run(entry);
+    expect(entry.state).toBe("processing");
+    const started = entry.processingStartedAt;
+    expect(started).toEqual(expect.any(Number));
+    api.getUpload.mockResolvedValueOnce(dto("processing"));
+    await task.poll(entry);
+    expect(entry.processingStartedAt).toBe(started);
+    api.getUpload.mockResolvedValueOnce(dto("ready"));
+    await task.poll(entry);
+    expect(entry.processingStartedAt).toBeUndefined();
+  });
   it("replays a lost confirm without another bucket POST", async () => {
     const { api, entry, task, transfer } = setup();
     api.confirmUpload.mockRejectedValueOnce(new Error("lost confirm response"));

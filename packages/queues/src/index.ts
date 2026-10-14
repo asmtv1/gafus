@@ -22,3 +22,17 @@ export {
 export type { ConsultationReminderKind } from "./consultation-reminder-queue.js";
 
 export * from "./cynologist-chat-queue.js";
+
+export {
+  galleryProcessingQueue,
+  enqueueGalleryProcessing,
+  GALLERY_PROCESSING_QUEUE_NAME,
+} from "./gallery-processing-queue.js";
+export type { GalleryProcessingJobData } from "./gallery-processing-queue.js";
+
+export {
+  feedProcessingQueue,
+  enqueueFeedProcessing,
+  FEED_PROCESSING_QUEUE_NAME,
+} from "./feed-processing-queue.js";
+export type { FeedProcessingJobData, FeedProcessingKind } from "./feed-processing-queue.js";

@@ -1,4 +1,5 @@
 import { FeedAuthorPostsList } from "@/features/feed/FeedViews";
+import { GafusWalletPage } from "@/features/gafus/GafusWalletPage";
 import { MyQuestionsList } from "@/features/questions/MyQuestionsList";
 import { PublicQuestionsList } from "@/features/questions/PublicQuestionsList";
 import {
@@ -21,7 +22,7 @@ interface ProfileClientProps {
   username: string;
   userData: UserWithTrainings | null;
   linkFeedback?: string;
-  initialView?: "activity" | "questions" | "settings" | "notes";
+  initialView?: "activity" | "questions" | "settings" | "notes" | "gafus";
 }
 
 /** Layout only: public identity leads; private account controls are a separate view. */
@@ -56,6 +57,7 @@ export default function ProfileClient({
               </div>
             ) : undefined
           }
+          wallet={isOwner ? <GafusWalletPage embedded /> : undefined}
           activity={
             <div className={styles.activityColumns}>
               <FeedAuthorPostsList username={username} pageSize={6} />

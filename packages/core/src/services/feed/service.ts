@@ -626,6 +626,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       const signed = active ? await storage.presignPost({ key: row.sourceKey, contentType: row.declaredMime, maxBytes: value.kind === "photo" ? L.photoBytes : L.videoBytes, expiresAt: row.postExpiresAt }) : null;
       return {
         uploadId: row.id, postId, mediaId: row.mediaId, status: row.status,
+        kind: row.declaredMime.startsWith("image/") ? "photo" : "video",
         postUrl: signed?.url ?? null, postFields: signed?.fields ?? null,
         urlExpiresAt: signed ? row.postExpiresAt.toISOString() : null,
         reservationExpiresAt: row.reservationExpiresAt.toISOString(),
@@ -639,6 +640,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
       return {
         uploadId: row.id, postId: row.postId, mediaId: row.mediaId, status: row.status,
+        kind: row.declaredMime.startsWith("image/") ? "photo" : "video",
         postUrl: null, postFields: null, urlExpiresAt: null,
         reservationExpiresAt: row.reservationExpiresAt.toISOString(),
         media: null, errorCode: row.errorCode,

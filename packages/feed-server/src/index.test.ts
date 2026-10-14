@@ -103,6 +103,63 @@ describe("feed shared HTTP dispatcher", () => {
     expect(posts.cancelUpload).toHaveBeenCalledWith(actor, "upload_1");
     expect(posts.retryUpload).toHaveBeenCalledWith(actor, "upload_1", { clientRequestId: "123e4567-e89b-42d3-a456-426614174000" });
   });
+  it.each(["photo", "video"] as const)("wakes only the committed %s upload processor", async kind => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("FEED_PROCESSOR_READY", "true");
+    const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+    const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, status: "uploaded", kind }) };
+    const enqueue = vi.fn().mockResolvedValue(undefined);
+    const request = () => new Request(`https://x/uploads/${uploadId}/complete`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    });
+    const run = () => dispatchFeedRequest(actor, request(), `/uploads/${uploadId}/complete`,
+      posts as unknown as FeedService, {} as FeedSocialService, undefined, undefined, enqueue);
+    await expect(run()).resolves.toMatchObject({ uploadId, status: "uploaded", kind });
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(uploadId, kind);
+    expect(posts.completeUpload).toHaveBeenCalledExactlyOnceWith(actor, uploadId);
+    posts.completeUpload.mockResolvedValueOnce({ uploadId, kind, status: "ready" });
+    await run();
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    posts.completeUpload.mockRejectedValueOnce(new Error("transaction aborted"));
+    await expect(run()).rejects.toThrow("transaction aborted");
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+  it("never turns a successfully uploaded photo into a failed upload on Redis error", async () => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("FEED_PROCESSOR_READY", "true");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+      const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, kind: "photo", status: "uploaded" }) };
+      const enqueue = vi.fn().mockRejectedValue(new Error("redis failure"));
+      const request = new Request(`https://x/uploads/${uploadId}/complete`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      });
+      await expect(dispatchFeedRequest(actor, request, `/uploads/${uploadId}/complete`,
+        posts as unknown as FeedService, {} as FeedSocialService, undefined, undefined, enqueue))
+        .resolves.toMatchObject({ status: "uploaded" });
+      expect(warning).toHaveBeenCalledWith("FEED_IMMEDIATE_TRIGGER_DEFERRED_TO_RECOVERY");
+    } finally { warning.mockRestore(); }
+  });
+  it("does not wake media jobs without an enabled Cloud.ru release or trusted media kind", async () => {
+    const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+    const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, kind: "video", status: "uploaded" }) };
+    const enqueue = vi.fn();
+    const run = () => dispatchFeedRequest(actor, new Request(`https://x/uploads/${uploadId}/complete`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+    }), `/uploads/${uploadId}/complete`, posts as unknown as FeedService,
+    {} as FeedSocialService, undefined, undefined, enqueue);
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "false");
+    vi.stubEnv("FEED_PROCESSOR_READY", "true");
+    await run();
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("FEED_PROCESSOR_READY", "false");
+    await run();
+    vi.stubEnv("FEED_PROCESSOR_READY", "true");
+    posts.completeUpload.mockResolvedValueOnce({ uploadId, kind: "untrusted", status: "uploaded" });
+    await run();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
   it("does not leak unexpected internal error information in HTTP responses", () => {
     const result = feedHttpError(new Error("internal-storage-key=private"));
     expect(result.status).toBe(500);

@@ -23,23 +23,38 @@
   height: clamp(225px, 29vw, 315px);
   overflow: hidden;
 }
+/* Photos use their own aspect ratio instead of a tinted fixed-height canvas.
+   The card already provides the surface, so no second frame is needed. */
+.photoFrame {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+.photoMediaItem {
+  height: auto;
+  overflow: visible;
+}
 .photoTrigger {
   position: relative;
   display: grid;
   place-items: center;
-  width: 100%;
-  height: 100%;
-  padding: 12px 45px;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+  padding: 0;
   border: 0;
+  border-radius: 12px;
   background: transparent;
   cursor: zoom-in;
 }
 .previewImage {
   display: block;
-  width: 100%;
-  height: 100%;
-  max-width: 340px;
-  max-height: 290px;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(70dvh, 520px);
+  border-radius: 12px;
   object-fit: contain;
 }
 .zoomHint {
@@ -197,8 +212,8 @@
 
 @media(max-width:720px) {
   .mediaItem { height: clamp(220px, 55vw, 280px); }
-  .photoTrigger { padding: 10px 38px; }
-  .previewImage { max-width: 260px; max-height: 260px; }
+  .photoMediaItem { height: auto; }
+  .previewImage { max-height: min(70dvh, 480px); }
   .arrow { width: 32px; height: 32px; }
   .arrowPrevious { left: 6px; }
   .arrowNext { right: 6px; }
