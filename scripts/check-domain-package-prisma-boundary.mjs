@@ -14,6 +14,7 @@ const legacyAdapters = [
 // module can start importing the database without failing CI.
 const permittedInfrastructure = new Set([
   "packages/auth/src/auth.ts",           // NextAuth PrismaAdapter
+  "packages/mailer/src/outbox.ts",       // encrypted provider retry queue and lease journal
   "packages/mailer/src/resend.ts",       // provider send-attempt journal
   "packages/mailer/src/webhook.ts",      // verified provider event journal
   "packages/webpush/src/db.ts",          // legacy subscription adapter

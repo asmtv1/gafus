@@ -328,6 +328,14 @@
     "./services/mediaDelivery": {
       "types": "./dist/core/src/services/mediaDelivery/index.d.ts",
       "default": "./dist/core/src/services/mediaDelivery/index.js"
+    },
+    "./services/systemHealth/mailDeliveryMonitor": {
+      "types": "./dist/core/src/services/systemHealth/mailDeliveryMonitor.d.ts",
+      "default": "./dist/core/src/services/systemHealth/mailDeliveryMonitor.js"
+    },
+    "./services/mediaDelivery/purgeWorker": {
+      "types": "./dist/core/src/services/mediaDelivery/purgeWorker.d.ts",
+      "default": "./dist/core/src/services/mediaDelivery/purgeWorker.js"
     }
   },
   "main": "./dist/core/src/index.js",
