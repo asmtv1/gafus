@@ -1,0 +1,70 @@
+name: Beget protected final read-only smoke (manual, no deploy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Provision permanent synthetic fixtures and smoke, or verify existing fixtures'
+        type: choice
+        required: true
+        options: [provision, verify]
+      confirmation:
+        description: 'Provision only: approved-two-permanent-production-webps'
+        type: string
+        required: false
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: gafus-beget-final-readonly-smoke
+  cancel-in-progress: false
+jobs:
+  final-smoke:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      BEGET_PERMANENT_SMOKE_CONFIRM: ${{ inputs.confirmation }}
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+    steps:
+      - name: Fail closed on unauthorized action
+        env:
+          REQUESTED_ACTION: ${{ inputs.action }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          case "$REQUESTED_ACTION" in
+            provision) test "$BEGET_PERMANENT_SMOKE_CONFIRM" = approved-two-permanent-production-webps ;;
+            verify) test -z "$BEGET_PERMANENT_SMOKE_CONFIRM" ;;
+            *) echo 'invalid action'; exit 1 ;;
+          esac
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate program and offline tests
+        run: |
+          node --check infra/cloudru/beget-provision-readonly-smoke.mjs
+          node --check infra/cloudru/beget-production-smoke.mjs
+          node infra/cloudru/beget-provision-readonly-smoke.mjs --plan
+      - name: Create only two permanent test objects
+        if: inputs.action == 'provision'
+        run: node infra/cloudru/beget-provision-readonly-smoke.mjs --run
+      - name: Read-only signed CDN smoke on BOTH final objects
+        run: node infra/cloudru/beget-production-smoke.mjs
