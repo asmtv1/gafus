@@ -56,5 +56,11 @@ test('run requires production-scoped storage, signing, purge credentials and rea
   assert.match(source,/DeleteObjectCommand/);
   assert.match(source,/purge-cache-by-paths/);
   assert.match(source,/HEAD','GET/);
+  assert.match(source,/purgeAcceptedAt=Date\.now\(\)/);
+  assert.match(source,/300_000-\(Date\.now\(\)-purgeAcceptedAt\)/);
+  assert.match(source,/SIGNED_EDGE_POSTPURGE_5MIN_HEAD_GET_404_PASS/);
+  assert.match(source,/SIGNED_EDGE_S3_DELETED_PREPURGE_HIT_PASS/);
+  assert.match(source,/const stillCached=await request\(url\)/);
+  assert.match(source,/if\(uploadAttempted&&!deleted\)/);
   assert.doesNotMatch(source,/purge-all-cache|gafus-gallery-production[^-]/);
 });

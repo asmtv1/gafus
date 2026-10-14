@@ -111,11 +111,13 @@ let failed = false;
 for (const scope of scopes) {
   const id=randomUUID().replace(/-/g,'');
   const key=scope.key(id);
+  let uploadAttempted=false;
   let uploaded=false;
   let edgeFetched=false;
   let deleted=false;
   let purged=false;
   try {
+    uploadAttempted=true;
     const put=await client.send(new PutObjectCommand({
       Bucket:scope.bucket,Key:key,Body:synthetic,
       ContentType:'image/webp',CacheControl:'private, max-age=180, must-revalidate',IfNoneMatch:'*',
@@ -167,7 +169,19 @@ for (const scope of scopes) {
       {abortSignal:AbortSignal.timeout(20_000)});
     deleted=true;
     await assertDeletedInS3(scope,key);
+    // Prove deletion alone does NOT explain the edge 404: the exact warmed
+    // signed content must still be served from cache BEFORE path-scoped purge.
+    // Repeat the SAME already-warmed signed URL, not a newly signed URL
+    // that a CDN could legally treat as a different cache key.
+    const stillCached=await request(url);
+    const cachedStatus=stillCached.status;
+    const cachedEdge=(stillCached.headers.get('x-cdn-edge-cache')??'').toUpperCase();
+    const cachedBytes=Buffer.from(await stillCached.arrayBuffer());
+    if(cachedStatus!==200||!cachedBytes.equals(synthetic)||cachedEdge!=='HIT')
+      throw Error('SYNTHETIC_PREPURGE_CACHED_SOURCE_DELETE_NOT_PROVEN_'+scope.name);
+    console.log('SIGNED_EDGE_S3_DELETED_PREPURGE_HIT_PASS',scope.name);
     await purge(scope,key);purged=true;
+    const purgeAcceptedAt=Date.now();
     let propagated=false;
     for(let attempt=0;attempt<12;attempt++){
       if(await edgeDeleted(scope,key)){propagated=true;break;}
@@ -177,13 +191,25 @@ for (const scope of scopes) {
     }
     if (!propagated) throw Error('SYNTHETIC_PURGE_PROPAGATION_NOT_PROVEN_'+scope.name);
     console.log('SIGNED_EDGE_POSTPURGE_HEAD_GET_404_PASS',scope.name);
+    // A fast 404 on one edge is not proof of durable purge. Require a
+    // second newly-signed HEAD AND GET 404 after at least five real minutes.
+    // This preserves a strict gap without reusing expired signed URLs.
+    const remaining=300_000-(Date.now()-purgeAcceptedAt);
+    if(remaining>0)await new Promise(resolve=>setTimeout(resolve,remaining));
+    if(Date.now()-purgeAcceptedAt<300_000)
+      throw Error('SYNTHETIC_PURGE_FIVE_MINUTE_GUARD_NOT_ELAPSED_'+scope.name);
+    if(!await edgeDeleted(scope,key))
+      throw Error('SYNTHETIC_EDGE_NOT_404_AFTER_FIVE_MINUTES_'+scope.name);
+    console.log('SIGNED_EDGE_POSTPURGE_5MIN_HEAD_GET_404_PASS',scope.name);
     if (!cachePolicyMatched) throw Error('SYNTHETIC_CLIENT_CACHE_CONTROL_MISMATCH_'+scope.name);
     if (!hot) throw Error('SYNTHETIC_CDN_CACHE_HIT_NOT_PROVEN_'+scope.name);
   } catch(error) {
     failed=true;
     console.error('SYNTHETIC_BEGET_ACCEPTANCE_FAILED',scope.name,error?.message??'UNKNOWN');
   } finally {
-    if(uploaded&&!deleted){
+    // A timed-out PUT may have committed despite an error response.
+    // Attempt cleanup of our unique random object on every attempted upload.
+    if(uploadAttempted&&!deleted){
       try { await client.send(new DeleteObjectCommand({Bucket:scope.bucket,Key:key}),
         {abortSignal:AbortSignal.timeout(20_000)}); await assertDeletedInS3(scope,key);
         console.log('SYNTHETIC_TEST_SOURCE_REMOVED',scope.name); deleted=true;
