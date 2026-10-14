@@ -4,7 +4,7 @@
  * --plan: pure, --preflight: read only, --prepare: create unused origin groups,
  * --activate: roll out with automatic rollback on failure.
  */
-import { spawnSync } from "node:child_process";
+import { runYcCdn } from "./yc-cdn-cli.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { readFile, writeFile, unlink } from "node:fs/promises";
@@ -94,24 +94,7 @@ for (const x of specs) {
   if (!/^[A-Za-z0-9_-]{24,32}$/.test(x.signer) || Buffer.byteLength(x.headerSecret) < 32)
     throw Error("CDN_INVALID_SCOPE_SECRETS");
 }
-function yc(args) {
-  const r = spawnSync("yc", args.concat(["--format=json"]), {
-    encoding: "utf8",
-    timeout: 55000,
-    maxBuffer: 3 * 1024 * 1024,
-  });
-  if (r.status !== 0) {
-    // Never log raw CLI output: resource options can contain signing/header secrets.
-    const diagnostic = (r.stderr ?? "") + " " + (r.error?.code ?? "");
-    const code = diagnostic.match(/code\s*=\s*([A-Za-z]+)/)?.[1] ??
-      ["PERMISSION_DENIED", "UNAUTHENTICATED", "PermissionDenied", "Unauthenticated",
-       "Unavailable", "DeadlineExceeded", "ETIMEDOUT", "ENOENT"]
-        .find((value) => diagnostic.includes(value)) ?? "UNKNOWN";
-    throw Error("YC_CDN_COMMAND_FAILED_" + args.slice(0, 2).join("_") +
-      "_" + code + "_EXIT_" + r.status);
-  }
-  return r.stdout?.trim() ? JSON.parse(r.stdout) : {};
-}
+const yc = runYcCdn;
 const current = (x) =>
   yc(["cdn", "resource", "get", "--id", x.id, "--folder-id", e.YC_CDN_FOLDER_ID]);
 const detail = (x, r) => {
