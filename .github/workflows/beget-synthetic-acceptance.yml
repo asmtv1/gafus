@@ -1,0 +1,78 @@
+name: Beget CDN synthetic acceptance (manual, no deploy)
+
+# Completely separate from deploy workflows. NEVER triggered on push.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Offline plan or two synthetic production WebP write/purge checks"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - run
+      confirmation:
+        description: "For run ONLY: approved-two-disposable-production-webps"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-beget-synthetic-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 18
+    env:
+      # Stored GitHub repository Secrets also resolve within the protected
+      # production Environment unless explicitly overridden there.
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+      BEGET_SYNTHETIC_PURGE_CONFIRM: ${{ inputs.confirmation }}
+    steps:
+      - name: Check main-only dispatch and explicit mutation approval
+        shell: bash
+        env:
+          SELECTED_MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          case "$SELECTED_MODE" in
+            plan) test -z "$BEGET_SYNTHETIC_PURGE_CONFIRM" ;;
+            run) test "$BEGET_SYNTHETIC_PURGE_CONFIRM" = approved-two-disposable-production-webps ;;
+            *) echo 'Invalid acceptance mode'; exit 1 ;;
+          esac
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install dependencies from lockfile (for AWS S3 and synthetic sharp WebP)
+        run: pnpm install --frozen-lockfile
+      - name: Check runner implementation and guards, offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check infra/cloudru/beget-synthetic-purge-acceptance.mjs
+          node infra/cloudru/beget-synthetic-purge-acceptance.mjs --plan
+          node --test infra/cloudru/beget-synthetic-acceptance.test.mjs
+      - name: Test two disposable Cloud.ru WebPs and exact Beget path purge
+        if: inputs.mode == 'run'
+        run: node infra/cloudru/beget-synthetic-purge-acceptance.mjs --run
