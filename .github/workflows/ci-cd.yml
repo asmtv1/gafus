@@ -438,6 +438,8 @@ jobs:
         run: node --test ci-cd/scripts/deploy-only-contract.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
+      - name: Cloud.ru registry publication retry acceptance tests
+        run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
       - name: Cloud.ru scheduled processing contract
         run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
 
@@ -464,15 +466,8 @@ jobs:
           registry: gafus.cr.cloud.ru
           username: ${{ secrets.CLOUDRU_KEY_ID }}
           password: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      - name: Publish Cloud.ru production revision
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/${{ matrix.media }}-cloud/${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          tags: gafus.cr.cloud.ru/gafus-${{ matrix.media }}-${{ matrix.role }}:${{ github.sha }}
-          push: true
-          provenance: true
+      - name: Publish Cloud.ru production revision (retry temporary registry 429/5xx)
+        run: bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
 
   # Fail BEFORE touching production if S3 credentials, OCI images, Yandex CDN signer,
   # protected origin and 3 job definitions cannot be verified.

@@ -28,6 +28,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Validate CORS, images, protected CDN and owner media migration
         run: pnpm test:cloudru-media
+      - name: Cloud.ru registry publication retry acceptance tests
+        run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
   build:
     needs: verify-media-contracts
     runs-on: ubuntu-latest
@@ -67,13 +69,6 @@ jobs:
           registry: gafus.cr.cloud.ru
           username: ${{ secrets.CLOUDRU_KEY_ID }}
           password: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      - name: Publish immutable revision-tagged image (no deployment)
+      - name: Publish immutable revision-tagged image (no deployment, retry transient registry errors)
         if: ${{ inputs.publish }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/${{ matrix.media }}-cloud/${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          push: true
-          tags: gafus.cr.cloud.ru/gafus-${{ matrix.media }}-${{ matrix.role }}:${{ github.sha }}
-          provenance: true
+        run: bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
