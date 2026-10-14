@@ -9,7 +9,7 @@ import { NextRequest } from "next/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { prisma as PrismaInstance } from "@gafus/prisma";
 import type { connection as RedisInstance } from "@gafus/queues";
-import type { GET as WebDayGet } from "./route";
+import type { GET as WebDayGet } from "../../src/app/api/v1/training/day/route";
 
 const auth = vi.hoisted(() => ({ getServerSession: vi.fn() }));
 vi.mock("next-auth", () => ({ getServerSession: auth.getServerSession }));
@@ -44,7 +44,7 @@ isolated("GET /api/v1/training/day with real local Prisma and Redis", () => {
     }
     ({ prisma } = await import("@gafus/prisma"));
     ({ connection } = await import("@gafus/queues"));
-    ({ GET } = await import("./route"));
+    ({ GET } = await import("../../src/app/api/v1/training/day/route"));
 
     const id = randomUUID().slice(0, 8);
     const author = await prisma.user.create({

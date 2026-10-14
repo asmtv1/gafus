@@ -311,7 +311,7 @@ Production-сервисы, существующие базы, DNS и секре�
 после прогрева, персонализация, защита метрик и обновление урока после
 SQL-коммита **без Redis INCR**. Результат: **24/24 проверки**.
 
-**Web route:** `apps/web/src/app/api/v1/training/day/route.real-local.test.ts`.
+**Web route:** `apps/web/tests/integration/training-day.real-local.test.ts`.
 Реальные Prisma, Redis и Core; **подменена только NextAuth-сессия**,
 чтобы тест не зависел от реальных cookies и не подгружал корневой
 `.env.local` через `next.config.ts`. Результат: **6/6**, включая
