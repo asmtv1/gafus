@@ -68,3 +68,56 @@ const deadline = {
   assert.equal(fake.calls.length, 1);
 }
 console.log("Yandex CDN CLI transient read retries and mutation safeguards PASS");
+
+// A previously unclassified failure of origin-group list blocked production
+// even though Gallery had passed and Feed had not been touched. Read-only
+// lookups may be safely retried, but they never pass on a persistent failure.
+{
+  const unknown = { status: 1, stderr: "upstream service rejected request, sensitive-detail" };
+  const fake = mock([unknown, ok]);
+  assert.deepEqual(runYcCdn(["cdn", "origin-group", "list"], fake.options), { id: "safe" });
+  assert.equal(fake.calls.length, 2);
+  assert.deepEqual(fake.delays, [1000]);
+  assert(!fake.warnings.join(" ").includes("sensitive-detail"));
+}
+{
+  const unknown = { status: 1, stderr: "upstream service rejected request, sensitive-detail" };
+  const fake = mock([unknown]);
+  assert.throws(
+    () => runYcCdn(["cdn", "origin-group", "list"], fake.options),
+    (error) => error.message === "YC_CDN_COMMAND_FAILED_cdn_origin-group_UNKNOWN_EXIT_1",
+  );
+  assert.equal(fake.calls.length, 4);
+  assert.deepEqual(fake.delays, [1000, 2000, 4000]);
+}
+for (const [stderr, code] of [
+  ["rpc error: code = Internal desc = redacted-secret", "Internal"],
+  ["HTTP 429 Too Many Requests", "HTTP_429"],
+  ["502 Bad Gateway", "HTTP_502"],
+  ["status code: 503", "HTTP_503"],
+]) {
+  const fake = mock([{ status: 1, stderr }, ok]);
+  assert.deepEqual(runYcCdn(["cdn", "origin-group", "list"], fake.options), { id: "safe" });
+  assert.equal(fake.calls.length, 2, code);
+  assert(fake.warnings[0].includes(code), code);
+}
+for (const [stderr, code] of [
+  ["rpc error: code = InvalidArgument desc = sensitive", "InvalidArgument"],
+  ["rpc error: code = NotFound desc = sensitive", "NotFound"],
+  ["401 Unauthorized", "HTTP_401"],
+  ["403 Forbidden", "HTTP_403"],
+  ["status code: 400", "HTTP_400"],
+]) {
+  const fake = mock([{ status: 1, stderr }, ok]);
+  assert.throws(
+    () => runYcCdn(["cdn", "origin-group", "list"], fake.options),
+    (error) => error.message.includes(`_${code}_EXIT_1`),
+  );
+  assert.equal(fake.calls.length, 1, code);
+}
+{
+  const unknown = { status: 1, stderr: "upstream response: sensitive-data" };
+  const fake = mock([unknown, ok]);
+  assert.throws(() => runYcCdn(["cdn", "resource", "update"], fake.options), /_UNKNOWN_EXIT_1/);
+  assert.equal(fake.calls.length, 1);
+}
