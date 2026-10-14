@@ -480,6 +480,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Validate Beget-only production approvals and existing secret bindings
         run: node infra/cloudru/beget-release-readiness.mjs --check
       - name: Verify both protected Beget edges with real signed final objects (read-only)
@@ -597,5 +598,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Verify Beget Gallery and Feed signed delivery after application health
         run: node infra/cloudru/beget-production-smoke.mjs

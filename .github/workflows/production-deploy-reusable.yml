@@ -23,6 +23,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+          package-manager-cache: false
       # Also guard manual Deploy Only; do not even open SSH if Beget is not
       # demonstrably ready. No registry, Cloud.ru or CDN writes in this step.
       - name: Validate Beget-only production readiness before SSH
