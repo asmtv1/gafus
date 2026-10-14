@@ -1,5 +1,5 @@
 # Base stage - для сборки
-FROM public.ecr.aws/docker/library/node:20-alpine AS base
+FROM mirror.gcr.io/library/node:20-alpine AS base
 
 WORKDIR /app
 
@@ -41,7 +41,7 @@ RUN printf '\nallowUnusedPatches: true\n' >> pnpm-workspace.yaml && \
 RUN node -e "const {createRequire}=require('node:module'); const {dirname,join}=require('node:path'); const {cpSync}=require('node:fs'); const source=createRequire('/app/packages/prisma/package.json'); const deployed=createRequire('/app/deploy/package.json'); const target=createRequire(deployed.resolve('@gafus/prisma')); cpSync(join(dirname(source.resolve('@prisma/client')), '../../.prisma'), join(dirname(target.resolve('@prisma/client')), '../../.prisma'), {recursive:true});"
 
 # Production stage - только runtime
-FROM public.ecr.aws/docker/library/node:20-alpine AS runner
+FROM mirror.gcr.io/library/node:20-alpine AS runner
 
 WORKDIR /app
 

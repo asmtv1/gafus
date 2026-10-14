@@ -110,6 +110,28 @@ for (const flag of [
   "GALLERY_PROCESSOR_READY",
 ])
   assert(prod.includes(flag + "="), "MISSING_PRODUCTION_COMPOSE_ENV_" + flag);
+// Public ECR's Node.js mirror returned HTTP 429 for parallel builds.
+for (const file of [
+  "Dockerfile-web-optimized",
+  "Dockerfile-trainer-panel-optimized",
+  "Dockerfile-admin-panel-optimized",
+  "Dockerfile-api-optimized",
+  "Dockerfile-api",
+  "Dockerfile-worker-optimized",
+  "Dockerfile-bull-board-optimized",
+  "Dockerfile-prisma-optimized",
+]) {
+  const dockerfile = readFileSync("ci-cd/docker/" + file, "utf8");
+  assert.equal(
+    dockerfile.split("FROM mirror.gcr.io/library/node:20-alpine").length - 1,
+    2,
+    "NODE_BASE_MUST_USE_AVAILABLE_MIRROR_" + file,
+  );
+  assert(
+    !dockerfile.includes("public.ecr.aws/docker/library/node"),
+    "ECR_NODE_RATE_LIMIT_" + file,
+  );
+}
 console.log(
   "Cloud.ru main-only release guards, compose flags, CI ordering and safe failure handling PASS",
 );

@@ -1,5 +1,5 @@
 # Base stage - для сборки
-FROM public.ecr.aws/docker/library/node:20-alpine AS base
+FROM mirror.gcr.io/library/node:20-alpine AS base
 
 WORKDIR /app
 
@@ -50,7 +50,7 @@ RUN pnpm build --filter '@gafus/mailer...' && \
 RUN pnpm build --filter @gafus/web
 
 # Production stage - только runtime
-FROM public.ecr.aws/docker/library/node:20-alpine AS runner
+FROM mirror.gcr.io/library/node:20-alpine AS runner
 
 WORKDIR /app
 
