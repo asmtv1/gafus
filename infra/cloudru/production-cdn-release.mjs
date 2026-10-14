@@ -343,8 +343,13 @@ try {
         ffmpeg.stdout[0] !== 0x47 ||
         ffmpeg.stdout.byteLength % 188 !== 0 ||
         ffmpeg.stdout.byteLength > 1750000
-      )
-        throw Error("PRODUCTION_HLS_FIXTURE_NOT_MPEGTS");
+      ) {
+        // GitHub-hosted runners do not guarantee FFmpeg is installed. Keep
+        // diagnostics scoped to this fixed synthetic command (no credentials).
+        const reason = ffmpeg.error?.code ?? `exit_${ffmpeg.status}`;
+        const stderr = String(ffmpeg.stderr ?? "").trim().split("\n").slice(-2).join(" ").slice(0, 240);
+        throw Error(`PRODUCTION_HLS_FIXTURE_NOT_MPEGTS (${reason}; bytes=${ffmpeg.stdout?.length ?? 0}; ${stderr})`);
+      }
       const fixture = {
         kind: "feed-segment",
         key: segmentPath.slice(1),
