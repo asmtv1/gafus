@@ -43,14 +43,6 @@ const getTrainingLevelLabel = (level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" |
   }
 };
 
-const formatPriceRub = (priceRub: number | null) => {
-  if (priceRub == null) {
-    return "уточняется";
-  }
-
-  return `${new Intl.NumberFormat("ru-RU").format(priceRub)} ₽`;
-};
-
 const SHOW_COURSE_AUTHOR_PILL = false;
 const SHOW_COURSE_RATING_AND_REVIEWS = false;
 
@@ -62,7 +54,6 @@ export const CourseCard = ({
   logoImg,
   isPrivate = false,
   isPaid = false,
-  priceRub,
   userStatus = TrainingStatus.NOT_STARTED,
   startedAt,
   completedAt,
@@ -191,7 +182,7 @@ export const CourseCard = ({
             {(isPaid || isPrivate) && (
               <div className={styles.accessLabels}>
                 {isPaid && <span className={styles.accessLabel}>Платный</span>}
-                {isPaid && <span className={styles.accessLabel}>{formatPriceRub(priceRub)}</span>}
+                {isPaid && <span className={styles.accessLabel}>По подписке</span>}
                 {isPrivate && <span className={styles.accessLabel}>Приватный</span>}
               </div>
             )}

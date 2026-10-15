@@ -3,11 +3,9 @@
  */
 import { prisma } from "@gafus/prisma";
 
-import {
-  getPremiumOrRewardedAccess,
-  SubscriptionOrCreditsRequiredError,
-  type MonetizedAccessPlatform,
-} from "../rewardedCredits";
+import type { MonetizedAccessPlatform } from "../rewardedCredits";
+import { SubscriptionOrCreditsRequiredError } from "../rewardedCredits";
+import { resolveArticleEntitlement } from "../contentAccess/policy";
 
 /**
  * Переключает лайк статьи пользователем.
@@ -37,33 +35,10 @@ export async function toggleArticleLikeWithMonetizedAccess(input: {
   platform: MonetizedAccessPlatform;
 }): Promise<boolean> {
   const article = await prisma.article.findUnique({
-    where: { id: input.articleId },
-    select: {
-      id: true,
-      visibility: true,
-      access: {
-        where: { userId: input.userId },
-        select: { userId: true },
-      },
-    },
+    where: { id: input.articleId }, select: { id: true },
   });
-  if (!article) {
-    throw new Error("ARTICLE_NOT_FOUND");
-  }
-
-  if (article.access.length === 0) {
-    if (article.visibility === "PAID") {
-      throw new SubscriptionOrCreditsRequiredError();
-    }
-    await getPremiumOrRewardedAccess({
-      userId: input.userId,
-      platform: input.platform,
-      target: {
-        targetType: "ARTICLE",
-        targetId: article.id,
-      },
-    });
-  }
-
+  if (!article) throw new Error("ARTICLE_NOT_FOUND");
+  const access = await resolveArticleEntitlement(article.id, input.userId, input.platform);
+  if (!access.allowed) throw new SubscriptionOrCreditsRequiredError();
   return toggleArticleLike(input.userId, article.id);
 }

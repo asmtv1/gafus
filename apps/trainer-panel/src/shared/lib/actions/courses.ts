@@ -36,9 +36,6 @@ export interface CreateCourseInput {
   logoImg: string;
   isPublic: boolean;
   isPaid: boolean;
-  priceRub: number | null;
-  /** Пустая строка на клиенте → null в Zod */
-  appleIapProductId?: string | null;
   showInProfile: boolean;
   isPersonalized: boolean;
   trainingDays: string[];
@@ -67,8 +64,6 @@ export async function createCourseServerAction(formData: FormData) {
     const videoUrl = formData.get("videoUrl")?.toString();
     const isPublic = formData.get("isPublic")?.toString() === "true";
     const isPaid = formData.get("isPaid")?.toString() === "true";
-    const priceRubRaw = formData.get("priceRub")?.toString();
-    const priceRub = priceRubRaw ? parseFloat(priceRubRaw) : null;
     if (isPaid) {
       if (
         !coreCanCreatePaidCourse(
@@ -81,17 +76,6 @@ export async function createCourseServerAction(formData: FormData) {
           success: false,
           error:
             "Создавать платные курсы могут только администратор и тренер gafus",
-        };
-      }
-      if (
-        priceRub == null ||
-        Number.isNaN(priceRub) ||
-        priceRub < 1 ||
-        priceRub > 999_999
-      ) {
-        return {
-          success: false,
-          error: "Для платного курса укажите цену от 1 до 999 999 ₽",
         };
       }
     }
@@ -121,7 +105,6 @@ export async function createCourseServerAction(formData: FormData) {
       }
     }
 
-    const appleIapProductIdRaw = formData.get("appleIapProductId")?.toString().trim() ?? "";
 
     const parseResult = createTrainerCourseSchema.safeParse({
       id: uuid,
@@ -134,8 +117,6 @@ export async function createCourseServerAction(formData: FormData) {
       logoImg: logoImgUrl,
       isPublic,
       isPaid,
-      priceRub: isPaid ? priceRub : null,
-      appleIapProductId: isPaid && appleIapProductIdRaw ? appleIapProductIdRaw : null,
       showInProfile,
       isPersonalized,
       trainingDays,
@@ -225,16 +206,6 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
       };
     }
   }
-  if (
-    input.isPaid &&
-    (input.priceRub == null || input.priceRub < 1 || input.priceRub > 999_999)
-  ) {
-    return {
-      success: false,
-      error: "Для платного курса укажите цену от 1 до 999 999 ₽",
-    };
-  }
-
   const parseResult = updateTrainerCourseSchema.safeParse({
     id: input.id,
     name: input.name,
@@ -246,8 +217,6 @@ export async function updateCourseServerAction(input: UpdateCourseInput) {
     logoImg: input.logoImg,
     isPublic: input.isPublic,
     isPaid: input.isPaid,
-    priceRub: input.priceRub,
-    appleIapProductId: input.isPaid ? (input.appleIapProductId?.trim() || null) : null,
     showInProfile: input.showInProfile,
     isPersonalized: input.isPersonalized,
     trainingDays: input.trainingDays,

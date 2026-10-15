@@ -23,9 +23,7 @@ export interface TrainerCourseFormData {
   logoImg: string;
   isPublic: boolean;
   isPaid: boolean;
-  priceRub: number | null;
   /** Product ID non-consumable в App Store Connect; пустая строка = не задано */
-  appleIapProductId: string;
   showInProfile: boolean;
   isPersonalized: boolean;
   trainingDays: string[];

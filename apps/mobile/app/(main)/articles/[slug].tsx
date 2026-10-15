@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -8,7 +8,7 @@ import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
 import Markdown from "react-native-markdown-display";
 
-import { articlesApi, paymentsApi } from "@/shared/lib/api";
+import { articlesApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import {
   wrapArticleHtml,
@@ -17,7 +17,6 @@ import {
   ARTICLE_WEBVIEW_HEIGHT_INJECTED_JS,
 } from "@/shared/lib/articles/wrapArticleHtml";
 import { useAuthStore } from "@/shared/stores";
-import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
@@ -57,7 +56,6 @@ export default function ArticleDetailScreen() {
 
   const article = res?.data;
   const user = useAuthStore((s) => s.user);
-  const [payLoading, setPayLoading] = useState(false);
   const [rewardedUnlockLoading, setRewardedUnlockLoading] = useState(false);
   const rewardedUnlockInFlightRef = useRef(false);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
@@ -68,7 +66,7 @@ export default function ArticleDetailScreen() {
   const [rewardedDailyLimitReached, setRewardedDailyLimitReached] = useState(false);
   const [isReadCompleteTracked, setIsReadCompleteTracked] = useState(false);
   const rewardedArticleTarget =
-    article && user && article.content === null && article.visibility !== "PAID"
+    article && user && article.content === null
       ? { targetType: "ARTICLE" as const, targetId: article.id }
       : null;
   const rewardedStatusQuery = useQuery({
@@ -141,28 +139,6 @@ export default function ArticleDetailScreen() {
       setWebViewReady(true);
     }, 4000);
     return () => clearTimeout(t);
-  }, [article]);
-
-  const handlePay = useCallback(async () => {
-    if (!article) return;
-    trackEvent({
-      eventName: "button_click",
-      platform: "mobile",
-      pathOrScreen: `/articles/${article.slug}`,
-      elementId: "article-paid-pay-click",
-    });
-    setPayError(null);
-    setPayLoading(true);
-    try {
-      const response = await paymentsApi.createPayment({ articleId: article.id });
-      if (!response.success || !response.data?.confirmationUrl) {
-        setPayError(response.error ?? "Не удалось создать платёж");
-        return;
-      }
-      void Linking.openURL(response.data.confirmationUrl);
-    } finally {
-      setPayLoading(false);
-    }
   }, [article]);
 
   const handleRewardedUnlock = useCallback(async () => {
@@ -267,7 +243,6 @@ export default function ArticleDetailScreen() {
   }
 
   const isHtmlArticle = article.content !== null && article.contentType !== "TEXT";
-  const isSeparatePaidArticle = article.visibility === "PAID";
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -322,66 +297,23 @@ export default function ArticleDetailScreen() {
         )}
 
         {article.content === null ? (
-          <View style={[styles.paidBlock, !isSeparatePaidArticle && styles.rewardedPaidBlock]}>
+          <View style={[styles.paidBlock, styles.rewardedPaidBlock]}>
             {article.description ? (
               <View style={styles.paidDescription}>
                 <Markdown style={markdownStyles}>{article.description}</Markdown>
               </View>
             ) : null}
-            {isSeparatePaidArticle ? (
-              <>
-                <Text style={styles.paidBlockTitle}>Платная статья</Text>
-                <Text style={styles.paidSubtitle}>
-                  {`Оплатите «${article.title}» для доступа к содержимому.${
-                    (article.priceRub ?? 0) > 0 ? ` Стоимость: ${article.priceRub} ₽.` : ""
-                  }`}
-                </Text>
-              </>
-            ) : null}
             {user ? (
-              <View
-                style={[
-                  styles.paidButtonsRow,
-                  !isSeparatePaidArticle && styles.rewardedPaidButtonsRow,
-                ]}
-              >
-                {payError && isSeparatePaidArticle ? (
-                  <Text style={styles.payErrorText}>{payError}</Text>
-                ) : null}
-                {isSeparatePaidArticle ? (
-                  <>
-                    <Button
-                      label={payLoading ? "Загрузка…" : "Оплатить статью"}
-                      fullWidth={false}
-                      height={44}
-                      fontFamily={FONTS.montserrat}
-                      fontWeight="600"
-                      fontSize={16}
-                      lineHeight={20}
-                      horizontalPadding={20}
-                      verticalPadding={12}
-                      borderRadius={BORDER_RADIUS.md}
-                      onPress={handlePay}
-                      disabled={payLoading}
-                    />
-                    <Pressable
-                      style={styles.btnOutline}
-                      onPress={() => void Linking.openURL(`${WEB_BASE}/oferta.html`)}
-                    >
-                      <Text style={styles.btnOutlineText}>Оферта</Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <RewardedAccessGate
-                    title="Открыть статью"
-                    subtitle="С подпиской будет доступно всё!"
-                    prompt={rewardedPrompt}
-                    errorText={payError}
-                    isBusy={rewardedUnlockLoading}
-                    onPrimaryPress={() => void handleRewardedUnlock()}
-                    onSubscriptionPress={handleSubscriptionPaywall}
-                  />
-                )}
+              <View style={[styles.paidButtonsRow, styles.rewardedPaidButtonsRow]}>
+                <RewardedAccessGate
+                  title="Открыть статью"
+                  subtitle="Подписка открывает все статьи!"
+                  prompt={rewardedPrompt}
+                  errorText={payError}
+                  isBusy={rewardedUnlockLoading}
+                  onPrimaryPress={() => void handleRewardedUnlock()}
+                  onSubscriptionPress={handleSubscriptionPaywall}
+                />
               </View>
             ) : (
               <Button
@@ -395,13 +327,9 @@ export default function ArticleDetailScreen() {
                 horizontalPadding={20}
                 verticalPadding={12}
                 borderRadius={BORDER_RADIUS.md}
-                onPress={() =>
-                  router.replace(
-                    `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<
-                      typeof router.replace
-                    >[0],
-                  )
-                }
+                onPress={() => router.replace(
+                  `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<typeof router.replace>[0],
+                )}
               />
             )}
           </View>

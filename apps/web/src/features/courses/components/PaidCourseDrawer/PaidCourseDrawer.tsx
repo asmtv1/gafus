@@ -1,23 +1,13 @@
 "use client";
 
-import { trackEvent } from "@gafus/analytics";
-import { useCSRFStore } from "@gafus/csrf";
-import { reportClientError } from "@gafus/error-handling";
-import {
-  Button,
-  Link as MuiLink,
-  SwipeableDrawer,
-  Typography,
-} from "@mui/material";
+import { Button, SwipeableDrawer, Typography } from "@mui/material";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { AppSubscriptionPaywall } from "@/features/app-subscription";
 
 export interface PaidCourseDrawerCourse {
   id: string;
   name: string;
   type: string;
-  priceRub: number;
 }
 
 interface PaidCourseDrawerProps {
@@ -27,80 +17,9 @@ interface PaidCourseDrawerProps {
   userId: string | undefined;
 }
 
+/** Subscription-only course gate. Individual payments are no longer offered. */
 export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDrawerProps) {
-  const pathname = usePathname() ?? "/";
-  const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
-  const [payLoading, setPayLoading] = useState(false);
-  const [payError, setPayError] = useState<string | null>(null);
-
-  const isGuest = userId === undefined;
-
-  useEffect(() => {
-    if (open && userId && !csrfToken && !csrfLoading) {
-      void fetchToken();
-    }
-  }, [open, userId, csrfToken, csrfLoading, fetchToken]);
-
-  const resetState = useCallback(() => {
-    setPayError(null);
-    setPayLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (!open) {
-      resetState();
-    }
-  }, [open, resetState]);
-
-  const handlePay = useCallback(async () => {
-    if (!course || !csrfToken || isGuest) return;
-    trackEvent({
-      eventName: "button_click",
-      platform: "web",
-      pathOrScreen: pathname,
-      elementId: "cta-pay-start",
-      courseId: course.id,
-      courseType: course.type,
-    });
-    trackEvent({
-      eventName: "booking_start",
-      platform: "web",
-      pathOrScreen: pathname,
-      courseId: course.id,
-      courseType: course.type,
-    });
-    setPayError(null);
-    setPayLoading(true);
-    try {
-      const res = await fetch("/api/v1/payments/create", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": csrfToken,
-        },
-        body: JSON.stringify({ courseId: course.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPayError(data.error ?? "Ошибка создания платежа");
-        return;
-      }
-      if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
-        return;
-      }
-      setPayError("Нет ссылки на оплату");
-    } catch (err) {
-      reportClientError(err, { issueKey: "PaidCourseDrawer", keys: { operation: "pay" } });
-      setPayError("Ошибка сети");
-    } finally {
-      setPayLoading(false);
-    }
-  }, [course, csrfToken, isGuest, pathname]);
-
   if (!course) return null;
-
   return (
     <SwipeableDrawer
       anchor="bottom"
@@ -108,67 +27,24 @@ export function PaidCourseDrawer({ open, onClose, course, userId }: PaidCourseDr
       onClose={onClose}
       onOpen={() => {}}
       disableSwipeToOpen
-      PaperProps={{
-        sx: { borderTopLeftRadius: 12, borderTopRightRadius: 12, px: 2, pt: 2, pb: 3 },
-      }}
+      PaperProps={{ sx: { borderTopLeftRadius: 12, borderTopRightRadius: 12, px: 2, pt: 2, pb: 3 } }}
     >
-      <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-        {course.name}
-      </Typography>
+      <Typography variant="h6" component="h2" sx={{ mb: 1 }}>{course.name}</Typography>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
-        {course.priceRub} ₽
+        Доступ ко всем курсам и статьям открывается по подписке.
       </Typography>
-
-      {isGuest ? (
-        <>
-          <Typography sx={{ mb: 2 }}>Войдите, чтобы оплатить курс.</Typography>
-          <Button
-            component={Link}
-            href={`/login?returnUrl=${encodeURIComponent("/courses")}`}
-            variant="contained"
-            fullWidth
-            onClick={onClose}
-          >
-            Войти
-          </Button>
-        </>
+      {userId ? (
+        <AppSubscriptionPaywall mode="embedded" />
       ) : (
-        <>
-          {payError && (
-            <Typography color="error" sx={{ mb: 1 }}>
-              {payError}
-            </Typography>
-          )}
-          <Button
-            variant="contained"
-            fullWidth
-            disabled={payLoading || csrfLoading}
-            onClick={handlePay}
-          >
-            {payLoading || csrfLoading ? "Загрузка..." : "Оплатить/Начать курс"}
-          </Button>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", textAlign: "center", mt: 0.5, mb: 1 }}
-          >
-            Нажимая кнопку, я соглашаюсь с условиями{" "}
-            <MuiLink
-              href="/oferta.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              underline="always"
-              color="text.secondary"
-            >
-              Оферты
-            </MuiLink>
-          </Typography>
-        </>
+        <Button
+          component={Link}
+          href={`/login?returnUrl=${encodeURIComponent(`/trainings/${course.type}`)}`}
+          variant="contained"
+          fullWidth
+          onClick={onClose}
+        >Войти и оформить подписку</Button>
       )}
-
-      <Button variant="outlined" fullWidth sx={{ mt: 1 }} onClick={onClose}>
-        Закрыть
-      </Button>
+      <Button variant="outlined" fullWidth sx={{ mt: 1 }} onClick={onClose}>Закрыть</Button>
     </SwipeableDrawer>
   );
 }

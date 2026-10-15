@@ -98,10 +98,23 @@ async function getCachedVideoPlaybackAccess(
   const key = `${userId}:${videoId}`;
   const now = Date.now();
   const cached = playbackAccessCache.get(key);
-  if (cached && cached.expiresAt > now) return cached.value;
+  if (cached && cached.expiresAt > now) {
+    // Cache only immutable video metadata. Entitlements can be revoked at any
+    // time (subscription expiry, private assignment removal, rewarded expiry).
+    return {
+      video: cached.value.video,
+      hasAccess: cached.value.video ? await checkVideoAccess({ userId, videoId }) : false,
+    };
+  }
 
   const existingRequest = playbackAccessInFlight.get(key);
-  if (existingRequest) return existingRequest;
+  if (existingRequest) {
+    const pending = await existingRequest;
+    return {
+      video: pending.video,
+      hasAccess: pending.video ? await checkVideoAccess({ userId, videoId }) : false,
+    };
+  }
 
   const request = (async () => {
     const video = await getVideoManifestInfo(videoId);
@@ -1210,7 +1223,7 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
     const responseHeaders: Record<string, string> = {
       "Content-Type": contentType || "application/octet-stream",
       "Content-Length": contentLength.toString(),
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "private, no-store",
       "Accept-Ranges": "bytes",
     };
     if (contentRange) {

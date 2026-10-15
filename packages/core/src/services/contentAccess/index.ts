@@ -11,6 +11,8 @@ export type CourseStepTarget = {
   dayOnCourseId: string;
   stepOnDayId: string;
   paidOrPrivate: boolean;
+  isPrivate: boolean;
+  isPaid: boolean;
   isDailyStep: boolean;
   monetized: boolean;
 };
@@ -52,6 +54,8 @@ export async function resolveCourseStepTargetTx(
     courseId: day.courseId,
     targetKey: `course-step:${dayOnCourseId}:${stepOnDayId}`,
     paidOrPrivate: day.course.isPaid || day.course.isPrivate,
+    isPrivate: day.course.isPrivate,
+    isPaid: day.course.isPaid,
     monetized: MONETIZED_STEP_TYPES.has(step.step.type),
     isDailyStep: step.step.isDailyCourse,
   };
@@ -71,9 +75,14 @@ export async function resolveMiniGuideTargetTx(
   };
 }
 
-async function hasPremiumTx(tx: GafusTx, userId: string, now: Date): Promise<boolean> {
+async function hasPremiumTx(
+  tx: GafusTx, userId: string, now: Date, isRegularCourseStep: boolean,
+): Promise<boolean> {
   const user = await tx.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (user?.role === "PARTNER") return true;
+  // Keep mini-guide role handling unchanged; ordinary course steps follow the
+  // same ADMIN/TRAINER/PARTNER exception as the course-level policy.
+  if (user?.role === "PARTNER" ||
+    (isRegularCourseStep && (user?.role === "ADMIN" || user?.role === "TRAINER"))) return true;
   const subscription = await tx.appSubscription.findFirst({
     where: {
       userId, status: "ACTIVE",
@@ -90,22 +99,34 @@ async function resolveEntitlementTx(
   target: CourseStepTarget | MiniGuideTarget,
   now: Date,
 ): Promise<ContentEntitlement> {
-  const explicit = await tx.courseAccess.findFirst({
-    where: { courseId: target.courseId, userId }, select: { courseId: true },
-  });
-  if (explicit) return { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false };
-
-  // A Gafus never purchases access to a private or paid course.
-  if (target.paidOrPrivate) {
-    return { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
-  }
-  if (target.type === "COURSE_STEP" && (!target.monetized || target.isDailyStep)) {
-    return { allowed: true, source: "DAILY_FREE", expiresAt: null, eligibleForGafus: false };
+  if (target.type === "MINI_GUIDE") {
+    // Preserve the pre-refactor mini-guide algorithm verbatim.
+    const explicit = await tx.courseAccess.findFirst({
+      where: { courseId: target.courseId, userId }, select: { courseId: true },
+    });
+    if (explicit) return { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false };
+    if (target.paidOrPrivate) {
+      return { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
+    }
+  } else {
+    // A private course requires assignment regardless of subscription or ads.
+    if (target.isPrivate) {
+      const assigned = await tx.courseAccess.findFirst({
+        where: { courseId: target.courseId, userId }, select: { courseId: true },
+      });
+      return assigned
+        ? { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false }
+        : { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
+    }
+    // Future public free courses, including their lesson steps, stay free.
+    if (!target.isPaid) {
+      return { allowed: true, source: "DAILY_FREE", expiresAt: null, eligibleForGafus: false };
+    }
   }
   if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true)) {
     return { allowed: true, source: "GATING_DISABLED", expiresAt: null, eligibleForGafus: false };
   }
-  if (await hasPremiumTx(tx, userId, now)) {
+  if (await hasPremiumTx(tx, userId, now, target.type === "COURSE_STEP")) {
     return { allowed: true, source: "PREMIUM", expiresAt: null, eligibleForGafus: false };
   }
   const access = await tx.gafusTargetAccess.findFirst({
@@ -140,7 +161,7 @@ export async function hasActiveGafusCourseStepAccess(input: {
   now?: Date;
 }): Promise<boolean> {
   const target = await resolveCourseStepTargetTx(prisma, input.dayOnCourseId, input.stepOnDayId);
-  if (!target || target.paidOrPrivate || !target.monetized) return false;
+  if (!target || target.isPrivate || !target.monetized) return false;
   const access = await prisma.gafusTargetAccess.findFirst({
     where: {
       userId: input.userId,

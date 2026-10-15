@@ -65,7 +65,7 @@ describe("pet visibility route", () => {
     expect(response.status).toBe(401);
   });
   it("accepts false without losing it during validation", async () => {
-    vi.mocked(updatePet).mockResolvedValueOnce({ id: "pet-1", showInProfile: false } as any);
+    vi.mocked(updatePet).mockResolvedValueOnce({ id: "pet-1", showInProfile: false } as unknown as Awaited<ReturnType<typeof updatePet>>);
     const response = await createAuthenticatedTestApp().request(jsonRequest("/api/v1/pets/pet-1", "PUT", { showInProfile: false }));
     expect(response.status).toBe(200);
     expect(updatePet).toHaveBeenLastCalledWith("pet-1", "user-1", { showInProfile: false });

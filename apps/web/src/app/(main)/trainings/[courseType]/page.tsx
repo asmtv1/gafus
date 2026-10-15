@@ -25,7 +25,8 @@ export async function generateMetadata({ params }: TrainingsPageProps): Promise<
   const { courseType } = await params;
   const course = await getCourseMetadata(courseType);
 
-  if (!course) {
+  // Private course metadata is not public, including Open Graph previews.
+  if (!course || course.isPrivate) {
     return {
       title: "Курс",
       description: "Пошаговая тренировка для вашего питомца",
@@ -48,7 +49,6 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
     getCourseMetadata(courseType),
     getCurrentUserId().then((id) => id as string).catch(() => null),
   ]);
-  const courseName = courseMetadata?.name;
   const userId = userIdResult;
 
   if (!userId && courseMetadata && (courseMetadata.isPaid || courseMetadata.isPrivate)) {
@@ -101,15 +101,17 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   }
 
   const accessDenied = serverError === "COURSE_ACCESS_DENIED";
+  // A private course's title is not public metadata for unassigned visitors.
+  const courseName = accessDenied && courseMetadata?.isPrivate ? undefined : courseMetadata?.name;
   const courseForPay =
     accessDenied &&
     courseMetadata?.isPaid &&
+    !courseMetadata?.isPrivate &&
     courseMetadata?.id
       ? {
           id: courseMetadata.id,
           name: courseMetadata.name ?? "",
           type: courseType,
-          priceRub: courseMetadata.priceRub != null ? Number(courseMetadata.priceRub) : 0,
         }
       : null;
   const accessDeniedReason: "private" | "paid" | null = accessDenied

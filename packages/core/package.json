@@ -109,10 +109,6 @@
       "types": "./dist/core/src/services/offline/index.d.ts",
       "default": "./dist/core/src/services/offline/index.js"
     },
-    "./services/payments": {
-      "types": "./dist/core/src/services/payments/index.d.ts",
-      "default": "./dist/core/src/services/payments/index.js"
-    },
     "./services/diary": {
       "types": "./dist/core/src/services/diary/index.d.ts",
       "default": "./dist/core/src/services/diary/index.js"
@@ -152,10 +148,6 @@
     "./services/systemHealth": {
       "types": "./dist/core/src/services/systemHealth/index.d.ts",
       "default": "./dist/core/src/services/systemHealth/index.js"
-    },
-    "./services/adminPurchase": {
-      "types": "./dist/core/src/services/adminPurchase/index.d.ts",
-      "default": "./dist/core/src/services/adminPurchase/index.js"
     },
     "./services/adminReengagement": {
       "types": "./dist/core/src/services/adminReengagement/index.d.ts",
@@ -244,10 +236,6 @@
     "./services/consultation/bookingStatusPresentation": {
       "types": "./dist/core/src/services/consultation/bookingStatusPresentation.d.ts",
       "default": "./dist/core/src/services/consultation/bookingStatusPresentation.js"
-    },
-    "./services/oferta": {
-      "types": "./dist/core/src/services/oferta/index.d.ts",
-      "default": "./dist/core/src/services/oferta/index.js"
     },
     "./errors": {
       "types": "./dist/core/src/errors/index.d.ts",

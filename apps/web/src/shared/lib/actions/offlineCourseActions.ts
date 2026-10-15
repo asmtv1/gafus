@@ -5,8 +5,8 @@ import {
   checkCourseUpdates as checkCourseUpdatesCore,
   downloadFullCourse as downloadFullCourseCore,
 } from "@gafus/core/services/offline";
-import { checkCourseAccessById } from "@gafus/core/services/course";
-import { getAppSubscriptionAccess } from "@gafus/core/services/appSubscription";
+import { checkCourseAccess, checkCourseAccessById } from "@gafus/core/services/course";
+import { getAppSubscriptionAccess, isOfflineCourseDownloadIncludedPlanCode } from "@gafus/core/services/appSubscription";
 import { getErrorMessage } from "@gafus/core/errors";
 import { createWebLogger } from "@gafus/logger";
 import { trainingTypeSchema } from "../validation/schemas";
@@ -67,6 +67,16 @@ export async function downloadFullCourse(
     if (!subscription.hasActiveSubscription) {
       return { success: false, error: "Скачивание курса доступно по подписке" };
     }
+    // A Server Action can be called directly, bypassing the HTTP route's
+    // tariff check. Enforce it here as well as at the API boundary.
+    if (!isOfflineCourseDownloadIncludedPlanCode(subscription.planCode)) {
+      return { success: false, error: "Скачивание курсов доступно на тарифах от одного месяца" };
+    }
+    // Subscription alone never grants a private-course assignment. Check the
+    // entitlement BEFORE retrieving any of the course's private lesson data.
+    if (!(await checkCourseAccess(safeType, userId)).hasAccess) {
+      return { success: false, error: "Нет доступа к курсу" };
+    }
 
     logger.info("Downloading full course", { courseType: safeType, userId });
 
@@ -75,14 +85,11 @@ export async function downloadFullCourse(
       return { success: false, error: result.error ?? "Курс не найден" };
     }
 
-    if (result.data.course.isPaid) {
-      const access = await checkCourseAccessById(result.data.course.id, userId);
-      if (!access.hasAccess) {
-        return {
-          success: false,
-          error: "Платный курс доступен для скачивания после оплаты",
-        };
-      }
+    // Defense in depth: recheck the actual downloaded course by ID (including
+    // private, unpaid courses) in case its policy changed during the fetch.
+    const access = await checkCourseAccessById(result.data.course.id, userId);
+    if (!access.hasAccess) {
+      return { success: false, error: "Нет доступа к курсу" };
     }
 
     return { success: true, data: result.data as FullCourseData };

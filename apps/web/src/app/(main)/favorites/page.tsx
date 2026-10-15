@@ -7,7 +7,7 @@ import styles from "./favorites.module.css";
 import FavoritesCourseList from "@/app/(main)/favorites/FavoritesCourseList";
 import { requireWebAppSubscription } from "@shared/lib/app-subscription/server";
 
-export const revalidate = 300; // 5 минут (300 секунд) - снижаем нагрузку на сервер
+export const dynamic = "force-dynamic"; // права и прогресс всегда из текущей сессии
 
 export const metadata = generateStaticPageMetadata(
   "Избранные курсы",

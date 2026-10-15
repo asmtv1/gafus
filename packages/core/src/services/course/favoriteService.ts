@@ -7,6 +7,7 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { CourseReview } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
+import { resolveCourseEntitlement } from "../contentAccess/policy";
 
 const _logger = createWebLogger("favorite-service");
 
@@ -28,6 +29,7 @@ export async function getFavoritesCourses(
   const allCourses = await prisma.course.findMany({
     where: {
       id: { in: favoriteCourseIds },
+      OR: [{ isPrivate: false }, { access: { some: { userId } } }],
     },
     include: {
       author: {
@@ -38,7 +40,7 @@ export async function getFavoritesCourses(
       },
       reviews: true,
       favoritedBy: true,
-      access: true,
+      access: { where: { userId }, select: { userId: true } },
       userCourses: { select: { status: true } },
     },
   });
@@ -53,11 +55,14 @@ export async function getFavoritesCourses(
     },
   });
 
+  const premium = (await resolveCourseEntitlement(
+    { id: "", isPrivate: false, isPaid: true }, userId,
+  )).allowed;
   const data: CourseWithProgressData[] = allCourses.map((course) => {
     const userCourse = userCourses.find((uc) => uc.courseId === course.id);
-    const hasAccess = course.isPaid
-      ? course.access.some((access) => access.userId === userId)
-      : !course.isPrivate || course.access.length > 0;
+    const hasAccess = course.isPrivate
+      ? course.access.length > 0
+      : !course.isPaid || premium;
 
     return {
       id: course.id,
@@ -69,7 +74,6 @@ export async function getFavoritesCourses(
       logoImg: course.logoImg,
       isPrivate: course.isPrivate,
       isPaid: course.isPaid,
-      priceRub: course.priceRub != null ? Number(course.priceRub) : null,
       hasAccess,
       avgRating: course.avgRating,
       trainingLevel: course.trainingLevel,

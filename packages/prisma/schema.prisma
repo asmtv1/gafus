@@ -68,9 +68,6 @@ model Course {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   showInProfile     Boolean            @default(true)
-  priceRub          Decimal?           @db.Decimal(10, 2)
-  /// Apple IAP product id (ASC non-consumable), заполняется для платных курсов в iOS
-  appleIapProductId String?            @unique
   isPersonalized    Boolean            @default(false)
   guideContent      String?            @db.Text
   awards            Award[]
@@ -80,9 +77,7 @@ model Course {
   surveyResponses   SurveyResponse[]
   dayLinks          DayOnCourse[]
   favoritedBy       FavoriteCourse[]
-  payments          Payment[]
   userCourses       UserCourse[]
-  ofertaAcceptances OfertaAcceptance[]
 }
 
 model TrainingDay {
@@ -391,7 +386,6 @@ model User {
   favoriteCourses                  FavoriteCourse[]
   passwordResetTokens              PasswordResetToken[]
   accountDeletionTokens            AccountDeletionToken[]
-  payments                         Payment[]
   pets                             Pet[]
   petDocuments                     PetDocument[]
   emailChangeTokens                EmailChangeToken[]
@@ -417,12 +411,9 @@ model User {
   userTrainings                    UserTraining[]
   userVideoProgresses              UserVideoProgress[]
   consentLogs                      ConsentLog[]
-  ofertaAcceptances                OfertaAcceptance[]
   petPreventionEntries             PetPreventionEntry[]
   authoredArticles                 Article[]                        @relation("authoredArticles")
   articleLikes                     ArticleLike[]
-  articleAccesses                  ArticleAccess[]
-  articlePayments                  ArticlePayment[]
   articleViews                     ArticleViewer[]
   /// Профиль кинолога для консультаций (один к одному с пользователем-тренером)
   consultationCynologist           ConsultationCynologist?
@@ -823,27 +814,7 @@ model CourseAccess {
   @@unique([courseId, userId])
 }
 
-model Payment {
-  id                 String             @id @default(cuid())
-  userId             String
-  courseId           String
-  amountRub          Decimal            @db.Decimal(10, 2)
-  currency           String             @default("RUB")
-  provider           PaymentProvider    @default(YOOKASSA)
-  yookassaPaymentId  String?            @unique
-  appleTransactionId String?            @unique
-  confirmationUrl    String?
-  status             PaymentStatus      @default(PENDING)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  course             Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ofertaAcceptances  OfertaAcceptance[]
 
-  @@index([userId])
-  @@index([courseId])
-  @@index([status])
-}
 
 model AppSubscriptionSettings {
   key String @id @db.VarChar(32)
@@ -1727,26 +1698,7 @@ model AppSubscriptionEvent {
   @@index([userId, createdAt])
 }
 
-model OfertaAcceptance {
-  id               String   @id @default(cuid())
-  userId           String
-  courseId         String
-  paymentId        String?
-  acceptedAt       DateTime @default(now())
-  ipAddress        String?
-  userAgent        String?
-  documentVersions Json
-  source           String   @db.VarChar(10)
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([courseId])
-  @@index([paymentId])
-  @@index([acceptedAt])
-}
 
 model FavoriteCourse {
   userId    String
@@ -2356,10 +2308,7 @@ enum TranscodingStatus {
   FAILED
 }
 
-enum PaymentProvider {
-  YOOKASSA
-  APPLE
-}
+
 
 enum AppSubscriptionProvider {
   YOOKASSA
@@ -2502,12 +2451,7 @@ enum RewardedTargetAccessSource {
   LEGACY_GAFUS
 }
 
-enum PaymentStatus {
-  PENDING
-  SUCCEEDED
-  CANCELED
-  REFUNDED
-}
+
 
 enum ArticleContentType {
   TEXT
@@ -2528,7 +2472,6 @@ model Article {
   contentType ArticleContentType @default(HTML)
   content     String             @db.Text
   visibility  ArticleVisibility  @default(PUBLIC)
-  priceRub    Decimal?           @db.Decimal(10, 2)
   videoUrl    String?
   logoImg     String             @default("")
   imageUrls   String[]           @default([])
@@ -2538,8 +2481,6 @@ model Article {
 
   author       User               @relation("authoredArticles", fields: [authorId], references: [id])
   articleLikes ArticleLike[]
-  access       ArticleAccess[]
-  payments     ArticlePayment[]
   viewers      ArticleViewer[]
   guestViews   ArticleGuestView[]
 
@@ -2561,19 +2502,7 @@ model ArticleLike {
   @@index([userId])
 }
 
-model ArticleAccess {
-  userId    String
-  articleId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@unique([articleId, userId])
-  @@index([articleId])
-  @@index([userId])
-}
 
 /**
  * Уникальные авторизованные просмотры (для аналитики тренера); общий счётчик — Article.viewCount
@@ -2606,24 +2535,7 @@ model ArticleGuestView {
   @@index([articleId])
 }
 
-model ArticlePayment {
-  id                String        @id @default(cuid())
-  userId            String
-  articleId         String
-  amountRub         Decimal       @db.Decimal(10, 2)
-  currency          String        @default("RUB")
-  yookassaPaymentId String?       @unique
-  confirmationUrl   String?
-  status            PaymentStatus @default(PENDING)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  article           Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([articleId])
-  @@index([status])
-}
 
 /// Публичные флаги клиентов (мобильное приложение и т.д.). Ключ — стабильный идентификатор.
 model AppFeatureFlag {

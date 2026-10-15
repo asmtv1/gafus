@@ -77,7 +77,7 @@ async function courseAllowsTrainingDetails(
 async function shouldApplyRewardedStepAccess(courseType: string | undefined): Promise<boolean> {
   if (!courseType) return true;
   const course = await getCourseRewardedPolicy(courseType);
-  return Boolean(course && !course.isPaid && !course.isPrivate);
+  return Boolean(course && !course.isPrivate);
 }
 
 function redactLockedTrainingStep(step: TrainingStep, target: RewardedTargetInput): TrainingStep {
@@ -514,11 +514,13 @@ export async function getTrainingDayWithUserSteps(
   userId: string | undefined,
   courseType: string,
   dayOnCourseId: string,
-  options?: { createIfMissing?: boolean },
+  options?: { createIfMissing?: boolean; allowPaywalledPreview?: boolean },
 ): Promise<TrainingDetail | null> {
   // Проверяем доступ к курсу
   if (!(await courseAllowsTrainingDetails(courseType, userId))) {
-    return null;
+    if (!options?.allowPaywalledPreview) return null;
+    const policy = await getCourseRewardedPolicy(courseType);
+    if (!policy || policy.isPrivate || !policy.isPaid) return null;
   }
   // Only shared, user-independent content is read here. Access was checked above.
   const found = await getTrainingDayContent(courseType, dayOnCourseId);
@@ -561,7 +563,7 @@ export async function getTrainingDayWithUserSteps(
     userCourse?.userDisplayName != null && String(userCourse.userDisplayName).trim() !== "";
   const requiresPersonalization = Boolean(isPersonalized) && !hasPersonalization;
 
-  if (requiresPersonalization) {
+  if (requiresPersonalization && !options?.allowPaywalledPreview) {
     throw new Error("PERSONALIZATION_REQUIRED");
   }
 
@@ -605,7 +607,7 @@ export async function getTrainingDayWithUserSteps(
 
   let userTrainingId = userTraining?.id;
 
-  if (!userTrainingId && options?.createIfMissing && userId) {
+  if (!userTrainingId && options?.createIfMissing && userId && !options?.allowPaywalledPreview) {
     userTrainingId = await ensureUserTrainingExists(userId, foundDayOnCourseId);
   }
 
@@ -683,7 +685,7 @@ export async function getTrainingDayWithUserSteps(
   const allStepOnDayIds = stepLinks.map((link: { id: string }) => link.id);
   const missingStepOnDayIds = allStepOnDayIds.filter((id: string) => !existingStepOnDayIds.has(id));
 
-  if (missingStepOnDayIds.length > 0) {
+  if (missingStepOnDayIds.length > 0 && !options?.allowPaywalledPreview) {
     try {
       const newUserSteps = await prisma.$transaction(
         async (tx) => {
@@ -853,63 +855,40 @@ export async function getTrainingDayWithMonetizedSteps(
   dayOnCourseId: string,
   options: { platform: MonetizedAccessPlatform; createIfMissing?: boolean },
 ): Promise<TrainingDetail | null> {
+  const policy = await getCourseRewardedPolicy(courseType);
+  if (!policy) return null;
+  const fullAccess = (await checkCourseAccess(courseType, userId)).hasAccess;
+  if (policy.isPrivate && !fullAccess) return null;
+  const preview = policy.isPaid && !fullAccess;
   const detail = await getTrainingDayWithUserSteps(userId, courseType, dayOnCourseId, {
-    createIfMissing: options.createIfMissing,
+    createIfMissing: options.createIfMissing && !preview,
+    allowPaywalledPreview: preview,
   });
   if (!detail) return null;
-  const coursePolicy = await getCourseRewardedPolicy(courseType);
-  if (coursePolicy?.isPaid || coursePolicy?.isPrivate) {
-    return {
-      ...detail,
-      steps: detail.steps.map((step) => ({ ...step, locked: false })),
-    };
+  if (fullAccess || !policy.isPaid) {
+    return { ...detail, steps: detail.steps.map((step) => ({ ...step, locked: false })) };
   }
 
-  const steps = await Promise.all(
-    detail.steps.map(async (step, stepIndex) => {
-      if (!isRewardedMonetizedStepType(step.type)) {
-        return { ...step, locked: false };
-      }
-
-      const target = await resolveCourseStepRewardedTarget({
-        userId,
-        courseType,
-        dayOnCourseId,
-        stepIndex,
-      });
-      if (!target) {
-        return { ...step, locked: false };
-      }
-      if (await hasActiveGafusCourseStepAccess({ userId, dayOnCourseId, stepOnDayId: target.targetId })) {
-        return { ...step, locked: false,
-          monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId } };
-      }
-
-      try {
-        await getPremiumOrRewardedAccess({
-          userId,
-          platform: options.platform,
-          target,
-        });
-      } catch (error) {
-        if (isSubscriptionOrCreditsRequiredError(error)) {
-          return redactLockedTrainingStep(step, target);
-        }
-        throw error;
-      }
-
-      return {
-        ...step,
-        locked: false,
-        monetizationTarget: {
-          targetType: "COURSE_STEP" as const,
-          targetId: target.targetId,
-        },
-      };
-    }),
-  );
-
-  return { ...detail, steps };
+  const steps = await Promise.all(detail.steps.map(async (step, stepIndex) => {
+    const target = isRewardedMonetizedStepType(step.type)
+      ? await resolveCourseStepRewardedTarget({ userId, courseType, dayOnCourseId, stepIndex })
+      : null;
+    // BREAK / DIARY are not monetized steps and remain available.
+    if (!target) return { ...step, locked: false };
+    if (await hasActiveGafusCourseStepAccess({
+      userId, dayOnCourseId, stepOnDayId: target.targetId,
+    })) {
+      return { ...step, locked: false, monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId } };
+    }
+    try {
+      await getPremiumOrRewardedAccess({ userId, platform: options.platform, target });
+      return { ...step, locked: false, monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId } };
+    } catch (error) {
+      if (isSubscriptionOrCreditsRequiredError(error)) return redactLockedTrainingStep(step, target);
+      throw error;
+    }
+  }));
+  return { ...detail, description: "", showCoursePathExport: false, steps };
 }
 
 export async function requireCourseStepPremiumOrRewardedUnlock(input: {
@@ -921,11 +900,14 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
 }) {
   if (input.courseType) {
     const coursePolicy = await getCourseRewardedPolicy(input.courseType);
-    if (coursePolicy?.isPaid || coursePolicy?.isPrivate) {
+    if (coursePolicy?.isPrivate) {
       const accessCheck = await checkCourseAccess(input.courseType, input.userId);
       if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
       return null;
     }
+    if (coursePolicy && !coursePolicy.isPaid) return null;
+    if (coursePolicy?.isPaid && (await checkCourseAccess(input.courseType, input.userId)).hasAccess)
+      return null;
   }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) return null;
@@ -976,25 +958,20 @@ export async function requireCourseStepOperationAccess(input: {
   if (!stepLink) throw new Error("Step not found");
 
   const access = await checkCourseAccessById(dayOnCourse.course.id, input.userId);
-  if (!access.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
-
-  // Paid/private courses are governed solely by the course entitlement. For a
-  // public course, monetized step types may additionally require subscription
-  // or rewarded access.
-  if (dayOnCourse.course.isPaid || dayOnCourse.course.isPrivate) {
-    return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
-  }
-  if (isRewardedMonetizedStepType(stepLink.step.type)) {
-    const hasGafusAccess = await hasActiveGafusCourseStepAccess({
+  if (dayOnCourse.course.isPrivate) {
+    if (!access.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
+  } else if (!access.hasAccess) {
+    // Only an individually unlocked step may be mutated without subscription.
+    if (!dayOnCourse.course.isPaid || !isRewardedMonetizedStepType(stepLink.step.type))
+      throw new Error("COURSE_ACCESS_DENIED");
+    const target = { targetType: "COURSE_STEP" as const, targetId: stepLink.id };
+    const gafus = await hasActiveGafusCourseStepAccess({
       userId: input.userId, dayOnCourseId: input.dayOnCourseId, stepOnDayId: stepLink.id,
     });
-    if (!hasGafusAccess) await requirePremiumOrRewardedUnlock({
-      userId: input.userId,
-      platform: input.platform,
-      target: { targetType: "COURSE_STEP", targetId: stepLink.id },
+    if (!gafus) await requirePremiumOrRewardedUnlock({
+      userId: input.userId, platform: input.platform, target,
     });
   }
-
   return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
 }
 

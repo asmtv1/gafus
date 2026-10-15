@@ -4,6 +4,7 @@ import { SubscriptionOrCreditsRequiredError } from "./errors";
 
 const state = vi.hoisted(() => ({
   hasPremium: false,
+  role: "USER",
   gafusUnlocked: false,
   unlocks: new Map<string, Date>(),
   userSteps: new Map<
@@ -46,6 +47,9 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
+    user: {
+      findUnique: vi.fn(() => Promise.resolve({ role: state.role })),
+    },
     rewardedTargetAccess: {
       findFirst: vi.fn(({ where }) =>
         Promise.resolve(
@@ -179,6 +183,7 @@ import {
 describe("premium or rewarded access", () => {
   beforeEach(() => {
     state.hasPremium = false;
+    state.role = "USER";
     state.gafusUnlocked = false;
     state.unlocks.clear();
     state.userSteps.clear();
@@ -198,6 +203,20 @@ describe("premium or rewarded access", () => {
         target: { targetType: "ARTICLE", targetId: "article-1" },
       }),
     ).resolves.toMatchObject({ allowed: true, source: "PREMIUM" });
+  });
+
+  it("allows admin/trainer course-step and article gates without changing subscription plans", async () => {
+    for (const role of ["ADMIN", "TRAINER"]) {
+      state.role = role;
+      await expect(getPremiumOrRewardedAccess({
+        userId: "user-1", platform: "WEB_DESKTOP",
+        target: { targetType: "COURSE_STEP", targetId: "step-1" },
+      })).resolves.toMatchObject({ allowed: true, source: "PREMIUM" });
+      await expect(getPremiumOrRewardedAccess({
+        userId: "user-1", platform: "WEB_DESKTOP",
+        target: { targetType: "ARTICLE", targetId: "article-1" },
+      })).resolves.toMatchObject({ allowed: true, source: "PREMIUM" });
+    }
   });
 
   it("allows a child endpoint for an already unlocked regular user step", async () => {

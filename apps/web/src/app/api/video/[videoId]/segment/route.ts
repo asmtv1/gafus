@@ -110,7 +110,7 @@ export async function GET(
     const headers: Record<string, string> = {
       "Content-Type": contentType || "video/mp2t",
       "Content-Length": contentLength.toString(),
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "private, no-store",
       "Access-Control-Allow-Origin": corsOrigin,
       "Access-Control-Allow-Credentials": "true",
       Vary: "Origin",

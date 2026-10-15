@@ -218,6 +218,18 @@ export async function getPremiumOrRewardedAccess(input: {
     };
   }
 
+  // Ordinary paid articles/course steps are open to admins and trainers as
+  // established by contentAccess/policy.ts. Keep subscription plan entitlements
+  // for cynologist chat and bookings unchanged.
+  const viewer = await prisma.user.findUnique({
+    where: { id: input.userId }, select: { role: true },
+  });
+  if (viewer?.role === "ADMIN" || viewer?.role === "TRAINER") {
+    return {
+      allowed: true, source: "PREMIUM", skippedDueToPremium: true, target: input.target,
+    };
+  }
+
   if (
     await hasRewardedTargetUnlock({
       userId: input.userId,

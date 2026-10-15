@@ -6,9 +6,6 @@ import {
   getAuthorizedMiniGuideContent,
   GafusError,
 } from "@gafus/core/services/gafus";
-import {
-  updateGafusSettingsAdmin, adjustGafusBalanceAdmin, getGafusAdminDashboard,
-} from "@gafus/core/services/adminGafus";
 
 export const gafusRoutes = new Hono();
 

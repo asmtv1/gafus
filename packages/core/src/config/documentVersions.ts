@@ -1,5 +1,5 @@
 /**
- * Версии документов для записи в OfertaAcceptance.
+ * Версии юридических документов для пользовательских согласий.
  * Обновлять при изменении oferta.html, policy.html, personal.html, personal-distribution.html.
  * Предыдущие тексты — apps/web/public/legal/archive/ (см. docs/legal/document-versions.md).
  */

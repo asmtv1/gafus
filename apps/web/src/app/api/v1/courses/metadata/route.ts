@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const metadata = await getCourseMetadata(courseType);
 
-    if (!metadata) {
+    if (!metadata || metadata.isPrivate) {
       return NextResponse.json({ success: false, error: "Курс не найден" }, { status: 404 });
     }
 

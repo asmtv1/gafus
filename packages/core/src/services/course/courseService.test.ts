@@ -4,12 +4,9 @@ import {
   checkCourseAccess,
   checkCourseAccessById,
   deleteCourseLogoFromRecord,
-  getAllCoursesForCache,
-  getCourseByIdOrType,
   getCourseMetadata,
   getCourseOutline,
   getCoursesWithProgress,
-  getUserCoursesProgressForCache,
   updateCourseLogoUrl,
 } from "./courseService";
 
@@ -20,6 +17,18 @@ const mockCourseUpdate = vi.fn();
 const mockUserCourseFindMany = vi.fn();
 const mockFavoriteCourseFindMany = vi.fn();
 const mockHandlePrismaError = vi.fn();
+
+// Detailed entitlement matrix is tested separately in contentAccess/policy.test.ts.
+vi.mock("../contentAccess/policy", () => ({
+  resolveCourseEntitlement: async (course: {
+    isPrivate: boolean; isPaid: boolean; access?: unknown[];
+  } | null, userId?: string) => ({
+    allowed: Boolean(course && (
+      course.isPrivate ? userId && (course.access?.length ?? 0) > 0
+      : !course.isPaid || userId === "subscriber"
+    )),
+  }),
+}));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
@@ -169,129 +178,6 @@ describe("getCoursesWithProgress", () => {
     const rows = await getCoursesWithProgress("u1");
 
     expect(rows).toHaveLength(1);
-  });
-});
-
-function courseForCache() {
-  return {
-    id: "c-cache",
-    name: "N",
-    type: "type-x",
-    description: "d",
-    shortDesc: "s",
-    duration: "7",
-    logoImg: "",
-    isPrivate: false,
-    avgRating: 4.5 as number | null,
-    createdAt: new Date("2024-06-01"),
-    author: { username: "author", profile: { avatarUrl: "https://a/u.png" as string | null } },
-    reviews: [
-      {
-        rating: 5,
-        comment: "ok",
-        createdAt: new Date(),
-        user: { username: "u", profile: { avatarUrl: null as string | null } },
-      },
-    ],
-    access: [{ user: { id: "u1" } }],
-    dayLinks: [
-      {
-        order: 1,
-        day: {
-          id: "d1",
-          title: "День 1",
-          stepLinks: [{ id: "sl1", order: 1, step: { title: "Шаг" } }],
-        },
-      },
-    ],
-  };
-}
-
-describe("getAllCoursesForCache", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("маппинг курсов для кэша", async () => {
-    mockCourseFindMany.mockResolvedValue([courseForCache()]);
-
-    const r = await getAllCoursesForCache();
-
-    expect(r.success).toBe(true);
-    if (r.success && r.data) {
-      expect(r.data).toHaveLength(1);
-      expect(r.data[0].authorUsername).toBe("author");
-      expect(r.data[0].dayLinks[0].day.title).toBe("День 1");
-    }
-  });
-
-  it("ошибка при сбое запроса", async () => {
-    mockCourseFindMany.mockRejectedValue(new Error("db fail"));
-
-    const r = await getAllCoursesForCache();
-
-    expect(r.success).toBe(false);
-    expect(r.error).toContain("db fail");
-  });
-});
-
-describe("getUserCoursesProgressForCache", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("без userId — пустые данные без запросов", async () => {
-    const r = await getUserCoursesProgressForCache(null);
-
-    expect(r.success).toBe(true);
-    if (r.success && r.data) {
-      expect(r.data.userCourses).toEqual([]);
-      expect(r.data.favoriteCourseIds).toEqual([]);
-    }
-    expect(mockUserCourseFindMany).not.toHaveBeenCalled();
-  });
-
-  it("с userId — агрегирует курсы и избранное", async () => {
-    mockUserCourseFindMany.mockResolvedValue([
-      {
-        courseId: "c1",
-        status: "IN_PROGRESS",
-        startedAt: new Date(),
-        completedAt: null,
-      },
-    ]);
-    mockFavoriteCourseFindMany.mockResolvedValue([{ courseId: "c1" }, { courseId: "c2" }]);
-
-    const r = await getUserCoursesProgressForCache("u1");
-
-    expect(r.success).toBe(true);
-    if (r.success && r.data) {
-      expect(r.data.userCourses).toHaveLength(1);
-      expect(r.data.favoriteCourseIds).toEqual(["c1", "c2"]);
-    }
-  });
-});
-
-describe("getCourseByIdOrType", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("null если нет параметров", async () => {
-    await expect(getCourseByIdOrType()).resolves.toBeNull();
-    expect(mockCourseFindFirst).not.toHaveBeenCalled();
-  });
-
-  it("поиск по id", async () => {
-    mockCourseFindFirst.mockResolvedValue({ id: "cid", type: "t1" });
-
-    await expect(getCourseByIdOrType("cid", undefined)).resolves.toEqual({
-      id: "cid",
-      type: "t1",
-    });
-    expect(mockCourseFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "cid" } }),
-    );
   });
 });
 

@@ -13,7 +13,7 @@ export async function GET() {
 
     const result = await getArticles(userId);
     return NextResponse.json(result, {
-      headers: { "Cache-Control": "private, max-age=60" },
+      headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
     logger.error("Error in articles GET", error as Error);

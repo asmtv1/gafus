@@ -79,6 +79,7 @@ describe("offline course download access", () => {
     const response = await createApp().request("/api/v1/offline/course/download?courseType=basic");
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.getTrainingDays).toHaveBeenCalledWith("user-1", "basic");
     expect(mocks.downloadFullCourse).toHaveBeenCalledWith("basic");
   });

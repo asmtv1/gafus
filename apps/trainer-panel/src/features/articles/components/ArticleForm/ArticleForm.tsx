@@ -70,8 +70,7 @@ export default function ArticleForm({
       title: "",
       contentType: "HTML",
       content: "",
-      visibility: "PUBLIC",
-      priceRub: null,
+      visibility: "PAID",
       videoUrl: "",
       logoImg: "",
       imageUrls: [],
@@ -81,7 +80,6 @@ export default function ArticleForm({
     },
   });
 
-  const visibility = form.watch("visibility");
 
   const handleGenerateSlug = () => {
     const title = form.getValues("title");
@@ -97,25 +95,15 @@ export default function ArticleForm({
       form.setValue("slug", slug);
     }
 
-    const vis = data.visibility ?? "PUBLIC";
-    const priceVal = data.priceRub;
-    const priceRub =
-      vis === "PAID"
-        ? typeof priceVal === "number" && !Number.isNaN(priceVal)
-          ? priceVal
-          : null
-        : null;
-
     const payload: CreateArticleSchemaInput = {
       title: data.title,
       content: data.content,
       slug,
       contentType: data.contentType ?? "HTML",
-      visibility: vis,
+      visibility: "PAID",
       logoImg: data.logoImg ?? "",
       imageUrls: data.imageUrls ?? [],
       videoUrl: data.videoUrl || null,
-      priceRub,
       description: data.description ?? "",
     };
 
@@ -239,48 +227,18 @@ export default function ArticleForm({
           )}
         </FormSection>
 
-        <FormSection title="Видимость и оплата">
-          <FormControl fullWidth margin="normal">
-            <InputLabel id="visibility-label">Видимость</InputLabel>
-            <Select
-              labelId="visibility-label"
-              id="visibility"
-              label="Видимость"
-              value={form.watch("visibility")}
-              onChange={(e) =>
-                form.setValue("visibility", e.target.value as "PUBLIC" | "PAID")
-              }
-            >
-              <MenuItem value="PUBLIC">Публичная</MenuItem>
-              <MenuItem value="PAID">Платная</MenuItem>
-            </Select>
-          </FormControl>
-          {visibility === "PAID" && (
-            <>
-              <TextAreaField
-                id="description"
-                label="Описание *"
-                name="description"
-                placeholder="Описание для превью платной статьи (отображается вместо «В курс входит»)"
-                form={form}
-                rows={4}
-                rules={{
-                  required: visibility === "PAID" ? "Описание обязательно для платной статьи" : false,
-                }}
-              />
-              <FormField
-                id="priceRub"
-                label="Цена (₽) *"
-                name="priceRub"
-                type="number"
-                form={form}
-                rules={{
-                  setValueAs: (v: unknown) =>
-                    v === "" || v === undefined ? null : Number(v),
-                }}
-              />
-            </>
-          )}
+        <FormSection title="Доступ по подписке">
+          <Typography variant="body2" color="text.secondary">
+            Все статьи доступны подписчикам. Отдельная стоимость не задаётся.
+          </Typography>
+          <TextAreaField
+            id="description"
+            label="Описание"
+            name="description"
+            placeholder="Короткое описание статьи"
+            form={form}
+            rows={4}
+          />
         </FormSection>
 
         <FormSection title="Медиа">

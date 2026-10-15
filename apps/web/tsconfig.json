@@ -71,7 +71,6 @@
         "../../packages/core/src/services/petPrevention/index.ts"
       ],
       "@gafus/core/services/notes": ["../../packages/core/src/services/notes/index.ts"],
-      "@gafus/core/services/payments": ["../../packages/core/src/services/payments/index.ts"],
       "@gafus/core/services/reengagement": [
         "../../packages/core/src/services/reengagement/index.ts"
       ],

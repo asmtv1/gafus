@@ -242,11 +242,7 @@ describe("updateCourse", () => {
     mockCourseAccessDeleteMany.mockResolvedValue({});
   });
 
-  it("does not remove access for paid users when updating allowedUsers", async () => {
-    mockCourseAccessFindMany.mockResolvedValue([{ userId: "paid-u" }, { userId: "u1" }]);
-    mockPaymentFindMany.mockResolvedValue([{ userId: "paid-u" }]);
-    mockCourseAccessCreate.mockResolvedValue({});
-
+  it("removes legacy purchase assignments and never queries legacy payments", async () => {
     const result = await updateCourse({
       id: "c1",
       name: "Курс",
@@ -256,7 +252,6 @@ describe("updateCourse", () => {
       logoImg: "",
       isPublic: true,
       isPaid: true,
-      priceRub: null,
       trainingDays: [],
       equipment: "",
       trainingLevel: "beginner",
@@ -264,8 +259,22 @@ describe("updateCourse", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mockCourseAccessFindMany).toHaveBeenCalled();
-    expect(mockPaymentFindMany).toHaveBeenCalled();
+    expect(mockCourseAccessDeleteMany).toHaveBeenCalledWith({ where: { courseId: "c1" } });
+    expect(mockCourseAccessCreateMany).not.toHaveBeenCalled();
+    expect(mockPaymentFindMany).not.toHaveBeenCalled();
+  });
+
+  it("preserves only explicitly assigned students on private course edit", async () => {
+    const result = await updateCourse({
+      id: "c1", name: "Курс", shortDesc: "Кратко",
+      description: "Описание", duration: "30 дней", logoImg: "",
+      isPublic: false, isPaid: false, trainingDays: [], equipment: "",
+      trainingLevel: "beginner", allowedUsers: ["assigned-1"],
+    });
+    expect(result.success).toBe(true);
+    expect(mockCourseAccessCreateMany).toHaveBeenCalledWith({
+      data: [{ courseId: "c1", userId: "assigned-1" }],
+    });
   });
 
   it("returns success on simple update", async () => {

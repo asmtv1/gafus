@@ -124,7 +124,9 @@ offlineRoutes.get("/course/download", zValidator("query", downloadQuerySchema), 
       return c.json({ success: false, error: result.error || "Ошибка", code: "NOT_FOUND" }, 404);
     }
 
-    return c.json({ success: true, data: result.data });
+    return c.json({ success: true, data: result.data }, 200, {
+      "Cache-Control": "private, no-store",
+    });
   } catch (error) {
     logger.error("Error downloading course", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);

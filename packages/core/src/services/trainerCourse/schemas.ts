@@ -39,17 +39,6 @@ export const createTrainerCourseSchema = z.object({
     .refine(isSafeCourseLogoUrl, { message: "Некорректный URL логотипа (разрешён только https)" }),
   isPublic: z.boolean(),
   isPaid: z.boolean().default(false),
-  priceRub: z.number().min(0).max(999_999).nullable(),
-  appleIapProductId: z
-    .string()
-    .max(255, "Apple IAP Product ID не длиннее 255 символов")
-    .optional()
-    .nullable()
-    .transform((s) => {
-      if (s == null) return null;
-      const t = s.trim();
-      return t === "" ? null : t;
-    }),
   showInProfile: z.boolean().default(true),
   isPersonalized: z.boolean().default(false),
   trainingDays: z.array(z.string().min(1)).default([]),
@@ -72,17 +61,6 @@ export const updateTrainerCourseSchema = z.object({
     .refine(isSafeCourseLogoUrl, { message: "Некорректный URL логотипа (разрешён только https)" }),
   isPublic: z.boolean(),
   isPaid: z.boolean().default(false),
-  priceRub: z.number().min(0).max(999_999).nullable(),
-  appleIapProductId: z
-    .string()
-    .max(255, "Apple IAP Product ID не длиннее 255 символов")
-    .optional()
-    .nullable()
-    .transform((s) => {
-      if (s == null) return null;
-      const t = s.trim();
-      return t === "" ? null : t;
-    }),
   showInProfile: z.boolean().default(true),
   isPersonalized: z.boolean().default(false),
   trainingDays: z.array(z.string().min(1)).default([]),

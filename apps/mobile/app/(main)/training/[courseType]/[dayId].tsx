@@ -6,15 +6,12 @@ import {
   RefreshControl,
   Pressable,
   Linking,
-  Platform,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { WebView } from "react-native-webview";
 import { Button, Loading } from "@/shared/components/ui";
 import { AppBackButton, MarkdownText } from "@/shared/components";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
@@ -31,12 +28,10 @@ import {
 import { useDayStepStatuses, useTrainingStore, useStepStore, useTimerStore } from "@/shared/stores";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { getStepContent, paymentsApi, trainingApi } from "@/shared/lib/api";
+import { getStepContent, trainingApi } from "@/shared/lib/api";
+import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import type { DiaryEntry } from "@/shared/lib/api/training";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
-import { WEB_BASE } from "@/shared/lib/utils/alerts";
-import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
-import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
@@ -56,20 +51,15 @@ export default function TrainingDayScreen() {
     dayId: string;
   }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
-  const [isPaymentChecking, setIsPaymentChecking] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [unlockingStepIndex, setUnlockingStepIndex] = useState<number | null>(null);
   const [stepAccessError, setStepAccessError] = useState<string | null>(null);
   const [rewardedDailyLimitReached, setRewardedDailyLimitReached] = useState(false);
   const rewardedUnlockInFlightRef = useRef(false);
-  const hasHandledPaymentReturnRef = useRef(false);
   const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
   /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
   const diaryListFetchGenerationRef = useRef(0);
@@ -532,99 +522,6 @@ export default function TrainingDayScreen() {
     };
   }, [dayData?.steps, localStepStatuses]);
 
-  const pollAccessAfterPayment = useCallback(async () => {
-    setIsPaymentChecking(true);
-    await refetch();
-    const delays = [2000, 3000, 5000];
-    for (const delayMs of delays) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      const next = await refetch();
-      if (next.data?.success) {
-        setSnackbar({ visible: true, message: "Оплата подтверждена. Доступ открыт." });
-        setIsPaymentChecking(false);
-        return;
-      }
-    }
-    setSnackbar({
-      visible: true,
-      message: "Оплата обрабатывается. Обновите экран через несколько секунд.",
-    });
-    setIsPaymentChecking(false);
-  }, [refetch]);
-
-  const _handleCreatePayment = useCallback(async () => {
-    if (isCreatingPayment) return;
-    if (!courseType) {
-      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
-      return;
-    }
-    setIsCreatingPayment(true);
-
-    if (Platform.OS === "ios") {
-      const iapResult = await runAppleCourseIapPurchase(
-        dayData?.courseId ? { courseId: dayData.courseId } : { courseType },
-      );
-      if (!iapResult.ok) {
-        if (!iapResult.userCancelled) {
-          setSnackbar({ visible: true, message: iapResult.message });
-        }
-        setIsCreatingPayment(false);
-        return;
-      }
-      setIsCreatingPayment(false);
-      await pollAccessAfterPayment();
-      return;
-    }
-
-    const payParams = dayData?.courseId ? { courseId: dayData.courseId } : { courseType };
-    const response = await paymentsApi.createPayment(payParams);
-    if (!response.success || !response.data?.confirmationUrl) {
-      const messageByCode: Record<string, string> = {
-        RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
-        NETWORK_ERROR: "Нет подключения к интернету.",
-        CONFIG: "Платежи временно недоступны.",
-        CONFIG_WEB_APP_URL: "Платежи временно недоступны (конфиг WEB_APP_URL).",
-        CONFIG_YOOKASSA: "Платежи временно недоступны (конфиг YooKassa).",
-        NOT_FOUND: "Курс не найден.",
-        APPLE_IAP_REQUIRED: "На этом устройстве оплата курса только через App Store.",
-      };
-      const fallback = response.error ?? "Не удалось создать платёж";
-      setSnackbar({
-        visible: true,
-        message: response.code ? (messageByCode[response.code] ?? fallback) : fallback,
-      });
-      setIsCreatingPayment(false);
-      return;
-    }
-
-    hasHandledPaymentReturnRef.current = false;
-    setPaymentUrl(response.data.confirmationUrl);
-    setIsCreatingPayment(false);
-  }, [courseType, dayData?.courseId, isCreatingPayment, pollAccessAfterPayment]);
-
-  const handleClosePaymentWebView = useCallback(
-    async (isReturnUrl: boolean) => {
-      setPaymentUrl(null);
-      if (isReturnUrl) {
-        await pollAccessAfterPayment();
-      } else {
-        await refetch();
-      }
-    },
-    [pollAccessAfterPayment, refetch],
-  );
-
-  const handlePaymentNavigation = useCallback(
-    async (url?: string) => {
-      if (!url || hasHandledPaymentReturnRef.current) return;
-      const expectedHost = new URL(WEB_BASE).host;
-      if (!isPaymentSuccessReturnUrl(url, expectedHost)) return;
-      hasHandledPaymentReturnRef.current = true;
-      await handleClosePaymentWebView(true);
-    },
-    [handleClosePaymentWebView],
-  );
-
   useEffect(() => {
     if (!isForbidden) return;
     router.replace(`/training/${courseType}`);
@@ -656,7 +553,7 @@ export default function TrainingDayScreen() {
         <>
           <Stack.Screen options={{ headerShown: false }} />
           <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-            <Loading fullScreen message="Переход к оплате..." />
+            <Loading fullScreen message="Возврат к курсу..." />
             <Snackbar
               visible={snackbar.visible}
               onDismiss={() => setSnackbar({ visible: false, message: "" })}
@@ -664,33 +561,7 @@ export default function TrainingDayScreen() {
             >
               {snackbar.message}
             </Snackbar>
-            {paymentUrl && (
-              <View style={styles.webViewOverlay}>
-                <View style={[styles.webViewHeader, { paddingTop: insets.top }]}>
-                  <Pressable
-                    hitSlop={12}
-                    onPress={() => {
-                      void hapticFeedback.light();
-                      void handleClosePaymentWebView(false);
-                    }}
-                  >
-                    <Text style={styles.webViewCloseText}>Закрыть</Text>
-                  </Pressable>
-                  {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
-                </View>
-                <WebView
-                  source={{ uri: paymentUrl }}
-                  style={styles.webViewFlex}
-                  onNavigationStateChange={(state) => {
-                    void handlePaymentNavigation(state.url);
-                  }}
-                  onLoadEnd={(event) => {
-                    void handlePaymentNavigation(event.nativeEvent.url);
-                  }}
-                  startInLoadingState={true}
-                />
-              </View>
-            )}
+
           </SafeAreaView>
         </>
       );
@@ -1030,33 +901,7 @@ export default function TrainingDayScreen() {
         >
           {snackbar.message}
         </Snackbar>
-        {paymentUrl && (
-          <View style={styles.webViewOverlay}>
-            <View style={[styles.webViewHeader, { paddingTop: insets.top }]}>
-              <Pressable
-                hitSlop={12}
-                onPress={() => {
-                  void hapticFeedback.light();
-                  void handleClosePaymentWebView(false);
-                }}
-              >
-                <Text style={styles.webViewCloseText}>Закрыть</Text>
-              </Pressable>
-              {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
-            </View>
-            <WebView
-              source={{ uri: paymentUrl }}
-              style={styles.webViewFlex}
-              onNavigationStateChange={(state) => {
-                void handlePaymentNavigation(state.url);
-              }}
-              onLoadEnd={(event) => {
-                void handlePaymentNavigation(event.nativeEvent.url);
-              }}
-              startInLoadingState={true}
-            />
-          </View>
-        )}
+
       </SafeAreaView>
     </>
   );

@@ -86,4 +86,3 @@ export {
   type ConsultationsMyResponse,
 } from "./consultations";
 export { onboardingTourApi, type OnboardingTourStatusDto } from "./onboarding-tour";
-export { paymentsApi, type CreatePaymentData, type CreatePaymentParams } from "./payments";

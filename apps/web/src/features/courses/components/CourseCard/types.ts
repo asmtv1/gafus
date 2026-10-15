@@ -6,7 +6,6 @@ export interface PaidCourseClickPayload {
   id: string;
   name: string;
   type: string;
-  priceRub: number;
 }
 
 export interface CourseCardProps extends CourseCardData {

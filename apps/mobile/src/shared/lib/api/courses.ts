@@ -7,7 +7,6 @@ export interface Course {
   type: string;
   shortDesc: string;
   description: string;
-  priceRub?: number | null;
   hasAccess?: boolean;
   logoImg: string;
   duration: string;
@@ -40,6 +39,7 @@ export interface Course {
     };
   }[];
   dayLinks?: {
+    id?: string;
     order: number;
     day: {
       id: string;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -6,7 +6,6 @@ import {
   RefreshControl,
   Pressable,
   Share,
-  Linking,
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
@@ -18,24 +17,20 @@ import * as Clipboard from "expo-clipboard";
 import { useShallow } from "zustand/react/shallow";
 import { declineRussianName } from "@gafus/core/utils";
 import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
-import { WebView } from "react-native-webview";
-import { fetchProducts, initConnection } from "expo-iap";
-import type { Product } from "expo-iap";
 
 import { Button, Input, Loading } from "@/shared/components/ui";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useTrainingDays } from "@/shared/hooks";
 import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
-import { coursesApi, paymentsApi, type Course, type TrainingDay } from "@/shared/lib/api";
+import { coursesApi, type Course, type TrainingDay } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
-import { showLockedDayAlert, WEB_BASE } from "@/shared/lib/utils/alerts";
+import { showLockedDayAlert } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training";
-import { runAppleCourseIapPurchase } from "@/shared/lib/payments/appleCourseIapPurchase";
-import { isPaymentSuccessReturnUrl } from "@/shared/lib/payments/returnUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { trackEvent } from "@/shared/lib/analytics";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 /**
  * Экран списка дней тренировок курса
@@ -75,11 +70,8 @@ export default function TrainingDaysScreen() {
   const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
-  const [isPaymentChecking, setIsPaymentChecking] = useState(false);
-  const [courseForPay, setCourseForPay] = useState<Course | null>(null);
-  const [isLoadingCourseForPay, setIsLoadingCourseForPay] = useState(false);
+  const [coursePreview, setCoursePreview] = useState<Course | null>(null);
+  const [isLoadingCoursePreview, setIsLoadingCoursePreview] = useState(false);
   const [userDisplayName, setUserDisplayName] = useState("");
   const [userGender, setUserGender] = useState<"male" | "female">("male");
   const [petName, setPetName] = useState("");
@@ -90,8 +82,6 @@ export default function TrainingDaysScreen() {
   const [petNameIns, setPetNameIns] = useState("");
   const [petNamePre, setPetNamePre] = useState("");
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
-  const hasHandledPaymentReturnRef = useRef(false);
-  const [iosApplePrice, setIosApplePrice] = useState<string | null>(null);
 
   const isAccessDenied =
     (data && "code" in data && data.code === "FORBIDDEN") ||
@@ -136,119 +126,18 @@ export default function TrainingDaysScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- намеренно только courseType (F12)
   }, [courseType]);
 
-  const pollAccessAfterPayment = useCallback(async () => {
-    setIsPaymentChecking(true);
-    await refetch();
-    const delays = [2000, 3000, 5000];
-    for (const delayMs of delays) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      const next = await refetch();
-      if (next.data?.success) {
-        trackEvent({
-          eventName: "booking_confirm",
-          platform: "mobile",
-          pathOrScreen: trainingScreenPath,
-          courseType,
-          courseId: courseData?.courseId,
-        });
-        setSnackbar({ visible: true, message: "Оплата подтверждена. Доступ открыт." });
-        setIsPaymentChecking(false);
-        return;
-      }
-    }
-
-    setSnackbar({
-      visible: true,
-      message: "Оплата обрабатывается. Обновите экран через несколько секунд.",
-    });
-    setIsPaymentChecking(false);
-  }, [refetch, trainingScreenPath, courseType, courseData?.courseId]);
-
-  const handleCreatePayment = useCallback(async () => {
+  const handleSubscribe = useCallback(() => {
     void hapticFeedback.light();
-    if (isCreatingPayment) return;
-
-    const payCourseId = courseForPay?.id ?? courseData?.courseId;
     trackEvent({
       eventName: "button_click",
       platform: "mobile",
       pathOrScreen: trainingScreenPath,
-      elementId: "cta-pay-start",
-      courseId: payCourseId,
+      elementId: "cta-subscription-start",
+      courseId: courseData?.courseId,
       courseType,
     });
-    trackEvent({
-      eventName: "booking_start",
-      platform: "mobile",
-      pathOrScreen: trainingScreenPath,
-      courseId: payCourseId,
-      courseType,
-    });
-
-    if (Platform.OS === "ios") {
-      if (!courseType) {
-        setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
-        return;
-      }
-      setIsCreatingPayment(true);
-      // IAP-метаданные по type из URL — не зависим от списка курсов (избегаем устаревшего id/кэша)
-      const iapResult = await runAppleCourseIapPurchase({ courseType });
-      if (!iapResult.ok) {
-        if (!iapResult.userCancelled) {
-          setSnackbar({ visible: true, message: iapResult.message });
-        }
-        setIsCreatingPayment(false);
-        return;
-      }
-      setIsCreatingPayment(false);
-      await pollAccessAfterPayment();
-      return;
-    }
-
-    const courseId = courseForPay?.id;
-    if (!courseId) {
-      setSnackbar({ visible: true, message: "Данные курса не загружены. Обновите экран." });
-      return;
-    }
-    setIsCreatingPayment(true);
-
-    const response = await paymentsApi.createPayment({ courseId });
-    if (!response.success || !response.data?.confirmationUrl) {
-      const messageByCode: Record<string, string> = {
-        RATE_LIMIT: "Слишком много попыток. Повторите через минуту.",
-        NETWORK_ERROR: "Нет подключения к интернету.",
-        CONFIG: "Платежи временно недоступны.",
-        CONFIG_WEB_APP_URL: "Платежи временно недоступны (конфиг WEB_APP_URL).",
-        CONFIG_YOOKASSA: "Платежи временно недоступны (конфиг YooKassa).",
-        NOT_FOUND: "Курс не найден.",
-        APPLE_IAP_REQUIRED: "На этом устройстве оплата курса только через App Store.",
-      };
-      const fallback = response.error ?? "Не удалось создать платёж";
-      setSnackbar({
-        visible: true,
-        message: response.code ? (messageByCode[response.code] ?? fallback) : fallback,
-      });
-      setIsCreatingPayment(false);
-      return;
-    }
-
-    hasHandledPaymentReturnRef.current = false;
-    setPaymentUrl(response.data.confirmationUrl);
-    setIsCreatingPayment(false);
-  }, [
-    courseForPay?.id,
-    courseType,
-    courseData?.courseId,
-    isCreatingPayment,
-    pollAccessAfterPayment,
-    trainingScreenPath,
-  ]);
-
-  const handlePayOnWebsite = useCallback(() => {
-    void hapticFeedback.light();
-    const url = `${WEB_BASE}/trainings/${encodeURIComponent(courseType)}`;
-    void Linking.openURL(url);
-  }, [courseType]);
+    openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
+  }, [courseData?.courseId, courseType, trainingScreenPath]);
 
   const handleFillDeclensions = useCallback(() => {
     void hapticFeedback.light();
@@ -324,34 +213,11 @@ export default function TrainingDaysScreen() {
     userGender,
   ]);
 
-  const handleClosePaymentWebView = useCallback(
-    async (isReturnUrl: boolean) => {
-      setPaymentUrl(null);
-      if (isReturnUrl) {
-        await pollAccessAfterPayment();
-      } else {
-        await refetch();
-      }
-    },
-    [pollAccessAfterPayment, refetch],
-  );
-
-  const handlePaymentNavigation = useCallback(
-    async (url?: string) => {
-      if (!url || hasHandledPaymentReturnRef.current) return;
-      const expectedHost = new URL(WEB_BASE).host;
-      if (!isPaymentSuccessReturnUrl(url, expectedHost)) return;
-      hasHandledPaymentReturnRef.current = true;
-      await handleClosePaymentWebView(true);
-    },
-    [handleClosePaymentWebView],
-  );
-
   useEffect(() => {
-    if (!isAccessDenied || courseForPay) return;
+    if (!isAccessDenied || coursePreview) return;
 
     let cancelled = false;
-    setIsLoadingCourseForPay(true);
+    setIsLoadingCoursePreview(true);
 
     (async () => {
       try {
@@ -363,11 +229,11 @@ export default function TrainingDaysScreen() {
             coursesResponse.data.find((item) => item.type === courseType) ??
             coursesResponse.data.find((item) => item.id === courseType) ??
             null;
-          setCourseForPay(course);
+          setCoursePreview(course);
         }
       } finally {
         if (!cancelled) {
-          setIsLoadingCourseForPay(false);
+          setIsLoadingCoursePreview(false);
         }
       }
     })();
@@ -375,38 +241,9 @@ export default function TrainingDaysScreen() {
     return () => {
       cancelled = true;
     };
-    // isLoadingCourseForPay намеренно не в deps: иначе при setState(true) эффект перезапускается,
-    // cleanup выставляет cancelled, и запрос завершается без setCourseForPay
-  }, [courseForPay, courseType, isAccessDenied]);
-
-  useEffect(() => {
-    if (Platform.OS !== "ios" || !isAccessDenied || !courseType) {
-      setIosApplePrice(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const meta = await paymentsApi.getAppleCourseIapMetadata({ courseType });
-        if (!meta.success || !meta.data?.appleIapProductId || cancelled) return;
-        const sku = meta.data.appleIapProductId;
-        await initConnection();
-        if (cancelled) return;
-        const list = await fetchProducts({ skus: [sku], type: "in-app" });
-        if (cancelled) return;
-        const item = list?.find((x) => x.id === sku) as Product | undefined;
-        if (item?.displayPrice) setIosApplePrice(item.displayPrice);
-      } catch (error) {
-        reportClientError(error instanceof Error ? error : new Error(String(error)), {
-          issueKey: "AppleIAP",
-          keys: { phase: "prefetch_product_price" },
-        });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAccessDenied, courseType]);
+    // isLoadingCoursePreview намеренно не в deps: иначе при setState(true) эффект перезапускается,
+    // cleanup выставляет cancelled, и запрос завершается без setCoursePreview
+  }, [coursePreview, courseType, isAccessDenied]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -531,73 +368,40 @@ export default function TrainingDaysScreen() {
           {/* Заголовок «Содержание» как на web */}
           <Text style={styles.paywallContentTitle}>Содержание</Text>
 
-          {courseForPay?.description ? (
+          {coursePreview?.description ? (
             <CourseDescription
-              description={courseForPay.description}
-              equipment={courseForPay.equipment ?? null}
-              trainingLevel={courseForPay.trainingLevel}
+              description={coursePreview.description}
+              equipment={coursePreview.equipment ?? null}
+              trainingLevel={coursePreview.trainingLevel}
               onShare={handleShareCourse}
               courseType={courseType}
             />
           ) : null}
 
-          {courseForPay?.dayLinks?.length ? (
+          {coursePreview?.dayLinks?.length ? (
             <View style={styles.outlineSection}>
               <Text style={styles.outlineTitle}>В курс входит</Text>
-              {courseForPay.dayLinks
+              {coursePreview.dayLinks
                 .slice()
                 .sort((a, b) => a.order - b.order)
                 .map((item, index) => (
-                  <View key={`${item.order}-${item.day.id}`} style={styles.outlineItemRow}>
+                  <Pressable key={`${item.order}-${item.day.id}`} style={styles.outlineItemRow} onPress={() => { if (item.id) router.push(`/training/${courseType}/${item.id}`); }}>
                     <Text style={styles.outlineItemNumber}>{index + 1}.</Text>
                     <Text style={styles.outlineItem}>{item.day.title}</Text>
-                  </View>
+                  </Pressable>
                 ))}
             </View>
           ) : null}
 
           <View style={styles.paywallCard}>
-            <Text style={styles.paywallTitle}>Курс платный</Text>
-            {isLoadingCourseForPay && !courseForPay ? (
-              <Text style={styles.paywallSubtitle}>Загрузка данных курса…</Text>
-            ) : (
-              <>
-                <Text style={styles.paywallSubtitle}>
-                  {courseForPay?.name
-                    ? `Оплатите «${courseForPay.name}» для доступа к занятиям.`
-                    : "Оплатите курс для доступа к занятиям."}
-                  {Platform.OS === "ios" && iosApplePrice ? (
-                    <> Стоимость в App Store: {iosApplePrice}.</>
-                  ) : null}
-                  {Platform.OS !== "ios" && courseForPay?.priceRub && courseForPay.priceRub > 0 ? (
-                    <>
-                      {" "}
-                      Стоимость: {courseForPay.priceRub} ₽.
-                    </>
-                  ) : null}
-                </Text>
-                {!courseForPay && !isLoadingCourseForPay ? (
-                  <Text style={styles.paywallHint}>
-                    Войдите в аккаунт, чтобы увидеть описание и стоимость курса.
-                  </Text>
-                ) : (
-                  <Text style={styles.paywallHint}>
-                    После оплаты доступ к занятиям откроется автоматически в течение минуты.
-                  </Text>
-                )}
-              </>
-            )}
+            <Text style={styles.paywallTitle}>Доступно по подписке</Text>
+            <Text style={styles.paywallSubtitle}>
+              Подписка открывает все курсы и статьи. Отдельные шаги можно открыть
+              за Гафусы или за просмотр рекламы.
+            </Text>
             <View style={styles.paywallButtons}>
               <Button
-                label={
-                  isCreatingPayment
-                    ? Platform.OS === "ios"
-                      ? "App Store…"
-                      : "Переход к оплате..."
-                    : Platform.OS === "ios"
-                      ? "Купить через App Store"
-                      : "Оплатить/Начать курс"
-                }
+                label="Оформить подписку"
                 height={42}
                 fontFamily={FONTS.montserratBold}
                 fontWeight="700"
@@ -606,31 +410,12 @@ export default function TrainingDaysScreen() {
                 horizontalPadding={SPACING.md}
                 verticalPadding={12}
                 borderRadius={10}
-                onPress={() => void handleCreatePayment()}
-                disabled={isCreatingPayment || isLoadingCourseForPay}
+                onPress={handleSubscribe}
               />
-              <Pressable
-                onPress={() => {
-                  void hapticFeedback.light();
-                  void Linking.openURL(`${WEB_BASE}/oferta.html`);
-                }}
-              >
-                <Text style={styles.ofertaHint}>
-                  {Platform.OS === "ios"
-                    ? "Нажимая «Купить через App Store», я соглашаюсь с "
-                    : "Нажимая «Оплатить», я соглашаюсь с "}
-                  <Text style={styles.ofertaHintLink}>Офертой</Text>
-                </Text>
-              </Pressable>
               <AppBackButton label="Назад к курсам" onPress={() => {
                 void hapticFeedback.light();
                 router.replace("/(main)/(tabs)/courses" as const);
               }} />
-              {Platform.OS !== "ios" ? (
-                <Pressable onPress={handlePayOnWebsite} style={styles.paywallSecondaryButton}>
-                  <Text style={styles.paywallSecondaryButtonText}>Оплатить на сайте</Text>
-                </Pressable>
-              ) : null}
             </View>
           </View>
         </ScrollView>
@@ -642,33 +427,6 @@ export default function TrainingDaysScreen() {
         >
           {snackbar.message}
         </Snackbar>
-        {paymentUrl && (
-          <View style={styles.webViewOverlay}>
-            <View style={[styles.webViewHeader, { paddingTop: insets.top }]}>
-              <Pressable
-                hitSlop={12}
-                onPress={() => {
-                  void hapticFeedback.light();
-                  void handleClosePaymentWebView(false);
-                }}
-              >
-                <Text style={styles.webViewCloseText}>Закрыть</Text>
-              </Pressable>
-              {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
-            </View>
-            <WebView
-              source={{ uri: paymentUrl }}
-              style={styles.webViewFlex}
-              onNavigationStateChange={(state) => {
-                void handlePaymentNavigation(state.url);
-              }}
-              onLoadEnd={(event) => {
-                void handlePaymentNavigation(event.nativeEvent.url);
-              }}
-              startInLoadingState={true}
-            />
-          </View>
-        )}
       </SafeAreaView>
     );
   }
@@ -1064,33 +822,6 @@ export default function TrainingDaysScreen() {
         >
           {snackbar.message}
         </Snackbar>
-        {paymentUrl && (
-          <View style={styles.webViewOverlay}>
-            <View style={[styles.webViewHeader, { paddingTop: insets.top }]}>
-              <Pressable
-                hitSlop={12}
-                onPress={() => {
-                  void hapticFeedback.light();
-                  void handleClosePaymentWebView(false);
-                }}
-              >
-                <Text style={styles.webViewCloseText}>Закрыть</Text>
-              </Pressable>
-              {isPaymentChecking && <Text style={{ color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 13 }}>Проверяем оплату…</Text>}
-            </View>
-            <WebView
-              source={{ uri: paymentUrl }}
-              style={styles.webViewFlex}
-              onNavigationStateChange={(state) => {
-                void handlePaymentNavigation(state.url);
-              }}
-              onLoadEnd={(event) => {
-                void handlePaymentNavigation(event.nativeEvent.url);
-              }}
-              startInLoadingState={true}
-            />
-          </View>
-        )}
       </SafeAreaView>
     </>
   );

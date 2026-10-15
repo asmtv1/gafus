@@ -10,8 +10,7 @@ const baseArticleSchema = z.object({
   title: z.string().min(1, "Заголовок обязателен").max(500),
   contentType: z.enum(["TEXT", "HTML"]).default("HTML"),
   content: z.string().min(1, "Контент обязателен").max(2_000_000),
-  visibility: z.enum(["PUBLIC", "PAID"]).default("PUBLIC"),
-  priceRub: z.number().min(0).max(999_999).nullable().optional(),
+  visibility: z.enum(["PUBLIC", "PAID"]).default("PAID"),
   videoUrl: z.string().max(2000).nullable().optional(),
   logoImg: z.string().max(2000).default(""),
   imageUrls: z.array(z.string().url()).max(20).default([]),
@@ -27,11 +26,6 @@ export const createArticleSchema = baseArticleSchema
   .extend({ id: z.string().min(1).optional() })
   .refine(
     (data) =>
-      data.visibility !== "PAID" || (data.priceRub != null && data.priceRub > 0),
-    { message: "Для платной статьи укажите цену > 0", path: ["priceRub"] }
-  )
-  .refine(
-    (data) =>
       data.visibility !== "PAID" || (data.description?.trim() ?? "").length > 0,
     { message: "Для платной статьи укажите описание", path: ["description"] }
   );
@@ -39,11 +33,6 @@ export const createArticleSchema = baseArticleSchema
 export const updateArticleSchema = baseArticleSchema
   .partial()
   .extend({ id: z.string().min(1, "ID статьи обязателен") })
-  .refine(
-    (data) =>
-      data.visibility !== "PAID" || (data.priceRub != null && data.priceRub > 0),
-    { message: "Для платной статьи укажите цену > 0", path: ["priceRub"] }
-  )
   .refine(
     (data) =>
       data.visibility !== "PAID" ||

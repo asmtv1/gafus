@@ -7,11 +7,8 @@ import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import type { ArticleListDto, ArticleDetailDto, ArticleViewerDto } from "@gafus/types";
 import { createArticleSchema, updateArticleSchema, type CreateArticleSchemaInput } from "./schemas";
-import {
-  getPremiumOrRewardedAccess,
-  SubscriptionOrCreditsRequiredError,
-  type MonetizedAccessPlatform,
-} from "../rewardedCredits";
+import type { MonetizedAccessPlatform } from "../rewardedCredits";
+import { resolveArticleEntitlement } from "../contentAccess/policy";
 
 const logger = createWebLogger("article-service");
 
@@ -22,7 +19,6 @@ const articleListSelect = {
   authorId: true,
   contentType: true,
   visibility: true,
-  priceRub: true,
   videoUrl: true,
   logoImg: true,
   imageUrls: true,
@@ -50,7 +46,7 @@ function mapToListDto(
   row: ArticleListRow & { articleLikes?: { userId: string }[]; access?: { userId: string }[] },
   userId?: string,
 ): ArticleListDto {
-  const hasAccess = !!userId && (row.access?.length ?? 0) > 0;
+  const hasAccess = (row.access?.length ?? 0) > 0;
   const isLiked = !!userId && (row.articleLikes?.length ?? 0) > 0;
   const likeCount = row._count.articleLikes;
 
@@ -63,10 +59,11 @@ function mapToListDto(
     authorAvatarUrl: row.author.profile?.avatarUrl ?? null,
     contentType: row.contentType,
     visibility: row.visibility,
-    priceRub: row.priceRub != null ? Number(row.priceRub) : null,
-    videoUrl: row.videoUrl,
+    // Covers may be shown in the catalog, but the video and gallery belong
+    // to the paid article. Do not expose them before checking entitlement.
+    videoUrl: hasAccess ? row.videoUrl : null,
     logoImg: row.logoImg ?? "",
-    imageUrls: row.imageUrls,
+    imageUrls: hasAccess ? row.imageUrls : row.imageUrls.slice(0, 1),
     likeCount,
     isLiked,
     hasAccess,
@@ -82,35 +79,28 @@ export type GetArticlesResult =
   | { success: false; error: string };
 
 export async function getArticles(
-  userId?: string,
-  take = 50,
-  skip = 0,
-  authorId?: string,
+  userId?: string, take = 50, skip = 0, authorId?: string,
 ): Promise<GetArticlesResult> {
   try {
     const rows = await prisma.article.findMany({
       where: authorId ? { authorId } : undefined,
       select: {
         ...articleListSelect,
-        articleLikes: { select: { userId: true } },
-        access: { select: { userId: true } },
+        articleLikes: { where: { userId: userId ?? "" }, select: { userId: true } },
       },
       orderBy: { createdAt: "desc" },
-      take,
-      skip,
+      take, skip,
     });
-
-    const dtos = rows.map((r) =>
-      mapToListDto(
-        {
-          ...r,
-          articleLikes: userId ? r.articleLikes.filter((l) => l.userId === userId) : [],
-          access: userId ? r.access.filter((a) => a.userId === userId) : [],
-        } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
-        userId,
+    const subscribed = (await resolveArticleEntitlement("", userId)).allowed;
+    return {
+      success: true,
+      data: rows.map((row) =>
+        mapToListDto({
+          ...row,
+          access: subscribed ? [{ userId: userId ?? "" }] : [],
+        }, userId),
       ),
-    );
-    return { success: true, data: dtos };
+    };
   } catch (error) {
     logger.error("Ошибка getArticles", error as Error);
     return { success: false, error: "Не удалось загрузить статьи" };
@@ -122,48 +112,12 @@ export type GetArticleBySlugResult =
   | { success: false; error: string };
 
 export async function getArticleBySlug(
-  slug: string,
-  userId?: string,
+  slug: string, userId?: string,
 ): Promise<GetArticleBySlugResult> {
-  try {
-    const row = await prisma.article.findUnique({
-      where: { slug },
-      select: {
-        ...articleListSelect,
-        content: true,
-        articleLikes: { select: { userId: true } },
-        access: { select: { userId: true } },
-      },
-    });
-
-    if (!row) {
-      return { success: false, error: "Статья не найдена" };
-    }
-
-    const filteredLikes = userId ? row.articleLikes.filter((l) => l.userId === userId) : [];
-    const filteredAccess = userId ? row.access.filter((a) => a.userId === userId) : [];
-
-    const hasAccess = filteredAccess.length > 0;
-
-    const dto: ArticleDetailDto = {
-      ...mapToListDto(
-        {
-          ...row,
-          articleLikes: filteredLikes,
-          access: filteredAccess,
-        } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
-        userId,
-      ),
-      content: hasAccess ? sanitizeArticleHtml(row.content) : null,
-    };
-
-    return { success: true, data: dto };
-  } catch (error) {
-    logger.error("Ошибка getArticleBySlug", error as Error);
-    return { success: false, error: "Не удалось загрузить статью" };
-  }
+  return getArticleBySlugForMonetizedAccess({ slug, userId, platform: "WEB_DESKTOP" });
 }
 
+/** Single server-side paywall for both Web and Mobile, including direct links. */
 export async function getArticleBySlugForMonetizedAccess(input: {
   slug: string;
   userId?: string;
@@ -175,105 +129,28 @@ export async function getArticleBySlugForMonetizedAccess(input: {
       select: {
         ...articleListSelect,
         content: true,
-        articleLikes: { select: { userId: true } },
-        access: { select: { userId: true } },
+        articleLikes: { where: { userId: input.userId ?? "" }, select: { userId: true } },
       },
     });
-
-    if (!row) {
-      return { success: false, error: "Статья не найдена" };
-    }
-
-    const filteredLikes = input.userId
-      ? row.articleLikes.filter((l) => l.userId === input.userId)
-      : [];
-    const filteredAccess = input.userId ? row.access.filter((a) => a.userId === input.userId) : [];
-    const target = {
-      targetType: "ARTICLE" as const,
-      targetId: row.id,
-    };
-    const hasExistingArticleAccess = filteredAccess.length > 0;
-
-    if (row.visibility === "PAID") {
-      const dto: ArticleDetailDto = {
-        ...mapToListDto(
-          {
-            ...row,
-            articleLikes: filteredLikes,
-            access: filteredAccess,
-          } as ArticleListRow & {
-            articleLikes: { userId: string }[];
-            access: { userId: string }[];
-          },
-          input.userId,
-        ),
-        hasAccess: hasExistingArticleAccess,
-        content: hasExistingArticleAccess ? sanitizeArticleHtml(row.content) : null,
-        monetization: {
-          locked: !hasExistingArticleAccess,
-        },
-      };
-
-      return { success: true, data: dto };
-    }
-
-    let hasMonetizedAccess = false;
-    if (input.userId) {
-      try {
-        await getPremiumOrRewardedAccess({
-          userId: input.userId,
-          platform: input.platform,
-          target,
-        });
-        hasMonetizedAccess = true;
-      } catch (error) {
-        if (!(error instanceof SubscriptionOrCreditsRequiredError)) {
-          throw error;
-        }
-        hasMonetizedAccess = false;
-      }
-    }
-
-    if (hasMonetizedAccess) {
-      const dto: ArticleDetailDto = {
-        ...mapToListDto(
-          {
-            ...row,
-            articleLikes: filteredLikes,
-            access: [{ userId: input.userId ?? "" }],
-          } as ArticleListRow & {
-            articleLikes: { userId: string }[];
-            access: { userId: string }[];
-          },
-          input.userId,
-        ),
-        hasAccess: true,
-        content: sanitizeArticleHtml(row.content),
-        monetization: {
-          locked: false,
-        },
-      };
-
-      return { success: true, data: dto };
-    }
-
+    if (!row) return { success: false, error: "Статья не найдена" };
+    const access = await resolveArticleEntitlement(row.id, input.userId, input.platform);
     const dto: ArticleDetailDto = {
-      ...mapToListDto(
-        {
-          ...row,
-          articleLikes: filteredLikes,
-          access: [],
-        } as ArticleListRow & { articleLikes: { userId: string }[]; access: { userId: string }[] },
-        input.userId,
-      ),
-      hasAccess: false,
-      content: null,
+      ...mapToListDto({
+        ...row,
+        access: access.allowed ? [{ userId: input.userId ?? "" }] : [],
+      }, input.userId),
+      hasAccess: access.allowed,
+      // Unlike a catalog teaser, a locked article detail exposes no paid media.
+      videoUrl: access.allowed ? row.videoUrl : null,
+      imageUrls: access.allowed ? row.imageUrls : [],
+      content: access.allowed ? sanitizeArticleHtml(row.content) : null,
       monetization: {
-        locked: true,
-        target,
+        locked: !access.allowed,
+        ...(!access.allowed ? {
+          target: { targetType: "ARTICLE" as const, targetId: row.id },
+        } : {}),
       },
     };
-
     return { success: true, data: dto };
   } catch (error) {
     logger.error("Ошибка getArticleBySlugForMonetizedAccess", error as Error);
@@ -297,7 +174,6 @@ export async function getArticleForEdit(
         contentType: true,
         content: true,
         visibility: true,
-        priceRub: true,
         videoUrl: true,
         logoImg: true,
         imageUrls: true,
@@ -319,7 +195,6 @@ export async function getArticleForEdit(
       contentType: row.contentType,
       content: sanitizeArticleHtml(row.content),
       visibility: row.visibility,
-      priceRub: row.priceRub != null ? Number(row.priceRub) : null,
       videoUrl: row.videoUrl,
       logoImg: row.logoImg ?? "",
       imageUrls: row.imageUrls,
@@ -359,7 +234,6 @@ export async function createArticle(
         contentType: data.contentType,
         content: sanitizeArticleHtml(data.content),
         visibility: data.visibility,
-        priceRub: data.priceRub ?? null,
         videoUrl: data.videoUrl ?? null,
         logoImg: data.logoImg ?? "",
         imageUrls: data.imageUrls ?? [],
@@ -409,7 +283,6 @@ export async function updateArticle(
         ...(data.contentType !== undefined && { contentType: data.contentType }),
         ...(data.content !== undefined && { content: sanitizeArticleHtml(data.content) }),
         ...(data.visibility !== undefined && { visibility: data.visibility }),
-        ...(data.priceRub !== undefined && { priceRub: data.priceRub }),
         ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
         ...(data.logoImg !== undefined && { logoImg: data.logoImg }),
         ...(data.imageUrls !== undefined && { imageUrls: data.imageUrls }),

@@ -8,7 +8,6 @@ import {
   AdminPanelSettings,
   Notifications,
   TrendingUp,
-  ShoppingCart,
   Pets,
   EventNote,
   CalendarMonth,
@@ -109,14 +108,10 @@ export default async function MainPanelLayout({ children }: { children: React.Re
           </>
         )}
 
-        {/* Покупки курсов для ADMIN и MODERATOR */}
+        {/* Подписки для ADMIN и MODERATOR */}
         {["ADMIN", "MODERATOR"].includes(session.user.role) && (
           <>
             <div className={styles.divider}></div>
-            <Link href="/main-panel/purchases" className={styles.button}>
-              <ShoppingCart sx={{ mr: 1.5, fontSize: 20 }} />
-              Покупки курсов
-            </Link>
             <Link href="/main-panel/app-subscriptions" className={styles.button}>
               <CardMembership sx={{ mr: 1.5, fontSize: 20 }} />
               Подписки

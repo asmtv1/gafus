@@ -9,7 +9,6 @@ import {
   AdminPanelSettings,
   Notifications,
   TrendingUp,
-  ShoppingCart,
   Pets,
   EventNote,
   CalendarMonth,
@@ -97,12 +96,6 @@ export default function MobileMenu({ userName, avatarUrl, userRole, mailAlertCou
       icon: Slideshow,
       label: "Презентация приложения",
       show: userRole === "ADMIN",
-    },
-    {
-      href: "/main-panel/purchases",
-      icon: ShoppingCart,
-      label: "Покупки курсов",
-      show: ["ADMIN", "MODERATOR"].includes(userRole),
     },
     {
       href: "/main-panel/app-subscriptions",

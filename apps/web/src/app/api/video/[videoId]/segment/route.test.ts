@@ -104,6 +104,9 @@ describe("GET /api/video/[videoId]/segment", () => {
 
     expect(response.status).toBe(206);
     expect(response.headers.get("content-range")).toBe("bytes 0-3/10");
+    // A protected segment must never be served from a shared or stale cache
+    // after revoking course assignment/subscription.
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(streamFileFromCDNMock).toHaveBeenCalledWith(
       "videos/video-1/hls/segment-1.ts",
       "bytes=0-3",

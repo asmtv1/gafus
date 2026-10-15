@@ -43,7 +43,7 @@ const ArticleCard = memo(function ArticleCard({ article, onLike, isPending }: Ar
 
   return (
     <li className={styles.articleCard}>
-      {article.visibility === "PAID" && <div className={styles.paidBadge}>Платная</div>}
+      <div className={styles.paidBadge}>По подписке</div>
       <Link href={`/articles/${article.slug}`} className={styles.articleLink}>
         <div className={styles.articleLogoBox}>
           {coverUrl ? (

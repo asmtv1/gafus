@@ -9,6 +9,7 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { ActionResult, CourseWithExtras, CourseWithProgressData } from "@gafus/types";
 import { handlePrismaError } from "@gafus/core/errors";
+import { resolveCourseEntitlement } from "../contentAccess/policy";
 
 const _logger = createWebLogger("course-service");
 
@@ -24,7 +25,6 @@ const courseSelect = {
   logoImg: true,
   isPrivate: true,
   isPaid: true,
-  priceRub: true,
   avgRating: true,
   trainingLevel: true,
   equipment: true,
@@ -114,6 +114,10 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
     : [];
   const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
+  const paidCourseEntitlement = await resolveCourseEntitlement(
+    { id: "", isPrivate: false, isPaid: true }, userId,
+  );
+
   return accessibleCourses.map((course) => {
     const userCourse = userId ? userCourses.find((uc) => uc.courseId === course.id) : null;
 
@@ -121,11 +125,9 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       ? (userCourse.status as TrainingStatus)
       : TrainingStatus.NOT_STARTED;
 
-    const hasAccess = course.isPaid
+    const hasAccess = course.isPrivate
       ? course.access.length > 0
-      : !course.isPrivate
-        ? true
-        : course.access.length > 0;
+      : !course.isPaid || paidCourseEntitlement.allowed;
 
     return {
       id: course.id,
@@ -137,7 +139,6 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       logoImg: course.logoImg,
       isPrivate: course.isPrivate,
       isPaid: course.isPaid,
-      priceRub: course.priceRub != null ? Number(course.priceRub) : null,
       hasAccess,
       avgRating: course.avgRating,
       trainingLevel: course.trainingLevel,
@@ -165,6 +166,7 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       // represented by userStatus/startedAt/completedAt above.
       userCourses: [],
       dayLinks: course.dayLinks.map((dl: CourseWithExtras["dayLinks"][0]) => ({
+        id: dl.id,
         order: dl.order,
         day: {
           id: dl.day.id,
@@ -184,288 +186,30 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
   });
 }
 
-/** Элемент кэша курсов (все курсы без пользовательских данных). */
-export interface CourseCacheItem {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  shortDesc: string;
-  duration: string;
-  logoImg: string;
-  isPrivate: boolean;
-  avgRating: number | null;
-  createdAt: Date;
-  authorUsername: string;
-  authorAvatarUrl: string | null;
-  reviews: {
-    rating: number;
-    comment: string;
-    createdAt: Date;
-    user: { username: string; profile: { avatarUrl: string | null } | null };
-  }[];
-  access: { user: { id: string } }[];
-  dayLinks: {
-    order: number;
-    day: {
-      id: string;
-      title: string;
-      stepLinks: {
-        id: string;
-        order: number;
-        step: { title: string };
-      }[];
-    };
-  }[];
-}
-
-/** Прогресс пользователя по курсам для кэша. */
-export interface UserCourseProgressItem {
-  courseId: string;
-  status: TrainingStatus;
-  startedAt: Date | null;
-  completedAt: Date | null;
-}
-
-/** Данные прогресса пользователя для кэша. */
-export interface UserProgressCacheData {
-  userCourses: UserCourseProgressItem[];
-  favoriteCourseIds: string[];
-}
-
-/**
- * Получает все курсы для постоянного кэша (без пользовательских данных).
- */
-export async function getAllCoursesForCache(): Promise<{
-  success: boolean;
-  data?: CourseCacheItem[];
-  error?: string;
-}> {
-  try {
-    const allCourses = await prisma.course.findMany({
-      include: {
-        author: {
-          select: { username: true, profile: { select: { avatarUrl: true } } },
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                profile: { select: { avatarUrl: true } },
-              },
-            },
-          },
-        },
-        access: {
-          include: {
-            user: { select: { id: true } },
-          },
-        },
-        dayLinks: {
-          include: {
-            day: {
-              include: {
-                stepLinks: {
-                  include: {
-                    step: { select: { title: true } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const data: CourseCacheItem[] = allCourses.map((course) => ({
-      id: course.id,
-      name: course.name,
-      type: course.type,
-      description: course.description,
-      shortDesc: course.shortDesc,
-      duration: course.duration,
-      logoImg: course.logoImg,
-      isPrivate: course.isPrivate,
-      avgRating: course.avgRating,
-      createdAt: course.createdAt ? new Date(course.createdAt) : new Date(),
-      authorUsername: course.author.username,
-      authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
-      reviews: course.reviews.map((r) => ({
-        rating: (r.rating ?? 0) as number,
-        comment: (r.comment ?? "") as string,
-        createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-        user: {
-          username: r.user.username,
-          profile: r.user.profile,
-        },
-      })),
-      access: course.access,
-      dayLinks: course.dayLinks.map((dl) => ({
-        order: dl.order,
-        day: {
-          id: dl.day.id,
-          title: dl.day.title,
-          stepLinks: dl.day.stepLinks.map((sl) => ({
-            id: sl.id,
-            order: sl.order,
-            step: { title: sl.step.title },
-          })),
-        },
-      })),
-    }));
-
-    return { success: true, data };
-  } catch (error) {
-    _logger.error("Ошибка getAllCoursesForCache", error as Error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
-    };
-  }
-}
-
-/**
- * Получает прогресс пользователя по курсам для кэша.
- */
-export async function getUserCoursesProgressForCache(
-  userId: string | null,
-): Promise<{ success: boolean; data?: UserProgressCacheData; error?: string }> {
-  try {
-    if (!userId) {
-      return { success: true, data: { userCourses: [], favoriteCourseIds: [] } };
-    }
-
-    const userCourses = await prisma.userCourse.findMany({
-      where: { userId },
-      select: {
-        courseId: true,
-        status: true,
-        startedAt: true,
-        completedAt: true,
-      },
-    });
-
-    const userFavorites = await prisma.favoriteCourse.findMany({
-      where: { userId },
-      select: { courseId: true },
-    });
-
-    const data: UserProgressCacheData = {
-      userCourses: userCourses.map((uc) => ({
-        courseId: uc.courseId,
-        status: uc.status as TrainingStatus,
-        startedAt: uc.startedAt ? new Date(uc.startedAt) : null,
-        completedAt: uc.completedAt ? new Date(uc.completedAt) : null,
-      })),
-      favoriteCourseIds: userFavorites.map((f) => f.courseId),
-    };
-
-    return { success: true, data };
-  } catch (error) {
-    _logger.error("Ошибка getUserCoursesProgressForCache", error as Error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Неизвестная ошибка",
-    };
-  }
-}
-
-/**
- * Получает курс по id или type (для API payments).
- */
-export async function getCourseByIdOrType(
-  courseId?: string,
-  courseType?: string,
-): Promise<{ id: string; type: string } | null> {
-  if (!courseId && !courseType) return null;
-  const course = await prisma.course.findFirst({
-    where: courseId ? { id: courseId } : { type: courseType! },
-    select: { id: true, type: true },
-  });
-  return course;
-}
-
 // ========== Check Course Access ==========
 
 /**
  * Проверяет доступ пользователя к курсу по типу
  */
 export async function checkCourseAccess(
-  courseType: string,
-  userId?: string,
+  courseType: string, userId?: string,
 ): Promise<{ hasAccess: boolean }> {
-  if (!userId) {
-    const course = await prisma.course.findUnique({
-      where: { type: courseType },
-      select: { isPrivate: true, isPaid: true },
-    });
-    if (!course) return { hasAccess: false };
-    if (course.isPaid) return { hasAccess: false };
-    return { hasAccess: !course.isPrivate };
-  }
-
   const course = await prisma.course.findUnique({
     where: { type: courseType },
-    select: {
-      id: true,
-      isPrivate: true,
-      isPaid: true,
-      access: { where: { userId }, select: { userId: true } },
-    },
+    select: { id: true, isPrivate: true, isPaid: true },
   });
-
-  if (!course) {
-    return { hasAccess: false };
-  }
-
-  // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
-  if (course.isPaid || course.isPrivate) {
-    return { hasAccess: course.access.length > 0 };
-  }
-
-  // Публичные бесплатные курсы доступны всем
-  return { hasAccess: true };
+  return { hasAccess: (await resolveCourseEntitlement(course, userId)).allowed };
 }
 
-/**
- * Проверяет доступ пользователя к курсу по ID
- */
+/** Course-level access always comes from the same policy for Web and Mobile. */
 export async function checkCourseAccessById(
-  courseId: string,
-  userId?: string,
+  courseId: string, userId?: string,
 ): Promise<{ hasAccess: boolean }> {
-  if (!userId) {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { isPrivate: true, isPaid: true },
-    });
-    if (!course) return { hasAccess: false };
-    if (course.isPaid) return { hasAccess: false };
-    return { hasAccess: !course.isPrivate };
-  }
-
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: {
-      isPrivate: true,
-      isPaid: true,
-      access: { where: { userId }, select: { userId: true } },
-    },
+    select: { id: true, isPrivate: true, isPaid: true },
   });
-
-  if (!course) {
-    return { hasAccess: false };
-  }
-
-  // Для платных и приватных курсов проверяем наличие доступа в CourseAccess
-  if (course.isPaid || course.isPrivate) {
-    return { hasAccess: course.access.length > 0 };
-  }
-
-  // Публичные бесплатные курсы доступны всем
-  return { hasAccess: true };
+  return { hasAccess: (await resolveCourseEntitlement(course, userId)).allowed };
 }
 
 // ========== Get Course Metadata ==========
@@ -484,7 +228,6 @@ export async function getCourseMetadata(courseType: string) {
       description: true,
       isPaid: true,
       isPrivate: true,
-      priceRub: true,
       videoUrl: true,
       equipment: true,
       trainingLevel: true,
@@ -500,13 +243,14 @@ export async function getCourseMetadata(courseType: string) {
  */
 export async function getCourseOutline(
   courseType: string,
-): Promise<{ title: string; order: number }[]> {
+): Promise<{ id: string; title: string; order: number }[]> {
   const course = await prisma.course.findFirst({
     where: { type: courseType },
     select: {
       dayLinks: {
         orderBy: { order: "asc" },
         select: {
+          id: true,
           order: true,
           day: { select: { title: true } },
         },
@@ -514,7 +258,7 @@ export async function getCourseOutline(
     },
   });
   if (!course) return [];
-  return course.dayLinks.map((link) => ({ title: link.day.title, order: link.order }));
+  return course.dayLinks.map((link) => ({ id: link.id, title: link.day.title, order: link.order }));
 }
 
 // ========== Логотип курса (DB-only, CDN в app) ==========

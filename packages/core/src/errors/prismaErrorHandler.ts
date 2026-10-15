@@ -28,11 +28,6 @@ export function prismaErrorToServiceError(
           : raw != null
             ? [String(raw)]
             : [];
-        if (targets.some((t) => t.includes("appleIapProductId"))) {
-          return new ConflictError(
-            "Этот Apple IAP Product ID уже привязан к другому курсу. Укажите уникальный Product ID из App Store Connect.",
-          );
-        }
         const fieldName = targets.length > 0 ? targets.join(", ") : "данные";
         return new ConflictError(`Запись с такими ${fieldName} уже существует`);
       }

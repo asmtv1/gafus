@@ -208,13 +208,6 @@ export default function PublicProfileScreen() {
   }
 
   const handleCoursePress = async (course: PublicProfileCourse) => {
-    if (course.isPaid) {
-      router.push({
-        pathname: "/training/[courseType]",
-        params: { courseType: course.type },
-      });
-      return;
-    }
     if (course.isPrivate) {
       const accessRes = await coursesApi.checkAccess(course.type);
       if (!accessRes.success || !accessRes.data?.hasAccess) {
@@ -378,7 +371,7 @@ export default function PublicProfileScreen() {
                         )}
                         {course.isPaid && (
                           <View style={styles.paidBadge}>
-                            <Text style={styles.paidBadgeText}>Платный</Text>
+                            <Text style={styles.paidBadgeText}>По подписке</Text>
                           </View>
                         )}
                       </View>
@@ -388,11 +381,6 @@ export default function PublicProfileScreen() {
                           <Text style={styles.courseDescription}>{course.shortDesc}</Text>
                         ) : null}
                         <View style={styles.courseMeta}>
-                          {course.isPaid && course.priceRub != null && course.priceRub > 0 && (
-                            <Text style={styles.courseMetaText}>
-                              <Text style={styles.courseMetaLabel}>Цена:</Text> {course.priceRub} ₽
-                            </Text>
-                          )}
                           <Text style={styles.courseMetaText}>
                             <Text style={styles.courseMetaLabel}>Длительность:</Text>{" "}
                             {course.duration}

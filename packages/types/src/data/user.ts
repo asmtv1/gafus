@@ -72,7 +72,6 @@ export interface PublicProfile {
     duration: string;
     isPrivate: boolean;
     isPaid: boolean;
-    priceRub: number | null;
     avgRating: number | null;
     updatedAt: Date;
     trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";

@@ -112,6 +112,15 @@ for (const flag of [
   "GALLERY_PROCESSOR_READY",
 ])
   assert(prod.includes(flag + "="), "MISSING_PRODUCTION_COMPOSE_ENV_" + flag);
+// A missing flag on Web/API silently turns off the fast Feed wake-up path.
+for (const section of ["web", "api"]) {
+  const start = prod.indexOf("  " + section + ":\n");
+  assert(start >= 0, "MISSING_PRODUCTION_COMPOSE_SERVICE_" + section);
+  const next = prod.indexOf("\n  #", start + 2);
+  const service = prod.slice(start, next < 0 ? undefined : next);
+  assert(service.includes("- CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}"),
+    "FEED_FAST_TRIGGER_DISABLED_ON_" + section);
+}
 // Public ECR's Node.js mirror returned HTTP 429 for parallel builds.
 for (const file of [
   "Dockerfile-web-optimized",

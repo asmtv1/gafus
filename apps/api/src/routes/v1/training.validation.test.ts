@@ -277,6 +277,17 @@ describe("training route validation", () => {
     expect(streamFileFromCDNMock).not.toHaveBeenCalled();
   });
 
+  it("revokes cached video playback immediately when subscription expires", async () => {
+    const app = createTestApp();
+    const first = await app.request("/api/v1/training/video/video-1/progress");
+    expect(first.status).toBe(200);
+    checkVideoAccessMock.mockResolvedValue(false);
+    const second = await app.request("/api/v1/training/video/video-1/progress");
+    expect(second.status).toBe(403);
+    expect(checkVideoAccessMock).toHaveBeenCalledTimes(2);
+    expect(getProgressMock).toHaveBeenCalledTimes(1);
+  });
+
   it("returns progress only after checking access to the video", async () => {
     const app = createTestApp();
 

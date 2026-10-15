@@ -45,7 +45,10 @@ const commentSchema = z.string().trim().max(1000).optional();
  */
 export async function getCoursesWithProgressAction(optionalUserId?: string) {
   try {
-    const userId = optionalUserId ?? (await getCurrentUserId());
+    const userId = await getCurrentUserId();
+    if (optionalUserId && optionalUserId !== userId) {
+      throw new Error("USER_ID_MISMATCH");
+    }
     return { data: await getCoursesWithProgress(userId) };
   } catch (error) {
     logger.error("Ошибка в getCoursesWithProgress", error as Error);
@@ -73,7 +76,8 @@ export async function checkCourseAccessAction(courseType: string) {
 export async function checkCourseAccessByIdAction(courseId: string, userId?: string) {
   const safeCourseId = courseIdSchema.parse(courseId);
   try {
-    const currentUserId = userId ?? (await getCurrentUserId().catch(() => undefined));
+    const currentUserId = await getCurrentUserId().catch(() => undefined);
+    if (userId && userId !== currentUserId) return { hasAccess: false };
     return checkCourseAccessById(safeCourseId, currentUserId);
   } catch (error) {
     logger.error("Ошибка при проверке доступа к курсу", error as Error, { courseId });
@@ -119,7 +123,10 @@ export async function getCourseMetadataAction(courseType: string) {
  */
 export async function getFavoritesCoursesAction(optionalUserId?: string) {
   try {
-    const userId = optionalUserId ?? (await getCurrentUserId());
+    const userId = await getCurrentUserId();
+    if (optionalUserId && optionalUserId !== userId) {
+      throw new Error("USER_ID_MISMATCH");
+    }
     return getFavoritesCourses(userId);
   } catch (error) {
     logger.error("Ошибка в getFavoritesCourses", error as Error);

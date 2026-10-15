@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
   vi.stubEnv("GALLERY_S3_ACCESS_KEY_ID", "test:secret");
   vi.stubEnv("GALLERY_S3_SECRET_ACCESS_KEY", "test-storage-secret");
-  vi.stubEnv("GALLERY_CDN_BASE_URL", "https://private-cdn.example.test");
+  vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
   vi.stubEnv("GALLERY_CDN_SECRET", "a".repeat(32));
   vi.stubEnv("GALLERY_CDN_EDGE_TOKEN_VERIFIED", "true");
   s3.send.mockResolvedValue({});

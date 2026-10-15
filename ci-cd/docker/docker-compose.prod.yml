@@ -116,6 +116,8 @@ services:
       - GALLERY_PROCESSOR_READY=true
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Upload confirmations must enqueue immediate Cloud.ru processing.
+      - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
       # Smart feed is enabled for production by default after migration deploy.
       # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
       - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
@@ -543,6 +545,8 @@ services:
       - GALLERY_PROCESSOR_READY=true
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Upload confirmations must enqueue immediate Cloud.ru processing.
+      - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
       # Smart feed is enabled for production by default after migration deploy.
       # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
       - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}

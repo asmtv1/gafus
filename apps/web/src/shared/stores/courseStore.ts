@@ -450,7 +450,6 @@ export const useCourseStoreActions = () => {
           logoImg: course.logoImg,
           isPrivate: false,
           isPaid: false,
-          priceRub: null,
           hasAccess: true,
           avgRating: course.avgRating,
           trainingLevel: "BEGINNER" as const,

@@ -1,6 +1,5 @@
 "use server";
 
-import { unstable_cache } from "next/cache";
 import { createWebLogger } from "@gafus/logger";
 import { getTrainingDays as getTrainingDaysFromCore } from "@gafus/core/services/training/trainingService";
 
@@ -34,24 +33,18 @@ export async function getTrainingDays(
   userCoursePersonalization: UserCoursePersonalization | null;
 }> {
   try {
-    const safeUserId = optionalUserIdSchema.parse(userId);
-    const currentUserId = safeUserId ?? (await getCurrentUserId());
+    // Never let a client-supplied userId impersonate another subscriber.
+    const currentUserId = await getCurrentUserId();
+    const requestedUserId = optionalUserIdSchema.parse(userId);
+    if (requestedUserId && requestedUserId !== currentUserId) {
+      throw new Error("USER_ID_MISMATCH");
+    }
     const safeType = optionalTrainingTypeSchema.parse(typeParam);
 
-    if (!currentUserId) {
-      throw new Error("Пользователь не авторизован");
-    }
-
-    const cachedFunction = unstable_cache(
-      async () => getTrainingDaysFromCore(currentUserId, safeType),
-      ["training-days", currentUserId, safeType ?? "all"],
-      {
-        revalidate: 300,
-        tags: ["training", "days", `user-${currentUserId}`],
-      },
-    );
-
-    return await cachedFunction();
+    // Days include private assignments, current subscription entitlement, progress
+    // and personalization. Never cache this user-specific authorization result.
+    // Shared immutable lesson content is cached separately in trainingDayContent.
+    return await getTrainingDaysFromCore(currentUserId, safeType);
   } catch (error) {
     logger.error("Ошибка в getTrainingDays", error as Error, {
       operation: "get_training_days_error",

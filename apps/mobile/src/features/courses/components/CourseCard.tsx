@@ -83,11 +83,6 @@ function getReviewText(reviewsCount: number, userStatus: string): string {
   return `${reviewsCount} ${decl(reviewsCount)}`;
 }
 
-function formatPriceRub(priceRub?: number | null): string {
-  if (priceRub == null) return "уточняется";
-  return `${new Intl.NumberFormat("ru-RU").format(priceRub)} ₽`;
-}
-
 function formatStartedUsersCount(count: number): string {
   const normalizedCount = Math.max(0, Math.trunc(count));
   const mod100 = normalizedCount % 100;
@@ -121,7 +116,6 @@ function areCourseVisualFieldsEqual(prev: Course, next: Course): boolean {
     prev.userStatus === next.userStatus &&
     getCourseStartedUsersCount(prev) === getCourseStartedUsersCount(next) &&
     prev.isPaid === next.isPaid &&
-    prev.priceRub === next.priceRub &&
     prev.isPrivate === next.isPrivate &&
     prev.hasAccess === next.hasAccess &&
     prev.logoImg === next.logoImg &&
@@ -238,8 +232,9 @@ function CourseCardComponent({
     })),
   );
   const isDownloaded = !!downloaded[courseType];
-  const hasCourseAccess = !course.isPaid || course.hasAccess === true;
-  const isPaidWithoutAccess = course.isPaid && !hasCourseAccess;
+  const hasCourseAccess = (!course.isPaid && !course.isPrivate) || course.hasAccess === true;
+  const isPaidWithoutAccess = course.isPaid && !course.isPrivate && !hasCourseAccess;
+  const isPrivateWithoutAccess = course.isPrivate && !hasCourseAccess;
   const isDownloadingThis =
     downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
@@ -389,10 +384,7 @@ function CourseCardComponent({
           <View style={styles.content}>
             {course.isPaid || course.isPrivate ? (
               <View style={styles.accessLabels}>
-                {course.isPaid ? <Text style={styles.accessLabel}>Платный</Text> : null}
-                {course.isPaid ? (
-                  <Text style={styles.accessLabel}>{formatPriceRub(course.priceRub)}</Text>
-                ) : null}
+                {course.isPaid ? <Text style={styles.accessLabel}>По подписке</Text> : null}
                 {course.isPrivate ? <Text style={styles.accessLabel}>Приватный</Text> : null}
               </View>
             ) : null}
@@ -615,9 +607,21 @@ function CourseCardComponent({
                     <Text style={styles.downloadButtonText}>Убрать</Text>
                   </Pressable>
                 </>
+              ) : isPrivateWithoutAccess ? (
+                <Button
+                  label="Только по назначению кинолога"
+                  variant="outline"
+                  disabled
+                  width="100%"
+                  height={48}
+                  borderRadius={14}
+                  fontSize={13}
+                  fontFamily={FONTS.montserratBold}
+                  icon="lock-outline"
+                />
               ) : isPaidWithoutAccess ? (
                 <Button
-                  label="Оплатите для скачивания"
+                  label="Подписка нужна для скачивания"
                   variant="outline"
                   disabled={true}
                   width="100%"

@@ -167,7 +167,6 @@ export default function FavoritesCourseList({
             logoImg: course.logoImg,
             isPrivate: course.isPrivate || false,
             isPaid: course.isPaid ?? false,
-            priceRub: course.priceRub ?? null,
             hasAccess: course.hasAccess ?? true,
             userStatus: course.userStatus || "NOT_STARTED",
             startedAt: course.startedAt,

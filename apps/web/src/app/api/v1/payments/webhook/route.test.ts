@@ -9,13 +9,6 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
   handleYookassaAppSubscriptionWebhook: appSubscriptionWebhookMock,
 }));
 
-vi.mock("@gafus/core/services/payments", () => ({
-  confirmPaymentFromWebhook: vi.fn(),
-  cancelPaymentFromWebhook: vi.fn(),
-  refundPaymentFromWebhook: vi.fn(),
-  getUserIdByYookassaPaymentId: vi.fn(),
-}));
-
 vi.mock("@shared/lib/actions/invalidateCoursesCache", () => ({
   invalidateUserProgressCache: vi.fn(),
 }));

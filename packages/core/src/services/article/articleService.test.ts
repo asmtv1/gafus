@@ -10,7 +10,6 @@ import {
   incrementArticleView,
   updateArticle,
 } from "./articleService";
-import { SubscriptionOrCreditsRequiredError } from "../rewardedCredits";
 
 const mockArticleFindMany = vi.fn();
 const mockArticleFindUnique = vi.fn();
@@ -25,6 +24,11 @@ const mockArticleViewerUpdate = vi.fn();
 const mockArticleGuestViewCreate = vi.fn();
 const mockArticleGuestViewCreateMany = vi.fn();
 const mockGetPremiumOrRewardedAccess = vi.fn();
+const mockResolveArticleEntitlement = vi.fn().mockResolvedValue({ allowed: false, source: "DENIED" });
+
+vi.mock("../contentAccess/policy", () => ({
+  resolveArticleEntitlement: (...args: unknown[]) => mockResolveArticleEntitlement(...args),
+}));
 
 vi.mock("@gafus/prisma", () => ({
   isPrismaUniqueConstraintError: (error: unknown) =>
@@ -117,6 +121,37 @@ describe("getArticles", () => {
     }
   });
 
+  it("a locked catalog item only exposes its cover, not its video or gallery", async () => {
+    mockArticleFindMany.mockResolvedValue([listRow({
+      videoUrl: "https://media.example/paid-video",
+      imageUrls: ["preview.jpg", "private-photo.jpg"],
+    })]);
+
+    const result = await getArticles("viewer");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data[0].videoUrl).toBeNull();
+      expect(result.data[0].imageUrls).toEqual(["preview.jpg"]);
+      expect(result.data[0].hasAccess).toBe(false);
+    }
+  });
+
+  it("subscribers receive complete article media in the catalog", async () => {
+    mockResolveArticleEntitlement.mockResolvedValueOnce({ allowed: true, source: "SUBSCRIPTION" });
+    mockArticleFindMany.mockResolvedValue([listRow({
+      videoUrl: "https://media.example/paid-video",
+      imageUrls: ["cover.jpg", "gallery.jpg"],
+    })]);
+
+    const result = await getArticles("subscriber");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data[0].hasAccess).toBe(true);
+      expect(result.data[0].videoUrl).toBe("https://media.example/paid-video");
+      expect(result.data[0].imageUrls).toEqual(["cover.jpg", "gallery.jpg"]);
+    }
+  });
+
   it("фильтр по автору передаётся в where", async () => {
     mockArticleFindMany.mockResolvedValue([]);
 
@@ -190,112 +225,79 @@ describe("getArticleBySlug", () => {
   });
 });
 
-describe("getArticleBySlugForMonetizedAccess", () => {
+describe("getArticleBySlugForMonetizedAccess: subscription-only articles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolveArticleEntitlement.mockResolvedValue({ allowed: false, source: "DENIED" });
   });
 
-  it("PUBLIC без Premium/rewarded access: не раскрывает content и показывает rewarded target", async () => {
+  it("a paid article is redacted without subscription", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PUBLIC", priceRub: null }),
-      content: "<p>Открытый текст за подписку или кредит</p>",
-      articleLikes: [],
-      access: [],
+      ...listRow({ visibility: "PAID" }), content: "<p>Secret</p>",
     });
-    mockGetPremiumOrRewardedAccess.mockRejectedValue(new SubscriptionOrCreditsRequiredError());
-
-    const r = await getArticleBySlugForMonetizedAccess({
-      slug: "public-slug",
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
+    const result = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug", userId: "u1", platform: "WEB_DESKTOP",
     });
-
-    expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.content).toBeNull();
-      expect(r.data.hasAccess).toBe(false);
-      expect(r.data.monetization).toMatchObject({
-        locked: true,
-        target: { targetType: "ARTICLE", targetId: "a1" },
-      });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.content).toBeNull();
+      expect(result.data.monetization?.locked).toBe(true);
     }
-    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalledWith({
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
-      target: { targetType: "ARTICLE", targetId: "a1" },
-    });
   });
 
-  it("PAID без отдельной оплаты: не раскрывает content и не проверяет Premium/rewarded", async () => {
+  it("a locked article detail never returns video or gallery URLs", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PAID", priceRub: 100 }),
-      content: "<p>Секрет</p>",
-      articleLikes: [],
-      access: [],
+      ...listRow({ visibility: "PAID", videoUrl: "https://media.example/paid-video", imageUrls: ["cover.jpg", "secret.jpg"] }),
+      content: "<p>Secret</p>",
     });
-
-    const r = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug",
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
+    const result = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug", userId: "viewer", platform: "ANDROID",
     });
-
-    expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.content).toBeNull();
-      expect(r.data.monetization).toMatchObject({
-        locked: true,
-      });
-      expect(r.data.monetization?.target).toBeUndefined();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.content).toBeNull();
+      expect(result.data.videoUrl).toBeNull();
+      expect(result.data.imageUrls).toEqual([]);
     }
-    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
   });
 
-  it("PAID с Premium/rewarded access без отдельной оплаты не раскрывает content", async () => {
+  it("an active subscription opens a paid article", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PAID", priceRub: 100 }),
-      content: "<p>Секрет</p>",
-      articleLikes: [],
-      access: [],
+      ...listRow({ visibility: "PAID" }), content: "<p>Available</p>",
     });
-    mockGetPremiumOrRewardedAccess.mockResolvedValue({ allowed: true, source: "PREMIUM" });
-
-    const r = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug",
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
+    mockResolveArticleEntitlement.mockResolvedValue({ allowed: true, source: "SUBSCRIPTION" });
+    const result = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug", userId: "u1", platform: "WEB_DESKTOP",
     });
-
-    expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.content).toBeNull();
-      expect(r.data.monetization?.locked).toBe(true);
-      expect(r.data.monetization?.target).toBeUndefined();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.content).toBe("<p>Available</p>");
+      expect(result.data.hasAccess).toBe(true);
+      expect(result.data.monetization?.locked).toBe(false);
     }
-    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
   });
 
-  it("PAID с существующим ArticleAccess раскрывает content без Premium/rewarded проверки", async () => {
+  it("historical ArticleAccess cannot bypass an expired subscription", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PAID", priceRub: 100 }),
-      content: "<p>Купленный доступ</p>",
-      articleLikes: [],
-      access: [{ userId: "user-1" }],
+      ...listRow({ visibility: "PAID", access: [{ userId: "u1" }] }),
+      content: "<p>Old purchase</p>",
     });
-
-    const r = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug",
-      userId: "user-1",
-      platform: "WEB_DESKTOP",
+    const result = await getArticleBySlugForMonetizedAccess({
+      slug: "paid-slug", userId: "u1", platform: "WEB_DESKTOP",
     });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.content).toBeNull();
+    expect(mockResolveArticleEntitlement).toHaveBeenCalledWith("a1", "u1", "WEB_DESKTOP");
+  });
 
-    expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.content).toBe("<p>Купленный доступ</p>");
-      expect(r.data.hasAccess).toBe(true);
-      expect(r.data.monetization?.locked).toBe(false);
-    }
-    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
+  it("a rewarded unlock is valid for its article only", async () => {
+    mockArticleFindUnique.mockResolvedValue({ ...listRow(), content: "<p>Ad</p>" });
+    mockResolveArticleEntitlement.mockResolvedValue({ allowed: true, source: "REWARDED" });
+    const result = await getArticleBySlugForMonetizedAccess({
+      slug: "ad", userId: "u1", platform: "IOS",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.content).toBe("<p>Ad</p>");
   });
 });
 

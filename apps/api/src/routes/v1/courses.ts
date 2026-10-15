@@ -39,7 +39,7 @@ coursesRoutes.get("/", async (c) => {
       { success: true, data: courses },
       {
         headers: {
-          "Cache-Control": "private, max-age=60",
+          "Cache-Control": "private, no-store",
         },
       },
     );
@@ -175,7 +175,7 @@ coursesRoutes.get("/metadata", zValidator("query", metadataQuerySchema), async (
     const { courseType } = c.req.valid("query");
     const metadata = await getCourseMetadata(courseType);
 
-    if (!metadata) {
+    if (!metadata || metadata.isPrivate) {
       return c.json({ success: false, error: "Курс не найден" }, 404);
     }
 

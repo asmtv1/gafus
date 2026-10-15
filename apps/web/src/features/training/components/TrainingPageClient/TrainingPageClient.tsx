@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Typography } from "@mui/material";
 import { trackEvent } from "@gafus/analytics";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCSRFStore } from "@gafus/csrf";
+import { useRouter, useSearchParams } from "next/navigation";
 import { reportClientError } from "@gafus/error-handling";
 import { useCourseCompletionCelebration } from "@shared/hooks/useCourseCompletionCelebration";
 
@@ -15,7 +14,8 @@ import { getDeclinedName } from "@shared/lib/training/getDeclinedName";
 import { saveCoursePersonalization } from "@shared/lib/training/saveCoursePersonalization";
 import CourseDescriptionWithVideo from "../CourseDescriptionWithVideo";
 import TrainingDayList from "../TrainingDayList";
-import { AppBackButtonLink, PrimaryButton, PrimaryButtonLink } from "@/shared/components/ui";
+import { AppBackButtonLink, PrimaryButtonLink } from "@/shared/components/ui";
+import { AppSubscriptionPaywall } from "@/features/app-subscription";
 
 import styles from "./TrainingPageClient.module.css";
 
@@ -43,7 +43,7 @@ interface TrainingPageClientProps {
   accessDenied?: boolean;
   accessDeniedReason?: "private" | "paid" | null;
   courseForPay?: PaidCourseDrawerCourse | null;
-  courseOutline?: { title: string; order: number }[];
+  courseOutline?: { id: string; title: string; order: number }[];
   courseDescription?: string | null;
   courseVideoUrl?: string | null;
   courseEquipment?: string | null;
@@ -66,16 +66,10 @@ export default function TrainingPageClient({
   courseTrainingLevel = null,
   userId,
 }: TrainingPageClientProps) {
-  const { token: csrfToken, loading: csrfLoading, fetchToken } = useCSRFStore();
-  const [payLoading, setPayLoading] = useState(false);
-  const [payError, setPayError] = useState<string | null>(null);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [personalizationError, setPersonalizationError] = useState<string | null>(null);
   const [personalizationSaving, setPersonalizationSaving] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const paidReturnFlag = searchParams.get("paid") === "1";
   const personalizationShownRef = useRef(false);
 
   useEffect(() => {
@@ -136,98 +130,6 @@ export default function TrainingPageClient({
     trainingDays: initialData?.trainingDays,
   });
 
-  // Обработка успешной оплаты: показываем notification и автоматически обновляем через 5 секунд
-  useEffect(() => {
-    if (paidReturnFlag && !accessDenied) {
-      setShowPaymentSuccess(true);
-
-      trackEvent({
-        eventName: "booking_confirm",
-        platform: "web",
-        pathOrScreen: pathname,
-        courseType,
-        courseId: initialData?.courseId ?? undefined,
-      });
-
-      // Очистить параметр из URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete("paid");
-      window.history.replaceState({}, "", url.pathname);
-
-      // Скрыть уведомление через 6 секунд
-      const hideTimeout = setTimeout(() => {
-        setShowPaymentSuccess(false);
-      }, 6000);
-
-      // Автоматически обновить через 5 секунд (чтобы подтянуть доступ после webhook)
-      const refreshTimeout = setTimeout(() => {
-        router.refresh();
-      }, 5000);
-
-      return () => {
-        clearTimeout(hideTimeout);
-        clearTimeout(refreshTimeout);
-      };
-    }
-  }, [paidReturnFlag, accessDenied, router, pathname, courseType, initialData?.courseId]);
-
-  const isAccessDenied =
-    accessDenied || initialError === "COURSE_ACCESS_DENIED";
-
-  const isPaidBlock = accessDeniedReason === "paid" && courseForPay;
-  useEffect(() => {
-    if (isPaidBlock && userId && !csrfToken && !csrfLoading) {
-      void fetchToken();
-    }
-  }, [isPaidBlock, userId, csrfToken, csrfLoading, fetchToken]);
-
-  const handlePay = useCallback(async () => {
-    if (!courseForPay || !csrfToken || !userId) return;
-    trackEvent({
-      eventName: "button_click",
-      platform: "web",
-      pathOrScreen: pathname,
-      elementId: "cta-pay-start",
-      courseId: courseForPay.id,
-      courseType: courseForPay.type,
-    });
-    trackEvent({
-      eventName: "booking_start",
-      platform: "web",
-      pathOrScreen: pathname,
-      courseId: courseForPay.id,
-      courseType: courseForPay.type,
-    });
-    setPayError(null);
-    setPayLoading(true);
-    try {
-      const res = await fetch("/api/v1/payments/create", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": csrfToken,
-        },
-        body: JSON.stringify({ courseId: courseForPay.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPayError(data.error ?? "Ошибка создания платежа");
-        return;
-      }
-      if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
-        return;
-      }
-      setPayError("Нет ссылки на оплату");
-    } catch (err) {
-      reportClientError(err, { issueKey: "TrainingPageClient", keys: { operation: "pay" } });
-      setPayError("Ошибка сети");
-    } finally {
-      setPayLoading(false);
-    }
-  }, [courseForPay, csrfToken, userId, pathname]);
-
   const handleChangePersonalization = useCallback(async () => {
     if (!initialData?.courseId) return;
     setPersonalizationError(null);
@@ -255,6 +157,8 @@ export default function TrainingPageClient({
     }
   }, [userCoursePersonalization, initialData?.courseId, router]);
 
+  const isAccessDenied = accessDenied || initialError === "COURSE_ACCESS_DENIED";
+
   if (needPersonalization) {
     return (
       <div className={styles.accessDeniedBlock}>
@@ -277,7 +181,6 @@ export default function TrainingPageClient({
   if (isAccessDenied) {
     if (accessDeniedReason === "paid" && courseForPay) {
       const isGuest = userId === undefined;
-      const justPaid = searchParams.get("paid") === "1";
       return (
         <>
           <div className="courseDescription">
@@ -294,77 +197,30 @@ export default function TrainingPageClient({
             <div className={styles.outlineSection}>
               <h3 className={styles.outlineTitle}>В курс входит</h3>
               <ol className={styles.outlineList}>
-                {courseOutline.map((item, index) => (
-                  <li key={`${item.order}-${index}`} className={styles.outlineItem}>
-                    {item.title}
+                {courseOutline.map((item) => (
+                  <li key={item.id} className={styles.outlineItem}>
+                    <a href={`/trainings/${encodeURIComponent(courseType)}/${encodeURIComponent(item.id)}`}>
+                      {item.title} — открыть шаги
+                    </a>
                   </li>
                 ))}
               </ol>
             </div>
           )}
           <div className={styles.accessDeniedBlock}>
-            <h2 className={styles.title}>Курс платный</h2>
-          <p className={styles.subtitle}>
-            Оплатите «{courseForPay.name}» для доступа к занятиям.
-            {courseForPay.priceRub > 0 && ` Стоимость: ${courseForPay.priceRub} ₽.`}
-          </p>
-          <p className={styles.deliveryHint}>
-            После оплаты доступ к занятиям откроется автоматически в течение минуты.
-          </p>
-          {justPaid && !isGuest && (
-            <p className={styles.paidHint}>
-              Если вы только что оплатили, подождите несколько секунд и нажмите «Обновить».
+            <h2 className={styles.title}>Доступно по подписке</h2>
+            <p className={styles.subtitle}>
+              Подписка открывает все обычные курсы и статьи, включая «{courseForPay.name}».
             </p>
-          )}
-          {isGuest ? (
-            <div className={styles.buttonsRow}>
+            {isGuest ? (
               <PrimaryButtonLink
                 href={`/login?returnUrl=${encodeURIComponent(`/trainings/${courseForPay.type}`)}`}
                 className={styles.btnPrimary}
-              >
-                Войти
-              </PrimaryButtonLink>
-              <AppBackButtonLink href="/courses">
-                Назад к курсам
-              </AppBackButtonLink>
-            </div>
-          ) : (
-            <>
-              {payError && (
-                <Typography color="error" sx={{ mt: 1, mb: 0 }}>
-                  {payError}
-                </Typography>
-              )}
-              <div className={styles.buttonsRow}>
-                <PrimaryButton
-                  type="button"
-                  className={styles.btnPrimary}
-                  onClick={handlePay}
-                  disabled={payLoading || csrfLoading}
-                >
-                  {payLoading || csrfLoading ? "Переход к оплате…" : "Оплатить/Начать курс"}
-                </PrimaryButton>
-                {justPaid && (
-                  <button
-                    type="button"
-                    className={styles.btnOutline}
-                    onClick={() => router.refresh()}
-                  >
-                    Обновить
-                  </button>
-                )}
-                <AppBackButtonLink href="/courses">
-                  Назад к курсам
-                </AppBackButtonLink>
-              </div>
-              <p className={styles.ofertaHint}>
-                Нажимая кнопку, я соглашаюсь с условиями{" "}
-                <a href="/oferta.html" target="_blank" rel="noopener noreferrer">
-                  Оферты
-                </a>
-              </p>
-            </>
-          )}
+              >Войти и оформить подписку</PrimaryButtonLink>
+            ) : (
+              <AppSubscriptionPaywall mode="embedded" />
+            )}
+            <AppBackButtonLink href="/courses">Назад к курсам</AppBackButtonLink>
           </div>
         </>
       );
@@ -400,12 +256,6 @@ export default function TrainingPageClient({
 
   return (
     <>
-      {showPaymentSuccess && (
-        <div className={styles.successNotification}>
-          Оплата прошла успешно! Доступ к курсу откроется через несколько секунд...
-        </div>
-      )}
-
       <div className="courseDescription">
         <CourseDescriptionWithVideo
           description={initialData?.courseDescription || null}

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: result.data,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return NextResponse.json(

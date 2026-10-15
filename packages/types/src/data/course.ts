@@ -11,7 +11,6 @@ export interface CourseWithProgressData {
   logoImg: string;
   isPrivate: boolean;
   isPaid: boolean;
-  priceRub: number | null;
   hasAccess: boolean;
   avgRating: number | null;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
@@ -57,6 +56,7 @@ export interface UserCourse {
 }
 
 export interface DayLink {
+  id?: string;
   order: number;
   day: {
     id: string;
@@ -80,7 +80,6 @@ export interface CourseCardData {
   logoImg: string;
   isPrivate: boolean;
   isPaid: boolean;
-  priceRub: number | null;
   hasAccess: boolean;
   userStatus: TrainingStatus;
   startedAt: Date | null;

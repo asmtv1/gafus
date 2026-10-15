@@ -55,7 +55,6 @@ export interface CourseWithExtras {
   logoImg: string;
   isPrivate: boolean;
   isPaid: boolean;
-  priceRub?: number | null;
   avgRating: number | null;
   trainingLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "EXPERT";
   createdAt: Date;
@@ -94,6 +93,7 @@ export interface CourseWithExtras {
     };
   }[];
   dayLinks: {
+    id: string;
     order: number;
     day: {
       id: string;

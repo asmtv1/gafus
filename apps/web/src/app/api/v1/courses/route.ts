@@ -27,7 +27,7 @@ export async function GET() {
       { success: true, data: courses },
       {
         headers: {
-          "Cache-Control": "private, max-age=60", // 1 минута
+          "Cache-Control": "private, no-store", // Права на курс перепроверяются после изменения подписки
         },
       },
     );

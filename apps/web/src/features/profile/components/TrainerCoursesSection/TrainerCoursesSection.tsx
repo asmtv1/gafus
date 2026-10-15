@@ -84,7 +84,7 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
                     className={styles.courseImage}
                   />
                   {course.isPrivate && <span className={styles.privateBadge}>Приватный</span>}
-                  {course.isPaid && <span className={styles.paidBadge}>Платный</span>}
+                  {course.isPaid && <span className={styles.paidBadge}>По подписке</span>}
                 </div>
                 <div className={styles.courseInfo}>
                   <h3 className={styles.courseName}>{course.name}</h3>
@@ -92,11 +92,6 @@ export default function TrainerCoursesSection({ publicData }: TrainerCoursesSect
                     <p className={styles.courseDescription}>{course.shortDesc}</p>
                   )}
                   <div className={styles.courseMeta}>
-                    {course.isPaid && course.priceRub != null && course.priceRub > 0 && (
-                      <span className={styles.coursePrice}>
-                        <strong>Цена:</strong> {course.priceRub} ₽
-                      </span>
-                    )}
                     <span className={styles.courseDuration}>
                       <strong>Длительность:</strong> {course.duration}
                     </span>

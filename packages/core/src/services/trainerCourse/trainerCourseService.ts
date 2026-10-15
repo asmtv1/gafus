@@ -33,8 +33,6 @@ export interface CourseDraftDto {
   logoImg: string;
   isPrivate: boolean;
   isPaid: boolean;
-  priceRub: number | null;
-  appleIapProductId: string | null;
   showInProfile: boolean;
   isPersonalized: boolean;
   equipment: string;
@@ -84,10 +82,6 @@ export async function createCourse(
           logoImg: input.logoImg ?? "",
           isPrivate,
           isPaid: input.isPaid ?? false,
-          priceRub:
-            input.isPaid && input.priceRub != null ? input.priceRub : null,
-          appleIapProductId:
-            input.isPaid && input.appleIapProductId ? input.appleIapProductId : null,
           showInProfile: input.showInProfile ?? true,
           isPersonalized: input.isPersonalized ?? false,
           guideContent: input.guideContent?.trim() || null,
@@ -138,7 +132,7 @@ export async function createCourse(
 
 /**
  * Обновление курса. Сохраняет существующие DayOnCourse (не сбрасывает прогресс).
- * Для платного курса не удаляет CourseAccess у оплативших (Payment.status === "SUCCEEDED").
+ * Назначения разрешены только для приватных курсов.
  */
 export async function updateCourse(
   input: UpdateTrainerCourseInput,
@@ -160,10 +154,6 @@ export async function updateCourse(
               videoUrl: input.videoUrl || null,
               isPrivate,
               isPaid: input.isPaid,
-              priceRub:
-                input.isPaid && input.priceRub != null ? input.priceRub : null,
-              appleIapProductId:
-                input.isPaid && input.appleIapProductId ? input.appleIapProductId : null,
               showInProfile: input.showInProfile ?? true,
               isPersonalized: input.isPersonalized ?? false,
               guideContent: input.guideContent === undefined ? undefined : input.guideContent?.trim() || null,
@@ -232,49 +222,11 @@ export async function updateCourse(
           });
         }
 
-        // CourseAccess — общий для приватных/платных курсов
-        if (input.isPaid) {
-          const allowedSet = new Set(
-            (input.allowedUsers ?? []).map(String),
-          );
-          const existingAccess = await tx.courseAccess.findMany({
-            where: { courseId: input.id },
-            select: { userId: true },
+        await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
+        if (isPrivate && input.allowedUsers?.length) {
+          await tx.courseAccess.createMany({
+            data: input.allowedUsers.map(userId => ({ courseId: input.id, userId: String(userId) })),
           });
-          const paidUserIds = await tx.payment
-            .findMany({
-              where: { courseId: input.id, status: "SUCCEEDED" },
-              select: { userId: true },
-            })
-            .then((rows) => new Set(rows.map((r) => r.userId)));
-          const toRemove = existingAccess
-            .filter(
-              (a) => !allowedSet.has(a.userId) && !paidUserIds.has(a.userId),
-            )
-            .map((a) => a.userId);
-          if (toRemove.length > 0) {
-            await tx.courseAccess.deleteMany({
-              where: { courseId: input.id, userId: { in: toRemove } },
-            });
-          }
-          for (const userId of allowedSet) {
-            const exists = existingAccess.some((a) => a.userId === userId);
-            if (!exists) {
-              await tx.courseAccess.create({
-                data: { courseId: input.id, userId },
-              });
-            }
-          }
-        } else {
-          await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
-          if (isPrivate && (input.allowedUsers?.length ?? 0) > 0) {
-            await tx.courseAccess.createMany({
-              data: (input.allowedUsers ?? []).map((userId) => ({
-                courseId: input.id,
-                userId: String(userId),
-              })),
-            });
-          }
         }
       },
       { maxWait: 10000, timeout: 20000 },
@@ -406,8 +358,6 @@ export async function getCourseDraftWithRelations(
         logoImg: true,
         isPrivate: true,
         isPaid: true,
-        priceRub: true,
-        appleIapProductId: true,
         showInProfile: true,
         isPersonalized: true,
         equipment: true,
@@ -446,8 +396,6 @@ export async function getCourseDraftWithRelations(
       logoImg: course.logoImg,
       isPrivate: course.isPrivate,
       isPaid: course.isPaid ?? false,
-      priceRub: course.priceRub != null ? Number(course.priceRub) : null,
-      appleIapProductId: course.appleIapProductId ?? null,
       showInProfile: (course as { showInProfile?: boolean }).showInProfile ?? true,
       isPersonalized:
         (course as { isPersonalized?: boolean }).isPersonalized ?? false,

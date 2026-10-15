@@ -58,8 +58,6 @@ export default async function EditCoursePage({ params }: PageProps) {
     logoImg: course.logoImg,
     isPublic: !course.isPrivate,
     isPaid: course.isPaid ?? false,
-    priceRub: course.priceRub,
-    appleIapProductId: course.appleIapProductId ?? "",
     showInProfile: course.showInProfile ?? true,
     isPersonalized: course.isPersonalized ?? false,
     trainingDays: course.dayLinks.map((dl) => dl.day.id),

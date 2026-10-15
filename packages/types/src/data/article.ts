@@ -17,7 +17,6 @@ export interface ArticleListDto {
   authorAvatarUrl: string | null;
   contentType: "TEXT" | "HTML";
   visibility: "PUBLIC" | "PAID";
-  priceRub: number | null;
   videoUrl: string | null;
   logoImg: string;
   imageUrls: string[];
@@ -47,7 +46,6 @@ export interface CreateArticleInput {
   contentType: "TEXT" | "HTML";
   content: string;
   visibility: "PUBLIC" | "PAID";
-  priceRub?: number | null;
   videoUrl?: string | null;
   logoImg?: string;
   imageUrls?: string[];
