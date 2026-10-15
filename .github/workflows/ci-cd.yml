@@ -200,7 +200,7 @@ jobs:
           partial_indexes=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexdef ILIKE '% WHERE %'")
           test "$checks" -ge 54
           test "$triggers" -ge 5
-          test "$partial_indexes" -ge 2
+          test "$partial_indexes" -ge 1
           pnpm --filter @gafus/prisma exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel schema.prisma --exit-code
 
       - name: Guard safe Feed poll rollout before production deploy

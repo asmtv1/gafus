@@ -78,6 +78,7 @@ constraints = {}
 functions = {}
 triggers = {}
 indexes = {}
+index_tables = {}
 extensions = {}
 sources = {}
 for item in sorted(migrations.iterdir()):
@@ -101,9 +102,34 @@ for item in sorted(migrations.iterdir()):
         if kind:
             extensions[kind.group(1)] = stmt
             continue
-        kind = re.match(r'(?is)^CREATE\s+(?:UNIQUE\s+)?INDEX\s+"([^"]+)"', stmt)
+        # Historical migrations can drop a table after creating a partial index.
+        # A fresh db push already reflects the final Prisma schema, so these
+        # obsolete indexes must not be replayed onto tables that no longer exist.
+        dropped_table = re.match(
+            r'(?is)^DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:"?public"?\.)?"([^"]+)"', stmt
+        )
+        if dropped_table:
+            table = dropped_table.group(1)
+            constraints = {key: value for key, value in constraints.items() if key[0] != table}
+            for name, indexed_table in list(index_tables.items()):
+                if indexed_table == table:
+                    indexes.pop(name, None)
+                    index_tables.pop(name)
+            continue
+        dropped_index = re.match(
+            r'(?is)^DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?(?:"?public"?\.)?"([^"]+)"', stmt
+        )
+        if dropped_index:
+            indexes.pop(dropped_index.group(1), None)
+            index_tables.pop(dropped_index.group(1), None)
+            continue
+        kind = re.match(
+            r'(?is)^CREATE\s+(?:UNIQUE\s+)?INDEX\s+"([^"]+)"\s+ON\s+(?:ONLY\s+)?(?:"?public"?\.)?"([^"]+)"',
+            stmt,
+        )
         if kind and re.search(r"(?is)\bWHERE\b", stmt):
             indexes[kind.group(1)] = stmt
+            index_tables[kind.group(1)] = kind.group(2)
             continue
         tbl = re.match(r'(?is)^(?:CREATE\s+TABLE|ALTER\s+TABLE)\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?"([^"]+)"', stmt)
         if not tbl:
