@@ -1,7 +1,7 @@
 import { View, StyleSheet } from "react-native";
 import { LoadingMascot } from "@/shared/components/ui/LoadingMascot";
 
-/** A compact version of the shared animated dog for publication queue cards. */
+/** Shared animated loading mascot for publication queue cards. */
 export function FeedPublicationMascot() {
   return (
     <View
@@ -9,7 +9,7 @@ export function FeedPublicationMascot() {
       accessibilityRole="progressbar"
       accessibilityLabel="Обрабатываем публикацию"
     >
-      <LoadingMascot size={76} />
+      <LoadingMascot />
     </View>
   );
 }
