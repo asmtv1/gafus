@@ -15,6 +15,36 @@ function api(published: () => boolean, publish: () => void) {
   };
 }
 describe("Moments background publication manager", () => {
+  it("uses Mobile's 2-second status check without reporting published early", async () => {
+    vi.useFakeTimers();
+    try {
+      let reads = 0;
+      const client = api(() => false, () => undefined);
+      client.getEditor.mockImplementation(async () => post(++reads === 1 ? "pending" : "published"));
+      const manager = createFeedPublicationManager({
+        api: client, upload: vi.fn().mockResolvedValue("media-1"),
+        makeId: () => crypto.randomUUID(), pollIntervalMs: 2000,
+      });
+      manager.enqueue({ ownerId: "me", text: "Фото", files: [{ requestId: "photo-1", bytes: 200_000 }], albumPhotoIds: [] });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reads).toBe(1);
+      expect(manager.getSnapshot()[0]?.phase).toBe("processing");
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(reads).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(reads).toBe(2);
+      expect(manager.getSnapshot()[0]?.phase).toBe("published");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("rejects unsafe poll intervals", () => {
+    expect(() => createFeedPublicationManager({
+      api: api(() => false, () => undefined), upload: vi.fn(),
+      makeId: () => crypto.randomUUID(), pollIntervalMs: 0,
+    })).toThrow("INVALID_PUBLICATION_POLL_INTERVAL");
+  });
+
   it("shows a card immediately, follows real bytes and waits for server confirmation", async () => {
     let published = false;
     const client = api(() => published, () => { published = true; });

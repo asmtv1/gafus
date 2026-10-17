@@ -9,6 +9,7 @@ const {
 } = require("expo/config-plugins");
 
 const TRACER_VERSION = "1.4.0";
+const IOS_TRACER_VERSION = "1.5.2";
 const IOS_TOKEN_INFO_PLIST_KEY = "GAFUS_APPTRACER_APP_TOKEN";
 const IOS_DSYM_PHASE_NAME = "[AppTracer] Upload dSYM";
 
@@ -137,6 +138,21 @@ function withAndroidTracer(config, { appToken, pluginToken }) {
   });
 }
 
+function patchIosTracerPodfile(contents) {
+  const sourceLine = "source 'https://github.com/odnoklassniki/tracer-ios.git'";
+  let source = contents.includes(sourceLine) ? contents : `${sourceLine}\n${contents}`;
+  const podLine = `  pod 'OKTracer', '${IOS_TRACER_VERSION}'`;
+  // Expo prebuild can reuse an ignored ios/ directory from an earlier build.
+  // Update the existing pin as well as injecting it into a fresh Podfile.
+  if (/^[ \t]*pod ['"]OKTracer['"], ['"][^'"]+['"]/m.test(source)) {
+    return source.replace(/^[ \t]*pod ['"]OKTracer['"], ['"][^'"]+['"]/m, podLine);
+  }
+  if (!/target\s+['"][^'"]+['"]\s+do\s*\n/.test(source)) {
+    throw new Error("Cannot insert OKTracer: expected a CocoaPods target declaration");
+  }
+  return source.replace(/target\s+['"][^'"]+['"]\s+do\s*\n/, (match) => `${match}${podLine}\n`);
+}
+
 function withIosTracer(config, { appToken, pluginToken }) {
   config = withInfoPlist(config, (mod) => {
     if (appToken) mod.modResults[IOS_TOKEN_INFO_PLIST_KEY] = appToken;
@@ -146,21 +162,7 @@ function withIosTracer(config, { appToken, pluginToken }) {
   config = withPodfile(config, (mod) => {
     if (!appToken) return mod;
 
-    let source = mod.modResults.contents;
-    const sourceLine = "source 'https://github.com/odnoklassniki/tracer-ios.git'";
-    if (!source.includes(sourceLine)) {
-      source = `${sourceLine}\n${source}`;
-    }
-
-    const podLine = `  pod 'OKTracer', '${TRACER_VERSION}'`;
-    if (!source.includes("pod 'OKTracer'")) {
-      source = source.replace(
-        /target\s+['"][^'"]+['"]\s+do\s*\n/,
-        (match) => `${match}${podLine}\n`,
-      );
-    }
-
-    mod.modResults.contents = source;
+    mod.modResults.contents = patchIosTracerPodfile(mod.modResults.contents);
     return mod;
   });
 
@@ -267,3 +269,5 @@ module.exports = function withAppTracerNative(config) {
     pluginToken: iosPluginToken,
   });
 };
+
+module.exports.patchIosTracerPodfile = patchIosTracerPodfile;

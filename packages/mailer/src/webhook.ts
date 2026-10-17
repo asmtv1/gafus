@@ -1,5 +1,6 @@
 import { Webhook } from "svix";
 import { prisma } from "@gafus/prisma";
+import { attemptIdFromTag } from "./attempt-tag.js";
 
 /** Verify the unmodified request body before parsing or persisting any provider event. */
 export async function receiveResendWebhook(request: Request): Promise<Response> {
@@ -11,7 +12,7 @@ export async function receiveResendWebhook(request: Request): Promise<Response> 
   const payload = await request.text();
   if (Buffer.byteLength(payload) > 262144) return new Response("Payload too large", { status: 413 });
   const id = request.headers.get("svix-id") || "";
-  let event: { type?: unknown; created_at?: unknown; data?: { email_id?: unknown; bounce?: { type?: unknown; subType?: unknown } } };
+  let event: { type?: unknown; created_at?: unknown; data?: { email_id?: unknown; bounce?: { type?: unknown; subType?: unknown }; tags?: unknown } };
   try {
     event = new Webhook(secret).verify(payload, {
       "svix-id": id,
@@ -45,6 +46,21 @@ export async function receiveResendWebhook(request: Request): Promise<Response> 
       },
       update: {},
     });
+    const tags = event.data?.tags;
+    const attemptId = tags && typeof tags === "object" && !Array.isArray(tags)
+      ? attemptIdFromTag((tags as Record<string, unknown>).gafus_attempt)
+      : undefined;
+    if (attemptId && event.type !== "email.received") {
+      // Any signed outbound email.* event proves Resend accepted the email. The event
+      // may arrive after our POST timed out, or even before its HTTP response.
+      await prisma.transactionalMailAttempt.updateMany({
+        where: { id: attemptId, status: { in: ["PENDING", "UNKNOWN"] } },
+        data: {
+          status: "ACCEPTED", providerMessageId: event.data.email_id,
+          acceptedAt: new Date(event.created_at), errorCode: null,
+        },
+      });
+    }
   } catch {
     return new Response("Persistence unavailable", { status: 503 });
   }

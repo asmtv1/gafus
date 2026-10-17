@@ -1,13 +1,14 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, View } from "react-native";
-import { IconButton, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { Loading, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
-import { GalleryImage } from "./image";
+import { AlbumTile } from "./AlbumTile";
+export { AlbumTile } from "./AlbumTile";
 import { useRouter, type Href } from "expo-router";
-import type { GalleryAlbumDto } from "@gafus/types";
+import { GALLERY_LIMITS, type GalleryAlbumDto } from "@gafus/types";
 import { Button, Input } from "@/shared/components/ui";
 import { galleryApi } from "@/shared/lib/api/gallery";
 import { COLORS } from "@/shared/config";
@@ -25,14 +26,6 @@ export function EditorShell({ title, close, children }: { title: string; close: 
         <SafeAreaView style={s.modal} edges={["top", "bottom", "left", "right"]}>
           <View style={s.editorHeader}>
             <Text accessibilityRole="header" style={[s.heading, s.editorTitle]}>{title}</Text>
-            <IconButton
-              icon="close"
-              iconColor={COLORS.primary}
-              size={24}
-              style={s.editorClose}
-              accessibilityLabel="Закрыть"
-              onPress={close}
-            />
           </View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <ScrollView
@@ -50,41 +43,96 @@ export function EditorShell({ title, close, children }: { title: string; close: 
 }
 export function AlbumEditor({ owner, album, close }: { owner: string; album?: GalleryAlbumDto; close: () => void }) {
   const [name, setName] = useState(album?.name ?? "");
+  const [description, setDescription] = useState(album?.description ?? "");
   const [visible, setVisible] = useState(album?.isVisible ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const { viewer, cache } = useGalleryContext();
+  const cancel = () => { if (!busy) close(); };
   const save = async () => {
     setBusy(true); setError(undefined);
     try {
-      const input = { name: name.trim(), isVisible: visible };
+      const input = {
+        name: name.trim(),
+        description: description.trim() || null,
+        isVisible: visible,
+      };
       if (album) await galleryApi.updateAlbum(album.id, input); else await galleryApi.createAlbum(input);
       await cache.invalidateQueries({ queryKey: galleryKeys.owner(viewer, owner) }); close();
     } catch (e) { setError(e); } finally { setBusy(false); }
   };
-  return <EditorShell title={album ? "Настройки альбома" : "Новый альбом"} close={close}>
-    <Input label="Название альбома" value={name} onChangeText={setName} maxLength={120} autoCapitalize="sentences" />
-    <View style={s.visibilityRow}>
-      <Text style={[s.text, { flex: 1 }]}>Виден всем авторизованным</Text>
-      <Switch
-        value={visible}
-        onValueChange={setVisible}
-        accessibilityLabel="Виден всем авторизованным"
-        trackColor={{ true: COLORS.primary }}
+  return <EditorShell title={album ? "Настройки альбома" : "Новый альбом"} close={cancel}>
+    <Input
+      label="Название альбома"
+      value={name}
+      onChangeText={setName}
+      maxLength={GALLERY_LIMITS.albumName}
+      autoCapitalize="sentences"
+      editable={!busy}
+    />
+    <Input
+      label="Описание (необязательно)"
+      accessibilityLabel="Описание альбома"
+      value={description}
+      onChangeText={setDescription}
+      maxLength={GALLERY_LIMITS.caption}
+      multiline
+      numberOfLines={3}
+      textAlignVertical="top"
+      style={s.albumDescriptionInput}
+      editable={!busy}
+    />
+    <Text style={s.albumDescriptionCounter}>
+      {description.length} / {GALLERY_LIMITS.caption} символов
+    </Text>
+    <View style={s.visibilityCard} testID="album-visibility-card">
+      <View style={s.visibilityRow}>
+        <View style={s.visibilityLabelWrap}>
+          <Text style={s.visibilityLabel}>Виден всем авторизованным</Text>
+        </View>
+        <View style={s.visibilitySwitchSlot}>
+          <Switch
+            value={visible}
+            onValueChange={setVisible}
+            disabled={busy}
+            accessibilityLabel="Виден всем авторизованным"
+            accessibilityHint="Определяет, кто может просматривать альбом и его фотографии"
+            trackColor={{ false: "#D6D9CF", true: COLORS.primary }}
+            ios_backgroundColor="#D6D9CF"
+          />
+        </View>
+      </View>
+      <View style={s.visibilityDivider} />
+      <Text style={s.visibilityHint}>
+        {visible
+          ? "Альбом и фотографии доступны всем авторизованным пользователям GAFUS."
+          : "Альбом и фотографии доступны только вам."}
+      </Text>
+    </View>
+    {error ? <Text accessibilityRole="alert" style={s.error}>{galleryError(error)}</Text> : null}
+    <View style={s.editorActions}>
+      <Button
+        label="Сохранить"
+        height={52}
+        borderRadius={14}
+        animatedPress
+        loading={busy}
+        disabled={busy || !name.trim()}
+        onPress={() => void save()}
+      />
+      <Button
+        label="Отмена"
+        variant="secondary"
+        height={52}
+        borderRadius={14}
+        animatedPress
+        disabled={busy}
+        accessibilityHint="Закрыть форму без сохранения изменений"
+        onPress={cancel}
       />
     </View>
-    <Text style={s.muted}>Если отключить, альбом и фотографии будут доступны только вам.</Text>
-    {error ? <Text accessibilityRole="alert" style={s.error}>{galleryError(error)}</Text> : null}
-    <Button label="Сохранить" loading={busy} disabled={busy || !name.trim()} onPress={() => void save()} />
   </EditorShell>;
 }
-export const AlbumTile = memo(function AlbumTile({ album, refresh, compact = false }: { album: GalleryAlbumDto; refresh: () => void; compact?: boolean }) {
-  const router = useRouter();
-  return <Pressable style={compact ? s.albumCompact : s.album} accessibilityRole="button" accessibilityLabel={`${album.name}, фотографий: ${album.photoCount}${album.isVisible ? "" : ", только для вас"}`} onPress={() => router.push({ pathname: "/profile/albums/[albumId]", params: { albumId: album.id, username: album.ownerUsername } })}>
-    {album.coverThumbUrl ? <GalleryImage photoId={album.coverDisplayPhotoId ?? album.coverPhotoId} source={{ uri: album.coverThumbUrl }} style={compact ? s.coverCompact : s.cover} contentFit="cover" refresh={refresh} /> : <View style={[compact ? s.coverCompact : s.cover, s.placeholder]}>{compact ? <MaterialCommunityIcons name="image-outline" size={28} color={COLORS.textSecondary} /> : <Text style={s.muted}>Нет обложки</Text>}</View>}
-    <Text numberOfLines={2} style={compact ? s.albumCompactName : s.text}>{album.name}</Text><Text style={s.muted}>{album.photoCount} фото{album.isVisible ? "" : " · Только для вас"}</Text>
-  </Pressable>;
-});
 export function GalleryPreview({ owner, showHeadingIcon = false }: { owner: string; showHeadingIcon?: boolean }) {
   const albums = useAlbums(owner);
   const [creating, setCreating] = useState(false);

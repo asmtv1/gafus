@@ -6,6 +6,8 @@ import { uploadPickedFeedMedia, type FeedPickedMedia } from "./uploads";
 export const mobileFeedPublications = createFeedPublicationManager<FeedPickedMedia & PublicationAsset>({
   api: feedApi,
   makeId: Crypto.randomUUID,
+  // Photo jobs finish quickly; show completion without up to 5s of UI lag.
+  pollIntervalMs: 2000,
   pollImageStatus: async (postId, asset, mediaId) => {
     const upload = await feedApi.reserveUpload(postId, {
       filename: asset.filename, kind: "photo", declaredMime: asset.mime,

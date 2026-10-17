@@ -76,8 +76,24 @@ export function GafusWalletPage({ embedded = false }: { embedded?: boolean } = {
     <section className={styles.summary}>
       <div>
         <h2>Зарабатывайте за активность</h2>
-        <p>Публикуйте посты, задавайте вопросы и помогайте другим. За активность можно получить до {status.activity.limit} Гафусов за 24 часа.</p>
-        <p className={styles.quota}>Осталось получить: <strong>{status.activity.remaining}</strong></p>
+        <p>
+          Публикуйте посты, задавайте вопросы и помогайте другим. За обычную активность
+          можно получить до {status.activity.limit} Гафусов за 24 часа.
+        </p>
+        <div className={styles.bonusGroup}>
+          <h3>Бонусные Гафусы сверх лимита</h3>
+          <p>
+            +{status.rules.reactionReward} за каждые {status.rules.reactionThreshold} лайков
+            или других реакций от разных пользователей на ваш пост в «Моментах».
+          </p>
+          <p>+{status.rules.bestAnswerReward}, если ваш ответ в «Вопросах» выберут лучшим.</p>
+          <p className={styles.bonusNote}>
+            Эти награды можно получать сверх лимита за 24 часа.
+          </p>
+        </div>
+        <p className={styles.quota}>
+          Осталось за обычную активность: <strong>{status.activity.remaining}</strong>
+        </p>
       </div>
       <div>
         <h2>Открывайте обучение</h2>

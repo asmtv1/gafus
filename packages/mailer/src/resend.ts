@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { prisma } from "@gafus/prisma";
 import { formatMailFromHeader, isMailerConfigured, type MailerEnv } from "./env.js";
+import { attemptTagFromId } from "./attempt-tag.js";
 import type { Attachment, SendTransactionalMailInput } from "./send-transactional-mail.js";
 
 const MAX_ATTEMPTS = 3;
@@ -69,7 +70,7 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
   const attemptId = input.deliveryKey || randomUUID();
   const attempt = await prisma.transactionalMailAttempt.upsert({
     where: { id: attemptId },
-    create: { id: attemptId, recipientCount: recipients.length },
+    create: { id: attemptId, recipientCount: recipients.length, correlationVersion: 1 },
     update: {},
   });
   if (attempt.status === "ACCEPTED") return;
@@ -84,7 +85,13 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
 
   // Every retry reuses the *identical* body and provider idempotency key.
   // There is intentionally no SMTP fallback and no automatic background replay of old messages.
+  const correlationTag = attempt.correlationVersion === 1
+    ? attemptTagFromId(attempt.id)
+    : undefined;
   const body = JSON.stringify({
+    // Provider webhook events carry tags, allowing confirmation when the HTTP
+    // response was lost after Resend accepted the request.
+    ...(correlationTag ? { tags: [{ name: "gafus_attempt", value: correlationTag }] } : {}),
     from: formatMailFromHeader(env),
     to: recipients,
     subject: input.subject,
@@ -93,6 +100,21 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
     reply_to: input.replyTo || env.mailReplyTo,
     attachments,
   });
+
+  async function persistUnconfirmed(status: "UNKNOWN" | "FAILED", errorCode: string): Promise<boolean> {
+    // A webhook may already have confirmed acceptance while fetch was waiting.
+    // Never replace ACCEPTED with a late transport failure.
+    const result = await prisma.transactionalMailAttempt.updateMany({
+      where: { id: attempt.id, status: { in: ["PENDING", "UNKNOWN"] } },
+      data: { status, errorCode },
+    });
+    if (result.count > 0) return false;
+    const current = await prisma.transactionalMailAttempt.findUnique({
+      where: { id: attempt.id },
+      select: { status: true },
+    });
+    return current?.status === "ACCEPTED";
+  }
 
   for (let number = 0; number < MAX_ATTEMPTS; number++) {
     if (number > 0) {
@@ -114,9 +136,7 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
       });
     } catch (error) {
       const code = classifyNetworkError(error);
-      await prisma.transactionalMailAttempt.update({
-        where: { id: attempt.id }, data: { status: "UNKNOWN", errorCode: code },
-      });
+      if (await persistUnconfirmed("UNKNOWN", code)) return;
       if (number < MAX_ATTEMPTS - 1) continue;
       throw new Error(`Resend transport failed (${code}); acceptance unknown (attempt ${attempt.id})`);
     }
@@ -125,19 +145,18 @@ export async function sendResendMail(input: SendTransactionalMailInput, env: Mai
     if (response.ok && typeof payload?.id === "string" && payload.id) {
       await prisma.transactionalMailAttempt.update({
         where: { id: attempt.id },
-        data: { status: "ACCEPTED", providerMessageId: payload.id, acceptedAt: new Date() },
+        data: { status: "ACCEPTED", providerMessageId: payload.id, acceptedAt: new Date(), errorCode: null },
       });
       return;
     }
 
     // 5xx or malformed 2xx may mean acceptance happened; use the same key to retry.
-    // 429, 401, validation failures and other 4xx are not retried automatically.
-    const ambiguous = response.status >= 500 || response.ok;
+    // 409 concurrent_idempotent_requests is safe to retry with the same key;
+    // rate limits, auth failures, validation failures and other 4xx are not.
+    const ambiguous = response.status >= 500 || response.ok ||
+      (response.status === 409 && providerErrorCode(payload, response.status) === "concurrent_idempotent_requests");
     const code = response.ok ? "INVALID_PROVIDER_RESPONSE" : providerErrorCode(payload, response.status);
-    await prisma.transactionalMailAttempt.update({
-      where: { id: attempt.id },
-      data: { status: ambiguous ? "UNKNOWN" : "FAILED", errorCode: code },
-    });
+    if (await persistUnconfirmed(ambiguous ? "UNKNOWN" : "FAILED", code)) return;
     if (ambiguous && number < MAX_ATTEMPTS - 1) continue;
     throw new Error(`Resend ${code} (attempt ${attempt.id})`);
   }

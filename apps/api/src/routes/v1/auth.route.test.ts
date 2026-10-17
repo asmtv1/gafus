@@ -71,7 +71,7 @@ describe("auth route contracts", () => {
         },
         {
           "x-client-platform": "ios",
-          "x-client-version": "1.7.0",
+          "x-client-version": "1.7.1",
         },
       ),
     );

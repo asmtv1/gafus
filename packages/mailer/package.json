@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mailer",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "description": "Transactional email via Resend HTTPS API or SMTP",
   "sideEffects": false,

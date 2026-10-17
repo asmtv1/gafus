@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 
 import type { Attachment } from "@gafus/mailer";
 import { sendTransactionalMail } from "@gafus/mailer";
+import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import { getPublicWebBaseUrl } from "./publicWebBaseUrl";
@@ -132,7 +133,7 @@ export function plainLinkFallbackHtml(url: string): string {
 
 interface WrapTransactionalEmailOptions {
   blocksHtml: string[];
-  logoMode: "cid" | "none";
+  logoMode: "cid" | "remote" | "none";
 }
 
 function wrapTransactionalEmailHtml({
@@ -141,9 +142,13 @@ function wrapTransactionalEmailHtml({
 }: WrapTransactionalEmailOptions): string {
   const inner = blocksHtml.join("\n");
   const logoImg = `<img src="cid:${TRANSACTIONAL_LOGO_CID}" width="100" alt="Гафус" style="display:block;width:100px;max-width:100%;height:auto;margin:0;border:0;" />`;
-  const logoBlock =
-    logoMode === "cid"
-      ? `${brandTextHeaderHtml()}${logoImg}`
+  const logoBlock = logoMode === "cid"
+    ? `${brandTextHeaderHtml()}${logoImg}`
+    : logoMode === "remote"
+      ? `${brandTextHeaderHtml()}${logoImg.replace(
+          `cid:${TRANSACTIONAL_LOGO_CID}`,
+          escapeHtml(transactionalLogoAbsoluteUrl()),
+        )}`
       : brandTextHeaderHtml();
 
   return `<!DOCTYPE html>
@@ -184,8 +189,21 @@ export async function sendTransactionalEmailWithLayout(input: {
   maxQueueAgeMs?: number;
   category?: "auth" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
 }): Promise<void> {
-  const logoAtt = await resolveInlineLogoAttachment();
-  const logoMode: WrapTransactionalEmailOptions["logoMode"] = logoAtt ? "cid" : "none";
+  // The old 242-KB inline logo expands POST /emails beyond the size that
+  // reliably reaches Resend from production. New attempts use a hosted image
+  // instead. Existing v0 idempotency keys MUST retain their original HTML
+  // and attachment body so safe retries do not get rejected with HTTP 409.
+  const previous = input.deliveryKey
+    ? await prisma.transactionalMailAttempt.findUnique({
+        where: { id: input.deliveryKey },
+        select: { correlationVersion: true },
+      })
+    : null;
+  const useLegacyInlineLogo = previous?.correlationVersion === 0;
+  const logoAtt = useLegacyInlineLogo ? await resolveInlineLogoAttachment() : undefined;
+  const logoMode: WrapTransactionalEmailOptions["logoMode"] = useLegacyInlineLogo
+    ? (logoAtt ? "cid" : "none")
+    : "remote";
   const html = wrapTransactionalEmailHtml({
     blocksHtml: input.blocksHtml,
     logoMode,

@@ -613,15 +613,17 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
           </View>
           <Button
             label="Добавить"
-            variant="outline"
+            variant="primary"
             icon="plus"
-            width={122}
+            width={PET_SECTION_ADD_BUTTON_WIDTH}
             fullWidth={false}
             height={44}
             fontSize={12}
-            horizontalPadding={5}
+            lineHeight={18}
+            horizontalPadding={0}
             verticalPadding={0}
             borderRadius={12}
+            animatedPress
             accessibilityLabel="Добавить документ"
             disabled={uploadDocumentMutation.isPending}
             onPress={() => void handlePickDocument()}

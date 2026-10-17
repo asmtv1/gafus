@@ -266,7 +266,7 @@ export function MobileReleaseControl({
 
   const openConfirmation = () => {
     if (!versionValid) {
-      setError("Версия должна быть в формате 1.7.0");
+      setError("Версия должна быть в формате 1.7.1");
       return;
     }
     if (!dailyAdLimitValid) {
@@ -343,14 +343,14 @@ export function MobileReleaseControl({
           >
             <TextField
               label="Версия на ревью"
-              placeholder="1.7.0"
+              placeholder="1.7.1"
               value={draft.iosReviewVersion ?? ""}
               disabled={disabled}
               error={!versionValid}
               helperText={
                 versionValid
                   ? "Формат x.y.z. Пустое поле отключает review-профиль."
-                  : "Например: 1.7.0"
+                  : "Например: 1.7.1"
               }
               onChange={(event) =>
                 setDraft((current) => ({

@@ -10,9 +10,9 @@ export const STANDARD_LOADING_MASCOT_PX = 168;
  * Общий визуальный слой загрузки. Статичный первый кадр виден сразу,
  * пока Android или iOS декодирует анимированный GIF поверх него.
  */
-export function LoadingMascot() {
+export function LoadingMascot({ size = STANDARD_LOADING_MASCOT_PX }: { size?: number } = {}) {
   return (
-    <View style={{ width: STANDARD_LOADING_MASCOT_PX, height: STANDARD_LOADING_MASCOT_PX }} pointerEvents="none">
+    <View style={{ width: size, height: size }} pointerEvents="none">
       <Image
         source={getMascotPosterSource()}
         style={StyleSheet.absoluteFill}

@@ -46,6 +46,8 @@ export interface PublicationDependencies<T extends PublicationAsset> {
   api: PublicationApi;
   upload: (postId: string, asset: T, report: (loaded: number, total: number) => void) => Promise<string>;
   makeId: () => string;
+  /** Optional faster polling for active Mobile publication cards (default 5 seconds). */
+  pollIntervalMs?: number;
   /** Poll photo upload status must be checked before poll creation/publishing. */
   pollImageStatus?: (postId: string, asset: T, mediaId: string) => Promise<"ready" | "pending" | "failed">;
   onPublished?: (postId: string) => void;
@@ -79,6 +81,12 @@ export function publicationPhaseLabel(item: PublicationItem): string {
 }
 
 export function createFeedPublicationManager<T extends PublicationAsset>(deps: PublicationDependencies<T>) {
+  // Keep the original ten-minute wait budget for slow video transcoding, even
+  // if a client polls more frequently to display completed photos sooner.
+  const pollIntervalMs = deps.pollIntervalMs ?? 5000;
+  if (!Number.isFinite(pollIntervalMs) || pollIntervalMs < 1000 || pollIntervalMs > 5000)
+    throw new Error("INVALID_PUBLICATION_POLL_INTERVAL");
+  const maxPollAttempts = Math.ceil(600_000 / pollIntervalMs);
   const jobs = new Map<string, Job<T>>();
   const listeners = new Set<() => void>();
   let snapshot: PublicationItem[] = [];
@@ -182,12 +190,12 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
           for (const { asset } of pollPhotos) {
             const mediaId = job.completed.get(asset.requestId)!;
             let ready = false;
-            for (let attempt = 0; attempt < 120; attempt++) {
+            for (let attempt = 0; attempt < maxPollAttempts; attempt++) {
               const state = await deps.pollImageStatus!(post.id, asset, mediaId);
               if (state === "ready") { ready = true; break; }
               if (state === "failed") throw new Error("Не удалось обработать изображение варианта опроса.");
               update(job, { phase: "processing", progress: 100 });
-              await sleep(5000);
+              await sleep(pollIntervalMs);
             }
             if (!ready) throw new Error("Изображения опроса обрабатываются слишком долго. Повторите публикацию.");
           }
@@ -218,13 +226,13 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
       update(job, { phase: "processing", progress: input.files.length ? 100 : null });
       // Server publication is asynchronous (video transcoding, thumbnails, moderation).
       // Poll actual post status; a successful HTTP publish is NOT "published".
-      for (let attempt = 0; attempt < 120; attempt++) {
+      for (let attempt = 0; attempt < maxPollAttempts; attempt++) {
         const result = await api.getEditor(post.id);
         if (result.status === "published") { succeed(job, post.id); return; }
         if (result.status === "failed") {
           throw new Error(result.pendingRevision?.errorMessage ?? "Ошибка обработки вложения.");
         }
-        await sleep(5000);
+        await sleep(pollIntervalMs);
       }
       throw new Error("Обработка занимает больше обычного. Проверьте публикацию и повторите проверку.");
     } catch (error) {

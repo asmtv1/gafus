@@ -3674,6 +3674,9 @@ model TransactionalMailAttempt {
   providerMessageId String?  @unique
   recipientCount    Int
   status            String   @default("PENDING")
+  // 0: legacy Resend payload; 1: sends correlation tags, which MUST NOT be
+  // retrofitted to old idempotency keys (Resend requires identical request bodies).
+  correlationVersion Int     @default(0)
   errorCode         String?
   createdAt         DateTime @default(now())
   acceptedAt        DateTime?

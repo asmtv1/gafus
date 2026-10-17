@@ -27,7 +27,7 @@ const SECTIONS = [
     title: "Напоминания о тренировках",
     image: require("../../../assets/images/profile-icons/reminders.webp"),
   },
-  { name: "gafus", title: "Мои Гафусы", image: require("../../../assets/images/tab-icons/pets.webp") },
+  { name: "gafus", title: "Мои Гафусы", image: require("../../../assets/images/tab-icons/gafus.webp") },
 ] as const;
 
 export default function MoreScreen() {
@@ -97,7 +97,7 @@ export default function MoreScreen() {
                       : name === "questions"
                         ? "/(main)/(tabs)/questions"
                         : name === "gafus"
-                          ? "/(main)/gafus"
+                          ? "/(main)/(tabs)/gafus"
                         : `/(main)/(tabs)/${name}`) as Href,
                   );
                 }}
@@ -108,18 +108,16 @@ export default function MoreScreen() {
                 ]}
               >
                 <View style={styles.iconSlot}>
-                  {section.name === "gafus" ? (
-                    <MaterialCommunityIcons name="paw" size={30} color={COLORS.primary} />
-                  ) : <Image
+                  <Image
                     source={section.image}
                     style={[
                       styles.icon,
-                      (section.name === "questions" || section.name === "gallery") &&
-                        styles.iconSmallArtwork,
+                      (section.name === "questions" || section.name === "gallery" ||
+                        section.name === "gafus") && styles.iconSmallArtwork,
                     ]}
                     contentFit="contain"
                     accessible={false}
-                  />}
+                  />
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={styles.label}>{section.title}</Text>

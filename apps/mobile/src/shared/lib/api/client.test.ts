@@ -15,7 +15,7 @@ vi.mock("expo-secure-store", () => ({
 }));
 
 vi.mock("expo-application", () => ({
-  nativeApplicationVersion: "1.7.0",
+  nativeApplicationVersion: "1.7.1",
 }));
 
 vi.mock("react-native", () => ({
@@ -73,7 +73,7 @@ describe("apiClient auth refresh", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "X-Client-Platform": "ios",
-          "X-Client-Version": "1.7.0",
+          "X-Client-Version": "1.7.1",
         }),
       }),
     );

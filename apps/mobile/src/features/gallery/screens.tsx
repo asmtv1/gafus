@@ -13,6 +13,7 @@ import { galleryApi } from "@/shared/lib/api/gallery";
 import { Button } from "@/shared/components/ui";
 import { COLORS, FONTS } from "@/shared/config";
 import { AlbumEditor, AlbumTile, Failure } from "./components";
+import { AlbumDetailHeader } from "./AlbumDetailHeader";
 import { galleryError, galleryKeys, useAlbums, useForeground, useGalleryContext } from "./data";
 import { UploadControls } from "./uploads";
 import { PhotoViewer } from "./viewer";
@@ -142,21 +143,19 @@ export function GalleryAlbumScreen() {
     <Stack.Screen options={{ headerShown: false }} />
     <View style={[styles.albumNavigation, { paddingTop: insets.top + 8 }]}>
       <AppBackButton onPress={backToAlbums} />
-      <Text accessibilityRole="header" numberOfLines={1} style={styles.albumNavigationTitle}>
-        {album.data?.name ?? "Альбом"}
-      </Text>
+      <Text numberOfLines={1} style={styles.albumNavigationTitle}>Альбом</Text>
     </View>
     <FlatList data={meta?.enabled === false ? [] : items} numColumns={3} keyExtractor={p => p.id} contentContainerStyle={[s.content, styles.albumList]} onRefresh={() => void refresh()} refreshing={refreshing}
       automaticallyAdjustContentInsets={false} contentInsetAdjustmentBehavior="never" onEndReached={more} onEndReachedThreshold={0.5}
       ListHeaderComponent={<View style={styles.albumHeader}>
         {album.isPending ? <Loading variant="inline" message="Загрузка альбома…" /> : null}
         {album.isError ? <Failure error={album.error} retry={() => void album.refetch()} /> : null}
-        {album.data ? <View style={styles.albumToolbar}>
-          <Text style={styles.albumMeta} numberOfLines={2}>
-            {album.data.photoCount} фото · {album.data.isVisible ? "Виден в GAFUS" : "Только для вас"}
-            {album.data.canEdit && meta?.enabled ? ` · ${meta.usedSlots}/200 занято` : ""}
-          </Text>
-          {album.data.canEdit && meta?.enabled ? <Menu
+        {album.data ? (
+          <AlbumDetailHeader
+            album={album.data}
+            usedSlots={album.data.canEdit && meta?.enabled ? meta.usedSlots : undefined}
+            actions={album.data.canEdit && meta?.enabled ? (
+              <Menu
             visible={actionsOpen}
             onDismiss={() => setActionsOpen(false)}
             contentStyle={styles.albumActionsMenu}
@@ -181,8 +180,10 @@ export function GalleryAlbumScreen() {
             }} />
             <Menu.Item leadingIcon="delete-outline" title="Удалить альбом" titleStyle={styles.albumDeleteText} disabled={deleting}
               onPress={() => { setActionsOpen(false); remove(); }} />
-          </Menu> : null}
-        </View> : null}
+              </Menu>
+            ) : null}
+          />
+        ) : null}
         {meta?.enabled === false ? <Text style={s.text}>Галерея пока недоступна.</Text> : null}
         {album.data?.canEdit && meta?.enabled ? <>
           <UploadControls owner={owner} albumId={albumId} usedSlots={meta.usedSlots} minimal />
@@ -239,29 +240,23 @@ export function GalleryAlbumScreen() {
 }
 const styles = StyleSheet.create({
   albumNavigation: {
-    position: "relative",
     minHeight: 52,
     paddingHorizontal: 16,
     paddingBottom: 8,
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
   },
   albumNavigationTitle: {
-    position: "absolute",
-    left: 132,
-    right: 132,
-    bottom: 19,
+    flexShrink: 1,
     fontFamily: FONTS.montserratMedium,
     fontSize: 16,
     lineHeight: 22,
     includeFontPadding: false,
     color: COLORS.text,
-    textAlign: "center",
   },
   albumList: { gap: 8 },
   albumHeader: { gap: 8, marginBottom: 4 },
-  albumToolbar: { flexDirection: "row", alignItems: "center", minHeight: 44, gap: 8 },
-  albumMeta: { flex: 1, fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 18, color: COLORS.textSecondary },
   albumMore: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: COLORS.cardBackground },
   albumActionsMenu: { backgroundColor: COLORS.cardBackground },
   albumDeleteText: { color: "#A53825" },

@@ -17,7 +17,7 @@ function getExtra(key: string): string | undefined {
 }
 
 function getAppVersion(): string {
-  return getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ?? getExtra("appVersion") ?? "1.7.0";
+  return getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ?? getExtra("appVersion") ?? "1.7.1";
 }
 
 function isEnableFlag(): boolean {

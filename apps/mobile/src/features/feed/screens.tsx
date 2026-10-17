@@ -2,7 +2,7 @@ import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
 import { publicationPhaseLabel, type PublicationItem } from "@gafus/core/services/feed/publication-client";
 import { mobileFeedPublications } from "./publication";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ActivityIndicator, Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { CdnImage } from "@/shared/components/media/CdnImage";
 import { StatusBar } from "expo-status-bar";
@@ -19,6 +19,7 @@ import {
   type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto, type FeedSort, type FeedImpressionInput,
 } from "@gafus/types";
 import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
+import { FeedPublicationMascot } from "./FeedPublicationMascot";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { Button } from "@/shared/components";
@@ -335,7 +336,9 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
     queryKey: ["feed", "pending", ownerId],
     queryFn: () => feedApi.listPendingPosts(),
     enabled: !!ownerId,
-    refetchInterval: 20_000,
+    // Resume cards quickly while something is processing, without polling
+    // inactive accounts every 5 seconds forever.
+    refetchInterval: query => query.state.data?.items.some(post => post.status === "pending") ? 5_000 : 20_000,
   });
   const recovered = (pending.data?.items ?? [])
     .filter(post => !local.some(item => item.postId === post.id));
@@ -345,9 +348,9 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
       <View style={s.publicationMedia}>
         {item.previewUri && <Image source={{ uri: item.previewUri }} style={s.publicationPreview}
           contentFit="cover" />}
-        {(item.phase === "uploading" || item.phase === "processing") &&
-          <ActivityIndicator size="small" color={COLORS.primary}
-            accessibilityLabel="Обрабатываем публикацию" />}
+        {(item.phase === "uploading" || item.phase === "processing") && (
+          <FeedPublicationMascot />
+        )}
       </View>
       <View style={s.publicationBody} accessibilityLiveRegion="polite">
         <Text style={s.publicationTitle}>{publicationPhaseLabel(item)}</Text>
@@ -367,7 +370,17 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
     {recovered.map(post => <Pressable key={post.id} style={s.publicationCard}
       accessibilityRole="button" accessibilityLabel="Продолжить незавершённую публикацию"
       onPress={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)}>
-      <MaterialCommunityIcons name="file-document-edit-outline" size={26} color={COLORS.primary} />
+      <View style={s.publicationMedia}>
+        {post.status === "pending" ? (
+          <FeedPublicationMascot />
+        ) : (
+          <MaterialCommunityIcons
+            name="file-document-edit-outline"
+            size={26}
+            color={COLORS.primary}
+          />
+        )}
+      </View>
       <View style={s.publicationBody}>
         <Text style={s.publicationTitle}>{post.status === "pending"
           ? "Обрабатываем публикацию…" : post.status === "failed"
@@ -871,12 +884,32 @@ export function FeedComposeScreen() {
         </View>}
         {albumPhotoIds.length > 0 && !albumsOpen &&
           <Text style={s.composeAlbumCount}>Из альбомов: {albumPhotoIds.length} фото</Text>}
-        {albumsOpen && <FeedAlbumPicker selected={albumPhotoIds} disabled={busy} onChange={ids => {
-          if (ids.length + picked.length + existingMediaIds.length > FEED_LIMITS.maxAttachments) {
-            Alert.alert("Слишком много вложений", "Максимум 10 вложений."); return;
-          }
-          setAlbumPhotoIds(ids);
-        }} />}
+        {albumsOpen && (
+          <FeedAlbumPicker
+            selected={albumPhotoIds}
+            maxSelectable={Math.max(
+              0,
+              FEED_LIMITS.maxAttachments -
+                picked.length -
+                existingMediaIds.length -
+                (poll?.options.filter(option => option.imageAsset).length ?? 0),
+            )}
+            disabled={busy}
+            onChange={ids => {
+              if (
+                ids.length +
+                  picked.length +
+                  existingMediaIds.length +
+                  (poll?.options.filter(option => option.imageAsset).length ?? 0) >
+                FEED_LIMITS.maxAttachments
+              ) {
+                Alert.alert("Слишком много вложений", "Максимум 10 вложений.");
+                return;
+              }
+              setAlbumPhotoIds(ids);
+            }}
+          />
+        )}
         {!isEditing && status.data?.enabled && <FeedPollComposer value={poll} onChange={setPoll} disabled={busy}
           onPickImage={index => void choosePollImage(index)} onRemoveImage={removePollImage} />}
         {isEditing && original.data?.hasPoll && <Text style={s.composeAlbumCount}>

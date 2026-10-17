@@ -16,7 +16,7 @@ const logger = createWebLogger("admin-mobile-release-control");
 const semverSchema = z
   .string()
   .trim()
-  .regex(/^\d+\.\d+\.\d+$/, "Версия должна быть в формате 1.7.0")
+  .regex(/^\d+\.\d+\.\d+$/, "Версия должна быть в формате 1.7.1")
   .nullable();
 const featureValuesSchema = z.object({
   vkLogin: z.boolean(),

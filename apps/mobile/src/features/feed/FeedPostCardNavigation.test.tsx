@@ -105,6 +105,9 @@ vi.mock("@/shared/lib/api/feed", () => ({
     removePostReaction: mocks.removeReaction,
   },
 }));
+vi.mock("./FeedPublicationMascot", () => ({
+  FeedPublicationMascot: () => <div data-testid="publication-mascot" />,
+}));
 vi.mock("./FeedPostActions", () => ({
   FeedPostActions: () => (
     <div data-testid="menu" onClick={(event) => event.stopPropagation()}>

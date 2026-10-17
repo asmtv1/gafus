@@ -97,7 +97,7 @@ Config plugin `apps/mobile/plugins/withAppTracerNative.js` при `expo prebuild
 
 - Android: Gradle plugin `ru.ok.tracer` 1.4.0, Java/Kotlin crash, NDK crash, ANR, crash-free, сохранение предыдущего log buffer и рекомендуемый non-fatal rate limit; release build загружает mapping и native symbols.
 - Android-загрузка mapping/native symbols работает в строгом режиме: ошибка отправки останавливает release build. Не включайте `dontFailOnUploadFailure` для обхода ошибки, если требуется гарантировать загрузку символов. Для диагностики отдельно запустите `./gradlew :app:generateTracerNativeSymbolsForRelease --info --console=plain` из `apps/mobile/android`; сохраните каталог `app/build/tracer` перед очисткой сборки. См. [параметры AppTracer](https://apptracer.ru/doc/android/config/).
-- iOS: pod `OKTracer` 1.4.0, crash reporter, очередь non-fatal и MetricKit (hang/CPU/disk/launch/crash/watchdog/deadlock); Release Archive загружает dSYM отдельной Xcode build phase.
+- iOS: pod `OKTracer` 1.5.2, crash reporter, очередь non-fatal и MetricKit (hang/CPU/disk/launch/crash/watchdog/deadlock); Release Archive загружает dSYM отдельной Xcode build phase.
 
 Каталоги `android/` и `ios/` генерируются и не редактируются вручную. Изменение native SDK требует новой Android/iOS-сборки; OTA update недостаточно.
 
@@ -109,12 +109,12 @@ AppTracer сопоставляет source maps по `versionName` и пути ф
 pnpm --filter @gafus/mobile update:ota:production -- --message "описание"
 ```
 
-Команда сначала получает маскируемый `TRACER_SOURCEMAP_TOKEN_MOBILE` через `eas env:exec`, затем вызывает `eas update --emit-metadata --json`, извлекает отдельные iOS/Android update ID и загружает `dist/**/*.map` для каждой версии вида `1.7.0-ota.<12 символов updateId>`. Runtime отправляет в AppTracer ровно такой же `versionName`.
+Команда сначала получает маскируемый `TRACER_SOURCEMAP_TOKEN_MOBILE` через `eas env:exec`, затем вызывает `eas update --emit-metadata --json`, извлекает отдельные iOS/Android update ID и загружает `dist/**/*.map` для каждой версии вида `1.7.1-ota.<12 символов updateId>`. Runtime отправляет в AppTracer ровно такой же `versionName`.
 
 Для ручной загрузки карты embedded build:
 
 ```bash
-TRACER_SOURCEMAP_VERSION_NAME=1.7.0-build.15 \
+TRACER_SOURCEMAP_VERSION_NAME=1.7.1-build.16 \
 TRACER_SOURCEMAP_VERSION_CODE=14 \
 pnpm --filter @gafus/mobile tracer:sourcemaps
 ```
