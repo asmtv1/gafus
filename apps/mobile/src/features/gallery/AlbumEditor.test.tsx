@@ -154,7 +154,8 @@ describe("AlbumEditor", () => {
     expect(cancel).toBeDefined();
     expect(cancel?.getAttribute("data-variant")).toBe("secondary");
     expect(host.querySelector('[aria-label="Закрыть"]')).toBeNull();
-    expect(save?.compareDocumentPosition(cancel!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    if (!save || !cancel) throw new Error("Save and Cancel buttons must exist");
+    expect(save.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await click("Отмена");
     expect(mocks.close).toHaveBeenCalledOnce();
     expect(mocks.createAlbum).not.toHaveBeenCalled();

@@ -14,7 +14,7 @@ vi.mock("react-native", () => ({
   }) => <div role={accessibilityRole} aria-label={accessibilityLabel}>{children}</div>,
 }));
 vi.mock("@/shared/components/ui/LoadingMascot", () => ({
-  LoadingMascot: ({ size }: { size: number }) => (
+  LoadingMascot: ({ size = 168 }: { size?: number }) => (
     <div data-mascot-size={size} data-loader="dog" />
   ),
 }));
@@ -35,12 +35,12 @@ afterEach(async () => {
 });
 
 describe("Moments publication pending loader", () => {
-  it("uses the shared dog instead of a spinner at a size fitting the queue thumbnail", async () => {
+  it("uses the standard shared dog instead of a spinner", async () => {
     await act(async () => root.render(<FeedPublicationMascot />));
     expect(host.querySelector('[role="progressbar"]')?.getAttribute("aria-label"))
       .toBe("Обрабатываем публикацию");
     expect(host.querySelector('[data-loader="dog"]')?.getAttribute("data-mascot-size"))
-      .toBe("76");
+      .toBe("168");
     expect(host.querySelector("svg, progress")).toBeNull();
   });
 });
