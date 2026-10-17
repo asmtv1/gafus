@@ -8,6 +8,14 @@ on:
         type: boolean
         required: true
         default: false
+      target:
+        description: "Isolated image target (questions never deploys or modifies Feed/Gallery)"
+        type: choice
+        required: true
+        default: existing
+        options:
+          - existing
+          - questions
 
 permissions:
   contents: read
@@ -30,17 +38,16 @@ jobs:
         run: pnpm test:cloudru-media
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
+      - name: Validate isolated Questions worker types
+        if: ${{ inputs.target == 'questions' }}
+        run: pnpm exec tsc -p apps/questions-cloud/tsconfig.json
   build:
     needs: verify-media-contracts
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { media: feed, role: worker, dockerfile: Dockerfile }
-          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
-          - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
+        include: ${{ fromJSON(inputs.target == 'questions' && '[{"media":"questions","role":"worker","dockerfile":"Dockerfile"}]' || '[{"media":"feed","role":"worker","dockerfile":"Dockerfile"},{"media":"feed","role":"origin","dockerfile":"Dockerfile.origin"},{"media":"gallery","role":"worker","dockerfile":"Dockerfile"},{"media":"gallery","role":"origin","dockerfile":"Dockerfile.origin"}]') }}
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3

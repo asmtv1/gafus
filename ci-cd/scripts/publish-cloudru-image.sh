@@ -9,7 +9,7 @@ dockerfile="${3:?dockerfile is required}"
 revision="${4:?revision is required}"
 
 case "${media}:${role}:${dockerfile}" in
-  gallery:origin:Dockerfile.origin|feed:origin:Dockerfile.origin|gallery:worker:Dockerfile|feed:worker:Dockerfile) ;;
+  gallery:origin:Dockerfile.origin|feed:origin:Dockerfile.origin|gallery:worker:Dockerfile|feed:worker:Dockerfile|questions:worker:Dockerfile) ;;
   *) echo "Invalid Cloud.ru image selector" >&2; exit 2 ;;
 esac
 if [[ ! "${revision}" =~ ^[0-9a-f]{40}$ ]]; then
