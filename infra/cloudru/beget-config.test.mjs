@@ -50,7 +50,8 @@ describe('existing production CDN secret reuse', () => {
     assert.match(script, /GALLERY_CDN_PROVIDER=beget/);
     assert.match(script, /FEED_CDN_PROVIDER=beget/);
     assert.match(script, /https:\/\/mepsuduyokabib.begetcdn.cloud/);
-    assert.match(script, /https:\/\/garaquachegasourn.begetcdn.cloud/);
+    assert.match(script, /https:\/\/quepraquiecebquomiel.begetcdn.cloud/);
+    assert.doesNotMatch(script, /echo \"FEED_CDN_BASE_URL=https:\/\/garaquachegasourn.begetcdn.cloud\"/);
   });
   it('does not allow Yandex CDN defaults in Gallery/Feed runtime Compose', () => {
     for (const [serviceName, svc] of Object.entries(compose.services)) {

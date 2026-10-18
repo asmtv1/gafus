@@ -36,3 +36,5 @@ export {
   FEED_PROCESSING_QUEUE_NAME,
 } from "./feed-processing-queue.js";
 export type { FeedProcessingJobData, FeedProcessingKind } from "./feed-processing-queue.js";
+
+export { questionsProcessingQueue, enqueueQuestionsProcessing, QUESTIONS_PROCESSING_QUEUE_NAME } from "./questions-processing-queue.js";

@@ -1,6 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
 import { isCdnOutage, isMediaCdnFailoverActive, isSignedCdnFailoverActive, MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, probeHlsCdnOutage, cloudruFallbackManifestUrl, isTrustedCdnProbeUrl, mediaCdnKindFromSignedUrl } from './index';
 describe('CDN fail-closed transport fallback policy', () => {
+  it('public Feed CDN requires exact dedicated host and final paths', () => {
+    const previousMode = process.env.FEED_BUCKET_PUBLIC;
+    const previousHost = process.env.FEED_CDN_BASE_URL;
+    try {
+      process.env.FEED_BUCKET_PUBLIC = 'true';
+      process.env.FEED_CDN_BASE_URL = 'https://new-feed.begetcdn.cloud';
+      const url = 'https://new-feed.begetcdn.cloud/posts/a/b/attachments/c/thumb.webp';
+      expect(mediaCdnKindFromSignedUrl(url)).toBe('feed');
+      expect(isTrustedCdnProbeUrl(url, ['new-feed.begetcdn.cloud'])).toBe(true);
+      for (const bad of [url + '?token=x', url.replace('/attachments/', '/incoming/'),
+        url.replace('thumb.webp', 'source.mp4'), url.replace('new-feed.begetcdn.cloud', 'evil.test')]) {
+        expect(mediaCdnKindFromSignedUrl(bad)).toBeNull();
+        expect(isTrustedCdnProbeUrl(bad, ['new-feed.begetcdn.cloud'])).toBe(false);
+      }
+      process.env.FEED_BUCKET_PUBLIC = 'false';
+      expect(mediaCdnKindFromSignedUrl(url)).toBeNull();
+    } finally {
+      if (previousMode === undefined) delete process.env.FEED_BUCKET_PUBLIC;
+      else process.env.FEED_BUCKET_PUBLIC = previousMode;
+      if (previousHost === undefined) delete process.env.FEED_CDN_BASE_URL;
+      else process.env.FEED_CDN_BASE_URL = previousHost;
+    }
+  });
   it('never bypasses 403/404 or any known non-5xx response', () => {
     for (const status of [200, 204, 301, 400, 401, 403, 404, 429])
       expect(isCdnOutage({ status, timedOut: true, networkFailed: true })).toBe(false);

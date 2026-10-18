@@ -14,7 +14,8 @@ function storage() {
   if (endpoint === "https://s3.cloud.ru" && process.env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true")
     throw new Error("PRIVATE_VET_CDN_EDGE_UNVERIFIED");
   const base = process.env.GALLERY_CDN_BASE_URL ?? "";
-  const secret = process.env.GALLERY_CDN_SECRET ?? "";
+  const secret = (process.env.GALLERY_CDN_REDIRECT_ENABLED === "true"
+    ? process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : process.env.GALLERY_CDN_SECRET) ?? "";
   // Never fall back to the public uploads bucket, including when the gallery product is disabled.
   if (
     !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(bucket) ||
@@ -35,7 +36,8 @@ function storage() {
     url.hash ||
     url.username ||
     url.password ||
-    url.hostname !== "mepsuduyokabib.begetcdn.cloud"
+    url.hostname !== (process.env.GALLERY_CDN_REDIRECT_ENABLED === "true"
+      ? "dikinuneceswe.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
   return {
@@ -108,7 +110,9 @@ export async function uploadVetVisitFile(
         Key: key,
         Body: body,
         ContentType: contentType,
-        CacheControl: "private, no-store",
+        CacheControl: key === keys.previewKey && process.env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true"
+          && process.env.GALLERY_CDN_EDGE_TOKEN_VERIFIED === "true"
+          ? "public, max-age=180, s-maxage=600, must-revalidate" : "private, no-store",
         ContentMD5: createHash("md5").update(body).digest("base64"),
         ...(config.endpoint === "https://s3.cloud.ru" ? { IfNoneMatch: "*" } : {}),
       }),

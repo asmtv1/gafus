@@ -29,7 +29,13 @@ jobs:
       CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
       CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      # Use the same public Feed CDN as the push and reusable deploy workflows.
+      FEED_BUCKET_PUBLIC: 'true'
+      FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
+      FEED_BEGET_CDN_SERVICE_ID: cbb7fe86-a193-457e-a756-9cf3aa2aef1b
       BEGET_PERMANENT_SMOKE_CONFIRM: ${{ inputs.confirmation }}
       BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
       BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
@@ -66,5 +72,5 @@ jobs:
       - name: Create only two permanent test objects
         if: inputs.action == 'provision'
         run: node infra/cloudru/beget-provision-readonly-smoke.mjs --run
-      - name: Read-only signed CDN smoke on BOTH final objects
+      - name: Verify private Gallery and public Feed final CDN objects (read-only)
         run: node infra/cloudru/beget-production-smoke.mjs

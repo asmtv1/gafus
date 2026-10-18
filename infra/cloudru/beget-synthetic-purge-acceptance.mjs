@@ -12,12 +12,19 @@ import { S3Client, PutObjectCommand, HeadObjectCommand, HeadBucketCommand, Delet
 const mode = process.argv[2] ?? '--plan';
 if (!['--plan', '--run'].includes(mode) || process.argv.length > 3)
   throw Error('UNSUPPORTED_ACCEPTANCE_ACTION');
+const publicFeed = process.env.FEED_BUCKET_PUBLIC === 'true';
+if (process.env.FEED_BUCKET_PUBLIC !== undefined &&
+    !['true', 'false'].includes(process.env.FEED_BUCKET_PUBLIC))
+  throw Error('SYNTHETIC_PUBLIC_FEED_FLAG_INVALID');
+const publicFeedHost = process.env.FEED_CDN_BASE_URL ?? '';
+const publicFeedServiceId = process.env.FEED_BEGET_CDN_SERVICE_ID ?? '';
 const scopes = [
   { name: 'gallery', bucket: 'gafus-gallery-private',
     host: 'mepsuduyokabib.begetcdn.cloud', serviceId: '0a8e97d5-3a65-4e90-99a6-c7f61131a461',
     key: id => `albums/beget-probe-${id}/beget-probe-${id}/photos/${id}/full.webp` },
   { name: 'feed', bucket: 'gafus-feed-private',
-    host: 'garaquachegasourn.begetcdn.cloud', serviceId: 'becd9e5d-4fa8-47da-878c-9b80ded74e71',
+    host: publicFeed ? publicFeedHost.replace(/^https:\/\//, '') : 'garaquachegasourn.begetcdn.cloud',
+    serviceId: publicFeed ? publicFeedServiceId : 'becd9e5d-4fa8-47da-878c-9b80ded74e71',
     key: id => `posts/beget-probe-${id}/beget-probe-${id}/attachments/${id}/poster.webp` },
 ];
 if (mode === '--plan') {
@@ -36,13 +43,19 @@ if (env.BEGET_SYNTHETIC_PURGE_CONFIRM !== 'approved-two-disposable-production-we
   throw Error('SYNTHETIC_ACCEPTANCE_NOT_AUTHORIZED');
 for (const name of [
   'CLOUDRU_S3_ACCESS_KEY_ID','CLOUDRU_S3_SECRET_ACCESS_KEY','BEGET_CDN_API_TOKEN',
-  'GALLERY_CDN_SECRET','FEED_CDN_SECRET',
+  'GALLERY_CDN_SECRET', ...(!publicFeed ? ['FEED_CDN_SECRET'] : []),
 ]) if (!env[name] || env[name].length < 16) throw Error('SYNTHETIC_ACCEPTANCE_MISSING_' + name);
+if (publicFeed && (!/^https:\/\/[a-z0-9-]+\.begetcdn\.cloud$/.test(publicFeedHost) ||
+    publicFeedHost === 'https://garaquachegasourn.begetcdn.cloud' ||
+    !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(publicFeedServiceId) ||
+    publicFeedServiceId === 'becd9e5d-4fa8-47da-878c-9b80ded74e71'))
+  throw Error('SYNTHETIC_PUBLIC_FEED_NOT_CONFIGURED');
 for (const scope of scopes) {
   if (env[`${scope.name.toUpperCase()}_BEGET_CDN_SERVICE_ID`] !== scope.serviceId)
     throw Error('SYNTHETIC_ACCEPTANCE_BAD_SERVICE_ID_' + scope.name);
   const secret = env[`${scope.name.toUpperCase()}_CDN_SECRET`];
-  if (!(scope.name === 'gallery' ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret))
+  if (!(scope.name === 'feed' && publicFeed) &&
+      !(scope.name === 'gallery' ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret))
     throw Error('SYNTHETIC_ACCEPTANCE_BAD_SIGNER_' + scope.name);
 }
 const e2eRequire = createRequire(new URL('../../apps/gallery-cloud/package.json',import.meta.url));
@@ -59,6 +72,7 @@ const request = async (url, method='GET', extra={}) => fetch(url, {
 });
 const signed = (scope, key, expires) => {
   const path = '/' + key;
+  if (scope.name === 'feed' && publicFeed) return `https://${scope.host}${path}`;
   const secret = env[`${scope.name.toUpperCase()}_CDN_SECRET`];
   const signature = createHash('md5').update(`${secret}${path}${expires}`).digest('base64url');
   return `https://${scope.host}/md5(${signature},${expires})${path}`;
@@ -120,11 +134,14 @@ for (const scope of scopes) {
     uploadAttempted=true;
     const put=await client.send(new PutObjectCommand({
       Bucket:scope.bucket,Key:key,Body:synthetic,
-      ContentType:'image/webp',CacheControl:'private, max-age=180, must-revalidate',IfNoneMatch:'*',
+      ContentType:'image/webp',CacheControl:scope.name === 'feed' && publicFeed
+        ? 'public, max-age=180, s-maxage=86400, must-revalidate'
+        : 'private, max-age=180, must-revalidate',IfNoneMatch:'*',
     }),{abortSignal:AbortSignal.timeout(20_000)});
     if(put.$metadata.httpStatusCode!==200) throw Error('SYNTHETIC_PUT_REJECTED_'+scope.name);
     uploaded=true;
     const now=Math.floor(Date.now()/1000);
+    if (!(scope.name === 'feed' && publicFeed)) {
     const unsigned=await request(`https://${scope.host}/${key}`,'HEAD');
     if (![403,410].includes(unsigned.status)) throw Error('SYNTHETIC_UNSIGNED_NOT_REJECTED_'+scope.name);
     void unsigned.body?.cancel();
@@ -134,6 +151,7 @@ for (const scope of scopes) {
     const forged=await request(signed(scope,key,now+240).replace(/md5\([A-Za-z0-9_-]{22}/,`md5(${'A'.repeat(22)}`),'HEAD');
     if (![403,410].includes(forged.status)) throw Error('SYNTHETIC_FORGED_NOT_REJECTED_'+scope.name);
     void forged.body?.cancel();
+    }
     const url=signed(scope,key,now+240);
     const get=await request(url); await expectHttp(get,200,scope,'GET');
     edgeFetched=true;
@@ -141,7 +159,9 @@ for (const scope of scopes) {
     if (!body.equals(synthetic)||!get.headers.get('content-type')?.includes('image/webp'))
       throw Error('SYNTHETIC_EDGE_BYTES_OR_MIME_INVALID_'+scope.name);
     const cacheControl=get.headers.get('cache-control')??'';
-    const expectedCacheControl='private, max-age=180, must-revalidate';
+    const expectedCacheControl=scope.name === 'feed' && publicFeed
+      ? 'public, max-age=180, s-maxage=86400, must-revalidate'
+      : 'private, max-age=180, must-revalidate';
     const cachePolicyMatched=cacheControl===expectedCacheControl;
     let hot=false;
     const cacheStates=[];

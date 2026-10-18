@@ -65,6 +65,25 @@ describe('private CDN and configuration',()=>{
     expect(() => signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',
       'albums/o/a/incoming/x/source.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
   });
+  it('allows only the verified new CDN host under an explicit redirect flag', () => {
+    const base = { GALLERY_ENABLED: 'true', GALLERY_PROCESSOR_READY: 'true',
+      GALLERY_BUCKET: 'gafus-gallery-private', GALLERY_S3_ENDPOINT: 'https://s3.cloud.ru',
+      GALLERY_S3_ACCESS_KEY_ID: 'test', GALLERY_S3_SECRET_ACCESS_KEY: 'test',
+      GALLERY_CDN_BASE_URL: 'https://dikinuneceswe.begetcdn.cloud', GALLERY_CDN_SECRET: secret,
+      GALLERY_CDN_PROVIDER: 'beget', GALLERY_CDN_EDGE_TOKEN_VERIFIED: 'true',
+      GALLERY_INTERNAL_BASE_URL: 'https://api.gafus.ru', GALLERY_INTERNAL_HMAC_SECRET: secret,
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'V'.repeat(64), GALLERY_CDN_REDIRECT_ENABLED: 'true',
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true',
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'K'.repeat(32) };
+    expect(galleryStorageConfigFromEnv(base).cdnRedirectEnabled).toBe(true);
+    const url=signGalleryCdnUrl(base.GALLERY_CDN_BASE_URL,key,new Date((timestamp+120)*1000),secret,timestamp*1000,'beget',true);
+    expect(url).toContain('dikinuneceswe.begetcdn.cloud/md5(');
+    expect(() => galleryStorageConfigFromEnv({ ...base, GALLERY_CDN_BASE_URL: 'https://evil.begetcdn.cloud' })).toThrow('UNSAFE_CDN_URL');
+    expect(() => galleryStorageConfigFromEnv({ ...base, GALLERY_CDN_REDIRECT_ORIGIN_SECRET: '' })).toThrow('GALLERY_CDN_ORIGIN_NOT_VERIFIED');
+    expect(() => galleryStorageConfigFromEnv({ ...base, GALLERY_CDN_REDIRECT_ENABLED: 'false' })).toThrow('UNSAFE_CDN_URL');
+    expect(() => galleryStorageConfigFromEnv({ ...base, GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'false' })).toThrow('GALLERY_CDN_REDIRECT_REQUIRES_ORIGIN');
+    expect(() => signGalleryCdnUrl(base.GALLERY_CDN_BASE_URL,key,new Date((timestamp+120)*1000),secret,timestamp*1000)).toThrow('CDN_PROVIDER_MISMATCH');
+  });
   it('disabled HEAD without credentials cannot prove deletion',async()=>{
     const storage=createGalleryStorageFromEnv({GALLERY_ENABLED:'false'});
     expect(storage.enabled).toBe(false); await expect(storage.head(key)).rejects.toThrow('MISSING_GALLERY_STORAGE');

@@ -149,6 +149,12 @@ afterAll(async () => {
         storagePath: `questions/${other}/borrowed-cloud.jpg`,
       },
     });
+    const publicQuestion = `cloudru:questions-public:questions/uploads/questions/${owner}/new-photo.webp`;
+    await db.questionPhoto.create({
+      data: {
+        ownerId: owner, storagePath: publicQuestion, url: publicQuestion,
+      },
+    });
     const interruptedCloudQuestion = `cloudru:questions:questions/uploads/questions/${owner}/unconfirmed.webp`;
     await db.questionPhoto.create({
       data: {
@@ -227,6 +233,7 @@ afterAll(async () => {
         "gallery",
         "public",
         "questions",
+        "questions-public",
         "stream",
       ]);
       expect(jobs.find((x) => x.scope === "gallery")?.keys).toEqual(
@@ -246,6 +253,7 @@ afterAll(async () => {
         ]),
       );
       expect(jobs.find((x) => x.scope === "questions")?.keys).toContain(cloudQuestion);
+      expect(jobs.find((x) => x.scope === "questions-public")?.keys).toContain(publicQuestion);
       expect(jobs.find((x) => x.scope === "questions")?.keys).toContain(interruptedCloudQuestion);
       expect(jobs.find((x) => x.scope === "documents")?.keys).toContain(cloudDocument);
       expect(jobs.find((x) => x.scope === "public")?.keys).not.toContain(cloudDocument);

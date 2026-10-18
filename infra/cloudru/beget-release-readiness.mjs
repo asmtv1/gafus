@@ -8,6 +8,11 @@
 const mode = process.argv[2] ?? '--plan';
 if (!['--plan', '--check'].includes(mode) || process.argv.length > 3)
   throw Error('BEGET_INVALID_RELEASE_ACTION');
+const publicFeed = process.env.FEED_BUCKET_PUBLIC === 'true';
+const galleryRedirect = process.env.GALLERY_CDN_REDIRECT_ENABLED === 'true';
+const originRoute = process.env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED === 'true';
+if (process.env.FEED_BUCKET_PUBLIC !== undefined && !['true', 'false'].includes(process.env.FEED_BUCKET_PUBLIC))
+  throw Error('BEGET_FEED_PUBLIC_FLAG_INVALID');
 const requiredVars = {
   GAFUS_MEDIA_CDN_TARGET: 'beget',
   BEGET_CDN_RELEASE_CONFIRM: 'reviewed-gallery-feed-beget-cutover',
@@ -15,11 +20,14 @@ const requiredVars = {
   BEGET_CDN_CACHE_KEY_VERIFIED: 'true',
   BEGET_CDN_PURGE_PROPAGATION_VERIFIED: 'true',
   BEGET_CDN_LIVE_SMOKE_VERIFIED: 'true',
-  GALLERY_BEGET_CDN_SERVICE_ID: '0a8e97d5-3a65-4e90-99a6-c7f61131a461',
-  FEED_BEGET_CDN_SERVICE_ID: 'becd9e5d-4fa8-47da-878c-9b80ded74e71',
+  GALLERY_BEGET_CDN_SERVICE_ID: galleryRedirect ? '10530e64-21b7-4352-8366-806c79c2f1b7' : '0a8e97d5-3a65-4e90-99a6-c7f61131a461',
+  ...(galleryRedirect ? { GALLERY_CDN_PURGE_DUAL_ENABLED: 'true', GALLERY_CDN_METADATA_MIGRATED: 'true',
+    GALLERY_CDN_BROWSER_CACHE_VERIFIED: 'true' } : {}),
+  ...(!publicFeed ? { FEED_BEGET_CDN_SERVICE_ID: 'becd9e5d-4fa8-47da-878c-9b80ded74e71' } : {}),
 };
-const requiredKeys = ['GALLERY_CDN_SECRET', 'FEED_CDN_SECRET',
-  'GALLERY_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET', 'BEGET_CDN_API_TOKEN'];
+const requiredKeys = ['GALLERY_CDN_SECRET', 'GALLERY_ORIGIN_SECRET', 'BEGET_CDN_API_TOKEN',
+  ...(originRoute ? ['GALLERY_CDN_REDIRECT_SIGNING_SECRET', 'GALLERY_CDN_REDIRECT_ORIGIN_SECRET'] : []),
+  ...(!publicFeed ? ['FEED_CDN_SECRET', 'FEED_ORIGIN_SECRET'] : [])];
 const fixtures = [
   ['BEGET_GALLERY_SMOKE_FINAL_KEY', 'BEGET_GALLERY_SMOKE_SHA256',
     /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/],
@@ -28,7 +36,7 @@ const fixtures = [
 ];
 if (mode === '--plan') {
   console.log(JSON.stringify({mode, mutates: false, provider: 'beget-only',
-    storage: 'private-cloudru-s3', checks: [
+    storage: publicFeed ? 'public-final-feed-cloudru-s3' : 'private-cloudru-s3', checks: [
       'approved-production-vars', 'existing-production-secrets-not-rotated',
       'purge-token-and-verified-beget-service-ids',
       'read-only-smoke-final-object-keys-and-digests',
@@ -39,17 +47,34 @@ if (mode === '--plan') {
 if (process.env.GITHUB_REF !== 'refs/heads/main' ||
     process.env.GITHUB_EVENT_NAME !== 'push' && process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch')
   throw Error('BEGET_RELEASE_BRANCH_UNAUTHORIZED');
+if (galleryRedirect && !originRoute) throw Error('BEGET_GALLERY_REDIRECT_REQUIRES_ORIGIN_CANARY');
 for (const [name, expected] of Object.entries(requiredVars))
   if (process.env[name] !== expected) throw Error(`BEGET_RELEASE_GATE_MISSING_${name}`);
+if (galleryRedirect && process.env.GALLERY_MOBILE_COMPAT_VERIFIED !== 'true' &&
+    process.env.GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED !== 'true')
+  throw Error('BEGET_GALLERY_MOBILE_TEST_NOT_APPROVED');
 for (const name of requiredKeys)
   if (!process.env[name]) throw Error(`BEGET_RELEASE_SECRET_MISSING_${name}`);
 if (!/^[A-Za-z0-9_-]{24,128}$/.test(process.env.GALLERY_CDN_SECRET))
   throw Error('BEGET_GALLERY_SIGNING_FORMAT_INVALID');
-if (!/^[A-Za-z0-9_-]{24,32}$/.test(process.env.FEED_CDN_SECRET))
+if (originRoute && (!/^[A-Za-z0-9]{24,128}$/.test(process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET) ||
+    !/^[A-Za-z0-9]{32,128}$/.test(process.env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET)))
+  throw Error('BEGET_GALLERY_ORIGIN_ROUTE_NOT_READY');
+if (galleryRedirect && process.env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED !== 'true')
+  throw Error('BEGET_GALLERY_REDIRECT_NOT_READY');
+if (!publicFeed && !/^[A-Za-z0-9_-]{24,32}$/.test(process.env.FEED_CDN_SECRET))
   throw Error('BEGET_FEED_SIGNING_FORMAT_INVALID');
-for (const name of ['GALLERY_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET'])
+for (const name of ['GALLERY_ORIGIN_SECRET', ...(!publicFeed ? ['FEED_ORIGIN_SECRET'] : [])])
   if (Buffer.byteLength(process.env[name], 'utf8') < 32)
     throw Error('BEGET_ORIGIN_SECRET_FORMAT_INVALID_' + name);
+if (publicFeed) {
+  const cdnHost = process.env.FEED_CDN_BASE_URL ?? '';
+  const serviceId = process.env.FEED_BEGET_CDN_SERVICE_ID ?? '';
+  if (cdnHost !== 'https://quepraquiecebquomiel.begetcdn.cloud' ||
+      serviceId !== 'cbb7fe86-a193-457e-a756-9cf3aa2aef1b' ||
+      process.env.FEED_CDN_HEALTH_OBJECT_KEY !== process.env.BEGET_FEED_SMOKE_FINAL_KEY)
+    throw Error('BEGET_PUBLIC_FEED_CDN_NOT_VERIFIED');
+}
 if (process.env.BEGET_CDN_API_TOKEN.length < 24)
   throw Error('BEGET_PURGE_API_CREDENTIAL_INVALID');
 for (const [key, digest, pattern] of fixtures) {
@@ -59,4 +84,4 @@ for (const [key, digest, pattern] of fixtures) {
       !/^[0-9a-f]{64}$/.test(process.env[digest] ?? ''))
     throw Error(`BEGET_SMOKE_FIXTURE_MISSING_${key}`);
 }
-console.log('BEGET_ONLY_READINESS=PASS (signed CDN/Origin read-only smoke still required)');
+console.log('BEGET_ONLY_READINESS=PASS (read-only Gallery/Feed CDN smoke still required)');

@@ -39,9 +39,11 @@ jobs:
       CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      FEED_BUCKET_PUBLIC: 'true'
+      FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
       BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
       GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-      FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+      FEED_BEGET_CDN_SERVICE_ID: cbb7fe86-a193-457e-a756-9cf3aa2aef1b
       BEGET_SYNTHETIC_PURGE_CONFIRM: ${{ inputs.confirmation }}
     steps:
       - name: Check main-only dispatch and explicit mutation approval

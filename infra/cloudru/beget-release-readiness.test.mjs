@@ -42,6 +42,25 @@ test('valid placeholder environment passes config ONLY; never accesses network',
   for (const secret of [valid.GALLERY_CDN_SECRET,valid.FEED_CDN_SECRET,valid.BEGET_CDN_API_TOKEN])
     assert.doesNotMatch(result.stdout, new RegExp(secret));
 });
+test('public Feed requires a new verified CDN host/service but no legacy Feed signing secrets', () => {
+  const config = {
+    FEED_BUCKET_PUBLIC: 'true', FEED_CDN_BASE_URL: 'https://quepraquiecebquomiel.begetcdn.cloud',
+    FEED_BEGET_CDN_SERVICE_ID: 'cbb7fe86-a193-457e-a756-9cf3aa2aef1b',
+    FEED_CDN_HEALTH_OBJECT_KEY: valid.BEGET_FEED_SMOKE_FINAL_KEY,
+    FEED_CDN_SECRET: '', FEED_ORIGIN_SECRET: '',
+  };
+  const result = check(config);
+  assert.equal(result.status, 0, result.stderr);
+  for (const invalid of [
+    {FEED_CDN_BASE_URL: 'https://garaquachegasourn.begetcdn.cloud'},
+    {FEED_CDN_BASE_URL: 'https://evil.test'},
+    {FEED_CDN_BASE_URL: 'https://fake.begetcdn.cloud'},
+    {FEED_BEGET_CDN_SERVICE_ID: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'},
+    {FEED_CDN_HEALTH_OBJECT_KEY: ''},
+    {FEED_BEGET_CDN_SERVICE_ID: valid.FEED_BEGET_CDN_SERVICE_ID},
+    {FEED_BEGET_CDN_SERVICE_ID: ''},
+  ]) assert.notEqual(check({ ...config, ...invalid }).status, 0);
+});
 test('manual release uses same guard, never falls back to Yandex', () => {
   assert.equal(check({GITHUB_EVENT_NAME:'workflow_dispatch'}).status,0);
   assert.notEqual(check({GAFUS_MEDIA_CDN_TARGET:'yandex'}).status,0);
@@ -71,4 +90,42 @@ test('does not treat generic staging assets or fake service ids as valid live sm
     {FEED_CDN_SECRET:'invalid'},
     {GALLERY_CDN_SECRET:'invalid'},
   ]) assert.notEqual(check(overrides).status,0,JSON.stringify(Object.keys(overrides)));
+});
+
+test('new Gallery CDN mode requires metadata migration, dual purge, current mobile compatibility and separate origin signing secrets', () => {
+  const redirect={
+    GALLERY_CDN_REDIRECT_ENABLED: 'true',
+    GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true',
+    GALLERY_CDN_PURGE_DUAL_ENABLED: 'true',
+    GALLERY_CDN_CACHEABLE_FINAL_ENABLED: 'true',
+    GALLERY_CDN_METADATA_MIGRATED: 'true',
+    GALLERY_MOBILE_COMPAT_VERIFIED: 'true',
+    GALLERY_CDN_BROWSER_CACHE_VERIFIED: 'true',
+    GALLERY_BEGET_CDN_SERVICE_ID: '10530e64-21b7-4352-8366-806c79c2f1b7',
+    GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'N'.repeat(32),
+    GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'R'.repeat(64),
+  };
+  assert.equal(check(redirect).status, 0, check(redirect).stderr);
+  assert.equal(check({ ...redirect, GALLERY_MOBILE_COMPAT_VERIFIED: 'false',
+    GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED: 'true' }).status, 0,
+    'owner-approved post-deployment mobile test must not block rollout');
+  for(const invalid of [
+    { GALLERY_BEGET_CDN_SERVICE_ID: valid.GALLERY_BEGET_CDN_SERVICE_ID },
+    { GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'false' },
+    { GALLERY_CDN_PURGE_DUAL_ENABLED: 'false' },
+    { GALLERY_CDN_CACHEABLE_FINAL_ENABLED: 'false' },
+    { GALLERY_CDN_METADATA_MIGRATED: 'false' },
+    { GALLERY_MOBILE_COMPAT_VERIFIED: 'false', GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED: 'false' },
+    { GALLERY_CDN_BROWSER_CACHE_VERIFIED: 'false' },
+    { GALLERY_CDN_REDIRECT_SIGNING_SECRET: '' },
+    { GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'weak' },
+  ]) assert.notEqual(check({ ...redirect, ...invalid }).status,0,JSON.stringify(Object.keys(invalid)));
+});
+
+test('Gallery origin canary stage-1 requires separate secrets but does not redirect viewers', () => {
+  const canary={GALLERY_CDN_ORIGIN_ROUTE_ENABLED:'true',GALLERY_CDN_REDIRECT_ENABLED:'false',
+    GALLERY_CDN_REDIRECT_SIGNING_SECRET:'S'.repeat(32),GALLERY_CDN_REDIRECT_ORIGIN_SECRET:'O'.repeat(64)};
+  assert.equal(check(canary).status,0,check(canary).stderr);
+  assert.notEqual(check({...canary,GALLERY_CDN_REDIRECT_ORIGIN_SECRET:''}).status,0);
+  assert.notEqual(check({...canary,GALLERY_CDN_REDIRECT_SIGNING_SECRET:''}).status,0);
 });

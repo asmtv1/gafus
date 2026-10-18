@@ -45,6 +45,33 @@ describe("server-side CDN health monitor", () => {
     expect(await probeMediaCdn("feed", config,
       async () => { throw new Error("ETIMEDOUT"); }, now)).toBe("failed");
   });
+  it("checks a known public Feed WebP via unsigned Beget URL and never treats missing as healthy", async () => {
+    const fixture = "posts/owner/post/attachments/media/thumb.webp";
+    const publicConfig = monitorConfigFromEnv({
+      FEED_CDN_BASE_URL: "https://new-feed.begetcdn.cloud",
+      FEED_BUCKET_PUBLIC: "true", FEED_CDN_HEALTH_OBJECT_KEY: fixture,
+      FEED_ENABLED: "true", FEED_MEDIA_FALLBACK_ENABLED: "true",
+      FEED_S3_ENDPOINT: "https://s3.cloud.ru", FEED_CDN_PROVIDER: "beget",
+    });
+    expect(publicConfig.feed.enabled).toBe(true);
+    expect(createSignedMonitorUrl("feed", publicConfig)).toBe(`https://new-feed.begetcdn.cloud/${fixture}`);
+    expect(createSignedMonitorUrl("feed", publicConfig)).not.toContain("md5(");
+    expect(await probeMediaCdn("feed", publicConfig,
+      async () => new Response(null, { status: 200, headers: { "Content-Type": "image/webp" } })))
+      .toBe("healthy");
+    for (const status of [403, 404]) {
+      expect(await probeMediaCdn("feed", publicConfig,
+        async () => new Response(null, { status }))).toBe("unknown");
+    }
+    expect(await probeMediaCdn("feed", publicConfig,
+      async () => new Response(null, { status: 503 }))).toBe("failed");
+    expect(monitorConfigFromEnv({
+      FEED_CDN_BASE_URL: "https://new-feed.begetcdn.cloud", FEED_BUCKET_PUBLIC: "true",
+      FEED_ENABLED: "true", FEED_MEDIA_FALLBACK_ENABLED: "true", FEED_S3_ENDPOINT: "https://s3.cloud.ru",
+    }).feed.enabled).toBe(false);
+    expect(createSignedMonitorUrl("feed", { ...publicConfig, feed: {
+      ...publicConfig.feed, healthObjectKey: "posts/u/p/incoming/m/source.jpg" } })).toBeNull();
+  });
   it("uses two consecutive failures to bypass, two successes to recover, isolated by CDN", () => {
     const failure = { gallery: "failed", feed: "healthy" } as const;
     const first = nextMediaCdnHealth(blank(), failure, now);

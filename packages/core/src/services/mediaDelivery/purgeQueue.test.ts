@@ -7,7 +7,13 @@ const segment = "posts/owner/post/attachments/m/hls/segment-000.ts";
 describe("transactional media edge purge outbox", () => {
   it("includes only valid cached final objects, including vet thumbs and HLS segments", () => {
     expect(deletedMediaPurgePaths("gallery", [gallery, galleryVet, gallery])).toEqual(["/" + gallery, "/" + galleryVet]);
-    expect(deletedMediaPurgePaths("feed", [feed, segment, "posts/owner/post/attachments/m/hls/playlist.m3u8"])).toEqual(["/" + feed, "/" + segment]);
+    expect(deletedMediaPurgePaths("feed", [feed, segment, "posts/owner/post/attachments/m/hls/playlist.m3u8"])).toEqual(["/" + feed, "/" + segment, "/posts/owner/post/attachments/m/hls/playlist.m3u8"]);
+    const question = "questions/uploads/questions/owner/uuid-123.jpg";
+    const full = "questions/uploads/questions/owner/uuid-123/full.webp";
+    const thumb = "questions/uploads/questions/owner/uuid-123/thumb.webp";
+    expect(deletedMediaPurgePaths("questions", [full, thumb])).toEqual(["/" + full, "/" + thumb]);
+    expect(deletedMediaPurgePaths("questions", [question, question,
+      "questions/uploads/questions/owner/../private.pdf"])).toEqual(["/" + question]);
     expect(deletedMediaPurgePaths("gallery", [feed, "albums/owner/album/incoming/u/source.jpg"]))
       .toEqual([]);
     expect(() => deletedMediaPurgePaths("gallery", Array(1025).fill(gallery))).toThrow("MEDIA_PURGE_TOO_MANY_KEYS");
@@ -30,11 +36,29 @@ describe("transactional media edge purge outbox", () => {
     expect(strings.join(" ")).toContain('ON CONFLICT ("id") DO NOTHING');
     expect(sql.mock.calls[0]!.slice(1)).toEqual(["gallery:job-1", "gallery", ["/" + gallery, "/" + galleryVet]]);
   });
+  it("checkpoints a Questions CDN erasure only with verified public bucket and edge", async () => {
+    const sql = vi.fn().mockResolvedValue(1);
+    const tx = { $executeRaw: sql } as never;
+    const key = "questions/uploads/questions/owner/uuid-123.jpg";
+    await expect(enqueueDeletedMediaPurge(tx, "questions", "photo123", [key], {
+      QUESTIONS_CDN_PROVIDER: "beget", QUESTIONS_PUBLIC_S3_BUCKET: "gafus-questions-public",
+      QUESTIONS_CDN_BASE_URL: "https://ebiteskukingusk.begetcdn.cloud",
+      QUESTIONS_CDN_LIVE_VERIFIED: "false",
+    })).rejects.toThrow("MEDIA_PURGE_STORAGE_UNVERIFIED");
+    expect(sql).not.toHaveBeenCalled();
+    await enqueueDeletedMediaPurge(tx, "questions", "photo123", [key], {
+      QUESTIONS_CDN_PROVIDER: "beget", QUESTIONS_PUBLIC_S3_BUCKET: "gafus-questions-public",
+      QUESTIONS_CDN_BASE_URL: "https://ebiteskukingusk.begetcdn.cloud",
+      QUESTIONS_CDN_LIVE_VERIFIED: "true",
+    });
+    expect(sql).toHaveBeenCalledOnce();
+    expect(sql.mock.calls[0]!.slice(1)).toEqual(["questions:photo123", "questions", ["/" + key]]);
+  });
   it("never schedules CDN purge for noncacheable source uploads", async () => {
     const sql = vi.fn();
     await enqueueDeletedMediaPurge({ $executeRaw: sql } as never, "feed", "job-id", [
       "posts/owner/post/incoming/id/source.jpg",
-      "posts/owner/post/attachments/id/hls/playlist.m3u8",
+      "posts/owner/post/incoming/id/attempts/at/hls/playlist.m3u8",
     ], { FEED_CDN_PROVIDER: "beget", FEED_S3_ENDPOINT: "https://s3.cloud.ru" });
     expect(sql).not.toHaveBeenCalled();
   });

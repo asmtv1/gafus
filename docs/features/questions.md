@@ -15,6 +15,8 @@
 
 Ответы имеют один визуальный уровень вложенности; при ответе на ответ сохраняется адресат. Сердечко можно снять; собственный ответ оценить нельзя. Автор вопроса и администратор выбирают лучший ответ. Закрытие/открытие обсуждения — отдельное действие. Удалённый ответ с дочерними ответами становится заглушкой. Поиск по заголовку/тексту, фильтры категории/статуса/своих вопросов, сортировки списка и ответов с закреплением лучшего ответа.
 
+Photo storage: production still uses the legacy private Cloud.ru Questions path. The independent Cloud.ru Container Job (gafus-questions-photo) is implemented locally only. API stores original JPG/PNG/WebP in nonpublic questions/incoming/questions/; the Job creates private thumb.webp and full.webp with sharp, then only an authenticated owner-status request promotes both to public questions/uploads/questions/. Web/Mobile poll until ready. Beget serves the final files. All new release flags default to false until approved deployment.
+
 Жалобы поступают в admin-panel, очередь показывает текст и фото. Блокировка ограничивает публикации только в этом разделе. Уведомления о новых ответах, ответах на комментарий и выборе лучшего ответа записываются в транзакции публикации; worker добавляет задачи push каждую минуту. Реакции уведомлений не создают. Непривязанные фото очищаются через сутки.
 
 ## Проверка 2026-10-07

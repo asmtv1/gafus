@@ -42,3 +42,9 @@ export {
 } from "./privateUserMedia";
 
 export { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
+
+export { publicQuestionsEnabled, publicQuestionLocation, parsePublicQuestionLocation, presentPublicQuestionPhoto, uploadPublicQuestionPhoto, deletePublicQuestionPhoto, QUESTION_PUBLIC_BUCKET, QUESTION_PUBLIC_CDN } from "./publicQuestionMedia";
+
+export { questionCloudJobEnabled, pendingQuestionLocation, parsePendingQuestionLocation, questionImageVariantKeys, uploadQuestionSource, promoteQuestionVariants, questionProcessingFailure, deleteQuestionSourceAndVariants } from "./publicQuestionMedia";
+
+export { deleteQuestionPrivateStaging } from "./publicQuestionMedia";

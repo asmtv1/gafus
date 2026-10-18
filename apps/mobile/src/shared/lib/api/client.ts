@@ -391,6 +391,7 @@ export async function apiClient<T>(
 export async function apiClientMultipart<T>(
   endpoint: string,
   buildFormData: () => FormData,
+  additionalHeaders: Record<string, string> = {},
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
   const requestStartedAt = Date.now();
@@ -400,6 +401,7 @@ export async function apiClientMultipart<T>(
     const token = await SecureStore.getItemAsync("auth_token");
     const headers: Record<string, string> = {
       ...getMobileClientHeaders(),
+      ...additionalHeaders,
     };
     if (token) {
       headers.Authorization = `Bearer ${token}`;

@@ -39,8 +39,8 @@ export function createFeedPlayback(input: {
     const segments = parseFeedHlsPlaylist(raw).map(name => expected + name);
     if (!segments.length || segments.length !== source.segmentKeys.length || segments.some((key, i) => key !== source.segmentKeys[i])) throw denied();
     if (delivery === "cloudru" && !input.fallbackSign) throw unavailable();
-    // Each segment is individually presigned: a signed .m3u8 URL alone would
-    // NOT authorize relative HLS segment requests on S3-compatible storage.
+    // Preserve the issued ticket and manifest API contract. The storage signer
+    // can return public CDN URLs after cutover; S3 fallback stays presigned.
     const remainingSeconds = Math.floor((data.expires - now().getTime()) / 1000);
     if (delivery === "cloudru" && remainingSeconds < 30) throw denied();
     return signFeedHlsManifest({ manifest: raw, ...source,

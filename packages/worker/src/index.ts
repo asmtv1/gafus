@@ -36,6 +36,7 @@ export async function startWorkers(): Promise<void> {
     { startCronJobs },
     { startGalleryProcessingTriggerWorker },
     { startFeedProcessingTriggerWorker },
+    { startQuestionsProcessingTriggerWorker },
   ] = await Promise.all([
     import("./push-worker"),
     import("./reengagement-worker"),
@@ -52,6 +53,7 @@ export async function startWorkers(): Promise<void> {
     import("./cron-scheduler"),
     import("./gallery-processing-trigger-worker"),
     import("./feed-processing-trigger-worker"),
+    import("./questions-processing-trigger-worker"),
   ]);
 
   // Запускаем exam cleanup worker
@@ -85,6 +87,7 @@ export async function startWorkers(): Promise<void> {
   // Immediate wake-ups for completed gallery uploads; cron remains recovery.
   startGalleryProcessingTriggerWorker();
   startFeedProcessingTriggerWorker();
+  startQuestionsProcessingTriggerWorker();
 
   // Запускаем cron-планировщик для re-engagement
   startCronJobs();

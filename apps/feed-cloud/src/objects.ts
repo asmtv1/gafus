@@ -11,6 +11,10 @@ const albumFinal = /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\
 export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): FeedCloudObjects {
   const bucket = env.FEED_BUCKET ?? "";
   const endpoint = env.FEED_S3_ENDPOINT ?? "https://s3.cloud.ru";
+  if (env.FEED_BUCKET_PUBLIC !== undefined && !["true", "false"].includes(env.FEED_BUCKET_PUBLIC))
+    throw new Error("INVALID_FEED_FLAG");
+  const publicRead = env.FEED_BUCKET_PUBLIC === "true";
+  if (publicRead && bucket !== "gafus-feed-private") throw new Error("INVALID_PUBLIC_FEED_BUCKET");
   const albumEndpoint = env.GALLERY_S3_ENDPOINT ?? "https://s3.cloud.ru";
   const region = (value: string) => {
     if (value === "https://s3.cloud.ru") return "ru-central-1";
@@ -66,7 +70,10 @@ export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): Fe
       const expectedEtag = `"${digest.toString("hex")}"`;
       try {
         await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes,
-          ContentType: contentType, ContentMD5: digest.toString("base64"), IfNoneMatch: "*", CacheControl: "no-store" }), { abortSignal: signal });
+          ContentType: contentType, ContentMD5: digest.toString("base64"), IfNoneMatch: "*",
+          CacheControl: publicRead
+            ? "public, max-age=180, s-maxage=86400, must-revalidate"
+            : "no-store" }), { abortSignal: signal });
       } catch (error) {
         if (![409, 412].includes((error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode ?? 0)) throw error;
       }

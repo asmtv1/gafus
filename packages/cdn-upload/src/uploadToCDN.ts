@@ -8,6 +8,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { publicQuestionsEnabled, uploadPublicQuestionPhoto, parsePublicQuestionLocation, deletePublicQuestionPhoto, parsePendingQuestionLocation, deleteQuestionSourceAndVariants } from "./publicQuestionMedia";
 import {
   privateMediaEnabled,
   privateMediaKindForUpload,
@@ -368,6 +369,14 @@ export async function copyObjectInCDN(
  */
 export async function deleteFileFromCDN(relativePath: string): Promise<void> {
   // Provider must come from the stored location, never from the current upload flag.
+  if (parsePendingQuestionLocation(relativePath)) {
+    await deleteQuestionSourceAndVariants(relativePath);
+    return;
+  }
+  if (parsePublicQuestionLocation(relativePath)) {
+    await deletePublicQuestionPhoto(relativePath);
+    return;
+  }
   if (parsePrivateMediaLocation(relativePath)) {
     await deletePrivateUserMedia(relativePath);
     return;
@@ -488,6 +497,9 @@ export async function uploadBufferToCDN(
   relativePath: string,
   contentType: string = "application/octet-stream",
 ): Promise<string> {
+  if (privateMediaKindForUpload(relativePath) === "questions" && publicQuestionsEnabled()) {
+    return uploadPublicQuestionPhoto(relativePath, buffer, contentType);
+  }
   if (privateMediaEnabled() && privateMediaKindForUpload(relativePath) === "questions") {
     return uploadPrivateUserMedia("questions", relativePath, buffer, contentType);
   }

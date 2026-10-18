@@ -64,6 +64,15 @@ export async function enqueueAccountStorageCleanup(
           WHERE (p."ownerId" = ${ownerId} OR q."authorId" = ${ownerId}
             OR a."authorId" = ${ownerId} OR aq."authorId" = ${ownerId})
             AND COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions:%'
+      ) WHEN s.scope = 'questions-public' THEN ARRAY(
+        SELECT DISTINCT COALESCE(NULLIF(p."url", ''), p."storagePath") FROM "QuestionPhoto" p
+          LEFT JOIN "Question" q ON q."id" = p."questionId"
+          LEFT JOIN "QuestionAnswer" a ON a."id" = p."answerId"
+          LEFT JOIN "Question" aq ON aq."id" = a."questionId"
+          WHERE (p."ownerId" = ${ownerId} OR q."authorId" = ${ownerId}
+            OR a."authorId" = ${ownerId} OR aq."authorId" = ${ownerId})
+            AND (COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions-public:%'
+              OR p."storagePath" LIKE 'cloudru:questions-pending:%')
       ) WHEN s.scope = 'documents' THEN ARRAY(
         SELECT DISTINCT "url" FROM "PetDocument"
         WHERE "ownerId" = ${ownerId} AND "url" LIKE 'cloudru:documents:%'
@@ -83,8 +92,18 @@ export async function enqueueAccountStorageCleanup(
         COALESCE((SELECT max("availableAt") FROM "GalleryStorageJob" WHERE "ownerId" = ${ownerId} AND "dedupeKey" LIKE 'vet-upload:%'), ${at}::timestamp),
         COALESCE((SELECT max("leaseUntil") FROM "FeedStorageJob" WHERE "ownerId" = ${ownerId}), ${at}::timestamp)
       ) + interval '10 minutes', ${at}, ${at}
-    FROM (VALUES ('public'), ('gallery'), ('feed'), ('questions'), ('documents')) s(scope)
+    FROM (VALUES ('public'), ('gallery'), ('feed'), ('questions'), ('questions-public'), ('documents')) s(scope)
     WHERE s.scope IN ('public', 'gallery', 'feed')
+       OR (s.scope = 'questions-public' AND EXISTS (
+         SELECT 1 FROM "QuestionPhoto" p
+           LEFT JOIN "Question" q ON q."id" = p."questionId"
+           LEFT JOIN "QuestionAnswer" a ON a."id" = p."answerId"
+           LEFT JOIN "Question" aq ON aq."id" = a."questionId"
+           WHERE (p."ownerId" = ${ownerId} OR q."authorId" = ${ownerId}
+             OR a."authorId" = ${ownerId} OR aq."authorId" = ${ownerId})
+             AND (COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions-public:%'
+              OR p."storagePath" LIKE 'cloudru:questions-pending:%')
+       ))
        OR (s.scope = 'documents' AND EXISTS (
          SELECT 1 FROM "PetDocument" WHERE "ownerId" = ${ownerId} AND "url" LIKE 'cloudru:documents:%'
        ))

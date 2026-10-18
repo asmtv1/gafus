@@ -17,6 +17,7 @@ const feedCommon = [
   "FEED_S3_ENDPOINT",
   "FEED_S3_ACCESS_KEY_ID",
   "FEED_S3_SECRET_ACCESS_KEY",
+  "FEED_BUCKET_PUBLIC",
 ];
 function container(name, img, cpu, names, port) {
   return {
@@ -27,7 +28,7 @@ function container(name, img, cpu, names, port) {
     env: env(names),
   };
 }
-export function cloudruMediaManifests(projectId, revision) {
+export function cloudruMediaManifests(projectId, revision, { feedPublic = false, galleryRedirect = false, questionsProcessing = false } = {}) {
   if (!/^[a-f0-9-]{32,40}$/.test(projectId) || !/^[a-f0-9]{40}$/.test(revision))
     throw new Error("INVALID_CLOUDRU_RELEASE_ID");
   const services = [
@@ -59,7 +60,8 @@ export function cloudruMediaManifests(projectId, revision) {
         "FEED_CDN_EDGE_CACHE_HIT_VERIFIED",
       ],
     },
-  ].map((spec) => ({
+  ].filter(spec => !((feedPublic && spec.name === "gafus-feed-origin") ||
+    (galleryRedirect && spec.name === "gafus-gallery-origin"))).map((spec) => ({
     name: spec.name,
     projectId,
     description: "GAFUS protected CDN origin, reviewed image",
@@ -89,6 +91,16 @@ export function cloudruMediaManifests(projectId, revision) {
     },
   }));
   const jobs = [
+    ...(questionsProcessing ? [{
+      name: "gafus-questions-photo",
+      imageRole: "questions-worker",
+      cpu: "0.5",
+      timeout: 240,
+      envNames: [
+        "QUESTIONS_JOB_ENABLED", "QUESTIONS_PUBLIC_S3_BUCKET",
+        "CLOUDRU_S3_ENDPOINT", "CLOUDRU_S3_ACCESS_KEY_ID", "CLOUDRU_S3_SECRET_ACCESS_KEY",
+      ],
+    }] : []),
     {
       name: "gafus-gallery-process",
       imageRole: "gallery-worker",
@@ -97,6 +109,8 @@ export function cloudruMediaManifests(projectId, revision) {
       envNames: [
         ...galleryCommon,
         "GALLERY_ENABLED",
+        "GALLERY_CDN_CACHEABLE_FINAL_ENABLED",
+        "GALLERY_CDN_EDGE_TOKEN_VERIFIED",
         "GALLERY_INTERNAL_BASE_URL",
         "GALLERY_INTERNAL_HMAC_SECRET",
       ],

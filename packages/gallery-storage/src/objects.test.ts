@@ -38,6 +38,19 @@ describe('fail-closed object snapshots and immutable writes',()=>{
    expect((await store(send).create(key,bytes,'image/webp')).etag).toBe(meta.ETag);
    expect(send.mock.calls[1][0].input).toMatchObject({IfNoneMatch:'*',ContentMD5:Buffer.from(meta.ETag.slice(1,-1),'hex').toString('base64'),CacheControl:'no-store'});
  });
+ it('makes only finalized images cacheable when the verified cutover is enabled', async () => {
+   for (const [path, cache] of [
+     [key, 'public, max-age=180, s-maxage=600, must-revalidate'],
+     ['users/u/pets/p/vet-visits/v/a/thumb.webp', 'public, max-age=180, s-maxage=600, must-revalidate'],
+     ['albums/o/a/incoming/id/attempts/job/full.webp', 'no-store'],
+   ] as const) {
+     const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:404}})
+       .mockResolvedValueOnce({ETag:meta.ETag}).mockResolvedValueOnce(meta);
+     const enabled=createGalleryObjectStore({...config,cacheableFinalEnabled:true}, {send} as unknown as S3Client);
+     await enabled.create(path,bytes,'image/webp');
+     expect(send.mock.calls[1]![0].input.CacheControl).toBe(cache);
+   }
+ });
  it('identical retry skips PUT',async()=>{
    const send=vi.fn().mockResolvedValue(meta); await store(send).create(key,bytes,'image/webp'); expect(send).toHaveBeenCalledTimes(1);
  });

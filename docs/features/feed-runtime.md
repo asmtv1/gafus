@@ -23,15 +23,23 @@ Nonce хранится атомарно в существующем Redis (`SET 
 | --- | --- |
 | `FEED_ENABLED` | Публичный флаг функции |
 | `FEED_PROCESSOR_READY` | Независимый флаг готовности обработки |
-| `FEED_BUCKET` | Закрытый бакет; может быть существующим приватным бакетом с отдельным `posts/` namespace |
-| `FEED_S3_ENDPOINT` | `https://storage.yandexcloud.net` |
+| `FEED_BUCKET` | Существующий `gafus-feed-private` (одно хранилище, исходники приватные) |
+| `FEED_S3_ENDPOINT` | `https://s3.cloud.ru` |
 | `FEED_S3_ACCESS_KEY_ID`, `FEED_S3_SECRET_ACCESS_KEY` | Учётные данные S3 |
 | `FEED_CDN_BASE_URL` | HTTPS origin выделенного CDN, без пути/параметров/credentials |
-| `FEED_CDN_SECRET` | Secret Yandex CDN: 24–32 символа `A-Z a-z 0-9 _ -` |
+| `FEED_CDN_SECRET` | Только прежний подписанный Beget CDN, 24–32 символа; в публичном Feed не обязателен |
+| `FEED_BUCKET_PUBLIC` | `false` — старый подписанный CDN, `true` — публичные готовые объекты Feed |
+| `FEED_CDN_HEALTH_OBJECT_KEY` | Проверенный готовый `posts/.../attachments/.../*.webp` для публичного мониторинга |
 | `FEED_INTERNAL_HMAC_SECRET` | Общий ключ внутреннего API, минимум 32 байта |
 | `REDIS_URL` | Существующий общий Redis для nonce |
 
-Без обоих публичных флагов адаптер выключен. Флаги галереи его не включают. При попытке включения неполная/небезопасная конфигурация отклоняется. `FEED_BUCKET_PUBLIC=true` запрещён. Никакие env в ходе реализации не менялись.
+Без обоих публичных флагов адаптер выключен. Флаги галереи его не включают. При попытке включения неполная/небезопасная конфигурация отклоняется. `FEED_BUCKET_PUBLIC=true` разрешён только при `FEED_BUCKET=gafus-feed-private` и готовом новом Beget CDN:
+в этом режиме `FEED_CDN_SECRET` и `FEED_CDN_EDGE_TOKEN_VERIFIED` не требуются,
+подписанная загрузка S3 и HLS playback ticket остаются обязательными, а CDN URL для
+`posts/*/attachments/*` становятся публичными. `incoming` и временные попытки
+не получают публичные URL. Пока переменная не переключена, действует старая
+подписанная схема. Production env здесь не изменялся; порядок переключения см.
+`docs/features/feed-public-cutover.md`.
 
 Прямой S3 POST ограничен точным ключом, MIME и размером (10 MiB для фото, 200 MiB для видео); TTL не превышает 600 секунд. HEAD ограничен пятью секундами, поддерживает multipart ETag и различает 404 и ошибки доступа. CDN signer принимает только конечные ключи `posts/.../attachments/...`, срок не превышает 120 секунд.
 

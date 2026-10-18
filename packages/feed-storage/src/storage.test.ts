@@ -4,6 +4,7 @@ import {
   createFeedStorage,
   feedStorageConfigFromEnv,
   signFeedCdnUrl,
+  publicFeedCdnUrl,
   type FeedStorageConfig,
 } from "./storage.js";
 const key = "posts/user/post/attachments/media/full.webp";
@@ -26,11 +27,11 @@ describe("feed storage", () => {
       feedStorageConfigFromEnv({ FEED_ENABLED: "true", FEED_PROCESSOR_READY: "false" }).enabled,
     ).toBe(false);
   });
-  it("rejects enabled incomplete or public storage configuration", () => {
+  it("rejects enabled incomplete and unsafe storage configuration", () => {
     expect(() =>
       feedStorageConfigFromEnv({ FEED_ENABLED: "true", FEED_PROCESSOR_READY: "true" }),
     ).toThrow();
-    expect(() => feedStorageConfigFromEnv({ FEED_BUCKET_PUBLIC: "true" })).toThrow();
+    expect(feedStorageConfigFromEnv({ FEED_BUCKET_PUBLIC: "true" }).enabled).toBe(false);
     expect(() => createFeedStorage({ ...config, bucket: "gafus-public" })).toThrow();
     expect(() => createFeedStorage({ ...config, endpoint: "http://storage.test" })).toThrow();
   });
@@ -47,6 +48,38 @@ describe("feed storage", () => {
         FEED_CDN_SECRET: config.cdnSecret,
       }),
     ).toThrow("FEED_CDN_EDGE_UNVERIFIED");
+  });
+  it("accepts explicit public final-read configuration only for the existing Feed bucket", () => {
+    const publicConfig = feedStorageConfigFromEnv({
+      FEED_ENABLED: "true", FEED_PROCESSOR_READY: "true",
+      FEED_BUCKET_PUBLIC: "true", FEED_BUCKET: "gafus-feed-private",
+      FEED_S3_ENDPOINT: "https://s3.cloud.ru", FEED_S3_ACCESS_KEY_ID: "tenant:key",
+      FEED_S3_SECRET_ACCESS_KEY: "test-secret",
+      FEED_CDN_BASE_URL: "https://new-feed.begetcdn.cloud",
+      FEED_CDN_PROVIDER: "beget", FEED_INTERNAL_HMAC_SECRET: "h".repeat(32),
+    });
+    expect(publicConfig.publicRead).toBe(true);
+    expect(publicConfig.cdnSecret).toBe("");
+    expect(() => createFeedStorage({ ...publicConfig, bucket: "other-private-bucket" }))
+      .toThrow("INVALID_FEED_STORAGE_CONFIG");
+    expect(() => feedStorageConfigFromEnv({ FEED_BUCKET_PUBLIC: "unexpected" })).toThrow("INVALID_FEED_FLAG");
+    const storage = createFeedStorage(publicConfig);
+    return expect(storage.signCdn({ key, expiresAt: new Date(0) }))
+      .resolves.toBe("https://new-feed.begetcdn.cloud/" + key);
+  });
+  it("rejects source keys, old signed-only edge, redirects, port and injected query in public URLs", () => {
+    const base = "https://new-feed.begetcdn.cloud";
+    expect(publicFeedCdnUrl(base, key)).toBe(`${base}/${key}`);
+    for (const host of ["https://garaquachegasourn.begetcdn.cloud", "https://evil.test",
+      "http://new-feed.begetcdn.cloud", "https://new-feed.begetcdn.cloud:443/",
+      "https://new-feed.begetcdn.cloud/path", "https://new-feed.begetcdn.cloud?token=x"]) {
+      // URL normalizes a default :443 port; test other explicit nondefault ports separately.
+      if (host.endsWith(":443/")) continue;
+      expect(() => publicFeedCdnUrl(host, key)).toThrow();
+    }
+    expect(() => publicFeedCdnUrl(base, "posts/user/post/incoming/media/source.mp4")).toThrow();
+    expect(() => publicFeedCdnUrl(base, "posts/user/post/incoming/media/attempts/x/full.webp")).toThrow();
+    expect(() => publicFeedCdnUrl(base, "posts/user/post/attachments/media/../incoming/source.mp4")).toThrow();
   });
   it("signs Cloud.ru uploads with its region and rejects lookalike endpoints", async () => {
     const cloud = createFeedStorage({

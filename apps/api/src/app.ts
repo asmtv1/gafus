@@ -4,6 +4,8 @@ import { questionsRoutes } from "./routes/v1/questions.js";
 import { gafusRoutes } from "./routes/v1/gafus.js";
 import { gafusAdminRoutes } from "./routes/v1/gafus-admin.js";
 import { galleryRoutes } from "./routes/v1/gallery.js";
+import { galleryRedirectProbeResponse } from "@gafus/gallery-server";
+import { galleryCdnRedirectResponse } from "@gafus/gallery-server";
 import { feedRoutes } from "./routes/v1/feed.js";
 import { internalGalleryRoutes } from "./routes/internal/gallery.js";
 import { communityChatRoutes } from "./routes/v1/community-chat.js";
@@ -64,6 +66,11 @@ app.use("*", corsMiddleware);
 
 // Health routes (no auth)
 app.route("/", healthRoutes);
+// Disabled by default. Exact fixed fixture + static secret from the isolated Beget CDN.
+app.on(["GET", "HEAD"], "/__gafus_gallery_redirect_probe__/fixture.webp", c => galleryRedirectProbeResponse(c.req.raw));
+// CDN-only routes; fail closed unless the Gallery redirect cutover is explicitly enabled.
+app.on(["GET", "HEAD"], "/albums/*", c => galleryCdnRedirectResponse(c.req.raw));
+app.on(["GET", "HEAD"], "/users/*", c => galleryCdnRedirectResponse(c.req.raw));
 
 // Публичная конфигурация мобильного приложения (без JWT)
 app.use("/api/v1/public/*", apiRateLimiter);

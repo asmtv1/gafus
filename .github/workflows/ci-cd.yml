@@ -294,12 +294,38 @@ jobs:
 
       - name: Build, test, typecheck apps
         run: |
+          # Do not run Next.js build concurrently with tsc --noEmit: next build
+          # deletes/regenerates .next/types while TypeScript is reading it.
+          # A single simultaneous Turbo run races on fresh CI runners.
           # main+push: полная сборка (для деплоя). PR/develop: только изменённые приложения.
           if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            pnpm turbo run build test typecheck --filter='./apps/web' --filter='./apps/trainer-panel'  --filter='./apps/admin-panel' --filter='./apps/api'
+            filters=(--filter='./apps/web' --filter='./apps/trainer-panel' --filter='./apps/admin-panel' --filter='./apps/api')
           else
-            pnpm turbo run build test typecheck --filter='./apps/*...[origin/main]'
+            filters=(--filter='./apps/*...[origin/main]')
           fi
+          # One Next.js production compilation at a time: shared CI runners
+          # have limited RAM and three simultaneous Next builds can OOM.
+          # Preserve a single build -> typecheck -> test pipeline for one push.
+          pnpm turbo run build --concurrency=1 "${filters[@]}"
+          pnpm turbo run typecheck "${filters[@]}"
+          pnpm turbo run test "${filters[@]}"
+
+      - name: Questions isolated S3, legacy safety and CDN purge tests (blocking)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          pnpm exec vitest run \
+            packages/cdn-upload/src/publicQuestionMedia.test.ts \
+            packages/cdn-upload/src/questionCloudJob.test.ts \
+            packages/types/src/questions.thumbnail.test.ts \
+            packages/cdn-upload/src/begetCdnPurge.test.ts \
+            packages/core/src/services/questions/photos.compensation.test.ts \
+            packages/core/src/services/questions/photos.legacy.test.ts \
+            packages/core/src/services/questions/photos.cleanup.test.ts \
+            packages/core/src/services/accountCleanup/privateUserMedia.test.ts \
+            packages/core/src/services/accountCleanup/storage.test.ts \
+            packages/core/src/services/accountCleanup/worker.test.ts \
+            packages/core/src/services/mediaDelivery/purgeQueue.test.ts \
+            packages/worker/src/media-cdn-purge-worker.test.ts
 
       - name: Mobile typecheck and unit tests (blocking)
         run: |
@@ -442,11 +468,17 @@ jobs:
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
-        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs
+        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/beget-production-smoke.test.mjs infra/cloudru/feed-public-workflow.test.mjs
+      - name: Isolated Questions S3/CDN/Cloud.ru Job cutover pre-deploy contracts
+        run: node --test infra/cloudru/questions-public-readiness.test.mjs infra/cloudru/questions-job-live-readiness.test.mjs infra/cloudru/questions-public-workflow.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
       - name: Cloud.ru scheduled processing contract
         run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
+      - name: Cloud.ru Questions photo Job actual sharp and type contracts
+        run: |
+          pnpm exec tsc -p apps/questions-cloud/tsconfig.json
+          pnpm exec vitest run apps/questions-cloud/src/worker.test.ts packages/cdn-upload/src/questionCloudJob.test.ts
 
   # Fail closed BEFORE publishing production images or changing Cloud.ru/VPS.
   # The synthetic final objects must be provisioned separately with approval;
@@ -465,26 +497,72 @@ jobs:
       BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
       BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
       GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-      FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+      FEED_BUCKET_PUBLIC: 'true'
+      FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
+      FEED_BEGET_CDN_SERVICE_ID: cbb7fe86-a193-457e-a756-9cf3aa2aef1b
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+      GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
+      GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+      GALLERY_MOBILE_COMPAT_VERIFIED: ${{ vars.GALLERY_MOBILE_COMPAT_VERIFIED || 'false' }}
+      GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED: ${{ vars.GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED || 'false' }}
+      GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+      GALLERY_CDN_CANARY_VERIFIED: ${{ vars.GALLERY_CDN_CANARY_VERIFIED || 'false' }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
       FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
       BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      GALLERY_S3_ACCESS_KEY_ID: ${{ secrets.GALLERY_S3_ACCESS_KEY_ID }}
+      GALLERY_S3_SECRET_ACCESS_KEY: ${{ secrets.GALLERY_S3_SECRET_ACCESS_KEY }}
       BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
       BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
       BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
       BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+      FEED_CDN_HEALTH_OBJECT_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      QUESTIONS_PUBLIC_S3_ENABLED: ${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}
+      QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
+      QUESTIONS_PROCESSOR_READY: ${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}
+      QUESTIONS_CDN_LIVE_VERIFIED: ${{ vars.QUESTIONS_CDN_LIVE_VERIFIED || 'true' }}
+      QUESTIONS_PUBLIC_S3_BUCKET: gafus-questions-public
+      QUESTIONS_CDN_BASE_URL: https://ebiteskukingusk.begetcdn.cloud
+      QUESTIONS_BEGET_CDN_SERVICE_ID: 3c2a1623-50a1-46a1-b7a4-bb1093eaedf0
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
-          package-manager-cache: false
+          cache: pnpm
+      # Gallery S3 metadata preflight imports the AWS SDK from the lockfile.
+      # Every CI job has a clean checkout and needs its own dependencies.
+      - name: Install read-only preflight dependencies
+        run: pnpm install --frozen-lockfile
       - name: Validate Beget-only production approvals and existing secret bindings
         run: node infra/cloudru/beget-release-readiness.mjs --check
-      - name: Verify both protected Beget edges with real signed final objects (read-only)
-        run: node infra/cloudru/beget-production-smoke.mjs
+      - name: Verify Questions CDN working HTTPS and exact public S3 origin (read-only)
+        run: node infra/cloudru/questions-public-readiness.mjs
+      - name: Verify existing Questions Cloud.ru production Job before image publication (read-only)
+        env:
+          CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+          CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+          CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+          QUESTIONS_PUBLIC_S3_ENABLED: ${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}
+          QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
+          QUESTIONS_PROCESSOR_READY: ${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}
+        run: node infra/cloudru/questions-job-live-readiness.mjs
+      - name: Verify existing Gallery and public Feed before API changes (read-only)
+        # New Gallery 307 cannot work until this commit's API is deployed.
+        run: GALLERY_CDN_REDIRECT_ENABLED=false node infra/cloudru/beget-production-smoke.mjs
+      - name: Verify new Gallery CDN source, 307 and signing settings (read-only)
+        run: node infra/cloudru/gallery-release-edge-readiness.mjs
+      - name: Audit private Gallery WebP metadata before production changes (read-only)
+        run: node infra/cloudru/gallery-release-metadata-ready.mjs
 
   # Four immutable, revision-tagged images are required before any production changes.
   cloudru-build-media-images:
@@ -500,6 +578,7 @@ jobs:
           - { media: feed, role: origin, dockerfile: Dockerfile.origin }
           - { media: gallery, role: worker, dockerfile: Dockerfile }
           - { media: feed, role: worker, dockerfile: Dockerfile }
+          - { media: questions, role: worker, dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
@@ -531,11 +610,27 @@ jobs:
       CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
       CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+      GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
+      GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+      GALLERY_MOBILE_COMPAT_VERIFIED: ${{ vars.GALLERY_MOBILE_COMPAT_VERIFIED || 'false' }}
+      GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED: ${{ vars.GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED || 'false' }}
+      GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+      GALLERY_CDN_CANARY_VERIFIED: ${{ vars.GALLERY_CDN_CANARY_VERIFIED || 'false' }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
       FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
       GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
       FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
+      # Propagate the same public Feed mode to Cloud.ru scheduled jobs.
+      FEED_BUCKET_PUBLIC: 'true'
+      FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
+      QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
+      QUESTIONS_PUBLIC_S3_ENABLED: ${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -558,6 +653,26 @@ jobs:
         run: node infra/cloudru/production-s3-preflight.mjs --verify
       - name: Provision and warm Cloud.ru protected Origins and bounded processing Jobs
         run: node infra/cloudru/production-media-release.mjs --prepare
+      # Cloud.ru PATCH/POST is asynchronous; the release must not deploy a
+      # public-Feed API against photo/video Jobs still using the previous image
+      # or FEED_BUCKET_PUBLIC=false. Retry read-only checks before continuing.
+      - name: Wait for Cloud.ru Jobs revision and public Feed flag before application deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if node infra/cloudru/production-media-release.mjs --verify; then
+              echo "Cloud.ru media Jobs and public Feed settings confirmed"
+              exit 0
+            fi
+            echo "Cloud.ru media update not yet applied ($attempt/30)"
+            sleep 10
+          done
+          echo "Cloud.ru media Jobs have not reached the requested release revision"
+          exit 1
+      - name: Execute release SHA Questions Cloud.ru Job synthetic WebP smoke BEFORE API deploy
+        if: env.QUESTIONS_PUBLIC_S3_ENABLED == 'true'
+        run: node infra/cloudru/questions-production-job-smoke.mjs
 
   # Deploy to staging (develop branch)
   # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
@@ -588,16 +703,34 @@ jobs:
     timeout-minutes: 12
     env:
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+      GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
+      GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+      GALLERY_MOBILE_COMPAT_VERIFIED: ${{ vars.GALLERY_MOBILE_COMPAT_VERIFIED || 'false' }}
+      GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED: ${{ vars.GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED || 'false' }}
+      GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+      GALLERY_CDN_CANARY_VERIFIED: ${{ vars.GALLERY_CDN_CANARY_VERIFIED || 'false' }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
       BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
       BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
       BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+      FEED_CDN_HEALTH_OBJECT_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      FEED_BUCKET_PUBLIC: 'true'
+      FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Verify Beget Gallery and Feed signed delivery after application health
+      - name: Verify private Gallery and public Feed delivery after application health
         run: node infra/cloudru/beget-production-smoke.mjs
+      # One-push Gallery cutover: prove NEW CDN via the deployed GAFUS API.
+      - name: Prove new Gallery origin end to end after deploy
+        if: env.GALLERY_CDN_REDIRECT_ENABLED == 'true'
+        run: node infra/cloudru/gallery-origin-canary.mjs

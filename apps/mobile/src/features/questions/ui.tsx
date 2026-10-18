@@ -1,3 +1,4 @@
+import { questionThumbnailUrl } from "@gafus/types";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert, FlatList, Modal, useWindowDimensions } from "react-native";
@@ -242,7 +243,7 @@ export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
             key={p.id}
             onPress={() => setViewerIndex(index)}
           >
-            <Image source={{ uri: p.url }} contentFit="cover" style={st.photo} />
+            <Image source={{ uri: questionThumbnailUrl(p.url) }} contentFit="cover" style={st.photo} />
           </Pressable>
         ))}
       </View>
@@ -389,7 +390,7 @@ export function QPhotoPicker({
       {photos.length > 0 && <View style={st.row}>
         {photos.map((p) => (
           <View key={p.id}>
-            <Image source={{ uri: p.url }} contentFit="cover" style={[st.photo, compact && st.compactPhoto]} />
+            <Image source={{ uri: questionThumbnailUrl(p.url) }} contentFit="cover" style={[st.photo, compact && st.compactPhoto]} />
             <Pressable
               disabled={busy}
               accessibilityRole="button"

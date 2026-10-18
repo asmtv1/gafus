@@ -7,6 +7,9 @@ export interface GalleryStorageConfig {
   cdnBaseUrl: string;
   cdnSecret: string;
   cdnProvider?: "beget";
+  cdnRedirectEnabled: boolean;
+  cdnOriginRouteEnabled: boolean;
+  cacheableFinalEnabled: boolean;
 }
 export function galleryStorageConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
@@ -25,9 +28,26 @@ export function galleryStorageConfigFromEnv(
     accessKeyId: env.GALLERY_S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: env.GALLERY_S3_SECRET_ACCESS_KEY ?? "",
     cdnBaseUrl: env.GALLERY_CDN_BASE_URL ?? "",
-    cdnSecret: env.GALLERY_CDN_SECRET ?? "",
+    cdnSecret: (env.GALLERY_CDN_REDIRECT_ENABLED === "true"
+      ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : env.GALLERY_CDN_SECRET) ?? "",
     cdnProvider: env.GALLERY_CDN_PROVIDER as "beget" | undefined,
+    cdnRedirectEnabled: env.GALLERY_CDN_REDIRECT_ENABLED === "true",
+    cdnOriginRouteEnabled: env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED === "true",
+    cacheableFinalEnabled: env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true",
   };
+  for (const flag of ["GALLERY_CDN_REDIRECT_ENABLED", "GALLERY_CDN_ORIGIN_ROUTE_ENABLED", "GALLERY_CDN_CACHEABLE_FINAL_ENABLED"]) {
+    if (env[flag] !== undefined && !["true", "false"].includes(env[flag]!))
+      throw new Error("INVALID_GALLERY_CDN_FLAG");
+  }
+  if (config.cdnOriginRouteEnabled &&
+      (env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true" ||
+        !/^[A-Za-z0-9]{32,128}$/.test(env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET ?? "") ||
+        !/^[A-Za-z0-9]{24,128}$/.test(env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "")))
+    throw new Error("GALLERY_CDN_ORIGIN_NOT_VERIFIED");
+  if (config.cdnRedirectEnabled && !config.cdnOriginRouteEnabled)
+    throw new Error("GALLERY_CDN_REDIRECT_REQUIRES_ORIGIN");
+  if (config.cacheableFinalEnabled && env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true")
+    throw new Error("GALLERY_CDN_CACHE_NOT_VERIFIED");
   if (config.cdnProvider !== undefined && config.cdnProvider !== "beget")
     throw new Error("INVALID_GALLERY_CDN_PROVIDER");
   // Cleanup still needs standalone storage credentials even with the product flag off.
@@ -43,7 +63,8 @@ export function galleryStorageConfigFromEnv(
       url.hash ||
       url.username ||
       url.password ||
-      url.hostname !== "mepsuduyokabib.begetcdn.cloud"
+      url.hostname !== (config.cdnRedirectEnabled
+        ? "dikinuneceswe.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
     )
       throw new Error("UNSAFE_CDN_URL");
     config.cdnBaseUrl = url.origin;

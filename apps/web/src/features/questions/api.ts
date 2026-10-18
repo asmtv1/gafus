@@ -18,6 +18,8 @@ export const questionsTransport: QuestionsTransport = async <T>(
     headers["X-CSRF-Token"] = token;
   }
   const form = options.body instanceof FormData;
+  if (form && path === "photos" && method === "POST")
+    headers["X-Gafus-Questions-Async"] = "1";
   if (options.body && !form) headers["Content-Type"] = "application/json";
   const response = await fetch(
     `/api/v1/questions${path && !path.startsWith("?") ? "/" : ""}${path}`,
@@ -42,7 +44,18 @@ export const questionsApi = createQuestionsClient(questionsTransport);
 export async function uploadQuestionPhoto(file: File) {
   const form = new FormData();
   form.append("file", file);
-  return questionsTransport<QuestionPhotoDto>("photos", { method: "POST", body: form });
+  const uploaded = await questionsTransport<QuestionPhotoDto & {processing?: boolean}>(
+    "photos", { method: "POST", body: form });
+  if (uploaded.url) return uploaded;
+  // A private source is never rendered. Only completed WebP may be attached.
+  const deadline = Date.now() + 180_000;
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    const result = await questionsTransport<QuestionPhotoDto & {processing?: boolean}>(
+      `photos/${encodeURIComponent(uploaded.id)}`);
+    if (result.url) return result;
+  }
+  throw new Error("Обработка фото задерживается. Попробуйте загрузить его позже");
 }
 export const discardQuestionPhoto = (id: string) =>
   questionsTransport(`photos/${id}`, { method: "DELETE" });

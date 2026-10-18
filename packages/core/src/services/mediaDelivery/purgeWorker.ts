@@ -17,14 +17,14 @@ export type EdgePurgeJob = {
 
 /** Pure fail-closed verification for snapshot keys from a dedicated SQL outbox. */
 export function verifyEdgePurgeJob(job: EdgePurgeJob): asserts job is EdgePurgeJob & {
-  scope: "gallery" | "feed";
+  scope: "gallery" | "feed" | "questions";
 } {
-  if (!["gallery", "feed"].includes(job.scope) ||
+  if (!["gallery", "feed", "questions"].includes(job.scope) ||
       !new RegExp(`^${job.scope}:[A-Za-z0-9_-]{1,128}$`).test(job.id) ||
       !/^[0-9a-f-]{36}$/.test(job.attemptToken) ||
       !Array.isArray(job.paths) || job.paths.length < 1 || job.paths.length > 1024 ||
       job.paths.some(path => typeof path !== "string" || !path.startsWith("/") ||
-        !isBegetCacheableObjectKey(job.scope as "gallery" | "feed", path.slice(1))) ||
+        !isBegetCacheableObjectKey(job.scope as "gallery" | "feed" | "questions", path.slice(1))) ||
       !Array.isArray(job.purgeOperations) || job.purgeOperations.length > 103)
     throw new Error("MEDIA_PURGE_JOB_UNTRUSTED");
 }

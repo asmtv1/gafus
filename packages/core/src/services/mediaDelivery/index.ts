@@ -11,12 +11,24 @@ export type MediaCdnKind = 'gallery' | 'feed';
 export const MEDIA_CDN_OUTAGE_COOLDOWN_MS = 60_000;
 const cdnFailedUntil: Record<MediaCdnKind, number> = { gallery: 0, feed: 0 };
 
-/** Classify signed, exact-host CDN URLs for isolated per-service failover. */
+/** Public Feed URL validation is enabled only with an exact dedicated Beget host. */
+function publicFeedCdnHost(): string | null {
+  if (process.env.FEED_BUCKET_PUBLIC !== 'true') return null;
+  const match = /^https:\/\/([a-z0-9-]+\.begetcdn\.cloud)$/.exec(process.env.FEED_CDN_BASE_URL ?? '');
+  return match && match[1] !== 'garaquachegasourn.begetcdn.cloud' ? match[1] : null;
+}
+/** Classify approved CDN final-object URLs for isolated per-service failover. */
 export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
   try {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
         url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//')) return null;
+    if (url.hostname === publicFeedCdnHost() && !url.search) {
+      const path = url.pathname;
+      return /^\/posts\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/attachments\/[A-Za-z0-9_-]+\/(?:thumb|full|poster)\.webp$/.test(path) ||
+        /^\/posts\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/attachments\/[A-Za-z0-9_-]+\/hls\/segment-[0-9]{3,5}\.ts$/.test(path)
+        ? 'feed' : null;
+    }
     const gallery = url.hostname === 'mepsuduyokabib.begetcdn.cloud';
     const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
     if (!gallery && !feed || url.search) return null;
@@ -109,7 +121,13 @@ export function isTrustedCdnProbeUrl(
   if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
       !allowedHosts.includes(url.hostname) || url.pathname.includes('%') ||
       url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./')) return false;
-  if (!['mepsuduyokabib.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname) || url.search)
+  if (url.search) return false;
+  if (url.hostname === publicFeedCdnHost()) {
+    // The origin is an approved Beget service, and only final media are probed.
+    // No redirects, nonstandard ports or query params can reach the proxy.
+    return mediaCdnKindFromSignedUrl(raw) === 'feed';
+  }
+  if (!['mepsuduyokabib.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
     return false;
   const match = /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|posts)\/[A-Za-z0-9_/-]+\.(?:webp|ts))$/.exec(url.pathname);
   if (!match) return false;

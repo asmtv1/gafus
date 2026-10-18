@@ -254,6 +254,32 @@ describe("account storage cleanup adapter", () => {
       prefixes: ["questions/uploads/questions/u/"],
       keys: ["questions/uploads/questions/other/a.jpg"],
     });
+    const publicQuestion = "cloudru:questions-public:questions/uploads/questions/u/id.jpg";
+    expect(accountPublicKey(publicQuestion)).toBeNull();
+    expect(accountStorageTargets("questions-public", "u", [publicQuestion])).toEqual({
+      prefixes: ["questions/uploads/questions/u/", "questions/incoming/questions/u/", "questions/processed/questions/u/"],
+      keys: ["questions/uploads/questions/u/id.jpg"],
+    });
+    const pending = "cloudru:questions-pending:questions/incoming/questions/u/id/source.png";
+    expect(accountPublicKey(pending)).toBeNull();
+    expect(accountStorageTargets("questions-public", "u", [pending]).keys).toEqual([
+      "questions/uploads/questions/u/id/thumb.webp",
+      "questions/uploads/questions/u/id/full.webp",
+    ]);
+    expect(() => accountStorageTargets("questions-public", "u", [question])).toThrow(
+      "CLEANUP_INVALID_PUBLIC_QUESTION_LOCATION",
+    );
+    createAccountStorageCleaner("questions-public", {
+      QUESTIONS_PUBLIC_S3_BUCKET: "gafus-questions-public",
+      QUESTIONS_PUBLIC_S3_BUCKET_VERSIONING: "disabled",
+      CLOUDRU_S3_ACCESS_KEY_ID: "tenant:key",
+      CLOUDRU_S3_SECRET_ACCESS_KEY: "secret",
+    });
+    expect(() => createAccountStorageCleaner("questions-public", {
+      QUESTIONS_PUBLIC_S3_BUCKET: "gafus-documents-private",
+      CLOUDRU_S3_ACCESS_KEY_ID: "tenant:key",
+      CLOUDRU_S3_SECRET_ACCESS_KEY: "secret",
+    })).toThrow("CLEANUP_STORAGE_UNCONFIGURED");
     expect(accountStorageTargets("documents", "u", [document])).toEqual({
       prefixes: ["documents/uploads/users/u/pets/"],
       keys: ["documents/uploads/users/u/pets/p/documents/d.pdf"],

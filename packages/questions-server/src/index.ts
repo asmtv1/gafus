@@ -1,6 +1,6 @@
 import { z } from "zod";
 import * as service from "@gafus/core/services/questions";
-import { uploadQuestionPhoto, deleteUnusedQuestionPhoto } from "@gafus/core/services/questions";
+import { uploadQuestionPhoto, deleteUnusedQuestionPhoto, getQuestionPhotoProcessingStatus } from "@gafus/core/services/questions";
 import {
   getQuestionModeration,
   moderateQuestionReport,
@@ -34,8 +34,12 @@ export async function dispatchQuestionsRequest(userId: string, request: Request,
         throw new QuestionError("PHOTO_REQUIRED", "Выберите фото");
       if (file.size > QUESTION_LIMITS.photoBytes)
         throw new QuestionError("PHOTO_SIZE", "Фото должно быть не больше 10 МБ", 413);
-      return uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()));
+      return uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()), {
+        allowAsync: request.headers.get("x-gafus-questions-async") === "1",
+      });
     }
+    if (method === "GET" && parts[1])
+      return getQuestionPhotoProcessingStatus(userId, parts[1]);
     if (method === "DELETE" && parts[1]) return deleteUnusedQuestionPhoto(userId, parts[1]);
   }
   if (parts[0] === "moderation") {

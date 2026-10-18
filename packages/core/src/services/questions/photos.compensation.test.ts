@@ -17,6 +17,10 @@ vi.mock("@gafus/cdn-upload", () => ({
   uploadBufferToCDN: mocked.upload,
   deleteFileFromCDN: mocked.remove,
   privateMediaEnabled: () => true,
+  publicQuestionsEnabled: () => false,
+  questionCloudJobEnabled: () => false,
+  parsePublicQuestionLocation: () => null,
+  parsePendingQuestionLocation: () => null,
   privateMediaLocation: () => "cloudru:questions:questions/uploads/questions/u/photo.jpg",
   parsePrivateMediaLocation: (v: string) =>
     v.startsWith("cloudru:")
@@ -25,6 +29,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   signPrivateUserMedia: mocked.sign,
 }));
 vi.mock("./service", () => ({ questionActor: vi.fn().mockResolvedValue({ id: "u" }) }));
+vi.mock("@gafus/queues", () => ({ enqueueQuestionsProcessing: vi.fn() }));
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     $transaction: vi.fn(async (cb) => {

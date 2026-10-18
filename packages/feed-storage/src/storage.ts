@@ -13,6 +13,8 @@ export interface FeedStorageConfig {
   cdnBaseUrl: string;
   cdnSecret: string;
   cdnProvider?: "beget";
+  /** Public final-object reads in the existing Cloud.ru bucket; incoming stays private. */
+  publicRead?: boolean;
 }
 function safeOrigin(value: string): string {
   const url = new URL(value);
@@ -22,6 +24,21 @@ function safeOrigin(value: string): string {
     throw new Error("UNSAFE_FEED_CDN");
   return url.origin;
 }
+/** Do not permit arbitrary hosts or the previous signed-only CDN as a public origin. */
+function safePublicOrigin(value: string): string {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash ||
+      url.username || url.password || url.port ||
+      !/^[a-z0-9-]+\.begetcdn\.cloud$/.test(url.hostname) ||
+      url.hostname === "garaquachegasourn.begetcdn.cloud")
+    throw new Error("UNSAFE_PUBLIC_FEED_CDN");
+  return url.origin;
+}
+/** Public delivery never accepts source/attempt keys, user paths or query strings. */
+export function publicFeedCdnUrl(baseUrl: string, key: string): string {
+  assertFeedFinalKey(key);
+  return `${safePublicOrigin(baseUrl)}/${key}`;
+}
 export function feedStorageConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): FeedStorageConfig {
@@ -29,7 +46,9 @@ export function feedStorageConfigFromEnv(
     if (env[name] !== undefined && env[name] !== "true" && env[name] !== "false")
       throw new Error("INVALID_FEED_FLAG");
   }
-  if (env.FEED_BUCKET_PUBLIC === "true") throw new Error("PUBLIC_FEED_BUCKET");
+  if (env.FEED_BUCKET_PUBLIC !== undefined &&
+      env.FEED_BUCKET_PUBLIC !== "true" && env.FEED_BUCKET_PUBLIC !== "false")
+    throw new Error("INVALID_FEED_FLAG");
   const config: FeedStorageConfig = {
     enabled: env.FEED_ENABLED === "true" && env.FEED_PROCESSOR_READY === "true",
     bucket: env.FEED_BUCKET ?? "",
@@ -39,12 +58,13 @@ export function feedStorageConfigFromEnv(
     cdnBaseUrl: env.FEED_CDN_BASE_URL ?? "",
     cdnSecret: env.FEED_CDN_SECRET ?? "",
     cdnProvider: env.FEED_CDN_PROVIDER as "beget" | undefined,
+    publicRead: env.FEED_BUCKET_PUBLIC === "true",
   };
   if (config.cdnProvider !== undefined && config.cdnProvider !== "beget")
     throw new Error("INVALID_FEED_CDN_PROVIDER");
   if (config.enabled) {
     validateFeedStorageConfig(config);
-    if (config.endpoint === "https://s3.cloud.ru" && env.FEED_CDN_EDGE_TOKEN_VERIFIED !== "true")
+    if (!config.publicRead && config.endpoint === "https://s3.cloud.ru" && env.FEED_CDN_EDGE_TOKEN_VERIFIED !== "true")
       throw new Error("FEED_CDN_EDGE_UNVERIFIED");
     if (Buffer.byteLength(env.FEED_INTERNAL_HMAC_SECRET ?? "") < 32)
       throw new Error("MISSING_FEED_INTERNAL_KEY");
@@ -58,10 +78,12 @@ function validateFeedStorageConfig(config: FeedStorageConfig) {
     config.endpoint !== "https://s3.cloud.ru" ||
     !config.accessKeyId ||
     !config.secretAccessKey ||
-    !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret)
+    (config.publicRead && config.bucket !== "gafus-feed-private") ||
+    (!config.publicRead && !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret))
   )
     throw new Error("INVALID_FEED_STORAGE_CONFIG");
-  safeOrigin(config.cdnBaseUrl);
+  if (config.publicRead) safePublicOrigin(config.cdnBaseUrl);
+  else safeOrigin(config.cdnBaseUrl);
 }
 export function signFeedCdnUrl(
   baseUrl: string,
@@ -224,6 +246,7 @@ export function createFeedStorage(
     },
     async signCdn(input) {
       requireClient();
+      if (config.publicRead) return publicFeedCdnUrl(config.cdnBaseUrl, input.key);
       return signFeedCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret, Date.now(), config.cdnProvider);
     },
   };

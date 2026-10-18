@@ -7,7 +7,9 @@ import {
   GetBucketAclCommand,
   GetPublicAccessBlockCommand,
   GetBucketPolicyStatusCommand,
+  GetBucketPolicyCommand,
 } from "@aws-sdk/client-s3";
+import { verifiedPublicFeedAccess } from "./private-bucket-guard.mjs";
 const env = process.env;
 const result = {
   timestamp: new Date().toISOString(),
@@ -189,6 +191,7 @@ async function storageStatus() {
         publicAccessBlockRead: "unverified", publicAccessBlock: null,
         policyStatusRead: "unverified", policyIsPublic: null,
         verifiedPrivate: false,
+        verifiedPublicFinalRead: false,
       };
       try {
         const acl = await client.send(new GetBucketAclCommand({ Bucket: bucket }), {
@@ -235,6 +238,21 @@ async function storageStatus() {
         privacy.policyIsPublic === false &&
         privacy.publicAccessBlock !== null &&
         Object.values(privacy.publicAccessBlock).every(Boolean);
+      if (bucket === "gafus-feed-private" && env.FEED_BUCKET_PUBLIC === "true") {
+        let policyText = "";
+        try {
+          policyText = (await client.send(new GetBucketPolicyCommand({ Bucket: bucket }), {
+            abortSignal: AbortSignal.timeout(8000),
+          })).Policy ?? "";
+        } catch { /* A missing/unreadable policy is not verified. */ }
+        const pab = privacy.publicAccessBlock;
+        privacy.verifiedPublicFinalRead = verifiedPublicFeedAccess(pab ? {
+          BlockPublicAcls: pab.blockPublicAcls,
+          IgnorePublicAcls: pab.ignorePublicAcls,
+          BlockPublicPolicy: pab.blockPublicPolicy,
+          RestrictPublicBuckets: pab.restrictPublicBuckets,
+        } : null, policyText, privacy.publicGrants !== 0);
+      }
       result.bucketPrivacyReadiness[bucket] = privacy;
     }
   } finally {
@@ -289,7 +307,8 @@ async function legacyStorageStatus() {
 }
 await Promise.all([projectStatus(), storageStatus(), legacyStorageStatus()]);
 result.cdn.edgeTokensVerified =
-  env.GALLERY_CDN_EDGE_TOKEN_VERIFIED === "true" && env.FEED_CDN_EDGE_TOKEN_VERIFIED === "true";
+  env.GALLERY_CDN_EDGE_TOKEN_VERIFIED === "true" &&
+  (env.FEED_BUCKET_PUBLIC === "true" || env.FEED_CDN_EDGE_TOKEN_VERIFIED === "true");
 result.cdn.purgeApiVerified = env.CLOUDRU_CDN_PURGE_API_VERIFIED === "true";
 result.cdn.cacheKeyVerified = env.CLOUDRU_CDN_CACHE_KEY_VERIFIED === "true";
 // These are necessary conditions, not proof of end-to-end production readiness.

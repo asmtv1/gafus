@@ -5,9 +5,9 @@ export interface SignedFeedManifest {
   expiresAt: string;
 }
 /**
- * Replaces HLS segment references with short-lived, individually signed CDN URLs.
- * Client never sees the internal bucket/key or an unsigned storage origin.
- * Caller must authorize the published media and supply an audited CDN signer.
+ * Replaces HLS segment references with approved HTTPS CDN URLs (public or
+ * legacy signed). Caller must authorize the published media; never accept
+ * arbitrary remote playlist references or a signer changing the CDN host.
  */
 export async function signFeedHlsManifest(input: {
   manifest: string;

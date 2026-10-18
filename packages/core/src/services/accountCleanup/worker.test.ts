@@ -73,6 +73,14 @@ describe("durable account cleanup", () => {
       expect(statements()[0]).toContain("'done'");
     },
   );
+  it("does not finish public Questions account deletion until CDN purge is confirmed", async () => {
+    mock.query.mockResolvedValue([{ ...job, scope: "questions-public",
+      keys: ["cloudru:questions-public:questions/uploads/questions/owner/one.jpg"] }]);
+    await processAccountStorageCleanup(1);
+    expect(mock.sweep).toHaveBeenCalledOnce();
+    expect(mock.purge).toHaveBeenCalledOnce();
+    expect(statements()[0]).not.toContain("'done'");
+  });
   it("restarts CDN invalidation if a late object is found", async () => {
     mock.query.mockResolvedValue([
       { ...job, purgeAfter: new Date(0), purgeOperations: ["operation"] },

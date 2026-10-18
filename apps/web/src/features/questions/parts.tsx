@@ -1,4 +1,5 @@
 "use client";
+import { questionThumbnailUrl } from "@gafus/types";
 import { reportClientError } from "@gafus/error-handling";
 import {
   CheckCircleOutline,
@@ -93,7 +94,7 @@ export function Photos({ photos }: { photos: QuestionPhotoDto[] }) {
           rel="noopener noreferrer"
           aria-label="Открыть фото"
         >
-          <img src={p.url} alt="Фото к публикации" className={s.photo} loading="lazy" />
+          <img src={questionThumbnailUrl(p.url)} alt="Фото к публикации" className={s.photo} loading="lazy" />
         </a>
       ))}
     </div>
@@ -132,7 +133,7 @@ export function PhotoPicker({
       <div className={s.photoPickerGrid}>
         {photos.map((photo, index) => (
           <div className={s.photoSlot} key={photo.id}>
-            <img src={photo.url} alt={`Фото ${index + 1}`} className={s.photo} />
+            <img src={questionThumbnailUrl(photo.url)} alt={`Фото ${index + 1}`} className={s.photo} />
             <SecondaryButton
               className={s.removePhotoButton}
               disabled={busy}

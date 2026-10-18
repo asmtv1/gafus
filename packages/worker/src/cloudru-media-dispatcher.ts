@@ -16,6 +16,7 @@ export const CLOUDRU_MEDIA_JOB_NAMES = [
   ...DEFAULT_MEDIA_JOB_NAMES,
   "gafus-feed-photo-2",
   "gafus-feed-video-2",
+  "gafus-questions-photo",
 ] as const;
 
 export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
@@ -33,6 +34,9 @@ export function createCloudruMediaDispatcher(
     !env.CLOUDRU_KEY_SECRET ||
     (names.some((name) => name.startsWith("gafus-feed")) && env.FEED_PROCESSOR_READY !== "true") ||
     (names.includes("gafus-gallery-process") && env.GALLERY_PROCESSOR_READY !== "true") ||
+    (names.includes("gafus-questions-photo") &&
+      (env.QUESTIONS_PROCESSOR_READY !== "true" ||
+        env.QUESTIONS_CLOUD_JOB_ENABLED !== "true")) ||
     names.length === 0 ||
     names.some((name) => !CLOUDRU_MEDIA_JOB_NAMES.includes(name))
   ) {

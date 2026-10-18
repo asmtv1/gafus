@@ -39,6 +39,9 @@ export function privateMediaLocation(kind: PrivateMediaKind, relativePath: strin
 export function parsePrivateMediaLocation(
   value: string,
 ): { kind: PrivateMediaKind; key: string } | null {
+  // Public Questions have their own explicitly verified provider marker.
+  if (value.startsWith("cloudru:questions-public:")) return null;
+  if (value.startsWith("cloudru:questions-pending:")) return null;
   if (!value.startsWith(storePrefix)) return null;
   const match = /^cloudru:(questions|documents):(.+)$/.exec(value);
   if (!match || !keyPattern.test(match[2]!) || !match[2]!.startsWith(`${match[1]}/`))

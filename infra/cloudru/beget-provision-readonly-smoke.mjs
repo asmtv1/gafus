@@ -44,7 +44,10 @@ try{
    const sha=createHash('sha256').update(bytes).digest('hex');
    // Register for cleanup BEFORE PUT: a timed-out PUT may have succeeded.
    created.push({def,key,sha,bytes:bytes.length});
-   const put=await s3.send(new PutObjectCommand({Bucket:def.bucket,Key:key,Body:bytes,IfNoneMatch:'*',ContentType:'image/webp',CacheControl:'private, max-age=180, must-revalidate'}),{abortSignal:AbortSignal.timeout(18000)});
+   const put=await s3.send(new PutObjectCommand({Bucket:def.bucket,Key:key,Body:bytes,IfNoneMatch:'*',ContentType:'image/webp',CacheControl:def.scope === 'feed' && e.FEED_BUCKET_PUBLIC === 'true'
+     ? 'public, max-age=180, s-maxage=86400, must-revalidate'
+     : (def.scope === 'gallery' && e.GALLERY_CDN_REDIRECT_ENABLED === 'true'
+         ? 'public, max-age=600' : 'private, max-age=180, must-revalidate')}),{abortSignal:AbortSignal.timeout(18000)});
    if(put.$metadata.httpStatusCode!==200)throw Error('SMOKE_PUT_STATUS_UNEXPECTED_'+def.scope);
    const head=await s3.send(new HeadObjectCommand({Bucket:def.bucket,Key:key}),{abortSignal:AbortSignal.timeout(15000)});
    if(head.$metadata.httpStatusCode!==200||head.ContentLength!==bytes.length||!head.ContentType?.includes('image/webp'))

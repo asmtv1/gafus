@@ -35,8 +35,28 @@ jobs:
           BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
           BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
           GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-          FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+          FEED_BUCKET_PUBLIC: 'true'
+          FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
+          FEED_BEGET_CDN_SERVICE_ID: cbb7fe86-a193-457e-a756-9cf3aa2aef1b
+          QUESTIONS_PUBLIC_S3_ENABLED: ${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}
+          QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
+          QUESTIONS_PROCESSOR_READY: ${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}
+          QUESTIONS_CDN_LIVE_VERIFIED: ${{ vars.QUESTIONS_CDN_LIVE_VERIFIED || 'true' }}
+          QUESTIONS_PUBLIC_S3_BUCKET: gafus-questions-public
+          QUESTIONS_CDN_BASE_URL: https://ebiteskukingusk.begetcdn.cloud
+          QUESTIONS_BEGET_CDN_SERVICE_ID: 3c2a1623-50a1-46a1-b7a4-bb1093eaedf0
           GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+          GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+          GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+          GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+          GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
+          GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+          GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+          GALLERY_CDN_CANARY_VERIFIED: ${{ vars.GALLERY_CDN_CANARY_VERIFIED || 'false' }}
+          GALLERY_MOBILE_COMPAT_VERIFIED: ${{ vars.GALLERY_MOBILE_COMPAT_VERIFIED || 'false' }}
+          GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED: ${{ vars.GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED || 'false' }}
+          GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+          GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
           FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
           GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
           FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
@@ -45,10 +65,32 @@ jobs:
           BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
           BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
           BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+          FEED_CDN_HEALTH_OBJECT_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
         run: |
           node infra/cloudru/beget-release-readiness.mjs --check
-          node infra/cloudru/beget-production-smoke.mjs
+          GALLERY_CDN_REDIRECT_ENABLED=false node infra/cloudru/beget-production-smoke.mjs
+          node infra/cloudru/gallery-release-edge-readiness.mjs
 
+      - name: Verify isolated Questions CDN readiness before SSH (read-only)
+        env:
+          BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+          QUESTIONS_PUBLIC_S3_ENABLED: ${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}
+          QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
+          QUESTIONS_PROCESSOR_READY: ${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}
+          QUESTIONS_CDN_LIVE_VERIFIED: ${{ vars.QUESTIONS_CDN_LIVE_VERIFIED || 'true' }}
+          QUESTIONS_PUBLIC_S3_BUCKET: gafus-questions-public
+          QUESTIONS_CDN_BASE_URL: https://ebiteskukingusk.begetcdn.cloud
+          QUESTIONS_BEGET_CDN_SERVICE_ID: 3c2a1623-50a1-46a1-b7a4-bb1093eaedf0
+        run: node infra/cloudru/questions-public-readiness.mjs
+      - name: Verify existing Questions Cloud.ru production Job before SSH (read-only)
+        env:
+          CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+          CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+          CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+          QUESTIONS_PUBLIC_S3_ENABLED: ${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}
+          QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
+          QUESTIONS_PROCESSOR_READY: ${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}
+        run: node infra/cloudru/questions-job-live-readiness.mjs
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -305,9 +347,36 @@ jobs:
                 # delivery before the exact-path purge and edge checks work.
                 if [ -z "${{ secrets.BEGET_CDN_API_TOKEN }}" ] || \
                    [ -z "${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}" ] || \
-                   [ -z "${{ vars.FEED_BEGET_CDN_SERVICE_ID }}" ]; then
-                  echo "Beget purge token/service IDs are not configured"
+                   [ "${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}" != "${{ vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && '10530e64-21b7-4352-8366-806c79c2f1b7' || '0a8e97d5-3a65-4e90-99a6-c7f61131a461' }}" ]; then
+                  echo "Beget purge token or verified Gallery service ID is not configured"
                   exit 1
+                fi
+                # Single-push Gallery cutover; real origin smoke runs after deployment.
+                # Keep old Gallery Origin for rollback.
+                if [ "${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED }}" = "true" ]; then
+                  if [ -z "${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}" ] || \
+                     [ -z "${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}" ]; then
+                    echo "Gallery canary origin requires dedicated origin/header and CDN signing secrets"
+                    exit 1
+                  fi
+                fi
+                if [ "${{ vars.GALLERY_CDN_REDIRECT_ENABLED }}" = "true" ]; then
+                  if [ "${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED }}" != "true" ] || \
+                     [ "${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED }}" != "true" ] || \
+                     [ "${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED }}" != "true" ] || \
+                     [ "${{ vars.GALLERY_CDN_METADATA_MIGRATED }}" != "true" ] || \
+                     [ "${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED }}" != "true" ] || \
+                     [ -z "${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}" ] || \
+                     [ -z "${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}" ]; then
+                    echo "Gallery redirect cutover requires enabled origin route, dual purge, cache metadata, browser verification and secrets"
+                    exit 1
+                  fi
+                  # Do not allow shell &&/|| precedence to bypass checks above.
+                  if [ "${{ vars.GALLERY_MOBILE_COMPAT_VERIFIED }}" != "true" ] && \
+                     [ "${{ vars.GALLERY_MOBILE_POST_DEPLOY_TEST_APPROVED }}" != "true" ]; then
+                    echo "Gallery mobile must be verified or explicitly approved for post-deployment owner testing"
+                    exit 1
+                  fi
                 fi
                 if [ "${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}" != "true" ] || \
                    [ "${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED }}" != "true" ] || \
@@ -366,7 +435,13 @@ jobs:
               echo "GALLERY_BUCKET=gafus-gallery-private"
               echo "GALLERY_S3_ENDPOINT=https://s3.cloud.ru"
               echo "GALLERY_CDN_PROVIDER=beget"
-              echo "GALLERY_CDN_BASE_URL=https://mepsuduyokabib.begetcdn.cloud"
+              echo "GALLERY_CDN_BASE_URL=${{ vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && 'https://dikinuneceswe.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}"
+              echo "GALLERY_CDN_REDIRECT_ENABLED=${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}"
+              echo "GALLERY_CDN_ORIGIN_ROUTE_ENABLED=${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}"
+              echo "GALLERY_CDN_PURGE_DUAL_ENABLED=${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}"
+              echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}"
+              echo "GALLERY_CDN_REDIRECT_ORIGIN_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}"
+              echo "GALLERY_CDN_REDIRECT_SIGNING_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}"
               echo "GALLERY_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "GALLERY_PROCESSOR_READY=true"
               echo "GALLERY_MEDIA_FALLBACK_ENABLED=true"
@@ -375,7 +450,10 @@ jobs:
               echo "FEED_BUCKET=gafus-feed-private"
               echo "FEED_S3_ENDPOINT=https://s3.cloud.ru"
               echo "FEED_CDN_PROVIDER=beget"
-              echo "FEED_CDN_BASE_URL=https://garaquachegasourn.begetcdn.cloud"
+              # Verified public Cloud.ru S3 Feed cutover, pinned to tested Beget service.
+              echo "FEED_BUCKET_PUBLIC=true"
+              echo "FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud"
+              echo "FEED_CDN_HEALTH_OBJECT_KEY=${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}"
               echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "FEED_MEDIA_FALLBACK_ENABLED=true"
               echo "CDN_HEALTH_MONITOR_ENABLED=true"
@@ -388,6 +466,18 @@ jobs:
               echo "CLOUDRU_QUESTIONS_BUCKET=gafus-documents-private"
               echo "CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=disabled"
               echo "CLOUDRU_QUESTIONS_BUCKET_VERSIONING=disabled"
+              # Dedicated Questions CDN passed real Cloud.ru PUT -> Beget HIT -> S3 DELETE -> Beget purge -> GET/HEAD 404.
+              # Operators can disable via protected environment vars for emergency rollback.
+              # Real Questions Cloud.ru Job passed live PNG->2x WebP; single main push enables the new route.
+              echo "QUESTIONS_PUBLIC_S3_ENABLED=${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}"
+              echo "QUESTIONS_CLOUD_JOB_ENABLED=${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}"
+              echo "QUESTIONS_PROCESSOR_READY=${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}"
+              echo "QUESTIONS_PUBLIC_S3_BUCKET=gafus-questions-public"
+              echo "QUESTIONS_PUBLIC_S3_BUCKET_VERSIONING=disabled"
+              echo "QUESTIONS_CDN_PROVIDER=beget"
+              echo "QUESTIONS_CDN_BASE_URL=https://ebiteskukingusk.begetcdn.cloud"
+              echo "QUESTIONS_BEGET_CDN_SERVICE_ID=3c2a1623-50a1-46a1-b7a4-bb1093eaedf0"
+              echo "QUESTIONS_CDN_LIVE_VERIFIED=${{ vars.QUESTIONS_CDN_LIVE_VERIFIED || 'true' }}"
               echo "CLOUDRU_MEDIA_JOBS_ENABLED=true"
               echo "CLOUDRU_PROJECT_ID=${{ secrets.CLOUDRU_PROJECT_ID }}"
               echo "CLOUDRU_KEY_ID=${{ secrets.CLOUDRU_KEY_ID }}"
@@ -397,7 +487,7 @@ jobs:
               # be tested before enabling any of these fail-closed flags.
               echo "BEGET_CDN_API_TOKEN=${{ secrets.BEGET_CDN_API_TOKEN }}"
               echo "GALLERY_BEGET_CDN_SERVICE_ID=${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}"
-              echo "FEED_BEGET_CDN_SERVICE_ID=${{ vars.FEED_BEGET_CDN_SERVICE_ID }}"
+              echo "FEED_BEGET_CDN_SERVICE_ID=cbb7fe86-a193-457e-a756-9cf3aa2aef1b"
               echo "BEGET_CDN_PURGE_API_VERIFIED=${{ vars.BEGET_CDN_PURGE_API_VERIFIED || 'false' }}"
               echo "BEGET_CDN_CACHE_KEY_VERIFIED=${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED || 'false' }}"
               echo "BEGET_CDN_PURGE_PROPAGATION_VERIFIED=${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}"
@@ -662,6 +752,31 @@ jobs:
 
             # Verify all replacement containers while traffic remains gated.
             bash "$CUTOVER_SCRIPT" verify
+            # Validate the actual running containers before opening the gate.
+            # Single-push Questions WebP cutover is enabled in API, Web and Worker;
+            # a mistaken Compose env or partial recreation must block traffic.
+            if [ "${{ vars.QUESTIONS_PUBLIC_S3_ENABLED || 'true' }}" = "true" ]; then
+              for app in gafus-api gafus-web gafus-worker; do
+                for key in QUESTIONS_PUBLIC_S3_ENABLED QUESTIONS_CLOUD_JOB_ENABLED QUESTIONS_PROCESSOR_READY QUESTIONS_CDN_LIVE_VERIFIED; do
+                  value="$(docker exec "$app" printenv "$key" 2>/dev/null || true)"
+                  if [ "$value" != "true" ]; then
+                    echo "Questions cutover is not active in $app: $key"
+                    exit 1
+                  fi
+                done
+                if [ "$(docker exec "$app" printenv QUESTIONS_PUBLIC_S3_BUCKET 2>/dev/null || true)" != "gafus-questions-public" ]; then
+                  echo "Questions S3 bucket mismatch in $app"
+                  exit 1
+                fi
+              done
+              # Job IAM dispatcher runs only in worker; fail before traffic
+              # if Compose forgot its execution flag.
+              if [ "$(docker exec gafus-worker printenv CLOUDRU_MEDIA_JOBS_ENABLED 2>/dev/null || true)" != "true" ]; then
+                echo "Cloud.ru Job dispatcher not enabled in worker"
+                exit 1
+              fi
+              echo "QUESTIONS_FIRST_DEPLOY_ALL_RUNTIMES_READY=true"
+            fi
             # The gate opens only now: no old process can observe the
             # incompatible Prisma schema after the swap.
             bash "$CUTOVER_SCRIPT" open

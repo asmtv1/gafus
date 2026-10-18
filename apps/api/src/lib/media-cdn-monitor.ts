@@ -64,10 +64,26 @@ export function parseMonitorState(raw: string | null, now: number): MediaCdnHeal
   } catch { return fallback; }
 }
 
-export type MonitorConfig = Record<Kind, { host: string; secret: string; enabled: boolean; provider?: "beget" }>;
+export type MonitorConfig = Record<Kind, {
+  host: string; secret: string; enabled: boolean; provider?: "beget";
+  publicRead?: boolean; healthObjectKey?: string;
+}>;
+const publicFeedHost = (base: string): string => {
+  const match = /^https:\/\/([a-z0-9-]+\.begetcdn\.cloud)$/.exec(base);
+  return match && match[1] !== "garaquachegasourn.begetcdn.cloud" ? match[1] : "";
+};
+const publicFeedHealthKey = (value: string): string =>
+  /^posts\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/attachments\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full|poster)\.webp$/.test(value)
+    ? value : "";
 export function monitorConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): MonitorConfig {
+  const feedPublic = env.FEED_BUCKET_PUBLIC === "true";
+  const feedHost = feedPublic
+    ? publicFeedHost(env.FEED_CDN_BASE_URL ?? "")
+    : env.FEED_CDN_BASE_URL === "https://garaquachegasourn.begetcdn.cloud"
+      ? "garaquachegasourn.begetcdn.cloud" : "";
+  const feedHealthKey = feedPublic ? publicFeedHealthKey(env.FEED_CDN_HEALTH_OBJECT_KEY ?? "") : "";
   return {
     gallery: {
       host: env.GALLERY_CDN_BASE_URL === "https://mepsuduyokabib.begetcdn.cloud" &&
@@ -80,14 +96,15 @@ export function monitorConfigFromEnv(
         env.GALLERY_S3_ENDPOINT === "https://s3.cloud.ru",
     },
     feed: {
-      host: env.FEED_CDN_BASE_URL === "https://garaquachegasourn.begetcdn.cloud" &&
-        (!env.FEED_CDN_PROVIDER || env.FEED_CDN_PROVIDER === "beget")
-        ? "garaquachegasourn.begetcdn.cloud" : "",
+      host: (!env.FEED_CDN_PROVIDER || env.FEED_CDN_PROVIDER === "beget") ? feedHost : "",
       provider: "beget",
-      secret: env.FEED_CDN_SECRET ?? "",
+      secret: feedPublic ? "" : env.FEED_CDN_SECRET ?? "",
+      publicRead: feedPublic,
+      healthObjectKey: feedHealthKey,
       enabled: env.FEED_ENABLED === "true" &&
         env.FEED_MEDIA_FALLBACK_ENABLED === "true" &&
-        env.FEED_S3_ENDPOINT === "https://s3.cloud.ru",
+        env.FEED_S3_ENDPOINT === "https://s3.cloud.ru" &&
+        (!feedPublic || Boolean(feedHealthKey)),
     },
   };
 }
@@ -98,7 +115,12 @@ export function monitorConfigFromEnv(
  */
 export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
   now = Date.now(), id = randomUUID().replace(/-/g, "")): string | null {
-  const { host, secret, enabled, provider } = config[kind];
+  const { host, secret, enabled, provider, publicRead, healthObjectKey } = config[kind];
+  if (kind === "feed" && publicRead) {
+    const key = publicFeedHealthKey(healthObjectKey ?? "");
+    return enabled && publicFeedHost(`https://${host}`) === host &&
+      provider === "beget" && key ? `https://${host}/${key}` : null;
+  }
   if (!enabled || !host ||
       !(kind === "gallery" ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret) ||
       !/^[a-f0-9]{32}$/.test(id)) return null;
@@ -123,9 +145,16 @@ export async function probeMediaCdn(kind: Kind, config: MonitorConfig,
       signal: AbortSignal.timeout(7_500),
     });
     void response.body?.cancel();
-    if (response.status === 404) return "healthy";
     if (response.status >= 500 && response.status <= 599) return "failed";
-    return "unknown"; // 403, 401, 200, redirects are not origin-health evidence.
+    if (kind === "feed" && config.feed.publicRead) {
+      // A nonexistent object might return 403 without ListBucket. Only a real,
+      // known public fixture returning WebP is positive S3/CDN evidence.
+      return response.status === 200 &&
+        response.headers.get("content-type")?.toLowerCase().startsWith("image/webp")
+        ? "healthy" : "unknown";
+    }
+    if (response.status === 404) return "healthy";
+    return "unknown"; // Legacy signed probe: 403, 401, 200, redirects are inconclusive.
   } catch { return "failed"; }
 }
 

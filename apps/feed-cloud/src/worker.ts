@@ -72,7 +72,7 @@ export function createFeedCloudWorker(input: {
             }
             const posterKey = prefix + "poster.webp", playlistKey = prefix + "hls/playlist.m3u8";
             await input.objects.create(posterKey, await readFile(result.poster), "image/webp", signal);
-            // The unsigned playlist remains private in S3; playback signs each segment separately.
+            // Playback still serves the authorized manifest through API; segments use CDN URLs.
             await input.objects.create(playlistKey, await readFile(result.playlist), "application/vnd.apple.mpegurl", signal);
             output = { width: result.info.width, height: result.info.height, durationSeconds: result.info.durationSeconds,
               posterKey, playlistKey, videoSegmentKeys: segments };

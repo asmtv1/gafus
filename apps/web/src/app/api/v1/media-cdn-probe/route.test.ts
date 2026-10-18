@@ -5,7 +5,7 @@ vi.mock("@gafus/auth", () => ({ authOptions: {} }));
 import { GET } from "./route";
 const media = `https://garaquachegasourn.begetcdn.cloud/md5(${"A".repeat(22)},${Math.floor(Date.now()/1000)+85})/posts/owner/post/attachments/item/thumb.webp`;
 const request = (url: string) => new Request("https://gafus.ru/api/v1/media-cdn-probe?url="+encodeURIComponent(url));
-beforeEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); session.mockReset(); session.mockResolvedValue({user:{id:"authorized"}}); });
+beforeEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); session.mockReset(); session.mockResolvedValue({user:{id:"authorized"}}); });
 describe("authenticated Web CDN status proxy (no storage URL disclosed)", () => {
   it("does not fetch any origin for unauthenticated session", async () => {
     session.mockResolvedValueOnce(null);
@@ -19,6 +19,22 @@ describe("authenticated Web CDN status proxy (no storage URL disclosed)", () => 
       expect((await GET(request(bad))).status).toBe(400);
     }
     expect(fn).not.toHaveBeenCalled();
+  });
+  it("probes only approved unsigned public Feed final media when configured", async () => {
+    const url = "https://new-feed.begetcdn.cloud/posts/owner/post/attachments/media/thumb.webp";
+    vi.stubEnv("FEED_BUCKET_PUBLIC", "true");
+    vi.stubEnv("FEED_CDN_BASE_URL", "https://new-feed.begetcdn.cloud");
+    const head = vi.fn(async () => new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", head);
+    expect((await GET(request(url))).status).toBe(503);
+    expect(head).toHaveBeenCalledWith(url, expect.objectContaining({ method: "HEAD" }));
+    head.mockClear();
+    for (const bad of [url + "?x=1", url.replace("thumb.webp", "source.mp4"),
+      url.replace("/attachments/", "/incoming/"), url.replace("new-feed.begetcdn.cloud", "evil.test")])
+      expect((await GET(request(bad))).status).toBe(400);
+    expect(head).not.toHaveBeenCalled();
+    vi.stubEnv("FEED_BUCKET_PUBLIC", "false");
+    expect((await GET(request(url))).status).toBe(400);
   });
   it("passes 403 and 404 exactly, preserves 504 without bypass", async () => {
     for(const code of [200,403,404,504]){

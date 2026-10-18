@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-const core = vi.hoisted(() => ({ listQuestions: vi.fn(), createQuestion: vi.fn(), uploadQuestionPhoto: vi.fn(), setQuestionHeart: vi.fn() }));
+const core = vi.hoisted(() => ({ listQuestions: vi.fn(), createQuestion: vi.fn(), uploadQuestionPhoto: vi.fn(), getQuestionPhotoProcessingStatus: vi.fn(), setQuestionHeart: vi.fn() }));
 vi.mock("@gafus/core/services/questions", () => ({
   ...core,
   QuestionError: class extends Error { constructor(public code: string, message: string, public status: number) { super(message); } },
@@ -27,7 +27,26 @@ describe("questions HTTP decoding", () => {
   it("decodes multipart bytes and leaves file inspection to core", async () => {
     const form = new FormData(); form.append("file", new Blob([new Uint8Array([1, 2, 3])]), "photo.jpg");
     await dispatchQuestionsRequest("account-1", new Request("https://example.test/questions/photos", { method: "POST", body: form }), "photos");
-    expect(core.uploadQuestionPhoto).toHaveBeenCalledWith("account-1", new Uint8Array([1, 2, 3]));
+    expect(core.uploadQuestionPhoto).toHaveBeenCalledWith(
+      "account-1", new Uint8Array([1, 2, 3]), {allowAsync:false},
+    );
+  });
+  it("permits async processing only for explicitly updated clients", async () => {
+    const form = new FormData();
+    form.append("file",new Blob([new Uint8Array([1, 2, 3])]),"photo.jpg");
+    await dispatchQuestionsRequest("account-1",new Request("https://example.test/questions/photos",{
+      method:"POST",headers:{"X-Gafus-Questions-Async":"1"},body:form,
+    }),"photos");
+    expect(core.uploadQuestionPhoto).toHaveBeenLastCalledWith(
+      "account-1",new Uint8Array([1, 2, 3]),{allowAsync:true},
+    );
+  });
+  it("routes authenticated photo readiness reads to the exact owner-scoped status method", async () => {
+    core.getQuestionPhotoProcessingStatus.mockResolvedValueOnce({id:"photo-id",url:"",processing:true});
+    expect(await dispatchQuestionsRequest("account-1",
+      new Request("https://example.test/questions/photos/photo-id"), "photos/photo-id"))
+      .toEqual({id:"photo-id",url:"",processing:true});
+    expect(core.getQuestionPhotoProcessingStatus).toHaveBeenCalledWith("account-1","photo-id");
   });
   it("returns 404 for unsupported routes and methods", async () => {
     await expect(dispatchQuestionsRequest("account-1", new Request("https://example.test/questions", { method: "PUT" }), "")).rejects.toMatchObject({ status: 404 });

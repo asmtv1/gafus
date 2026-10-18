@@ -10,6 +10,7 @@ export default defineConfig({
     include: [
       "characterization-tests/**/*.test.ts",
       "apps/web/src/**/*.{test,spec}.ts",
+      "apps/questions-cloud/src/**/*.test.ts",
       "packages/**/*.test.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/coverage/**"],

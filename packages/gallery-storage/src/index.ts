@@ -1,4 +1,6 @@
 export { signGalleryCloudruFallback } from './fallback.js';
+export { signGalleryCloudruRedirectProbe } from './fallback.js';
+export { signGalleryCloudruCdnOrigin } from './fallback.js';
 import type { GalleryStoragePort } from '@gafus/core/services/gallery';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { galleryStorageConfigFromEnv } from './config.js';
@@ -25,6 +27,6 @@ export function createGalleryStorageFromEnv(env: Record<string, string | undefin
       return createPresignedPost(client, { Bucket: config.bucket, Key: input.key, Expires: expires, Fields: { 'Content-Type': input.contentType, 'success_action_status': '204' }, Conditions: [['content-length-range', 1, input.maxBytes], ['eq', '$Content-Type', input.contentType], ['eq', '$key', input.key], ['eq', '$success_action_status', '204']] });
     },
     async head(key) { assertGalleryKey(key); if (!objects) throw new Error('MISSING_GALLERY_STORAGE'); return objects.head(key, AbortSignal.timeout(5000)); },
-    async signCdn(input) { if (!config.enabled) throw new Error('GALLERY_DISABLED'); return signGalleryCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret, Date.now(), config.cdnProvider); },
+    async signCdn(input) { if (!config.enabled) throw new Error('GALLERY_DISABLED'); return signGalleryCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret, Date.now(), config.cdnProvider, config.cdnRedirectEnabled); },
   };
 }

@@ -11,7 +11,18 @@ if (!["--plan", "--prepare", "--verify"].includes(mode)) throw Error("BAD_MEDIA_
 const e = process.env;
 const project = e.CLOUDRU_PROJECT_ID ?? "12345678-1234-1234-1234-123456789012";
 const sha = e.GITHUB_SHA ?? "abcdef0123456789abcdef0123456789abcdef01";
-const base = cloudruMediaManifests(project, sha);
+if (e.FEED_BUCKET_PUBLIC !== undefined && !["true", "false"].includes(e.FEED_BUCKET_PUBLIC))
+  throw Error("INVALID_FEED_BUCKET_PUBLIC");
+const feedPublic = e.FEED_BUCKET_PUBLIC === "true";
+const galleryRedirect = e.GALLERY_CDN_REDIRECT_ENABLED === "true";
+const galleryCache = e.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true";
+if (galleryRedirect && (!galleryCache || e.GALLERY_CDN_METADATA_MIGRATED !== "true"))
+  throw Error("GALLERY_CDN_ORIGIN_RETIREMENT_NOT_VERIFIED");
+const questionsProcessing = e.QUESTIONS_CLOUD_JOB_ENABLED === "true";
+if (e.QUESTIONS_CLOUD_JOB_ENABLED !== undefined &&
+    !["true", "false"].includes(e.QUESTIONS_CLOUD_JOB_ENABLED))
+  throw Error("QUESTIONS_JOB_INVALID_FLAG");
+const base = cloudruMediaManifests(project, sha, { feedPublic, galleryRedirect, questionsProcessing });
 if (mode === "--plan") {
   console.log(
     JSON.stringify({
@@ -37,9 +48,8 @@ for (const name of [
   "CLOUDRU_S3_ACCESS_KEY_ID",
   "CLOUDRU_S3_SECRET_ACCESS_KEY",
   "GALLERY_CDN_SECRET",
-  "FEED_CDN_SECRET",
+  ...(!feedPublic ? ["FEED_CDN_SECRET", "FEED_ORIGIN_SECRET"] : []),
   "GALLERY_ORIGIN_SECRET",
-  "FEED_ORIGIN_SECRET",
   "GALLERY_INTERNAL_HMAC_SECRET",
   "FEED_INTERNAL_HMAC_SECRET",
 ])
@@ -47,20 +57,20 @@ for (const name of [
 if (e.CLOUDRU_S3_ENDPOINT !== "https://s3.cloud.ru" || !/^[a-f0-9]{40}$/.test(e.GITHUB_SHA))
   throw Error("UNEXPECTED_RELEASE_ENDPOINT_OR_SHA");
 // Preserve existing production CDNvideo signing values; Gallery may be longer.
-for (const name of ["GALLERY_CDN_SECRET", "FEED_CDN_SECRET"]) {
+for (const name of ["GALLERY_CDN_SECRET", ...(!feedPublic ? ["FEED_CDN_SECRET"] : [])]) {
   const format = name === "GALLERY_CDN_SECRET"
     ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/;
   if (!format.test(e[name])) throw Error("INVALID_SIGNER_" + name);
 }
 for (const name of [
   "GALLERY_ORIGIN_SECRET",
-  "FEED_ORIGIN_SECRET",
+  ...(!feedPublic ? ["FEED_ORIGIN_SECRET"] : []),
   "GALLERY_INTERNAL_HMAC_SECRET",
   "FEED_INTERNAL_HMAC_SECRET",
 ])
   if (Buffer.byteLength(e[name]) < 32) throw Error("INVALID_PROTECTION_" + name);
 const image = {};
-for (const role of ["gallery-origin", "feed-origin", "gallery-worker", "feed-worker"]) {
+for (const role of [...(!galleryRedirect ? ["gallery-origin"] : []), ...(!feedPublic ? ["feed-origin"] : []), "gallery-worker", "feed-worker", ...(questionsProcessing ? ["questions-worker"] : [])]) {
   const label = "gafus.cr.cloud.ru/gafus-" + role;
   const r = spawnSync("docker", ["manifest", "inspect", "--verbose", label + ":" + sha], {
     encoding: "utf8",
@@ -80,6 +90,7 @@ for (const role of ["gallery-origin", "feed-origin", "gallery-worker", "feed-wor
 const values = {
   GALLERY_BUCKET: "gafus-gallery-private",
   FEED_BUCKET: "gafus-feed-private",
+  FEED_BUCKET_PUBLIC: feedPublic ? "true" : "false",
   GALLERY_S3_ENDPOINT: "https://s3.cloud.ru",
   FEED_S3_ENDPOINT: "https://s3.cloud.ru",
   GALLERY_S3_ACCESS_KEY_ID: e.CLOUDRU_S3_ACCESS_KEY_ID,
@@ -91,6 +102,7 @@ const values = {
   GALLERY_CDN_SECRET: e.GALLERY_CDN_SECRET,
   FEED_CDN_SECRET: e.FEED_CDN_SECRET,
   GALLERY_CDN_EDGE_TOKEN_VERIFIED: "true",
+  GALLERY_CDN_CACHEABLE_FINAL_ENABLED: galleryCache ? "true" : "false",
   FEED_CDN_EDGE_TOKEN_VERIFIED: "true",
   GALLERY_CDN_EDGE_CACHE_HIT_VERIFIED: "true",
   FEED_CDN_EDGE_CACHE_HIT_VERIFIED: "true",
@@ -100,11 +112,16 @@ const values = {
   FEED_INTERNAL_BASE_URL: "https://api.gafus.ru",
   FEED_INTERNAL_HMAC_SECRET: e.FEED_INTERNAL_HMAC_SECRET,
   FEED_ALBUM_BUCKET: "gafus-gallery-private",
+  QUESTIONS_JOB_ENABLED: questionsProcessing ? "true" : "false",
+  QUESTIONS_PUBLIC_S3_BUCKET: "gafus-questions-public",
+  CLOUDRU_S3_ENDPOINT: "https://s3.cloud.ru",
+  CLOUDRU_S3_ACCESS_KEY_ID: e.CLOUDRU_S3_ACCESS_KEY_ID,
+  CLOUDRU_S3_SECRET_ACCESS_KEY: e.CLOUDRU_S3_SECRET_ACCESS_KEY,
 };
 const resources = [...base.services, ...base.jobs];
 for (const x of resources) {
   const role =
-    (x.name.includes("gallery") ? "gallery" : "feed") +
+    (x.name.includes("gallery") ? "gallery" : x.name.includes("questions") ? "questions" : "feed") +
     "-" +
     (x.name.endsWith("-origin") ? "origin" : "worker");
   const c = x.template.containers[0];
@@ -187,8 +204,52 @@ for (const group of groups) {
         console.log(
           JSON.stringify({ resource: item.name, action: "update", operationId: p.id ?? null }),
         );
-      } else if (current.template.containers[0].image !== item.template.containers[0].image)
-        throw Error("CLOUDRU_MEDIA_IMAGE_NOT_CURRENT_" + item.name);
+      } else {
+        if (current.template.containers[0].image !== item.template.containers[0].image)
+          throw Error("CLOUDRU_MEDIA_IMAGE_NOT_CURRENT_" + item.name);
+        // The real Questions WebP Job must be deployed at this exact release
+        // digest and retain its restricted environment/resources before the
+        // new API can start putting private sources into S3.
+        if (questionsProcessing && group.kind === "jobs" &&
+            item.name === "gafus-questions-photo") {
+          const job = current.template;
+          const worker = job?.containers?.[0];
+          const required = item.template.containers[0].env.map((v) => v.name);
+          const actualNames = new Set((worker?.env ?? []).map((v) => v.name));
+          if (worker?.name !== item.name || worker.resources?.cpu !== "0.5" ||
+              worker.resources?.memory !== "1024Mi" || job.timeout !== 240 ||
+              job.maxRetries !== 3 || current.configuration?.privileged !== false ||
+              required.some((name) => !actualNames.has(name)))
+            throw Error("CLOUDRU_QUESTIONS_JOB_CONFIG_NOT_CURRENT");
+          // Cloud.ru may redact GET env values. Revalidate only public
+          // constants when actually available, never print secret values.
+          for (const [name, expected] of [
+            ["QUESTIONS_JOB_ENABLED", "true"],
+            ["QUESTIONS_PUBLIC_S3_BUCKET", "gafus-questions-public"],
+            ["CLOUDRU_S3_ENDPOINT", "https://s3.cloud.ru"],
+          ]) {
+            const value = worker.env.find(v => v.name === name)?.value;
+            if (value !== undefined && value !== null &&
+                value !== "<redacted>" && value !== "********" &&
+                value !== expected)
+              throw Error("CLOUDRU_QUESTIONS_JOB_ENV_NOT_CURRENT_" + name);
+          }
+        }
+        // A 200 from PATCH does not imply the asynchronous Cloud.ru Job update
+        // is applied. Never deploy a public-Feed API until every photo/video
+        // processor has the matching image AND public-final-object settings.
+        if (feedPublic && group.kind === "jobs" && item.name.startsWith("gafus-feed-")) {
+          const currentEnv = current.template.containers[0].env ?? [];
+          const expectedEnv = item.template.containers[0].env ?? [];
+          for (const name of ["FEED_BUCKET_PUBLIC", "FEED_BUCKET", "FEED_S3_ENDPOINT",
+            "FEED_RUN_ONCE", "FEED_WORKER_TYPE"]) {
+            const actual = currentEnv.find((env) => env.name === name)?.value;
+            const expected = expectedEnv.find((env) => env.name === name)?.value;
+            if (expected == null || actual !== expected)
+              throw Error("CLOUDRU_FEED_JOB_CONFIG_NOT_CURRENT_" + item.name + "_" + name);
+          }
+        }
+      }
     } else if (mode === "--prepare") {
       const p = await api("POST", "/v2/" + group.kind + "/", item);
       console.log(
@@ -204,7 +265,7 @@ if (mode === "--prepare") {
       host: "gafus-gallery-origin.containerapps.ru",
       secret: e.GALLERY_ORIGIN_SECRET,
     },
-    { name: "feed", host: "gafus-feed-origin.containerapps.ru", secret: e.FEED_ORIGIN_SECRET },
+    ...(!feedPublic ? [{ name: "feed", host: "gafus-feed-origin.containerapps.ru", secret: e.FEED_ORIGIN_SECRET }] : []),
   ]) {
     let ready = false;
     for (let n = 0; n < 45; n++) {

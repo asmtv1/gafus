@@ -6,10 +6,11 @@ import {
 } from "@aws-sdk/client-s3";
 import { constants, createHash, sign } from "node:crypto";
 import { parsePrivateMediaLocation } from "./privateUserMedia";
+import { parsePublicQuestionLocation, parsePendingQuestionLocation, questionImageVariantKeys } from "./publicQuestionMedia";
 import { cloudruCdnPurgeDone } from "./cloudruCdnPurge";
 import { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
 
-export type AccountStorageScope = "public" | "gallery" | "feed" | "questions" | "documents";
+export type AccountStorageScope = "public" | "gallery" | "feed" | "questions" | "questions-public" | "documents";
 /** Durable account-deletion intent, not an object prefix. A provider cutover
  * must never lose legacy cleanup obligations after a worker restart. */
 export const DUAL_PROVIDER_CLEANUP_MARKER = "migration-dual-provider-required";
@@ -18,7 +19,8 @@ const safeKey = /^(?:uploads\/)?(?:users|questions|albums|posts|exams)\/[A-Za-z0
 
 /** Accept only our object URLs/paths. Never turn a foreign URL into an S3 key. */
 export function accountPublicKey(value: string): string | null {
-  if (parsePrivateMediaLocation(value)) return null; // Private Cloud.ru objects have their own cleanup scopes.
+  if (parsePrivateMediaLocation(value) || parsePublicQuestionLocation(value) ||
+      parsePendingQuestionLocation(value)) return null; // Private Cloud.ru objects have their own cleanup scopes.
   let key = value;
   if (/^https?:/.test(value)) {
     const url = new URL(value);
@@ -77,6 +79,26 @@ export function accountStorageTargets(
       throw new Error("CLEANUP_INVALID_MEDIA_KEY");
     return { prefixes, keys };
   }
+  if (scope === "questions-public") {
+    const keys = values.flatMap(value => {
+      const original = parsePublicQuestionLocation(value);
+      const pending = parsePendingQuestionLocation(value);
+      if (!original && !pending) throw new Error("CLEANUP_INVALID_PUBLIC_QUESTION_LOCATION");
+      if (pending || original?.endsWith("/full.webp") || original?.endsWith("/thumb.webp")) {
+        const pair = questionImageVariantKeys(value);
+        return [pair.thumb, pair.full];
+      }
+      return [original!]; // historical direct-to-S3 photos
+    });
+    return {
+      prefixes: [
+        `questions/uploads/questions/${ownerId}/`,
+        `questions/incoming/questions/${ownerId}/`,
+        `questions/processed/questions/${ownerId}/`,
+      ],
+      keys: [...new Set(keys)],
+    };
+  }
   if (scope === "questions" || scope === "documents") {
     const prefix =
       scope === "questions"
@@ -99,9 +121,10 @@ export function createAccountStorageCleaner(
   scope: AccountStorageScope,
   env: NodeJS.ProcessEnv = process.env,
 ): AccountBucketCleaner {
-  const privateCloud = scope === "questions" || scope === "documents";
+  const privateCloud = scope === "questions" || scope === "documents" || scope === "questions-public";
   const prefix =
-    scope === "gallery" ? "GALLERY" : scope === "feed" ? "FEED" : `CLOUDRU_${scope.toUpperCase()}`;
+    scope === "gallery" ? "GALLERY" : scope === "feed" ? "FEED" :
+      scope === "questions-public" ? "QUESTIONS_PUBLIC_S3" : `CLOUDRU_${scope.toUpperCase()}`;
   const bucket = scope === "public" ? "gafus-media" : env[`${prefix}_BUCKET`];
   const accessKeyId =
     scope === "public"
@@ -140,7 +163,7 @@ export function createAccountStorageCleaner(
         ? "gafus-gallery-private"
         : scope === "feed"
           ? "gafus-feed-private"
-          : "gafus-documents-private";
+          : scope === "questions-public" ? "gafus-questions-public" : "gafus-documents-private";
     if (bucket !== expected) throw new Error("CLEANUP_STORAGE_UNCONFIGURED");
   }
   const versioning =
@@ -337,6 +360,13 @@ export async function startAccountCdnPurge(
   ];
   // Private question/document downloads use direct short-lived S3 presigns, not CDN.
   if (scope === "questions" || scope === "documents") return [...existing];
+  if (scope === "questions-public") {
+    if (!targets.keys.length) return [...existing];
+    if (targets.keys.some(key => !isBegetCacheableObjectKey("questions", key)))
+      throw new Error("CLEANUP_INVALID_PUBLIC_QUESTION_KEY");
+    return beginBegetCdnPurge("questions", targets.keys.map(key => `/${key}`),
+      existing, checkpoint);
+  }
   const cloudru =
     (scope === "gallery" || scope === "feed") &&
     process.env[`${name}_S3_ENDPOINT`] === "https://s3.cloud.ru";
@@ -344,8 +374,14 @@ export async function startAccountCdnPurge(
   // Legacy edge purge, if separately verified, is a historical erasure
   // obligation, never a fallback route for user media delivery.
   const cdnHost = process.env[`${name}_CDN_BASE_URL`] ?? "";
-  const knownBeget = scope === "gallery" ? "https://mepsuduyokabib.begetcdn.cloud" :
-    scope === "feed" ? "https://garaquachegasourn.begetcdn.cloud" : "";
+  const publicFeed = scope === "feed" && process.env.FEED_BUCKET_PUBLIC === "true";
+  const publicFeedMatch = publicFeed ? /^https:\/\/([a-z0-9-]+\.begetcdn\.cloud)$/.exec(cdnHost) : null;
+  if (publicFeed && (!publicFeedMatch || publicFeedMatch[1] === "garaquachegasourn.begetcdn.cloud"))
+    throw new Error("CLEANUP_CDN_PROVIDER_MISMATCH");
+  const knownBeget = scope === "gallery" ?
+    process.env.GALLERY_CDN_REDIRECT_ENABLED === "true"
+      ? "https://dikinuneceswe.begetcdn.cloud" : "https://mepsuduyokabib.begetcdn.cloud" :
+    publicFeed ? cdnHost : scope === "feed" ? "https://garaquachegasourn.begetcdn.cloud" : "";
   const provider = process.env[`${name}_CDN_PROVIDER`] ?? "beget";
   if (cloudru && knownBeget && (provider !== "beget" || cdnHost !== knownBeget))
     throw new Error("CLEANUP_CDN_PROVIDER_MISMATCH");
@@ -373,8 +409,8 @@ export async function startAccountCdnPurge(
     // Keep deletion pending rather than silently leave cached private media.
     const cacheable = targets.keys.filter(key =>
       isBegetCacheableObjectKey(scope as "gallery" | "feed", key));
-    // Incoming sources, attempts, and HLS playlists are explicitly denied by
-    // both CDN Origins. Purge only keys which a CDN can have cached.
+    // Incoming sources and attempts are never public. Final HLS playlists
+    // must be purged as well after public Feed cutover.
     if (targets.prefixes.length && !cacheable.length && !targets.keys.length)
       throw new Error("BEGET_CDN_EXACT_KEYS_REQUIRED");
     const submitted = cacheable.length

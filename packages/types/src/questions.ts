@@ -28,6 +28,12 @@ export interface QuestionAuthorDto {
   username?: string;
   avatarUrl: string | null;
 }
+/** WebP-only Question thumbnails for compact inline cards; legacy signed URLs remain unchanged. */
+export function questionThumbnailUrl(url: string): string {
+  if (/^https:\/\/(?:ebiteskukingusk\.begetcdn\.cloud|gafus-questions-public\.s3\.cloud\.ru)\/questions\/uploads\/questions\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/full\.webp$/.test(url))
+    return url.slice(0, -"full.webp".length) + "thumb.webp";
+  return url;
+}
 export interface QuestionPhotoDto {
   id: string;
   url: string;

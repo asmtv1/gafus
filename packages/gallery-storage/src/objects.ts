@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { S3Client, HeadObjectCommand, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import type { GalleryObjectMetadata } from '@gafus/core/services/gallery';
-import { assertGalleryKey } from './keys.js';
+import { assertGalleryKey, finalPattern, vetPreviewPattern } from './keys.js';
 import { validateGalleryObjectConfig, type GalleryStorageConfig } from './config.js';
 export const MAX_OBJECT_BYTES = 10 * 1024 * 1024;
 export interface GalleryObjectStore {
@@ -25,7 +25,7 @@ export function createGalleryS3Client(config: Pick<GalleryStorageConfig, 'bucket
   validateGalleryObjectConfig(config);
   return new S3Client({ endpoint: config.endpoint, region: config.endpoint === 'https://s3.cloud.ru' ? 'ru-central-1' : 'ru-central1', forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
 }
-export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey'>, client = createGalleryS3Client(config)): GalleryObjectStore {
+export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey'> & { cacheableFinalEnabled?: boolean }, client = createGalleryS3Client(config)): GalleryObjectStore {
   const bucket = config.bucket;
   const head: GalleryObjectStore['head'] = async (key, signal) => {
     assertGalleryKey(key);
@@ -63,7 +63,8 @@ export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'buc
       if (existing) { if (!matches(existing)) throw new Error('IMMUTABLE_CONFLICT'); return existing; }
       if (signal?.aborted) throw new Error('LEASE_EXPIRED');
       try {
-        const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: type, CacheControl: 'no-store', ContentMD5: createHash('md5').update(bytes).digest('base64'), IfNoneMatch: '*' }), { abortSignal: signal });
+        const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: type, CacheControl: config.cacheableFinalEnabled && (finalPattern.test(key) || vetPreviewPattern.test(key))
+          ? 'public, max-age=180, s-maxage=600, must-revalidate' : 'no-store', ContentMD5: createHash('md5').update(bytes).digest('base64'), IfNoneMatch: '*' }), { abortSignal: signal });
         if (!result.ETag || normalizeETag(result.ETag) !== expected.etag) throw new Error('WRITE_ETAG_MISMATCH');
       } catch (e) { if (status(e) !== 412 && status(e) !== 409) throw e; }
       const verified = await head(key, signal);

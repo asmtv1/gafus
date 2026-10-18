@@ -158,7 +158,13 @@ export function startCronJobs(): void {
       () => {
         void import("./cloudru-media-dispatcher")
           .then(async ({ createCloudruMediaDispatcher }) => {
-            dispatch ??= createCloudruMediaDispatcher();
+            dispatch ??= createCloudruMediaDispatcher(
+              process.env, fetch,
+              process.env.QUESTIONS_PROCESSOR_READY === "true" &&
+              process.env.QUESTIONS_CLOUD_JOB_ENABLED === "true"
+                ? ["gafus-gallery-process", "gafus-feed-photo", "gafus-feed-video", "gafus-questions-photo"]
+                : ["gafus-gallery-process", "gafus-feed-photo", "gafus-feed-video"],
+            );
             await dispatch();
           })
           .catch(() =>
@@ -200,7 +206,9 @@ export function startCronJobs(): void {
       logger.error("Question push reconciliation failed", error as Error),
     );
   });
-  cron.schedule("17 * * * *", () => {
+  // Remove abandoned uploads and photos on deleted questions/answers with
+  // bounded latency; concurrent runs are prevented inside the cleanup service.
+  cron.schedule("*/5 * * * *", () => {
     cleanupUnusedQuestionPhotos().catch((error) =>
       logger.error("Question photo cleanup failed", error as Error),
     );
