@@ -13,7 +13,7 @@ const transientAuth =
 const transientRegistry =
   "failed to push to gafus.cr.cloud.ru/gafus-feed-worker: 503 Service Unavailable";
 
-function run(scenario, args = ["gallery", "worker", "Dockerfile", revision]) {
+function run(scenario, args = ["questions", "worker", "Dockerfile", revision]) {
   // All test artifacts remain inside the permitted project and are removed
   // after each test; no Docker daemon or registry is accessed.
   const dir = mkdtempSync(join(scriptsDir, ".cloudru-publish-test-"));
@@ -40,7 +40,17 @@ echo "fake publish succeeded"
 `;
   writeFileSync(join(bin, "docker"), docker, { mode: 0o755 });
   writeFileSync(join(bin, "python3"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/arguments"\n[ "$FAKE_SCENARIO" != "copy-failure" ]\n', { mode: 0o755 });
-  writeFileSync(join(bin, "timeout"), '#!/bin/sh\n[ "$1" = "--kill-after=30s" ] && { [ "$2" = "10m" ] || [ "$2" = "20m" ]; } || exit 2\nshift 2\nexec "$@"\n', { mode: 0o755 });
+  writeFileSync(join(bin, "timeout"), `#!/bin/sh
+[ "$1" = "--kill-after=30s" ] || exit 2
+case "$2" in
+  30m|200m) ;;
+  *s) n=\${2%s}; case "$n" in ''|*[!0-9]*) exit 2;; esac ;;
+  *) exit 2 ;;
+esac
+printf '%s\n' "$2" >> "$RUNNER_TEMP/timeouts"
+shift 2
+exec "$@"
+`, { mode: 0o755 });
   writeFileSync(join(bin, "sleep"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/sleeps"\n', {
     mode: 0o755,
   });
@@ -62,7 +72,8 @@ echo "fake publish succeeded"
       result.status === 0 || result.status === 1
         ? readFileSyncOrEmpty(join(dir, "sleeps")).trim().split("\n").filter(Boolean)
         : [];
-    return { result, count: Number(count), argumentLog, delays };
+    const timeouts = readFileSyncOrEmpty(join(dir, "timeouts")).trim().split("\n").filter(Boolean);
+    return { result, count: Number(count), argumentLog, delays, timeouts };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -77,14 +88,15 @@ function readFileSyncOrEmpty(path) {
 }
 
 test("Cloud.ru OAuth 502 retries then publishes immutable image", () => {
-  const { result, count, argumentLog, delays } = run("502-then-success");
+  const { result, count, argumentLog, delays, timeouts } = run("502-then-success");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(count, 3);
   assert.deepEqual(delays, ["10", "20"]);
+  assert.deepEqual(timeouts, ["9000s", "9000s", "9000s"]);
   assert.match(argumentLog, /--platform linux\/amd64/);
   assert.match(argumentLog, /--provenance=true/);
   assert.match(argumentLog, /--push/);
-  assert.match(argumentLog, new RegExp("gafus-gallery-worker:" + revision));
+  assert.match(argumentLog, new RegExp("gafus-questions-worker:" + revision));
 });
 
 test("Cloud.ru registry 503 retries immutable publication", () => {
@@ -101,24 +113,36 @@ test("Cloud.ru registry 429 fails closed after bounded attempts", () => {
 });
 
 test("stalled layer upload retries after the bounded attempt times out", () => {
-  const { result, count } = run("upload-timeout");
+  const { result, count, timeouts } = run("upload-timeout");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(count, 2);
+  assert.deepEqual(timeouts, ["9000s", "9000s"]);
 });
 
-test("Feed worker exports OCI then preserves the full index during independent upload", () => {
-  const { result, argumentLog } = run("success", ["feed", "worker", "Dockerfile", revision]);
+test("Feed worker publishes a complete OCI index through its checked uploader", () => {
+  const { result, argumentLog, timeouts } = run("success", ["feed", "worker", "Dockerfile", revision]);
   assert.equal(result.status, 0, result.stderr);
   assert.match(argumentLog, /--output type=oci,dest=/);
   assert.doesNotMatch(argumentLog, /--push/);
   assert.match(argumentLog, /ci-cd\/scripts\/upload-cloudru-oci.py/);
   assert.match(argumentLog, new RegExp("gafus.cr.cloud.ru/gafus-feed-worker:" + revision));
+  assert.deepEqual(timeouts, ["30m", "200m"]);
 });
 
-test("Feed publication fails when the independent OCI upload fails", () => {
+test("Feed OCI publication fails closed on upload error", () => {
   const { result } = run("copy-failure", ["feed", "worker", "Dockerfile", revision]);
   assert.notEqual(result.status, 0);
   assert.doesNotMatch(result.stdout, /Cloud.ru image published/);
+});
+
+test("Gallery worker keeps proven Buildx push with long Cloud.ru timeout", () => {
+  const { result, argumentLog, timeouts } = run("success", ["gallery", "worker", "Dockerfile", revision]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(argumentLog, /--push/);
+  assert.doesNotMatch(argumentLog, /--output type=oci,dest=/);
+  assert.doesNotMatch(argumentLog, /upload-cloudru-oci.py/);
+  assert.match(argumentLog, /gafus-gallery-worker/);
+  assert.deepEqual(timeouts, ["9000s"]);
 });
 
 for (const scenario of ["unauthorized-401", "forbidden-403", "build-error", "build-timeout"]) {
@@ -135,6 +159,8 @@ test("Only reviewed Cloud.ru images and immutable SHA tags are allowed", () => {
     ["feed", "worker", "../Dockerfile", revision],
     ["feed", "worker", "Dockerfile", "latest"],
     ["api", "worker", "Dockerfile", revision],
+    ["gallery", "origin", "Dockerfile.origin", revision],
+    ["feed", "origin", "Dockerfile.origin", revision],
   ];
   for (const args of invalid) {
     const dir = mkdtempSync(join(scriptsDir, ".cloudru-publish-test-"));

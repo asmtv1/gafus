@@ -5,6 +5,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { cloudruMediaManifests } from "./media-manifests.mjs";
+import { workerImages } from "./worker-image-pins.mjs";
 
 const mode = process.argv[2] ?? "--plan";
 if (!["--plan", "--prepare", "--verify"].includes(mode)) throw Error("BAD_MEDIA_RELEASE_ACTION");
@@ -35,11 +36,12 @@ if (mode === "--plan") {
   );
   process.exit(0);
 }
-if (
-  e.GITHUB_REF !== "refs/heads/main" ||
-  e.GITHUB_EVENT_NAME !== "push" ||
-  e.CLOUDRU_PROD_DEPLOY_CONFIRM !== "preapproved-main-only-media-release"
-)
+const automated = e.GITHUB_EVENT_NAME === "push" &&
+  e.CLOUDRU_PROD_DEPLOY_CONFIRM === "preapproved-main-only-media-release" &&
+  mode === "--verify";
+const manual = e.GITHUB_EVENT_NAME === "workflow_dispatch" &&
+  e.CLOUDRU_MANUAL_MEDIA_RELEASE_CONFIRM === "approved-one-time-worker-revision";
+if (e.GITHUB_REF !== "refs/heads/main" || (!automated && !manual))
   throw Error("PROD_MEDIA_RELEASE_GUARD");
 for (const name of [
   "CLOUDRU_PROJECT_ID",
@@ -69,23 +71,23 @@ for (const name of [
   "FEED_INTERNAL_HMAC_SECRET",
 ])
   if (Buffer.byteLength(e[name]) < 32) throw Error("INVALID_PROTECTION_" + name);
-const image = {};
-for (const role of [...(!galleryRedirect ? ["gallery-origin"] : []), ...(!feedPublic ? ["feed-origin"] : []), "gallery-worker", "feed-worker", ...(questionsProcessing ? ["questions-worker"] : [])]) {
-  const label = "gafus.cr.cloud.ru/gafus-" + role;
-  const r = spawnSync("docker", ["manifest", "inspect", "--verbose", label + ":" + sha], {
+// No new image is ever built or published by the ordinary deploy. Pins are
+// immutable registry digests bound to Git content trees, not the web/API SHA.
+const image = workerImages(e);
+if (base.services.length) throw Error("CLOUDRU_RETIRED_ORIGIN_NOT_ALLOWED");
+for (const [role, pinned] of Object.entries(image)) {
+  if (role === "questions-worker" && !questionsProcessing) continue;
+  const r = spawnSync("docker", ["manifest", "inspect", "--verbose", pinned], {
     encoding: "utf8",
     timeout: 55000,
     maxBuffer: 4 * 1024 * 1024,
   });
-  if (r.status !== 0) throw Error("OCI_IMAGE_NOT_PUBLISHED_" + role);
-  const d = JSON.parse(r.stdout);
-  const descriptor = (Array.isArray(d) ? d[0] : d)?.Descriptor;
-  if (
-    descriptor?.platform?.architecture !== "amd64" ||
-    !/^sha256:[a-f0-9]{64}$/.test(descriptor.digest ?? "")
-  )
-    throw Error("OCI_IMAGE_DIGEST_INVALID_" + role);
-  image[role] = label + "@" + descriptor.digest;
+  if (r.status !== 0) throw Error("OCI_PINNED_IMAGE_NOT_PUBLISHED_" + role);
+  const manifest = JSON.parse(r.stdout);
+  const refs = Array.isArray(manifest) ? manifest : [manifest];
+  if (!refs.some(item => item?.Descriptor?.platform?.architecture === "amd64" &&
+       /^sha256:[a-f0-9]{64}$/.test(item?.Descriptor?.digest ?? "")))
+    throw Error("OCI_PINNED_IMAGE_PLATFORM_INVALID_" + role);
 }
 const values = {
   GALLERY_BUCKET: "gafus-gallery-private",
@@ -260,11 +262,11 @@ for (const group of groups) {
 }
 if (mode === "--prepare") {
   for (const item of [
-    {
+    ...(!galleryRedirect ? [{
       name: "gallery",
       host: "gafus-gallery-origin.containerapps.ru",
       secret: e.GALLERY_ORIGIN_SECRET,
-    },
+    }] : []),
     ...(!feedPublic ? [{ name: "feed", host: "gafus-feed-origin.containerapps.ru", secret: e.FEED_ORIGIN_SECRET }] : []),
   ]) {
     let ready = false;

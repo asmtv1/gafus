@@ -48,23 +48,26 @@ for (const gate of [
   "production-s3-preflight.mjs --verify",
   "cloudru-media-contracts:",
   "beget-readonly-preflight:",
-  "cloudru-build-media-images:",
   "cloudru-prepare-media:",
   "beget-verify-after-deploy:",
-  "production-media-release.mjs --prepare",
+  "production-media-release.mjs --verify",
+  "worker-image-pins.mjs --check",
   "beget-release-readiness.mjs --check",
   "beget-production-smoke.mjs",
 ])
   assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
 assert(
-  ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  cloudru-build-media-images:") &&
-  ci.indexOf("  cloudru-build-media-images:") < ci.indexOf("  cloudru-prepare-media:") &&
+  ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  cloudru-prepare-media:") &&
   ci.indexOf("  cloudru-prepare-media:") < ci.indexOf("  deploy-production:") &&
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
   "BEGET_MUST_VERIFY_BEFORE_ANY_MEDIA_PRODUCTION_PREPARATION_AND_AFTER_DEPLOY",
 );
-assert(/cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight\]/.test(ci),
-  "NO_PRODUCTION_IMAGE_PUBLICATION_BEFORE_BEGET_APPROVAL");
+assert(!ci.includes('cloudru-build-media-images:'),
+  'NORMAL_PUSH_MUST_NOT_PUBLISH_CLOUDRU_IMAGES');
+assert(/cloudru-prepare-media:\s+needs: \[beget-readonly-preflight, cloudru-media-contracts\]/.test(ci),
+  'READONLY_CLOUDRU_RELEASE_REQUIRES_BEGET_APPROVAL');
+assert(!ci.includes('production-media-release.mjs --prepare'),
+  'NORMAL_PUSH_MUST_NOT_CHANGE_CLOUDRU_JOB_CONFIGURATION');
 assert(/beget-verify-after-deploy:\s+needs: \[beget-readonly-preflight, cloudru-prepare-media, deploy-production\]/.test(ci),
   "NO_POSTDEPLOY_BEGET_VERIFY_BEFORE_HEALTHY_APP");
 for (const unsafe of [

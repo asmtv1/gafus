@@ -10,6 +10,7 @@ const ci = parse('.github/workflows/ci-cd.yml');
 const deploy = parse('.github/workflows/production-deploy-reusable.yml');
 const manual = parse('.github/workflows/beget-synthetic-acceptance.yml');
 const finalSmoke = parse('.github/workflows/beget-final-readonly-smoke.yml');
+const mediaBuild = parse('.github/workflows/cloudru-media-images.yml');
 const expected = {
   FEED_BUCKET_PUBLIC: 'true',
   FEED_CDN_BASE_URL: 'https://quepraquiecebquomiel.begetcdn.cloud',
@@ -35,23 +36,23 @@ test('one verified public Feed service for main preflight, manual E2E, and reusa
   assert.equal(ci.jobs['beget-verify-after-deploy'].env.FEED_CDN_HEALTH_OBJECT_KEY, fixtureExpression);
 });
 
-test('Cloud.ru jobs also see public Feed before provisioning without affecting Gallery', () => {
-  const env = ci.jobs['cloudru-prepare-media'].env;
+test('normal main push reuses pinned Feed worker and verifies Jobs without PATCH', () => {
+  const release = ci.jobs['cloudru-prepare-media'];
+  const env = release.env;
   assert.equal(env.FEED_BUCKET_PUBLIC, 'true');
   assert.equal(env.FEED_CDN_BASE_URL, expected.FEED_CDN_BASE_URL);
   assert.equal(env.CLOUDRU_S3_ENDPOINT, 'https://s3.cloud.ru');
-  assert.equal(ci.jobs['beget-readonly-preflight'].needs.includes('security'), true);
-  assert.equal(ci.jobs['cloudru-prepare-media'].needs.includes('cloudru-build-media-images'), true);
-  const steps = ci.jobs['cloudru-prepare-media'].steps;
-  const prepareIndex = steps.findIndex(step => step.run === 'node infra/cloudru/production-media-release.mjs --prepare');
-  const verifyIndex = steps.findIndex(step => step.name === 'Wait for Cloud.ru Jobs revision and public Feed flag before application deploy');
-  assert.ok(prepareIndex >= 0 && verifyIndex > prepareIndex);
-  assert.match(steps[verifyIndex].run, /production-media-release\.mjs --verify/);
-  assert.match(steps[verifyIndex].run, /sleep 10/);
-  const release = readFileSync('infra/cloudru/production-media-release.mjs', 'utf8');
-  assert.match(release, /CLOUDRU_FEED_JOB_CONFIG_NOT_CURRENT_/);
-  for (const flag of ['FEED_BUCKET_PUBLIC', 'FEED_RUN_ONCE', 'FEED_WORKER_TYPE'])
-    assert.ok(release.includes(`"${flag}"`));
+  assert.ok(release.needs.includes('beget-readonly-preflight'));
+  assert.ok(!ci.jobs['cloudru-build-media-images']);
+  assert.ok(release.steps.some(s => s.run === 'node infra/cloudru/worker-image-pins.mjs --check'));
+  assert.ok(release.steps.some(s => s.run === 'node infra/cloudru/production-media-release.mjs --verify'));
+  assert.ok(!release.steps.some(s => s.run?.includes('production-media-release.mjs --prepare')));
+  for (const media of ['GALLERY','FEED','QUESTIONS']) {
+    assert.equal(env[`CLOUDRU_${media}_WORKER_IMAGE`],
+      '${{ vars.CLOUDRU_' + media + '_WORKER_IMAGE }}');
+    assert.equal(env[`CLOUDRU_${media}_WORKER_SOURCE`],
+      '${{ vars.CLOUDRU_' + media + '_WORKER_SOURCE }}');
+  }
 });
 
 test('production Compose file is generated with pinned public Feed + exact health fixture', () => {
@@ -95,4 +96,35 @@ test('both production pre-deploy gates never probe the retired Gallery Origin', 
     s.run === 'node infra/cloudru/beget-production-smoke.mjs'));
   assert.ok(ci.jobs['beget-verify-after-deploy'].steps.some(s =>
     s.run === 'node infra/cloudru/gallery-origin-canary.mjs'));
+});
+
+test('normal push never publishes images, and separate manual release has only three workers', () => {
+  assert.equal(ci.jobs['cloudru-build-media-images'], undefined);
+  const jobs = mediaBuild.jobs.build.strategy.matrix.include.map(x => `${x.media}-${x.role}`);
+  assert.deepEqual(jobs, ['feed-worker', 'gallery-worker', 'questions-worker']);
+  assert.equal(mediaBuild.jobs.build.strategy['max-parallel'], 1);
+  assert.equal(mediaBuild.jobs.build['timeout-minutes'], 350);
+  assert.equal(mediaBuild.jobs.build.environment, 'production');
+  assert.ok(ci.jobs['beget-readonly-preflight'].steps.some(s =>
+    s.name === 'Enforce Origin-free media release before image publication'));
+  const operator = parse('.github/workflows/cloudru-apply-worker-pins.yml');
+  assert.equal(operator.jobs['apply-pins'].environment, 'production');
+  assert.ok(operator.jobs['apply-pins'].steps.some(s =>
+    s.run === 'node infra/cloudru/production-media-release.mjs --prepare'));
+  assert.ok(!ci.jobs['cloudru-prepare-media'].steps.some(s =>
+    s.run === 'node infra/cloudru/production-media-release.mjs --prepare'));
+  const release = readFileSync('infra/cloudru/production-media-release.mjs', 'utf8');
+  assert.match(release, /workerImages\(e\)/);
+  assert.match(release, /CLOUDRU_RETIRED_ORIGIN_NOT_ALLOWED/);
+});
+
+test('one-push registry time budgets match the proven long Cloud.ru uploads', () => {
+  const script = readFileSync('ci-cd/scripts/publish-cloudru-image.sh', 'utf8');
+  assert.match(script, /timeout --kill-after=30s 30m docker buildx build/);
+  assert.match(script, /timeout --kill-after=30s 200m python3 ci-cd\/scripts\/upload-cloudru-oci\.py/);
+  assert.match(script, /release_budget_seconds=\$\(\(320 \* 60\)\)/);
+  assert.match(script, /attempt_seconds=\$\(\(remaining < 150 \* 60/);
+  assert.match(script, /timeout --kill-after=30s "\$\{attempt_seconds\}s" docker buildx build/);
+  assert.match(script, /Cloud\.ru registry rejected authorization \(no retry\)/);
+  assert.ok(!script.includes('timeout --kill-after=30s 10m'));
 });

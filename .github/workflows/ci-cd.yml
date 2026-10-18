@@ -468,7 +468,7 @@ jobs:
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
-        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/beget-production-smoke.test.mjs infra/cloudru/feed-public-workflow.test.mjs
+        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/beget-production-smoke.test.mjs infra/cloudru/feed-public-workflow.test.mjs infra/cloudru/worker-image-pins.test.mjs
       - name: Isolated Questions S3/CDN/Cloud.ru Job cutover pre-deploy contracts
         run: node --test infra/cloudru/questions-public-readiness.test.mjs infra/cloudru/questions-job-live-readiness.test.mjs infra/cloudru/questions-public-workflow.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
@@ -535,6 +535,14 @@ jobs:
       QUESTIONS_BEGET_CDN_SERVICE_ID: 3c2a1623-50a1-46a1-b7a4-bb1093eaedf0
     steps:
       - uses: actions/checkout@v5
+      - name: Enforce Origin-free media release before image publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GALLERY_CDN_REDIRECT_ENABLED" != true || "$FEED_BUCKET_PUBLIC" != true ]]; then
+            echo "Originless release requires verified Gallery redirect and public Feed" >&2
+            exit 1
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 10.12.4
@@ -568,39 +576,14 @@ jobs:
       - name: Audit private Gallery WebP metadata before production changes (read-only)
         run: node infra/cloudru/gallery-release-metadata-ready.mjs
 
-  # Four immutable, revision-tagged images are required before any production changes.
-  cloudru-build-media-images:
-    needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment: production
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
-          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
-          - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: feed, role: worker, dockerfile: Dockerfile }
-          - { media: questions, role: worker, dockerfile: Dockerfile }
-    steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - name: Authorize private Cloud.ru Registry
-        uses: docker/login-action@v3
-        with:
-          registry: gafus.cr.cloud.ru
-          username: ${{ secrets.CLOUDRU_KEY_ID }}
-          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      - name: Publish Cloud.ru production revision (retry temporary registry 429/5xx)
-        run: |
-          bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
-
-  # Only private Cloud.ru S3, protected Origins and bounded processing Jobs.
-  # Beget live signing/edge readiness was verified BEFORE image publication.
+  # Reuse manually published immutable Cloud.ru worker images on EVERY push.
+  # Publishing workers or modifying Cloud.ru Jobs requires explicit manual workflows.
   cloudru-prepare-media:
-    needs: [cloudru-build-media-images]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [beget-readonly-preflight, cloudru-media-contracts]
+    # Initial bootstrap: publish/pin/apply workers manually before the first
+    # production deploy. Skipping this job also safely skips application deploy.
+    # Once activated, every push must pass strict source/digest/Jobs verification.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CLOUDRU_WORKER_PINS_REQUIRED == 'true'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 22
@@ -631,7 +614,13 @@ jobs:
       FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
       GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
       FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
-      # Propagate the same public Feed mode to Cloud.ru scheduled jobs.
+      # Pin existing worker images independently of the web/API release SHA.
+      CLOUDRU_GALLERY_WORKER_IMAGE: ${{ vars.CLOUDRU_GALLERY_WORKER_IMAGE }}
+      CLOUDRU_GALLERY_WORKER_SOURCE: ${{ vars.CLOUDRU_GALLERY_WORKER_SOURCE }}
+      CLOUDRU_FEED_WORKER_IMAGE: ${{ vars.CLOUDRU_FEED_WORKER_IMAGE }}
+      CLOUDRU_FEED_WORKER_SOURCE: ${{ vars.CLOUDRU_FEED_WORKER_SOURCE }}
+      CLOUDRU_QUESTIONS_WORKER_IMAGE: ${{ vars.CLOUDRU_QUESTIONS_WORKER_IMAGE }}
+      CLOUDRU_QUESTIONS_WORKER_SOURCE: ${{ vars.CLOUDRU_QUESTIONS_WORKER_SOURCE }}
       FEED_BUCKET_PUBLIC: 'true'
       FEED_CDN_BASE_URL: https://quepraquiecebquomiel.begetcdn.cloud
       QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
@@ -656,28 +645,10 @@ jobs:
         run: node infra/cloudru/production-media-release.mjs --plan
       - name: Confirm all three private Cloud.ru S3 buckets can read, write and delete
         run: node infra/cloudru/production-s3-preflight.mjs --verify
-      - name: Provision and warm Cloud.ru protected Origins and bounded processing Jobs
-        run: node infra/cloudru/production-media-release.mjs --prepare
-      # Cloud.ru PATCH/POST is asynchronous; the release must not deploy a
-      # public-Feed API against photo/video Jobs still using the previous image
-      # or FEED_BUCKET_PUBLIC=false. Retry read-only checks before continuing.
-      - name: Wait for Cloud.ru Jobs revision and public Feed flag before application deploy
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 30); do
-            if node infra/cloudru/production-media-release.mjs --verify; then
-              echo "Cloud.ru media Jobs and public Feed settings confirmed"
-              exit 0
-            fi
-            echo "Cloud.ru media update not yet applied ($attempt/30)"
-            sleep 10
-          done
-          echo "Cloud.ru media Jobs have not reached the requested release revision"
-          exit 1
-      - name: Execute release SHA Questions Cloud.ru Job synthetic WebP smoke BEFORE API deploy
-        if: env.QUESTIONS_PUBLIC_S3_ENABLED == 'true'
-        run: node infra/cloudru/questions-production-job-smoke.mjs
+      - name: Validate immutable worker pins against current Git source trees
+        run: node infra/cloudru/worker-image-pins.mjs --check
+      - name: Verify prepublished Cloud.ru worker images and configured Jobs (read-only)
+        run: node infra/cloudru/production-media-release.mjs --verify
 
   # Deploy to staging (develop branch)
   # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.

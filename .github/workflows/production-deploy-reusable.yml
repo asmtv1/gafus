@@ -82,6 +82,15 @@ jobs:
           QUESTIONS_CDN_BASE_URL: https://ebiteskukingusk.begetcdn.cloud
           QUESTIONS_BEGET_CDN_SERVICE_ID: 3c2a1623-50a1-46a1-b7a4-bb1093eaedf0
         run: node infra/cloudru/questions-public-readiness.mjs
+      - name: Ensure worker image pins match this application source before SSH
+        env:
+          CLOUDRU_GALLERY_WORKER_IMAGE: ${{ vars.CLOUDRU_GALLERY_WORKER_IMAGE }}
+          CLOUDRU_GALLERY_WORKER_SOURCE: ${{ vars.CLOUDRU_GALLERY_WORKER_SOURCE }}
+          CLOUDRU_FEED_WORKER_IMAGE: ${{ vars.CLOUDRU_FEED_WORKER_IMAGE }}
+          CLOUDRU_FEED_WORKER_SOURCE: ${{ vars.CLOUDRU_FEED_WORKER_SOURCE }}
+          CLOUDRU_QUESTIONS_WORKER_IMAGE: ${{ vars.CLOUDRU_QUESTIONS_WORKER_IMAGE }}
+          CLOUDRU_QUESTIONS_WORKER_SOURCE: ${{ vars.CLOUDRU_QUESTIONS_WORKER_SOURCE }}
+        run: node infra/cloudru/worker-image-pins.mjs --check
       - name: Verify existing Questions Cloud.ru production Job before SSH (read-only)
         env:
           CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}

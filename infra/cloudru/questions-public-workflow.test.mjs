@@ -18,16 +18,17 @@ const liveFlag = "${{ vars.QUESTIONS_CDN_LIVE_VERIFIED || 'true' }}";
 const jobFlag = "${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}";
 const readyFlag = "${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}";
 
-test('Questions job is a separately published gated Cloud.ru container image', () => {
-  const cloudJob = ci.jobs['cloudru-build-media-images'];
-  assert.ok(cloudJob.strategy.matrix.include.some(item =>
+test('Questions image is explicitly published once, not rebuilt on each push', () => {
+  assert.equal(ci.jobs['cloudru-build-media-images'], undefined);
+  const manual = parse('.github/workflows/cloudru-media-images.yml');
+  assert.ok(manual.jobs.build.strategy.matrix.include.some(item =>
     item.media === 'questions' && item.role === 'worker' && item.dockerfile === 'Dockerfile'));
   const release=ci.jobs['cloudru-prepare-media'];
   assert.equal(release.env.QUESTIONS_CLOUD_JOB_ENABLED,
     "${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}");
-  assert.ok(release.needs.includes('cloudru-build-media-images'));
-  assert.match(release.steps.find(s=>s.name?.includes('Provision and warm Cloud.ru'))?.run ?? '',
-    /production-media-release\.mjs --prepare/);
+  assert.ok(release.needs.includes('beget-readonly-preflight'));
+  assert.equal(release.env.CLOUDRU_QUESTIONS_WORKER_IMAGE,
+    '${{ vars.CLOUDRU_QUESTIONS_WORKER_IMAGE }}');
   const runtime=deploy.jobs['deploy-production'].steps
     .find(s=>s.name==='Deploy to production server');
   const scripts=Object.entries(runtime.env).filter(([key])=>key.startsWith('DEPLOY_SCRIPT_'))
@@ -49,13 +50,11 @@ test('single push verifies existing production Cloud.ru Questions job before any
   assert.ok(deployGate>=0 && deployGate<ssh);
   assert.equal(manual[deployGate].run,step.run);
   const prep=ci.jobs['cloudru-prepare-media'];
-  assert.ok(prep.needs.includes('cloudru-build-media-images'));
+  assert.ok(prep.needs.includes('beget-readonly-preflight'));
+  assert.ok(!prep.steps.some(s=>s.run?.includes('production-media-release.mjs --prepare')));
   assert.match(prep.steps.map(s=>s.run??'').join('\n'),/production-media-release\.mjs --verify/);
-  const smoke=prep.steps.findIndex(s=>s.name?.includes('synthetic WebP smoke'));
-  const verify=prep.steps.findIndex(s=>s.name?.includes('Wait for Cloud.ru Jobs revision'));
-  assert.ok(smoke>verify && verify>=0);
-  assert.equal(prep.steps[smoke].if,"env.QUESTIONS_PUBLIC_S3_ENABLED == 'true'");
-  assert.equal(prep.steps[smoke].run,"node infra/cloudru/questions-production-job-smoke.mjs");
+  assert.ok(prep.steps.some(s=>s.run==='node infra/cloudru/production-media-release.mjs --verify'));
+  assert.ok(!prep.steps.some(s=>s.run==='node infra/cloudru/questions-production-job-smoke.mjs'));
   assert.equal(prep.env.QUESTIONS_PUBLIC_S3_ENABLED,runtimeFlag);
   assert.ok(ci.jobs['deploy-production'].needs.includes('cloudru-prepare-media'));
 });
@@ -75,7 +74,8 @@ test('push preflight checks Questions before image publication and production de
   assert.deepEqual(job.needs, ['security', 'build-apps', 'cloudru-media-contracts']);
   const steps = job.steps.map(x => x.name);
   assert.ok(steps.includes('Verify Questions CDN working HTTPS and exact public S3 origin (read-only)'));
-  assert.equal(ci.jobs['cloudru-build-media-images'].needs.includes('beget-readonly-preflight'), true);
+  assert.equal(ci.jobs['cloudru-build-media-images'], undefined);
+  assert.ok(ci.jobs['cloudru-prepare-media'].needs.includes('beget-readonly-preflight'));
   for (const [key, value] of Object.entries(target)) assert.equal(job.env[key], value);
   assert.equal(job.env.QUESTIONS_PUBLIC_S3_ENABLED, runtimeFlag);
   assert.equal(job.env.QUESTIONS_CLOUD_JOB_ENABLED, jobFlag);

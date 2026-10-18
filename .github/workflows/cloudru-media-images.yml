@@ -28,21 +28,24 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Validate CORS, images, protected CDN and owner media migration
         run: pnpm test:cloudru-media
-      - name: Cloud.ru registry publication retry acceptance tests
+      - name: Cloud.ru registry publication retry and source-pin acceptance tests
         run: |
           python3 ci-cd/scripts/upload-cloudru-oci.test.py
-          node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
+          node --test ci-cd/scripts/cloudru-publish-retry.test.mjs infra/cloudru/worker-image-pins.test.mjs
   build:
     needs: verify-media-contracts
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 350
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - { media: feed, role: worker, dockerfile: Dockerfile }
-          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
           - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
+          - { media: questions, role: worker, dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
@@ -75,3 +78,30 @@ jobs:
         if: ${{ inputs.publish }}
         run: |
           bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
+      - name: Report independently pinned digest and source tree for reviewed publication
+        if: ${{ inputs.publish }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="gafus.cr.cloud.ru/gafus-${{ matrix.media }}-worker:${{ github.sha }}"
+          digest=''
+          for attempt in 1 2 3 4; do
+            inspect="$(docker buildx imagetools inspect "$tag" 2>/dev/null)" && \
+              digest="$(printf '%s\n' "$inspect" | awk '$1 == "Digest:" {print $2; exit}')" || true
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] && break
+            sleep 15
+          done
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Registry image digest not available'; exit 1; }
+          image="gafus.cr.cloud.ru/gafus-${{ matrix.media }}-worker@$digest"
+          # Inspect the exact digest, not a mutable image tag.
+          docker manifest inspect --verbose "$image" > "$RUNNER_TEMP/pinned-manifest.json"
+          node - "$RUNNER_TEMP/pinned-manifest.json" <<'NODE'
+          const fs=require('fs');const v=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const descriptors=Array.isArray(v)?v:[v];
+          if(!descriptors.some(x=>x.Descriptor?.platform?.architecture==='amd64'))process.exit(1);
+          NODE
+          source="$(node infra/cloudru/worker-image-pins.mjs --source '${{ matrix.media }}')"
+          echo "WORKER_PIN_MEDIA=${{ matrix.media }}"
+          echo "WORKER_PIN_IMAGE=$image"
+          echo "WORKER_PIN_SOURCE=$source"
+          echo 'Use the authenticated operator to set BOTH matching production variables before manually applying Jobs.'

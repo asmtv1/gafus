@@ -412,6 +412,19 @@ class UploadTests(unittest.TestCase):
                          [image['digest'], provenance['digest'], root['digest'], registry.tag])
         self.assertEqual(written_manifests[-1][1], blobs['blobs/sha256/' + root['digest'][7:]])
 
+    def test_registry_image_scope_only_allows_feed_worker(self):
+        image = 'gafus.cr.cloud.ru/gafus-feed-worker:' + 'a' * 40
+        with patch.object(u.Registry, 'call', side_effect=urllib.error.HTTPError(
+                '/v2/', 401, '', {'WWW-Authenticate':
+                    'Bearer realm="https://id.cloud.ru/token",service="gafus.cr.cloud.ru"'}, None)):
+            client = u.Registry(image)
+        self.assertEqual(client.repo, 'gafus-feed-worker')
+        self.assertEqual(client.tag, 'a' * 40)
+        for name in ('gafus-feed-origin', 'gafus-gallery-origin',
+                     'gafus-gallery-worker', 'gafus-questions-worker'):
+            with self.assertRaises(ValueError):
+                u.Registry('gafus.cr.cloud.ru/' + name + ':' + 'a' * 40)
+
     def test_rejects_corrupt_oci_before_network(self):
         archive, descriptor = self.fixture()
         descriptor['size'] += 1

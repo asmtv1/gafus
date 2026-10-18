@@ -1,0 +1,76 @@
+name: Apply manually pinned Cloud.ru Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Enter apply-reviewed-worker-pins after manually publishing/pinning all images"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  apply-pins:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'apply-reviewed-worker-pins'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: workflow_dispatch
+      CLOUDRU_MANUAL_MEDIA_RELEASE_CONFIRM: approved-one-time-worker-revision
+      CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+      CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+      CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
+      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
+      FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+      GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+      FEED_BUCKET_PUBLIC: 'true'
+      QUESTIONS_CLOUD_JOB_ENABLED: 'true'
+      CLOUDRU_GALLERY_WORKER_IMAGE: ${{ vars.CLOUDRU_GALLERY_WORKER_IMAGE }}
+      CLOUDRU_GALLERY_WORKER_SOURCE: ${{ vars.CLOUDRU_GALLERY_WORKER_SOURCE }}
+      CLOUDRU_FEED_WORKER_IMAGE: ${{ vars.CLOUDRU_FEED_WORKER_IMAGE }}
+      CLOUDRU_FEED_WORKER_SOURCE: ${{ vars.CLOUDRU_FEED_WORKER_SOURCE }}
+      CLOUDRU_QUESTIONS_WORKER_IMAGE: ${{ vars.CLOUDRU_QUESTIONS_WORKER_IMAGE }}
+      CLOUDRU_QUESTIONS_WORKER_SOURCE: ${{ vars.CLOUDRU_QUESTIONS_WORKER_SOURCE }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: docker/login-action@v3
+        with:
+          registry: gafus.cr.cloud.ru
+          username: ${{ secrets.CLOUDRU_KEY_ID }}
+          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      - name: Check pinned images and current source trees
+        run: node infra/cloudru/worker-image-pins.mjs --check
+      - name: Verify originless Cloud.ru Jobs plan (no mutations)
+        run: node infra/cloudru/production-media-release.mjs --plan
+      - name: Apply reviewed images and settings to six existing Jobs (explicit manual approval)
+        run: node infra/cloudru/production-media-release.mjs --prepare
+      - name: Confirm all six Jobs adopted pinned images and Feed public flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 45); do
+            if node infra/cloudru/production-media-release.mjs --verify; then
+              echo 'All Cloud.ru Jobs match manually approved pinned worker images.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'Cloud.ru Jobs did not finish applying worker image revisions' >&2
+          exit 1
