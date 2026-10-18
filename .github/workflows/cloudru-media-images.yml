@@ -16,6 +16,11 @@ on:
         options:
           - existing
           - questions
+      provision_real_questions_job:
+        description: "Create ONLY production gafus-questions-photo Cloud.ru Job (no execution, no app deploy)"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -41,7 +46,26 @@ jobs:
       - name: Validate isolated Questions worker types
         if: ${{ inputs.target == 'questions' }}
         run: pnpm exec tsc -p apps/questions-cloud/tsconfig.json
+  provision-questions-job:
+    if: ${{ inputs.target == 'questions' && inputs.provision_real_questions_job && !inputs.publish }}
+    needs: verify-media-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Create only production Questions processing Job with immutable image
+        env:
+          CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+          CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+          CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+          CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+          CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+        run: node infra/cloudru/questions-production-job-create.mjs
+
   build:
+    if: ${{ !inputs.provision_real_questions_job }}
     needs: verify-media-contracts
     runs-on: ubuntu-latest
     strategy:
