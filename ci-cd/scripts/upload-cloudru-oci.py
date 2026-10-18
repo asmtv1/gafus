@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import ssl
 import sys
 import tarfile
 import time
@@ -52,7 +53,7 @@ class Registry:
         self.token = data.get('token') or data.get('access_token')
         self.deadline = time.monotonic() + min(20, max(1, data.get('expires_in', 30) - 10))
 
-    def call(self, path, method='GET', data=None, content_type=None, auth=True):
+    def call(self, path, method='GET', data=None, content_type=None, auth=True, extra_headers=None):
         url = urllib.parse.urljoin(self.base, path)
         if urllib.parse.urlsplit(url).hostname != 'gafus.cr.cloud.ru':
             raise ValueError('Unexpected registry host')
@@ -62,43 +63,176 @@ class Registry:
             headers['Authorization'] = 'Bearer ' + self.token
         if content_type:
             headers['Content-Type'] = content_type
+        if extra_headers:
+            headers.update(extra_headers)
         return urllib.request.urlopen(urllib.request.Request(url, method=method, data=data, headers=headers), timeout=30)
+
+    @staticmethod
+    def transient(error):
+        # Authentication rejection, OCI checksum failure and untrusted TLS
+        # certificate are permanent failures. Do not retry or conceal them.
+        if isinstance(error, urllib.error.HTTPError):
+            return error.code in (408, 416, 429, 500, 502, 503, 504)
+        reason = error.reason if isinstance(error, urllib.error.URLError) else error
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return False
+        return isinstance(error, (urllib.error.URLError, TimeoutError, ConnectionError, OSError))
+
+    def upload_status(self, url, sent, length):
+        """Recover uncertain PATCH using registry-confirmed offset only."""
+        for attempt in range(4):
+            try:
+                with self.call(url, method='GET') as response:
+                    if response.status != 204:
+                        raise ValueError('Unexpected upload status code')
+                    location = response.headers.get('Location', url)
+                    match = re.fullmatch(r'(?:bytes=)?0-(\d+)', response.headers.get('Range', ''))
+                    if not match:
+                        raise ValueError('Missing upload offset')
+                    offset = int(match.group(1)) + 1
+                    # OCI implementations commonly return 0-0 for empty uploads.
+                    if sent == 0 and offset == 1:
+                        offset = 0
+                    if not sent <= offset <= sent + length:
+                        raise ValueError('Upload offset outside attempted chunk')
+                    return location, offset
+            except Exception as error:
+                if not self.transient(error) or attempt == 3:
+                    raise
+                print('UPLOAD_STATUS_RETRY', attempt + 1, type(error).__name__, flush=True)
+                time.sleep(min(2 ** attempt, 4))
+        raise RuntimeError('Upload status retries exhausted')
 
     def blob(self, archive, descriptor):
         digest = descriptor['digest']
         member = checked_member(archive, descriptor)
         endpoint = '/v2/' + self.repo + '/blobs/' + digest
-        try:
-            with self.call(endpoint, method='HEAD') as response:
-                if response.status != 200:
-                    raise ValueError('Unexpected blob HEAD')
-            return
-        except urllib.error.HTTPError as error:
-            if error.code != 404:
-                raise
+        for attempt in range(4):
+            try:
+                with self.call(endpoint, method='HEAD') as response:
+                    if response.status != 200:
+                        raise ValueError('Unexpected blob HEAD')
+                    header_digest = response.headers.get('Docker-Content-Digest', digest)
+                    if header_digest != digest:
+                        raise ValueError('Existing blob digest mismatch')
+                return
+            except urllib.error.HTTPError as error:
+                if error.code == 404:
+                    break
+                if not self.transient(error) or attempt == 3:
+                    raise
+            except Exception as error:
+                if not self.transient(error) or attempt == 3:
+                    raise
+            print('BLOB_HEAD_RETRY', digest[:19], attempt + 1, flush=True)
+            time.sleep(min(2 ** attempt, 4))
         upload = None
         complete = False
         try:
-            with self.call('/v2/' + self.repo + '/blobs/uploads/', method='POST', data=b'') as response:
-                upload = response.headers['Location']
-            sent = 0
-            started = time.monotonic()
-            with archive.extractfile(member) as stream:
-                while True:
-                    chunk = stream.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    with self.call(upload, method='PATCH', data=chunk, content_type='application/octet-stream') as response:
+            min_chunk_size = 0
+            for attempt in range(4):
+                try:
+                    with self.call('/v2/' + self.repo + '/blobs/uploads/', method='POST', data=b'') as response:
                         if response.status != 202:
-                            raise ValueError('Unexpected chunk status')
-                        upload = response.headers.get('Location', upload)
-                    sent += len(chunk)
-                    if sent % (8 * 1024 * 1024) == 0:
-                        print('LAYER_PROGRESS', digest[:19], sent, '/', member.size, 'SECONDS', round(time.monotonic() - started), flush=True)
+                            raise ValueError('Unexpected upload session status')
+                        upload = response.headers['Location']
+                        minimum = response.headers.get('OCI-Chunk-Min-Length', '0')
+                        if not minimum.isdecimal():
+                            raise ValueError('Invalid registry minimum chunk size')
+                        min_chunk_size = int(minimum)
+                        if min_chunk_size > 1024 * 1024:
+                            raise ValueError('Registry requires unsafe large chunks')
+                    break
+                except Exception as error:
+                    if not self.transient(error) or attempt == 3:
+                        raise
+                    print('UPLOAD_START_RETRY', digest[:19], attempt + 1, type(error).__name__, flush=True)
+                    time.sleep(min(2 ** attempt, 4))
+            sent = 0
+            last_progress = 0
+            started = time.monotonic()
+            print('LAYER_UPLOAD_STARTED', digest[:19], member.size, flush=True)
+            chunk_size = max(1024 * 1024, min_chunk_size)
+            retries = 0
+            with archive.extractfile(member) as stream:
+                while sent < member.size:
+                    # Re-read from the last byte acknowledged by Cloud.ru.
+                    stream.seek(sent)
+                    chunk = stream.read(min(chunk_size, member.size - sent))
+                    if not chunk:
+                        raise ValueError('OCI blob unexpectedly truncated')
+                    try:
+                        with self.call(upload, method='PATCH', data=chunk,
+                                       content_type='application/octet-stream',
+                                       extra_headers={'Content-Range': f'{sent}-{sent + len(chunk) - 1}'}) as response:
+                            if response.status != 202:
+                                raise ValueError('Unexpected chunk status')
+                            match = re.fullmatch(r'(?:bytes=)?0-(\d+)', response.headers.get('Range', ''))
+                            if not match or int(match.group(1)) + 1 != sent + len(chunk):
+                                raise ValueError('Unexpected acknowledged range')
+                            upload = response.headers.get('Location', upload)
+                        sent += len(chunk)
+                        retries = 0
+                    except Exception as error:
+                        if not self.transient(error) or retries >= 5:
+                            raise
+                        retries += 1
+                        # A timed-out PATCH may already have been accepted.
+                        # Never resend unless registry GET proves it was not.
+                        upload, actual = self.upload_status(upload, sent, len(chunk))
+                        if actual > sent:
+                            # Registry might have accepted all or part of the
+                            # stream. Resume at its verified next byte only.
+                            sent = actual
+                            retries = 0
+                            print('UPLOAD_ACK_RECOVERED', digest[:19], sent, flush=True)
+                        else:
+                            chunk_size = max(256 * 1024, min_chunk_size, chunk_size // 2)
+                            print('UPLOAD_CHUNK_RETRY', digest[:19], retries,
+                                  'BYTES', chunk_size, 'CAUSE', type(error).__name__, flush=True)
+                            time.sleep(min(2 ** (retries - 1), 8))
+                    if sent - last_progress >= 8 * 1024 * 1024:
+                        print('LAYER_PROGRESS', digest[:19], sent, '/', member.size,
+                              'SECONDS', round(time.monotonic() - started), flush=True)
+                        last_progress = sent
             joiner = '&' if '?' in upload else '?'
-            with self.call(upload + joiner + urllib.parse.urlencode({'digest': digest}), method='PUT', data=b'') as response:
-                if response.status != 201 or response.headers.get('Docker-Content-Digest') != digest:
-                    raise ValueError('Blob commit not confirmed')
+            commit_url = upload + joiner + urllib.parse.urlencode({'digest': digest})
+            try:
+                with self.call(commit_url, method='PUT', data=b'') as response:
+                    if response.status != 201 or response.headers.get('Docker-Content-Digest') != digest:
+                        raise ValueError('Blob commit not confirmed')
+            except Exception as error:
+                if not self.transient(error):
+                    raise
+                # PUT has no payload, but the reply may be lost after commit.
+                # Check by content digest before trying to close it again.
+                already_committed = False
+                for retry in range(4):
+                    try:
+                        with self.call(endpoint, method='HEAD') as response:
+                            if response.status == 200:
+                                acknowledged = response.headers.get('Docker-Content-Digest', digest)
+                                if acknowledged != digest:
+                                    raise ValueError('Committed digest mismatch')
+                                already_committed = True
+                                break
+                    except urllib.error.HTTPError as missing:
+                        if missing.code != 404:
+                            raise
+                    except Exception as transient:
+                        if not self.transient(transient) or retry == 3:
+                            raise
+                    time.sleep(min(2 ** retry, 4))
+                if not already_committed:
+                    upload, offset = self.upload_status(upload, sent, 0)
+                    if offset != member.size:
+                        raise ValueError('Cannot safely finish unverified blob')
+                    joiner = '&' if '?' in upload else '?'
+                    with self.call(upload + joiner + urllib.parse.urlencode({'digest': digest}),
+                                   method='PUT', data=b'') as response:
+                        if response.status != 201 or response.headers.get('Docker-Content-Digest') != digest:
+                            raise ValueError('Blob retry commit not confirmed')
+                print('LAYER_COMMIT_ACK_RECOVERED', digest[:19], flush=True)
             complete = True
             print('LAYER_COMMITTED', digest[:19], member.size, flush=True)
         finally:
@@ -111,9 +245,36 @@ class Registry:
 
     def manifest(self, reference, data, media_type):
         digest = 'sha256:' + hashlib.sha256(data).hexdigest()
-        with self.call('/v2/' + self.repo + '/manifests/' + reference, method='PUT', data=data, content_type=media_type) as response:
-            if response.status != 201 or response.headers.get('Docker-Content-Digest') != digest:
-                raise ValueError('Manifest commit not confirmed')
+        endpoint = '/v2/' + self.repo + '/manifests/' + reference
+        for retry in range(4):
+            try:
+                with self.call(endpoint, method='PUT', data=data, content_type=media_type) as response:
+                    if response.status != 201 or response.headers.get('Docker-Content-Digest') != digest:
+                        raise ValueError('Manifest commit not confirmed')
+                return
+            except Exception as error:
+                if not self.transient(error):
+                    raise
+                # A manifest PUT is idempotent for these digest-pinned bytes.
+                # First see whether the lost response was already committed.
+                try:
+                    with self.call(endpoint, method='HEAD',
+                                   extra_headers={'Accept': media_type}) as response:
+                        if response.status == 200:
+                            if response.headers.get('Docker-Content-Digest') != digest:
+                                raise ValueError('Published OCI manifest digest mismatch')
+                            print('MANIFEST_ACK_RECOVERED', digest[:19], flush=True)
+                            return
+                except urllib.error.HTTPError as missing:
+                    if missing.code not in (404, 405):
+                        raise
+                except Exception as temporary:
+                    if not self.transient(temporary):
+                        raise
+                if retry == 3:
+                    raise
+                print('MANIFEST_RETRY', retry + 1, type(error).__name__, flush=True)
+                time.sleep(min(2 ** retry, 4))
 
 
 def checked_member(archive, descriptor):
