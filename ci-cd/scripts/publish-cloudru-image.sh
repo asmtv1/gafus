@@ -23,7 +23,9 @@ trap 'rm -f -- "$log_file"' EXIT
 
 for attempt in 1 2 3 4; do
   echo "Publishing Cloud.ru image (attempt ${attempt}/4): gafus-${media}-${role}"
-  if docker buildx build \
+  # A registry upload can stall without returning an HTTP error. Bound each
+  # attempt so the same immutable publication can recover on a fresh connection.
+  if timeout --kill-after=30s 10m docker buildx build \
     --file "apps/${media}-cloud/${dockerfile}" \
     --platform linux/amd64 \
     --tag "$tag" \
@@ -40,7 +42,11 @@ for attempt in 1 2 3 4; do
   # Never retry an ordinary failed build, invalid image, or bad credentials.
   # Match transient HTTP responses only when linked to the Cloud.ru registry
   # or its OAuth token endpoint; no raw secrets are read or printed.
-  if ! grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru).*(429|502|503|504)([^0-9]|$)' "$log_file"; then
+  upload_timeout=false
+  if [[ "$status" == 124 ]] && grep -Eq '#[0-9]+ pushing layers' "$log_file"; then
+    upload_timeout=true
+  fi
+  if [[ "$upload_timeout" != true ]] && ! grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru).*(429|502|503|504)([^0-9]|$)' "$log_file"; then
     echo "Cloud.ru image publish failed (not a transient Cloud.ru registry response)" >&2
     exit "$status"
   fi

@@ -33,10 +33,13 @@ case "$FAKE_SCENARIO" in
   unauthorized-401) echo 'failed to fetch oauth token: https://id.cloud.ru/auth/system/docker/token: 401 Unauthorized' >&2; exit 1 ;;
   forbidden-403) echo 'failed to fetch oauth token: https://id.cloud.ru/auth/system/docker/token: 403 Forbidden' >&2; exit 1 ;;
   build-error) echo 'ERROR: failed to solve: pnpm build failed' >&2; exit 1 ;;
+  upload-timeout) if (( counter == 1 )); then echo '#17 pushing layers'; exit 124; fi ;;
+  build-timeout) echo '#10 RUN npm install'; exit 124 ;;
 esac
 echo "fake publish succeeded"
 `;
   writeFileSync(join(bin, "docker"), docker, { mode: 0o755 });
+  writeFileSync(join(bin, "timeout"), '#!/bin/sh\n[ "$1" = "--kill-after=30s" ] && [ "$2" = "10m" ] || exit 2\nshift 2\nexec "$@"\n', { mode: 0o755 });
   writeFileSync(join(bin, "sleep"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/sleeps"\n', {
     mode: 0o755,
   });
@@ -96,7 +99,13 @@ test("Cloud.ru registry 429 fails closed after bounded attempts", () => {
   assert.deepEqual(delays, ["10", "20", "40"]);
 });
 
-for (const scenario of ["unauthorized-401", "forbidden-403", "build-error"]) {
+test("stalled layer upload retries after the bounded attempt times out", () => {
+  const { result, count } = run("upload-timeout");
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(count, 2);
+});
+
+for (const scenario of ["unauthorized-401", "forbidden-403", "build-error", "build-timeout"]) {
   test(`${scenario} must not be retried`, () => {
     const { result, count, delays } = run(scenario);
     assert.notEqual(result.status, 0);
