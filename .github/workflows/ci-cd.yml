@@ -472,7 +472,9 @@ jobs:
       - name: Isolated Questions S3/CDN/Cloud.ru Job cutover pre-deploy contracts
         run: node --test infra/cloudru/questions-public-readiness.test.mjs infra/cloudru/questions-job-live-readiness.test.mjs infra/cloudru/questions-public-workflow.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
-        run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
+        run: |
+          python3 ci-cd/scripts/upload-cloudru-oci.test.py
+          node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
       - name: Cloud.ru scheduled processing contract
         run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
       - name: Cloud.ru Questions photo Job actual sharp and type contracts
@@ -591,15 +593,7 @@ jobs:
           username: ${{ secrets.CLOUDRU_KEY_ID }}
           password: ${{ secrets.CLOUDRU_KEY_SECRET }}
       - name: Publish Cloud.ru production revision (retry temporary registry 429/5xx)
-        # Feed ffmpeg layers use an independent OCI uploader after BuildKit export.
-        # Install from the runner's official Ubuntu package repository.
-        # All other images retain the existing publication path.
-        # Preparation is scoped to the Feed worker matrix entry.
         run: |
-          if [ "${{ matrix.media }}:${{ matrix.role }}" = "feed:worker" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends skopeo
-          fi
           bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
 
   # Only private Cloud.ru S3, protected Origins and bounded processing Jobs.

@@ -23,7 +23,7 @@ trap 'rm -f -- "$log_file"' EXIT
 
 # Feed's ffmpeg layer repeatedly stalls in BuildKit's registry exporter.
 # Export the complete OCI index first, then copy it with an independent client.
-# --all and --preserve-digests retain provenance and the original image index.
+# The chunked uploader retains every referenced manifest, including provenance.
 if [[ "$media:$role" == feed:worker ]]; then
   archive="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-feed.XXXXXXXX.tar")"
   trap 'rm -f -- "$log_file" "$archive"' EXIT
@@ -31,9 +31,7 @@ if [[ "$media:$role" == feed:worker ]]; then
     --file "apps/${media}-cloud/${dockerfile}" --platform linux/amd64 \
     --tag "$tag" --provenance=true --progress=plain \
     --output "type=oci,dest=$archive" .
-  timeout --kill-after=30s 10m skopeo copy --all --preserve-digests \
-    --authfile "${DOCKER_CONFIG:-$HOME/.docker}/config.json" \
-    "oci-archive:$archive" "docker://$tag"
+  timeout --kill-after=30s 20m python3 ci-cd/scripts/upload-cloudru-oci.py "$archive" "$tag"
   echo "Cloud.ru image published: gafus-${media}-${role}"
   exit 0
 fi

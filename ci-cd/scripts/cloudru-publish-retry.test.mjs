@@ -39,8 +39,8 @@ esac
 echo "fake publish succeeded"
 `;
   writeFileSync(join(bin, "docker"), docker, { mode: 0o755 });
-  writeFileSync(join(bin, "skopeo"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/arguments"\n[ "$FAKE_SCENARIO" != "copy-failure" ]\n', { mode: 0o755 });
-  writeFileSync(join(bin, "timeout"), '#!/bin/sh\n[ "$1" = "--kill-after=30s" ] && [ "$2" = "10m" ] || exit 2\nshift 2\nexec "$@"\n', { mode: 0o755 });
+  writeFileSync(join(bin, "python3"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/arguments"\n[ "$FAKE_SCENARIO" != "copy-failure" ]\n', { mode: 0o755 });
+  writeFileSync(join(bin, "timeout"), '#!/bin/sh\n[ "$1" = "--kill-after=30s" ] && { [ "$2" = "10m" ] || [ "$2" = "20m" ]; } || exit 2\nshift 2\nexec "$@"\n', { mode: 0o755 });
   writeFileSync(join(bin, "sleep"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/sleeps"\n', {
     mode: 0o755,
   });
@@ -111,8 +111,8 @@ test("Feed worker exports OCI then preserves the full index during independent u
   assert.equal(result.status, 0, result.stderr);
   assert.match(argumentLog, /--output type=oci,dest=/);
   assert.doesNotMatch(argumentLog, /--push/);
-  assert.match(argumentLog, /copy --all --preserve-digests --authfile/);
-  assert.match(argumentLog, new RegExp("docker://gafus.cr.cloud.ru/gafus-feed-worker:" + revision));
+  assert.match(argumentLog, /ci-cd\/scripts\/upload-cloudru-oci.py/);
+  assert.match(argumentLog, new RegExp("gafus.cr.cloud.ru/gafus-feed-worker:" + revision));
 });
 
 test("Feed publication fails when the independent OCI upload fails", () => {

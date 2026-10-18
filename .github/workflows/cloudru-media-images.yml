@@ -29,7 +29,9 @@ jobs:
       - name: Validate CORS, images, protected CDN and owner media migration
         run: pnpm test:cloudru-media
       - name: Cloud.ru registry publication retry acceptance tests
-        run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
+        run: |
+          python3 ci-cd/scripts/upload-cloudru-oci.test.py
+          node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
   build:
     needs: verify-media-contracts
     runs-on: ubuntu-latest
@@ -72,8 +74,4 @@ jobs:
       - name: Publish immutable revision-tagged image (no deployment, retry transient registry errors)
         if: ${{ inputs.publish }}
         run: |
-          if [ "${{ matrix.media }}:${{ matrix.role }}" = "feed:worker" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends skopeo
-          fi
           bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
