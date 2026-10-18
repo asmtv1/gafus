@@ -21,6 +21,11 @@ on:
         type: boolean
         required: true
         default: false
+      smoke_real_questions_job:
+        description: "Execute existing production Questions Job ONCE on isolated disposable PNG"
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -64,8 +69,33 @@ jobs:
           CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
         run: node infra/cloudru/questions-production-job-create.mjs --audit
 
+  smoke-questions-job:
+    if: ${{ inputs.target == 'questions' && inputs.smoke_real_questions_job && !inputs.publish && !inputs.provision_real_questions_job }}
+    needs: verify-media-contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies for isolated S3 smoke
+        run: pnpm install --frozen-lockfile
+      - name: Execute existing production Questions Job on synthetic PNG; verify private WebP and cleanup
+        env:
+          CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+          CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+          CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+          CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+          CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+        run: node infra/cloudru/questions-production-job-smoke.mjs
+
   build:
-    if: ${{ !inputs.provision_real_questions_job }}
+    if: ${{ !inputs.provision_real_questions_job && !inputs.smoke_real_questions_job }}
     needs: verify-media-contracts
     runs-on: ubuntu-latest
     strategy:
