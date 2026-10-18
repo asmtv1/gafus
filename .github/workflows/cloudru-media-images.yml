@@ -55,14 +55,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Create only production Questions processing Job with immutable image
+      - name: Audit existing production Questions Job (read-only)
         env:
           CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
           CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
           CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
           CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
           CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
-        run: node infra/cloudru/questions-production-job-create.mjs
+        run: node infra/cloudru/questions-production-job-create.mjs --audit
 
   build:
     if: ${{ !inputs.provision_real_questions_job }}

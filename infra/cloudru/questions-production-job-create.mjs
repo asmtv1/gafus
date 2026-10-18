@@ -29,6 +29,24 @@ const listUrl = "https://containers.api.cloud.ru/v2/jobs?projectId=" +
   encodeURIComponent(PROJECT) + "&pageSize=100";
 const listing = await request(listUrl, {headers: auth});
 if (!Array.isArray(listing.data)) throw Error("QUESTIONS_JOB_LIST_INVALID");
+if (process.argv.includes("--audit")) {
+  if (!listing.data.some(job => job.name === NAME))
+    throw Error("QUESTIONS_JOB_NOT_PRESENT_AFTER_CREATE");
+  const details = await request("https://containers.api.cloud.ru/v2/jobs/" + NAME +
+    "?projectId=" + encodeURIComponent(PROJECT), {headers: auth});
+  const container = details?.template?.containers?.[0];
+  console.log("PRODUCTION_QUESTIONS_JOB_READONLY_AUDIT", {
+    topLevelFields: Object.keys(details ?? {}),
+    name: details?.name, projectIdMatches: details?.projectId === PROJECT,
+    runImmediately: details?.runImmediately ?? "OMITTED_BY_API",
+    containerName: container?.name, image: container?.image,
+    cpu: container?.resources?.cpu, memory: container?.resources?.memory,
+    timeout: details?.template?.timeout, maxRetries: details?.template?.maxRetries,
+    configPrivileged: details?.configuration?.privileged,
+    envNames: container?.env?.map(v => v.name),
+  });
+  process.exit(0);
+}
 if (listing.data.some(job => job.name === NAME))
   throw Error("QUESTIONS_JOB_ALREADY_EXISTS_REFUSE_OVERWRITE");
 
