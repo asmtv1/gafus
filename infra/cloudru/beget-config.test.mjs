@@ -15,6 +15,15 @@ const scripts = ['DEPLOY_SCRIPT_1', 'DEPLOY_SCRIPT_2', 'DEPLOY_SCRIPT_3']
 const script = scripts.join('\n');
 
 describe('existing production CDN secret reuse', () => {
+  it('audits Gallery metadata with the same Cloud.ru credentials as deployment', () => {
+    const pipeline = yaml.parse(readFileSync('.github/workflows/ci-cd.yml', 'utf8'));
+    const preflight = pipeline.jobs['beget-readonly-preflight'].env;
+    const media = pipeline.jobs['cloudru-prepare-media'].env;
+    for (const suffix of ['ACCESS_KEY_ID', 'SECRET_ACCESS_KEY']) {
+      assert.equal(preflight[`GALLERY_S3_${suffix}`], media[`CLOUDRU_S3_${suffix}`]);
+      assert.equal(preflight[`GALLERY_S3_${suffix}`], '${{ secrets.CLOUDRU_S3_' + suffix + ' }}');
+    }
+  });
   it('never demands newly rotated Beget signing secrets', () => {
     assert.doesNotMatch(script, /secrets\.(?:BEGET_GALLERY_CDN_SECRET|BEGET_FEED_CDN_SECRET)/);
     assert.match(script, /Missing Gallery or Feed production CDN signing secret/);
