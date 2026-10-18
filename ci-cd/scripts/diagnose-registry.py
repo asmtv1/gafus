@@ -64,12 +64,16 @@ def upload_check():
                      data=b'', headers=headers) as response:
             upload = urllib.parse.urljoin(BASE, response.headers['Location'])
             print('UPLOAD_OPEN', response.status, flush=True)
-        for mib in [1, 16]:
+        for mib in range(1, 18):
             if urllib.parse.urlsplit(upload).hostname != 'gafus.cr.cloud.ru':
                 raise RuntimeError('Unexpected upload host')
             started = time.monotonic()
+            with request(realm + '?' + query, headers={'Authorization': 'Basic ' + basic}) as response:
+                result = json.load(response)
+                token = result.get('token') or result.get('access_token')
+            headers = {'Authorization': 'Bearer ' + token}
             print('PATCH_START_MIB', mib, flush=True)
-            with request(upload, method='PATCH', data=os.urandom(mib * 1024 * 1024),
+            with request(upload, method='PATCH', data=os.urandom(1024 * 1024),
                          headers={**headers, 'Content-Type': 'application/octet-stream'},
                          timeout=45) as response:
                 upload = urllib.parse.urljoin(BASE, response.headers.get('Location', upload))
