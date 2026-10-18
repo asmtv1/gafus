@@ -13,7 +13,7 @@ const transientAuth =
 const transientRegistry =
   "failed to push to gafus.cr.cloud.ru/gafus-feed-worker: 503 Service Unavailable";
 
-function run(scenario, args = ["feed", "worker", "Dockerfile", revision]) {
+function run(scenario, args = ["gallery", "worker", "Dockerfile", revision]) {
   // All test artifacts remain inside the permitted project and are removed
   // after each test; no Docker daemon or registry is accessed.
   const dir = mkdtempSync(join(scriptsDir, ".cloudru-publish-test-"));
@@ -39,6 +39,7 @@ esac
 echo "fake publish succeeded"
 `;
   writeFileSync(join(bin, "docker"), docker, { mode: 0o755 });
+  writeFileSync(join(bin, "skopeo"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/arguments"\n[ "$FAKE_SCENARIO" != "copy-failure" ]\n', { mode: 0o755 });
   writeFileSync(join(bin, "timeout"), '#!/bin/sh\n[ "$1" = "--kill-after=30s" ] && [ "$2" = "10m" ] || exit 2\nshift 2\nexec "$@"\n', { mode: 0o755 });
   writeFileSync(join(bin, "sleep"), '#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$RUNNER_TEMP/sleeps"\n', {
     mode: 0o755,
@@ -83,7 +84,7 @@ test("Cloud.ru OAuth 502 retries then publishes immutable image", () => {
   assert.match(argumentLog, /--platform linux\/amd64/);
   assert.match(argumentLog, /--provenance=true/);
   assert.match(argumentLog, /--push/);
-  assert.match(argumentLog, new RegExp("gafus-feed-worker:" + revision));
+  assert.match(argumentLog, new RegExp("gafus-gallery-worker:" + revision));
 });
 
 test("Cloud.ru registry 503 retries immutable publication", () => {
@@ -103,6 +104,21 @@ test("stalled layer upload retries after the bounded attempt times out", () => {
   const { result, count } = run("upload-timeout");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(count, 2);
+});
+
+test("Feed worker exports OCI then preserves the full index during independent upload", () => {
+  const { result, argumentLog } = run("success", ["feed", "worker", "Dockerfile", revision]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(argumentLog, /--output type=oci,dest=/);
+  assert.doesNotMatch(argumentLog, /--push/);
+  assert.match(argumentLog, /copy --all --preserve-digests --authfile/);
+  assert.match(argumentLog, new RegExp("docker://gafus.cr.cloud.ru/gafus-feed-worker:" + revision));
+});
+
+test("Feed publication fails when the independent OCI upload fails", () => {
+  const { result } = run("copy-failure", ["feed", "worker", "Dockerfile", revision]);
+  assert.notEqual(result.status, 0);
+  assert.doesNotMatch(result.stdout, /Cloud.ru image published/);
 });
 
 for (const scenario of ["unauthorized-401", "forbidden-403", "build-error", "build-timeout"]) {

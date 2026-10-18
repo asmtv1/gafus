@@ -21,6 +21,23 @@ tag="gafus.cr.cloud.ru/gafus-${media}-${role}:${revision}"
 log_file="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-build.XXXXXXXX")"
 trap 'rm -f -- "$log_file"' EXIT
 
+# Feed's ffmpeg layer repeatedly stalls in BuildKit's registry exporter.
+# Export the complete OCI index first, then copy it with an independent client.
+# --all and --preserve-digests retain provenance and the original image index.
+if [[ "$media:$role" == feed:worker ]]; then
+  archive="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-feed.XXXXXXXX.tar")"
+  trap 'rm -f -- "$log_file" "$archive"' EXIT
+  timeout --kill-after=30s 10m docker buildx build \
+    --file "apps/${media}-cloud/${dockerfile}" --platform linux/amd64 \
+    --tag "$tag" --provenance=true --progress=plain \
+    --output "type=oci,dest=$archive" .
+  timeout --kill-after=30s 10m skopeo copy --all --preserve-digests \
+    --authfile "${DOCKER_CONFIG:-$HOME/.docker}/config.json" \
+    "oci-archive:$archive" "docker://$tag"
+  echo "Cloud.ru image published: gafus-${media}-${role}"
+  exit 0
+fi
+
 for attempt in 1 2 3 4; do
   echo "Publishing Cloud.ru image (attempt ${attempt}/4): gafus-${media}-${role}"
   # A registry upload can stall without returning an HTTP error. Bound each
