@@ -1,79 +1,21 @@
-name: Build Cloud.ru media images
-
+name: Cloud.ru registry transport diagnosis
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Publish reviewed images to Cloud.ru Registry (never deploy automatically)"
         type: boolean
-        required: true
         default: false
-
 permissions:
   contents: read
-
 jobs:
-  verify-media-contracts:
+  diagnose:
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: pnpm
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Validate CORS, images, protected CDN and owner media migration
-        run: pnpm test:cloudru-media
-      - name: Cloud.ru registry publication retry acceptance tests
-        run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
-  build:
-    needs: verify-media-contracts
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { media: feed, role: worker, dockerfile: Dockerfile }
-          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
-          - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
-    steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - name: Build Linux OCI archive for review (no deployment)
-        if: ${{ !inputs.publish }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/${{ matrix.media }}-cloud/${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          tags: gafus-${{ matrix.media }}-${{ matrix.role }}:${{ github.sha }}
-          outputs: type=oci,dest=${{ runner.temp }}/${{ matrix.media }}-${{ matrix.role }}.tar
-          push: false
-      - name: Save review artifact
-        if: ${{ !inputs.publish }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: cloudru-${{ matrix.media }}-${{ matrix.role }}-${{ github.sha }}
-          path: ${{ runner.temp }}/${{ matrix.media }}-${{ matrix.role }}.tar
-          retention-days: 3
-          compression-level: 0
-      - name: Authenticate to private Cloud.ru registry
-        if: ${{ inputs.publish }}
-        uses: docker/login-action@v3
-        with:
-          registry: gafus.cr.cloud.ru
-          username: ${{ secrets.CLOUDRU_KEY_ID }}
-          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      - name: Publish immutable revision-tagged image (no deployment, retry transient registry errors)
-        if: ${{ inputs.publish }}
-        run: |
-          if [ "${{ matrix.media }}:${{ matrix.role }}" = "feed:worker" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends skopeo
-          fi
-          bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
+      - name: Diagnose registry API and temporary upload without deployment
+        env:
+          CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+          CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+          CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+        run: python3 ci-cd/scripts/diagnose-registry.py
