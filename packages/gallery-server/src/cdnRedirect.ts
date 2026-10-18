@@ -24,7 +24,9 @@ export async function galleryCdnRedirectResponse(
   try {
     const raw = request.url;
     // URL.pathname may already normalize dot segments: validate the unparsed input first.
-    const pathname = raw.match(/^https:\/\/[^/?#]+(\/[^?#]*)?(?:\?[^#]*)?$/)?.[1];
+    // TLS terminates at Nginx: Hono sees an internal http:// URL.
+    // The separate origin-secret check still protects this CDN-only route.
+    const pathname = raw.match(/^https?:\/\/[^/?#]+(\/[^?#]*)?(?:\?[^#]*)?$/)?.[1];
     if (!pathname || raw.includes("?") || /%|\\|\/\.|\/\//.test(pathname)) return notFound();
     key = originKey(pathname);
   } catch { return notFound(); }

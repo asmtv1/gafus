@@ -26,6 +26,17 @@ describe("Gallery private CDN origin redirect", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("Location")).toBe(signed);
   });
+  it("allows the internal HTTP hop from Nginx only with the correct origin secret", async () => {
+    const sign = vi.fn(async () => signed);
+    const internalUri = `http://127.0.0.1:3001/${key}`;
+    const accepted = await galleryCdnRedirectResponse(request(internalUri), env, sign);
+    expect(accepted.status).toBe(307);
+    expect(accepted.headers.get("Location")).toBe(signed);
+    expect(sign).toHaveBeenCalledWith(key, "GET");
+    expect((await galleryCdnRedirectResponse(request(internalUri, "GET", "wrong"), env, sign)).status).toBe(404);
+    expect((await galleryCdnRedirectResponse(request(`${internalUri}?unsafe=1`), env, sign)).status).toBe(404);
+    expect(sign).toHaveBeenCalledTimes(1);
+  });
   it("presigns GET and HEAD but never streams bytes", async () => {
     const sign = vi.fn(async () => signed);
     for (const method of ["GET", "HEAD"]) {
