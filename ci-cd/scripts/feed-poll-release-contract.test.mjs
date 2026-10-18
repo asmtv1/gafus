@@ -30,7 +30,13 @@ test('CI exercises migrations and real PostgreSQL poll end-to-end before deployi
   assert.match(ci, /publication-client\.test\.ts/);
   assert.match(ci, /feed-poll-release-contract\.test\.mjs/);
   assert.match(ci, /deploy-production:\s+needs: \[security, build-apps, build-images, cloudru-prepare-media\]/);
-  assert.match(ci, /cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight\]/);
+  // Cloud.ru worker publication is explicitly manual; the normal main path
+  // must verify immutable pins and existing processing Jobs before deployment.
+  assert.doesNotMatch(ci, /cloudru-build-media-images:/);
+  assert.match(ci, /cloudru-prepare-media:\s+needs: \[beget-readonly-preflight, cloudru-media-contracts\]/);
+  assert.match(ci, /CLOUDRU_WORKER_PINS_REQUIRED == 'true'/);
+  assert.match(ci, /node infra\/cloudru\/worker-image-pins\.mjs --check/);
+  assert.match(ci, /node infra\/cloudru\/production-media-release\.mjs --verify/);
   assert.match(ci, /github\.ref == 'refs\/heads\/main' && github\.event_name == 'push'/);
   assert.match(sharedDeploy, /production-schema-cutover\.sh/);
 });
