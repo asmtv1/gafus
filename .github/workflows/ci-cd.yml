@@ -556,9 +556,10 @@ jobs:
           QUESTIONS_CLOUD_JOB_ENABLED: ${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}
           QUESTIONS_PROCESSOR_READY: ${{ vars.QUESTIONS_PROCESSOR_READY || 'true' }}
         run: node infra/cloudru/questions-job-live-readiness.mjs
-      - name: Verify existing Gallery and public Feed before API changes (read-only)
-        # New Gallery 307 cannot work until this commit's API is deployed.
-        run: GALLERY_CDN_REDIRECT_ENABLED=false node infra/cloudru/beget-production-smoke.mjs
+      - name: Verify public Feed CDN before API changes (read-only)
+        # Old Gallery Origin was retired. New Gallery API 307 is tested only
+        # after this commit deploys; its CDN settings/S3 privacy are checked below.
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
       - name: Verify new Gallery CDN source, 307 and signing settings (read-only)
         run: node infra/cloudru/gallery-release-edge-readiness.mjs
       - name: Audit private Gallery WebP metadata before production changes (read-only)

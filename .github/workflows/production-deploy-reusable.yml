@@ -68,7 +68,7 @@ jobs:
           FEED_CDN_HEALTH_OBJECT_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
         run: |
           node infra/cloudru/beget-release-readiness.mjs --check
-          GALLERY_CDN_REDIRECT_ENABLED=false node infra/cloudru/beget-production-smoke.mjs
+          node infra/cloudru/beget-production-smoke.mjs --feed-only
           node infra/cloudru/gallery-release-edge-readiness.mjs
 
       - name: Verify isolated Questions CDN readiness before SSH (read-only)

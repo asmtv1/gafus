@@ -113,9 +113,29 @@ async function check(scope) {
     : { scope: scope.name, signedGet: 200, hotCache: cacheState,
         cacheControl, signedHead: 200, range: 206, originUnauthorized: galleryRedirect && scope.name === 'gallery' ? 404 : 403, unsignedDenied: unsignedStatus };
 }
+export function selectedSmokeScopes(args = process.argv.slice(2), env = process.env) {
+  if (args.length === 0) return scopes;
+  if (args.length !== 1 || args[0] !== '--feed-only')
+    throw Error('BEGET_SMOKE_INVALID_MODE');
+  // The old Gallery Origin has been retired. Before the new API release, the
+  // Gallery 307 route cannot be tested live; its edge settings and private S3
+  // metadata are checked separately, and the full signed E2E smoke runs AFTER
+  // deployment. Never let feed-only silently mask a disabled Gallery cutover.
+  if (env.GALLERY_CDN_REDIRECT_ENABLED !== 'true' ||
+      env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED !== 'true' ||
+      env.FEED_BUCKET_PUBLIC !== 'true')
+    throw Error('BEGET_SMOKE_FEED_ONLY_REQUIRES_NEW_GALLERY_AND_PUBLIC_FEED');
+  return scopes.filter(scope => scope.name === 'feed');
+}
 if (process.argv[1] && process.argv[1].endsWith('/beget-production-smoke.mjs')) {
   let failed = false;
-  for (const scope of scopes) {
+  let activeScopes = [];
+  try { activeScopes = selectedSmokeScopes(); }
+  catch (error) {
+    console.error('BEGET_SMOKE_MODE_BLOCKED:', error instanceof Error ? error.message : 'UNKNOWN');
+    process.exitCode = 1;
+  }
+  for (const scope of activeScopes) {
     try { console.log(JSON.stringify(await check(scope))); }
     catch (error) {
       failed = true;

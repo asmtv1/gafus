@@ -77,3 +77,22 @@ test('production Compose file is generated with pinned public Feed + exact healt
     assert.ok(!script.includes(deprecated), deprecated);
   }
 });
+
+
+test('both production pre-deploy gates never probe the retired Gallery Origin', () => {
+  const preflight = ci.jobs['beget-readonly-preflight'].steps.find(s =>
+    s.name === 'Verify public Feed CDN before API changes (read-only)');
+  const reusable = deploy.jobs['deploy-production'].steps.find(s =>
+    s.name === 'Validate Beget-only production readiness before SSH');
+  assert.equal(preflight.run, 'node infra/cloudru/beget-production-smoke.mjs --feed-only');
+  assert.match(reusable.run, /node infra\/cloudru\/beget-production-smoke\.mjs --feed-only/);
+  assert.doesNotMatch(reusable.run, /GALLERY_CDN_REDIRECT_ENABLED=false/);
+  assert.ok(ci.jobs['beget-readonly-preflight'].steps.some(s =>
+    s.run === 'node infra/cloudru/gallery-release-edge-readiness.mjs'));
+  assert.ok(ci.jobs['beget-readonly-preflight'].steps.some(s =>
+    s.run === 'node infra/cloudru/gallery-release-metadata-ready.mjs'));
+  assert.ok(ci.jobs['beget-verify-after-deploy'].steps.some(s =>
+    s.run === 'node infra/cloudru/beget-production-smoke.mjs'));
+  assert.ok(ci.jobs['beget-verify-after-deploy'].steps.some(s =>
+    s.run === 'node infra/cloudru/gallery-origin-canary.mjs'));
+});

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { allowLegacyPublicFeedSmokeMiss } from './beget-production-smoke.mjs';
+import { allowLegacyPublicFeedSmokeMiss, selectedSmokeScopes } from './beget-production-smoke.mjs';
 
 const key = 'posts/beget-smoke-bef94b1b82bd47a6b05325ec8be2b22e/beget-smoke-bef94b1b82bd47a6b05325ec8be2b22e/attachments/bef94b1b82bd47a6b05325ec8be2b22e/poster.webp';
 const digest = '93c513effa21235a9617897eb55830910863834228730eae0f42b5c78043fb02';
@@ -15,4 +15,19 @@ test('only pinned legacy public Feed fixture accepts no-store MISS', () => {
     [true, key, 'f'.repeat(64), 'MISS'],
     [true, key.replace('beget-smoke-', 'beget-user-'), digest, 'MISS'],
   ]) assert.equal(allowLegacyPublicFeedSmokeMiss(publicRead, changedKey, changedDigest, state), false);
+});
+
+
+test('pre-deploy smoke checks public Feed only when the new Gallery route is enabled', () => {
+  const ready = {GALLERY_CDN_REDIRECT_ENABLED: 'true',
+    GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true', FEED_BUCKET_PUBLIC: 'true'};
+  assert.deepEqual(selectedSmokeScopes(['--feed-only'], ready).map(s => s.name), ['feed']);
+  assert.deepEqual(selectedSmokeScopes([], ready).map(s => s.name), ['gallery', 'feed']);
+  for (const [env, reason] of [
+    [{...ready, GALLERY_CDN_REDIRECT_ENABLED: 'false'}, /REQUIRES_NEW_GALLERY/],
+    [{...ready, GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'false'}, /REQUIRES_NEW_GALLERY/],
+    [{...ready, FEED_BUCKET_PUBLIC: 'false'}, /REQUIRES_NEW_GALLERY/],
+  ]) assert.throws(() => selectedSmokeScopes(['--feed-only'], env), reason);
+  for (const args of [['--skip-gallery'], ['--feed-only', '--other']])
+    assert.throws(() => selectedSmokeScopes(args, ready), /INVALID_MODE/);
 });
