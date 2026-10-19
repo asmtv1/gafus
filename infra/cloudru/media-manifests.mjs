@@ -19,12 +19,12 @@ const feedCommon = [
   "FEED_S3_SECRET_ACCESS_KEY",
   "FEED_BUCKET_PUBLIC",
 ];
-function container(name, img, cpu, names, port) {
+function container(name, img, cpu, names, port, memory = cpuMemory[cpu]) {
   return {
     name,
     image: img,
     ...(port ? { containerPort: port } : {}),
-    resources: { cpu, memory: cpuMemory[cpu] },
+    resources: { cpu, memory },
     env: env(names),
   };
 }
@@ -104,7 +104,8 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
     {
       name: "gafus-gallery-process",
       imageRole: "gallery-worker",
-      cpu: "0.5",
+      cpu: "1",
+      memory: "1024Mi",
       timeout: 120,
       envNames: [
         ...galleryCommon,
@@ -118,7 +119,8 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
     {
       name: "gafus-feed-photo",
       imageRole: "feed-worker",
-      cpu: "0.5",
+      cpu: "1",
+      memory: "1024Mi",
       timeout: 240,
       envNames: [
         ...feedCommon,
@@ -158,7 +160,7 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
       maxRetries: 3,
       containers: [
         {
-          ...container(spec.name, image(spec.imageRole, revision), spec.cpu, spec.envNames),
+          ...container(spec.name, image(spec.imageRole, revision), spec.cpu, spec.envNames, undefined, spec.memory),
           ...(spec.imageRole === "feed-worker"
             ? {
                 env: [
