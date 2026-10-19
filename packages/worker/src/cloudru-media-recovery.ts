@@ -7,6 +7,7 @@
 import { inspectCoreDueMediaWork } from "@gafus/core/services/systemHealth";
 import { listPendingQuestionCloudWorkKeys } from "@gafus/cdn-upload";
 import { createCloudruFeedPoolDispatcher, createCloudruMediaDispatcher } from "./cloudru-media-dispatcher";
+import { createFeedPhotoDemandDispatcher } from "./feed-photo-demand";
 
 export type RecoveryKind = "gallery" | "feed-photo" | "feed-video" | "questions";
 export interface RecoverySnapshot { dueIds: string[]; active: number }
@@ -89,11 +90,22 @@ export function createCloudruMediaRecovery({
   const nextAt = new Map<RecoveryKind, number>();
   const reservations = new Map<RecoveryKind, Map<string, number>>();
   const lazy = new Map<RecoveryKind, Recover>();
+  let feedPhotoDemand: ReturnType<typeof createFeedPhotoDemandDispatcher> | undefined;
   const withExecutionSlot = createExecutionGate();
   let running = false;
   let availableThisTick = MAX_TOTAL_TICK;
   const runKind = async (kind: RecoveryKind): Promise<number> => {
     if (!enabledRecoveryKind(kind, env)) return 0;
+    // Immediate and periodic recovery use the same distributed photo admission.
+    if (kind === "feed-photo" && !dispatch) {
+      try {
+        feedPhotoDemand ??= createFeedPhotoDemandDispatcher({env});
+        return (await feedPhotoDemand()).dispatched;
+      } catch {
+        report(kind, "execute");
+        return 0;
+      }
+    }
     let accepted = 0;
     const ghost = reservations.get(kind) ?? new Map<string, number>();
     reservations.set(kind, ghost);

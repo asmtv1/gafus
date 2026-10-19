@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   photoDispatch: vi.fn().mockResolvedValue({ dispatched: 1 }),
   videoDispatch: vi.fn().mockResolvedValue({ dispatched: 1 }),
   createDispatcher: vi.fn(),
+  createPhotoDemand: vi.fn(),
   processor: undefined as undefined | ((job: { data: { uploadId: string; kind: string } }) => Promise<void>),
 }));
 vi.mock("@gafus/queues", () => ({
@@ -18,6 +19,12 @@ vi.mock("./cloudru-media-dispatcher", () => ({
   createCloudruFeedPoolDispatcher: (...args: unknown[]) => {
     mocks.createDispatcher(...args);
     return args[0] === "photo" ? mocks.photoDispatch : mocks.videoDispatch;
+  },
+}));
+vi.mock("./feed-photo-demand", () => ({
+  createFeedPhotoDemandDispatcher: () => {
+    mocks.createPhotoDemand();
+    return mocks.photoDispatch;
   },
 }));
 vi.mock("bullmq", () => ({
@@ -64,7 +71,8 @@ describe("Feed immediate trigger worker", () => {
     vi.stubEnv("FEED_PROCESSOR_READY", "true");
     const { startFeedProcessingTriggerWorker } = await import("./feed-processing-trigger-worker");
     startFeedProcessingTriggerWorker();
-    expect(mocks.createDispatcher.mock.calls.map(call => call[0])).toEqual(["photo", "video"]);
+    expect(mocks.createDispatcher.mock.calls.map(call => call[0])).toEqual(["video"]);
+    expect(mocks.createPhotoDemand).toHaveBeenCalledOnce();
     expect(mocks.worker).toHaveBeenCalledWith("feed-processing-trigger", expect.objectContaining({
       concurrency: 1, limiter: { max: 1, duration: 500 },
     }));
@@ -76,6 +84,20 @@ describe("Feed immediate trigger worker", () => {
     expect(mocks.photoDispatch).toHaveBeenCalledOnce();
   });
 
+  it("coalesced or capacity-limited photo signal does not fail its BullMQ job", async () => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("FEED_PROCESSOR_READY", "true");
+    const { startFeedProcessingTriggerWorker } = await import("./feed-processing-trigger-worker");
+    startFeedProcessingTriggerWorker();
+    for (const result of [
+      {dispatched:0,coalesced:true}, {dispatched:0,blocked:true},
+      {dispatched:0,idle:true}, {dispatched:10},
+    ]) {
+      mocks.photoDispatch.mockResolvedValueOnce(result);
+      await expect(mocks.processor!({data:{uploadId,kind:"photo"}}))
+        .resolves.toBeUndefined();
+    }
+  });
   it("accepts legacy UUID jobs as well as Prisma CUIDs", async () => {
     vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
     vi.stubEnv("FEED_PROCESSOR_READY", "true");

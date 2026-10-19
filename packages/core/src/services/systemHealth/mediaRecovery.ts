@@ -9,9 +9,9 @@ export interface DurableMediaRecoverySnapshot { dueIds: string[]; active: number
 const PHOTO_KINDS = ["copy_album", "publish_photo", "delete_keys", "cleanup_source"] as const;
 
 export async function inspectCoreDueMediaWork(
-  kind: DurableMediaRecoveryKind, at = new Date(),
+  kind: DurableMediaRecoveryKind, at = new Date(), minimumAgeMs = 45_000,
 ): Promise<DurableMediaRecoverySnapshot> {
-  const olderThan = new Date(at.getTime() - 45_000);
+  const olderThan = new Date(at.getTime() - minimumAgeMs);
   const dueJob = { OR: [
     { status: "pending" as const, availableAt: { lte: at } },
     { status: "processing" as const, leaseUntil: { lt: at } },
@@ -47,7 +47,8 @@ export async function inspectCoreDueMediaWork(
   const [jobs, active] = await Promise.all([
     prisma.feedStorageJob.findMany({
       where: { ...dueJob, createdAt: { lte: olderThan }, kind: kinds },
-      orderBy: { availableAt: "asc" }, select: { id: true }, take: 8,
+      orderBy: { availableAt: "asc" }, select: { id: true },
+      take: kind === "feed-photo" ? 20 : 8,
     }),
     prisma.feedStorageJob.count({
       where: { kind: kinds, status: "processing", leaseUntil: { gt: at } },

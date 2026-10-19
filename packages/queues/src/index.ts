@@ -33,6 +33,7 @@ export type { GalleryProcessingJobData } from "./gallery-processing-queue.js";
 export {
   feedProcessingQueue,
   enqueueFeedProcessing,
+  enqueueFeedPhotoFollowUp,
   FEED_PROCESSING_QUEUE_NAME,
   isFeedUploadId,
 } from "./feed-processing-queue.js";

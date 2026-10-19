@@ -4,7 +4,7 @@ const { add } = vi.hoisted(() => ({ add: vi.fn().mockResolvedValue(undefined) })
 vi.mock("./redis.js", () => ({ connection: {} }));
 vi.mock("bullmq", () => ({ Queue: class { add = add; } }));
 
-import { enqueueFeedProcessing, FEED_PROCESSING_QUEUE_NAME } from "./feed-processing-queue";
+import { enqueueFeedProcessing, enqueueFeedPhotoFollowUp, FEED_PROCESSING_QUEUE_NAME } from "./feed-processing-queue";
 
 describe("Feed Cloud.ru immediate queue", () => {
   it.each(["photo", "video"] as const)("queues deduplicated %s trigger with retries", async kind => {
@@ -16,7 +16,9 @@ describe("Feed Cloud.ru immediate queue", () => {
     expect(add).toHaveBeenCalledTimes(2);
     expect(add.mock.calls[0]).toEqual([
       "process", { uploadId, kind }, {
-        jobId: `feed-${uploadId}`,
+        jobId: kind === "photo"
+          ? `feed-photo-wake-${Math.floor(Date.now() / 1000)}`
+          : `feed-${uploadId}`,
         attempts: 5,
         backoff: { type: "exponential", delay: 3000 },
         removeOnComplete: true,
@@ -24,6 +26,35 @@ describe("Feed Cloud.ru immediate queue", () => {
       },
     ]);
     expect(add.mock.calls[1]?.[2]?.jobId).toBe(add.mock.calls[0]?.[2]?.jobId);
+  });
+  it("coalesces 100 photo upload notifications into a single per-second wake-up ID", async () => {
+    add.mockClear();
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-20T00:00:00Z"));
+      await Promise.all(Array.from({length: 100}, (_, index) =>
+        enqueueFeedProcessing("photo-" + index, "photo")));
+      expect(new Set(add.mock.calls.map(call => call[2].jobId)).size).toBe(1);
+      vi.setSystemTime(new Date("2026-10-20T00:00:01Z"));
+      await enqueueFeedProcessing("photo-later", "photo");
+      expect(new Set(add.mock.calls.map(call => call[2].jobId)).size).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("coalesces follow-up signals to one Job per five-second interval",async()=>{
+    add.mockClear();
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-20T00:00:00Z"));
+      await enqueueFeedPhotoFollowUp(5000);
+      await enqueueFeedPhotoFollowUp(5000);
+      expect(add.mock.calls[0][2].jobId).toBe(add.mock.calls[1][2].jobId);
+      expect(add.mock.calls[0][2].delay).toBe(5000);
+      expect(add.mock.calls[0][1]).toEqual({
+        uploadId:"feed-photo-resume",kind:"photo",
+      });
+    } finally {vi.useRealTimers();}
   });
   it("supports legacy UUID upload IDs", async () => {
     add.mockClear();

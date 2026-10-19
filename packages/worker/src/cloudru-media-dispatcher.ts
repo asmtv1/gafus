@@ -23,10 +23,42 @@ export const CLOUDRU_MEDIA_JOB_NAMES = [
 
 export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
 type HttpFetch = typeof fetch;
+/** Active provider executions: stale records beyond timeout+grace are reported
+ * separately, not silently treated as fresh capacity consumers. Cloud.ru is
+ * authoritative for final execution admission.
+ */
+export function inspectFeedPhotoCapacity(
+  response: unknown, nowMs: number, timeoutSeconds = 240,
+) {
+  if (!response || typeof response !== "object" ||
+      !Array.isArray((response as {data?: unknown}).data))
+    throw Error("CLOUDRU_FEED_PHOTO_EXECUTIONS_INVALID");
+  const rows = (response as {data: unknown[]}).data;
+  let active = 0, stale = 0, oldestStaleSeconds = 0;
+  for (const value of rows) {
+    if (!value || typeof value !== "object")
+      throw Error("CLOUDRU_FEED_PHOTO_EXECUTION_INVALID");
+    const row = value as { executionStatus?: unknown; createdAt?: unknown };
+    if (!["created", "creating", "running", "canceling", "cancelling"].includes(
+      String(row.executionStatus))) continue;
+    const created = typeof row.createdAt === "string" ? Date.parse(row.createdAt) : NaN;
+    if (!Number.isFinite(created)) { active++; continue; }
+    const age = (nowMs - created) / 1000;
+    if (age > timeoutSeconds + 120) {
+      stale++;
+      oldestStaleSeconds = Math.max(oldestStaleSeconds, Math.floor(age));
+    } else active++;
+  }
+  return { active, stale, oldestStaleSeconds, atCapacity: active >= 5 };
+}
+
 export function createCloudruMediaDispatcher(
   env: Record<string, string | undefined> = process.env,
   http: HttpFetch = fetch,
   names: readonly CloudruMediaJobName[] = DEFAULT_MEDIA_JOB_NAMES,
+  options: { galleryAdmission?: boolean; feedPhotoAdmission?: boolean;
+    reservedCount?: (name: CloudruMediaJobName) => number;
+    onAccepted?: (name: CloudruMediaJobName) => void } = {},
 ) {
   if (env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true")
     return async () => ({ disabled: true, dispatched: 0 });
@@ -85,6 +117,32 @@ export function createCloudruMediaDispatcher(
         const dispatchStart = performance.now();
         let responseReceived = false;
         try {
+          if (options.feedPhotoAdmission && /^gafus-feed-photo(?:-2)?$/.test(name)) {
+            // Unlike Gallery's advisory check, an uncertain Feed Photo capacity
+            // read FAILS CLOSED. Cron/next wake retries without paid duplicates.
+            const pageToken = Buffer.from(JSON.stringify({
+              limit: 100, offset: 0, filter_fields: "", ordering: "-created_at", search: null,
+            })).toString("base64");
+            const list = await http(
+              "https://containers.api.cloud.ru/v2/jobs/" + name + "/executions" +
+              "?projectId=" + encodeURIComponent(env.CLOUDRU_PROJECT_ID!) +
+              "&pageToken=" + encodeURIComponent(pageToken),
+              { headers: { authorization: "Bearer " + cachedToken },
+                signal: AbortSignal.timeout(8000) },
+            );
+            if (!list.ok) {
+              await list.body?.cancel();
+              throw Error("CLOUDRU_FEED_PHOTO_CAPACITY_UNAVAILABLE_" + list.status);
+            }
+            const cap = inspectFeedPhotoCapacity(await list.json(), Date.now());
+            if (cap.stale) console.warn(JSON.stringify({
+              event: "cloudru_feed_photo_stale_executions",
+              job: name, stale: cap.stale, oldestStaleSeconds: cap.oldestStaleSeconds,
+            }));
+            if (cap.active + (options.reservedCount?.(name) ?? 0) >= 5) {
+              return {dispatched, blocked: true};
+            }
+          }
           const result = await http("https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
             method: "POST",
             headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },
@@ -101,6 +159,7 @@ export function createCloudruMediaDispatcher(
             throw Error("CLOUDRU_JOB_EXECUTION_FAILED_" + name + "_" + result.status);
           }
           dispatched++;
+          options.onAccepted?.(name);
         } catch (error) {
           if (!responseReceived) {
             const code = error instanceof Error ? error.name : "";
