@@ -16,6 +16,8 @@ async function main() {
     },
   });
   try {
+    console.log(JSON.stringify({event: "questions_invocation_start",
+      processUptimeMs: Math.round(process.uptime() * 1000)}));
     const {processed, rejected} = await createQuestionsCloudProcessor(s3).run(5);
     console.log("QUESTIONS_CLOUD_JOB_RUN", {processed, rejected});
   } finally { s3.destroy(); }

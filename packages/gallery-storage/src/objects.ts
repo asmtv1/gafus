@@ -59,8 +59,8 @@ export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'buc
       if (!bytes.byteLength || bytes.byteLength > MAX_OBJECT_BYTES || type !== 'image/webp') throw new Error('IMAGE_SIZE');
       const expected = { etag: objectMd5(bytes), bytes: bytes.byteLength, contentType: type };
       const matches = (actual: GalleryObjectMetadata | null) => actual && actual.etag === expected.etag && actual.bytes === expected.bytes && actual.contentType === type;
-      const existing = await head(key, signal);
-      if (existing) { if (!matches(existing)) throw new Error('IMMUTABLE_CONFLICT'); return existing; }
+      // PUT-if-absent is authoritative: avoid a preflight HEAD on the common new-object path.
+      // A retry or race is verified with one HEAD after the conditional response.
       if (signal?.aborted) throw new Error('LEASE_EXPIRED');
       try {
         const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: type, CacheControl: config.cacheableFinalEnabled && (finalPattern.test(key) || vetPreviewPattern.test(key))

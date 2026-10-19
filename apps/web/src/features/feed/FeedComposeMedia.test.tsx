@@ -134,5 +134,6 @@ describe("FeedComposeMedia local previews", () => {
       );
     });
     expect(host.querySelector("video")?.getAttribute("src")).toBe("blob:gafus-photo");
+    expect(host.querySelector("section")?.textContent).toContain("2 минуты");
   });
 });

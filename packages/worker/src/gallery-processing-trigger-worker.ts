@@ -25,7 +25,12 @@ export function startGalleryProcessingTriggerWorker(): void {
     async (job: Job<{ uploadId: string }>) => {
       if (!/^[a-f0-9-]{36}$/i.test(job.data.uploadId))
         throw new Error("INVALID_GALLERY_UPLOAD_ID");
+      const started = performance.now();
+      const queuedMs = Math.max(0, Date.now() - job.timestamp);
       const result = await dispatch();
+      logger.info("Gallery Cloud.ru dispatch timing", {
+        queuedMs, dispatchMs: Math.round(performance.now() - started),
+      });
       if (result.dispatched !== 1) throw new Error("GALLERY_PROCESS_TRIGGER_NOT_DISPATCHED");
     },
     {

@@ -9,6 +9,7 @@ import {
   MovieOutlined,
 } from "@mui/icons-material";
 import type { FeedBrowserAsset } from "./upload";
+import { FEED_LIMITS } from "@gafus/types";
 import styles from "./FeedComposeMedia.module.css";
 
 interface FeedComposeMediaProps {
@@ -129,7 +130,7 @@ export function FeedComposeMedia({
           {files.length} выбрано
         </span>
       </div>
-      <p className={styles.mediaHint}>До 10 вложений, не более 3 видео. Можно менять порядок.</p>
+      <p className={styles.mediaHint}>До 10 вложений, не более 3 видео по {FEED_LIMITS.videoSeconds / 60} минуты. Можно менять порядок.</p>
       <div
         className={[styles.uploadZone, dragging && styles.uploadZoneActive, !canAdd && styles.uploadZoneDisabled]
           .filter(Boolean).join(" ")}

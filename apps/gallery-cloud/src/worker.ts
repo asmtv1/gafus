@@ -64,6 +64,17 @@ export function createGalleryCloudWorker(input: {
     }
   };
   const processImage = createGalleryImageProcessor(input.engine);
+  async function step<T>(stage: string, action: () => Promise<T>): Promise<T> {
+    const started = now();
+    let success = false;
+    try {
+      const result = await action();
+      success = true;
+      return result;
+    } finally {
+      record({ operation: "stage", stage, outcome: success ? "success" : "retry", durationMs: now() - started });
+    }
+  }
   async function processUpload(uploadId: string, invocationDeadline = now() + 50_000) {
     const started = now();
     if (input.enabled === false) return;
@@ -88,18 +99,21 @@ export function createGalleryCloudWorker(input: {
       if (claim.thumbKey !== `${expected}/thumb.webp` || claim.fullKey !== `${expected}/full.webp`)
         throw new Error("UNTRUSTED_CLAIM");
       guard.check();
-      const sourceObject = await input.objects.read(
+      const sourceObject = await step("source_read", () => input.objects.read(
         claim.sourceKey,
         claim.sourceETag,
-        guard.signal,
-      );
+        guard!.signal,
+      ));
       if (sourceObject.metadata.etag !== normalizeETag(claim.sourceETag))
         throw new Error("SOURCE_CHANGED");
-      const images = await processImage(sourceObject.bytes);
+      const images = await step("encode", () => processImage(sourceObject.bytes));
       guard.check();
-      await input.objects.create(claim.thumbKey, images.thumb.bytes, "image/webp", guard.signal);
-      guard.check();
-      await input.objects.create(claim.fullKey, images.full.bytes, "image/webp", guard.signal);
+      // Both immutable writes must settle before committing (including on partial failure).
+      const writes = await step("variant_upload", () => Promise.allSettled([
+        input.objects.create(claim.thumbKey, images.thumb.bytes, "image/webp", guard!.signal),
+        input.objects.create(claim.fullKey, images.full.bytes, "image/webp", guard!.signal),
+      ]));
+      for (const write of writes) if (write.status === "rejected") throw write.reason;
       guard.check();
       completing = true;
       const result = await input.core.completeUpload({
@@ -216,33 +230,36 @@ export function createGalleryCloudWorker(input: {
         )
           throw new Error("UNTRUSTED_CLAIM");
         job.targetKeys.forEach(assertFinalKey);
-        for (let i = 0; i < 2; i++) {
-          guard.check();
-          const source = await input.objects.read(
-            job.sourceKeys[i]!,
-            job.sourceETags[i]!,
-            guard.signal,
-          );
-          if (
-            source.metadata.etag !== normalizeETag(job.sourceETags[i]!) ||
-            source.metadata.contentType !== "image/webp" ||
-            objectMd5(source.bytes) !== normalizeETag(job.sourceETags[i]!)
-          )
-            throw new Error("COPY_MISMATCH");
-          guard.check();
-          const target = await input.objects.create(
-            job.targetKeys[i]!,
-            source.bytes,
-            "image/webp",
-            guard.signal,
-          );
-          if (
-            target.etag !== source.metadata.etag ||
-            target.bytes !== source.metadata.bytes ||
-            target.contentType !== source.metadata.contentType
-          )
-            throw new Error("COPY_MISMATCH");
-        }
+        const copied = await step("publish_variants", () => Promise.allSettled(
+          [0, 1].map(async (i) => {
+            guard!.check();
+            const source = await input.objects.read(
+              job.sourceKeys[i]!,
+              job.sourceETags[i]!,
+              guard!.signal,
+            );
+            if (
+              source.metadata.etag !== normalizeETag(job.sourceETags[i]!) ||
+              source.metadata.contentType !== "image/webp" ||
+              objectMd5(source.bytes) !== normalizeETag(job.sourceETags[i]!)
+            )
+              throw new Error("COPY_MISMATCH");
+            guard!.check();
+            const target = await input.objects.create(
+              job.targetKeys[i]!,
+              source.bytes,
+              "image/webp",
+              guard!.signal,
+            );
+            if (
+              target.etag !== source.metadata.etag ||
+              target.bytes !== source.metadata.bytes ||
+              target.contentType !== source.metadata.contentType
+            )
+              throw new Error("COPY_MISMATCH");
+          }),
+        ));
+        for (const outcome of copied) if (outcome.status === "rejected") throw outcome.reason;
       }
       guard.check();
       completing = true;

@@ -6,6 +6,12 @@ const marker = "cloudru:questions-public:";
 const object = /^questions\/uploads\/questions\/([A-Za-z0-9_-]{1,128})\/([A-Za-z0-9_-]{1,128})\.(jpg|jpeg|png|webp)$/;
 const variant = /^questions\/uploads\/questions\/([A-Za-z0-9_-]{1,128})\/([A-Za-z0-9_-]{1,128})\/(thumb|full)\.webp$/;
 const pendingMarker = "cloudru:questions-pending:";
+const pendingWorkPrefix = "questions/jobs/pending/";
+/** A private, immutable S3 work record. The original upload remains the source of truth. */
+function pendingWorkKey(sourceKey: string): string {
+  if (!source.test(sourceKey)) throw new Error("QUESTION_PENDING_INVALID_LOCATION");
+  return pendingWorkPrefix + sourceKey.slice("questions/incoming/".length);
+}
 const source = /^questions\/incoming\/questions\/([A-Za-z0-9_-]{1,128})\/([A-Za-z0-9_-]{1,128})\/source\.(jpg|jpeg|png|webp)$/;
 const relative = /^questions\/([A-Za-z0-9_-]{1,128})\/([A-Za-z0-9_-]{1,128})\.(jpg|jpeg|png|webp)$/;
 
@@ -74,11 +80,21 @@ export async function uploadQuestionSource(path: string, body: Uint8Array, conte
   if (!body.length || body.length > 10 * 1024 * 1024 ||
     !["image/jpeg", "image/png", "image/webp"].includes(contentType))
     throw new Error("QUESTION_PENDING_INVALID_FILE");
-  await sendCloud(c => c.send(new PutObjectCommand({
-    Bucket: QUESTION_PUBLIC_BUCKET, Key: parsePendingQuestionLocation(location)!,
-    Body: body, ContentType: contentType, ContentLength: body.length,
-    IfNoneMatch: "*", CacheControl: "private, no-store",
-  }), {abortSignal: AbortSignal.timeout(60_000)}), env);
+  const key = parsePendingQuestionLocation(location)!;
+  // The work record is persisted only AFTER S3 accepted the original. An
+  // interrupted BullMQ wake or Cloud.ru launch cannot lose this pending image.
+  await sendCloud(async client => {
+    await client.send(new PutObjectCommand({
+      Bucket: QUESTION_PUBLIC_BUCKET, Key: key,
+      Body: body, ContentType: contentType, ContentLength: body.length,
+      IfNoneMatch: "*", CacheControl: "private, no-store",
+    }), {abortSignal: AbortSignal.timeout(60_000)});
+    await client.send(new PutObjectCommand({
+      Bucket: QUESTION_PUBLIC_BUCKET, Key: pendingWorkKey(key),
+      Body: Buffer.from([1]), ContentType: "application/octet-stream",
+      ContentLength: 1, IfNoneMatch: "*", CacheControl: "private, no-store",
+    }), {abortSignal: AbortSignal.timeout(15_000)});
+  }, env);
   return location;
 }
 
@@ -134,7 +150,7 @@ export async function deleteQuestionPrivateStaging(location: string, env: NodeJS
   if (!keys.source || env.QUESTIONS_PUBLIC_S3_BUCKET_VERSIONING !== "disabled")
     throw new Error("QUESTION_PUBLIC_VERSIONING_UNVERIFIED");
   await sendCloud(async client => {
-    for (const key of [keys.source, keys.stageThumb, keys.stageFull, keys.failed]) {
+    for (const key of [keys.source, keys.source && pendingWorkKey(keys.source), keys.stageThumb, keys.stageFull, keys.failed]) {
       if (!key) continue;
       await client.send(new DeleteObjectCommand({Bucket: QUESTION_PUBLIC_BUCKET, Key: key}),
         {abortSignal: AbortSignal.timeout(8000)});
@@ -147,7 +163,7 @@ export async function deleteQuestionSourceAndVariants(location: string, env: Nod
   if (env.QUESTIONS_PUBLIC_S3_BUCKET_VERSIONING !== "disabled")
     throw new Error("QUESTION_PUBLIC_VERSIONING_UNVERIFIED");
   await sendCloud(async client => {
-    for (const key of [keys.source, keys.stageThumb, keys.stageFull, keys.failed, keys.thumb, keys.full]) {
+    for (const key of [keys.source, keys.source && pendingWorkKey(keys.source), keys.stageThumb, keys.stageFull, keys.failed, keys.thumb, keys.full]) {
       if (!key) continue;
       await client.send(new DeleteObjectCommand({Bucket: QUESTION_PUBLIC_BUCKET, Key: key}),
         {abortSignal: AbortSignal.timeout(15000)});

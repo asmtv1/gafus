@@ -3,17 +3,28 @@ import { mkdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import {
   FeedVideoError, feedFfmpegArguments, feedPosterArguments, parseFeedHlsPlaylist,
-  validateSegmentSizes, validateVideoProbe, type ProbeResult, type VideoInfo,
+  validateSegmentSizes, validateVideoProbe, validateFeedPacketTimeline,
+  validateFeedHlsDuration, type ProbeResult, type VideoInfo,
 } from "./video.js";
 
 export interface FeedVideoResult {
   info: VideoInfo;
   poster: string;
   playlist: string;
-  segments: Array<{ name: string; path: string; bytes: number }>;
+  segments: { name: string; path: string; bytes: number }[];
 }
 export type FeedBinary = "ffprobe" | "ffmpeg";
 export type FeedRunner = (binary: FeedBinary, args: string[], maxOutputBytes: number) => Promise<string>;
+export type FeedVideoStageMetric = (stage: string, durationMs: number, success: boolean) => void;
+function classifyDecoderStderr(text: string): string {
+  if (/no space left on device/i.test(text)) return "DISK_FULL";
+  if (/cannot allocate memory|out of memory/i.test(text)) return "OUT_OF_MEMORY";
+  if (/error while opening encoder|encoder.*not found|unknown encoder/i.test(text)) return "ENCODER_ERROR";
+  if (/invalid data found|moov atom not found|invalid nal unit|error while decoding/i.test(text)) return "DECODE_ERROR";
+  if (/permission denied/i.test(text)) return "PERMISSION_DENIED";
+  if (/error writing|failed to write|av_interleaved_write_frame/i.test(text)) return "WRITE_ERROR";
+  return "PROCESS_ERROR";
+}
 
 /** One process per file; bounded output, 10-minute deadline, no shell. */
 export function createFeedCommandRunner(options: {
@@ -30,6 +41,8 @@ export function createFeedCommandRunner(options: {
     let settled = false;
     let length = 0;
     const buffers: Buffer[] = [];
+    // Keep a bounded tail for local classification only. It is never emitted as text.
+    let stderrTail = "";
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
       finish(new FeedVideoError("VIDEO_PROCESS_TIMEOUT"));
@@ -55,10 +68,13 @@ export function createFeedCommandRunner(options: {
       buffers.push(Buffer.from(chunk));
     };
     child.stdout.on("data", collect);
-    // Drain stderr so a verbose decoder cannot deadlock; do not expose it to clients.
-    child.stderr.on("data", () => undefined);
-    child.on("error", () => finish(new FeedVideoError("VIDEO_PROCESS_FAILED")));
-    child.on("close", code => finish(code === 0 ? undefined : new FeedVideoError("VIDEO_PROCESS_FAILED")));
+    // Drain stderr and classify recognized errors without exposing paths or user data.
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderrTail = (stderrTail + chunk.toString("utf8")).slice(-4096);
+    });
+    child.on("error", () => finish(new FeedVideoError("VIDEO_PROCESS_FAILED", undefined, "SPAWN_ERROR")));
+    child.on("close", code => finish(code === 0 ? undefined :
+      new FeedVideoError("VIDEO_PROCESS_FAILED", code ?? undefined, classifyDecoderStderr(stderrTail))));
   });
 }
 
@@ -70,37 +86,65 @@ export async function processFeedVideoFile(
   sourcePath: string,
   attemptDirectory: string,
   runner: FeedRunner = createFeedCommandRunner(),
+  onStage?: FeedVideoStageMetric,
 ): Promise<FeedVideoResult> {
+  const measured = async <T>(stage: string, action: () => Promise<T>): Promise<T> => {
+    const start = performance.now();
+    let success = false;
+    try {
+      const result = await action();
+      success = true;
+      return result;
+    } finally {
+      onStage?.(stage, Math.round(performance.now() - start), success);
+    }
+  };
   const source = await stat(sourcePath);
   if (!source.isFile()) throw new FeedVideoError("VIDEO_SOURCE_NOT_FILE");
   let probe: ProbeResult;
   try {
-    const output = await runner("ffprobe", [
+    const output = await measured("video_probe_metadata", () => runner("ffprobe", [
       "-v", "error", "-show_streams", "-show_format", "-of", "json", sourcePath,
-    ], 256 * 1024);
+    ], 256 * 1024));
     probe = JSON.parse(output) as ProbeResult;
   } catch {
     throw new FeedVideoError("VIDEO_PROBE_FAILED");
   }
   const info = validateVideoProbe(probe, source.size);
-  // Decode the actual video timeline: a forged container duration must not bypass the limit.
-  const frames = await runner("ffprobe", [
-    "-v", "error", "-select_streams", "v:0", "-show_frames",
-    "-show_entries", "frame=best_effort_timestamp_time", "-of", "csv=p=0", sourcePath,
-  ], 256 * 1024);
-  const stamps = frames.split(/\r?\n/)
-    .flatMap(line => line.split(",").filter(v => v.trim() !== "").map(v => Number(v)).filter(v => Number.isFinite(v) && v >= 0));
-  if (!stamps.length) throw new FeedVideoError("VIDEO_DECODE_FAILED");
-  if (Math.max(...stamps) > 60) throw new FeedVideoError("VIDEO_TOO_LONG");
+  // Demux the full packet timeline without decoding every frame a second time.
+  // Reject absent/bad timestamps; the transcoder itself still decodes every video frame.
+  let packetTimestampFallback = false;
+  try {
+    const timestamps = await measured("video_probe_timeline", () => runner("ffprobe", [
+      "-v", "error", "-select_streams", "v:0", "-show_packets",
+      "-show_entries", "packet=pts_time", "-of", "csv=p=0", sourcePath,
+    ], 512 * 1024));
+    validateFeedPacketTimeline(timestamps);
+  } catch (error) {
+    if (error instanceof FeedVideoError && error.code === "VIDEO_TOO_LONG") throw error;
+    // Some otherwise valid MOV/WebM files have no packet PTS. Fall back to the
+    // original decoded-frame validation instead of rejecting supported uploads.
+    packetTimestampFallback = true;
+  }
+  if (packetTimestampFallback) {
+    const frames = await measured("video_probe_frames_fallback", () => runner("ffprobe", [
+      "-v", "error", "-select_streams", "v:0", "-show_frames",
+      "-show_entries", "frame=best_effort_timestamp_time",
+      "-of", "csv=p=0", sourcePath,
+    ], 512 * 1024));
+    // Identical conservative >60s check; no unbounded Math.max(...frames).
+    validateFeedPacketTimeline(frames);
+  }
   const hlsDir = join(attemptDirectory, "hls");
   await mkdir(hlsDir, { recursive: true });
-  await runner("ffmpeg", feedFfmpegArguments(sourcePath, hlsDir, info), 128 * 1024);
+  await measured("video_hls_encode", () => runner("ffmpeg", feedFfmpegArguments(sourcePath, hlsDir, info), 128 * 1024));
   const poster = join(attemptDirectory, "poster.webp");
-  await runner("ffmpeg", feedPosterArguments(sourcePath, poster), 128 * 1024);
+  await measured("video_poster_encode", () => runner("ffmpeg", feedPosterArguments(sourcePath, poster), 128 * 1024));
   const playlist = join(hlsDir, "playlist.m3u8");
   const text = await readFile(playlist, { encoding: "utf8" });
   if (Buffer.byteLength(text) > 64 * 1024) throw new FeedVideoError("VIDEO_PLAYLIST_SIZE");
   const filenames = parseFeedHlsPlaylist(text);
+  validateFeedHlsDuration(text);
   const segments = await Promise.all(filenames.map(async name => {
     const path = join(hlsDir, name);
     const metadata = await stat(path);
@@ -111,9 +155,9 @@ export async function processFeedVideoFile(
   const posterInfo = await stat(poster);
   if (!posterInfo.isFile() || posterInfo.size <= 0 || posterInfo.size > 1_750_000)
     throw new FeedVideoError("VIDEO_POSTER_SIZE");
-  const encodedProbe = JSON.parse(await runner("ffprobe", [
+  const encodedProbe = JSON.parse(await measured("video_output_verify", () => runner("ffprobe", [
     "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "json", segments[0]!.path,
-  ], 64 * 1024)) as ProbeResult;
+  ], 64 * 1024))) as ProbeResult;
   const encoded = encodedProbe.streams?.[0];
   if (!encoded || !Number.isSafeInteger(encoded.width) || !Number.isSafeInteger(encoded.height) ||
       !encoded.width || !encoded.height || encoded.width > info.width || encoded.height > info.height ||

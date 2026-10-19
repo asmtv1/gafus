@@ -3,7 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Camera } from "expo-camera";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { File } from "expo-file-system";
-import { FEED_LIMITS, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES,
+import { FEED_LIMITS, FEED_ERROR_MESSAGES, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES,
   type FeedMimeType, type FeedMediaKind } from "@gafus/types";
 import { feedApi } from "@/shared/lib/api/feed";
 
@@ -46,6 +46,12 @@ function inferMediaType(asset: ImagePicker.ImagePickerAsset): {
 }
 export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset): Promise<FeedPickedMedia> {
   const type = inferMediaType(asset);
+  // Expo ImagePicker reports video duration in milliseconds, unlike the
+  // seconds used by FEED_LIMITS and the Cloud.ru FFprobe validation.
+  if (type.kind === "video" && typeof asset.duration === "number" &&
+      Number.isFinite(asset.duration) && asset.duration > FEED_LIMITS.videoSeconds * 1000) {
+    throw new Error(FEED_ERROR_MESSAGES.VIDEO_TOO_LONG);
+  }
   let uri = asset.uri, converted = false;
   if (type.requiresConversion) {
     const longest = Math.max(asset.width || 0, asset.height || 0);

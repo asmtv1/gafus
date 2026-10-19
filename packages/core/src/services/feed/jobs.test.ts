@@ -23,7 +23,7 @@ const output = {
 };
 function mockDb(options: {
   stale?: boolean; deleted?: boolean; mediaStatus?: string; pending?: boolean;
-  attempts?: number; kind?: "publish_photo" | "delete_keys" | "cleanup_source"; sourceKeys?: string[];
+  attempts?: number; kind?: "publish_photo" | "publish_video" | "delete_keys" | "cleanup_source"; sourceKeys?: string[];
 } = {}) {
   const j = { ...job, attempts: options.attempts ?? job.attempts,
     kind: options.kind ?? job.kind, sourceKeys: options.sourceKeys ?? job.sourceKeys };
@@ -92,6 +92,28 @@ describe("feed processing job lease and fencing", () => {
       width: 800, height: 600,
     })).rejects.toThrow("Неполная обработка фотографии");
     expect(mediaUpdate).not.toHaveBeenCalled();
+  });
+  it("accepts a 120-second video with 61 HLS segments and rejects 121 seconds", async () => {
+    const { worker, mediaUpdate } = mockDb({kind: "publish_video"});
+    const base = "posts/alice/post_1/attachments/asset_1/";
+    const segmentKeys = Array.from({length: 61}, (_, i) =>
+      base + "hls/segment-" + String(i).padStart(3, "0") + ".ts");
+    const video = {
+      width: 1280, height: 720, durationSeconds: 120,
+      posterKey: base + "poster.webp", playlistKey: base + "hls/playlist.m3u8",
+      videoSegmentKeys: segmentKeys,
+    };
+    expect(await worker.complete(job.id, job.attemptToken, video)).toEqual({accepted: true});
+    expect(mediaUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({durationSeconds: 120}),
+    }));
+    await expect(worker.complete(job.id, job.attemptToken, {
+      ...video, durationSeconds: 121,
+    })).rejects.toThrow("Неполная обработка видео");
+    await expect(worker.complete(job.id, job.attemptToken, {
+      ...video, videoSegmentKeys: Array.from({length: 121}, (_, i) =>
+        base + "hls/segment-" + String(i).padStart(3, "0") + ".ts"),
+    })).rejects.toThrow("Неполная обработка видео");
   });
   it("does not activate an asset after post deletion", async () => {
     const { worker, mediaUpdate } = mockDb({ deleted: true });

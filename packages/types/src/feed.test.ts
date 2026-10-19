@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   FEED_LIMITS,
+  FEED_ERROR_MESSAGES,
   FEED_REACTIONS,
   countFeedCharacters,
   createFeedClient,
@@ -26,7 +27,8 @@ describe("feed contracts", () => {
     expect(FEED_LIMITS.postCharacters).toBe(5000);
     expect(FEED_LIMITS.maxAttachments).toBe(10);
     expect(FEED_LIMITS.maxVideos).toBe(3);
-    expect(FEED_LIMITS.videoSeconds).toBe(60);
+    expect(FEED_LIMITS.videoSeconds).toBe(120);
+    expect(FEED_ERROR_MESSAGES.VIDEO_TOO_LONG).toContain("120 секунд");
     expect(FEED_REACTIONS).toEqual(["❤️", "😂", "🐶", "🔥", "👍"]);
     expect(countFeedCharacters("🐶🐶")).toBe(2);
     expect(countFeedCharacters("a🐶b")).toBe(3);

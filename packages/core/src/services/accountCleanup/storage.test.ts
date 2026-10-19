@@ -257,7 +257,8 @@ describe("account storage cleanup adapter", () => {
     const publicQuestion = "cloudru:questions-public:questions/uploads/questions/u/id.jpg";
     expect(accountPublicKey(publicQuestion)).toBeNull();
     expect(accountStorageTargets("questions-public", "u", [publicQuestion])).toEqual({
-      prefixes: ["questions/uploads/questions/u/", "questions/incoming/questions/u/", "questions/processed/questions/u/"],
+      prefixes: ["questions/uploads/questions/u/", "questions/incoming/questions/u/",
+        "questions/processed/questions/u/", "questions/jobs/pending/questions/u/"],
       keys: ["questions/uploads/questions/u/id.jpg"],
     });
     const pending = "cloudru:questions-pending:questions/incoming/questions/u/id/source.png";

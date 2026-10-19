@@ -95,6 +95,7 @@ export function accountStorageTargets(
         `questions/uploads/questions/${ownerId}/`,
         `questions/incoming/questions/${ownerId}/`,
         `questions/processed/questions/${ownerId}/`,
+        `questions/jobs/pending/questions/${ownerId}/`,
       ],
       keys: [...new Set(keys)],
     };

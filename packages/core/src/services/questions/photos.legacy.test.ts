@@ -58,5 +58,8 @@ describe("first deploy Questions client compatibility",()=>{
     expect(m.uploadLegacy).not.toHaveBeenCalled();
     expect(m.present).not.toHaveBeenCalled();
     expect(m.wake).toHaveBeenCalledOnce();
+    expect(m.wake).toHaveBeenCalledWith(expect.stringMatching(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    ));
   });
 });

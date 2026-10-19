@@ -1,5 +1,6 @@
 export interface GalleryMetric {
-  operation: "upload" | "publish" | "move" | "delete" | "vetPreview" | "maintenance";
+  operation: "upload" | "publish" | "move" | "delete" | "vetPreview" | "maintenance" | "stage";
+  stage?: string;
   outcome: "success" | "failure" | "retry" | "skipped";
   durationMs: number;
   errorCode?: string;
@@ -16,8 +17,10 @@ export function emitGalleryTelemetry(metric: GalleryMetric) {
     JSON.stringify({
       event: "gallery_metric",
       operation: metric.operation,
+      ...(metric.stage && /^[a-z_]{1,32}$/.test(metric.stage) ? { stage: metric.stage } : {}),
       outcome: metric.outcome,
       durationMs: Math.max(0, Math.round(metric.durationMs)),
+      rssMiB: Math.round(process.memoryUsage().rss / 1048576),
       ...(metric.errorCode && /^[A-Z_]{1,64}$/.test(metric.errorCode)
         ? { errorCode: metric.errorCode }
         : {}),

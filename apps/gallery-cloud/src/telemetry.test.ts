@@ -9,7 +9,7 @@ describe('operational telemetry', () => {
       expiredUploads: 2, recoveredCleanupJobs: -1, queuedUploads: Infinity,
       secret: 'never-emit', url: 'https://private.example/photo?token=secret' } as Parameters<typeof emitGalleryTelemetry>[0]);
     expect(JSON.parse(log.mock.calls[0]![0])).toEqual({ event: 'gallery_metric', operation: 'maintenance',
-      outcome: 'success', durationMs: 12, expiredUploads: 2, recoveredCleanupJobs: 0 });
+      outcome: 'success', durationMs: 12, rssMiB: expect.any(Number), expiredUploads: 2, recoveredCleanupJobs: 0 });
   });
   it('logs catalog codes but discards arbitrary exception text', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);

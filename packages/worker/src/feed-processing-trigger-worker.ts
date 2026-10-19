@@ -40,7 +40,13 @@ export function startFeedProcessingTriggerWorker(): void {
         throw new Error("INVALID_FEED_UPLOAD_ID");
       if (job.data.kind !== "photo" && job.data.kind !== "video")
         throw new Error("INVALID_FEED_PROCESSING_KIND");
+      const started = performance.now();
+      const queuedMs = Math.max(0, Date.now() - job.timestamp);
       const result = await (job.data.kind === "photo" ? photo : video)();
+      logger.info("Feed Cloud.ru dispatch timing", {
+        kind: job.data.kind, queuedMs,
+        dispatchMs: Math.round(performance.now() - started),
+      });
       if (result.dispatched !== 1) throw new Error("FEED_PROCESS_TRIGGER_NOT_DISPATCHED");
     },
     {

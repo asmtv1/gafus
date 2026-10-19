@@ -5,23 +5,46 @@ import { sharpFeedEngine } from "./sharp-engine.js";
 import { createFeedCloudWorker } from "./worker.js";
 // Container Jobs exit after one bounded invocation; HTTP mode is retained for existing triggers.
 export async function processFeedJobs(): Promise<number> {
+  const started = performance.now();
+  let phase = "configure";
+  const metric = (name: string, elapsed: number) =>
+    console.log(JSON.stringify({ event: "feed_invocation_stage", stage: name,
+      durationMs: Math.round(elapsed) }));
   const key = Buffer.from(process.env.FEED_INTERNAL_HMAC_SECRET ?? "", "utf8");
   const core = createFeedCloudInternalClient({
     baseUrl: process.env.FEED_INTERNAL_BASE_URL ?? "",
     key,
   });
-  // Cleanup and recovery remain active when new publications are disabled.
-  await core.maintenance(20);
-  const worker = createFeedCloudWorker({
-    core,
-    objects: createFeedCloudObjects(),
-    engine: sharpFeedEngine,
-  });
   const workerType = process.env.FEED_WORKER_TYPE;
   if (workerType !== "photo" && workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE");
-  const jobs = await core.claimJobs(1, workerType);
-  for (const job of jobs) await worker.process(job);
-  return jobs.length;
+  // Distinguish startup, Core maintenance, claim, processing and total time;
+  // the external queue-to-container cold-start delay still requires Cloud.ru logs.
+  console.log(JSON.stringify({ event: "feed_invocation_start", workerType,
+    processUptimeMs: Math.round(process.uptime() * 1000) }));
+  try {
+    phase = "maintenance";
+    const maintenanceStarted = performance.now();
+    // Cleanup and recovery remain active when new publications are disabled.
+    await core.maintenance(20);
+    metric("maintenance", performance.now() - maintenanceStarted);
+    const worker = createFeedCloudWorker({
+      core,
+      objects: createFeedCloudObjects(),
+      engine: sharpFeedEngine,
+    });
+    phase = "claim";
+    const claimStarted = performance.now();
+    const jobs = await core.claimJobs(1, workerType);
+    metric("claim", performance.now() - claimStarted);
+    phase = "process";
+    for (const job of jobs) await worker.process(job);
+    metric("total", performance.now() - started);
+    return jobs.length;
+  } catch (error) {
+    console.error(JSON.stringify({ event: "feed_invocation_failure", stage: phase,
+      workerType, durationMs: Math.round(performance.now() - started) }));
+    throw error;
+  }
 }
 let running = false;
 // The Yandex container is private: only its dedicated trigger service account can invoke it.

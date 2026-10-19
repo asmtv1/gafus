@@ -54,43 +54,87 @@ export function createFeedCloudWorker(input: {
       const signal = controller.signal;
       let dir: string | undefined;
       let completing = false;
+      let stage = "claim";
+      const timed = async <T>(name: string, action: () => Promise<T>): Promise<T> => {
+        stage = name;
+        const started = now();
+        const cpuStart = process.cpuUsage();
+        let success = false;
+        try {
+          const value = await action();
+          success = true;
+          return value;
+        } finally {
+          const cpu = process.cpuUsage(cpuStart);
+          console.log(JSON.stringify({ event: "feed_media_stage", jobId: job.id, kind: job.kind,
+            stage: name, outcome: success ? "success" : "failure",
+            durationMs: Math.max(0, now() - started),
+            cpuMs: Math.round((cpu.user + cpu.system) / 1000),
+            rssMiB: Math.round(process.memoryUsage().rss / 1048576) }));
+        }
+      };
       try {
-        dir = await mkdtemp(join(tmpdir(), "gafus-feed-"));
+        // Only FFmpeg requires a seekable file and a working directory.
+        if (job.kind === "publish_video") dir = await mkdtemp(join(tmpdir(), "gafus-feed-"));
         let output: FeedCloudOutput | undefined;
         if (job.kind === "delete_keys" || job.kind === "cleanup_source") {
           for (const key of job.sourceKeys) await input.objects.delete(key, signal);
         } else {
           const prefix = `posts/${job.ownerId}/${job.postId}/attachments/${job.mediaId}/`;
           if (job.kind === "publish_video") {
-            const source = join(dir, "source");
-            await input.objects.download(job.sourceKeys[0], source, 200 * 1024 * 1024, signal, job.sourceETag);
-            const result = await (input.processVideo ?? processFeedVideoFile)(source, dir, createFeedCommandRunner({ timeoutMs: 550_000, signal }));
-            const segments: string[] = [];
-            for (const segment of result.segments) {
-              const key = prefix + "hls/" + segment.name;
-              await input.objects.create(key, await readFile(segment.path), "video/mp2t", signal); segments.push(key);
-            }
+            const source = join(dir!, "source");
+            await timed("video_download", () => input.objects.download(job.sourceKeys[0], source, 200 * 1024 * 1024, signal, job.sourceETag));
+            const result = await timed("video_process", () => (input.processVideo ?? processFeedVideoFile)(
+              source, dir!, createFeedCommandRunner({ timeoutMs: 550_000, signal }),
+              (part, durationMs, success) => {
+                stage = part;
+                console.log(JSON.stringify({ event: "feed_media_stage", jobId: job.id, kind: job.kind,
+                  stage: part, outcome: success ? "success" : "failure", durationMs }));
+              },
+            ));
+            const segments = result.segments.map(segment => prefix + "hls/" + segment.name);
             const posterKey = prefix + "poster.webp", playlistKey = prefix + "hls/playlist.m3u8";
-            await input.objects.create(posterKey, await readFile(result.poster), "image/webp", signal);
-            // Playback still serves the authorized manifest through API; segments use CDN URLs.
-            await input.objects.create(playlistKey, await readFile(result.playlist), "application/vnd.apple.mpegurl", signal);
+            // Bound active S3 reads/PUT+HEAD to three segments; preserve playlist ordering.
+            let next = 0;
+            const transferSegments = async () => {
+              const workers = Array.from({ length: Math.min(3, result.segments.length) }, async () => {
+                for (;;) {
+                  const i = next++;
+                  if (i >= result.segments.length) return;
+                  const segment = result.segments[i]!;
+                  signal.throwIfAborted();
+                  await input.objects.create(segments[i]!, await readFile(segment.path), "video/mp2t", signal);
+                }
+              });
+              const settled = await Promise.allSettled(workers);
+              for (const item of settled) if (item.status === "rejected") throw item.reason;
+            };
+            // Poster and HLS segments are independent; wait for *all* writes before fail/complete.
+            const transfers = await Promise.allSettled([
+              timed("video_segments_upload", transferSegments),
+              timed("video_poster_upload", async () => input.objects.create(posterKey, await readFile(result.poster), "image/webp", signal)),
+            ]);
+            for (const item of transfers) if (item.status === "rejected") throw item.reason;
+            // Playback still serves the authorized manifest through API; publish it LAST.
+            await timed("video_playlist_upload", async () => input.objects.create(
+              playlistKey, await readFile(result.playlist), "application/vnd.apple.mpegurl", signal));
             output = { width: result.info.width, height: result.info.height, durationSeconds: result.info.durationSeconds,
               posterKey, playlistKey, videoSegmentKeys: segments };
           } else {
-            const source = join(dir, "source");
             // Album copies use the original ready full variant, never expose album URLs/keys to readers.
+            // Photos remain in bounded memory; video alone needs a seekable temporary file.
             const sourceKey = job.kind === "copy_album" ? job.sourceKeys[1] : job.sourceKeys[0];
-            await input.objects.download(sourceKey, source, 10 * 1024 * 1024, signal, job.sourceETag);
-            const result = await processFeedImage(await readFile(source), input.engine);
+            const bytes = await timed("photo_download", () => input.objects.read(sourceKey, 10 * 1024 * 1024, signal, job.sourceETag));
+            const result = await timed("photo_encode", () => processFeedImage(bytes, input.engine));
             const thumbKey = prefix + "thumb.webp", fullKey = prefix + "full.webp";
             // The two immutable outputs are independent. Transfer and verify them
             // concurrently to avoid paying the S3 PUT + HEAD latency twice.
             // Keep both operations joined even on failure before reporting an
             // unsuccessful attempt (subsequent claims are idempotent).
-            const outcomes = await Promise.allSettled([
+            const outcomes = await timed("photo_variants_upload", () => Promise.allSettled([
               input.objects.create(thumbKey, result.thumb.bytes, "image/webp", signal),
               input.objects.create(fullKey, result.full.bytes, "image/webp", signal),
-            ]);
+            ]));
             for (const outcome of outcomes) {
               if (outcome.status === "rejected") throw outcome.reason;
             }
@@ -98,8 +142,18 @@ export function createFeedCloudWorker(input: {
           }
         }
         signal.throwIfAborted(); completing = true;
-        return await input.core.completeJob(job.id, job.attemptToken, output);
+        return await timed("core_complete", () => input.core.completeJob(job.id, job.attemptToken, output));
       } catch (error) {
+        const code = (error as { code?: unknown })?.code;
+        const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+        const exitCode = (error as { exitCode?: unknown })?.exitCode;
+        const reason = (error as { reason?: unknown })?.reason;
+        console.error(JSON.stringify({ event: "feed_media_failure", jobId: job.id, kind: job.kind, stage,
+          code: typeof code === "string" && /^[A-Z_]{1,64}$/.test(code) ? code : "UNCLASSIFIED",
+          ...(typeof status === "number" && status >= 400 && status <= 599 ? { httpStatus: status } : {}),
+          ...(typeof exitCode === "number" ? { exitCode } : {}),
+          ...(typeof reason === "string" && /^[A-Z_]{1,64}$/.test(reason) ? { reason } : {}),
+        }));
         // A lost callback reply is ambiguous: never erase files that may have been published.
         if (!completing) await input.core.failJob(job.id, job.attemptToken, "MEDIA_PROCESSING_FAILED");
         throw error;

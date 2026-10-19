@@ -20,7 +20,12 @@ export function startQuestionsProcessingTriggerWorker() {
     async (job: Job<{sourceId:string}>) => {
       if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(job.data.sourceId))
         throw new Error("QUESTIONS_INVALID_SOURCE_ID");
+      const started = performance.now();
+      const queuedMs = Math.max(0, Date.now() - job.timestamp);
       const result = await dispatch();
+      logger.info("Questions Cloud.ru dispatch timing", {
+        queuedMs, dispatchMs: Math.round(performance.now() - started),
+      });
       if (result.dispatched !== 1) throw new Error("QUESTIONS_PROCESSOR_NOT_DISPATCHED");
     },
     {connection, concurrency: 1, limiter: {max: 1, duration: 1000},

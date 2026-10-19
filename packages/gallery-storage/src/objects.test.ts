@@ -33,10 +33,11 @@ describe('fail-closed object snapshots and immutable writes',()=>{
    const body=Readable.from([Buffer.alloc(1_750_001)]); const send=vi.fn().mockResolvedValue({...meta,Body:body});
    await expect(store(send).read(key,undefined,undefined,1_750_000)).rejects.toThrow('IMAGE_SIZE'); expect(body.destroyed).toBe(true);
  });
- it('uses create-if-absent and verifies persisted result',async()=>{
-   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:404}}).mockResolvedValueOnce({ETag:meta.ETag}).mockResolvedValueOnce(meta);
+ it('uses PUT-if-absent and one verification HEAD for new objects',async()=>{
+   const send=vi.fn().mockResolvedValueOnce({ETag:meta.ETag}).mockResolvedValueOnce(meta);
    expect((await store(send).create(key,bytes,'image/webp')).etag).toBe(meta.ETag);
-   expect(send.mock.calls[1][0].input).toMatchObject({IfNoneMatch:'*',ContentMD5:Buffer.from(meta.ETag.slice(1,-1),'hex').toString('base64'),CacheControl:'no-store'});
+   expect(send.mock.calls[0][0].input).toMatchObject({IfNoneMatch:'*',ContentMD5:Buffer.from(meta.ETag.slice(1,-1),'hex').toString('base64'),CacheControl:'no-store'});
+   expect(send).toHaveBeenCalledTimes(2);
  });
  it('makes only finalized images cacheable when the verified cutover is enabled', async () => {
    for (const [path, cache] of [
@@ -44,25 +45,24 @@ describe('fail-closed object snapshots and immutable writes',()=>{
      ['users/u/pets/p/vet-visits/v/a/thumb.webp', 'public, max-age=180, s-maxage=600, must-revalidate'],
      ['albums/o/a/incoming/id/attempts/job/full.webp', 'no-store'],
    ] as const) {
-     const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:404}})
-       .mockResolvedValueOnce({ETag:meta.ETag}).mockResolvedValueOnce(meta);
+     const send=vi.fn().mockResolvedValueOnce({ETag:meta.ETag}).mockResolvedValueOnce(meta);
      const enabled=createGalleryObjectStore({...config,cacheableFinalEnabled:true}, {send} as unknown as S3Client);
      await enabled.create(path,bytes,'image/webp');
-     expect(send.mock.calls[1]![0].input.CacheControl).toBe(cache);
+     expect(send.mock.calls[0]![0].input.CacheControl).toBe(cache);
    }
  });
- it('identical retry skips PUT',async()=>{
-   const send=vi.fn().mockResolvedValue(meta); await store(send).create(key,bytes,'image/webp'); expect(send).toHaveBeenCalledTimes(1);
+ it('identical retry is verified after conditional PUT',async()=>{
+   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce(meta); await store(send).create(key,bytes,'image/webp'); expect(send).toHaveBeenCalledTimes(2);
  });
  it('existing conflicting output is never overwritten',async()=>{
-   const send=vi.fn().mockResolvedValue({...meta,ContentLength:99}); await expect(store(send).create(key,bytes,'image/webp')).rejects.toThrow('IMMUTABLE_CONFLICT'); expect(send).toHaveBeenCalledTimes(1);
+   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce({...meta,ContentLength:99}); await expect(store(send).create(key,bytes,'image/webp')).rejects.toThrow('IMMUTABLE_CONFLICT'); expect(send).toHaveBeenCalledTimes(2);
  });
  it('conditional race verifies identical winner without overwriting',async()=>{
-   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:404}}).mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce(meta);
-   await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag}); expect(send).toHaveBeenCalledTimes(3);
+   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce(meta);
+   await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag}); expect(send).toHaveBeenCalledTimes(2);
  });
  it('aborted lease prevents a PUT',async()=>{
-   const controller=new AbortController(); controller.abort(); const send=vi.fn().mockRejectedValue({$metadata:{httpStatusCode:404}});
-   await expect(store(send).create(key,bytes,'image/webp',controller.signal)).rejects.toThrow('LEASE_EXPIRED'); expect(send).toHaveBeenCalledTimes(1);
+   const controller=new AbortController(); controller.abort(); const send=vi.fn();
+   await expect(store(send).create(key,bytes,'image/webp',controller.signal)).rejects.toThrow('LEASE_EXPIRED'); expect(send).not.toHaveBeenCalled();
  });
 });

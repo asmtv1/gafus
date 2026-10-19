@@ -4,6 +4,7 @@ import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand, Delete
 import { assertFeedFinalKey, assertFeedObjectKey } from "@gafus/feed-storage";
 export interface FeedCloudObjects {
   download(key: string, file: string, maxBytes: number, signal: AbortSignal, etag?: string): Promise<void>;
+  read(key: string, maxBytes: number, signal: AbortSignal, etag?: string): Promise<Uint8Array>;
   create(key: string, bytes: Uint8Array, contentType: string, signal: AbortSignal): Promise<void>;
   delete(key: string, signal: AbortSignal): Promise<void>;
 }
@@ -61,6 +62,38 @@ export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): Fe
         }
         if (size !== result.ContentLength) throw new Error("SOURCE_SIZE");
       } finally { destroy(); await handle.close(); }
+    },
+    async read(key, maxBytes, signal, etag) {
+      const fromAlbum = albumFinal.test(key);
+      if (!fromAlbum) assertFeedObjectKey(key);
+      if (fromAlbum && (!albumClient || !albumBucket || !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(albumBucket)))
+        throw new Error("ALBUM_STORAGE_UNAVAILABLE");
+      if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > 10 * 1024 * 1024)
+        throw new Error("INVALID_SOURCE_LIMIT");
+      signal.throwIfAborted();
+      const result = await (fromAlbum ? albumClient! : client).send(new GetObjectCommand({
+        Bucket: fromAlbum ? albumBucket : bucket, Key: key, IfMatch: etag,
+      }), { abortSignal: signal });
+      const body = result.Body;
+      const destroy = () => (body as { destroy?: () => void } | undefined)?.destroy?.();
+      if (!body || !result.ContentLength || result.ContentLength > maxBytes || (etag && result.ETag !== etag)) {
+        destroy();
+        throw new Error("SOURCE_CHANGED");
+      }
+      const chunks: Buffer[] = [];
+      let size = 0;
+      try {
+        for await (const packet of body as AsyncIterable<Uint8Array>) {
+          signal.throwIfAborted();
+          size += packet.byteLength;
+          if (size > maxBytes) throw new Error("SOURCE_SIZE");
+          chunks.push(Buffer.from(packet));
+        }
+        if (size !== result.ContentLength) throw new Error("SOURCE_SIZE");
+        return Buffer.concat(chunks, size);
+      } finally {
+        destroy();
+      }
     },
     async create(key, bytes, contentType, signal) {
       assertFeedFinalKey(key); signal.throwIfAborted();

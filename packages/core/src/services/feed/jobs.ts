@@ -1,4 +1,5 @@
 import { activateFeedPostRevisionTx } from "./publish";
+import { FEED_LIMITS } from "../../../../types/src/feed";
 import { randomUUID } from "node:crypto";
 import { enqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
 import type { FeedDb } from "./ports";
@@ -51,8 +52,8 @@ function assertOutput(job: FeedStorageJobClaim, output: FeedAssetOutput) {
   }
   if (job.kind === "publish_video") {
     if (!output.posterKey || !output.playlistKey || !output.videoSegmentKeys?.length ||
-        output.videoSegmentKeys.length > 60 || !Number.isFinite(output.durationSeconds) ||
-        !output.durationSeconds || output.durationSeconds > 60 ||
+        output.videoSegmentKeys.length > FEED_LIMITS.videoSeconds || !Number.isFinite(output.durationSeconds) ||
+        !output.durationSeconds || output.durationSeconds > FEED_LIMITS.videoSeconds ||
         output.thumbKey || output.fullKey ||
         output.videoSegmentKeys.some(key => !/^.+\/hls\/segment-\d{3,5}\.ts$/.test(key))) {
       throw new FeedError("VALIDATION_ERROR", "Неполная обработка видео", 422);

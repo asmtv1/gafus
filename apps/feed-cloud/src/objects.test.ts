@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createFeedCloudObjects } from "./objects.js";
 const key = "posts/owner/post/attachments/media/full.webp";
 const bytes = new Uint8Array([1, 2, 3, 4]);
@@ -28,6 +28,33 @@ describe("Feed final-object S3 metadata", () => {
     expect(put?.input).toMatchObject({ Bucket: env.FEED_BUCKET, Key: key,
       CacheControl: expected, ContentType: "image/webp", IfNoneMatch: "*" });
     expect(send).toHaveBeenCalledTimes(2);
+  });
+  it("streams a bounded conditional photo GET directly into memory", async () => {
+    const signal = new AbortController().signal;
+    const send = vi.spyOn(S3Client.prototype, "send").mockImplementation((async (cmd: unknown) => {
+      if (cmd instanceof GetObjectCommand) return {
+        ETag: etag, ContentLength: bytes.length,
+        Body: (async function* () { yield bytes.subarray(0, 2); yield bytes.subarray(2); })(),
+      };
+      throw new Error("UNEXPECTED_S3_COMMAND");
+    }) as never);
+    const result = await createFeedCloudObjects(env).read(
+      "posts/owner/post/incoming/upload/source.jpg", 10 * 1024 * 1024, signal, etag);
+    expect(result).toEqual(Buffer.from(bytes));
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((send.mock.calls[0]![0] as GetObjectCommand).input.IfMatch).toBe(etag);
+  });
+  it("rejects a dishonest source ContentLength without publishing", async () => {
+    vi.spyOn(S3Client.prototype, "send").mockImplementation((async (cmd: unknown) => {
+      if (cmd instanceof GetObjectCommand) return {
+        ETag: etag, ContentLength: 1,
+        Body: (async function* () { yield bytes; })(),
+      };
+      throw new Error("UNEXPECTED_S3_COMMAND");
+    }) as never);
+    await expect(createFeedCloudObjects(env).read(
+      "posts/owner/post/incoming/upload/source.jpg", 10, new AbortController().signal, etag,
+    )).rejects.toThrow("SOURCE_SIZE");
   });
   it("fails closed on other public buckets and unsafe incoming-output paths", async () => {
     expect(() => createFeedCloudObjects({ ...env, FEED_BUCKET: "other-bucket", FEED_BUCKET_PUBLIC: "true" }))

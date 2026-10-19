@@ -18,7 +18,6 @@ import {
   uploadQuestionSource,
   promoteQuestionVariants,
   questionProcessingFailure,
-  deleteQuestionSourceAndVariants,
   deleteQuestionPrivateStaging,
 } from "@gafus/cdn-upload";
 import { QUESTION_LIMITS } from "@gafus/types";
@@ -98,7 +97,8 @@ export async function uploadQuestionPhoto(
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
-          enqueueQuestionsProcessing(storagePath.split("/")[2]!),
+          // BullMQ expects the bare upload UUID, not "uuid.png".
+          enqueueQuestionsProcessing(storagePath.split("/")[2]!.split(".")[0]!),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new Error("QUESTIONS_WAKE_TIMEOUT")), 1800);
           }),

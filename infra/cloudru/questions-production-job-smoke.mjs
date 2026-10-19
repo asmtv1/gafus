@@ -37,8 +37,9 @@ const uid = randomUUID();
 const objectId = "0qa-job-readiness";
 const path = "questions/incoming/questions/" + objectId + "/" + uid + "/source.png";
 const intermediate = "questions/processed/questions/" + objectId + "/" + uid + "/";
+const work = "questions/jobs/pending/questions/" + objectId + "/" + uid + "/source.png";
 const publicPrefix = "questions/uploads/questions/" + objectId + "/" + uid + "/";
-const candidates = [path, intermediate+"thumb.webp", intermediate+"full.webp",
+const candidates = [path, work, intermediate+"thumb.webp", intermediate+"full.webp",
   intermediate+"failed.json", publicPrefix+"thumb.webp", publicPrefix+"full.webp"];
 const send = cmd => client.send(cmd, {abortSignal: AbortSignal.timeout(18000)});
 async function fetchJson(url, init) {
@@ -78,6 +79,13 @@ try {
   }));
   created=true;
   console.log("QUESTIONS_SMOKE_SOURCE_UPLOADED",fixture.length);
+  // The worker normally discovers immutable work records, not the entire source prefix.
+  // A smoke without this marker would test only the 15-minute compatibility recovery.
+  await send(new S3.PutObjectCommand({
+    Bucket:bucket,Key:work,IfNoneMatch:"*",Body:Buffer.from([1]),
+    ContentLength:1,ContentType:"application/octet-stream",CacheControl:"private, no-store",
+  }));
+  console.log("QUESTIONS_SMOKE_PRIVATE_WORK_ENQUEUED");
   const response=await fetch("https://containers.api.cloud.ru/v2/jobs/"+id+":execute",{
     method:"POST",headers:{...auth,"content-type":"application/json"},
     body:JSON.stringify({projectId:project,jobName:id,params:{}}),
@@ -111,6 +119,14 @@ try {
     await wait(5000);
   }
   if(!finished)throw Error("QUESTIONS_SMOKE_JOB_PROCESSING_TIMEOUT");
+  // Both staged WebP may become visible shortly before the marker DELETE.
+  // Observe the separate acknowledgement with a bounded wait, not a racy HEAD.
+  let acknowledged=false;
+  for(let attempt=0;attempt<15;attempt++){
+    if(!(await head(work))){acknowledged=true;break;}
+    await wait(1000);
+  }
+  if(!acknowledged)throw Error("QUESTIONS_SMOKE_WORK_NOT_ACKNOWLEDGED");
   for(const key of [publicPrefix+"thumb.webp",publicPrefix+"full.webp"]){
     if(await head(key))throw Error("QUESTIONS_SMOKE_UNEXPECTED_PUBLIC_WRITE");
   }

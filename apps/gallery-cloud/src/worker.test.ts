@@ -84,6 +84,23 @@ describe("lease, duplicate and job retries with real processing", () => {
     );
     expect(x.data.has(sourceKey)).toBe(true);
   });
+  it("uploads both staged variants concurrently and joins failures before failing claim", async () => {
+    const x = await setup();
+    const resolve: (() => void)[] = [];
+    vi.mocked(x.objects.create).mockImplementation(async () =>
+      new Promise((done) => { resolve.push(() => done({
+        etag: objectMd5(x.bytes), bytes: x.bytes.length, contentType: "image/webp",
+      })); }));
+    const work = x.worker.processUpload("u");
+    await vi.waitFor(() => expect(resolve).toHaveLength(2));
+    expect(x.core.completeUpload).not.toHaveBeenCalled();
+    resolve[0]!();
+    await Promise.resolve();
+    expect(x.core.completeUpload).not.toHaveBeenCalled();
+    resolve[1]!();
+    await expect(work).resolves.toBeUndefined();
+    expect(x.core.completeUpload).toHaveBeenCalledOnce();
+  });
   it("makes an immutable veterinary preview without removing the private original", async () => {
     const x = await setup();
     const source = "users/o/pets/p/vet-visits/v/a/original.png";

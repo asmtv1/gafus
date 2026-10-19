@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
-import type { FeedCloudJob, FeedCloudInternalClient } from "@gafus/feed-cloud";
+import {
+  createFeedCommandRunner, processFeedVideoFile,
+  type FeedCloudJob, type FeedCloudInternalClient,
+} from "@gafus/feed-cloud";
 import { createFeedCloudWorker } from "./worker.js";
 import { sharpFeedEngine } from "./sharp-engine.js";
 import type { FeedCloudObjects } from "./objects.js";
@@ -23,6 +26,7 @@ function setup(source: Uint8Array) {
     renewJob: vi.fn(async () => ({ accepted: true })), maintenance: vi.fn(async () => ({})) };
   const objects: FeedCloudObjects = {
     download: vi.fn(async (_key, path, max, signal) => { signal.throwIfAborted(); if (source.byteLength > max) throw new Error("SOURCE_SIZE"); await writeFile(path, source); }),
+    read: vi.fn(async (_key, max, signal) => { signal.throwIfAborted(); if (source.byteLength > max) throw new Error("SOURCE_SIZE"); return source; }),
     create: vi.fn(async (key, bytes, type, signal) => { signal.throwIfAborted(); written.set(key, { bytes, type }); }),
     delete: vi.fn(async () => undefined),
   };
@@ -87,7 +91,8 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
       targetKeys: ["posts/owner/post/attachments/media/thumb.webp", "posts/owner/post/attachments/media/full.webp"] };
     await worker.process(claim);
     expect(written.size).toBe(2); expect(objects.delete).not.toHaveBeenCalled();
-    expect(objects.download).toHaveBeenCalledWith(claim.sourceKeys[1], expect.any(String), 10 * 1024 * 1024, expect.any(AbortSignal), undefined);
+    expect(objects.read).toHaveBeenCalledWith(claim.sourceKeys[1], 10 * 1024 * 1024, expect.any(AbortSignal), undefined);
+    expect(objects.download).not.toHaveBeenCalled();
   });
   it("transcodes an actual small video to HLS without upscaling", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feed-video-fixture-"));
@@ -105,10 +110,71 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
       expect(written.get(output.posterKey!)!.type).toBe("image/webp");
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
+  it("keeps MOV/WebM-style missing packet PTS compatible via decoded-frame fallback", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "feed-pts-fallback-"));
+    try {
+      const source = join(dir, "source.mp4");
+      await execute("ffmpeg", ["-hide_banner", "-nostdin", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=green:s=320x240:r=15:d=3",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", source]);
+      const actual = createFeedCommandRunner({timeoutMs: 30000});
+      let fallbackUsed = false;
+      const result = await processFeedVideoFile(source, dir, async (binary, args, maxBytes) => {
+        if (binary === "ffprobe" && args.includes("-show_packets")) return "N/A\n";
+        if (binary === "ffprobe" && args.includes("-show_frames")) fallbackUsed = true;
+        return actual(binary, args, maxBytes);
+      });
+      expect(fallbackUsed).toBe(true);
+      expect(result.segments.length).toBeGreaterThan(0);
+      expect(result.info.durationSeconds).toBe(3);
+    } finally {
+      await rm(dir, {recursive: true, force: true});
+    }
+  });
+  it("bounds concurrent video S3 segment writes and publishes playlist last", async () => {
+    const { core, objects } = setup(Buffer.from("video"));
+    let segmentActive = 0, maxSegmentActive = 0, posterReady = false;
+    const uploaded = new Set<string>();
+    vi.mocked(objects.create).mockImplementation(async (key, _bytes, _type, signal) => {
+      signal.throwIfAborted();
+      if (key.endsWith(".m3u8")) {
+        expect(segmentActive).toBe(0);
+        expect(posterReady).toBe(true);
+        expect(uploaded.size).toBe(8);
+        return;
+      }
+      if (key.endsWith(".ts")) {
+        segmentActive++;
+        maxSegmentActive = Math.max(maxSegmentActive, segmentActive);
+        try { await new Promise(resolve => setTimeout(resolve, 10)); uploaded.add(key); }
+        finally { segmentActive--; }
+      } else posterReady = true;
+    });
+    const worker = createFeedCloudWorker({
+      core, objects, engine: sharpFeedEngine,
+      processVideo: async (_source, dir) => {
+        const segments = await Promise.all(Array.from({length: 8}, async (_, i) => {
+          const name = `segment-${String(i).padStart(3, "0")}.ts`;
+          const path = join(dir, name);
+          await writeFile(path, Buffer.from([0x47, i]));
+          return {name, path, bytes: 2};
+        }));
+        const poster = join(dir, "poster.webp"), playlist = join(dir, "playlist.m3u8");
+        await writeFile(poster, Buffer.from([1]));
+        await writeFile(playlist, Buffer.from("#EXTM3U\n#EXT-X-ENDLIST"));
+        return { info: {width: 320, height: 240, durationSeconds: 3, rotated: false, hdr: false,
+          hasAudio: false}, segments, poster, playlist };
+      },
+    });
+    await worker.process({...job("publish_video"), sourceKeys: ["posts/owner/post/incoming/upload/source.mp4"]});
+    expect(maxSegmentActive).toBe(3);
+    expect(uploaded.size).toBe(8);
+    expect(core.completeJob).toHaveBeenCalledOnce();
+  });
   it("rejects another owner's source before touching storage", async () => {
     const { worker, objects, core } = setup(new Uint8Array(1));
     await expect(worker.process({ ...job(), sourceKeys: ["posts/other/post/incoming/upload/source.jpg"] })).rejects.toThrow("UNTRUSTED_CLAIM");
-    expect(objects.download).not.toHaveBeenCalled(); expect(core.completeJob).not.toHaveBeenCalled();
+    expect(objects.download).not.toHaveBeenCalled(); expect(objects.read).not.toHaveBeenCalled(); expect(core.completeJob).not.toHaveBeenCalled();
   });
   it("rejects corrupt image bytes and records a failed attempt", async () => {
     const { worker, core, written } = setup(new Uint8Array([1, 2, 3]));

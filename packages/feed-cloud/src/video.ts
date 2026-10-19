@@ -1,6 +1,8 @@
 /** Pure input validation and deterministic ffmpeg arguments for private feed VOD. */
 export const FEED_VIDEO_MAX_BYTES = 200 * 1024 * 1024;
-export const FEED_VIDEO_MAX_SECONDS = 60;
+export const FEED_VIDEO_MAX_SECONDS = 120;
+// HLS typically emits ~1 segment per 2 seconds; allow boundary and shorter segments.
+export const FEED_VIDEO_MAX_SEGMENTS = FEED_VIDEO_MAX_SECONDS;
 export const FEED_SEGMENT_MAX_BYTES = 1_750_000;
 
 export interface ProbeStream {
@@ -11,7 +13,7 @@ export interface ProbeStream {
   duration?: string;
   avg_frame_rate?: string;
   color_transfer?: string;
-  side_data_list?: Array<{ rotation?: number }>;
+  side_data_list?: { rotation?: number }[];
 }
 export interface ProbeResult {
   format?: { duration?: string; size?: string };
@@ -26,7 +28,12 @@ export interface VideoInfo {
   hasAudio: boolean;
 }
 export class FeedVideoError extends Error {
-  constructor(public readonly code: string) {
+  constructor(
+    public readonly code: string,
+    public readonly exitCode?: number,
+    // Allowlisted classification of stderr; never log raw FFmpeg output or paths.
+    public readonly reason?: string,
+  ) {
     super(code);
     this.name = "FeedVideoError";
   }
@@ -46,7 +53,7 @@ export function validateVideoProbe(probe: ProbeResult, sourceBytes: number): Vid
     .map(Number)
     .filter(value => Number.isFinite(value) && value > 0);
   if (!durations.length) throw new FeedVideoError("VIDEO_DURATION_UNKNOWN");
-  // The longest declared timeline is authoritative; never silently trim a >60s input.
+  // The longest declared timeline is authoritative; never silently trim a >120s input.
   const durationSeconds = Math.max(...durations);
   if (durationSeconds > FEED_VIDEO_MAX_SECONDS) throw new FeedVideoError("VIDEO_TOO_LONG");
   const angle = video.side_data_list?.find(item => typeof item.rotation === "number")?.rotation ?? 0;
@@ -72,7 +79,7 @@ export function feedFfmpegArguments(input: string, outputDir: string, info: Vide
     "-i", input,
     "-map", "0:v:0", "-map", "0:a:0?",
     "-vf", `${toneMap}${scale},format=yuv420p`,
-    "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-level", "3.1",
+    "-c:v", "libx264", "-threads", "2", "-preset", "veryfast", "-profile:v", "main", "-level", "3.1",
     "-fpsmax", "30", "-force_key_frames", "expr:gte(t,n_forced*2)", "-b:v", "1400k", "-maxrate", "1800k", "-bufsize", "3600k",
     "-g", "60", "-keyint_min", "60", "-sc_threshold", "0",
     "-c:a", "aac", "-b:a", "96k", "-ac", "2",
@@ -95,7 +102,7 @@ export function parseFeedHlsPlaylist(playlist: string): string[] {
     throw new FeedVideoError("VIDEO_PLAYLIST");
   }
   const names = playlist.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith("#"));
-  if (!names.length || names.length > 60 ||
+  if (!names.length || names.length > FEED_VIDEO_MAX_SEGMENTS ||
       names.some(name => !/^segment-[0-9]{3,5}\.ts$/.test(name)) ||
       new Set(names).size !== names.length) {
     throw new FeedVideoError("VIDEO_SEGMENT_PATH");
@@ -103,7 +110,7 @@ export function parseFeedHlsPlaylist(playlist: string): string[] {
   return names;
 }
 export function validateSegmentSizes(segments: readonly { name: string; bytes: number }[]): void {
-  if (!segments.length || segments.length > 60 || new Set(segments.map(s => s.name)).size !== segments.length)
+  if (!segments.length || segments.length > FEED_VIDEO_MAX_SEGMENTS || new Set(segments.map(s => s.name)).size !== segments.length)
     throw new FeedVideoError("VIDEO_SEGMENT_LIST");
   for (const segment of segments) {
     if (!/^segment-[0-9]{3,5}\.ts$/.test(segment.name) ||
@@ -111,4 +118,44 @@ export function validateSegmentSizes(segments: readonly { name: string; bytes: n
       throw new FeedVideoError("VIDEO_SEGMENT_SIZE");
     }
   }
+}
+
+/** Video packets can be demuxed without a second full decode. Every PTS must be
+ * inspected; absent timestamps are rejected rather than trusting container metadata.
+ * FFmpeg still decodes the real frames during HLS generation. */
+export function validateFeedPacketTimeline(text: string): void {
+  let seen = false;
+  for (const line of text.split(/\r?\n/)) {
+    // The legacy decoded-frame CSV may include a trailing comma for side data.
+    const value = line.split(",")[0]?.trim() ?? "";
+    if (!value) continue;
+    // ffprobe emits one primary timestamp per row. N/A is not authoritative.
+    const timestamp = Number(value);
+    if (!Number.isFinite(timestamp) || timestamp < 0)
+      throw new FeedVideoError("VIDEO_TIMELINE_INVALID");
+    seen = true;
+    if (timestamp > FEED_VIDEO_MAX_SECONDS)
+      throw new FeedVideoError("VIDEO_TOO_LONG");
+  }
+  if (!seen) throw new FeedVideoError("VIDEO_DECODE_FAILED");
+}
+
+/** Verify the actual media timeline before exposing the HLS manifest. */
+export function validateFeedHlsDuration(playlist: string): void {
+  let duration = 0;
+  let segments = 0;
+  for (const line of playlist.split(/\r?\n/)) {
+    if (!line.startsWith("#EXTINF:")) continue;
+    const raw = line.slice(8).split(",")[0]?.trim() ?? "";
+    if (!/^\d+(?:\.\d+)?$/.test(raw))
+      throw new FeedVideoError("VIDEO_PLAYLIST_DURATION");
+    const seconds = Number(raw);
+    if (!Number.isFinite(seconds) || seconds <= 0)
+      throw new FeedVideoError("VIDEO_PLAYLIST_DURATION");
+    duration += seconds;
+    segments++;
+  }
+  // Allow a small HLS segment rounding margin for exactly 120s inputs.
+  if (!segments || duration > FEED_VIDEO_MAX_SECONDS + 0.5)
+    throw new FeedVideoError("VIDEO_TOO_LONG");
 }

@@ -43,6 +43,14 @@ export function createCloudruMediaDispatcher(
     throw Error("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
   }
   let running = false;
+  const emit = (phase: "iam" | "execute", durationMs: number, name?: CloudruMediaJobName,
+    httpStatus?: number) => {
+    // Job names are fixed allowlisted values; never log tokens, payloads or URLs.
+    console.log(JSON.stringify({event: "cloudru_media_dispatch", phase, ...(name ? {job: name} : {}),
+      durationMs: Math.round(durationMs),
+      ...(httpStatus ? {httpStatus} : {}),
+    }));
+  };
   let cachedToken: string | undefined;
   let tokenExpires = 0;
   return async () => {
@@ -51,12 +59,14 @@ export function createCloudruMediaDispatcher(
     let dispatched = 0;
     try {
       if (!cachedToken || Date.now() > tokenExpires) {
+        const authStart = performance.now();
         const login = await http("https://iam.api.cloud.ru/api/v1/auth/token", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ keyId: env.CLOUDRU_KEY_ID, secret: env.CLOUDRU_KEY_SECRET }),
           signal: AbortSignal.timeout(12000),
         });
+        emit("iam", performance.now() - authStart, undefined, login.status);
         if (!login.ok) throw Error("CLOUDRU_JOB_IAM_UNAVAILABLE");
         const json = (await login.json()) as { access_token?: string };
         if (!json.access_token) throw Error("CLOUDRU_JOB_IAM_NO_TOKEN");
@@ -64,12 +74,14 @@ export function createCloudruMediaDispatcher(
         tokenExpires = Date.now() + 4 * 60_000;
       }
       for (const name of names) {
+        const dispatchStart = performance.now();
         const result = await http("https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
           method: "POST",
           headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },
           body: JSON.stringify({ projectId: env.CLOUDRU_PROJECT_ID, jobName: name, params: {} }),
           signal: AbortSignal.timeout(18000),
         });
+        emit("execute", performance.now() - dispatchStart, name, result.status);
         if (!result.ok) {
           if ([401, 403].includes(result.status)) {
             cachedToken = undefined;

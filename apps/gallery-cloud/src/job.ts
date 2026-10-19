@@ -5,6 +5,8 @@ import { createGalleryCloudWorker } from "./worker.js";
 import { emitGalleryTelemetry } from "./telemetry.js";
 
 // A bounded Container Job drains durable work from core without Yandex Message Queue.
+console.log(JSON.stringify({event: "gallery_invocation_start",
+  processUptimeMs: Math.round(process.uptime() * 1000)}));
 // Attempt tokens and leases remain owned by core, including overlapping invocations.
 const deadline = Date.now() + 50_000;
 const worker = createGalleryCloudWorker({

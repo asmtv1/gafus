@@ -3,7 +3,7 @@ const mocked=vi.hoisted(()=>({send:vi.fn(), destroy:vi.fn()}));
 vi.mock("@aws-sdk/client-s3",()=>{
   class Command { constructor(public input:Record<string,unknown>){} }
   return {
-    S3Client:class {send=mocked.send;destroy=mocked.destroy},
+    S3Client:class {send=mocked.send;destroy=mocked.destroy;},
     PutObjectCommand:class PutObjectCommand extends Command{},
     CopyObjectCommand:class CopyObjectCommand extends Command{},
     GetObjectCommand:class GetObjectCommand extends Command{},
@@ -49,6 +49,17 @@ describe("Questions S3 private staging and safe promotion",()=>{
     expect(cmd.constructor.name).toBe("PutObjectCommand");
     expect(cmd.input).toMatchObject({Bucket:"gafus-questions-public",Key:source,
       ContentType:"image/png",CacheControl:"private, no-store",IfNoneMatch:"*"});
+    const work=mocked.send.mock.calls[1]![0];
+    expect(work.constructor.name).toBe("PutObjectCommand");
+    expect(work.input).toMatchObject({Bucket:"gafus-questions-public",
+      Key:"questions/jobs/pending/questions/owner-id/uuid-value/source.png",
+      ContentType:"application/octet-stream",CacheControl:"private, no-store",IfNoneMatch:"*"});
+  });
+  it("never reports successful upload if durable work-record creation fails",async()=>{
+    mocked.send.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("S3_DOWN"));
+    await expect(uploadQuestionSource(path,new Uint8Array([1,2,3]),"image/png",config))
+      .rejects.toThrow("S3_DOWN");
+    expect(mocked.send).toHaveBeenCalledTimes(2);
   });
   it("does not publish if one staged variant is missing",async()=>{
     mocked.send.mockResolvedValueOnce({ContentType:"image/webp",ContentLength:100})
@@ -90,7 +101,7 @@ describe("Questions S3 private staging and safe promotion",()=>{
       return {};
     });
     await deleteQuestionSourceAndVariants(marker,config);
-    expect(mocked.send.mock.calls.filter(([cmd])=>cmd.constructor.name==="DeleteObjectCommand")).toHaveLength(6);
+    expect(mocked.send.mock.calls.filter(([cmd])=>cmd.constructor.name==="DeleteObjectCommand")).toHaveLength(7);
     expect(mocked.send.mock.calls.filter(([cmd])=>cmd.constructor.name==="DeleteObjectCommand")
       .every(([cmd])=>String(cmd.input.Key).startsWith("questions/"))).toBe(true);
   });
