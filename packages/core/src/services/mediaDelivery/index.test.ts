@@ -58,6 +58,41 @@ describe('CDN fail-closed transport fallback policy', () => {
   });
 });
 
+describe('new production Gallery CDN outage and 499 compatibility', () => {
+  const now = 1791920000000;
+  const gallery = `https://dikinuneceswe.begetcdn.cloud/md5(${'A'.repeat(22)},${Math.floor(now / 1000) + 100})/albums/owner/album/photos/item/full.webp`;
+  const vet = `https://dikinuneceswe.begetcdn.cloud/md5(${'A'.repeat(22)},${Math.floor(now / 1000) + 100})/users/owner/pets/pet/vet-visits/visit/item/thumb.webp`;
+  it('allows only signed current Gallery final media on the exact host, not other origins', () => {
+    for (const url of [gallery, vet]) {
+      expect(mediaCdnKindFromSignedUrl(url)).toBe('gallery');
+      expect(isTrustedCdnProbeUrl(url, ['dikinuneceswe.begetcdn.cloud'], now)).toBe(true);
+    }
+    for (const bad of [gallery.replace('dikinuneceswe.begetcdn.cloud','evil.begetcdn.cloud'),
+      gallery.replace('/photos/item/','/incoming/item/'),
+      gallery.replace('full.webp','original.jpg'), gallery + '?x=1',
+      vet.replace('thumb.webp','original.pdf')]) {
+      expect(mediaCdnKindFromSignedUrl(bad)).toBeNull();
+      expect(isTrustedCdnProbeUrl(bad, ['dikinuneceswe.begetcdn.cloud'], now)).toBe(false);
+    }
+    // URL classification is structural; the authenticated same-origin probe
+    // separately enforces expiry before contacting Beget.
+    const expired=gallery.replace(/,\d{10}\)/, `,${Math.floor(now/1000)-200})`);
+    expect(mediaCdnKindFromSignedUrl(expired)).toBe('gallery');
+    expect(isTrustedCdnProbeUrl(expired, ['dikinuneceswe.begetcdn.cloud'],now)).toBe(false);
+  });
+  it('allows an S3 fallback on Gallery 499 but never on Feed 499, Gallery 403/404, or forged hosts', async () => {
+    const fetch499 = vi.fn(async () => new Response(null,{ status:499 })) as unknown as typeof fetch;
+    expect(isCdnOutage({status:499})).toBe(false);
+    expect(await probeCdnOutage(gallery,{fetcher:fetch499})).toBe(true);
+    const feed = `https://garaquachegasourn.begetcdn.cloud/md5(${'B'.repeat(22)},1999999999)/posts/owner/post/attachments/item/poster.webp`;
+    expect(await probeCdnOutage(feed,{fetcher:fetch499})).toBe(false);
+    expect(await probeCdnOutage(gallery.replace('dikinuneceswe.begetcdn.cloud','evil.begetcdn.cloud'),{fetcher:fetch499})).toBe(false);
+    for(const status of [403,404,410,429]) {
+      expect(await probeCdnOutage(gallery,{fetcher:async()=>new Response(null,{status})})).toBe(false);
+    }
+  });
+});
+
 describe('authorized same-origin Web CDN status proxy target', () => {
   const now = 1791820000000;
   const path = '/posts/owner/post/attachments/media/thumb.webp';

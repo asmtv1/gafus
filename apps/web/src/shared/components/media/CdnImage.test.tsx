@@ -40,6 +40,19 @@ describe("signed CDN image fallback in Web", () => {
     expect(network).not.toHaveBeenCalled();
     expect(host.querySelector("img")?.getAttribute("src")).toBe(s3);
   });
+  it("recovers new Gallery CDN images from HTTP 499 with a fresh ACL-checked S3 URL", async () => {
+    const current=`https://dikinuneceswe.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/item/full.webp`;
+    const s3="https://s3.cloud.ru/gafus-gallery-private/item?X-Amz-Signature=fresh";
+    const fallback=vi.fn(async()=>({url:s3}));
+    vi.stubGlobal("fetch",vi.fn(async()=>new Response(null,{status:499})));
+    await act(async()=>root.render(<CdnImage source={current} requestFallback={fallback}/>));
+    await act(async()=>{
+      host.querySelector("img")?.dispatchEvent(new Event("error"));
+      await new Promise(resolve=>setTimeout(resolve,0));
+    });
+    expect(fallback).toHaveBeenCalledOnce();
+    expect(host.querySelector("img")?.getAttribute("src")).toBe(s3);
+  });
   it("never calls fallback after a confirmed 403 or 404", async () => {
     for (const status of [403, 404]) {
       const fallback = vi.fn(async () => ({ url: "https://s3.cloud.ru/example" }));

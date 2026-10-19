@@ -34,6 +34,30 @@ describe("server-side CDN health monitor", () => {
       /^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\//);
     expect(createSignedMonitorUrl("feed", beget, now, "b".repeat(32))).not.toContain("?md5=");
   });
+  it("monitors new Gallery redirect CDN using its new signing key and marks Gallery 499 failed", async () => {
+    const current=monitorConfigFromEnv({
+      GALLERY_CDN_BASE_URL:"https://dikinuneceswe.begetcdn.cloud",
+      GALLERY_CDN_REDIRECT_ENABLED:"true",
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET:"N".repeat(32),
+      GALLERY_CDN_SECRET:"OLD_SIGNING_KEY_SHOULD_NOT_BE_USED",
+      GALLERY_ENABLED:"true",GALLERY_MEDIA_FALLBACK_ENABLED:"true",
+      GALLERY_S3_ENDPOINT:"https://s3.cloud.ru",GALLERY_CDN_PROVIDER:"beget",
+    });
+    expect(current.gallery.host).toBe("dikinuneceswe.begetcdn.cloud");
+    expect(current.gallery.enabled).toBe(true);
+    expect(current.gallery.secret).toBe("N".repeat(32));
+    const url=createSignedMonitorUrl("gallery",current,now,"a".repeat(32));
+    expect(url).toMatch(/^https:\/\/dikinuneceswe\.begetcdn\.cloud\/md5\(/);
+    expect(url).not.toContain("OLD_SIGNING_KEY");
+    expect(await probeMediaCdn("gallery",current,async()=>new Response(null,{status:499}),now)).toBe("failed");
+    expect(await probeMediaCdn("gallery",current,async()=>new Response(null,{status:403}),now)).toBe("unknown");
+    expect(await probeMediaCdn("gallery",current,async()=>new Response(null,{status:404}),now)).toBe("healthy");
+    expect(monitorConfigFromEnv({
+      GALLERY_CDN_BASE_URL:"https://mepsuduyokabib.begetcdn.cloud",
+      GALLERY_CDN_REDIRECT_ENABLED:"true",GALLERY_CDN_REDIRECT_SIGNING_SECRET:"N".repeat(32),
+      GALLERY_ENABLED:"true",GALLERY_MEDIA_FALLBACK_ENABLED:"true",GALLERY_S3_ENDPOINT:"https://s3.cloud.ru",
+    }).gallery.host).toBe("");
+  });
   it("treats 404 for a freshly signed nonexistent object as healthy, 504/5xx as failed", async () => {
     for (const [status, result] of [[404, "healthy"], [504, "failed"], [503, "failed"],
       [403, "unknown"], [302, "unknown"], [200, "unknown"]] as const) {

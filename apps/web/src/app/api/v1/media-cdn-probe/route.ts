@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie" };
 const legacyHosts = ["mepsuduyokabib.begetcdn.cloud", "garaquachegasourn.begetcdn.cloud"] as const;
+const newGalleryHost = "dikinuneceswe.begetcdn.cloud" as const;
 
 /** Same-origin status proxy: browser cannot read CORS-blocked CDN 504 via HEAD.
  * Strict URL allowlist + authentication avoids SSRF; no response body is
@@ -21,7 +22,10 @@ export async function GET(request: Request): Promise<Response> {
   const publicFeed = process.env.FEED_BUCKET_PUBLIC === "true"
     ? /^https:\/\/([a-z0-9-]+\.begetcdn\.cloud)$/.exec(process.env.FEED_CDN_BASE_URL ?? "")?.[1]
     : undefined;
-  const allowedHosts = publicFeed ? [...legacyHosts, publicFeed] : legacyHosts;
+  const allowedHosts = [...legacyHosts,
+    ...(process.env.GALLERY_CDN_REDIRECT_ENABLED === "true" ? [newGalleryHost] : []),
+    ...(publicFeed ? [publicFeed] : []),
+  ];
   if (!isTrustedCdnProbeUrl(target, allowedHosts))
     return new Response(null, { status: 400, headers });
   try {

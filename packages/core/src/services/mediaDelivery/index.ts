@@ -4,7 +4,7 @@ export function isCdnOutage(input: { status?: number; timedOut?: boolean; networ
   return input.timedOut === true || input.networkFailed === true;
 }
 /** Per-client, per-CDN circuit breaker. Does not store S3 URLs or authorization grants.
- * Only a confirmed 5xx on our signed CDN URL can open it. After 60 seconds,
+ * Only a confirmed 5xx (or Gallery 499) on our signed CDN URL can open it. After 60 seconds,
  * the next media request retries the CDN; 403/404 never open the circuit.
  */
 export type MediaCdnKind = 'gallery' | 'feed';
@@ -29,7 +29,7 @@ export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
         /^\/posts\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/attachments\/[A-Za-z0-9_-]+\/hls\/segment-[0-9]{3,5}\.ts$/.test(path)
         ? 'feed' : null;
     }
-    const gallery = url.hostname === 'mepsuduyokabib.begetcdn.cloud';
+    const gallery = ['mepsuduyokabib.begetcdn.cloud', 'dikinuneceswe.begetcdn.cloud'].includes(url.hostname);
     const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
     if (!gallery && !feed || url.search) return null;
     const path = url.pathname.replace(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/, '');
@@ -72,7 +72,10 @@ export async function probeCdnOutage(
     const response = await (options.fetcher ?? fetch)(url, {
       method: 'HEAD', signal: controller.signal, cache: 'no-store', credentials: 'omit', redirect: 'error',
     });
-    const outage = isCdnOutage({ status: response.status });
+    // Beget can surface a disconnected origin as HTTP 499.
+    // Only the exact signed Gallery final-object URL may use fallback.
+    const outage = isCdnOutage({ status: response.status }) ||
+      (response.status === 499 && mediaCdnKindFromSignedUrl(url) === 'gallery');
     // Cache only verified 5xx. Native network failures and browser CORS errors
     // are ambiguous; their one-request fallback must not poison all media.
     if (outage) recordSignedCdnOutage(url);
@@ -127,16 +130,16 @@ export function isTrustedCdnProbeUrl(
     // No redirects, nonstandard ports or query params can reach the proxy.
     return mediaCdnKindFromSignedUrl(raw) === 'feed';
   }
-  if (!['mepsuduyokabib.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
+  if (!['mepsuduyokabib.begetcdn.cloud', 'dikinuneceswe.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
     return false;
-  const match = /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|posts)\/[A-Za-z0-9_/-]+\.(?:webp|ts))$/.exec(url.pathname);
+  const match = /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|posts|users)\/[A-Za-z0-9_/-]+\.(?:webp|ts))$/.exec(url.pathname);
   if (!match) return false;
   const signature = match[1]!;
   const expiresRaw = match[2]!;
   const path = match[3]!;
   if (mediaCdnKindFromSignedUrl(raw) === null) return false;
   const expires = Number(expiresRaw);
-  return /^\/(?:albums|posts)\/[A-Za-z0-9_/-]+\.(?:webp|ts)$/.test(path) &&
+  return /^\/(?:albums|posts|users)\/[A-Za-z0-9_/-]+\.(?:webp|ts)$/.test(path) &&
     /^[A-Za-z0-9_-]{22}$/.test(signature) && /^\d{10}$/.test(expiresRaw) &&
     Number.isSafeInteger(expires) && expires > Math.floor(nowMs / 1000) - 120 &&
     expires <= Math.floor(nowMs / 1000) + 600;

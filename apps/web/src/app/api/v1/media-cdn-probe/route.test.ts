@@ -36,6 +36,26 @@ describe("authenticated Web CDN status proxy (no storage URL disclosed)", () => 
     vi.stubEnv("FEED_BUCKET_PUBLIC", "false");
     expect((await GET(request(url))).status).toBe(400);
   });
+  it("probes only the new signed Gallery CDN when its production cutover is enabled", async () => {
+    const gallery = `https://dikinuneceswe.begetcdn.cloud/md5(${"A".repeat(22)},${Math.floor(Date.now()/1000)+85})/albums/owner/album/photos/item/full.webp`;
+    const vet = gallery.replace("/albums/owner/album/photos/item/full.webp",
+      "/users/owner/pets/pet/vet-visits/visit/item/thumb.webp");
+    const f=vi.fn(async()=>new Response(null,{status:499}));
+    vi.stubGlobal("fetch",f);
+    expect((await GET(request(gallery))).status).toBe(400);
+    expect(f).not.toHaveBeenCalled();
+    vi.stubEnv("GALLERY_CDN_REDIRECT_ENABLED","true");
+    for(const url of [gallery,vet]) {
+      expect((await GET(request(url))).status).toBe(499);
+      expect(f).toHaveBeenCalledWith(url,expect.objectContaining({method:"HEAD",redirect:"manual",credentials:"omit"}));
+    }
+    f.mockClear();
+    for (const bad of [gallery+"?token=1",gallery.replace("dikinuneceswe.begetcdn.cloud","evil.begetcdn.cloud"),
+      gallery.replace("full.webp","original.jpg"),gallery.replace("/photos/item/","/incoming/item/")]) {
+      expect((await GET(request(bad))).status).toBe(400);
+    }
+    expect(f).not.toHaveBeenCalled();
+  });
   it("passes 403 and 404 exactly, preserves 504 without bypass", async () => {
     for(const code of [200,403,404,504]){
       const f=vi.fn(async()=>new Response(null,{status:code})); vi.stubGlobal("fetch",f);

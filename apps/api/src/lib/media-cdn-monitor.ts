@@ -78,6 +78,8 @@ const publicFeedHealthKey = (value: string): string =>
 export function monitorConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): MonitorConfig {
+  const galleryNewCdn = env.GALLERY_CDN_REDIRECT_ENABLED === "true";
+  const galleryHost = galleryNewCdn ? "dikinuneceswe.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud";
   const feedPublic = env.FEED_BUCKET_PUBLIC === "true";
   const feedHost = feedPublic
     ? publicFeedHost(env.FEED_CDN_BASE_URL ?? "")
@@ -86,11 +88,11 @@ export function monitorConfigFromEnv(
   const feedHealthKey = feedPublic ? publicFeedHealthKey(env.FEED_CDN_HEALTH_OBJECT_KEY ?? "") : "";
   return {
     gallery: {
-      host: env.GALLERY_CDN_BASE_URL === "https://mepsuduyokabib.begetcdn.cloud" &&
+      host: env.GALLERY_CDN_BASE_URL === `https://${galleryHost}` &&
         (!env.GALLERY_CDN_PROVIDER || env.GALLERY_CDN_PROVIDER === "beget")
-        ? "mepsuduyokabib.begetcdn.cloud" : "",
+        ? galleryHost : "",
       provider: "beget",
-      secret: env.GALLERY_CDN_SECRET ?? "",
+      secret: (galleryNewCdn ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : env.GALLERY_CDN_SECRET) ?? "",
       enabled: env.GALLERY_ENABLED === "true" &&
         env.GALLERY_MEDIA_FALLBACK_ENABLED === "true" &&
         env.GALLERY_S3_ENDPOINT === "https://s3.cloud.ru",
@@ -129,7 +131,9 @@ export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
     : `posts/__cdn_monitor__/__cdn_monitor__/attachments/${id}/thumb.webp`;
   const path = `/${key}`;
   const expires = Math.floor(now / 1000) + 90;
-  if (provider !== "beget" || host !== (kind === "gallery" ? "mepsuduyokabib.begetcdn.cloud" : "garaquachegasourn.begetcdn.cloud"))
+  if (provider !== "beget" || (kind === "gallery"
+    ? !["mepsuduyokabib.begetcdn.cloud", "dikinuneceswe.begetcdn.cloud"].includes(host)
+    : host !== "garaquachegasourn.begetcdn.cloud"))
     return null;
   const md5 = createHash("md5").update(`${secret}${path}${expires}`).digest("base64url");
   return `https://${host}/md5(${md5},${expires})${path}`;
@@ -145,7 +149,8 @@ export async function probeMediaCdn(kind: Kind, config: MonitorConfig,
       signal: AbortSignal.timeout(7_500),
     });
     void response.body?.cancel();
-    if (response.status >= 500 && response.status <= 599) return "failed";
+    if ((response.status >= 500 && response.status <= 599) ||
+        (kind === "gallery" && response.status === 499)) return "failed";
     if (kind === "feed" && config.feed.publicRead) {
       // A nonexistent object might return 403 without ListBucket. Only a real,
       // known public fixture returning WebP is positive S3/CDN evidence.
