@@ -30,7 +30,7 @@ assert.equal(new Set(jobs.map(job => job.name)).size, 6);
 const galleryJobs = jobs.filter(job => /^gafus-gallery-process(?:-2)?$/.test(job.name));
 assert.equal(galleryJobs.length, 2);
 for (const job of galleryJobs)
-  assert.deepEqual(job.template.containers[0].resources, {cpu:"1",memory:"1024Mi"});
+  assert.deepEqual(job.template.containers[0].resources, {cpu:"1",memory:"2048Mi"});
 assert.deepEqual(galleryJobs[0].template.containers[0].resources,
   galleryJobs[1].template.containers[0].resources);
 assert.equal(galleryJobs[0].template.containers[0].image,
@@ -47,7 +47,7 @@ for (const kind of ["photo", "video"]) {
   assert.deepEqual(pool[0].template.containers[0].resources, pool[1].template.containers[0].resources);
   assert.equal(pool[0].template.containers[0].image, pool[1].template.containers[0].image);
   if (kind === "photo") for (const job of pool)
-    assert.deepEqual(job.template.containers[0].resources, {cpu:"1",memory:"1024Mi"});
+    assert.deepEqual(job.template.containers[0].resources, {cpu:"1",memory:"2048Mi"});
   if (kind === "video") for (const job of pool) {
     assert.equal(job.template.containers[0].resources.cpu, "4");
     assert.equal(job.template.containers[0].resources.memory, "4096Mi");
