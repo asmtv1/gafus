@@ -57,7 +57,7 @@ describe("feed HLS processor rules", () => {
     });
     const option = (flag: string) => args[args.indexOf(flag) + 1];
     expect(option("-preset")).toBe("superfast");
-    expect(option("-threads")).toBe("4");
+    expect(option("-threads")).toBe("2");
     expect(option("-c:v")).toBe("libx264");
     expect(option("-c:a")).toBe("aac");
     expect(option("-profile:v")).toBe("main");
