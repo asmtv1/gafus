@@ -26,9 +26,45 @@ export function allowLegacyPublicFeedSmokeMiss(publicRead, key, digest, cacheSta
 const status = (response, expected, code) => {
   if (response.status !== expected) throw new Error(`${code}_${response.status}`);
 };
-const fetchSafe = async (url, options = {}) => fetch(url, {
-  ...options, redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(12_000),
-});
+// Read-only CDN requests may hit intermittent TLS/connect timeouts at the edge.
+// Retry ONLY transport errors (never an HTTP response, bad signature, wrong
+// bytes/SHA256, wrong Cache-Control, or missing cache HIT). Keep URLs/signing
+// tokens entirely out of retry logs.
+export function isRetryableSmokeTransportError(error) {
+  if (error?.name === 'TimeoutError') return true;
+  if (error?.name !== 'TypeError') return false;
+  return new Set(['UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_SOCKET',
+    'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'EPIPE', 'EHOSTUNREACH', 'ENETUNREACH'])
+    .has(error.cause?.code);
+}
+export async function fetchSafe(url, options = {}, http = fetch,
+  pause = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await http(url, {
+        ...options, redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(12_000),
+      });
+      // Undici can receive HTTP headers successfully, then time out while
+      // downloading the WebP body. Buffer successful GETs inside this same
+      // retry boundary; keep every status and header for the strict checks.
+      if ((options.method === undefined || options.method === 'GET') &&
+          (response.status === 200 || response.status === 206) &&
+          response instanceof Response) {
+        const body = await response.arrayBuffer();
+        return new Response(body, { status: response.status, headers: response.headers });
+      }
+      return response;
+    } catch (error) {
+      if (attempt === maxAttempts || !isRetryableSmokeTransportError(error)) throw error;
+      // Never log the signed URL, response body, tokens, or headers.
+      console.warn('BEGET_SMOKE_TRANSPORT_RETRY', JSON.stringify({
+        method: options.method ?? 'GET', nextAttempt: attempt + 1, maxAttempts,
+      }));
+      await pause(350 * attempt);
+    }
+  }
+}
 const token = (secret, path, expiry) => createHash('md5')
   .update(`${secret}${path}${expiry}`).digest('base64url');
 export function smokeSignedUrl(host, path, secret, expiry) {
