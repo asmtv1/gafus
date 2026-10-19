@@ -66,8 +66,8 @@ exec "$@"
       encoding: "utf8",
       timeout: 15000,
     });
-    const count = readFileSync(join(dir, "counter"), "utf8").trim();
-    const argumentLog = readFileSync(join(dir, "arguments"), "utf8");
+    const count = readFileSyncOrEmpty(join(dir, "counter")).trim();
+    const argumentLog = readFileSyncOrEmpty(join(dir, "arguments"));
     const delays =
       result.status === 0 || result.status === 1
         ? readFileSyncOrEmpty(join(dir, "sleeps")).trim().split("\n").filter(Boolean)
@@ -119,19 +119,12 @@ test("stalled layer upload retries after the bounded attempt times out", () => {
   assert.deepEqual(timeouts, ["9000s", "9000s"]);
 });
 
-test("Feed worker publishes a complete OCI index through its checked uploader", () => {
-  const { result, argumentLog, timeouts } = run("success", ["feed", "worker", "Dockerfile", revision]);
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(argumentLog, /--output type=oci,dest=/);
-  assert.doesNotMatch(argumentLog, /--push/);
-  assert.match(argumentLog, /ci-cd\/scripts\/upload-cloudru-oci.py/);
-  assert.match(argumentLog, new RegExp("gafus.cr.cloud.ru/gafus-feed-worker:" + revision));
-  assert.deepEqual(timeouts, ["30m", "200m"]);
-});
-
-test("Feed OCI publication fails closed on upload error", () => {
-  const { result } = run("copy-failure", ["feed", "worker", "Dockerfile", revision]);
-  assert.notEqual(result.status, 0);
+test("Feed direct Cloud.ru publication is blocked; private GHCR production relay is mandatory", () => {
+  const { result, count, argumentLog } = run("success", ["feed", "worker", "Dockerfile", revision]);
+  assert.equal(result.status, 2);
+  assert.equal(count, 0);
+  assert.equal(argumentLog, "");
+  assert.match(result.stderr, /FEED_REQUIRES_PRIVATE_GHCR_PRODUCTION_RELAY/);
   assert.doesNotMatch(result.stdout, /Cloud.ru image published/);
 });
 

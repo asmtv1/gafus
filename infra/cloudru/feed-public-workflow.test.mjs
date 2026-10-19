@@ -120,8 +120,14 @@ test('normal push never publishes images, and separate manual release has only t
 
 test('one-push registry time budgets match the proven long Cloud.ru uploads', () => {
   const script = readFileSync('ci-cd/scripts/publish-cloudru-image.sh', 'utf8');
-  assert.match(script, /timeout --kill-after=30s 30m docker buildx build/);
-  assert.match(script, /timeout --kill-after=30s 200m python3 ci-cd\/scripts\/upload-cloudru-oci\.py/);
+  assert.doesNotMatch(script, /upload-cloudru-oci\.py/);
+  assert.match(script, /--push/);
+  // FFmpeg is published through private GHCR and production-host relay,
+  // not through the previous OCI PATCH upload that lost its 175 MiB layer.
+  assert.match(script, /FEED_REQUIRES_PRIVATE_GHCR_PRODUCTION_RELAY/);
+  const relay=parse('.github/workflows/cloudru-media-images.yml').jobs.build.steps;
+  assert.ok(relay.some(x=>x.name?.startsWith('Publish Feed revision to private GHCR')));
+  assert.ok(relay.some(x=>x.name?.startsWith('Transfer Feed GHCR image')));
   assert.match(script, /release_budget_seconds=\$\(\(320 \* 60\)\)/);
   assert.match(script, /attempt_seconds=\$\(\(remaining < 150 \* 60/);
   assert.match(script, /timeout --kill-after=30s "\$\{attempt_seconds\}s" docker buildx build/);

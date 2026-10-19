@@ -12,6 +12,12 @@ case "${media}:${role}:${dockerfile}" in
   gallery:worker:Dockerfile|feed:worker:Dockerfile|questions:worker:Dockerfile) ;;
   *) echo "Invalid Cloud.ru image selector" >&2; exit 2 ;;
 esac
+# Feed's large FFmpeg image must be relayed via private GHCR and the
+# production host; never retry the Cloud.ru direct upload that returns 404.
+if [[ "$media:$role" == feed:worker ]]; then
+  echo "FEED_REQUIRES_PRIVATE_GHCR_PRODUCTION_RELAY" >&2
+  exit 2
+fi
 if [[ ! "${revision}" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Invalid immutable image revision" >&2
   exit 2
@@ -21,27 +27,10 @@ tag="gafus.cr.cloud.ru/gafus-${media}-${role}:${revision}"
 log_file="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-build.XXXXXXXX")"
 trap 'rm -f -- "$log_file"' EXIT
 
-# Feed worker requires a bounded independent OCI uploader for its large ffmpeg layers.
-# Gallery worker uses the previously successful Docker Buildx publication path.
-if [[ "$media:$role" == feed:worker ]]; then
-  archive="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-feed.XXXXXXXX.tar")"
-  trap 'rm -f -- "$log_file" "$archive"' EXIT
-  # The OCI archive is local work; its time limit must not restrict network transfer.
-  timeout --kill-after=30s 30m docker buildx build \
-    --file "apps/${media}-cloud/${dockerfile}" --platform linux/amd64 \
-    --tag "$tag" --provenance=true --progress=plain \
-    --output "type=oci,dest=$archive" .
-  # The previous successful Feed worker push spent ~75 minutes uploading layers.
-  # Allow over 2.5x this duration for interrupted/reconciled chunk uploads.
-  timeout --kill-after=30s 200m python3 ci-cd/scripts/upload-cloudru-oci.py "$archive" "$tag"
-  echo "Cloud.ru image published: gafus-${media}-${role}"
-  exit 0
-fi
-
-# Gallery worker successfully took ~20 minutes to upload even when healthy.
-# Allow up to 150 minutes for any single Docker/Registry attempt, but keep a
-# separate, generous 320-minute TOTAL budget for quick transient retries.
-# The GitHub job limit is 350 minutes, leaving cleanup/runner overhead.
+# Native Buildx publication is retained for Gallery and Questions only.
+# Feed exits above and is relayed from private GHCR by the manual workflow.
+# Fail closed on unknown non-transient Registry responses; never re-use an
+# unverified mutable tag or silently fall back to OCI PATCH.
 release_budget_seconds=$((320 * 60))
 release_started_at=$SECONDS
 for attempt in 1 2 3 4; do

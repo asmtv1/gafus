@@ -70,6 +70,18 @@ test('normal GitHub CI never builds, pushes, patches or provisions Cloud.ru jobs
   const manual=yaml.parse(readFileSync('.github/workflows/cloudru-media-images.yml','utf8'));
   assert.equal(manual.jobs.build.environment,'production');
   assert.deepEqual(manual.jobs.build.strategy.matrix.include.map(x=>x.media),['feed','gallery','questions']);
+  assert.deepEqual(manual.on.workflow_dispatch.inputs.media.options, ['all','feed','gallery','questions']);
+  for (const step of manual.jobs.build.steps) {
+    if (step.name?.includes('Authenticate to private Cloud.ru') ||
+        step.name?.includes('Report independently pinned')) {
+      assert.match(step.if, /inputs.media == matrix.media/);
+    }
+  }
+  assert.equal(manual.permissions.packages, 'write');
+  const feedRelay=manual.jobs.build.steps.find(x=>x.name?.startsWith('Transfer Feed GHCR image'));
+  assert.ok(feedRelay);
+  assert.match(feedRelay.if, /matrix.media == 'feed'/);
+  assert.match(feedRelay.uses, /^appleboy\/ssh-action@/);
   const apply=yaml.parse(readFileSync('.github/workflows/cloudru-apply-worker-pins.yml','utf8'));
   assert.match(apply.jobs['apply-pins'].if,/approved|apply-reviewed-worker-pins/);
   assert.ok(apply.jobs['apply-pins'].steps.some(x=>x.run==='node infra/cloudru/production-media-release.mjs --prepare'));
