@@ -3,6 +3,9 @@ import { connection } from "./redis.js";
 
 /** Wake-ups only: authoritative media jobs and their leases are stored in Core. */
 export const FEED_PROCESSING_QUEUE_NAME = "feed-processing-trigger";
+// FeedUpload.id is a Prisma CUID (not a UUID). Match Core's feedIdSchema.
+export const isFeedUploadId = (value: unknown): value is string =>
+  typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 export type FeedProcessingKind = "photo" | "video";
 export interface FeedProcessingJobData {
   uploadId: string;
@@ -19,7 +22,7 @@ export async function enqueueFeedProcessing(
   uploadId: string,
   kind: FeedProcessingKind,
 ): Promise<void> {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uploadId) ||
+  if (!isFeedUploadId(uploadId) ||
       (kind !== "photo" && kind !== "video")) throw new Error("INVALID_FEED_PROCESSING_TRIGGER");
   await feedProcessingQueue.add(
     "process",

@@ -34,6 +34,7 @@ export {
   feedProcessingQueue,
   enqueueFeedProcessing,
   FEED_PROCESSING_QUEUE_NAME,
+  isFeedUploadId,
 } from "./feed-processing-queue.js";
 export type { FeedProcessingJobData, FeedProcessingKind } from "./feed-processing-queue.js";
 

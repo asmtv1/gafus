@@ -93,6 +93,36 @@ describe("Cloud.ru durable media job trigger", () => {
     expect(await dispatch()).toEqual({ dispatched: 1 });
     expect(launched[1]).toContain("/gafus-feed-video-2:execute");
   });
+  it("keeps Feed video recovery running when Gallery responds 499", async () => {
+    const launched: string[] = [];
+    const req = vi.fn(async (url: string) => {
+      if (url.includes("auth/token"))
+        return { ok: true, status: 200, json: async () => ({ access_token: "test-token" }) };
+      launched.push(url);
+      return { ok: !url.includes("gallery-process"), status: url.includes("gallery-process") ? 499 : 200 };
+    });
+    const dispatch = createCloudruMediaDispatcher(env, req as never);
+    await expect(dispatch()).rejects.toThrow("CLOUDRU_JOB_EXECUTION_FAILED_gafus-gallery-process_499");
+    expect(launched.map(url => url.split("/").pop())).toEqual([
+      "gafus-gallery-process:execute",
+      "gafus-feed-photo:execute",
+      "gafus-feed-video:execute",
+    ]);
+  });
+  it("keeps Feed video recovery running when Gallery network request rejects", async () => {
+    const launched: string[] = [];
+    const req = vi.fn(async (url: string) => {
+      if (url.includes("auth/token"))
+        return { ok: true, status: 200, json: async () => ({ access_token: "test-token" }) };
+      launched.push(url);
+      if (url.includes("gallery-process")) throw new Error("provider timeout");
+      return { ok: true, status: 200 };
+    });
+    await expect(createCloudruMediaDispatcher(env, req as never)())
+      .rejects.toThrow("provider timeout");
+    expect(launched).toHaveLength(3);
+    expect(launched[2]).toContain("gafus-feed-video:execute");
+  });
   it("does not report completed release if any job trigger fails", async () => {
     const req = vi.fn(async (url: string) => {
       if (url.includes("auth/token"))

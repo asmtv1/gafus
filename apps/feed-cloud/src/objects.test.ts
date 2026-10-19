@@ -29,6 +29,49 @@ describe("Feed final-object S3 metadata", () => {
       CacheControl: expected, ContentType: "image/webp", IfNoneMatch: "*" });
     expect(send).toHaveBeenCalledTimes(2);
   });
+  it("skips redundant HEAD after a verified immutable HLS segment PUT", async () => {
+    const segmentKey = "posts/owner/post/attachments/media/hls/segment-000.ts";
+    const send = vi.spyOn(S3Client.prototype, "send").mockImplementation((async (cmd: unknown) => {
+      if (cmd instanceof PutObjectCommand) return { ETag: etag };
+      throw new Error("REDUNDANT_HEAD");
+    }) as never);
+    await createFeedCloudObjects(env).create(segmentKey, bytes, "video/mp2t", new AbortController().signal);
+    expect(send).toHaveBeenCalledTimes(1);
+    const put = send.mock.calls[0]![0] as PutObjectCommand;
+    expect(put.input).toMatchObject({ Key: segmentKey, IfNoneMatch: "*", ContentType: "video/mp2t",
+      ContentMD5: createHash("md5").update(bytes).digest("base64") });
+  });
+  it("retains HEAD integrity checks on conflicting or ambiguous uploads", async () => {
+    const segmentKey = "posts/owner/post/attachments/media/hls/segment-001.ts";
+    for (const mode of ["missing_etag", "different_etag", "conflict_412"] as const) {
+      const send = vi.spyOn(S3Client.prototype, "send").mockImplementation((async (cmd: unknown) => {
+        if (cmd instanceof PutObjectCommand) {
+          if (mode === "conflict_412") throw { $metadata: { httpStatusCode: 412 } };
+          return { ETag: mode === "missing_etag" ? undefined : '"another-etag"' };
+        }
+        if (cmd instanceof HeadObjectCommand) return {
+          ETag: etag, ContentLength: bytes.length, ContentType: "video/mp2t",
+        };
+        throw new Error("UNEXPECTED_S3_COMMAND");
+      }) as never);
+      await createFeedCloudObjects(env).create(segmentKey, bytes, "video/mp2t", new AbortController().signal);
+      expect(send).toHaveBeenCalledTimes(2);
+      send.mockRestore();
+    }
+  });
+  it("rejects tampered HLS segment metadata after a conflicting PUT", async () => {
+    const send = vi.spyOn(S3Client.prototype, "send").mockImplementation((async (cmd: unknown) => {
+      if (cmd instanceof PutObjectCommand) throw { $metadata: { httpStatusCode: 409 } };
+      if (cmd instanceof HeadObjectCommand) return {
+        ETag: etag, ContentLength: bytes.length, ContentType: "image/webp",
+      };
+      throw new Error("UNEXPECTED_S3_COMMAND");
+    }) as never);
+    await expect(createFeedCloudObjects(env).create(
+      "posts/owner/post/attachments/media/hls/segment-002.ts", bytes, "video/mp2t", new AbortController().signal,
+    )).rejects.toThrow("IMMUTABLE_CONFLICT");
+    expect(send).toHaveBeenCalledTimes(2);
+  });
   it("streams a bounded conditional photo GET directly into memory", async () => {
     const signal = new AbortController().signal;
     const send = vi.spyOn(S3Client.prototype, "send").mockImplementation((async (cmd: unknown) => {

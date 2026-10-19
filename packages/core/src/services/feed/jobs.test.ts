@@ -165,6 +165,23 @@ describe("feed processing job lease and fencing", () => {
     }));
     expect(tx.feedMediaAsset.updateMany).toHaveBeenCalled();
   });
+  it("preserves classified Feed Worker error codes in Core and media state", async () => {
+    const code = "VIDEO_DOWNLOAD_S3_ACCESS_DENIED";
+    const active = mockDb({ attempts: 1 });
+    expect(await active.worker.fail(job.id, job.attemptToken, code)).toEqual({ accepted: true });
+    expect(active.updates).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "pending", errorCode: code }),
+    }));
+    const exhausted = mockDb({ attempts: 5 });
+    expect(await exhausted.worker.fail(job.id, job.attemptToken, code))
+      .toEqual({ accepted: true });
+    expect(exhausted.updates).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "failed", errorCode: code }),
+    }));
+    expect(exhausted.tx.feedMediaAsset.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "failed", errorCode: code } }),
+    );
+  });
   it("retries failed processing with backoff and stops after five attempts", async () => {
     const low = mockDb();
     expect(await low.worker.fail(job.id, job.attemptToken)).toEqual({ accepted: true });

@@ -1,4 +1,4 @@
-import { connection, FEED_PROCESSING_QUEUE_NAME } from "@gafus/queues";
+import { connection, FEED_PROCESSING_QUEUE_NAME, isFeedUploadId } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { Worker, type Job } from "bullmq";
 import { createCloudruFeedPoolDispatcher } from "./cloudru-media-dispatcher";
@@ -35,8 +35,7 @@ export function startFeedProcessingTriggerWorker(): void {
   const worker = new Worker<FeedJob>(
     FEED_PROCESSING_QUEUE_NAME,
     async (job: Job<FeedJob>) => {
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidPattern.test(job.data.uploadId))
+      if (!isFeedUploadId(job.data.uploadId))
         throw new Error("INVALID_FEED_UPLOAD_ID");
       if (job.data.kind !== "photo" && job.data.kind !== "video")
         throw new Error("INVALID_FEED_PROCESSING_KIND");

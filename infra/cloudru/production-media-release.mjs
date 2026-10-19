@@ -132,7 +132,7 @@ for (const x of resources) {
     const value =
       item.name === "FEED_RUN_ONCE"
         ? "true"
-        : item.name === "FEED_WORKER_TYPE"
+        : item.name === "FEED_WORKER_TYPE" || item.name === "FEED_JOB_NAME"
           ? item.value
           : values[item.name];
     if (value == null) throw Error("UNBOUND_MEDIA_ENV_" + item.name);
@@ -244,7 +244,7 @@ for (const group of groups) {
           const currentEnv = current.template.containers[0].env ?? [];
           const expectedEnv = item.template.containers[0].env ?? [];
           for (const name of ["FEED_BUCKET_PUBLIC", "FEED_BUCKET", "FEED_S3_ENDPOINT",
-            "FEED_RUN_ONCE", "FEED_WORKER_TYPE"]) {
+            "FEED_RUN_ONCE", "FEED_WORKER_TYPE", "FEED_JOB_NAME"]) {
             const actual = currentEnv.find((env) => env.name === name)?.value;
             const expected = expectedEnv.find((env) => env.name === name)?.value;
             if (expected == null || actual !== expected)

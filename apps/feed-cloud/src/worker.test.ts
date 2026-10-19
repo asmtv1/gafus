@@ -176,6 +176,29 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     await expect(worker.process({ ...job(), sourceKeys: ["posts/other/post/incoming/upload/source.jpg"] })).rejects.toThrow("UNTRUSTED_CLAIM");
     expect(objects.download).not.toHaveBeenCalled(); expect(objects.read).not.toHaveBeenCalled(); expect(core.completeJob).not.toHaveBeenCalled();
   });
+  it("persists stage-specific S3 errors without leaking provider messages into logs", async () => {
+    const { core, objects } = setup(Buffer.from("video"));
+    const error = Object.assign(new Error("private-url-and-secret-should-not-log"), {
+      name: "AccessDenied", $metadata: { httpStatusCode: 403 },
+    });
+    vi.mocked(objects.download).mockRejectedValueOnce(error);
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const worker = createFeedCloudWorker({
+        core, objects, engine: sharpFeedEngine,
+        trace: { invocationId: "12345678-1234-4234-8234-123456789012",
+          jobName: "gafus-feed-video-2" },
+      });
+      await expect(worker.process({ ...job("publish_video"),
+        sourceKeys: ["posts/owner/post/incoming/upload/source.mp4"] })).rejects.toBe(error);
+      expect(core.failJob).toHaveBeenCalledWith("job", expect.any(String),
+        "VIDEO_DOWNLOAD_S3_ACCESS_DENIED");
+      const records = err.mock.calls.map(args => String(args[0])).join(" ");
+      expect(records).toContain("VIDEO_DOWNLOAD_S3_ACCESS_DENIED");
+      expect(records).toContain("gafus-feed-video-2");
+      expect(records).not.toContain("private-url");
+    } finally { err.mockRestore(); }
+  });
   it("rejects corrupt image bytes and records a failed attempt", async () => {
     const { worker, core, written } = setup(new Uint8Array([1, 2, 3]));
     await expect(worker.process(job())).rejects.toThrow("INVALID_IMAGE");
@@ -211,7 +234,7 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
       ...job("delete_keys"), sourceKeys: ["posts/owner/post/attachments/media/full.webp"],
     })).rejects.toThrow("S3 temporarily unavailable");
     expect(core.completeJob).not.toHaveBeenCalled();
-    expect(core.failJob).toHaveBeenCalledWith("job", expect.any(String), "MEDIA_PROCESSING_FAILED");
+    expect(core.failJob).toHaveBeenCalledWith("job", expect.any(String), "CLEANUP_DELETE_UNKNOWN");
   });
   it("cleanup can delete only feed keys and requires a live lease", async () => {
     const { worker, objects } = setup(new Uint8Array());

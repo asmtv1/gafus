@@ -9,7 +9,7 @@ import { enqueueFeedProcessing, FEED_PROCESSING_QUEUE_NAME } from "./feed-proces
 describe("Feed Cloud.ru immediate queue", () => {
   it.each(["photo", "video"] as const)("queues deduplicated %s trigger with retries", async kind => {
     add.mockClear();
-    const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+    const uploadId = "cmvfdi1tabcd0123456789012";
     await enqueueFeedProcessing(uploadId, kind);
     await enqueueFeedProcessing(uploadId, kind);
     expect(FEED_PROCESSING_QUEUE_NAME).toBe("feed-processing-trigger");
@@ -24,6 +24,12 @@ describe("Feed Cloud.ru immediate queue", () => {
       },
     ]);
     expect(add.mock.calls[1]?.[2]?.jobId).toBe(add.mock.calls[0]?.[2]?.jobId);
+  });
+  it("supports legacy UUID upload IDs", async () => {
+    add.mockClear();
+    const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+    await enqueueFeedProcessing(uploadId, "video");
+    expect(add).toHaveBeenCalledWith("process", { uploadId, kind: "video" }, expect.any(Object));
   });
   it("rejects invalid IDs and media kinds", async () => {
     add.mockClear();

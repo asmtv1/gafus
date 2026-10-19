@@ -62,6 +62,45 @@ describe("feed cloud signed internal HTTP client", () => {
     const fetcher = vi.fn(async () => ok("a".repeat(65_537))) as unknown as typeof fetch;
     await expect(client(fetcher).maintenance(1)).rejects.toThrow("FEED_INTERNAL_RESPONSE_TOO_LARGE");
   });
+  it("safely retries one legacy HTTP 400 with a newly signed trace-free claim", async () => {
+    const trace = { invocationId: "5a246b04-64c4-4a0e-a3cc-e3f38f4f2fb0",
+      jobName: "gafus-feed-video-2" };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 400 }))
+      .mockResolvedValueOnce(ok([])) as unknown as typeof fetch;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const traced = createFeedCloudInternalClient({ baseUrl: origin, key, trace, fetcher });
+      expect(await traced.claimJobs(1, "video")).toEqual([]);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      const bodies = vi.mocked(fetcher).mock.calls.map(call =>
+        JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
+      expect(bodies[0]).toHaveProperty("trace");
+      expect(bodies[1]).not.toHaveProperty("trace");
+      const nonces = vi.mocked(fetcher).mock.calls.map(call =>
+        (call[1]?.headers as Record<string, string>)["x-feed-nonce"]);
+      expect(nonces[0]).not.toEqual(nonces[1]);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("trace_compatibility_retry");
+    } finally { warn.mockRestore(); }
+  });
+  it("sends the same signed trace with claim and fail callbacks", async () => {
+    const trace = {
+      invocationId: "5a246b04-64c4-4a0e-a3cc-e3f38f4f2fb0",
+      jobName: "gafus-feed-video-2",
+      executionId: "0006_qu2dx",
+    };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(ok([]))
+      .mockResolvedValueOnce(ok({ accepted: true })) as unknown as typeof fetch;
+    const traced = createFeedCloudInternalClient({ baseUrl: origin, key, trace, fetcher });
+    expect(await traced.claimJobs(1, "video")).toEqual([]);
+    expect(await traced.failJob("job", "attempt", "VIDEO_DOWNLOAD_S3_ACCESS_DENIED"))
+      .toEqual({ accepted: true });
+    const payloads = vi.mocked(fetcher).mock.calls.map(call =>
+      JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
+    expect(payloads[0]).toMatchObject({ workerType: "video", trace });
+    expect(payloads[1]).toMatchObject({ code: "VIDEO_DOWNLOAD_S3_ACCESS_DENIED", trace });
+  });
   it("sends failure and maintenance commands with bounded JSON", async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(ok({ accepted: false }))

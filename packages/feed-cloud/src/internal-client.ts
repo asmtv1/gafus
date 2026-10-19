@@ -15,6 +15,13 @@ export interface FeedCloudJob {
   sourceETag?: string;
   sourceBytes?: number;
 }
+/** Non-secret execution correlation. Provider executionId is optional, never guessed. */
+export interface FeedWorkerTrace {
+  invocationId: string;
+  jobName?: string;
+  executionId?: string;
+  hostId?: string;
+}
 export interface FeedCloudOutput {
   width: number;
   height: number;
@@ -87,6 +94,7 @@ export function createFeedCloudInternalClient(input: {
   baseUrl: string;
   key: Uint8Array;
   fetcher?: typeof fetch;
+  trace?: FeedWorkerTrace;
 }): FeedCloudInternalClient {
   const origin = new URL(input.baseUrl);
   if (origin.protocol !== "https:" || origin.pathname !== "/" || origin.search || origin.hash ||
@@ -94,10 +102,17 @@ export function createFeedCloudInternalClient(input: {
     throw new Error("INVALID_FEED_INTERNAL_CONFIG");
   }
   const request = async (path: FeedInternalPath, payload: object): Promise<unknown> => {
-    const body = JSON.stringify(payload);
-    if (Buffer.byteLength(body) > MAX_REQUEST_BYTES) throw new Error("FEED_INTERNAL_REQUEST_TOO_LARGE");
     const fetcher = input.fetcher ?? fetch;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    // During rolling deployments a newly built Worker may start before the Core API
+    // accepts the additive trace field. Re-sign once without trace on HTTP 400.
+    // Domain validation still fails closed; no unverified response is accepted.
+    const hasTrace = input.trace !== undefined && "trace" in payload;
+    let legacyFallback = false;
+    let retryCount = 0;
+    for (;;) {
+      const body = JSON.stringify(legacyFallback
+        ? { ...payload, trace: undefined } : payload);
+      if (Buffer.byteLength(body) > MAX_REQUEST_BYTES) throw new Error("FEED_INTERNAL_REQUEST_TOO_LARGE");
       try {
         const headers = {
           "content-type": "application/json",
@@ -109,21 +124,29 @@ export function createFeedCloudInternalClient(input: {
         });
         if (!response.ok) {
           await response.body?.cancel();
+          if (hasTrace && !legacyFallback && response.status === 400) {
+            legacyFallback = true;
+            console.warn(JSON.stringify({
+              event: "feed_internal_trace_compatibility_retry",
+              path, invocationId: input.trace?.invocationId,
+            }));
+            continue;
+          }
           throw new FeedInternalHttpError(response.status);
         }
         return await readBounded(response);
       } catch (error) {
         const retryable = !(error instanceof FeedInternalHttpError) ||
           error.status === 429 || error.status >= 500;
-        if (!retryable || attempt === 1) throw error;
+        if (!retryable || retryCount >= 1) throw error;
+        retryCount++;
       }
     }
-    throw new Error("FEED_INTERNAL_UNREACHABLE");
   };
   return {
     async claimJobs(batchSize, workerType) {
       assertBatchSize(batchSize);
-      const result = await request("/internal/feed/jobs/claim", { batchSize, ...(workerType ? { workerType } : {}) });
+      const result = await request("/internal/feed/jobs/claim", { batchSize, ...(workerType ? { workerType } : {}), ...(input.trace ? { trace: input.trace } : {}) });
       if (!Array.isArray(result) || result.length > batchSize ||
           result.some(job => !job || typeof job !== "object" ||
             typeof job.id !== "string" || typeof job.attemptToken !== "string" ||
@@ -134,14 +157,14 @@ export function createFeedCloudInternalClient(input: {
     },
     async completeJob(jobId, attemptToken, output) {
       return acceptedResult(await request("/internal/feed/jobs/complete",
-        { jobId, attemptToken, ...(output ? { output } : {}) }));
+        { jobId, attemptToken, ...(output ? { output } : {}), ...(input.trace ? { trace: input.trace } : {}) }));
     },
     async failJob(jobId, attemptToken, code) {
       return acceptedResult(await request("/internal/feed/jobs/fail",
-        { jobId, attemptToken, ...(code ? { code } : {}) }));
+        { jobId, attemptToken, ...(code ? { code } : {}), ...(input.trace ? { trace: input.trace } : {}) }));
     },
     async renewJob(jobId, attemptToken) {
-      return acceptedResult(await request("/internal/feed/jobs/renew", { jobId, attemptToken }));
+      return acceptedResult(await request("/internal/feed/jobs/renew", { jobId, attemptToken, ...(input.trace ? { trace: input.trace } : {}) }));
     },
     async maintenance(batchSize) {
       assertBatchSize(batchSize);

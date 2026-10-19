@@ -4,9 +4,11 @@ import { join } from "node:path";
 import {
   processFeedImage, processFeedVideoFile, createFeedCommandRunner,
   type FeedCloudInternalClient, type FeedCloudJob, type FeedCloudOutput, type FeedImageEngine,
+  type FeedWorkerTrace,
 } from "@gafus/feed-cloud";
 import { assertFeedObjectKey, feedSourcePattern } from "@gafus/feed-storage";
 import type { FeedCloudObjects } from "./objects.js";
+import { classifyFeedFailure } from "./failure-diagnostics.js";
 const id = /^[A-Za-z0-9_-]{1,128}$/;
 function validate(job: FeedCloudJob) {
   if (!id.test(job.id) || !id.test(job.attemptToken) || !id.test(job.ownerId) ||
@@ -34,51 +36,87 @@ export function createFeedCloudWorker(input: {
   core: FeedCloudInternalClient; objects: FeedCloudObjects; engine: FeedImageEngine;
   processVideo?: typeof processFeedVideoFile;
   now?: () => number;
+  trace?: FeedWorkerTrace;
 }) {
   const now = input.now ?? Date.now;
   return {
     async process(job: FeedCloudJob) {
-      validate(job);
+      const startedAt = now();
+      const context = { jobId: /^[A-Za-z0-9_-]{1,128}$/.test(job.id) ? job.id : "INVALID_JOB_ID",
+        kind: job.kind, attempt: job.attempts, trace: input.trace };
+      console.log(JSON.stringify({ event: "feed_media_job_received", ...context,
+        declaredBytes: job.sourceBytes ?? null, leaseUntil: job.leaseUntil ?? null,
+        sourceCount: job.sourceKeys.length, targetCount: job.targetKeys.length }));
+      try { validate(job); }
+      catch (error) {
+        console.error(JSON.stringify({ event: "feed_media_invalid_claim", ...context,
+          ...classifyFeedFailure("CLAIM_VALIDATE", error) }));
+        throw error;
+      }
       const until = Date.parse(job.leaseUntil ?? "");
-      if (!Number.isFinite(until) || until <= now()) throw new Error("LEASE_EXPIRED");
+      if (!Number.isFinite(until) || until <= now()) {
+        console.error(JSON.stringify({ event: "feed_media_lease_expired", ...context }));
+        throw new Error("LEASE_EXPIRED");
+      }
+      console.log(JSON.stringify({ event: "feed_media_job_start", ...context,
+        leaseRemainingMs: until - now() }));
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 580_000);
+      const timeout = setTimeout(() => {
+        console.error(JSON.stringify({ event: "feed_media_timeout", ...context, stage }));
+        controller.abort();
+      }, 580_000);
       let renewing = false;
       const heartbeat = setInterval(() => {
         if (renewing) return;
         renewing = true;
+        const renewalStart = now();
         void input.core.renewJob(job.id, job.attemptToken).then(result => {
+          console.log(JSON.stringify({ event: "feed_media_lease_renew", ...context,
+            accepted: result.accepted, durationMs: Math.max(0, now() - renewalStart), stage }));
           if (!result.accepted) controller.abort();
-        }).catch(() => controller.abort()).finally(() => { renewing = false; });
+        }).catch(error => {
+          console.error(JSON.stringify({ event: "feed_media_lease_renew_failure", ...context,
+            stage, ...classifyFeedFailure("CORE_RENEW", error) }));
+          controller.abort();
+        }).finally(() => { renewing = false; });
       }, 30_000);
       const signal = controller.signal;
       let dir: string | undefined;
       let completing = false;
       let stage = "claim";
+      let failureStage: string | undefined;
       const timed = async <T>(name: string, action: () => Promise<T>): Promise<T> => {
         stage = name;
         const started = now();
         const cpuStart = process.cpuUsage();
-        let success = false;
-        try {
-          const value = await action();
-          success = true;
-          return value;
-        } finally {
+        console.log(JSON.stringify({ event: "feed_media_stage_start", ...context, stage: name,
+          elapsedMs: Math.max(0, started - startedAt) }));
+        let failure: unknown;
+        try { return await action(); }
+        catch (error) {
+          failure = error;
+          failureStage ??= name === "video_process" && stage !== name ? stage : name;
+          throw error;
+        }
+        finally {
           const cpu = process.cpuUsage(cpuStart);
-          console.log(JSON.stringify({ event: "feed_media_stage", jobId: job.id, kind: job.kind,
-            stage: name, outcome: success ? "success" : "failure",
+          console.log(JSON.stringify({ event: "feed_media_stage", ...context,
+            stage: name, outcome: failure ? "failure" : "success",
             durationMs: Math.max(0, now() - started),
             cpuMs: Math.round((cpu.user + cpu.system) / 1000),
-            rssMiB: Math.round(process.memoryUsage().rss / 1048576) }));
+            rssMiB: Math.round(process.memoryUsage().rss / 1048576),
+            ...(failure ? classifyFeedFailure(name, failure) : {}) }));
         }
       };
       try {
         // Only FFmpeg requires a seekable file and a working directory.
-        if (job.kind === "publish_video") dir = await mkdtemp(join(tmpdir(), "gafus-feed-"));
+        if (job.kind === "publish_video") dir = await timed("video_tempdir", () =>
+          mkdtemp(join(tmpdir(), "gafus-feed-")));
         let output: FeedCloudOutput | undefined;
         if (job.kind === "delete_keys" || job.kind === "cleanup_source") {
-          for (const key of job.sourceKeys) await input.objects.delete(key, signal);
+          await timed("cleanup_delete", async () => {
+            for (const key of job.sourceKeys) await input.objects.delete(key, signal);
+          });
         } else {
           const prefix = `posts/${job.ownerId}/${job.postId}/attachments/${job.mediaId}/`;
           if (job.kind === "publish_video") {
@@ -88,10 +126,14 @@ export function createFeedCloudWorker(input: {
               source, dir!, createFeedCommandRunner({ timeoutMs: 550_000, signal }),
               (part, durationMs, success) => {
                 stage = part;
-                console.log(JSON.stringify({ event: "feed_media_stage", jobId: job.id, kind: job.kind,
+                console.log(JSON.stringify({ event: "feed_media_stage", ...context,
                   stage: part, outcome: success ? "success" : "failure", durationMs }));
               },
             ));
+            console.log(JSON.stringify({ event: "feed_media_video_encoded", ...context,
+              durationSeconds: result.info.durationSeconds, width: result.info.width,
+              height: result.info.height, segments: result.segments.length,
+              segmentBytes: result.segments.reduce((sum, part) => sum + part.bytes, 0) }));
             const segments = result.segments.map(segment => prefix + "hls/" + segment.name);
             const posterKey = prefix + "poster.webp", playlistKey = prefix + "hls/playlist.m3u8";
             // Bound active S3 reads/PUT+HEAD to three segments; preserve playlist ordering.
@@ -104,6 +146,9 @@ export function createFeedCloudWorker(input: {
                   const segment = result.segments[i]!;
                   signal.throwIfAborted();
                   await input.objects.create(segments[i]!, await readFile(segment.path), "video/mp2t", signal);
+                  if ((i + 1) % 10 === 0 || i + 1 === result.segments.length)
+                    console.log(JSON.stringify({ event: "feed_media_segment_progress", ...context,
+                      segmentIndex: i + 1, segmentTotal: result.segments.length }));
                 }
               });
               const settled = await Promise.allSettled(workers);
@@ -142,24 +187,46 @@ export function createFeedCloudWorker(input: {
           }
         }
         signal.throwIfAborted(); completing = true;
-        return await timed("core_complete", () => input.core.completeJob(job.id, job.attemptToken, output));
+        const result = await timed("core_complete", () =>
+          input.core.completeJob(job.id, job.attemptToken, output));
+        console.log(JSON.stringify({ event: "feed_media_job_complete", ...context,
+          accepted: result.accepted, totalMs: Math.max(0, now() - startedAt) }));
+        return result;
       } catch (error) {
-        const code = (error as { code?: unknown })?.code;
-        const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
-        const exitCode = (error as { exitCode?: unknown })?.exitCode;
-        const reason = (error as { reason?: unknown })?.reason;
-        console.error(JSON.stringify({ event: "feed_media_failure", jobId: job.id, kind: job.kind, stage,
-          code: typeof code === "string" && /^[A-Z_]{1,64}$/.test(code) ? code : "UNCLASSIFIED",
-          ...(typeof status === "number" && status >= 400 && status <= 599 ? { httpStatus: status } : {}),
-          ...(typeof exitCode === "number" ? { exitCode } : {}),
-          ...(typeof reason === "string" && /^[A-Z_]{1,64}$/.test(reason) ? { reason } : {}),
-        }));
-        // A lost callback reply is ambiguous: never erase files that may have been published.
-        if (!completing) await input.core.failJob(job.id, job.attemptToken, "MEDIA_PROCESSING_FAILED");
+        const actualStage = failureStage ?? stage;
+        const diagnostic = classifyFeedFailure(actualStage, error);
+        console.error(JSON.stringify({ event: "feed_media_failure", ...context,
+          stage: actualStage,
+          ...diagnostic, elapsedMs: Math.max(0, now() - startedAt),
+          completing, aborted: signal.aborted }));
+        // A lost completion reply is ambiguous. Do not send fail after completion starts.
+        if (!completing) {
+          try {
+            const ack = await input.core.failJob(job.id, job.attemptToken, diagnostic.errorCode);
+            console.log(JSON.stringify({ event: "feed_media_fail_ack", ...context,
+              code: diagnostic.errorCode, accepted: ack.accepted }));
+          } catch (reportError) {
+            console.error(JSON.stringify({ event: "feed_media_fail_report_error", ...context,
+              originalCode: diagnostic.errorCode,
+              ...classifyFeedFailure("CORE_FAIL", reportError) }));
+            throw reportError;
+          }
+        }
         throw error;
       } finally {
         clearTimeout(timeout); clearInterval(heartbeat); controller.abort();
-        if (dir) await rm(dir, { recursive: true, force: true });
+        const cleanupStart = now();
+        if (dir) {
+          try { await rm(dir, { recursive: true, force: true }); }
+          catch (cleanupError) {
+            console.error(JSON.stringify({ event: "feed_media_temp_cleanup_error", ...context,
+              ...classifyFeedFailure("TEMP_CLEANUP", cleanupError) }));
+          }
+        }
+        console.log(JSON.stringify({ event: "feed_media_job_finish", ...context,
+          totalMs: Math.max(0, now() - startedAt),
+          cleanupMs: Math.max(0, now() - cleanupStart),
+          rssMiB: Math.round(process.memoryUsage().rss / 1048576) }));
       }
     },
   };

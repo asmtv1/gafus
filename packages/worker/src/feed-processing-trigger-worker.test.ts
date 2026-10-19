@@ -7,9 +7,12 @@ const mocks = vi.hoisted(() => ({
   createDispatcher: vi.fn(),
   processor: undefined as undefined | ((job: { data: { uploadId: string; kind: string } }) => Promise<void>),
 }));
-vi.mock("@gafus/queues", () => ({ connection: {}, FEED_PROCESSING_QUEUE_NAME: "feed-processing-trigger" }));
+vi.mock("@gafus/queues", () => ({
+  connection: {}, FEED_PROCESSING_QUEUE_NAME: "feed-processing-trigger",
+  isFeedUploadId: (value: unknown) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value),
+}));
 vi.mock("@gafus/logger", () => ({
-  createWorkerLogger: () => ({ success: vi.fn(), error: vi.fn() }),
+  createWorkerLogger: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }));
 vi.mock("./cloudru-media-dispatcher", () => ({
   createCloudruFeedPoolDispatcher: (...args: unknown[]) => {
@@ -27,7 +30,7 @@ vi.mock("bullmq", () => ({
   },
 }));
 
-const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
+const uploadId = "cmvfdi1tabcd0123456789012";
 describe("Feed immediate trigger worker", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -71,6 +74,17 @@ describe("Feed immediate trigger worker", () => {
     await mocks.processor!({ data: { uploadId, kind: "video" } });
     expect(mocks.videoDispatch).toHaveBeenCalledOnce();
     expect(mocks.photoDispatch).toHaveBeenCalledOnce();
+  });
+
+  it("accepts legacy UUID jobs as well as Prisma CUIDs", async () => {
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
+    vi.stubEnv("FEED_PROCESSOR_READY", "true");
+    const { startFeedProcessingTriggerWorker } = await import("./feed-processing-trigger-worker");
+    startFeedProcessingTriggerWorker();
+    await mocks.processor!({
+      data: { uploadId: "8dc418f6-97da-42be-ab73-b3c172c95ccd", kind: "video" },
+    });
+    expect(mocks.videoDispatch).toHaveBeenCalledOnce();
   });
 
   it("rejects untrusted kinds/IDs and retries unaccepted Cloud.ru launches", async () => {

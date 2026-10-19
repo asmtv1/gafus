@@ -70,7 +70,16 @@ export function feedFfmpegArguments(input: string, outputDir: string, info: Vide
   const portrait = info.height > info.width;
   const width = portrait ? 720 : 1280;
   const height = portrait ? 1280 : 720;
-  const scale = `scale=w='min(${width},iw)':h='min(${height},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos`;
+  // Keep the existing high-quality Lanczos filter when resizing. For already
+  // compliant even-sized SDR/HDR frames, scaling only adds CPU work; the
+  // yuv420p conversion and HDR tone mapping are still applied as before.
+  // Rotated sources retain the scaler because FFmpeg applies autorotation
+  // before the filtergraph and the probed dimensions describe display space.
+  const needsScale = info.rotated || info.width > width || info.height > height ||
+    info.width % 2 !== 0 || info.height % 2 !== 0;
+  const scale = needsScale
+    ? `scale=w='min(${width},iw)':h='min(${height},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,`
+    : "";
   const toneMap = info.hdr
     ? "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,"
     : "";
@@ -78,8 +87,8 @@ export function feedFfmpegArguments(input: string, outputDir: string, info: Vide
     "-hide_banner", "-nostdin", "-loglevel", "warning", "-y",
     "-i", input,
     "-map", "0:v:0", "-map", "0:a:0?",
-    "-vf", `${toneMap}${scale},format=yuv420p`,
-    "-c:v", "libx264", "-threads", "2", "-preset", "veryfast", "-profile:v", "main", "-level", "3.1",
+    "-vf", `${toneMap}${scale}format=yuv420p`,
+    "-c:v", "libx264", "-threads", "2", "-preset", "superfast", "-profile:v", "main", "-level", "3.1",
     "-fpsmax", "30", "-force_key_frames", "expr:gte(t,n_forced*2)", "-b:v", "1400k", "-maxrate", "1800k", "-bufsize", "3600k",
     "-g", "60", "-keyint_min", "60", "-sc_threshold", "0",
     "-c:a", "aac", "-b:a", "96k", "-ac", "2",

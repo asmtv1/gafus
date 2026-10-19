@@ -68,6 +68,81 @@ describe("feed internal dispatch", () => {
     expect(await dispatch(request(route, JSON.stringify({ jobId: "job", attemptToken: token, output })), route)).toEqual({ accepted: true });
     expect(deps.jobs.complete).toHaveBeenCalledWith("job", token, output);
   });
+  it.each([57, 61, 120])("accepts a %is Feed video completion", async durationSeconds => {
+    const { deps, dispatch } = setup();
+    const route = "/internal/feed/jobs/complete";
+    const output = {
+      width: 720, height: 1280, durationSeconds,
+      posterKey: "poster.webp", playlistKey: "playlist.m3u8",
+      videoSegmentKeys: Array.from({ length: durationSeconds }, (_, index) =>
+        `segment-${String(index).padStart(3, "0")}.ts`),
+    };
+    const body = JSON.stringify({ jobId: "job", attemptToken: token, output });
+    expect(body.length).toBeLessThanOrEqual(16_384);
+    expect(await dispatch(request(route, body), route)).toEqual({ accepted: true });
+    expect(deps.jobs.complete).toHaveBeenCalledWith("job", token, output);
+  });
+  it.each([
+    { durationSeconds: 120.1, segments: 1 },
+    { durationSeconds: 120, segments: 121 },
+  ])("rejects an over-limit Feed video result %j", async ({ durationSeconds, segments }) => {
+    const { deps, dispatch } = setup();
+    const route = "/internal/feed/jobs/complete";
+    const output = {
+      width: 720, height: 1280, durationSeconds,
+      posterKey: "poster.webp", playlistKey: "playlist.m3u8",
+      videoSegmentKeys: Array.from({ length: segments }, (_, index) =>
+        `segment-${String(index).padStart(3, "0")}.ts`),
+    };
+    const body = JSON.stringify({ jobId: "job", attemptToken: token, output });
+    expect(body.length).toBeLessThanOrEqual(16_384);
+    await expect(dispatch(request(route, body), route)).rejects.toMatchObject({ status: 400 });
+    expect(deps.jobs.complete).not.toHaveBeenCalled();
+  });
+  it("correlates signed claims and failures by invocation without logging tokens", async () => {
+    const { deps, dispatch } = setup();
+    const trace = {
+      invocationId: "5a246b04-64c4-4a0e-a3cc-e3f38f4f2fb0",
+      jobName: "gafus-feed-video-2",
+      hostId: "feed-pod-123",
+    };
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const claimBody = JSON.stringify({ batchSize: 1, workerType: "video", trace });
+      await dispatch(request(path, claimBody), path);
+      const failRoute = "/internal/feed/jobs/fail";
+      const code = "VIDEO_DOWNLOAD_S3_ACCESS_DENIED";
+      await dispatch(request(failRoute, JSON.stringify({
+        jobId: "job_1", attemptToken: token, code, trace,
+      })), failRoute);
+      expect(deps.jobs.claim).toHaveBeenCalledWith(1, "video");
+      expect(deps.jobs.fail).toHaveBeenCalledWith("job_1", token, code);
+      const events = log.mock.calls.map(call => JSON.parse(String(call[0])) as {
+        event: string; code?: string; trace?: typeof trace;
+      });
+      expect(events.some(event => event.event === "feed_internal_claim" &&
+        event.trace?.invocationId === trace.invocationId)).toBe(true);
+      expect(events.some(event => event.event === "feed_internal_fail" &&
+        event.trace?.invocationId === trace.invocationId &&
+        event.code === code)).toBe(true);
+      expect(JSON.stringify(events)).not.toContain(token);
+    } finally { log.mockRestore(); }
+  });
+  it("rejects an invalid execution trace before issuing claims or failures", async () => {
+    const { deps, dispatch } = setup();
+    const untrusted = { invocationId: "not-a-uuid", jobName: "gafus-gallery-process" };
+    await expect(dispatch(request(path, JSON.stringify({
+      batchSize: 1, trace: untrusted,
+    })), path)).rejects.toMatchObject({ status: 400 });
+    expect(deps.jobs.claim).not.toHaveBeenCalled();
+    const route = "/internal/feed/jobs/fail";
+    await expect(dispatch(request(route, JSON.stringify({
+      jobId: "job", attemptToken: token, code: "VIDEO_DOWNLOAD_HTTP_403",
+      trace: { invocationId: "12345678-1234-4234-8234-123456789012",
+        executionId: "Secret:unsafe/string" },
+    })), route)).rejects.toMatchObject({ status: 400 });
+    expect(deps.jobs.fail).not.toHaveBeenCalled();
+  });
   it("passes failure and rejects unbounded error details", async () => {
     const { deps, dispatch } = setup(); const route = "/internal/feed/jobs/fail";
     await dispatch(request(route, JSON.stringify({ jobId: "job", attemptToken: token, code: "MEDIA_PROCESSING_FAILED" })), route);

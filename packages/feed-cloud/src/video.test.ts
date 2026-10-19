@@ -50,6 +50,43 @@ describe("feed HLS processor rules", () => {
     expect(args.join(" ")).toContain("force_original_aspect_ratio=decrease");
     expect(feedPosterArguments("source.mov", "poster.webp")).toContain("libwebp");
   });
+  it("uses superfast while preserving HLS cadence, bitrate, codec and compatibility", () => {
+    const args = feedFfmpegArguments("source.mp4", "./segments", {
+      durationSeconds: 58, width: 1920, height: 1080,
+      rotated: false, hdr: false, hasAudio: true,
+    });
+    const option = (flag: string) => args[args.indexOf(flag) + 1];
+    expect(option("-preset")).toBe("superfast");
+    expect(option("-c:v")).toBe("libx264");
+    expect(option("-c:a")).toBe("aac");
+    expect(option("-profile:v")).toBe("main");
+    expect(option("-level")).toBe("3.1");
+    expect(option("-fpsmax")).toBe("30");
+    expect(option("-b:v")).toBe("1400k");
+    expect(option("-maxrate")).toBe("1800k");
+    expect(option("-b:a")).toBe("96k");
+    expect(option("-hls_time")).toBe("2");
+    expect(option("-hls_playlist_type")).toBe("vod");
+    expect(option("-hls_segment_filename")).toBe("./segments/segment-%03d.ts");
+    expect(option("-vf")).toContain("flags=lanczos");
+    expect(option("-vf")).toContain("format=yuv420p");
+  });
+  it("skips redundant scaling only for compliant even-sized unrotated frames", () => {
+    const base = { durationSeconds: 10, width: 1280, height: 720,
+      rotated: false, hdr: false, hasAudio: true };
+    const filter = (source: typeof base) => {
+      const args = feedFfmpegArguments("source.mov", "./hls", source);
+      return args[args.indexOf("-vf") + 1]!;
+    };
+    expect(filter(base)).toBe("format=yuv420p");
+    expect(filter({ ...base, width: 640, height: 360 })).toBe("format=yuv420p");
+    expect(filter({ ...base, width: 720, height: 1280 })).toBe("format=yuv420p");
+    expect(filter({ ...base, width: 1281 })).toContain("flags=lanczos");
+    expect(filter({ ...base, width: 641 })).toContain("flags=lanczos");
+    expect(filter({ ...base, rotated: true })).toContain("flags=lanczos");
+    expect(filter({ ...base, hdr: true })).toContain("tonemap");
+    expect(filter({ ...base, hdr: true })).not.toContain("scale=w=");
+  });
   it("rejects untrusted and incomplete HLS playlists", () => {
     const valid = "#EXTM3U\n#EXTINF:2,\nsegment-000.ts\n#EXTINF:2,\nsegment-001.ts\n#EXT-X-ENDLIST";
     expect(parseFeedHlsPlaylist(valid)).toEqual(["segment-000.ts", "segment-001.ts"]);

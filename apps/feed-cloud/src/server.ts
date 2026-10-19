@@ -1,27 +1,46 @@
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
+import { hostname, availableParallelism } from "node:os";
 import { createFeedCloudInternalClient } from "@gafus/feed-cloud";
 import { createFeedCloudObjects } from "./objects.js";
 import { sharpFeedEngine } from "./sharp-engine.js";
 import { createFeedCloudWorker } from "./worker.js";
+import { classifyFeedFailure } from "./failure-diagnostics.js";
 // Container Jobs exit after one bounded invocation; HTTP mode is retained for existing triggers.
 export async function processFeedJobs(): Promise<number> {
   const started = performance.now();
+  const safe = (value: string | undefined) => value && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value)
+    ? value : undefined;
+  const jobName = process.env.FEED_JOB_NAME;
+  const providerId = safe(process.env.CLOUDRU_EXECUTION_ID ??
+    process.env.CLOUDRU_JOB_EXECUTION_NAME ?? process.env.CLOUD_RUN_EXECUTION ??
+    process.env.JOB_EXECUTION_NAME);
+  const trace = {
+    invocationId: randomUUID(),
+    ...(jobName && /^gafus-feed-(photo|video)(-2)?$/.test(jobName) ? { jobName } : {}),
+    ...(providerId ? { executionId: providerId } : {}),
+    ...(safe(hostname()) ? { hostId: safe(hostname())! } : {}),
+  };
   let phase = "configure";
   const metric = (name: string, elapsed: number) =>
     console.log(JSON.stringify({ event: "feed_invocation_stage", stage: name,
-      durationMs: Math.round(elapsed) }));
+      durationMs: Math.round(elapsed), trace }));
   const key = Buffer.from(process.env.FEED_INTERNAL_HMAC_SECRET ?? "", "utf8");
-  const core = createFeedCloudInternalClient({
-    baseUrl: process.env.FEED_INTERNAL_BASE_URL ?? "",
-    key,
-  });
   const workerType = process.env.FEED_WORKER_TYPE;
-  if (workerType !== "photo" && workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE");
-  // Distinguish startup, Core maintenance, claim, processing and total time;
-  // the external queue-to-container cold-start delay still requires Cloud.ru logs.
-  console.log(JSON.stringify({ event: "feed_invocation_start", workerType,
-    processUptimeMs: Math.round(process.uptime() * 1000) }));
+  // Emit safe boot diagnostics even if Core configuration fails before the first claim.
+  console.log(JSON.stringify({ event: "feed_invocation_start", workerType, trace,
+    processUptimeMs: Math.round(process.uptime() * 1000),
+    cpuCount: availableParallelism(),
+    s3ConfigPresent: Boolean(process.env.FEED_BUCKET && process.env.FEED_S3_ACCESS_KEY_ID &&
+      process.env.FEED_S3_SECRET_ACCESS_KEY), coreConfigPresent: Boolean(key.length &&
+      process.env.FEED_INTERNAL_BASE_URL) }));
   try {
+    phase = "configure";
+    if (workerType !== "photo" && workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE");
+    const core = createFeedCloudInternalClient({
+      baseUrl: process.env.FEED_INTERNAL_BASE_URL ?? "",
+      key, trace,
+    });
     phase = "maintenance";
     const maintenanceStarted = performance.now();
     // Cleanup and recovery remain active when new publications are disabled.
@@ -29,20 +48,25 @@ export async function processFeedJobs(): Promise<number> {
     metric("maintenance", performance.now() - maintenanceStarted);
     const worker = createFeedCloudWorker({
       core,
-      objects: createFeedCloudObjects(),
+      objects: createFeedCloudObjects(process.env, trace),
       engine: sharpFeedEngine,
+      trace,
     });
     phase = "claim";
     const claimStarted = performance.now();
     const jobs = await core.claimJobs(1, workerType);
     metric("claim", performance.now() - claimStarted);
+    console.log(JSON.stringify({ event: "feed_invocation_claim", trace, workerType,
+      jobCount: jobs.length, jobs: jobs.map(job => ({ jobId: job.id, attempt: job.attempts,
+        kind: job.kind, declaredBytes: job.sourceBytes ?? null })) }));
     phase = "process";
     for (const job of jobs) await worker.process(job);
     metric("total", performance.now() - started);
     return jobs.length;
   } catch (error) {
     console.error(JSON.stringify({ event: "feed_invocation_failure", stage: phase,
-      workerType, durationMs: Math.round(performance.now() - started) }));
+      workerType, trace, durationMs: Math.round(performance.now() - started),
+      ...classifyFeedFailure("INVOCATION_" + phase, error) }));
     throw error;
   }
 }

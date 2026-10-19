@@ -77,29 +77,42 @@ export function createCloudruMediaDispatcher(
         cachedToken = json.access_token;
         tokenExpires = Date.now() + 4 * 60_000;
       }
+      // A Gallery timeout must not starve photo/video recovery. Keep bounded
+      // serial calls to Cloud.ru, but attempt the remaining independent Jobs
+      // before reporting a failed scheduler tick.
+      let firstFailure: unknown;
       for (const name of names) {
         const dispatchStart = performance.now();
-        const result = await http("https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
-          method: "POST",
-          headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },
-          body: JSON.stringify({ projectId: env.CLOUDRU_PROJECT_ID, jobName: name, params: {} }),
-          signal: AbortSignal.timeout(18000),
-        }).catch((error: unknown) => {
-          const code = error instanceof Error ? error.name : "";
-          noteCloudruExecution(name, undefined, performance.now() - dispatchStart,
-            code === "TimeoutError" || code === "AbortError" ? "timeout" : "other");
-          throw error;
-        });
-        emit("execute", performance.now() - dispatchStart, name, result.status);
-        if (!result.ok) {
-          if ([401, 403].includes(result.status)) {
-            cachedToken = undefined;
-            tokenExpires = 0;
+        let responseReceived = false;
+        try {
+          const result = await http("https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
+            method: "POST",
+            headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },
+            body: JSON.stringify({ projectId: env.CLOUDRU_PROJECT_ID, jobName: name, params: {} }),
+            signal: AbortSignal.timeout(18000),
+          });
+          responseReceived = true;
+          emit("execute", performance.now() - dispatchStart, name, result.status);
+          if (!result.ok) {
+            if ([401, 403].includes(result.status)) {
+              cachedToken = undefined;
+              tokenExpires = 0;
+            }
+            throw Error("CLOUDRU_JOB_EXECUTION_FAILED_" + name + "_" + result.status);
           }
-          throw Error("CLOUDRU_JOB_EXECUTION_FAILED_" + name + "_" + result.status);
+          dispatched++;
+        } catch (error) {
+          if (!responseReceived) {
+            const code = error instanceof Error ? error.name : "";
+            noteCloudruExecution(name, undefined, performance.now() - dispatchStart,
+              code === "TimeoutError" || code === "AbortError" ? "timeout" : "other");
+          }
+          firstFailure ??= error;
+          // Authentication is a global failure, not an independent Job issue.
+          if (!cachedToken) break;
         }
-        dispatched++;
       }
+      if (firstFailure) throw firstFailure;
       return { dispatched };
     } finally {
       running = false;

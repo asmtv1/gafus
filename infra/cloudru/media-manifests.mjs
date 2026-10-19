@@ -168,6 +168,7 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
                     name: "FEED_WORKER_TYPE",
                     value: spec.name.includes("-video") ? "video" : "photo",
                   },
+                  { name: "FEED_JOB_NAME", value: spec.name },
                 ],
               }
             : {}),

@@ -1,5 +1,6 @@
 import { createFeedStorageFromEnv } from "@gafus/feed-storage";
 import { z } from "zod";
+import { FEED_LIMITS } from "@gafus/types";
 import { createFeedRequestVerifier, type FeedNonceStore } from "@gafus/feed-cloud";
 import { createFeedStorageJobs, createFeedMaintenance, createFeedUploadRecovery, FeedError } from "@gafus/core/services/feed";
 import { createCurrentFeedInternalRuntime } from "@gafus/core/services/feed";
@@ -8,18 +9,30 @@ import { connection as redis } from "@gafus/queues";
 export const FEED_INTERNAL_MAX_BODY_BYTES = 16_384;
 const paths = new Set(["/internal/feed/jobs/claim", "/internal/feed/jobs/complete", "/internal/feed/jobs/fail", "/internal/feed/jobs/renew", "/internal/feed/maintenance"]);
 const batch = z.object({ batchSize: z.number().int().min(1).max(20) }).strict();
-const claimSchema = batch.extend({ workerType: z.enum(["photo", "video"]).optional() });
+// Trace is HMAC-authenticated with the command; it never includes object paths or secrets.
+const trace = z.object({
+  invocationId: z.string().uuid(),
+  jobName: z.string().regex(/^gafus-feed-(photo|video)(-2)?$/).optional(),
+  executionId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/).optional(),
+  hostId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/).optional(),
+}).strict();
+const traced = { trace: trace.optional() };
+const claimSchema = batch.extend({ workerType: z.enum(["photo", "video"]).optional(), ...traced });
 const identity = { jobId: z.string().min(1).max(128), attemptToken: z.string().uuid() };
 const output = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
-  durationSeconds: z.number().positive().max(60).optional(),
+  durationSeconds: z.number().positive().max(FEED_LIMITS.videoSeconds).optional(),
   thumbKey: z.string().max(1024).optional(), fullKey: z.string().max(1024).optional(),
   posterKey: z.string().max(1024).optional(), playlistKey: z.string().max(1024).optional(),
-  videoSegmentKeys: z.array(z.string().max(1024)).max(60).optional(),
+  videoSegmentKeys: z.array(z.string().max(1024)).max(FEED_LIMITS.videoSeconds).optional(),
 }).strict();
-const completion = z.object({ ...identity, output: output.optional() }).strict();
-const renewal = z.object(identity).strict();
-const failure = z.object({ ...identity, code: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/).optional() }).strict();
+const completion = z.object({ ...identity, output: output.optional(), ...traced }).strict();
+const renewal = z.object({ ...identity, ...traced }).strict();
+const failure = z.object({ ...identity, code: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/).optional(), ...traced }).strict();
+function audit(event: string, fields: Record<string, unknown>) {
+  // HMAC-verified, schema-bounded data only. Never log signed headers, tokens or object keys.
+  console.log(JSON.stringify({ event: "feed_internal_" + event, ...fields }));
+}
 const unavailable = () => new FeedError("FEED_DISABLED", "Внутренний API недоступен", 503);
 const nonces: FeedNonceStore = {
   async consume(id, expiresAt) {
@@ -88,19 +101,32 @@ export function createFeedInternalDispatcher(deps: InternalDependencies) {
     if (!parsed.success) throw new FeedError("VALIDATION_ERROR", "Некорректная команда", 400);
     if (path.endsWith("/renew")) {
       const data = renewal.parse(body);
-      return deps.jobs.renew(data.jobId, data.attemptToken);
+      const result = await deps.jobs.renew(data.jobId, data.attemptToken);
+      audit("renew", { jobId: data.jobId, trace: data.trace, accepted: result.accepted });
+      return result;
     }
     if (path.endsWith("/claim")) {
       const data = claimSchema.parse(body);
-      return data.workerType ? deps.jobs.claim(data.batchSize, data.workerType) : deps.jobs.claim(data.batchSize);
+      const result = data.workerType
+        ? await deps.jobs.claim(data.batchSize, data.workerType)
+        : await deps.jobs.claim(data.batchSize);
+      audit("claim", { trace: data.trace, workerType: data.workerType, count: result.length,
+        jobs: result.map(job => ({ jobId: job.id, kind: job.kind, attempt: job.attempts })) });
+      return result;
     }
     if (path.endsWith("/complete")) {
       const data = completion.parse(body);
-      return deps.jobs.complete(data.jobId, data.attemptToken, data.output);
+      const result = await deps.jobs.complete(data.jobId, data.attemptToken, data.output);
+      audit("complete", { jobId: data.jobId, trace: data.trace, accepted: result.accepted,
+        durationSeconds: data.output?.durationSeconds, segmentCount: data.output?.videoSegmentKeys?.length });
+      return result;
     }
     if (path.endsWith("/fail")) {
       const data = failure.parse(body);
-      return deps.jobs.fail(data.jobId, data.attemptToken, data.code);
+      const result = await deps.jobs.fail(data.jobId, data.attemptToken, data.code);
+      audit("fail", { jobId: data.jobId, trace: data.trace,
+        code: data.code ?? "MEDIA_PROCESSING_FAILED", accepted: result.accepted });
+      return result;
     }
     // Cleanup deliberately continues when the public feed is disabled.
     const batchSize = batch.parse(body).batchSize;
