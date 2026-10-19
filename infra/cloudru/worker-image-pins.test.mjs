@@ -78,6 +78,15 @@ test('normal GitHub CI never builds, pushes, patches or provisions Cloud.ru jobs
     }
   }
   assert.equal(manual.permissions.packages, 'write');
+  const galleryGate=manual.jobs['verify-media-contracts'].steps.find(x=>
+    x.name==='Verify Gallery two-Job dispatcher and one-shot exit before OCI builds');
+  assert.ok(galleryGate?.run?.includes('src/gallery-demand.test.ts'));
+  assert.ok(galleryGate?.run?.includes('pnpm --filter @gafus/gallery-cloud test'));
+  const ciGalleryGate=workflow.jobs['cloudru-media-contracts'].steps.find(x=>
+    x.name==='Cloud.ru Gallery pool, Feed dispatch and recovery contract');
+  assert.ok(ciGalleryGate?.run?.includes('src/gallery-demand.test.ts'));
+  assert.ok(workflow.jobs['cloudru-media-contracts'].steps.some(x=>
+    x.name==='Cloud.ru Gallery one-shot lifecycle contract'));
   const feedRelay=manual.jobs.build.steps.find(x=>x.name?.startsWith('Transfer Feed GHCR image'));
   assert.ok(feedRelay);
   assert.match(feedRelay.if, /matrix.media == 'feed'/);
@@ -85,6 +94,10 @@ test('normal GitHub CI never builds, pushes, patches or provisions Cloud.ru jobs
   const apply=yaml.parse(readFileSync('.github/workflows/cloudru-apply-worker-pins.yml','utf8'));
   assert.match(apply.jobs['apply-pins'].if,/approved|apply-reviewed-worker-pins/);
   assert.ok(apply.jobs['apply-pins'].steps.some(x=>x.run==='node infra/cloudru/production-media-release.mjs --prepare'));
+  assert.deepEqual(apply.on.workflow_dispatch.inputs.media_scope.options,
+    ['feed-gallery','all']);
+  assert.equal(apply.jobs['apply-pins'].env.CLOUDRU_MEDIA_APPLY_SCOPE,
+    '${{ inputs.media_scope }}');
 });
 
 test('API deploy, including manual Deploy Only, verifies all six live pinned Cloud.ru Jobs before SSH', () => {

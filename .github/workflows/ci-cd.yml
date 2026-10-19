@@ -475,8 +475,11 @@ jobs:
         run: |
           python3 ci-cd/scripts/upload-cloudru-oci.test.py
           node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
-      - name: Cloud.ru scheduled processing contract
-        run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
+      - name: Cloud.ru Gallery pool, Feed dispatch and recovery contract
+        run: |
+          pnpm --filter @gafus/worker exec vitest run src/gallery-demand.test.ts src/gallery-processing-trigger-worker.test.ts src/cloudru-media-dispatcher.test.ts src/cloudru-media-recovery.test.ts
+      - name: Cloud.ru Gallery one-shot lifecycle contract
+        run: pnpm --filter @gafus/gallery-cloud test
       - name: Cloud.ru Questions photo Job actual sharp and type contracts
         run: |
           pnpm exec tsc -p apps/questions-cloud/tsconfig.json

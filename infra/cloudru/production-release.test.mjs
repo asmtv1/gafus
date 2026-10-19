@@ -85,6 +85,11 @@ assert(sharedReadiness >= 0 && sharedReadiness < sshAction,
   'MANUAL_AND_AUTOMATED_DEPLOY_MUST_CHECK_BEGET_BEFORE_SSH');
 assert(deployment.includes('node infra/cloudru/beget-production-smoke.mjs'),
   'SHARED_DEPLOY_MUST_PROVE_LIVE_BEGET_SIGNING_BEFORE_SSH');
+const mediaRelease = readFileSync("infra/cloudru/production-media-release.mjs", "utf8");
+assert(mediaRelease.includes("CLOUDRU_GALLERY_JOB_CONFIG_NOT_CURRENT_"),
+  "BOTH_GALLERY_JOB_CONFIGS_MUST_BE_CHECKED_BEFORE_DEPLOY");
+assert(mediaRelease.includes("CLOUDRU_GALLERY_JOB_ENV_NOT_CURRENT_"),
+  "GALLERY_ENVIRONMENTS_MUST_BE_CHECKED_BEFORE_DEPLOY");
 assert(!ci.includes("compose_down; exit 1"), "DEPLOY_FAILURE_MUST_NOT_BRING_PRODUCTION_DOWN");
 assert(
   ci.includes("CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only"),

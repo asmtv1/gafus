@@ -13,7 +13,7 @@ import { createGalleryDemandDispatcher } from "./gallery-demand";
 export type RecoveryKind = "gallery" | "feed-photo" | "feed-video" | "questions";
 export interface RecoverySnapshot { dueIds: string[]; active: number }
 type Inspect = (kind: RecoveryKind) => Promise<RecoverySnapshot>;
-type Recover = () => Promise<{ dispatched?: number; disabled?: boolean; skipped?: boolean }>;
+type Recover = () => Promise<{ dispatched?: number; disabled?: boolean; skipped?: boolean; blocked?: boolean }>;
 const KINDS: readonly RecoveryKind[] = ["gallery", "feed-photo", "feed-video", "questions"];
 const MAX_PER_KIND_TICK = 4;
 const MAX_TOTAL_TICK = 8;
@@ -78,14 +78,14 @@ export function createCloudruMediaRecovery({
   now = () => Date.now(),
   pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)),
   dispatch,
-  report = (_kind: RecoveryKind, _stage: "check" | "execute") => {},
+  report = (_kind: RecoveryKind, _stage: "check" | "execute" | "capacity") => {},
 }: {
   env?: NodeJS.ProcessEnv;
   inspect?: Inspect;
   now?: () => number;
   pause?: (ms: number) => Promise<void>;
-  dispatch?: (kind: RecoveryKind) => Promise<{ dispatched?: number; disabled?: boolean; skipped?: boolean }>;
-  report?: (kind: RecoveryKind, stage: "check" | "execute") => void;
+  dispatch?: (kind: RecoveryKind) => Promise<{ dispatched?: number; disabled?: boolean; skipped?: boolean; blocked?: boolean }>;
+  report?: (kind: RecoveryKind, stage: "check" | "execute" | "capacity") => void;
 } = {}) {
   const failures = new Map<RecoveryKind, number>();
   const nextAt = new Map<RecoveryKind, number>();
@@ -121,7 +121,7 @@ export function createCloudruMediaRecovery({
     let accepted = 0;
     const ghost = reservations.get(kind) ?? new Map<string, number>();
     reservations.set(kind, ghost);
-    const fail = (stage: "check" | "execute") => {
+    const fail = (stage: "check" | "execute" | "capacity") => {
       const n = Math.min(6, (failures.get(kind) ?? 0) + 1);
       failures.set(kind, n);
       nextAt.set(kind, now() + Math.min(3_600_000, 60_000 * 2 ** (n - 1)));
@@ -165,24 +165,27 @@ export function createCloudruMediaRecovery({
             cached = kind === "feed-photo" || kind === "feed-video"
               ? createCloudruFeedPoolDispatcher(kind === "feed-photo" ? "photo" : "video", env)
               : createCloudruMediaDispatcher(env, fetch,
-                [kind === "gallery" ? "gafus-gallery-process" : "gafus-questions-photo"]);
+                [kind === "gallery" ? "gafus-gallery-process" : "gafus-questions-photo"],
+                {galleryAdmission: kind === "gallery"});
             lazy.set(kind, cached);
           }
           return cached;
         })();
         const result = await Promise.allSettled(selected.map(() => withExecutionSlot(execute)));
-        let rejected = false;
+        let rejected = false, capacityBlocked = false;
         for (let i = 0; i < result.length; i++) {
           const attempt = result[i]!;
           if (attempt.status === "fulfilled" && attempt.value.dispatched === 1) {
             accepted++;
           } else {
             ghost.delete(selected[i]!);
-            rejected = true;
+            if (attempt.status === "fulfilled" && attempt.value.blocked)
+              capacityBlocked = true;
+            else rejected = true;
           }
         }
-        if (rejected) {
-          fail("execute");
+        if (capacityBlocked || rejected) {
+          fail(capacityBlocked && !rejected ? "capacity" : "execute");
           break; // Other independent media queues continue.
         }
       }

@@ -125,6 +125,21 @@ describe("every-minute, bounded demand-driven Cloud.ru recovery", () => {
     expect(dispatch).toHaveBeenCalledOnce();
   });
 
+  it("treats Gallery provider capacity as separate from HTTP failure, without starving Feed", async () => {
+    const errors=vi.fn();
+    const dispatch=vi.fn(async (kind: RecoveryKind)=>kind==="gallery"
+      ? {dispatched:0,blocked:true} : {dispatched:1});
+    const recover=createCloudruMediaRecovery({env,pause:noWait,
+      inspect:async kind=>({dueIds:[kind],active:0}),
+      dispatch,report:errors,
+    });
+    expect(await recover()).toEqual({dispatched:3});
+    expect(errors).toHaveBeenCalledWith("gallery","capacity");
+    expect(errors).not.toHaveBeenCalledWith("gallery","execute");
+    expect(dispatch.mock.calls.map(([kind])=>kind)).toEqual(expect.arrayContaining([
+      "gallery","feed-photo","feed-video","questions",
+    ]));
+  });
   it("Gallery HTTP 499 never starves Feed photo/video or Questions", async () => {
     const errors=vi.fn();
     const dispatch=vi.fn(async(kind:RecoveryKind)=>{

@@ -39,6 +39,10 @@ jobs:
         run: |
           python3 ci-cd/scripts/upload-cloudru-oci.test.py
           node --test ci-cd/scripts/cloudru-publish-retry.test.mjs infra/cloudru/worker-image-pins.test.mjs infra/cloudru/feed-relay-workflow.test.mjs infra/cloudru/questions-production-job-smoke.test.mjs
+      - name: Verify Gallery two-Job dispatcher and one-shot exit before OCI builds
+        run: |
+          pnpm --filter @gafus/worker exec vitest run src/gallery-demand.test.ts src/gallery-processing-trigger-worker.test.ts src/cloudru-media-dispatcher.test.ts src/cloudru-media-recovery.test.ts
+          pnpm --filter @gafus/gallery-cloud test
       - name: Verify actual Questions SDK/S3 protocol with private fixtures before expensive OCI builds
         run: |
           pnpm exec vitest run apps/questions-cloud/src/worker.test.ts apps/questions-cloud/src/worker.s3.integration.test.ts packages/cdn-upload/src/questionCloudJob.test.ts

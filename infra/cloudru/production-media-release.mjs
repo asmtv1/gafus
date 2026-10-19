@@ -7,6 +7,11 @@ import { spawnSync } from "node:child_process";
 import { cloudruMediaManifests } from "./media-manifests.mjs";
 import { workerImages } from "./worker-image-pins.mjs";
 
+// Manual worker releases may be limited to Feed+Gallery, leaving Questions
+// untouched. Read-only --verify still validates every deployed media Job.
+const applyScope = process.env.CLOUDRU_MEDIA_APPLY_SCOPE ?? "all";
+if (!["all", "feed-gallery"].includes(applyScope))
+  throw Error("INVALID_CLOUDRU_MEDIA_APPLY_SCOPE");
 const mode = process.argv[2] ?? "--plan";
 if (!["--plan", "--prepare", "--verify"].includes(mode)) throw Error("BAD_MEDIA_RELEASE_ACTION");
 const e = process.env;
@@ -183,6 +188,11 @@ const groups = [
 for (const group of groups) {
   const listing = await api("GET", group.list);
   for (const item of group.items) {
+    if (mode === "--prepare" && applyScope === "feed-gallery" &&
+        group.kind === "jobs" && !/^gafus-(?:feed-|gallery-process)/.test(item.name)) {
+      console.log(JSON.stringify({resource:item.name,action:"preserved"}));
+      continue;
+    }
     const found = (listing.data ?? []).find((x) => x.name === item.name);
     if (found) {
       const getPath =
@@ -209,6 +219,42 @@ for (const group of groups) {
       } else {
         if (current.template.containers[0].image !== item.template.containers[0].image)
           throw Error("CLOUDRU_MEDIA_IMAGE_NOT_CURRENT_" + item.name);
+        // Never deploy API/Worker if either Gallery Job is misconfigured:
+        // both must use the approved 1 vCPU / 2 GiB and expected env names.
+        if (group.kind === "jobs" &&
+            /^gafus-gallery-process(?:-2)?$/.test(item.name)) {
+          const wanted = item.template;
+          const live = current.template;
+          const target = wanted.containers[0];
+          const actual = live?.containers?.[0];
+          const wantedEnv = target.env ?? [];
+          const actualEnv = actual?.env ?? [];
+          const liveNames = new Set(actualEnv.map(x => x.name));
+          if (current.configuration?.privileged !== false ||
+              live?.timeout !== 120 || live?.maxRetries !== 3 ||
+              actual?.name !== item.name ||
+              target.resources.cpu !== "1" ||
+              target.resources.memory !== "2048Mi" ||
+              actual?.resources?.cpu !== target.resources.cpu ||
+              actual?.resources?.memory !== target.resources.memory ||
+              actualEnv.length !== wantedEnv.length ||
+              wantedEnv.some(x => !liveNames.has(x.name)))
+            throw Error("CLOUDRU_GALLERY_JOB_CONFIG_NOT_CURRENT_" + item.name);
+          // Cloud.ru may redact secrets in GET. Compare public constants only
+          // when visible, without printing potentially private values.
+          for (const name of ["GALLERY_ENABLED", "GALLERY_BUCKET",
+            "GALLERY_S3_ENDPOINT", "GALLERY_INTERNAL_BASE_URL",
+            "GALLERY_CDN_EDGE_TOKEN_VERIFIED",
+            "GALLERY_CDN_CACHEABLE_FINAL_ENABLED"]) {
+            const expected = wantedEnv.find(x => x.name === name)?.value;
+            const value = actualEnv.find(x => x.name === name)?.value;
+            if (expected === undefined ||
+                (value != null && value !== "<redacted>" &&
+                 value !== "********" && value !== expected))
+              throw Error("CLOUDRU_GALLERY_JOB_ENV_NOT_CURRENT_" +
+                item.name + "_" + name);
+          }
+        }
         // The real Questions WebP Job must be deployed at this exact release
         // digest and retain its restricted environment/resources before the
         // new API can start putting private sources into S3.

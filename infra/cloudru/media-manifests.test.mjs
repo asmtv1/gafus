@@ -36,7 +36,10 @@ assert.deepEqual(galleryJobs[0].template.containers[0].resources,
 assert.equal(galleryJobs[0].template.containers[0].image,
   galleryJobs[1].template.containers[0].image);
 assert.equal(galleryJobs[1].template.timeout, 120);
+assert.equal(galleryJobs[1].template.maxRetries, 3);
 assert.equal(galleryJobs[1].runImmediately, false);
+assert.deepEqual(galleryJobs[0].template.containers[0].env,
+  galleryJobs[1].template.containers[0].env);
 for (const kind of ["photo", "video"]) {
   const pool = jobs.filter(job => job.name.startsWith("gafus-feed-" + kind));
   assert.equal(pool.length, 2);
@@ -49,8 +52,8 @@ for (const kind of ["photo", "video"]) {
   if (kind === "photo") for (const job of pool)
     assert.deepEqual(job.template.containers[0].resources, {cpu:"1",memory:"2048Mi"});
   if (kind === "video") for (const job of pool) {
-    assert.equal(job.template.containers[0].resources.cpu, "4");
-    assert.equal(job.template.containers[0].resources.memory, "4096Mi");
+    assert.equal(job.template.containers[0].resources.cpu, "2");
+    assert.equal(job.template.containers[0].resources.memory, "8192Mi");
   }
 }
 for (const service of services) {
@@ -82,7 +85,7 @@ for (const job of jobs) {
 }
 assert(
   jobs.some(
-    (x) => x.name.includes("video") && x.template.containers[0].resources.memory === "4096Mi",
+    (x) => x.name.includes("video") && x.template.containers[0].resources.memory === "8192Mi",
   ),
 );
 assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);

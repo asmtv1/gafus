@@ -3,6 +3,7 @@ import { createGalleryInternalClient } from "./internal.js";
 import { sharpGalleryEngine } from "./sharp-engine.js";
 import { createGalleryCloudWorker } from "./worker.js";
 import { emitGalleryTelemetry } from "./telemetry.js";
+import { runGalleryOneShot } from "./job-lifecycle.js";
 
 // A bounded Container Job drains durable work from core without Yandex Message Queue.
 console.log(JSON.stringify({event: "gallery_invocation_start",
@@ -32,7 +33,6 @@ const worker = createGalleryCloudWorker({
   },
   telemetry: emitGalleryTelemetry,
 });
-worker.maintenance().catch(() => {
-  console.error("GALLERY_CLOUD_INVOCATION_FAILED");
-  process.exitCode = 1;
-});
+// A successful maintenance callback must terminate the container, not just
+// resolve a Promise: SDK keep-alive sockets can otherwise retain active handles.
+void runGalleryOneShot(() => worker.maintenance());

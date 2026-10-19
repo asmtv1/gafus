@@ -104,6 +104,7 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
     {
       name: "gafus-gallery-process",
       imageRole: "gallery-worker",
+      // Approved production target for BOTH Gallery processors.
       cpu: "1",
       memory: "2048Mi",
       timeout: 120,
@@ -135,7 +136,8 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
     {
       name: "gafus-feed-video",
       imageRole: "feed-worker",
-      cpu: "4",
+      cpu: "2",
+      memory: "8192Mi",
       timeout: 650,
       envNames: [
         ...feedCommon,

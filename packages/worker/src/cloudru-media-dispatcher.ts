@@ -24,6 +24,50 @@ export const CLOUDRU_MEDIA_JOB_NAMES = [
 
 export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
 type HttpFetch = typeof fetch;
+export interface MediaDispatchOutcome {
+  dispatched?: number; disabled?: boolean; skipped?: boolean; blocked?: boolean;
+}
+/** Cloud.ru permits at most five active executions of one Container Job.
+ * This is advisory admission control; the provider always makes the final decision.
+ * A failed inspection must never prevent a legitimate Gallery launch.
+ */
+export function inspectGalleryExecutionCapacity(
+  response: unknown, checkedAtMs: number, timeoutSeconds = 120,
+) {
+  if (!response || typeof response !== "object" ||
+      !Array.isArray((response as {data?: unknown}).data))
+    throw Error("CLOUDRU_GALLERY_EXECUTIONS_INVALID");
+  const records = (response as {data: unknown[]}).data;
+  // Conservatively count pending, starting, running and cancelling executions.
+  const live = new Set(["created", "creating", "running", "canceling", "cancelling"]);
+  let active = 0, stale = 0;
+  let oldestSeconds = 0;
+  for (const row of records) {
+    if (!row || typeof row !== "object") throw Error("CLOUDRU_GALLERY_EXECUTION_INVALID");
+    const item = row as {executionStatus?: unknown; createdAt?: unknown};
+    if (typeof item.executionStatus !== "string" || !live.has(item.executionStatus)) continue;
+    active++;
+    if (typeof item.createdAt !== "string") continue;
+    const createdAt = Date.parse(item.createdAt);
+    if (!Number.isFinite(createdAt) || createdAt > checkedAtMs) continue;
+    const seconds = Math.floor((checkedAtMs - createdAt) / 1000);
+    oldestSeconds = Math.max(oldestSeconds, seconds);
+    if (seconds > timeoutSeconds + 120) stale++;
+  }
+  return {active, stale, oldestSeconds, atCapacity: active >= 5};
+}
+function safeProviderRequestId(response: Response) {
+  const id = response.headers?.get?.("x-request-id") ??
+    response.headers?.get?.("x-correlation-id") ??
+    response.headers?.get?.("x-trace-id");
+  return id && /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(id) ? id : undefined;
+}
+function safeProviderErrorCode(response: Response) {
+  const code = response.headers?.get?.("x-error-code") ??
+    response.headers?.get?.("x-cloudru-error-code");
+  return code && /^(?:MAX|LIMIT|QUOTA|TOO_MANY|RATE_LIMIT|RESOURCE|EXECUTION|JOB|CONCURRENCY|CONFLICT|NOT_READY)[A-Z0-9_]{0,40}$/.test(code)
+    ? code : undefined;
+}
 /** Active provider executions: stale records beyond timeout+grace are reported
  * separately, not silently treated as fresh capacity consumers. Cloud.ru is
  * authoritative for final execution admission.
@@ -120,6 +164,47 @@ export function createCloudruMediaDispatcher(
         const dispatchStart = performance.now();
         let responseReceived = false;
         try {
+          if (options.galleryAdmission && name === "gafus-gallery-process") {
+            try {
+              const pageToken = Buffer.from(JSON.stringify({
+                limit: 20, offset: 0, filter_fields: "", ordering: "-created_at", search: null,
+              })).toString("base64");
+              const list = await http(
+                "https://containers.api.cloud.ru/v2/jobs/gafus-gallery-process/executions" +
+                "?projectId=" + env.CLOUDRU_PROJECT_ID + "&pageToken=" + encodeURIComponent(pageToken),
+                {headers: {authorization: "Bearer " + cachedToken},
+                  signal: AbortSignal.timeout(8000)},
+              );
+              if (list.ok) {
+                const capacity = inspectGalleryExecutionCapacity(await list.json(), Date.now());
+                if (capacity.atCapacity) {
+                  console.warn(JSON.stringify({
+                    event: "cloudru_gallery_capacity_blocked",
+                    job: name, ...capacity, sampleSize: 20,
+                  }));
+                  return {dispatched, blocked: true};
+                }
+                if (capacity.stale) console.warn(JSON.stringify({
+                  event: "cloudru_gallery_stale_executions",
+                  job: name, ...capacity, sampleSize: 20,
+                }));
+              } else {
+                console.warn(JSON.stringify({
+                  event: "cloudru_gallery_capacity_inspection_failed",
+                  job: name, httpStatus: list.status,
+                  ...(safeProviderRequestId(list) ? {requestId: safeProviderRequestId(list)} : {}),
+                }));
+                await list.body?.cancel();
+              }
+            } catch (error) {
+              // GET is advisory; an unavailable listing must not block Gallery.
+              console.warn(JSON.stringify({
+                event: "cloudru_gallery_capacity_inspection_failed",
+                job: name, type: error instanceof Error &&
+                  ["TimeoutError", "AbortError"].includes(error.name) ? "timeout" : "other",
+              }));
+            }
+          }
           if ((options.feedPhotoAdmission && /^gafus-feed-photo(?:-2)?$/.test(name)) ||
               (options.galleryPoolAdmission && /^gafus-gallery-process(?:-2)?$/.test(name))) {
             // Unlike Gallery's advisory check, an uncertain Feed Photo capacity
@@ -158,6 +243,14 @@ export function createCloudruMediaDispatcher(
           responseReceived = true;
           emit("execute", performance.now() - dispatchStart, name, result.status);
           if (!result.ok) {
+            // Only explicitly allowlisted response metadata. Provider bodies, URLs,
+            // credentials and arbitrary messages must never enter logs.
+            console.error(JSON.stringify({
+              event: "cloudru_media_execute_rejected", job: name,
+              httpStatus: result.status,
+              ...(safeProviderRequestId(result) ? {requestId: safeProviderRequestId(result)} : {}),
+              ...(safeProviderErrorCode(result) ? {providerCode: safeProviderErrorCode(result)} : {}),
+            }));
             if ([401, 403].includes(result.status)) {
               cachedToken = undefined;
               tokenExpires = 0;

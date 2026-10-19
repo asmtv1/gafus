@@ -7,6 +7,12 @@ on:
         description: "Enter apply-reviewed-worker-pins after manually publishing/pinning all images"
         type: string
         required: true
+      media_scope:
+        description: "Update all media workers or only Feed and Gallery"
+        type: choice
+        required: true
+        default: feed-gallery
+        options: [feed-gallery, all]
 
 permissions:
   contents: read
@@ -21,6 +27,7 @@ jobs:
       GITHUB_REF: refs/heads/main
       GITHUB_EVENT_NAME: workflow_dispatch
       CLOUDRU_MANUAL_MEDIA_RELEASE_CONFIRM: approved-one-time-worker-revision
+      CLOUDRU_MEDIA_APPLY_SCOPE: ${{ inputs.media_scope }}
       CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
       CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
       CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
@@ -59,9 +66,9 @@ jobs:
         run: node infra/cloudru/worker-image-pins.mjs --check
       - name: Verify originless Cloud.ru Jobs plan (no mutations)
         run: node infra/cloudru/production-media-release.mjs --plan
-      - name: Apply reviewed images and settings to six existing Jobs (explicit manual approval)
+      - name: Apply reviewed images and settings to existing media Jobs (explicit manual approval)
         run: node infra/cloudru/production-media-release.mjs --prepare
-      - name: Confirm all six Jobs adopted pinned images and Feed public flag
+      - name: Confirm all seven Jobs adopted pinned images and required Gallery/Feed settings
         shell: bash
         run: |
           set -euo pipefail
