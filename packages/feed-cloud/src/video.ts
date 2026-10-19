@@ -88,7 +88,7 @@ export function feedFfmpegArguments(input: string, outputDir: string, info: Vide
     "-i", input,
     "-map", "0:v:0", "-map", "0:a:0?",
     "-vf", `${toneMap}${scale}format=yuv420p`,
-    "-c:v", "libx264", "-threads", "2", "-preset", "superfast", "-profile:v", "main", "-level", "3.1",
+    "-c:v", "libx264", "-threads", "4", "-preset", "superfast", "-profile:v", "main", "-level", "3.1",
     "-fpsmax", "30", "-force_key_frames", "expr:gte(t,n_forced*2)", "-b:v", "1400k", "-maxrate", "1800k", "-bufsize", "3600k",
     "-g", "60", "-keyint_min", "60", "-sc_threshold", "0",
     "-c:a", "aac", "-b:a", "96k", "-ac", "2",

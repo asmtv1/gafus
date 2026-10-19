@@ -3,7 +3,7 @@
  * Mirrors the provider's v2 payload schema; only placeholders are emitted.
  * Operator supplies account-specific secrets OUTSIDE the repository.
  */
-const cpuMemory = { 0.2: "512Mi", 0.5: "1024Mi", 1: "4096Mi", 2: "4096Mi" };
+const cpuMemory = { 0.2: "512Mi", 0.5: "1024Mi", 1: "4096Mi", 2: "4096Mi", 4: "4096Mi" };
 const image = (role, revision) => `gafus.cr.cloud.ru/gafus-${role}:${revision}`;
 const env = (names) => names.map((name) => ({ name, value: `<secret:${name}>` }));
 const galleryCommon = [
@@ -133,7 +133,7 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
     {
       name: "gafus-feed-video",
       imageRole: "feed-worker",
-      cpu: "2",
+      cpu: "4",
       timeout: 650,
       envNames: [
         ...feedCommon,

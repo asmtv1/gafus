@@ -237,6 +237,15 @@ for (const group of groups) {
               throw Error("CLOUDRU_QUESTIONS_JOB_ENV_NOT_CURRENT_" + name);
           }
         }
+        // Strictly verify the actual allocated resources for both Feed Video
+        // replicas. Image pin and a successful PATCH alone cannot prove the
+        // requested 4 vCPU / 4 GiB configuration was accepted by Cloud.ru.
+        if (group.kind === "jobs" && /^gafus-feed-video(?:-2)?$/.test(item.name)) {
+          const desired = item.template.containers[0].resources;
+          const actual = current.template.containers[0].resources;
+          if (actual?.cpu !== desired.cpu || actual?.memory !== desired.memory)
+            throw Error("CLOUDRU_FEED_VIDEO_RESOURCES_NOT_CURRENT_" + item.name);
+        }
         // A 200 from PATCH does not imply the asynchronous Cloud.ru Job update
         // is applied. Never deploy a public-Feed API until every photo/video
         // processor has the matching image AND public-final-object settings.
