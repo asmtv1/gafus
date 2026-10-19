@@ -45,6 +45,6 @@ export { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from
 
 export { publicQuestionsEnabled, publicQuestionLocation, parsePublicQuestionLocation, presentPublicQuestionPhoto, uploadPublicQuestionPhoto, deletePublicQuestionPhoto, QUESTION_PUBLIC_BUCKET, QUESTION_PUBLIC_CDN } from "./publicQuestionMedia";
 
-export { questionCloudJobEnabled, hasPendingQuestionCloudWork, pendingQuestionLocation, parsePendingQuestionLocation, questionImageVariantKeys, uploadQuestionSource, promoteQuestionVariants, questionProcessingFailure, deleteQuestionSourceAndVariants } from "./publicQuestionMedia";
+export { questionCloudJobEnabled, hasPendingQuestionCloudWork, listPendingQuestionCloudWorkKeys, pendingQuestionLocation, parsePendingQuestionLocation, questionImageVariantKeys, uploadQuestionSource, promoteQuestionVariants, questionProcessingFailure, deleteQuestionSourceAndVariants } from "./publicQuestionMedia";
 
 export { deleteQuestionPrivateStaging } from "./publicQuestionMedia";

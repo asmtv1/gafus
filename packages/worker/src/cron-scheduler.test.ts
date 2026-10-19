@@ -94,14 +94,15 @@ describe("cron-scheduler", () => {
       expect(mockSchedule).toHaveBeenCalledTimes(9);
     }, 15_000);
 
-    it("uses five-minute work-aware recovery instead of unconditional minute launches",async()=>{
+    it("checks for real Cloud.ru work every minute without unconditional launches",async()=>{
       vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED","true");
       mockMediaRecovery.factory.mockReturnValue(mockMediaRecovery.execute);
       try {
         const {startCronJobs}=await import("./cron-scheduler");
         startCronJobs();
         const recovery=mockSchedule.mock.calls.filter(([expr,fn,opts]) =>
-          expr==="*/5 * * * *" && opts?.timezone==="UTC");
+          expr==="* * * * *" && opts?.timezone==="UTC" &&
+          String(fn).includes("cloudru-media-recovery"));
         expect(recovery).toHaveLength(1);
         await recovery[0]![1]();
         await vi.waitFor(()=>expect(mockMediaRecovery.execute).toHaveBeenCalledOnce());
@@ -109,7 +110,7 @@ describe("cron-scheduler", () => {
         const cronCode=mockSchedule.mock.calls
           .filter(([expr,fn])=>String(fn).includes("cloudru-media-recovery"))
           .map(([expr])=>expr);
-        expect(cronCode).toEqual(["*/5 * * * *"]);
+        expect(cronCode).toEqual(["* * * * *"]);
       } finally {
         vi.unstubAllEnvs();
       }

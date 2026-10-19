@@ -14,7 +14,7 @@ vi.mock("@aws-sdk/client-s3",()=>{
 });
 import {
   questionCloudJobEnabled, pendingQuestionLocation, parsePendingQuestionLocation,
-  questionImageVariantKeys, hasPendingQuestionCloudWork, uploadQuestionSource, promoteQuestionVariants,
+  questionImageVariantKeys, hasPendingQuestionCloudWork, listPendingQuestionCloudWorkKeys, uploadQuestionSource, promoteQuestionVariants,
   deleteQuestionSourceAndVariants, questionProcessingFailure,
 } from "./publicQuestionMedia";
 const config={
@@ -59,13 +59,26 @@ describe("Questions S3 private staging and safe promotion",()=>{
       {Key:"questions/jobs/pending/questions/owner/photo/source.jpg"},
     ]});
     expect(await hasPendingQuestionCloudWork(config)).toBe(true);
+    mocked.send.mockReset().mockResolvedValue({Contents:[
+      {Key:"questions/jobs/pending/questions/owner/photo/source.jpg"},
+      {Key:"questions/jobs/pending/questions/owner/photo2/source.png"},
+    ]});
+    expect(await listPendingQuestionCloudWorkKeys(config)).toEqual([
+      "questions/jobs/pending/questions/owner/photo/source.jpg",
+      "questions/jobs/pending/questions/owner/photo2/source.png",
+    ]);
+    mocked.send.mockReset().mockResolvedValue({Contents:[{
+      Key:"questions/jobs/pending/questions/owner/new-photo/source.png",
+      LastModified:new Date(),
+    }]});
+    expect(await listPendingQuestionCloudWorkKeys(config)).toEqual([]);
     mocked.send.mockReset().mockResolvedValue({Contents:[{Key:"questions/jobs/pending/forged/evil"}]});
     expect(await hasPendingQuestionCloudWork(config)).toBe(false);
     mocked.send.mockReset().mockResolvedValue({IsTruncated:true,Contents:[]});
     await expect(hasPendingQuestionCloudWork(config)).rejects.toThrow("QUESTIONS_RECOVERY_WORK_LIST_TRUNCATED");
     mocked.send.mockReset().mockRejectedValue(new Error("S3_UNAVAILABLE"));
     await expect(hasPendingQuestionCloudWork(config)).rejects.toThrow("S3_UNAVAILABLE");
-    expect(mocked.destroy).toHaveBeenCalledTimes(6);
+    expect(mocked.destroy).toHaveBeenCalledTimes(8);
   });
   it("writes source ONLY into private incoming S3 prefix",async()=>{
     await uploadQuestionSource(path,new Uint8Array([1,2,3]),"image/png",config);

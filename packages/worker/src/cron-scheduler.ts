@@ -148,11 +148,11 @@ export function startCronJobs(): void {
     );
   }
   // Primary media processing is event-driven via BullMQ. Recovery polls the
-  // durable Core queues and Questions S3 markers only every five minutes.
+  // durable Core queues and Questions S3 markers every minute.
   // An empty queue never causes a billable Cloud.ru Jobs execute request.
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
     let recovery: ReturnType<typeof import("./cloudru-media-recovery").createCloudruMediaRecovery> | undefined;
-    cron.schedule("*/5 * * * *", () => {
+    cron.schedule("* * * * *", () => {
       void import("./cloudru-media-recovery")
         .then(async ({ createCloudruMediaRecovery }) => {
           recovery ??= createCloudruMediaRecovery({

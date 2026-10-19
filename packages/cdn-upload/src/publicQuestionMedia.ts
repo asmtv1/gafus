@@ -98,27 +98,36 @@ export async function uploadQuestionSource(path: string, body: Uint8Array, conte
   return location;
 }
 
-/** Read-only, bounded recovery signal. Empty Questions S3 work queue never starts
- * a billable Cloud.ru Job. The worker ack-removes each marker after processing.
- * An S3 failure must not be mistaken for an empty queue.
+/** Read-only bounded S3 work snapshot: only immutable private processing
+ * markers, never user bytes. A truncated first page with no valid entries is
+ * ambiguous and fails closed (not "queue empty").
  */
-export async function hasPendingQuestionCloudWork(
+export async function listPendingQuestionCloudWorkKeys(
   env: NodeJS.ProcessEnv = process.env,
-): Promise<boolean> {
-  if (!questionCloudJobEnabled(env)) return false;
+): Promise<string[]> {
+  if (!questionCloudJobEnabled(env)) return [];
   return sendCloud(async client => {
     const listed = await client.send(new ListObjectsV2Command({
       Bucket: QUESTION_PUBLIC_BUCKET,
       Prefix: pendingWorkPrefix + "questions/",
       MaxKeys: 20,
     }), {abortSignal: AbortSignal.timeout(8000)});
-    const found = (listed.Contents ?? []).some(item =>
-      /^questions\/jobs\/pending\/questions\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/source\.(?:jpg|jpeg|png|webp)$/.test(item.Key ?? ""),
-    );
-    if (found) return true; // A busy (>20) queue must NEVER suppress recovery.
-    if (listed.IsTruncated) throw new Error("QUESTIONS_RECOVERY_WORK_LIST_TRUNCATED");
-    return false;
+    const eligibleBefore = Date.now() - 45_000;
+    const keys = (listed.Contents ?? [])
+      .filter(item => !item.LastModified || item.LastModified.getTime() <= eligibleBefore)
+      .map(item => item.Key ?? "")
+      .filter(key =>
+        /^questions\/jobs\/pending\/questions\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/source\.(?:jpg|jpeg|png|webp)$/.test(key));
+    if (!keys.length && listed.IsTruncated)
+      throw new Error("QUESTIONS_RECOVERY_WORK_LIST_TRUNCATED");
+    return keys;
   }, env);
+}
+
+export async function hasPendingQuestionCloudWork(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<boolean> {
+  return (await listPendingQuestionCloudWorkKeys(env)).length > 0;
 }
 
 /** Only this API-side promotion can put processed images into the public prefix. */
