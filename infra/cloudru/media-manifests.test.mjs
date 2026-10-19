@@ -36,6 +36,10 @@ for (const kind of ["photo", "video"]) {
   }
   assert.deepEqual(pool[0].template.containers[0].resources, pool[1].template.containers[0].resources);
   assert.equal(pool[0].template.containers[0].image, pool[1].template.containers[0].image);
+  if (kind === "video") for (const job of pool) {
+    assert.equal(job.template.containers[0].resources.cpu, "2");
+    assert.equal(job.template.containers[0].resources.memory, "4096Mi");
+  }
 }
 for (const service of services) {
   // Yandex CDN cannot reach a Cloud.ru private-only ingress.
