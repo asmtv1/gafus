@@ -20,7 +20,7 @@ export async function inspectCoreDueMediaWork(
     const [jobs, uploads, activeJobs, activeUploads] = await Promise.all([
       prisma.galleryStorageJob.findMany({
         where: { ...dueJob, createdAt: { lte: olderThan } },
-        select: { id: true }, orderBy: { availableAt: "asc" }, take: 8,
+        select: { id: true }, orderBy: { availableAt: "asc" }, take: 100,
       }),
       prisma.galleryUpload.findMany({
         where: { updatedAt: { lte: olderThan }, OR: [
@@ -29,7 +29,7 @@ export async function inspectCoreDueMediaWork(
           { status: { in: ["reserved", "uploaded", "processing"] },
             reservationExpiresAt: { lte: at } },
         ] },
-        select: { id: true }, orderBy: { nextAttemptAt: "asc" }, take: 8,
+        select: { id: true }, orderBy: { nextAttemptAt: "asc" }, take: 100,
       }),
       prisma.galleryStorageJob.count({
         where: { status: "processing", leaseUntil: { gt: at } },

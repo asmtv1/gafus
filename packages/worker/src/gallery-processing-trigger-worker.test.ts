@@ -15,8 +15,8 @@ vi.mock("@gafus/queues", () => ({
 vi.mock("@gafus/logger", () => ({
   createWorkerLogger: () => ({ success: vi.fn(), info: vi.fn(), error: vi.fn() }),
 }));
-vi.mock("./cloudru-media-dispatcher", () => ({
-  createCloudruMediaDispatcher: (...args: unknown[]) => {
+vi.mock("./gallery-demand", () => ({
+  createGalleryDemandDispatcher: (...args: unknown[]) => {
     mocks.createDispatcher(...args);
     return mocks.execute;
   },
@@ -62,7 +62,7 @@ describe("gallery immediate trigger worker", () => {
     vi.stubEnv("GALLERY_PROCESSOR_READY", "true");
     const { startGalleryProcessingTriggerWorker } = await import("./gallery-processing-trigger-worker");
     startGalleryProcessingTriggerWorker();
-    expect(mocks.createDispatcher.mock.calls[0]?.[2]).toEqual(["gafus-gallery-process"]);
+    expect(mocks.createDispatcher).toHaveBeenCalledOnce();
     expect(mocks.worker).toHaveBeenCalledWith("gallery-processing-trigger", expect.objectContaining({
       concurrency: 1, limiter: { max: 1, duration: 1500 },
     }));
@@ -73,6 +73,20 @@ describe("gallery immediate trigger worker", () => {
     expect(mocks.execute).toHaveBeenCalledOnce();
   });
 
+  it("accepts coalesced, idle, capacity-blocked, and batch wake results",async()=>{
+    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED","true");
+    vi.stubEnv("GALLERY_PROCESSOR_READY","true");
+    const {startGalleryProcessingTriggerWorker}=await import("./gallery-processing-trigger-worker");
+    startGalleryProcessingTriggerWorker();
+    for(const result of [
+      {dispatched:0,coalesced:true},{dispatched:0,idle:true},
+      {dispatched:0,blocked:true},{dispatched:10},
+    ]){
+      mocks.execute.mockResolvedValueOnce(result);
+      await expect(mocks.processor!({data:{uploadId:"gallery-follow-up"}}))
+        .resolves.toBeUndefined();
+    }
+  });
   it("fails job for retry when provider has not accepted execution", async () => {
     vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
     vi.stubEnv("GALLERY_PROCESSOR_READY", "true");

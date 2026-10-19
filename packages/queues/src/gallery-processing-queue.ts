@@ -20,11 +20,29 @@ export async function enqueueGalleryProcessing(uploadId: string): Promise<void> 
     "process",
     { uploadId },
     {
-      jobId: `gallery-${uploadId}`,
+      // Coalesce a hundred uploads in the same second into one wake-up.
+      // Uploads remain independently durable in Core's PostgreSQL queue.
+      jobId: `gallery-wake-${Math.floor(Date.now() / 1000)}`,
       attempts: 5,
       backoff: { type: "exponential", delay: 3000 },
       removeOnComplete: true,
       removeOnFail: { count: 500 },
     },
   );
+}
+
+
+// Retry a large Gallery backlog after existing executions claim their work.
+// The synthetic identifier is not an upload ID and never reaches Core.
+export async function enqueueGalleryFollowUp(delayMs = 5000): Promise<void> {
+  if (!Number.isInteger(delayMs) || delayMs < 1000 || delayMs > 60_000)
+    throw Error("INVALID_GALLERY_FOLLOWUP_DELAY");
+  await galleryProcessingQueue.add("follow-up", { uploadId: "gallery-follow-up" }, {
+    jobId: "gallery-resume-" + Math.floor((Date.now() + delayMs) / 5000),
+    delay: delayMs,
+    attempts: 5,
+    backoff: { type: "exponential", delay: 3000 },
+    removeOnComplete: true,
+    removeOnFail: { count: 500 },
+  });
 }

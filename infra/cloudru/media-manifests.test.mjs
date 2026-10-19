@@ -6,12 +6,12 @@ const { services, jobs } = cloudruMediaManifests(projectId, revision);
 assert.equal(services.length, 2);
 const publicFeed = cloudruMediaManifests(projectId, revision, { feedPublic: true });
 assert.deepEqual(publicFeed.services.map(service => service.name), ["gafus-gallery-origin"]);
-assert.equal(publicFeed.jobs.length, 5);
+assert.equal(publicFeed.jobs.length, 6);
 for (const job of publicFeed.jobs.filter(job => job.name.startsWith("gafus-feed-")))
   assert(job.template.containers[0].env.some(item => item.name === "FEED_BUCKET_PUBLIC"));
-assert.equal(jobs.length, 5);
+assert.equal(jobs.length, 6);
 const questionsEnabled = cloudruMediaManifests(projectId, revision, {questionsProcessing:true});
-assert.equal(questionsEnabled.jobs.length, 6);
+assert.equal(questionsEnabled.jobs.length, 7);
 const questionsJob = questionsEnabled.jobs.find(job => job.name === "gafus-questions-photo");
 assert.ok(questionsJob);
 assert.equal(questionsJob.imageRole, undefined); // OCI role consumed during manifest creation
@@ -24,9 +24,17 @@ assert.deepEqual(questionsJob.template.containers[0].env.map(v=>v.name), [
   "QUESTIONS_JOB_ENABLED","QUESTIONS_PUBLIC_S3_BUCKET","CLOUDRU_S3_ENDPOINT",
   "CLOUDRU_S3_ACCESS_KEY_ID","CLOUDRU_S3_SECRET_ACCESS_KEY",
 ]);
-assert.equal(publicFeed.jobs.length,5); // Gallery/Feed unchanged when Questions is disabled.
+assert.equal(publicFeed.jobs.length,6); // Gallery/Feed unchanged when Questions is disabled.
 
-assert.equal(new Set(jobs.map(job => job.name)).size, 5);
+assert.equal(new Set(jobs.map(job => job.name)).size, 6);
+const galleryJobs = jobs.filter(job => /^gafus-gallery-process(?:-2)?$/.test(job.name));
+assert.equal(galleryJobs.length, 2);
+assert.deepEqual(galleryJobs[0].template.containers[0].resources,
+  galleryJobs[1].template.containers[0].resources);
+assert.equal(galleryJobs[0].template.containers[0].image,
+  galleryJobs[1].template.containers[0].image);
+assert.equal(galleryJobs[1].template.timeout, 120);
+assert.equal(galleryJobs[1].runImmediately, false);
 for (const kind of ["photo", "video"]) {
   const pool = jobs.filter(job => job.name.startsWith("gafus-feed-" + kind));
   assert.equal(pool.length, 2);
@@ -74,4 +82,4 @@ assert(
   ),
 );
 assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);
-console.log("Cloud.ru manifest layout 2 services + 5 bounded durable jobs PASS");
+console.log("Cloud.ru manifest layout 2 services + 6 bounded durable jobs PASS");

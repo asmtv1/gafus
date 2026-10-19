@@ -16,6 +16,7 @@ export const CLOUDRU_FEED_JOB_POOLS = {
 } as const;
 export const CLOUDRU_MEDIA_JOB_NAMES = [
   ...DEFAULT_MEDIA_JOB_NAMES,
+  "gafus-gallery-process-2",
   "gafus-feed-photo-2",
   "gafus-feed-video-2",
   "gafus-questions-photo",
@@ -56,7 +57,8 @@ export function createCloudruMediaDispatcher(
   env: Record<string, string | undefined> = process.env,
   http: HttpFetch = fetch,
   names: readonly CloudruMediaJobName[] = DEFAULT_MEDIA_JOB_NAMES,
-  options: { galleryAdmission?: boolean; feedPhotoAdmission?: boolean;
+  options: { galleryAdmission?: boolean; galleryPoolAdmission?: boolean;
+    feedPhotoAdmission?: boolean;
     reservedCount?: (name: CloudruMediaJobName) => number;
     onAccepted?: (name: CloudruMediaJobName) => void } = {},
 ) {
@@ -67,7 +69,8 @@ export function createCloudruMediaDispatcher(
     !env.CLOUDRU_KEY_ID ||
     !env.CLOUDRU_KEY_SECRET ||
     (names.some((name) => name.startsWith("gafus-feed")) && env.FEED_PROCESSOR_READY !== "true") ||
-    (names.includes("gafus-gallery-process") && env.GALLERY_PROCESSOR_READY !== "true") ||
+    (names.some(name => name.startsWith("gafus-gallery-process")) &&
+      env.GALLERY_PROCESSOR_READY !== "true") ||
     (names.includes("gafus-questions-photo") &&
       (env.QUESTIONS_PROCESSOR_READY !== "true" ||
         env.QUESTIONS_CLOUD_JOB_ENABLED !== "true")) ||
@@ -117,7 +120,8 @@ export function createCloudruMediaDispatcher(
         const dispatchStart = performance.now();
         let responseReceived = false;
         try {
-          if (options.feedPhotoAdmission && /^gafus-feed-photo(?:-2)?$/.test(name)) {
+          if ((options.feedPhotoAdmission && /^gafus-feed-photo(?:-2)?$/.test(name)) ||
+              (options.galleryPoolAdmission && /^gafus-gallery-process(?:-2)?$/.test(name))) {
             // Unlike Gallery's advisory check, an uncertain Feed Photo capacity
             // read FAILS CLOSED. Cron/next wake retries without paid duplicates.
             const pageToken = Buffer.from(JSON.stringify({
@@ -132,11 +136,13 @@ export function createCloudruMediaDispatcher(
             );
             if (!list.ok) {
               await list.body?.cancel();
-              throw Error("CLOUDRU_FEED_PHOTO_CAPACITY_UNAVAILABLE_" + list.status);
+              throw Error((options.galleryPoolAdmission ? "CLOUDRU_GALLERY_POOL_CAPACITY_UNAVAILABLE_" : "CLOUDRU_FEED_PHOTO_CAPACITY_UNAVAILABLE_") + list.status);
             }
-            const cap = inspectFeedPhotoCapacity(await list.json(), Date.now());
+            const cap = inspectFeedPhotoCapacity(await list.json(), Date.now(),
+              options.galleryPoolAdmission ? 120 : 240);
             if (cap.stale) console.warn(JSON.stringify({
-              event: "cloudru_feed_photo_stale_executions",
+              event: options.galleryPoolAdmission
+                ? "cloudru_gallery_stale_executions" : "cloudru_feed_photo_stale_executions",
               job: name, stale: cap.stale, oldestStaleSeconds: cap.oldestStaleSeconds,
             }));
             if (cap.active + (options.reservedCount?.(name) ?? 0) >= 5) {

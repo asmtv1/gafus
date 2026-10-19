@@ -26,6 +26,7 @@ export * from "./cynologist-chat-queue.js";
 export {
   galleryProcessingQueue,
   enqueueGalleryProcessing,
+  enqueueGalleryFollowUp,
   GALLERY_PROCESSING_QUEUE_NAME,
 } from "./gallery-processing-queue.js";
 export type { GalleryProcessingJobData } from "./gallery-processing-queue.js";

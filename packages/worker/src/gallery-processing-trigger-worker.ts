@@ -1,7 +1,7 @@
 import { connection, GALLERY_PROCESSING_QUEUE_NAME } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { Worker, type Job } from "bullmq";
-import { createCloudruMediaDispatcher } from "./cloudru-media-dispatcher";
+import { createGalleryDemandDispatcher } from "./gallery-demand";
 
 const logger = createWorkerLogger("gallery-processing-trigger");
 
@@ -13,9 +13,9 @@ export function startGalleryProcessingTriggerWorker(): void {
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
       process.env.GALLERY_PROCESSOR_READY !== "true") return;
 
-  let dispatch: ReturnType<typeof createCloudruMediaDispatcher>;
+  let dispatch: ReturnType<typeof createGalleryDemandDispatcher>;
   try {
-    dispatch = createCloudruMediaDispatcher(process.env, fetch, ["gafus-gallery-process"]);
+    dispatch = createGalleryDemandDispatcher();
   } catch {
     logger.error("Gallery trigger configuration unavailable", new Error("GALLERY_TRIGGER_CONFIG_UNSAFE"));
     return;
@@ -23,7 +23,8 @@ export function startGalleryProcessingTriggerWorker(): void {
   const worker = new Worker<{ uploadId: string }>(
     GALLERY_PROCESSING_QUEUE_NAME,
     async (job: Job<{ uploadId: string }>) => {
-      if (!/^[a-f0-9-]{36}$/i.test(job.data.uploadId))
+      if (job.data.uploadId !== "gallery-follow-up" &&
+          !/^[a-f0-9-]{36}$/i.test(job.data.uploadId))
         throw new Error("INVALID_GALLERY_UPLOAD_ID");
       const started = performance.now();
       const queuedMs = Math.max(0, Date.now() - job.timestamp);
@@ -31,7 +32,9 @@ export function startGalleryProcessingTriggerWorker(): void {
       logger.info("Gallery Cloud.ru dispatch timing", {
         queuedMs, dispatchMs: Math.round(performance.now() - started),
       });
-      if (result.dispatched !== 1) throw new Error("GALLERY_PROCESS_TRIGGER_NOT_DISPATCHED");
+      if (result.coalesced || result.idle || result.blocked || result.dispatched > 0)
+        return;
+      throw new Error("GALLERY_PROCESS_TRIGGER_NOT_DISPATCHED");
     },
     {
       connection,

@@ -145,7 +145,7 @@ export function cloudruMediaManifests(projectId, revision, { feedPublic = false,
         "FEED_INTERNAL_HMAC_SECRET",
       ],
     },
-  ].flatMap((spec) => spec.imageRole === "feed-worker"
+  ].flatMap((spec) => ["feed-worker", "gallery-worker"].includes(spec.imageRole)
     ? [spec, { ...spec, name: spec.name + "-2" }]
     : [spec]).map((spec) => ({
     name: spec.name,
