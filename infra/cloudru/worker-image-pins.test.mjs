@@ -86,3 +86,35 @@ test('normal GitHub CI never builds, pushes, patches or provisions Cloud.ru jobs
   assert.match(apply.jobs['apply-pins'].if,/approved|apply-reviewed-worker-pins/);
   assert.ok(apply.jobs['apply-pins'].steps.some(x=>x.run==='node infra/cloudru/production-media-release.mjs --prepare'));
 });
+
+test('API deploy, including manual Deploy Only, verifies all six live pinned Cloud.ru Jobs before SSH', () => {
+  const deploy=yaml.parse(readFileSync('.github/workflows/production-deploy-reusable.yml','utf8'));
+  const steps=deploy.jobs['deploy-production'].steps;
+  const ssh=steps.findIndex(x=>x.name==='Deploy to production server');
+  const login=steps.findIndex(x=>x.name==='Authenticate to Cloud.ru media Registry for six-Job verification');
+  const verify=steps.findIndex(x=>x.name==='Verify all six pinned Cloud.ru media Jobs before API deployment (read-only)');
+  assert.ok(login>=0 && verify>login && ssh>verify);
+  assert.equal(steps[login].uses,'docker/login-action@v3');
+  assert.equal(steps[login].with.registry,'gafus.cr.cloud.ru');
+  assert.equal(steps[verify].run.trim(),
+    'node infra/cloudru/worker-image-pins.mjs --check\nnode infra/cloudru/production-media-release.mjs --verify');
+  const env=steps[verify].env;
+  assert.equal(env.GITHUB_SHA,'${{ inputs.release_sha }}');
+  assert.equal(env.GITHUB_REF,'${{ github.ref }}');
+  assert.equal(env.GITHUB_EVENT_NAME,'${{ github.event_name }}');
+  for(const media of ['GALLERY','FEED','QUESTIONS']) {
+    assert.equal(env['CLOUDRU_'+media+'_WORKER_IMAGE'],'${{ vars.CLOUDRU_'+media+'_WORKER_IMAGE }}');
+    assert.equal(env['CLOUDRU_'+media+'_WORKER_SOURCE'],'${{ vars.CLOUDRU_'+media+'_WORKER_SOURCE }}');
+  }
+  for(const secret of ['CLOUDRU_PROJECT_ID','CLOUDRU_KEY_ID','CLOUDRU_KEY_SECRET',
+    'CLOUDRU_S3_ACCESS_KEY_ID','CLOUDRU_S3_SECRET_ACCESS_KEY',
+    'GALLERY_CDN_SECRET','GALLERY_ORIGIN_SECRET',
+    'GALLERY_INTERNAL_HMAC_SECRET','FEED_INTERNAL_HMAC_SECRET']) {
+    assert.equal(env[secret],'${{ secrets.'+secret+' }}');
+  }
+  assert.equal(env.FEED_BUCKET_PUBLIC,'true');
+  assert.equal(env.QUESTIONS_CLOUD_JOB_ENABLED,"${{ vars.QUESTIONS_CLOUD_JOB_ENABLED || 'true' }}");
+  assert.ok(!steps[verify].run.includes('--prepare'));
+  assert.ok(!steps[verify].run.includes('docker build'));
+  assert.equal(deploy.jobs['deploy-production'].environment,'production');
+});

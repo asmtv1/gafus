@@ -470,7 +470,7 @@ jobs:
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
         run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/beget-production-smoke.test.mjs infra/cloudru/feed-public-workflow.test.mjs infra/cloudru/worker-image-pins.test.mjs
       - name: Isolated Questions S3/CDN/Cloud.ru Job cutover pre-deploy contracts
-        run: node --test infra/cloudru/questions-public-readiness.test.mjs infra/cloudru/questions-job-live-readiness.test.mjs infra/cloudru/questions-public-workflow.test.mjs
+        run: node --test infra/cloudru/questions-public-readiness.test.mjs infra/cloudru/questions-job-live-readiness.test.mjs infra/cloudru/questions-public-workflow.test.mjs infra/cloudru/questions-production-job-smoke.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: |
           python3 ci-cd/scripts/upload-cloudru-oci.test.py
@@ -480,7 +480,7 @@ jobs:
       - name: Cloud.ru Questions photo Job actual sharp and type contracts
         run: |
           pnpm exec tsc -p apps/questions-cloud/tsconfig.json
-          pnpm exec vitest run apps/questions-cloud/src/worker.test.ts packages/cdn-upload/src/questionCloudJob.test.ts
+          pnpm exec vitest run apps/questions-cloud/src/worker.test.ts apps/questions-cloud/src/worker.s3.integration.test.ts packages/cdn-upload/src/questionCloudJob.test.ts
 
   # Fail closed BEFORE publishing production images or changing Cloud.ru/VPS.
   # The synthetic final objects must be provisioned separately with approval;
