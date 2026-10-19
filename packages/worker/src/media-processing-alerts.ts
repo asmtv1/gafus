@@ -1,7 +1,6 @@
-import { prisma } from "@gafus/prisma";
 import { connection } from "@gafus/queues";
 import {
-  getAdminMediaDashboard, MEDIA_MONITOR_HEARTBEAT_KEY,
+  getAdminMediaDashboard, getMediaAlertAdminEmails, MEDIA_MONITOR_HEARTBEAT_KEY,
 } from "@gafus/core/services/systemHealth";
 import { sendTransactionalMail } from "@gafus/mailer";
 import { createWorkerLogger } from "@gafus/logger";
@@ -22,11 +21,7 @@ export async function monitorMediaProcessing() {
       await connection.del(key(kind));
     return { alerted: 0 };
   }
-  const administrators = await prisma.user.findMany({
-    where: { role: "ADMIN" }, select: { email: true }, take: 20,
-  });
-  const addresses = [...new Set(administrators.map(x => x.email)
-    .filter((email): email is string => Boolean(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))];
+  const addresses = await getMediaAlertAdminEmails();
   if (!addresses.length) {
     logger.warn("Media alert recipients unavailable");
     return { alerted: 0 };

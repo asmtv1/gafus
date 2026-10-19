@@ -16,3 +16,5 @@ export { getAdminMediaDashboard, recordMediaDispatch, recordMediaEmptyClaim, kin
 export { MEDIA_MONITOR_HEARTBEAT_KEY } from "./mediaMonitoring";
 export { renderMediaMetricsPrometheus } from "./mediaMonitoring";
 export { notifyStoppedMediaWorker } from "./mediaWorkerOutage";
+export { inspectCoreDueMediaWork } from "./mediaRecovery";
+export { getMediaAlertAdminEmails } from "./mediaWorkerOutage";

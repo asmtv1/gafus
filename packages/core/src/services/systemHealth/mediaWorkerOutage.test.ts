@@ -13,7 +13,7 @@ vi.mock("@gafus/mailer",()=>({sendTransactionalMail:m.send}));
 vi.mock("./mediaMonitoring",()=>({
   MEDIA_MONITOR_HEARTBEAT_KEY:"gafus:media:monitor:v1:heartbeat",
 }));
-import { notifyStoppedMediaWorker } from "./mediaWorkerOutage";
+import { getMediaAlertAdminEmails, notifyStoppedMediaWorker } from "./mediaWorkerOutage";
 
 const now=new Date("2026-10-19T16:00:00Z");
 beforeEach(()=>{
@@ -73,5 +73,15 @@ describe("independent API watcher when entire Worker process is down",()=>{
       stopped:true,alerted:false,
     });
     expect(m.del).toHaveBeenCalledWith("gafus:media:alert:v1:worker-unavailable");
+  });
+});
+
+describe("shared Core-only admin recipient lookup", () => {
+  it("selects only ADMINs and excludes malformed and duplicate emails", async () => {
+    m.admins.mockResolvedValue([{email:"admin@example.com"},{email:"bad"},
+      {email:null},{email:"admin@example.com"}]);
+    expect(await getMediaAlertAdminEmails()).toEqual(["admin@example.com"]);
+    expect(m.admins).toHaveBeenCalledWith({where:{role:"ADMIN"},
+      select:{email:true},take:20});
   });
 });

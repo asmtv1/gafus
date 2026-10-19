@@ -4,11 +4,9 @@ const m=vi.hoisted(()=>({
   dashboard:vi.fn(), admin:vi.fn(), send:vi.fn(), set:vi.fn(),
   del:vi.fn(), warn:vi.fn(), error:vi.fn(),
 }));
-vi.mock("@gafus/prisma",()=>({
-  prisma:{user:{findMany:m.admin}},
-}));
 vi.mock("@gafus/core/services/systemHealth",()=>({
   getAdminMediaDashboard:m.dashboard,
+  getMediaAlertAdminEmails:m.admin,
   MEDIA_MONITOR_HEARTBEAT_KEY:"gafus:media:monitor:v1:heartbeat",
 }));
 vi.mock("@gafus/mailer",()=>({sendTransactionalMail:m.send}));
@@ -30,7 +28,7 @@ beforeEach(()=>{
   vi.clearAllMocks();
   vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED","true");
   m.dashboard.mockResolvedValue(stopped);
-  m.admin.mockResolvedValue([{email:"admin@example.com"}]);
+  m.admin.mockResolvedValue(["admin@example.com"]);
   m.set.mockResolvedValue("OK");
   m.del.mockResolvedValue(1);
   m.send.mockResolvedValue(undefined);
@@ -44,8 +42,7 @@ describe("Cloud.ru media admin notifications",()=>{
   });
   it("emails verified ADMIN recipients with technical counts, no upload IDs",async()=>{
     expect(await monitorMediaProcessing()).toEqual({alerted:1});
-    expect(m.admin).toHaveBeenCalledWith({where:{role:"ADMIN"},
-      select:{email:true},take:20});
+    expect(m.admin).toHaveBeenCalledOnce();
     expect(m.send).toHaveBeenCalledWith(expect.objectContaining({
       to:["admin@example.com"],category:"notice",deliveryMode:"deferred",
       subject:expect.stringContaining("feed-video"),
@@ -63,8 +60,8 @@ describe("Cloud.ru media admin notifications",()=>{
     expect(await monitorMediaProcessing()).toEqual({alerted:0});
     expect(m.del).toHaveBeenCalledWith("gafus:media:alert:v1:feed-video");
   });
-  it("does not send to non-ADMIN recipients or unvalidated addresses",async()=>{
-    m.admin.mockResolvedValue([{email:"bad-email"},{email:null}]);
+  it("does not send when Core returns no validated ADMIN recipients",async()=>{
+    m.admin.mockResolvedValue([]);
     expect(await monitorMediaProcessing()).toEqual({alerted:0});
     expect(m.send).not.toHaveBeenCalled();
   });

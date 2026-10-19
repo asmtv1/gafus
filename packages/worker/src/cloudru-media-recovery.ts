@@ -4,7 +4,7 @@
  * Bounded batches + local in-flight reservations protect against paying twice
  * while an accepted Cloud.ru execution waits to claim its work in Core.
  */
-import { prisma } from "@gafus/prisma";
+import { inspectCoreDueMediaWork } from "@gafus/core/services/systemHealth";
 import { listPendingQuestionCloudWorkKeys } from "@gafus/cdn-upload";
 import { createCloudruFeedPoolDispatcher, createCloudruMediaDispatcher } from "./cloudru-media-dispatcher";
 
@@ -13,7 +13,6 @@ export interface RecoverySnapshot { dueIds: string[]; active: number }
 type Inspect = (kind: RecoveryKind) => Promise<RecoverySnapshot>;
 type Recover = () => Promise<{ dispatched?: number; disabled?: boolean; skipped?: boolean }>;
 const KINDS: readonly RecoveryKind[] = ["gallery", "feed-photo", "feed-video", "questions"];
-const PHOTO_KINDS = ["copy_album", "publish_photo", "delete_keys", "cleanup_source"] as const;
 const MAX_PER_KIND_TICK = 4;
 const MAX_TOTAL_TICK = 8;
 const MAX_HTTP_IN_FLIGHT = 2;
@@ -37,62 +36,14 @@ export function enabledRecoveryKind(kind: RecoveryKind, env: NodeJS.ProcessEnv):
   }
 }
 
-/** A bounded read, matching Core's due/lease conditions. Never claim work
- * during inspection. Active DB leases occupy processing capacity, and the
- * accepted-but-not-yet-claimed launches are tracked separately in memory.
- * Source IDs are used locally only, never logged or sent to Cloud.ru.
- */
+/** Core owns all durable DB inspection; private S3 Question markers stay in
+ * the storage adapter. Failure propagates and never means an empty queue. */
 export async function inspectDueCloudruWork(kind: RecoveryKind): Promise<RecoverySnapshot> {
-  const at = new Date();
-  // Newly created uploads have already emitted an immediate BullMQ wake.
-  // A 45-second grace avoids charging for a duplicate cold-started execution.
-  const olderThan = new Date(at.getTime() - 45_000);
-  const dueJob = { OR: [
-    { status: "pending" as const, availableAt: { lte: at } },
-    { status: "processing" as const, leaseUntil: { lt: at } },
-  ] };
-  if (kind === "gallery") {
-    const [jobs, uploads, activeJobs, activeUploads] = await Promise.all([
-      prisma.galleryStorageJob.findMany({
-        where: { ...dueJob, createdAt: { lte: olderThan } },
-        select: { id: true }, orderBy: { availableAt: "asc" }, take: 8,
-      }),
-      prisma.galleryUpload.findMany({
-        where: { updatedAt: { lte: olderThan }, OR: [
-          { status: "uploaded", nextAttemptAt: { lte: at } },
-          { status: "processing", leaseUntil: { lte: at } },
-          { status: { in: ["reserved", "uploaded", "processing"] },
-            reservationExpiresAt: { lte: at } },
-        ] },
-        select: { id: true }, orderBy: { nextAttemptAt: "asc" }, take: 8,
-      }),
-      prisma.galleryStorageJob.count({
-        where: { status: "processing", leaseUntil: { gt: at } },
-      }),
-      prisma.galleryUpload.count({
-        where: { status: "processing", leaseUntil: { gt: at } },
-      }),
-    ]);
-    return {
-      dueIds: [...jobs.map(row => "job:" + row.id), ...uploads.map(row => "upload:" + row.id)],
-      active: activeJobs + activeUploads,
-    };
-  }
   if (kind === "questions") {
     const keys = await listPendingQuestionCloudWorkKeys();
     return { dueIds: keys, active: 0 };
   }
-  const kinds = kind === "feed-video" ? "publish_video" : { in: [...PHOTO_KINDS] };
-  const [jobs, active] = await Promise.all([
-    prisma.feedStorageJob.findMany({
-      where: { ...dueJob, createdAt: { lte: olderThan }, kind: kinds },
-      orderBy: { availableAt: "asc" }, select: { id: true }, take: 8,
-    }),
-    prisma.feedStorageJob.count({
-      where: { kind: kinds, status: "processing", leaseUntil: { gt: at } },
-    }),
-  ]);
-  return { dueIds: jobs.map(row => row.id), active };
+  return inspectCoreDueMediaWork(kind);
 }
 
 /** Compatibility for callers requiring only a boolean. */

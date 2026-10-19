@@ -1,16 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({
-  galleryJobs: vi.fn(), galleryUploads: vi.fn(), galleryJobCount: vi.fn(),
-  galleryUploadCount: vi.fn(), feedJobs: vi.fn(), feedJobCount: vi.fn(),
-  questionsKeys: vi.fn(),
-}));
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    galleryStorageJob: { findMany: db.galleryJobs, count: db.galleryJobCount },
-    galleryUpload: { findMany: db.galleryUploads, count: db.galleryUploadCount },
-    feedStorageJob: { findMany: db.feedJobs, count: db.feedJobCount },
-  },
+const db = vi.hoisted(() => ({ questionsKeys: vi.fn(), durable: vi.fn() }));
+vi.mock("@gafus/core/services/systemHealth", () => ({
+  inspectCoreDueMediaWork: db.durable,
 }));
 vi.mock("@gafus/cdn-upload", () => ({
   listPendingQuestionCloudWorkKeys: db.questionsKeys,
@@ -35,9 +27,7 @@ const noWait = async (_ms: number) => {};
 
 beforeEach(() => {
   vi.clearAllMocks();
-  for(const f of [db.galleryJobs, db.galleryUploads, db.feedJobs]) f.mockResolvedValue([]);
-  for(const f of [db.galleryJobCount, db.galleryUploadCount, db.feedJobCount])
-    f.mockResolvedValue(0);
+  db.durable.mockResolvedValue(empty());
   db.questionsKeys.mockResolvedValue([]);
 });
 
@@ -232,55 +222,23 @@ describe("every-minute, bounded demand-driven Cloud.ru recovery", () => {
   });
 });
 
-describe("read-only due inspections match Core's lease policies", () => {
-  it("inspects runnable Gallery uploads, cleanup jobs and in-flight leases", async () => {
-    db.galleryJobs.mockResolvedValue([{id:"a"}]);
-    db.galleryUploads.mockResolvedValue([{id:"b"}]);
-    db.galleryJobCount.mockResolvedValue(1);
-    db.galleryUploadCount.mockResolvedValue(2);
-    expect(await inspectDueCloudruWork("gallery")).toEqual({
-      dueIds:["job:a","upload:b"],active:3,
-    });
-    expect(db.galleryJobs.mock.calls[0]![0].where.createdAt.lte)
-      .toBeInstanceOf(Date);
-    expect(db.galleryUploads.mock.calls[0]![0].where.updatedAt.lte)
-      .toBeInstanceOf(Date);
-    expect(db.galleryJobs.mock.calls[0]![0].where.OR).toContainEqual({
-      status:"pending",availableAt:{lte:expect.any(Date)},
-    });
-    expect(db.galleryUploads.mock.calls[0]![0].where.OR).toContainEqual({
-      status:"uploaded",nextAttemptAt:{lte:expect.any(Date)},
-    });
-    expect(db.galleryJobCount.mock.calls[0]![0].where).toEqual({
-      status:"processing",leaseUntil:{gt:expect.any(Date)},
-    });
-    expect(await hasDueCloudruWork("gallery")).toBe(true);
+describe("Core-owned due inspection delegation", () => {
+  it("returns Core snapshots for Gallery and Feed, without Worker DB access", async () => {
+    db.durable.mockResolvedValueOnce({ dueIds:["job:a"],active:2 })
+      .mockResolvedValueOnce({ dueIds:["v"],active:1 });
+    expect(await inspectDueCloudruWork("gallery")).toEqual({ dueIds:["job:a"],active:2 });
+    expect(await hasDueCloudruWork("feed-video")).toBe(true);
+    expect(db.durable.mock.calls.map(([kind]) => kind)).toEqual(["gallery","feed-video"]);
   });
-
-  it("separates due Feed video from photo and avoids currently leased jobs", async () => {
-    db.feedJobs.mockResolvedValueOnce([{id:"v"}]).mockResolvedValueOnce([]);
-    db.feedJobCount.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
-    expect(await inspectDueCloudruWork("feed-video")).toEqual({
-      dueIds:["v"],active:1,
-    });
-    expect(db.feedJobs.mock.calls[0]![0].where.kind).toBe("publish_video");
-    expect(db.feedJobs.mock.calls[0]![0].where.createdAt.lte)
-      .toBeInstanceOf(Date);
-    expect(db.feedJobs.mock.calls[0]![0].where.OR).toContainEqual({
-      status:"processing",leaseUntil:{lt:expect.any(Date)},
-    });
-    expect(await inspectDueCloudruWork("feed-photo")).toEqual(empty());
-    expect(db.feedJobs.mock.calls[1]![0].where.kind.in).toEqual([
-      "copy_album","publish_photo","delete_keys","cleanup_source",
-    ]);
-  });
-
-  it("checks only private S3 Question work markers, never public QuestionPhoto rows", async () => {
+  it("checks only private S3 Question markers, not Core DB snapshots", async () => {
     db.questionsKeys.mockResolvedValue(["questions/jobs/pending/questions/user/id/source.jpg"]);
     expect(await inspectDueCloudruWork("questions")).toEqual({
       dueIds:["questions/jobs/pending/questions/user/id/source.jpg"],active:0,
     });
-    expect(db.galleryJobs).not.toHaveBeenCalled();
-    expect(db.feedJobs).not.toHaveBeenCalled();
+    expect(db.durable).not.toHaveBeenCalled();
+  });
+  it("never treats a failed Core inspection as an empty queue", async () => {
+    db.durable.mockRejectedValueOnce(new Error("DB_UNAVAILABLE"));
+    await expect(inspectDueCloudruWork("feed-photo")).rejects.toThrow("DB_UNAVAILABLE");
   });
 });

@@ -6,6 +6,15 @@ import { MEDIA_MONITOR_HEARTBEAT_KEY } from "./mediaMonitoring";
 const ALERT_KEY = "gafus:media:alert:v1:worker-unavailable";
 const MAX_HEARTBEAT_AGE_MS = 12 * 60_000;
 
+/** Only verified administrator email addresses can receive media alerts. */
+export async function getMediaAlertAdminEmails(): Promise<string[]> {
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN" }, select: { email: true }, take: 20,
+  });
+  return [...new Set(admins.map(user => user.email)
+    .filter((email): email is string => Boolean(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))];
+}
+
 /** Independent API-side watcher: unlike gafus-worker this can notify admins
  * when the entire Worker process has stopped. No user files/IDs are accessed.
  * Dedup is shared between API replicas. Disabled with the media Jobs switch.
@@ -21,11 +30,7 @@ export async function notifyStoppedMediaWorker(
     await connection.del(ALERT_KEY);
     return { stopped: false, alerted: false };
   }
-  const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" }, select: { email: true }, take: 20,
-  });
-  const addresses = [...new Set(admins.map(user => user.email)
-    .filter((email): email is string => Boolean(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))))];
+  const addresses = await getMediaAlertAdminEmails();
   if (!addresses.length) return { stopped: true, alerted: false };
   const reserved = await connection.set(ALERT_KEY, "1", "EX", 3600, "NX");
   if (reserved !== "OK") return { stopped: true, alerted: false };
