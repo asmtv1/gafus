@@ -32,6 +32,7 @@ import { processDueNpdReceiptOperations } from "./npd-worker";
 import { processDueNpdReceiptEmailDeliveries } from "./npd-email-worker";
 import { processGafusNotifications } from "./gafus-notifications";
 import { monitorMailDelivery } from "./mail-delivery-monitor";
+import { monitorMediaProcessing } from "./media-processing-alerts";
 import { processDueTransactionalMailOutbox } from "@gafus/mailer";
 
 const logger = createWorkerLogger("cron-scheduler");
@@ -165,6 +166,13 @@ export function startCronJobs(): void {
         .catch(() => logger.error(
           "Cloud.ru media recovery unavailable", new Error("CLOUDRU_RECOVERY_UNAVAILABLE"),
         ));
+    }, { timezone: "UTC" });
+  }
+  if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
+    cron.schedule("2,7,12,17,22,27,32,37,42,47,52,57 * * * *", () => {
+      void monitorMediaProcessing().catch((error) =>
+        logger.error("Media processing monitoring failed", error as Error),
+      );
     }, { timezone: "UTC" });
   }
   // Independent durable Beget per-object purge outbox. Disabled by default;

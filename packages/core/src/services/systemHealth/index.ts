@@ -10,3 +10,9 @@ export async function disconnectCoreDatabase(): Promise<void> {
 }
 
 export { getAdminMailDashboard, getAdminMailAlertCount } from "./mailAdminMonitoring";
+
+export { getAdminMediaDashboard, recordMediaDispatch, recordMediaEmptyClaim, kindForCloudruJob } from "./mediaMonitoring";
+
+export { MEDIA_MONITOR_HEARTBEAT_KEY } from "./mediaMonitoring";
+export { renderMediaMetricsPrometheus } from "./mediaMonitoring";
+export { notifyStoppedMediaWorker } from "./mediaWorkerOutage";

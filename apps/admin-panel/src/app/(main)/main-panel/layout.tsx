@@ -17,6 +17,7 @@ import {
   Handshake,
   Slideshow,
   MarkEmailUnread,
+  PermMedia,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "@/shared/components/CookieSettingsButton";
@@ -58,6 +59,11 @@ export default async function MainPanelLayout({ children }: { children: React.Re
             <MarkEmailUnread sx={{ mr: 1.5, fontSize: 20 }} />
             Почта и алерты
             {mailAlertCount > 0 && <span className={styles.alertCount}>{Math.min(mailAlertCount, 99)}{mailAlertCount > 99 ? "+" : ""}</span>}
+          </Link>
+        )}
+        {session.user.role === "ADMIN" && (
+          <Link href="/main-panel/media" className={styles.button}>
+            <PermMedia sx={{ mr: 1.5, fontSize: 20 }} />Обработка медиа
           </Link>
         )}
         <Link href="/main-panel/admin" className={styles.button}>

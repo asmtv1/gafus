@@ -3,6 +3,8 @@
  * Core owns all durable claims/leases; overlapping Cloud invocations are idempotent.
  * No schedule is installed unless CLOUDRU_MEDIA_JOBS_ENABLED=true.
  */
+import { noteCloudruExecution } from "./cloudru-media-telemetry";
+
 const DEFAULT_MEDIA_JOB_NAMES = [
   "gafus-gallery-process",
   "gafus-feed-photo",
@@ -50,6 +52,8 @@ export function createCloudruMediaDispatcher(
       durationMs: Math.round(durationMs),
       ...(httpStatus ? {httpStatus} : {}),
     }));
+    if (phase === "execute" && name)
+      noteCloudruExecution(name, httpStatus, durationMs);
   };
   let cachedToken: string | undefined;
   let tokenExpires = 0;
@@ -80,6 +84,11 @@ export function createCloudruMediaDispatcher(
           headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },
           body: JSON.stringify({ projectId: env.CLOUDRU_PROJECT_ID, jobName: name, params: {} }),
           signal: AbortSignal.timeout(18000),
+        }).catch((error: unknown) => {
+          const code = error instanceof Error ? error.name : "";
+          noteCloudruExecution(name, undefined, performance.now() - dispatchStart,
+            code === "TimeoutError" || code === "AbortError" ? "timeout" : "other");
+          throw error;
         });
         emit("execute", performance.now() - dispatchStart, name, result.status);
         if (!result.ok) {

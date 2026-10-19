@@ -20,6 +20,7 @@ import {
   Menu,
   Close,
   MarkEmailUnread,
+  PermMedia,
 } from "@mui/icons-material";
 
 import CookieSettingsButton from "./CookieSettingsButton";
@@ -48,6 +49,8 @@ export default function MobileMenu({ userName, avatarUrl, userRole, mailAlertCou
       show: true,
     },
     { href: "/main-panel/mail", icon: MarkEmailUnread, label: "Почта и алерты", show: userRole === "ADMIN" },
+    { href: "/main-panel/media", icon: PermMedia,
+      label: "Обработка медиа", show: userRole === "ADMIN" },
     {
       href: "/main-panel/admin",
       icon: AdminPanelSettings,

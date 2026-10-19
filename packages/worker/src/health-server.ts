@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createWorkerLogger } from "@gafus/logger";
 import { renderAppSubscriptionMetricsPrometheus } from "./app-subscription-metrics";
 import { renderMailDeliveryMetricsPrometheus } from "./mail-delivery-monitor";
+import { renderMediaMetricsPrometheus } from "@gafus/core/services/systemHealth";
 
 const HEALTH_BODY = '{"ok":true}';
 
@@ -27,6 +28,22 @@ export function startHealthServer(): Server {
       } else {
         res.end();
       }
+      return;
+    }
+
+    if ((method === "GET" || method === "HEAD") && path === "/metrics/media") {
+      renderMediaMetricsPrometheus()
+        .then(metrics => {
+          res.writeHead(200, {
+            "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+          });
+          res.end(method === "GET" ? metrics : undefined);
+        })
+        .catch(error => {
+          log.error("Media metrics render failed", error as Error);
+          res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("# media_metrics_error 1\n");
+        });
       return;
     }
 

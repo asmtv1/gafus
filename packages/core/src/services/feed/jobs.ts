@@ -1,3 +1,4 @@
+import { recordMediaEmptyClaim } from "../systemHealth/mediaMonitoring";
 import { activateFeedPostRevisionTx } from "./publish";
 import { FEED_LIMITS } from "../../../../types/src/feed";
 import { randomUUID } from "node:crypto";
@@ -160,6 +161,9 @@ export function createFeedStorageJobs({ db, now = () => new Date() }: {
         targetKeys: row.targetKeys, attempts: row.attempts + 1,
       });
     }
+    if (!claimed.length && workerType)
+      void recordMediaEmptyClaim(workerType === "video" ? "feed-video" : "feed-photo")
+        .catch(() => { /* Telemetry must not affect Core leases. */ });
     return claimed;
   }
   async function complete(id: string, attemptToken: string, output?: FeedAssetOutput) {
