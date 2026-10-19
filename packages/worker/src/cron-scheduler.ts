@@ -147,35 +147,25 @@ export function startCronJobs(): void {
       { timezone: "UTC" },
     );
   }
-  // Durable Cloud.ru media processing: no job will run until an explicit main release enables it.
-  // Core owns job claims/leases and prevents duplicate publication across retries.
+  // Primary media processing is event-driven via BullMQ. Recovery polls the
+  // durable Core queues and Questions S3 markers only every five minutes.
+  // An empty queue never causes a billable Cloud.ru Jobs execute request.
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
-    let dispatch:
-      | ReturnType<typeof import("./cloudru-media-dispatcher").createCloudruMediaDispatcher>
-      | undefined;
-    cron.schedule(
-      "* * * * *",
-      () => {
-        void import("./cloudru-media-dispatcher")
-          .then(async ({ createCloudruMediaDispatcher }) => {
-            dispatch ??= createCloudruMediaDispatcher(
-              process.env, fetch,
-              process.env.QUESTIONS_PROCESSOR_READY === "true" &&
-              process.env.QUESTIONS_CLOUD_JOB_ENABLED === "true"
-                ? ["gafus-gallery-process", "gafus-feed-photo", "gafus-feed-video", "gafus-questions-photo"]
-                : ["gafus-gallery-process", "gafus-feed-photo", "gafus-feed-video"],
-            );
-            await dispatch();
-          })
-          .catch(() =>
-            logger.error(
-              "Cloud.ru media processing triggers failed",
-              new Error("CLOUDRU_JOB_DISPATCH_FAILED"),
+    let recovery: ReturnType<typeof import("./cloudru-media-recovery").createCloudruMediaRecovery> | undefined;
+    cron.schedule("*/5 * * * *", () => {
+      void import("./cloudru-media-recovery")
+        .then(async ({ createCloudruMediaRecovery }) => {
+          recovery ??= createCloudruMediaRecovery({
+            report: (kind, stage) => logger.error(
+              "Cloud.ru media recovery failed", new Error(`CLOUDRU_RECOVERY_${kind}_${stage}`),
             ),
-          );
-      },
-      { timezone: "UTC" },
-    );
+          });
+          await recovery();
+        })
+        .catch(() => logger.error(
+          "Cloud.ru media recovery unavailable", new Error("CLOUDRU_RECOVERY_UNAVAILABLE"),
+        ));
+    }, { timezone: "UTC" });
   }
   // Independent durable Beget per-object purge outbox. Disabled by default;
   // no CDN actions until a specifically verified production release enables it.

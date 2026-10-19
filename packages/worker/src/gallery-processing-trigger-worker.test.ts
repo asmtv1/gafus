@@ -13,7 +13,7 @@ vi.mock("@gafus/queues", () => ({
   GALLERY_PROCESSING_QUEUE_NAME: "gallery-processing-trigger",
 }));
 vi.mock("@gafus/logger", () => ({
-  createWorkerLogger: () => ({ success: vi.fn(), error: vi.fn() }),
+  createWorkerLogger: () => ({ success: vi.fn(), info: vi.fn(), error: vi.fn() }),
 }));
 vi.mock("./cloudru-media-dispatcher", () => ({
   createCloudruMediaDispatcher: (...args: unknown[]) => {

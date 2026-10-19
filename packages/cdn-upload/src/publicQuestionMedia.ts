@@ -1,4 +1,4 @@
-import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export const QUESTION_PUBLIC_BUCKET = "gafus-questions-public";
 export const QUESTION_PUBLIC_CDN = "https://ebiteskukingusk.begetcdn.cloud";
@@ -96,6 +96,29 @@ export async function uploadQuestionSource(path: string, body: Uint8Array, conte
     }), {abortSignal: AbortSignal.timeout(15_000)});
   }, env);
   return location;
+}
+
+/** Read-only, bounded recovery signal. Empty Questions S3 work queue never starts
+ * a billable Cloud.ru Job. The worker ack-removes each marker after processing.
+ * An S3 failure must not be mistaken for an empty queue.
+ */
+export async function hasPendingQuestionCloudWork(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<boolean> {
+  if (!questionCloudJobEnabled(env)) return false;
+  return sendCloud(async client => {
+    const listed = await client.send(new ListObjectsV2Command({
+      Bucket: QUESTION_PUBLIC_BUCKET,
+      Prefix: pendingWorkPrefix + "questions/",
+      MaxKeys: 20,
+    }), {abortSignal: AbortSignal.timeout(8000)});
+    const found = (listed.Contents ?? []).some(item =>
+      /^questions\/jobs\/pending\/questions\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/source\.(?:jpg|jpeg|png|webp)$/.test(item.Key ?? ""),
+    );
+    if (found) return true; // A busy (>20) queue must NEVER suppress recovery.
+    if (listed.IsTruncated) throw new Error("QUESTIONS_RECOVERY_WORK_LIST_TRUNCATED");
+    return false;
+  }, env);
 }
 
 /** Only this API-side promotion can put processed images into the public prefix. */

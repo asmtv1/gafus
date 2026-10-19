@@ -9,11 +9,12 @@ vi.mock("@aws-sdk/client-s3",()=>{
     GetObjectCommand:class GetObjectCommand extends Command{},
     HeadObjectCommand:class HeadObjectCommand extends Command{},
     DeleteObjectCommand:class DeleteObjectCommand extends Command{},
+    ListObjectsV2Command:class ListObjectsV2Command extends Command{},
   };
 });
 import {
   questionCloudJobEnabled, pendingQuestionLocation, parsePendingQuestionLocation,
-  questionImageVariantKeys, uploadQuestionSource, promoteQuestionVariants,
+  questionImageVariantKeys, hasPendingQuestionCloudWork, uploadQuestionSource, promoteQuestionVariants,
   deleteQuestionSourceAndVariants, questionProcessingFailure,
 } from "./publicQuestionMedia";
 const config={
@@ -42,6 +43,29 @@ describe("Questions S3 private staging and safe promotion",()=>{
     expect(parsePendingQuestionLocation(marker)).toBe(source);
     expect(()=>parsePendingQuestionLocation("cloudru:questions-pending:../secret"))
       .toThrow("QUESTION_PENDING_INVALID_LOCATION");
+  });
+  it("checks only bounded private Questions work markers before recovery",async()=>{
+    expect(await hasPendingQuestionCloudWork(config)).toBe(false);
+    const cmd=mocked.send.mock.calls[0]![0];
+    expect(cmd.constructor.name).toBe("ListObjectsV2Command");
+    expect(cmd.input).toMatchObject({
+      Bucket:"gafus-questions-public",Prefix:"questions/jobs/pending/questions/",MaxKeys:20,
+    });
+    mocked.send.mockReset().mockResolvedValue({
+      Contents:[{Key:"questions/jobs/pending/questions/owner/photo/source.jpg"}],
+    });
+    expect(await hasPendingQuestionCloudWork(config)).toBe(true);
+    mocked.send.mockReset().mockResolvedValue({IsTruncated:true,Contents:[
+      {Key:"questions/jobs/pending/questions/owner/photo/source.jpg"},
+    ]});
+    expect(await hasPendingQuestionCloudWork(config)).toBe(true);
+    mocked.send.mockReset().mockResolvedValue({Contents:[{Key:"questions/jobs/pending/forged/evil"}]});
+    expect(await hasPendingQuestionCloudWork(config)).toBe(false);
+    mocked.send.mockReset().mockResolvedValue({IsTruncated:true,Contents:[]});
+    await expect(hasPendingQuestionCloudWork(config)).rejects.toThrow("QUESTIONS_RECOVERY_WORK_LIST_TRUNCATED");
+    mocked.send.mockReset().mockRejectedValue(new Error("S3_UNAVAILABLE"));
+    await expect(hasPendingQuestionCloudWork(config)).rejects.toThrow("S3_UNAVAILABLE");
+    expect(mocked.destroy).toHaveBeenCalledTimes(6);
   });
   it("writes source ONLY into private incoming S3 prefix",async()=>{
     await uploadQuestionSource(path,new Uint8Array([1,2,3]),"image/png",config);
