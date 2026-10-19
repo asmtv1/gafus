@@ -1,4 +1,4 @@
-import { connection, GALLERY_PROCESSING_QUEUE_NAME } from "@gafus/queues";
+import { connection, GALLERY_PROCESSING_QUEUE_NAME, isGalleryUploadId } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { Worker, type Job } from "bullmq";
 import { createGalleryDemandDispatcher } from "./gallery-demand";
@@ -24,7 +24,7 @@ export function startGalleryProcessingTriggerWorker(): void {
     GALLERY_PROCESSING_QUEUE_NAME,
     async (job: Job<{ uploadId: string }>) => {
       if (job.data.uploadId !== "gallery-follow-up" &&
-          !/^[a-f0-9-]{36}$/i.test(job.data.uploadId))
+          !isGalleryUploadId(job.data.uploadId))
         throw new Error("INVALID_GALLERY_UPLOAD_ID");
       const started = performance.now();
       const queuedMs = Math.max(0, Date.now() - job.timestamp);

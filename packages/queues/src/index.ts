@@ -27,6 +27,7 @@ export {
   galleryProcessingQueue,
   enqueueGalleryProcessing,
   enqueueGalleryFollowUp,
+  isGalleryUploadId,
   GALLERY_PROCESSING_QUEUE_NAME,
 } from "./gallery-processing-queue.js";
 export type { GalleryProcessingJobData } from "./gallery-processing-queue.js";

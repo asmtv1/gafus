@@ -4,6 +4,11 @@ import { connection } from "./redis.js";
 /** Durable wake-up for Cloud.ru processing. The photo and its leases live in Core. */
 export const GALLERY_PROCESSING_QUEUE_NAME = "gallery-processing-trigger";
 
+// GalleryUpload.id is a Prisma CUID, not the client's UUID request key.
+// Keep this identical to Core's galleryIdSchema and S3 key ID format.
+export const isGalleryUploadId = (value: unknown): value is string =>
+  typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+
 export interface GalleryProcessingJobData {
   uploadId: string;
 }
@@ -15,7 +20,7 @@ export const galleryProcessingQueue = new Queue<GalleryProcessingJobData>(
 
 /** Dedupe repeated HTTP confirmation attempts without exposing Cloud.ru credentials. */
 export async function enqueueGalleryProcessing(uploadId: string): Promise<void> {
-  if (!/^[a-f0-9-]{36}$/i.test(uploadId)) throw new Error("INVALID_GALLERY_UPLOAD_ID");
+  if (!isGalleryUploadId(uploadId)) throw new Error("INVALID_GALLERY_UPLOAD_ID");
   await galleryProcessingQueue.add(
     "process",
     { uploadId },

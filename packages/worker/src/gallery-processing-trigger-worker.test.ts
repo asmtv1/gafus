@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@gafus/queues", () => ({
   connection: {},
   GALLERY_PROCESSING_QUEUE_NAME: "gallery-processing-trigger",
+  isGalleryUploadId: (id: unknown) =>
+    typeof id === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(id),
 }));
 vi.mock("@gafus/logger", () => ({
   createWorkerLogger: () => ({ success: vi.fn(), info: vi.fn(), error: vi.fn() }),
@@ -68,9 +70,10 @@ describe("gallery immediate trigger worker", () => {
     }));
     const processor = mocks.processor!;
     await processor({ data: { uploadId: "8dc418f6-97da-42be-ab73-b3c172c95ccd" } });
-    expect(mocks.execute).toHaveBeenCalledOnce();
+    await processor({ data: { uploadId: "cmk9c97x50000kux3gu1gh6xd" } });
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
     await expect(processor({ data: { uploadId: "../../other" } })).rejects.toThrow("INVALID_GALLERY_UPLOAD_ID");
-    expect(mocks.execute).toHaveBeenCalledOnce();
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
   });
 
   it("accepts coalesced, idle, capacity-blocked, and batch wake results",async()=>{
