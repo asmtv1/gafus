@@ -65,6 +65,21 @@ export async function fetchSafe(url, options = {}, http = fetch,
     }
   }
 }
+// A public CDN edge can briefly return a stale 403 after origin/ACL updates.
+// Recheck only the approved public Feed URL. Persistent denial still fails,
+// and every successful response must pass the ordinary strict SHA/MIME/cache
+// and range assertions. Private origins and forged signatures never use this.
+export async function fetchPublicFeedProof(url, options = {}, request = fetchSafe,
+  pause = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const response = await request(url, options);
+    if (response.status !== 403 || attempt === 3) return response;
+    console.warn('PUBLIC_FEED_CDN_403_RECHECK', JSON.stringify({
+      method: options.method ?? 'GET', nextAttempt: attempt + 1, maxAttempts: 3,
+    }));
+    await pause(1500 * attempt);
+  }
+}
 const token = (secret, path, expiry) => createHash('md5')
   .update(`${secret}${path}${expiry}`).digest('base64url');
 export function smokeSignedUrl(host, path, secret, expiry) {
@@ -110,14 +125,15 @@ async function check(scope) {
   const invalid = await fetchSafe(forgedUrl, { method: 'HEAD' });
   if (invalid.status !== 403 && invalid.status !== 410) throw new Error(`FORGED_SIGNATURE_${invalid.status}`);
   }
-  const cold = await fetchSafe(url);
+  const edgeRequest = publicRead ? fetchPublicFeedProof : fetchSafe;
+  const cold = await edgeRequest(url);
   status(cold, 200, 'VALID_GET');
   const bytes = new Uint8Array(await cold.arrayBuffer());
   if (!bytes.length || bytes.length > 1_750_000 ||
       !cold.headers.get('content-type')?.includes('image/webp') ||
       createHash('sha256').update(bytes).digest('hex') !== expectedDigest)
     throw new Error('WRONG_FIXTURE_OR_MIME');
-  const warm = await fetchSafe(url);
+  const warm = await edgeRequest(url);
   status(warm, 200, 'WARM_GET');
   const warmBytes = new Uint8Array(await warm.arrayBuffer());
   if (Buffer.compare(bytes, warmBytes) !== 0) throw new Error('CACHE_BYTES_CHANGED');
@@ -137,8 +153,8 @@ async function check(scope) {
       ? (cacheControl !== 'public, max-age=180, s-maxage=600, must-revalidate')
       : cacheControl !== expectedCacheControl)
     throw new Error(`CLIENT_CACHE_POLICY_MISMATCH_${cacheControl || 'ABSENT'}`);
-  status(await fetchSafe(url, { method: 'HEAD' }), 200, 'VALID_HEAD');
-  const range = await fetchSafe(url, { headers: { Range: 'bytes=0-4' } });
+  status(await edgeRequest(url, { method: 'HEAD' }), 200, 'VALID_HEAD');
+  const range = await edgeRequest(url, { headers: { Range: 'bytes=0-4' } });
   status(range, 206, 'RANGE');
   if (range.headers.get('content-range') !== `bytes 0-4/${bytes.length}`) throw new Error('RANGE_HEADER');
   if (Buffer.compare(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 5)) !== 0)

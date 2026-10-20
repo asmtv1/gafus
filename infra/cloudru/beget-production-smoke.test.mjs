@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { allowLegacyPublicFeedSmokeMiss, selectedSmokeScopes, fetchSafe, isRetryableSmokeTransportError } from './beget-production-smoke.mjs';
+import { allowLegacyPublicFeedSmokeMiss, selectedSmokeScopes, fetchSafe, fetchPublicFeedProof, isRetryableSmokeTransportError } from './beget-production-smoke.mjs';
 
 const key = 'posts/beget-smoke-bef94b1b82bd47a6b05325ec8be2b22e/beget-smoke-bef94b1b82bd47a6b05325ec8be2b22e/attachments/bef94b1b82bd47a6b05325ec8be2b22e/poster.webp';
 const digest = '93c513effa21235a9617897eb55830910863834228730eae0f42b5c78043fb02';
@@ -122,4 +122,28 @@ test('a successful HTTP 206 range response retains content-range and exact bytes
   assert.equal(result.status,206);
   assert.equal(result.headers.get('content-range'),'bytes 0-4/900');
   assert.deepEqual(Buffer.from(await result.arrayBuffer()),Buffer.from('abcde'));
+});
+
+
+test('approved public Feed CDN rechecks transient 403 without accepting permanent denial', async () => {
+  const warnings=[]; const delays=[]; const original=console.warn;
+  console.warn=(...args)=>warnings.push(args.join(' '));
+  try {
+    let requests=0;
+    const response=await fetchPublicFeedProof('https://feed.example/fixture', {},
+      async()=>({ status: ++requests < 3 ? 403 : 200 }),async ms=>delays.push(ms));
+    assert.equal(response.status,200);
+    assert.equal(requests,3);
+    assert.deepEqual(delays,[1500,3000]);
+    assert.equal(warnings.length,2);
+    assert.ok(warnings.every(w=>w.includes('PUBLIC_FEED_CDN_403_RECHECK') &&
+      !w.includes('feed.example') && !w.includes('fixture')));
+    for(const [code,expected] of [[403,3],[404,1],[410,1],[500,1]]) {
+      let count=0;
+      const result=await fetchPublicFeedProof('https://feed.example/fixture', {method:'HEAD'},
+        async()=>{count++;return {status:code};},async()=>{});
+      assert.equal(result.status,code);
+      assert.equal(count,expected);
+    }
+  } finally {console.warn=original;}
 });
