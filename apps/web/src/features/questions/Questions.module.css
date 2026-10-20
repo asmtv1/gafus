@@ -267,6 +267,19 @@ a.card:hover {
   flex-wrap: wrap;
   margin: 16px 0;
 }
+.photoOpen {
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: zoom-in;
+  overflow: hidden;
+}
+.photoOpen:focus-visible {
+  outline: 3px solid var(--accent-primary, #596b3d);
+  outline-offset: 3px;
+}
+.photoOpen .photo { display: block; }
 .photo {
   width: 150px;
   height: 150px;

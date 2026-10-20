@@ -28,17 +28,17 @@ describe("questions HTTP decoding", () => {
     const form = new FormData(); form.append("file", new Blob([new Uint8Array([1, 2, 3])]), "photo.jpg");
     await dispatchQuestionsRequest("account-1", new Request("https://example.test/questions/photos", { method: "POST", body: form }), "photos");
     expect(core.uploadQuestionPhoto).toHaveBeenCalledWith(
-      "account-1", new Uint8Array([1, 2, 3]), {allowAsync:false},
+      "account-1", new Uint8Array([1, 2, 3]),
     );
   });
-  it("permits async processing only for explicitly updated clients", async () => {
+  it("uses the same processing pipeline even when the obsolete header is present", async () => {
     const form = new FormData();
     form.append("file",new Blob([new Uint8Array([1, 2, 3])]),"photo.jpg");
     await dispatchQuestionsRequest("account-1",new Request("https://example.test/questions/photos",{
       method:"POST",headers:{"X-Gafus-Questions-Async":"1"},body:form,
     }),"photos");
     expect(core.uploadQuestionPhoto).toHaveBeenLastCalledWith(
-      "account-1",new Uint8Array([1, 2, 3]),{allowAsync:true},
+      "account-1",new Uint8Array([1, 2, 3]),
     );
   });
   it("routes authenticated photo readiness reads to the exact owner-scoped status method", async () => {

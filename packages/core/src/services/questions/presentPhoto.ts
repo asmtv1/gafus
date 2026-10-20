@@ -1,7 +1,7 @@
-import { parsePrivateMediaLocation, signPrivateUserMedia, parsePublicQuestionLocation, presentPublicQuestionPhoto } from "@gafus/cdn-upload";
+import { parsePublicQuestionLocation, presentPublicQuestionPhoto } from "@gafus/cdn-upload";
 
-/** DB stores an immutable provider marker; the authorized DTO gets an expiring URL. */
+/** Questions use only public, processed Cloud.ru media served by the CDN. */
 export async function presentQuestionPhotoUrl(location: string): Promise<string> {
-  if (parsePublicQuestionLocation(location)) return presentPublicQuestionPhoto(location);
-  return parsePrivateMediaLocation(location) ? signPrivateUserMedia(location) : location;
+  if (!parsePublicQuestionLocation(location)) throw new Error("QUESTION_PUBLIC_INVALID_LOCATION");
+  return presentPublicQuestionPhoto(location);
 }

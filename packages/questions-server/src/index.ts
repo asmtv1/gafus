@@ -34,9 +34,7 @@ export async function dispatchQuestionsRequest(userId: string, request: Request,
         throw new QuestionError("PHOTO_REQUIRED", "Выберите фото");
       if (file.size > QUESTION_LIMITS.photoBytes)
         throw new QuestionError("PHOTO_SIZE", "Фото должно быть не больше 10 МБ", 413);
-      return uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()), {
-        allowAsync: request.headers.get("x-gafus-questions-async") === "1",
-      });
+      return uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()));
     }
     if (method === "GET" && parts[1])
       return getQuestionPhotoProcessingStatus(userId, parts[1]);

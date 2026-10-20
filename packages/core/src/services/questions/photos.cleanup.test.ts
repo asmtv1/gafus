@@ -100,18 +100,6 @@ describe("question photo tombstone cleanup", () => {
     expect(mocks.deletePhoto).toHaveBeenCalledWith({where: {id}});
   });
 
-  it("keeps legacy Yandex cleanup on its relative key, not absolute HTTP URL", async () => {
-    mocks.findMany.mockResolvedValue([attached]);
-    const url = "https://storage.yandexcloud.net/gafus-media/uploads/questions/owner/old.jpg";
-    mocks.findFirst.mockResolvedValue({
-      id, url, storagePath: "questions/owner/old.jpg",
-    });
-    await cleanupUnusedQuestionPhotos();
-    expect(mocks.remove).toHaveBeenCalledWith("questions/owner/old.jpg");
-    expect(mocks.purge).not.toHaveBeenCalled();
-    expect(mocks.deletePhoto).toHaveBeenCalledOnce();
-  });
-
   it("does not lose the durable deletion target when S3 or the CDN queue fails", async () => {
     mocks.findMany.mockResolvedValue([attached]);
     mocks.remove.mockRejectedValueOnce(new Error("S3_TIMEOUT"));

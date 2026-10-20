@@ -7,13 +7,18 @@ import {
   VisibilityOutlined,
   Close,
   AddPhotoAlternateOutlined,
+  ChevronLeftRounded,
+  ChevronRightRounded,
+  CloseRounded,
 } from "@mui/icons-material";
 import type { QuestionAuthorDto, QuestionListItemDto, QuestionPhotoDto } from "@gafus/types";
 import { QUESTION_LIMITS } from "@gafus/types";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { SecondaryButton } from "@/shared/components/ui";
 import { uploadQuestionPhoto, discardQuestionPhoto } from "./api";
 import s from "./Questions.module.css";
+import viewerStyles from "../feed/FeedMedia.module.css";
 export function Author({
   author,
   date,
@@ -83,21 +88,101 @@ export function BestLabel() {
     </span>
   );
 }
+/** Same body-level full-screen viewer as Moments; never navigates to S3. */
 export function Photos({ photos }: { photos: QuestionPhotoDto[] }) {
+  if (!photos.length) return null;
+  return <QuestionPhotosViewer photos={photos} />;
+}
+
+function QuestionPhotosViewer({ photos }: { photos: QuestionPhotoDto[] }) {
+  const [position, setPosition] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const index = Math.min(position, Math.max(0, photos.length - 1));
+  const current = photos[index];
+  const total = photos.length;
+
+  useEffect(() => setPortalTarget(document.body), []);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (viewerOpen && !dialog.open) dialog.showModal();
+    if (!viewerOpen && dialog.open) dialog.close();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [viewerOpen, portalTarget]);
+
+  const move = (delta: number) => {
+    if (total > 1) setPosition(value => (value + delta + total) % total);
+  };
+
   return (
-    <div className={s.photos}>
-      {photos.map((p) => (
-        <a
-          key={p.id}
-          href={p.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Открыть фото"
+    <>
+      <div className={s.photos}>
+        {photos.map((photo, photoIndex) => (
+          <button
+            key={photo.id}
+            type="button"
+            className={s.photoOpen}
+            aria-label={`Увеличить фотографию ${photoIndex + 1}`}
+            onClick={() => { setPosition(photoIndex); setViewerOpen(true); }}
+          >
+            <img
+              src={questionThumbnailUrl(photo.url)}
+              alt={`Фото ${photoIndex + 1} из ${total}`}
+              className={s.photo}
+              loading="lazy"
+              onError={event => {
+                // A newly published thumb may lag behind the full image at the edge.
+                if (event.currentTarget.src !== photo.url) event.currentTarget.src = photo.url;
+              }}
+            />
+          </button>
+        ))}
+      </div>
+      {portalTarget && createPortal(
+        <dialog
+          ref={dialogRef}
+          className={viewerStyles.viewer}
+          aria-label="Просмотр фотографии"
+          onClose={() => setViewerOpen(false)}
+          onClick={event => {
+            if (event.target === event.currentTarget) setViewerOpen(false);
+          }}
+          onKeyDown={event => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              move(event.key === "ArrowRight" ? 1 : -1);
+            }
+          }}
         >
-          <img src={questionThumbnailUrl(p.url)} alt="Фото к публикации" className={s.photo} loading="lazy" />
-        </a>
-      ))}
-    </div>
+          <div className={viewerStyles.viewerToolbar}>
+            <span className={viewerStyles.viewerCounter}>Фото {index + 1} из {total}</span>
+            <button type="button" className={viewerStyles.closeButton}
+              aria-label="Закрыть просмотр" onClick={() => setViewerOpen(false)}>
+              <CloseRounded aria-hidden="true" />
+            </button>
+          </div>
+          <div className={viewerStyles.viewerBody}>
+            {current && <img key={current.id} src={current.url}
+              alt={`Фото ${index + 1} из ${total}`} className={viewerStyles.viewerImage} />}
+          </div>
+          {total > 1 && (
+            <div className={viewerStyles.viewerFooter}>
+              <button type="button" className={viewerStyles.viewerNav}
+                aria-label="Предыдущее фото" onClick={() => move(-1)}>
+                <ChevronLeftRounded aria-hidden="true" /> Назад
+              </button>
+              <span>{index + 1} / {total}</span>
+              <button type="button" className={viewerStyles.viewerNav}
+                aria-label="Следующее фото" onClick={() => move(1)}>
+                Далее <ChevronRightRounded aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </dialog>, portalTarget,
+      )}
+    </>
   );
 }
 export function Body({ text }: { text: string }) {

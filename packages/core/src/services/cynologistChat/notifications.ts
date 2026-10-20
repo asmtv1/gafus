@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { prisma, Prisma } from "@gafus/prisma";
+import { prisma, type Prisma } from "@gafus/prisma";
 import { connection, cynologistChatQueue, pushQueue } from "@gafus/queues";
 import { z } from "zod";
 import {
@@ -82,6 +82,9 @@ async function enqueuePush(id: string, chatId: string, userId: string, body: str
           endTs: Math.floor(Date.now() / 1000),
           sent: false,
           paused: false,
+          // The push worker verifies this ID before sending. Set it before enqueueing,
+          // otherwise the worker can consume the job while the DB still has NULL.
+          jobId: notificationId,
           type: "immediate",
           stepTitle: `Чат с кинологом|${body}`,
           url,
@@ -96,7 +99,12 @@ async function enqueuePush(id: string, chatId: string, userId: string, body: str
     { isolationLevel: "Serializable" },
   );
   const record = await prisma.chatNotification.findUnique({ where: { id } });
-  if (record?.notificationId)
+  if (record?.notificationId) {
+    // Repair older outbox records created without a jobId before retrying the push.
+    await prisma.stepNotification.updateMany({
+      where: { id: record.notificationId, jobId: null },
+      data: { jobId: record.notificationId },
+    });
     await pushQueue.add(
       "push",
       { notificationId: record.notificationId },
@@ -107,6 +115,7 @@ async function enqueuePush(id: string, chatId: string, userId: string, body: str
         removeOnComplete: { count: 10000 },
       },
     );
+  }
 }
 /** Current Stream read state wins over webhook delivery order. */
 export async function refreshChatUnread(chatId: string, now = new Date(), eventTime?: Date) {

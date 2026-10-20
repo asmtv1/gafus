@@ -2,14 +2,7 @@ import { randomUUID } from "node:crypto";
 import { fileTypeFromBuffer } from "file-type";
 import { prisma, type Prisma } from "@gafus/prisma";
 import {
-  uploadBufferToCDN,
-  uploadPrivateUserMedia,
   deleteFileFromCDN,
-  parsePrivateMediaLocation,
-  privateMediaEnabled,
-  privateMediaLocation,
-  publicQuestionsEnabled,
-  publicQuestionLocation,
   parsePublicQuestionLocation,
   questionCloudJobEnabled,
   pendingQuestionLocation,
@@ -27,7 +20,9 @@ import { presentQuestionPhotoUrl } from "./presentPhoto";
 import { QuestionError } from "./errors";
 import { enqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
 
-async function enqueueQuestionPurge(tx: Parameters<typeof enqueueDeletedMediaPurge>[0], id: string, location: string) {
+async function enqueueQuestionPurge(
+  tx: Parameters<typeof enqueueDeletedMediaPurge>[0], id: string, location: string,
+) {
   const key = parsePublicQuestionLocation(location);
   const pending = parsePendingQuestionLocation(location);
   if (pending || key?.endsWith("/full.webp")) {
@@ -35,11 +30,7 @@ async function enqueueQuestionPurge(tx: Parameters<typeof enqueueDeletedMediaPur
     await enqueueDeletedMediaPurge(tx, "questions", id, [keys.thumb, keys.full]);
   } else if (key) await enqueueDeletedMediaPurge(tx, "questions", id, [key]);
 }
-export async function uploadQuestionPhoto(
-  userId: string,
-  bytes: Uint8Array,
-  options: { allowAsync?: boolean } = {},
-) {
+export async function uploadQuestionPhoto(userId: string, bytes: Uint8Array) {
   await questionActor(userId);
   if (!bytes.length || bytes.length > QUESTION_LIMITS.photoBytes)
     throw new QuestionError("PHOTO_SIZE", "Фото должно быть не больше 10 МБ", 413);
@@ -48,23 +39,10 @@ export async function uploadQuestionPhoto(
     throw new QuestionError("PHOTO_FORMAT", "Поддерживаются JPG, PNG и WebP");
   const storagePath = `questions/${userId}/${randomUUID()}.${type.ext}`;
   // Persist the provider before external S3 I/O: an interrupted upload remains recoverable.
-  const jobEnabled = questionCloudJobEnabled();
-  // Old Mobile clients cannot poll: serve their photos from the existing
-  // private S3 route until the new app build is installed.
-  const legacyClient = jobEnabled && options.allowAsync === false;
-  if (legacyClient && !privateMediaEnabled())
-    throw new QuestionError("PHOTO_LEGACY_STORAGE_UNAVAILABLE",
-      "Обновите приложение для загрузки фото", 503);
-  const processing = jobEnabled && !legacyClient;
-  const reservedPath = processing
-    ? pendingQuestionLocation(storagePath)
-    : legacyClient
-      ? privateMediaLocation("questions", storagePath)
-      : publicQuestionsEnabled()
-        ? publicQuestionLocation(storagePath)
-        : privateMediaEnabled()
-          ? privateMediaLocation("questions", storagePath)
-          : storagePath;
+  // Every client polls one Cloud.ru Jobs pipeline. Never publish private S3 presigns.
+  if (!questionCloudJobEnabled())
+    throw new QuestionError("PHOTO_PROCESSING_UNAVAILABLE", "Обработка фото временно недоступна", 503);
+  const reservedPath = pendingQuestionLocation(storagePath);
   // Serialize the upload quota reservation before the external upload.
   const photo = await prisma.$transaction(async (tx) => {
     await questionActor(userId, tx, true);
@@ -78,40 +56,30 @@ export async function uploadQuestionPhoto(
     });
   });
   try {
-    const location = processing
-      ? await uploadQuestionSource(storagePath, bytes, type.mime)
-      : legacyClient
-        ? await uploadPrivateUserMedia("questions", storagePath, bytes, type.mime)
-        : await uploadBufferToCDN(Buffer.from(bytes), storagePath, type.mime);
+    await uploadQuestionSource(storagePath, bytes, type.mime);
     const saved = await prisma.$transaction(async (tx) => {
       await questionActor(userId, tx, true);
       return tx.questionPhoto.update({
         where: { id: photo.id },
-        data: { url: processing ? "" : location },
+        data: { url: "" },
         select: { id: true, url: true },
       });
     });
-    if (processing) {
-      // Redis wake-up is best effort: the minute Cloud.ru dispatcher is the recovery path.
-      // Never delay the upload response indefinitely if Redis is unavailable.
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          // BullMQ expects the bare upload UUID, not "uuid.png".
-          enqueueQuestionsProcessing(storagePath.split("/")[2]!.split(".")[0]!),
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error("QUESTIONS_WAKE_TIMEOUT")), 1800);
-          }),
-        ]);
-      } catch { /* Cloud.ru cron recovers the durable S3 source. */ }
-      finally { if (timer) clearTimeout(timer); }
-      return { id: saved.id, url: "", processing: true };
-    }
-    return { ...saved, url: await presentQuestionPhotoUrl(saved.url) };
+    // Redis wake-up is best effort: the minute Cloud.ru dispatcher is the recovery path.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        enqueueQuestionsProcessing(storagePath.split("/")[2]!.split(".")[0]!),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("QUESTIONS_WAKE_TIMEOUT")), 1800);
+        }),
+      ]);
+    } catch { /* Cloud.ru cron recovers the durable S3 source. */ }
+    finally { if (timer) clearTimeout(timer); }
+    return { id: saved.id, url: "", processing: true };
   } catch (error) {
-    // Rendering a signed URL can fail AFTER the upload row was committed. Never
-    // delete a photo attached concurrently to a question or answer. Use the
-    // same owner lock as bindPhotos, which serializes the attachment decision.
+    // Never delete an upload attached concurrently to a question or answer.
+    // The same owner lock as bindPhotos serializes the attachment decision.
     try {
       await prisma.$transaction(
         async (tx) => {
@@ -190,8 +158,7 @@ export async function deleteUnusedQuestionPhoto(userId: string, id: string) {
     });
     if (!row) throw new QuestionError("PHOTO_FORBIDDEN", "Фото недоступно", 403);
     // CDN cleanup runs while the owner lock prevents binding this photo.
-    const location = parsePrivateMediaLocation(row.url) || parsePublicQuestionLocation(row.url)
-      ? row.url : row.storagePath;
+    const location = row.url || row.storagePath;
     await deleteFileFromCDN(location);
     await enqueueQuestionPurge(tx, row.id, location);
     await tx.questionPhoto.delete({ where: { id } });
@@ -221,10 +188,7 @@ async function cleanupDeletedQuestionPhoto(ownerId: string, id: string) {
       select: { id: true, url: true, storagePath: true },
     });
     if (!row) return;
-    // Legacy Yandex rows persist a URL plus a relative storagePath.
-    // Deleting with the absolute URL would target a bogus S3 key.
-    const location = parsePrivateMediaLocation(row.url) || parsePublicQuestionLocation(row.url)
-      ? row.url : row.storagePath;
+    const location = row.url || row.storagePath;
     await deleteFileFromCDN(location);
     await enqueueQuestionPurge(tx, row.id, location);
     // A crash between S3 deletion and this commit leaves the row to retry.

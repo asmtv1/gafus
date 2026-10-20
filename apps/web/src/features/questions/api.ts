@@ -18,8 +18,6 @@ export const questionsTransport: QuestionsTransport = async <T>(
     headers["X-CSRF-Token"] = token;
   }
   const form = options.body instanceof FormData;
-  if (form && path === "photos" && method === "POST")
-    headers["X-Gafus-Questions-Async"] = "1";
   if (options.body && !form) headers["Content-Type"] = "application/json";
   const response = await fetch(
     `/api/v1/questions${path && !path.startsWith("?") ? "/" : ""}${path}`,
