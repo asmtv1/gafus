@@ -105,81 +105,31 @@ export const usePushStore = create<PushState>()(
             });
           }
 
-          // Если подписка уже существует, проверяем есть ли она в БД
+          // A missing server endpoint can mean a 404/410 from FCM. Never
+          // re-register that same browser endpoint: it will still be invalid.
+          // Cancel it locally and let PushManager issue a fresh subscription.
           if (existingSubscription) {
-            try {
-              const { getUserSubscriptions } = await import(
-                "@shared/lib/savePushSubscription/getUserSubscriptionStatus"
-              );
-              const { subscriptions } = await getUserSubscriptions();
+            const { getUserSubscriptions } = await import(
+              "@shared/lib/savePushSubscription/getUserSubscriptionStatus"
+            );
+            const { subscriptions } = await getUserSubscriptions();
+            const isInDatabase = subscriptions.some(
+              (sub: { endpoint: string }) => sub.endpoint === existingSubscription.endpoint,
+            );
 
-              // Проверяем, есть ли локальный endpoint в БД
-              const isInDatabase = subscriptions.some(
-                (sub: { endpoint: string }) => sub.endpoint === existingSubscription!.endpoint,
-              );
-
-              if (isInDatabase) {
-                set({
-                  subscription: existingSubscription,
-                  hasServerSubscription: true,
-                  isLoading: false,
-                  error: null,
-                });
-                return;
-              } else {
-                // Обновляем БД с существующей подпиской
-                const p256dh = existingSubscription.getKey
-                  ? existingSubscription.getKey("p256dh")
-                  : null;
-                const auth = existingSubscription.getKey
-                  ? existingSubscription.getKey("auth")
-                  : null;
-
-                if (!existingSubscription.endpoint) {
-                  throw new Error("Existing subscription has no endpoint");
-                }
-
-                if (!p256dh || !auth) {
-                  throw new Error("Existing subscription keys are incomplete");
-                }
-
-                const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
-                const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
-
-                const userId = get().userId || "";
-
-                await updateSubscriptionAction({
-                  id: "",
-                  userId,
-                  endpoint: existingSubscription.endpoint,
-                  p256dh: p256dhString,
-                  auth: authString,
-                  keys: {
-                    p256dh: p256dhString,
-                    auth: authString,
-                  },
-                });
-
-                set({
-                  subscription: existingSubscription,
-                  hasServerSubscription: true,
-                  isLoading: false,
-                  error: null,
-                });
-
-                return;
-              }
-            } catch (error) {
-              logger.warn("Ошибка проверки БД, продолжаем создание новой подписки", {
-                operation: "check_db_error_continue_subscription",
-                error: error instanceof Error ? error.message : String(error),
+            if (isInDatabase) {
+              set({
+                subscription: existingSubscription,
+                hasServerSubscription: true,
+                isLoading: false,
+                error: null,
+                disabledByUser: false,
               });
-              reportClientError(error instanceof Error ? error : new Error(String(error)), {
-                issueKey: "pushStore",
-                severity: "warning",
-                keys: { operation: "check_db_error_continue_subscription" },
-                userId: get().userId || undefined,
-              });
+              return;
+            }
+
+            if (!(await existingSubscription.unsubscribe())) {
+              throw new Error("Не удалось обновить устаревшую push-подписку");
             }
           }
 
@@ -207,7 +157,7 @@ export const usePushStore = create<PushState>()(
 
           const userId = get().userId || "";
 
-          await updateSubscriptionAction({
+          const saved = await updateSubscriptionAction({
             id: "",
             userId,
             endpoint: subscription.endpoint,
@@ -218,12 +168,14 @@ export const usePushStore = create<PushState>()(
               auth: authString,
             },
           });
+          if (!saved.success) throw new Error("Не удалось сохранить push-подписку");
 
           set({
             subscription,
             hasServerSubscription: true,
             isLoading: false,
             error: null,
+            disabledByUser: false,
           });
         } catch (error) {
           reportClientError(error, {
@@ -506,98 +458,22 @@ export const usePushStore = create<PushState>()(
       },
 
       ensureActiveSubscription: async () => {
-        let publicKey: string | null = null; // Moved declaration outside try block
         try {
           if (!serviceWorkerManager.isSupported() || !isNotificationSupported()) return;
-
           const state = get();
-          if (!state.userId) return;
-          if (state.disabledByUser) return;
+          if (!state.userId || state.disabledByUser || state.isLoading) return;
+          if (state.hasServerSubscription === true || Notification.permission !== "granted") return;
 
-          // Сначала проверяем, есть ли уже синхронизированная подписка
-          if (state.hasServerSubscription === true) {
-            return;
-          }
-
-          // Проверяем, есть ли локальная подписка, которую можно синхронизировать
-          if (serviceWorkerManager.isSupported()) {
-            try {
-              const registration = await serviceWorkerManager.getRegistration();
-              if (registration) {
-                const localSubscription = await registration.pushManager.getSubscription();
-                if (localSubscription) {
-                  // Проверяем, есть ли эта подписка в БД
-                  const { getUserSubscriptions } = await import(
-                    "@shared/lib/savePushSubscription/getUserSubscriptionStatus"
-                  );
-                  const { subscriptions } = await getUserSubscriptions();
-
-                  const isInDatabase = subscriptions.some(
-                    (sub: { endpoint: string }) => sub.endpoint === localSubscription.endpoint,
-                  );
-
-                  if (isInDatabase) {
-                    set({
-                      subscription: localSubscription,
-                      hasServerSubscription: true,
-                    });
-                    return;
-                  } else {
-                    // Синхронизируем существующую подписку
-                    const p256dh = localSubscription.getKey
-                      ? localSubscription.getKey("p256dh")
-                      : null;
-                    const auth = localSubscription.getKey ? localSubscription.getKey("auth") : null;
-
-                    if (localSubscription.endpoint && p256dh && auth) {
-                      const p256dhString = btoa(String.fromCharCode(...new Uint8Array(p256dh)));
-                      const authString = btoa(String.fromCharCode(...new Uint8Array(auth)));
-
-                      const userId = get().userId || "";
-
-                      await updateSubscriptionAction({
-                        id: "",
-                        userId,
-                        endpoint: localSubscription.endpoint,
-                        p256dh: p256dhString,
-                        auth: authString,
-                        keys: {
-                          p256dh: p256dhString,
-                          auth: authString,
-                        },
-                      });
-
-                      set({
-                        subscription: localSubscription,
-                        hasServerSubscription: true,
-                      });
-
-                      return;
-                    }
-                  }
-                }
-              }
-            } catch (error) {
-              logger.warn("Ошибка проверки локальной подписки", {
-                operation: "check_local_subscription_error_ensure",
-                error: error instanceof Error ? error.message : String(error),
-              });
-              reportClientError(error instanceof Error ? error : new Error(String(error)), {
-                issueKey: "pushStore",
-                severity: "warning",
-                keys: { operation: "check_local_subscription_error_ensure" },
-                userId: get().userId || undefined,
-              });
-            }
-          }
-
-          // Если локальной подписки нет или она не синхронизирована, создаем новую
-          const { getPublicKeyAction } = await import("@shared/lib/actions/publicKey");
-          const { publicKey: key } = await getPublicKeyAction();
-          publicKey = key;
-
-          if (publicKey) {
-            await get().setupPushSubscription(publicKey);
+          // Claim the recovery before the first async operation. The profile and
+          // global notification initializer may both request it simultaneously.
+          set({ isLoading: true });
+          try {
+            const { getPublicKeyAction } = await import("@shared/lib/actions/publicKey");
+            const { publicKey } = await getPublicKeyAction();
+            // setupPushSubscription owns its own loading state.
+            if (publicKey) await get().setupPushSubscription(publicKey);
+          } finally {
+            set({ isLoading: false });
           }
         } catch (error) {
           reportClientError(error, {

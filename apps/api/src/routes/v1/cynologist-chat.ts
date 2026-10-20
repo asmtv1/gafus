@@ -19,8 +19,9 @@ cynologistChatRoutes.all("*", async (c) => {
 export const streamChatWebhookRoutes = new Hono();
 streamChatWebhookRoutes.post("/", async (c) => {
   try {
-    const raw = await c.req.text();
-    if (raw.length > 65536) return c.json({ success: false }, 413);
+    // Do not decode signed webhook bytes into UTF-8 before verification.
+    const raw = Buffer.from(await c.req.arrayBuffer());
+    if (raw.length > 65_536) return c.json({ success: false }, 413);
     await acceptChatWebhook(raw, c.req.header("x-signature") ?? "");
     return c.json({ success: true });
   } catch (error) {

@@ -39,7 +39,11 @@ import {
   canSendMobileTracerSelfTest,
   sendMobileTracerSelfTest,
 } from "@/shared/lib/tracer/mobileTracerSelfTest";
-import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
+import {
+  getCurrentDeviceTokens,
+  setDevicePushDisabled,
+  setupPushNotifications,
+} from "@/shared/lib/utils/notifications";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 import { trackEvent } from "@/shared/lib/analytics";
@@ -449,6 +453,7 @@ export default function ProfileScreen() {
   const enablePushMutation = useMutation({
     mutationFn: async () => {
       const ok = await setupPushNotifications();
+      if (ok && user?.id) await setDevicePushDisabled(user.id, false);
       return ok
         ? { success: true }
         : { success: false, error: "Не удалось включить push-уведомления" };
@@ -486,7 +491,10 @@ export default function ProfileScreen() {
       const results = await Promise.all(
         endpoints.map((ep) => subscriptionsApi.deletePushSubscription(ep)),
       );
-      return results.find((r) => !r.success) ?? { success: true };
+      const failed = results.find((r) => !r.success);
+      if (failed) return failed;
+      if (user?.id) await setDevicePushDisabled(user.id, true);
+      return { success: true };
     },
     onSuccess: async (result) => {
       if (!result.success) {

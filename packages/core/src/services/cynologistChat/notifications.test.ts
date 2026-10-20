@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHmac } from "node:crypto";
+import { gzipSync } from "node:zlib";
+import { StreamChat } from "stream-chat";
 const mock = vi.hoisted(() => ({
   find: vi.fn(),
   update: vi.fn(),
@@ -31,7 +34,10 @@ vi.mock("./stream", () => ({
       super(message);
     }
   },
-  streamServer: () => ({ verifyWebhook: mock.verify, channel: () => ({ query: mock.query }) }),
+  streamServer: () => ({
+    verifyAndParseWebhook: mock.verify,
+    channel: () => ({ query: mock.query }),
+  }),
 }));
 import { acceptChatWebhook, refreshChatUnread } from "./notifications";
 beforeEach(() => {
@@ -49,11 +55,11 @@ beforeEach(() => {
       { user: { id: "gafus-trainer" }, last_read: "2026-10-01T06:00:00Z", unread_messages: 2 },
     ],
   });
-  mock.verify.mockReturnValue(true);
+  mock.verify.mockImplementation((body: Buffer) => JSON.parse(body.toString("utf8")));
 });
 describe("chat webhook and unread series", () => {
   it("rejects an invalid raw-body signature before persisting", async () => {
-    mock.verify.mockReturnValue(false);
+    mock.verify.mockImplementation(() => { throw new Error("signature mismatch"); });
     await expect(acceptChatWebhook("{}", "bad")).rejects.toMatchObject({
       code: "INVALID_SIGNATURE",
     });
@@ -73,6 +79,44 @@ describe("chat webhook and unread series", () => {
     );
     expect(mock.inbox.mock.calls[0][0].where.id).toBe(mock.inbox.mock.calls[1][0].where.id);
     expect(mock.inbox.mock.calls[0][0].create.payload.message).not.toHaveProperty("text");
+  });
+  it("verifies and processes a gzip-compressed Stream message without losing signed bytes", async () => {
+    const event = {
+      type: "message.new",
+      cid: "gafus_cynologist:channel",
+      created_at: "2026-10-20T11:10:00Z",
+      message: { id: "compressed-1", user: { id: "gafus-client" } },
+    };
+    const json = JSON.stringify(event);
+    const signature = createHmac("sha256", "test-secret").update(json).digest("hex");
+    const stream = StreamChat.getInstance("test-key", "test-secret");
+    mock.verify.mockImplementation((body: Buffer, providedSignature: string) =>
+      stream.verifyAndParseWebhook(body, providedSignature),
+    );
+
+    await acceptChatWebhook(gzipSync(Buffer.from(json)), signature);
+
+    expect(mock.verify).toHaveBeenCalledWith(Buffer.from(json), signature);
+    expect(mock.inbox).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        payload: expect.objectContaining({ message: expect.objectContaining({ id: "compressed-1" }) }),
+      }),
+    }));
+  });
+  it("rejects a tampered gzip webhook before queueing", async () => {
+    const event = {
+      type: "message.new",
+      cid: "gafus_cynologist:channel",
+      created_at: "2026-10-20T11:10:00Z",
+    };
+    const stream = StreamChat.getInstance("test-key", "test-secret");
+    mock.verify.mockImplementation((body: Buffer, signature: string) =>
+      stream.verifyAndParseWebhook(body, signature),
+    );
+    await expect(acceptChatWebhook(gzipSync(Buffer.from(JSON.stringify(event))), "0".repeat(64))).rejects.toMatchObject({
+      code: "INVALID_SIGNATURE", status: 401,
+    });
+    expect(mock.inbox).not.toHaveBeenCalled();
   });
   it("delayed messages do not reset an existing schedule", async () => {
     await refreshChatUnread("chat", new Date(), new Date("2026-10-01T06:30:00Z"));

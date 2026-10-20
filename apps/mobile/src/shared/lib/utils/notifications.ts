@@ -6,6 +6,20 @@ import { subscriptionsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 
 const PUSH_PERMISSION_EDUCATION_SEEN_KEY = "gafus:push-permission-education-seen:v1";
+const PUSH_DISABLED_KEY_PREFIX = "gafus:push-disabled-for-user:v1:";
+
+/** Explicit opt-out applies to this GAFUS account on this device. */
+export async function setDevicePushDisabled(userId: string, disabled: boolean): Promise<void> {
+  if (!userId) return;
+  await AsyncStorage.setItem(`${PUSH_DISABLED_KEY_PREFIX}${userId}`, disabled ? "1" : "0");
+}
+
+async function hasExplicitDevicePushOptIn(userId: string): Promise<boolean> {
+  // "0" is written only after the user enables push in the app. Legacy
+  // installs have no marker: don't silently undo a past in-app opt-out.
+  return (await AsyncStorage.getItem(`${PUSH_DISABLED_KEY_PREFIX}${userId}`)) === "0";
+}
+
 
 export type PushPermissionStatus = "granted" | "denied" | "undetermined" | "unavailable";
 
@@ -108,12 +122,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
       });
       return null;
     }
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
-
-    const token = tokenData.data;
-
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",
@@ -123,7 +131,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
       });
     }
 
-    return token;
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    return tokenData.data;
   } catch (error) {
     reportClientError(error instanceof Error ? error : new Error(String(error)), {
       issueKey: "PushNotifications",
@@ -246,18 +255,59 @@ export async function getCurrentDeviceTokens(): Promise<{ expo?: string; rustore
  * На Android без FCM Expo может не выдать токен — тогда достаточно успешного RuStore.
  */
 export async function setupPushNotifications(): Promise<boolean> {
+  let expoSaved = false;
   try {
     const expoToken = await registerForPushNotifications();
-    const expoSaved = expoToken ? await savePushToken(expoToken) : false;
-
-    const rustoreSaved = Platform.OS === "android" ? await tryRegisterRustorePush() : false;
-
-    return expoSaved || rustoreSaved;
+    expoSaved = expoToken ? await savePushToken(expoToken) : false;
   } catch (error) {
     reportClientError(error instanceof Error ? error : new Error(String(error)), {
       issueKey: "PushNotifications",
-      keys: { operation: "setup_push" },
+      keys: { operation: "setup_expo_push" },
     });
-    return false;
+  }
+
+  // A failure of Expo / FCM must not prevent a RuStore-only Android device
+  // from registering its independent token. Respect the OS notification permission.
+  const permission = await getPushPermissionStatus();
+  const rustoreSaved =
+    Platform.OS === "android" && permission === "granted"
+      ? await tryRegisterRustorePush()
+      : false;
+  return expoSaved || rustoreSaved;
+}
+
+const refreshInProgress = new Map<string, Promise<boolean>>();
+
+/**
+ * Refresh push tokens when an authenticated Android app starts or resumes.
+ * No OS permission prompt: an explicit user denial/opt-out must be respected.
+ * An expired server-side token is repaired simply by re-registering the
+ * current native token; this requires no app-store binary update.
+ */
+export async function refreshAndroidPushRegistration(userId: string): Promise<boolean> {
+  if (!userId || Platform.OS !== "android" || !Device.isDevice) return false;
+  if (Constants.appOwnership === "expo") return false;
+  const existing = refreshInProgress.get(userId);
+  if (existing) return existing;
+
+  const refresh = (async () => {
+    try {
+      if (!(await hasExplicitDevicePushOptIn(userId))) return false;
+      if ((await getPushPermissionStatus()) !== "granted") return false;
+      return await setupPushNotifications();
+    } catch (error) {
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        severity: "warning",
+        issueKey: "PushNotifications",
+        keys: { operation: "refresh_android_push" },
+      });
+      return false;
+    }
+  })();
+  refreshInProgress.set(userId, refresh);
+  try {
+    return await refresh;
+  } finally {
+    if (refreshInProgress.get(userId) === refresh) refreshInProgress.delete(userId);
   }
 }

@@ -22,7 +22,7 @@ export async function uploadQuestionPhoto(uri: string) {
     const form = new FormData();
     form.append("file", { uri, name: "photo.jpg", type: "image/jpeg" } as unknown as Blob);
     return form;
-  });
+  }, { "X-Gafus-Questions-Async": "1" });
   if (!result.success || !result.data) throw new Error(result.error ?? "Не удалось загрузить фото");
   if (result.data.url) return result.data;
   const deadline = Date.now() + 180_000;

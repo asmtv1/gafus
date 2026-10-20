@@ -9,6 +9,7 @@ import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { resetUserStores } from "@/shared/stores/resetAll";
 import { flushMobileIntroEvents } from "@/shared/lib/api/mobile-intro";
+import { refreshAndroidPushRegistration } from "@/shared/lib/utils/notifications";
 import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
 import { Loading } from "@/shared/components/ui/Loading";
 
@@ -33,7 +34,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     if (isLoading || isOffline) return;
-    const retry = () => { void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined); };
+    const retry = () => {
+      void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined);
+      // Android push tokens can disappear from the server after a provider
+      // reports them expired. Re-register on login, resume and reconnect,
+      // without prompting users who denied/disabled notifications.
+      if (isAuthenticated && userId) void refreshAndroidPushRegistration(userId);
+    };
     retry();
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") retry();

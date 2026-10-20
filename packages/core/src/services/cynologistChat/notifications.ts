@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import { prisma, type Prisma } from "@gafus/prisma";
 import { connection, cynologistChatQueue, pushQueue } from "@gafus/queues";
 import { z } from "zod";
@@ -25,10 +26,30 @@ const eventSchema = z.object({
     })
     .optional(),
 });
-export async function acceptChatWebhook(rawBody: string, signature: string) {
-  if (!signature || !streamServer().verifyWebhook(rawBody, signature))
+const MAX_CHAT_WEBHOOK_BYTES = 65_536;
+
+export async function acceptChatWebhook(rawBody: string | Buffer, signature: string) {
+  if (!signature) throw new ChatError("INVALID_SIGNATURE", "Неверная подпись", 401);
+  const body = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
+  if (body.length > MAX_CHAT_WEBHOOK_BYTES)
+    throw new ChatError("WEBHOOK_TOO_LARGE", "Слишком большое событие", 413);
+
+  let raw: Record<string, unknown>;
+  try {
+    // Stream webhooks may arrive gzip-compressed. Preserve bytes and bound the
+    // inflated payload before asking the SDK to authenticate and parse it.
+    const inflated =
+      body.length >= 2 && body[0] === 0x1f && body[1] === 0x8b
+        ? gunzipSync(body, { maxOutputLength: MAX_CHAT_WEBHOOK_BYTES })
+        : body;
+    raw = streamServer().verifyAndParseWebhook(inflated, signature) as unknown as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    // Fail closed, including invalid gzip and signature mismatches.
     throw new ChatError("INVALID_SIGNATURE", "Неверная подпись", 401);
-  const raw = JSON.parse(rawBody) as Record<string, unknown>;
+  }
   if (!["message.new", "message.read", "notification.mark_read"].includes(String(raw.type))) return;
   const event = eventSchema.parse(raw);
   if (!event.cid.startsWith(`${CHAT_CHANNEL_TYPE}:`)) return;

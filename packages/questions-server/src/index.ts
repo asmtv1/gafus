@@ -34,7 +34,11 @@ export async function dispatchQuestionsRequest(userId: string, request: Request,
         throw new QuestionError("PHOTO_REQUIRED", "Выберите фото");
       if (file.size > QUESTION_LIMITS.photoBytes)
         throw new QuestionError("PHOTO_SIZE", "Фото должно быть не больше 10 МБ", 413);
-      return uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()));
+      const uploaded = await uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()));
+      // Already installed Mobile builds require a ready URL in the POST response.
+      // New Web/Mobile builds explicitly opt into asynchronous status polling.
+      if (request.headers.get("x-gafus-questions-async") === "1") return uploaded;
+      return await awaitQuestionPhotoReady(userId, uploaded.id);
     }
     if (method === "GET" && parts[1])
       return getQuestionPhotoProcessingStatus(userId, parts[1]);
@@ -86,6 +90,34 @@ export async function dispatchQuestionsRequest(userId: string, request: Request,
     }
   }
   throw new QuestionError("NOT_FOUND", "Маршрут не найден", 404);
+}
+
+/**
+ * Synchronous response compatibility for installed clients, without an alternate
+ * storage or processing path. The photo is still processed by Cloud.ru Jobs and
+ * only a promoted public CDN URL can be returned. Leave a deadline margin for
+ * Mobile's 20-second API request timeout.
+ */
+export async function awaitQuestionPhotoReady(
+  userId: string,
+  id: string,
+  options: { now?: () => number; sleep?: (ms: number) => Promise<void>; maxWaitMs?: number } = {},
+) {
+  const now = options.now ?? Date.now;
+  const sleep = options.sleep ?? (
+    (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+  );
+  const deadline = now() + (options.maxWaitMs ?? 13_000);
+  do {
+    const result = await getQuestionPhotoProcessingStatus(userId, id);
+    if (result.url) return result;
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    await sleep(Math.min(1_000, remaining));
+  } while (now() < deadline);
+  // Never return an empty URL that an old client could attach as a completed photo.
+  throw new QuestionError("PHOTO_STILL_PROCESSING",
+    "Фото ещё обрабатывается. Подождите немного и прикрепите его снова", 503);
 }
 
 export { questionHttpError } from "@gafus/core/services/questions";

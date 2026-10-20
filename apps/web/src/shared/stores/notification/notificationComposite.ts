@@ -143,6 +143,7 @@ export function useNotificationComposite() {
  * Hook для автоматической инициализации уведомлений
  */
 export function useNotificationInitializer() {
+  const userId = usePushStore((state) => state.userId);
   const {
     initializePermission,
     checkServerSubscription,
@@ -165,10 +166,12 @@ export function useNotificationInitializer() {
 
   // Если разрешение есть, но серверной подписки нет — пытаемся автоматически восстановить
   useEffect(() => {
-    if (permissionState === "granted" && hasServerSubscription === false) {
-      ensureActiveSubscription();
+    // The session user ID can load after permission and cached subscription state.
+    // Retry reconciliation when identity becomes available, not only on permission changes.
+    if (permissionState === "granted" && hasServerSubscription === false && userId) {
+      void ensureActiveSubscription();
     }
-  }, [permissionState, hasServerSubscription]); // Убираем ensureActiveSubscription из зависимостей
+  }, [permissionState, hasServerSubscription, userId, ensureActiveSubscription]);
 
   return { checkServerSubscription };
 }

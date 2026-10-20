@@ -6,7 +6,7 @@ vi.mock("@gafus/core/services/questions", () => ({
   questionHttpError: vi.fn(),
   deleteUnusedQuestionPhoto: vi.fn(), getQuestionModeration: vi.fn(), moderateQuestionReport: vi.fn(), unblockQuestionsUser: vi.fn(),
 }));
-import { dispatchQuestionsRequest } from "./index";
+import { awaitQuestionPhotoReady, dispatchQuestionsRequest } from "./index";
 describe("questions HTTP decoding", () => {
   it("passes query data and the authenticated actor to core", async () => {
     await dispatchQuestionsRequest("account-1", new Request("https://example.test/questions?mine=true&category=Поведение"), "");
@@ -24,22 +24,48 @@ describe("questions HTTP decoding", () => {
     await expect(dispatchQuestionsRequest("account-1", new Request("https://example.test/questions/answers/a/heart", { method: "POST", body: '{"liked":"true"}' }), "answers/a/heart")).rejects.toBeDefined();
     expect(core.setQuestionHeart).not.toHaveBeenCalled();
   });
-  it("decodes multipart bytes and leaves file inspection to core", async () => {
-    const form = new FormData(); form.append("file", new Blob([new Uint8Array([1, 2, 3])]), "photo.jpg");
-    await dispatchQuestionsRequest("account-1", new Request("https://example.test/questions/photos", { method: "POST", body: form }), "photos");
-    expect(core.uploadQuestionPhoto).toHaveBeenCalledWith(
-      "account-1", new Uint8Array([1, 2, 3]),
-    );
-  });
-  it("uses the same processing pipeline even when the obsolete header is present", async () => {
+  it("returns a ready public URL to already installed Mobile clients without async opt-in", async () => {
+    core.uploadQuestionPhoto.mockResolvedValueOnce({id:"photo-id",url:"",processing:true});
+    core.getQuestionPhotoProcessingStatus.mockResolvedValueOnce({
+      id:"photo-id",url:"",processing:true,
+    }).mockResolvedValueOnce({
+      id:"photo-id",url:"https://ebiteskukingusk.begetcdn.cloud/questions/u/id/full.webp",
+      processing:false,
+    });
     const form = new FormData();
     form.append("file",new Blob([new Uint8Array([1, 2, 3])]),"photo.jpg");
-    await dispatchQuestionsRequest("account-1",new Request("https://example.test/questions/photos",{
-      method:"POST",headers:{"X-Gafus-Questions-Async":"1"},body:form,
-    }),"photos");
-    expect(core.uploadQuestionPhoto).toHaveBeenLastCalledWith(
+    const result = await dispatchQuestionsRequest("account-1", new Request(
+      "https://example.test/questions/photos",{method:"POST",body:form},
+    ),"photos");
+    expect(core.uploadQuestionPhoto).toHaveBeenCalledWith(
       "account-1",new Uint8Array([1, 2, 3]),
     );
+    expect(core.getQuestionPhotoProcessingStatus).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({id:"photo-id",processing:false,
+      url:expect.stringContaining("ebiteskukingusk.begetcdn.cloud")});
+  });
+  it("returns immediately with processing state for async Web/Mobile clients", async () => {
+    core.getQuestionPhotoProcessingStatus.mockClear();
+    core.uploadQuestionPhoto.mockResolvedValueOnce({id:"photo-id",url:"",processing:true});
+    const form = new FormData();
+    form.append("file",new Blob([new Uint8Array([1, 2, 3])]),"photo.jpg");
+    const response = await dispatchQuestionsRequest("account-1",new Request(
+      "https://example.test/questions/photos",{
+        method:"POST",headers:{"X-Gafus-Questions-Async":"1"},body:form,
+      }),"photos");
+    expect(response).toEqual({id:"photo-id",url:"",processing:true});
+    expect(core.getQuestionPhotoProcessingStatus).not.toHaveBeenCalled();
+  });
+  it("fails with an actionable status instead of handing old clients a blank photo", async () => {
+    core.getQuestionPhotoProcessingStatus.mockReset();
+    core.getQuestionPhotoProcessingStatus.mockResolvedValue({
+      id:"photo-id",url:"",processing:true,
+    });
+    let clock = 0;
+    await expect(awaitQuestionPhotoReady("account-1","photo-id",{
+      now:() => clock, sleep: async ms => {clock += ms;}, maxWaitMs:2500,
+    })).rejects.toMatchObject({code:"PHOTO_STILL_PROCESSING",status:503});
+    expect(core.getQuestionPhotoProcessingStatus).toHaveBeenCalledTimes(3);
   });
   it("routes authenticated photo readiness reads to the exact owner-scoped status method", async () => {
     core.getQuestionPhotoProcessingStatus.mockResolvedValueOnce({id:"photo-id",url:"",processing:true});
