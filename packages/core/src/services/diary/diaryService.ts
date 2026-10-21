@@ -17,17 +17,17 @@ const MAX_CONTENT_LENGTH = 10000;
  * Возвращает Course.id по переданному значению: если это cuid — ищем по id,
  * иначе по type (чтобы mobile и др. могли передавать courseType до загрузки дня).
  */
-async function resolveCourseId(courseIdOrType: string): Promise<string | null> {
+async function resolveCourse(courseIdOrType: string): Promise<{ id: string; isPrivate: boolean } | null> {
   const byId = await prisma.course.findUnique({
     where: { id: courseIdOrType },
-    select: { id: true },
+    select: { id: true, isPrivate: true },
   });
-  if (byId) return byId.id;
+  if (byId) return byId;
   const byType = await prisma.course.findFirst({
     where: { type: courseIdOrType },
-    select: { id: true },
+    select: { id: true, isPrivate: true },
   });
-  return byType?.id ?? null;
+  return byType;
 }
 
 export interface DiaryEntryWithDay {
@@ -63,13 +63,15 @@ export async function saveDiaryEntry(
 
   const dayOnCourse = await prisma.dayOnCourse.findUnique({
     where: { id: dayOnCourseId },
-    select: { dayId: true, courseId: true },
+    select: { dayId: true, courseId: true, course: { select: { isPrivate: true } } },
   });
   if (!dayOnCourse) {
     return { success: false, error: "День курса не найден" };
   }
 
-  const { hasAccess } = await checkCourseAccessById(dayOnCourse.courseId, userId);
+  // DIARY stays free in public Paid and Full Access courses.
+  const hasAccess = dayOnCourse.course?.isPrivate === false ||
+    (await checkCourseAccessById(dayOnCourse.courseId, userId)).hasAccess;
   if (!hasAccess) {
     logger.warn("Попытка сохранить запись дневника без доступа к курсу", {
       userId,
@@ -105,12 +107,13 @@ export async function getDiaryEntries(
   courseIdOrType: string,
   upToDayOnCourseId?: string,
 ): Promise<{ entries: DiaryEntryWithDay[]; error?: string }> {
-  const courseId = await resolveCourseId(courseIdOrType);
-  if (!courseId) {
+  const course = await resolveCourse(courseIdOrType);
+  if (!course) {
     return { entries: [], error: "Курс не найден" };
   }
+  const courseId = course.id;
 
-  const { hasAccess } = await checkCourseAccessById(courseId, userId);
+  const hasAccess = course.isPrivate === false || (await checkCourseAccessById(courseId, userId)).hasAccess;
   if (!hasAccess) {
     logger.warn("Попытка получить записи дневника без доступа к курсу", {
       userId,

@@ -8,6 +8,7 @@ import { lockGafusUser } from "./locking";
 import { unlockContentWithGafus } from "./accessGrantService";
 import { resolveArticleEntitlement } from "../contentAccess/policy";
 import { getTrainingDays, getTrainingDayWithMonetizedSteps } from "../training/trainingService.ts";
+import { saveDiaryEntry, getDiaryEntries } from "../diary/diaryService";
 
 // Test fixtures run exclusively against a dedicated disposable local database.
 const url = process.env.GAFUS_TEST_DATABASE_URL;
@@ -69,6 +70,8 @@ const messages = [
       authorId: userId, duration: "1 day", logoImg: "", trainingLevel: "BEGINNER",
     } })));
     const days = await Promise.all(courses.map(course => db!.dayOnCourse.create({ data: { courseId: course.id, dayId: day.id, order: 0 } })));
+    expect(await saveDiaryEntry(userId, days[1]!.id, "Free diary in Paid course")).toEqual({ success: true });
+    expect((await getDiaryEntries(userId, courses[1]!.id)).entries).toHaveLength(1);
     for (const [index, course] of courses.entries()) {
       expect((await getTrainingDays(userId, course.type)).trainingDays).toHaveLength(1);
       for (const platform of ["WEB_DESKTOP", "IOS", "ANDROID"] as const) {

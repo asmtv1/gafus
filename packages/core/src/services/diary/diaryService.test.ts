@@ -47,6 +47,13 @@ describe("saveDiaryEntry", () => {
     mockDiaryEntryUpsert.mockResolvedValue({});
   });
 
+  it("Paid public-course diary is free even when subscription access is denied", async () => {
+    mockDayOnCourseFindUnique.mockResolvedValue({ dayId: "d1", courseId: "paid", course: { isPrivate: false } });
+    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: false });
+    expect(await saveDiaryEntry("u1", "doc1", "Free diary")).toEqual({ success: true });
+    expect(mockCheckCourseAccessById).not.toHaveBeenCalled();
+  });
+
   it("ошибка при пустом тексте", async () => {
     const r = await saveDiaryEntry("u1", "doc1", "   ");
 
