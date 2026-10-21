@@ -62,6 +62,17 @@ describe("course-step authorization stays consistent with course entitlement", (
     expect(mockRole).not.toHaveBeenCalled();
   });
 
+  it("a free course outline does not grant its step contents or HLS media", async () => {
+    const result = await resolveCourseStepAccessTx(tx, "user", {
+      ...paidStep, isPaid: false, paidOrPrivate: false,
+    }, now);
+    expect(result).toMatchObject({ allowed: false, source: "DENIED" });
+    mockSubscription.mockResolvedValue({ id: "active" });
+    expect((await resolveCourseStepAccessTx(tx, "user", {
+      ...paidStep, isPaid: false, paidOrPrivate: false,
+    }, now)).allowed).toBe(true);
+  });
+
   it("the previous mini-guide rule remains unchanged for admin/trainer", async () => {
     mockRole.mockResolvedValue({ role: "ADMIN" });
     expect((await resolveMiniGuideAccessTx(tx, "user", miniGuide, now)).allowed).toBe(false);

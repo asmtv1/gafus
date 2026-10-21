@@ -224,7 +224,7 @@ export async function getPremiumOrRewardedAccess(input: {
   const viewer = await prisma.user.findUnique({
     where: { id: input.userId }, select: { role: true },
   });
-  if (viewer?.role === "ADMIN" || viewer?.role === "TRAINER") {
+  if (viewer?.role === "ADMIN" || viewer?.role === "TRAINER" || viewer?.role === "PARTNER") {
     return {
       allowed: true, source: "PREMIUM", skippedDueToPremium: true, target: input.target,
     };

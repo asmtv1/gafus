@@ -118,10 +118,8 @@ async function resolveEntitlementTx(
         ? { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false }
         : { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
     }
-    // Future public free courses, including their lesson steps, stay free.
-    if (!target.isPaid) {
-      return { allowed: true, source: "DAILY_FREE", expiresAt: null, eligibleForGafus: false };
-    }
+    // Public course outlines remain free; step contents require entitlement
+    // independently of the legacy course purchase flag.
   }
   if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true)) {
     return { allowed: true, source: "GATING_DISABLED", expiresAt: null, eligibleForGafus: false };

@@ -865,7 +865,9 @@ export async function getTrainingDayWithMonetizedSteps(
     allowPaywalledPreview: preview,
   });
   if (!detail) return null;
-  if (fullAccess || !policy.isPaid) {
+  // Course browsing access is not an entitlement to the contents of its steps.
+  // Assigned private courses retain their separate access policy.
+  if (policy.isPrivate && fullAccess) {
     return { ...detail, steps: detail.steps.map((step) => ({ ...step, locked: false })) };
   }
 
@@ -905,9 +907,6 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
       if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
       return null;
     }
-    if (coursePolicy && !coursePolicy.isPaid) return null;
-    if (coursePolicy?.isPaid && (await checkCourseAccess(input.courseType, input.userId)).hasAccess)
-      return null;
   }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) return null;
@@ -960,10 +959,8 @@ export async function requireCourseStepOperationAccess(input: {
   const access = await checkCourseAccessById(dayOnCourse.course.id, input.userId);
   if (dayOnCourse.course.isPrivate) {
     if (!access.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
-  } else if (!access.hasAccess) {
+  } else if (isRewardedMonetizedStepType(stepLink.step.type)) {
     // Only an individually unlocked step may be mutated without subscription.
-    if (!dayOnCourse.course.isPaid || !isRewardedMonetizedStepType(stepLink.step.type))
-      throw new Error("COURSE_ACCESS_DENIED");
     const target = { targetType: "COURSE_STEP" as const, targetId: stepLink.id };
     const gafus = await hasActiveGafusCourseStepAccess({
       userId: input.userId, dayOnCourseId: input.dayOnCourseId, stepOnDayId: stepLink.id,

@@ -505,6 +505,22 @@ describe("requireCourseStepOperationAccess", () => {
     mockCheckCourseAccessById.mockResolvedValue({ hasAccess: true });
   });
 
+  it("requires step entitlement even when the public course is free to browse", async () => {
+    mockDayOnCourseFindUnique.mockResolvedValue({
+      course: { id: "course-real", type: "real", isPaid: false, isPrivate: false },
+      day: { stepLinks: [{ id: "step-link-1", step: { type: "THEORY" } }] },
+    });
+    mockHasActiveGafusAccess.mockResolvedValue(false);
+    mockRequirePremiumOrRewardedUnlock.mockRejectedValueOnce(new Error("subscription required"));
+    await expect(requireCourseStepOperationAccess({
+      userId: "user-1", platform: "WEB_DESKTOP", dayOnCourseId: "day-1", stepIndex: 0,
+    })).rejects.toThrow("subscription required");
+    expect(mockRequirePremiumOrRewardedUnlock).toHaveBeenCalledWith({
+      userId: "user-1", platform: "WEB_DESKTOP",
+      target: { targetType: "COURSE_STEP", targetId: "step-link-1" },
+    });
+  });
+
   it("rejects a client courseId that does not own the target day", async () => {
     mockDayOnCourseFindUnique.mockResolvedValue({
       course: { id: "course-real", type: "real", isPaid: false, isPrivate: false },
@@ -643,22 +659,25 @@ describe("rewarded training step access", () => {
     expect(target).toEqual({ targetType: "COURSE_STEP", targetId: "sod-1" });
   });
 
-  it("keeps future free course steps available without a subscription", async () => {
+  it.each(["ANDROID", "IOS", "WEB_DESKTOP"] as const)("keeps the outline visible but locks public course contents on %s", async (platform) => {
     vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
     mockCourseFindFirst.mockResolvedValue({ isPaid: false, isPrivate: false });
-    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
-      platform: "ANDROID",
-    });
-    expect(result?.steps[0]).toMatchObject({ locked: false, description: "Secret content" });
-    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
-  });
-
-  it("does not redact steps in a paid course when separate CourseAccess exists", async () => {
-    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
-    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
     mockGetPremiumOrRewardedAccess.mockRejectedValue(
       Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
     );
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform,
+    });
+    expect(result?.title).toBe("Day");
+    expect(result?.steps[0]).toMatchObject({ title: "Theory", locked: true, description: "", videoUrl: "" });
+    expect(result?.steps[1]).toMatchObject({ title: "Break", locked: false });
+    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalled();
+  });
+
+  it("opens public step contents with a verified premium entitlement", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: true });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+    mockGetPremiumOrRewardedAccess.mockResolvedValue({ allowed: true, source: "PREMIUM" });
 
     const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
       platform: "ANDROID",
@@ -669,7 +688,7 @@ describe("rewarded training step access", () => {
       description: "Secret content",
       videoUrl: "video.mp4",
     });
-    expect(mockGetPremiumOrRewardedAccess).not.toHaveBeenCalled();
+    expect(mockGetPremiumOrRewardedAccess).toHaveBeenCalled();
   });
 
   it("does not apply rewarded step gating inside a private course with CourseAccess", async () => {
