@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   hasPremium: false,
   role: "USER",
   gafusUnlocked: false,
+  courseIsPaid: true,
   unlocks: new Map<string, Date>(),
   userSteps: new Map<
     string,
@@ -80,6 +81,7 @@ vi.mock("@gafus/prisma", () => ({
         if (!row) return Promise.resolve(null);
         return Promise.resolve({
           id: row.id,
+          userTraining: { dayOnCourse: { course: { isPaid: state.courseIsPaid, isPrivate: false } } },
           stepOnDay: { id: row.stepOnDayId, step: { type: row.stepType, videoUrl: row.videoUrl } },
         });
       }),
@@ -129,6 +131,7 @@ vi.mock("@gafus/prisma", () => ({
         const row = state.dayOnCourses.get(where.id);
         if (!row || row.userId !== where.userTrainings?.some?.userId) return Promise.resolve(null);
         return Promise.resolve({
+          course: { isPaid: state.courseIsPaid, isPrivate: false },
           day: {
             stepLinks: row.stepOnDayIds.map((id, index) => ({
               id,
@@ -185,6 +188,7 @@ describe("premium or rewarded access", () => {
     state.hasPremium = false;
     state.role = "USER";
     state.gafusUnlocked = false;
+    state.courseIsPaid = true;
     state.unlocks.clear();
     state.userSteps.clear();
     state.dailyUserSteps.clear();
@@ -203,6 +207,15 @@ describe("premium or rewarded access", () => {
         target: { targetType: "ARTICLE", targetId: "article-1" },
       }),
     ).resolves.toMatchObject({ allowed: true, source: "PREMIUM" });
+  });
+
+  it("Full Access course exams and videos remain free without Premium or Gafus", async () => {
+    state.courseIsPaid = false;
+    state.userSteps.set("free-step", {
+      id: "free-step", userId: "user-1", stepOnDayId: "free-link", stepType: "EXAMINATION", videoUrl: "https://example.test/free-video",
+    });
+    expect(await requirePremiumOrRewardedAccessForUserStep({ userId: "user-1", platform: "IOS", userStepId: "free-step" })).toBeNull();
+    expect(await requirePremiumOrRewardedAccessForVideoUrl({ userId: "user-1", platform: "ANDROID", videoUrl: "https://example.test/free-video" })).toBeNull();
   });
 
   it("allows admin/trainer course-step and article gates without changing subscription plans", async () => {

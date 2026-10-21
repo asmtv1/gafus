@@ -7,6 +7,7 @@ import { changeGafusBalanceTx } from "./walletService";
 import { lockGafusUser } from "./locking";
 import { unlockContentWithGafus } from "./accessGrantService";
 import { resolveArticleEntitlement } from "../contentAccess/policy";
+import { getTrainingDays, getTrainingDayWithMonetizedSteps } from "../training/trainingService.ts";
 
 // Test fixtures run exclusively against a dedicated disposable local database.
 const url = process.env.GAFUS_TEST_DATABASE_URL;
@@ -48,9 +49,43 @@ const messages = [
   afterEach(async () => {
     await db!.gafusTargetAccess.deleteMany({ where: { userId } });
     await db!.article.deleteMany({ where: { authorId: userId } });
+    await db!.dayOnCourse.deleteMany({ where: { course: { authorId: userId } } });
+    await db!.stepOnDay.deleteMany({ where: { day: { authorId: userId } } });
+    await db!.course.deleteMany({ where: { authorId: userId } });
+    await db!.step.deleteMany({ where: { authorId: userId } });
+    await db!.trainingDay.deleteMany({ where: { authorId: userId } });
     await db!.gafusNotificationOutbox.deleteMany({ where: { userId } });
     await db!.gafusFraudSignal.deleteMany({ where: { userId } });
     await db!.user.deleteMany({ where: { id: userId } });
+  });
+  it("Full Access is free; Paid exposes days and titles but one Gafus unlocks only the purchased step", async () => {
+    const day = await db!.trainingDay.create({ data: { title: "Public day", authorId: userId } });
+    const theory = await db!.step.create({ data: { title: "Lesson title", description: "Paid lesson contents", type: "THEORY", authorId: userId } });
+    const rest = await db!.step.create({ data: { title: "Rest", description: "Free rest", type: "BREAK", authorId: userId } });
+    const diary = await db!.step.create({ data: { title: "Diary", description: "Free diary", type: "DIARY", authorId: userId } });
+    const links = await Promise.all([theory, rest, diary].map((step, order) => db!.stepOnDay.create({ data: { dayId: day.id, stepId: step.id, order } })));
+    const courses = await Promise.all([false, true, true].map((isPaid, index) => db!.course.create({ data: {
+      name: `Course ${index}`, type: `course-${userId}-${index}`, isPaid, isPrivate: false,
+      authorId: userId, duration: "1 day", logoImg: "", trainingLevel: "BEGINNER",
+    } })));
+    const days = await Promise.all(courses.map(course => db!.dayOnCourse.create({ data: { courseId: course.id, dayId: day.id, order: 0 } })));
+    for (const [index, course] of courses.entries()) {
+      expect((await getTrainingDays(userId, course.type)).trainingDays).toHaveLength(1);
+      for (const platform of ["WEB_DESKTOP", "IOS", "ANDROID"] as const) {
+        const detail = await getTrainingDayWithMonetizedSteps(userId, course.type, days[index]!.id, { platform, createIfMissing: false });
+        expect(detail?.steps[0]).toMatchObject({ title: "Lesson title", locked: course.isPaid, description: course.isPaid ? "" : "Paid lesson contents" });
+        expect(detail?.steps[1]).toMatchObject({ locked: false, description: "Free rest" });
+        expect(detail?.steps[2]).toMatchObject({ locked: false, description: "Free diary" });
+      }
+    }
+    await db!.$transaction(async tx => {
+      await lockGafusUser(tx, userId);
+      await changeGafusBalanceTx(tx, { userId, amount: 1, kind: "ADMIN_CREDIT", idempotencyKey: `initial:${userId}` });
+    });
+    const purchase = await unlockContentWithGafus({ userId, clientRequestId: `step-${userId}`, target: { type: "COURSE_STEP", dayOnCourseId: days[1]!.id, stepOnDayId: links[0]!.id } });
+    expect(purchase.spent).toBe(1);
+    expect((await getTrainingDayWithMonetizedSteps(userId, courses[1]!.type, days[1]!.id, { platform: "IOS", createIfMissing: false }))?.steps[0]).toMatchObject({ locked: false, description: "Paid lesson contents" });
+    expect((await getTrainingDayWithMonetizedSteps(userId, courses[2]!.type, days[2]!.id, { platform: "IOS", createIfMissing: false }))?.steps[0]).toMatchObject({ locked: true, description: "" });
   });
   it("atomically purchases an article once, expires at seven days, and rejects an empty wallet", async () => {
     const article = await db!.article.create({ data: {

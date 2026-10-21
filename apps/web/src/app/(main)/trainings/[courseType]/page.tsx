@@ -5,7 +5,7 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingPageClient } from "@/features/training";
 import { getTrainingDays } from "@shared/lib/training/getTrainingDays";
 import { checkAndCompleteCourse } from "@shared/lib/user/userCourses";
-import { getCourseMetadata, getCourseOutline, checkCourseAccessById } from "@gafus/core/services/course";
+import { getCourseMetadata, getCourseOutline } from "@gafus/core/services/course";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
 import { generateCourseMetadata } from "@gafus/metadata";
 
@@ -51,7 +51,7 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   ]);
   const userId = userIdResult;
 
-  if (!userId && courseMetadata && (courseMetadata.isPaid || courseMetadata.isPrivate)) {
+  if (!userId && courseMetadata?.isPrivate) {
     redirect("/");
   }
 
@@ -59,43 +59,19 @@ export default async function TrainingsPage({ params }: TrainingsPageProps) {
   let serverError: string | null = null;
 
   if (userId) {
-    // Платный курс: сначала проверяем оплачен ли курс, без оплаты не грузим данные
-    if (courseMetadata?.isPaid && courseMetadata?.id) {
-      const { hasAccess } = await checkCourseAccessById(courseMetadata.id, userId);
-      if (!hasAccess) {
+    try {
+      const data = await getTrainingDays(courseType, userId);
+      serverData = data;
+      await checkAndCompleteCourse(data.trainingDays, data.courseId);
+    } catch (error) {
+      if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
         serverError = "COURSE_ACCESS_DENIED";
       } else {
-        try {
-          const data = await getTrainingDays(courseType, userId);
-          serverData = data;
-          await checkAndCompleteCourse(data.trainingDays, data.courseId);
-        } catch (error) {
-          if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
-            serverError = "COURSE_ACCESS_DENIED";
-          } else {
-            logger.error(
-              "Неожиданная ошибка загрузки дней тренировки",
-              error instanceof Error ? error : new Error(String(error)),
-              { courseType, userId },
-            );
-          }
-        }
-      }
-    } else {
-      try {
-        const data = await getTrainingDays(courseType, userId);
-        serverData = data;
-        await checkAndCompleteCourse(data.trainingDays, data.courseId);
-      } catch (error) {
-        if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
-          serverError = "COURSE_ACCESS_DENIED";
-        } else {
-          logger.error(
-            "Неожиданная ошибка загрузки дней тренировки",
-            error instanceof Error ? error : new Error(String(error)),
-            { courseType, userId },
-          );
-        }
+        logger.error(
+          "Неожиданная ошибка загрузки дней тренировки",
+          error instanceof Error ? error : new Error(String(error)),
+          { courseType, userId },
+        );
       }
     }
   }

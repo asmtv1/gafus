@@ -70,6 +70,7 @@ async function resolveRegularCourseTargetByDayOnCourseAndStep(input: {
       userTrainings: { some: { userId: input.userId } },
     },
     select: {
+      course: { select: { isPaid: true, isPrivate: true } },
       day: {
         select: {
           stepLinks: {
@@ -83,6 +84,7 @@ async function resolveRegularCourseTargetByDayOnCourseAndStep(input: {
       },
     },
   });
+  if (dayOnCourse?.course && !dayOnCourse.course.isPaid && !dayOnCourse.course.isPrivate) return null;
   const stepLink = dayOnCourse?.day.stepLinks[input.stepIndex];
   if (!stepLink) return undefined;
   return courseStepTarget(stepLink.id, stepLink.step.type);
@@ -98,6 +100,7 @@ async function resolveTargetForUserStep(input: {
       userTraining: { userId: input.userId },
     },
     select: {
+      userTraining: { select: { dayOnCourse: { select: { course: { select: { isPaid: true, isPrivate: true } } } } } },
       stepOnDay: {
         select: {
           id: true,
@@ -107,6 +110,8 @@ async function resolveTargetForUserStep(input: {
     },
   });
   if (userStep) {
+    const course = userStep.userTraining?.dayOnCourse?.course;
+    if (course && !course.isPaid && !course.isPrivate) return null;
     return courseStepTarget(userStep.stepOnDay.id, userStep.stepOnDay.step.type);
   }
 
@@ -154,6 +159,7 @@ async function resolveTargetForVideoUrl(input: {
       stepOnDay: { step: { videoUrl: input.videoUrl } },
     },
     select: {
+      userTraining: { select: { dayOnCourse: { select: { course: { select: { isPaid: true, isPrivate: true } } } } } },
       stepOnDay: {
         select: {
           id: true,
@@ -163,6 +169,8 @@ async function resolveTargetForVideoUrl(input: {
     },
   });
   if (userStep) {
+    const course = userStep.userTraining?.dayOnCourse?.course;
+    if (course && !course.isPaid && !course.isPrivate) return null;
     return courseStepTarget(userStep.stepOnDay.id, userStep.stepOnDay.step.type);
   }
 

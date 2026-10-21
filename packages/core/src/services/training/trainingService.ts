@@ -417,8 +417,8 @@ export async function getTrainingDays(
       sharedUserTrainings.map((ut) => [ut.dayOnCourse.dayId, ut]),
     );
 
-    // Проверяем доступ к приватному или платному курсу
-    if (firstCourse.isPrivate || firstCourse.isPaid) {
+    // Paid courses expose their day outline; only private assignments gate browsing.
+    if (firstCourse.isPrivate) {
       const hasAccess = await checkCourseAccessById(firstCourse.id, userId);
       if (!hasAccess.hasAccess) {
         throw new Error("COURSE_ACCESS_DENIED");
@@ -865,9 +865,9 @@ export async function getTrainingDayWithMonetizedSteps(
     allowPaywalledPreview: preview,
   });
   if (!detail) return null;
-  // Course browsing access is not an entitlement to the contents of its steps.
-  // Assigned private courses retain their separate access policy.
-  if (policy.isPrivate && fullAccess) {
+  // Full Access courses are always free. Paid courses gate individual steps;
+  // subscribed viewers and assigned private-course viewers retain full access.
+  if (fullAccess || !policy.isPaid) {
     return { ...detail, steps: detail.steps.map((step) => ({ ...step, locked: false })) };
   }
 
@@ -907,6 +907,7 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
       if (!accessCheck.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
       return null;
     }
+    if (coursePolicy && !coursePolicy.isPaid) return null;
   }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) return null;
@@ -959,7 +960,7 @@ export async function requireCourseStepOperationAccess(input: {
   const access = await checkCourseAccessById(dayOnCourse.course.id, input.userId);
   if (dayOnCourse.course.isPrivate) {
     if (!access.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
-  } else if (isRewardedMonetizedStepType(stepLink.step.type)) {
+  } else if (dayOnCourse.course.isPaid && isRewardedMonetizedStepType(stepLink.step.type)) {
     // Only an individually unlocked step may be mutated without subscription.
     const target = { targetType: "COURSE_STEP" as const, targetId: stepLink.id };
     const gafus = await hasActiveGafusCourseStepAccess({

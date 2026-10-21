@@ -63,15 +63,12 @@ describe("course-step authorization stays consistent with course entitlement", (
     expect(mockRole).not.toHaveBeenCalled();
   });
 
-  it("a free course outline does not grant its step contents or HLS media", async () => {
+  it("Full Access course contents and HLS media stay free without subscription", async () => {
     const result = await resolveCourseStepAccessTx(tx, "user", {
       ...paidStep, isPaid: false, paidOrPrivate: false,
     }, now);
-    expect(result).toMatchObject({ allowed: false, source: "DENIED" });
-    mockSubscription.mockResolvedValue({ id: "active" });
-    expect((await resolveCourseStepAccessTx(tx, "user", {
-      ...paidStep, isPaid: false, paidOrPrivate: false,
-    }, now)).allowed).toBe(true);
+    expect(result).toMatchObject({ allowed: true, source: "DAILY_FREE", eligibleForGafus: false });
+    expect(mockSubscription).not.toHaveBeenCalled();
   });
 
   it("article access expires and never grants other content", async () => {
