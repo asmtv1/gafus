@@ -12,6 +12,7 @@ import {
 } from "./articleService";
 
 const mockArticleFindMany = vi.fn();
+const mockGafusAccessFindMany = vi.fn().mockResolvedValue([]);
 const mockArticleFindUnique = vi.fn();
 const mockArticleCreate = vi.fn();
 const mockArticleUpdate = vi.fn();
@@ -48,6 +49,7 @@ vi.mock("@gafus/prisma", () => ({
       delete: (...args: unknown[]) => mockArticleDelete(...args),
       updateMany: (...args: unknown[]) => mockArticleUpdateMany(...args),
     },
+    gafusTargetAccess: { findMany: (...args: unknown[]) => mockGafusAccessFindMany(...args) },
     articleViewer: {
       create: (...args: unknown[]) => mockArticleViewerCreate(...args),
       createMany: (...args: unknown[]) => mockArticleViewerCreateMany(...args),
@@ -150,6 +152,26 @@ describe("getArticles", () => {
       expect(result.data[0].videoUrl).toBe("https://media.example/paid-video");
       expect(result.data[0].imageUrls).toEqual(["cover.jpg", "gallery.jpg"]);
     }
+  });
+
+  it("shows a purchased article as accessible without opening other articles", async () => {
+    mockArticleFindMany.mockResolvedValue([
+      listRow({ id: "a1", videoUrl: "video-1", imageUrls: ["cover-1", "inside-1"] }),
+      listRow({ id: "a2", slug: "second", videoUrl: "video-2", imageUrls: ["cover-2", "inside-2"] }),
+    ]);
+    mockGafusAccessFindMany.mockResolvedValue([{ targetKey: "article:a1" }]);
+    const result = await getArticles("viewer");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data[0]).toMatchObject({ hasAccess: true, videoUrl: "video-1" });
+      expect(result.data[1]).toMatchObject({ hasAccess: false, videoUrl: null, imageUrls: ["cover-2"] });
+    }
+    expect(mockGafusAccessFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        userId: "viewer", targetType: "ARTICLE",
+        targetKey: { in: ["article:a1", "article:a2"] },
+      }),
+    }));
   });
 
   it("фильтр по автору передаётся в where", async () => {

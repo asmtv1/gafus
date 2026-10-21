@@ -92,14 +92,27 @@ export async function getArticles(
       take, skip,
     });
     const subscribed = (await resolveArticleEntitlement("", userId)).allowed;
+    // Gafus purchases are scoped to one article. A subscription gives access
+    // to the whole catalog; without it, resolve purchased items in one query.
+    const purchased = !subscribed && userId && rows.length
+      ? await prisma.gafusTargetAccess.findMany({
+          where: {
+            userId, targetType: "ARTICLE", expiresAt: { gt: new Date() },
+            targetKey: { in: rows.map(row => `article:${row.id}`) },
+          },
+          select: { targetKey: true },
+        })
+      : [];
+    const purchasedKeys = new Set(purchased.map(item => item.targetKey));
     return {
       success: true,
-      data: rows.map((row) =>
-        mapToListDto({
+      data: rows.map(row => {
+        const allowed = subscribed || purchasedKeys.has(`article:${row.id}`);
+        return mapToListDto({
           ...row,
-          access: subscribed ? [{ userId: userId ?? "" }] : [],
-        }, userId),
-      ),
+          access: allowed ? [{ userId: userId ?? "" }] : [],
+        }, userId);
+      }),
     };
   } catch (error) {
     logger.error("Ошибка getArticles", error as Error);

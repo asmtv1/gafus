@@ -5,7 +5,6 @@ import { createWebLogger } from "@gafus/logger";
 import { reportClientError } from "@gafus/error-handling";
 import { useCallback, useEffect, useState } from "react";
 
-import { checkCourseAccessAction } from "@shared/server-actions/course";
 import { getTrainingDays } from "../lib/training/getTrainingDays";
 import { useTrainingStore } from "../stores/trainingStore";
 import { getCurrentUserId } from "@shared/utils/getCurrentUserId";
@@ -56,9 +55,6 @@ export function useCachedTrainingDays(
 
   const { getCachedTrainingDays, setCachedTrainingDays } = useTrainingStore();
 
-  // Сразу проверяем кэш для мгновенного отображения данных
-  const _initialCached = getCachedTrainingDays(courseType);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -72,31 +68,20 @@ export function useCachedTrainingDays(
         return;
       }
 
-      // Приоритет 1: Если есть серверные данные — проверяем доступ на клиенте.
+      // Server-side loader already checked private assignments and redacted
+      // paid step content. Course-level subscription is NOT required to view a
+      // paid course outline, so do not re-gate the server-approved outline here.
       if (initialData) {
-        const { hasAccess } = await checkCourseAccessAction(courseType);
-        if (!hasAccess) {
-          useTrainingStore.getState().clearCachedTrainingDays(courseType);
-          setError("COURSE_ACCESS_DENIED");
-          setLoading(false);
-          return;
-        }
         logger.info("[Cache] Using initial server data", { courseType, operation: "info" });
         setCachedTrainingDays(courseType, initialData);
         setLoading(false);
         return;
       }
 
-      // Приоритет 2: Проверяем краткий кэш trainingStore, чтобы не дублировать запрос.
-      const cached = getCachedTrainingDays(courseType);
-      if (cached.data && !cached.isExpired) {
-        logger.info("[Cache] Using brief cache to prevent duplicate requests", {
-          courseType,
-          operation: "info",
-        });
-        setLoading(false);
-        return;
-      }
+      // This cache is keyed by courseType, not by account. Never reuse it in
+      // a route without server-authenticated initialData: it may belong to a
+      // previous user on the same device after logout/account switching.
+      useTrainingStore.getState().clearCachedTrainingDays(courseType);
 
       if (initialError) {
         setError(initialError);

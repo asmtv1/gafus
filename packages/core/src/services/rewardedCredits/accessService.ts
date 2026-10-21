@@ -134,6 +134,7 @@ async function resolveTargetForUserStep(input: {
 async function resolveTargetForVideoUrl(input: {
   userId: string;
   videoUrl: string;
+  platform: MonetizedAccessPlatform;
   now?: Date;
 }): Promise<ResolvedTarget> {
   const dailyStep = await prisma.dailyCourseBundleStep.findFirst({
@@ -152,6 +153,51 @@ async function resolveTargetForVideoUrl(input: {
   });
   // Курс дня полностью бесплатный, даже до создания пользовательского прогресса.
   if (dailyStep) return null;
+
+  // Video URLs may be requested before a UserStep exists (first visit or a
+  // freshly purchased Paid step). Authorization must be based on the course
+  // occurrence and its entitlement, not on the presence of user progress.
+  const occurrences = await prisma.dayOnCourse.findMany({
+    where: { day: { stepLinks: { some: { step: { videoUrl: input.videoUrl } } } } },
+    select: {
+      id: true,
+      courseId: true,
+      course: { select: { isPaid: true, isPrivate: true } },
+      day: { select: { stepLinks: {
+        where: { step: { videoUrl: input.videoUrl } },
+        select: { id: true, step: { select: { type: true } } },
+      } } },
+    },
+  });
+  if (occurrences.length) {
+    let paidTarget: RewardedTargetInput | undefined;
+    for (const occurrence of occurrences) {
+      if (occurrence.course.isPrivate) {
+        const assigned = await prisma.courseAccess.findFirst({
+          where: { userId: input.userId, courseId: occurrence.courseId },
+          select: { courseId: true },
+        });
+        if (assigned) return null;
+        continue;
+      }
+      if (!occurrence.course.isPaid) return null;
+      for (const link of occurrence.day.stepLinks) {
+        const target = courseStepTarget(link.id, link.step.type);
+        if (!target) return null; // BREAK and DIARY are always free.
+        if (await hasActiveGafusCourseStepAccess({
+          userId: input.userId, dayOnCourseId: occurrence.id,
+          stepOnDayId: link.id, now: input.now,
+        })) return null;
+        if (await hasRewardedTargetUnlock({
+          userId: input.userId, platform: input.platform, target, now: input.now,
+        })) return target;
+        paidTarget ??= target;
+      }
+    }
+    if (paidTarget) return paidTarget;
+    // A video used only in unassigned private courses is not purchasable.
+    throw new SubscriptionOrCreditsRequiredError();
+  }
 
   const userStep = await prisma.userStep.findFirst({
     where: {

@@ -27,6 +27,7 @@ const mockUserTrainingFindUnique = vi.fn();
 const mockUserTrainingFindMany = vi.fn();
 const mockUserStepFindMany = vi.fn();
 const mockUserStepCreate = vi.fn();
+const mockUserStepUpsert = vi.fn();
 const mockUserCourseFindUnique = vi.fn();
 const mockUserCourseUpsert = vi.fn();
 const mockTransaction = vi.fn();
@@ -59,6 +60,7 @@ vi.mock("@gafus/prisma", () => ({
     userStep: {
       findMany: (...args: unknown[]) => mockUserStepFindMany(...args),
       create: (...args: unknown[]) => mockUserStepCreate(...args),
+      upsert: (...args: unknown[]) => mockUserStepUpsert(...args),
     },
     userCourse: {
       findUnique: (...args: unknown[]) => mockUserCourseFindUnique(...args),
@@ -588,6 +590,7 @@ describe("requireCourseStepOperationAccess", () => {
 describe("rewarded training step access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasActiveGafusAccess.mockResolvedValue(false);
     (checkCourseAccess as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       hasAccess: true,
     });
@@ -671,6 +674,52 @@ describe("rewarded training step access", () => {
       monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" },
     });
     expect(result?.steps[1]).toMatchObject({ locked: false, description: "Free break" });
+  });
+
+  it("creates progress only for purchased and free steps in Paid preview", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: false });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+    mockUserTrainingUpsert.mockResolvedValue({ id: "user-training-1" });
+    mockDayOnCourseFindUnique.mockResolvedValue({
+      day: { stepLinks: [{ id: "sod-1" }, { id: "sod-2" }] },
+    });
+    mockUserStepUpsert.mockImplementation(async ({ where }) => ({
+      id: `userstep-${where.userTrainingId_stepOnDayId.stepOnDayId}`,
+    }));
+    mockHasActiveGafusAccess.mockResolvedValue(true);
+
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform: "IOS", createIfMissing: true,
+    });
+
+    expect(result?.steps.map(step => step.userStepId)).toEqual([
+      "userstep-sod-1", "userstep-sod-2",
+    ]);
+    expect(mockUserStepUpsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("never initializes progress for an unpaid Paid step", async () => {
+    vi.mocked(checkCourseAccess).mockResolvedValue({ hasAccess: false });
+    mockCourseFindFirst.mockResolvedValue({ isPaid: true, isPrivate: false });
+    mockUserTrainingUpsert.mockResolvedValue({ id: "user-training-1" });
+    mockDayOnCourseFindUnique.mockResolvedValue({
+      day: { stepLinks: [{ id: "sod-1" }, { id: "sod-2" }] },
+    });
+    mockUserStepUpsert.mockImplementation(async ({ where }) => ({
+      id: `userstep-${where.userTrainingId_stepOnDayId.stepOnDayId}`,
+    }));
+    mockGetPremiumOrRewardedAccess.mockRejectedValue(
+      Object.assign(new Error("locked"), { name: "SubscriptionOrCreditsRequiredError" }),
+    );
+
+    const result = await getTrainingDayWithMonetizedSteps("user-1", "course", "doc-1", {
+      platform: "WEB_DESKTOP", createIfMissing: true,
+    });
+    expect(result?.steps[0]).toMatchObject({ locked: true, description: "" });
+    expect(result?.steps[0]?.userStepId).toBeUndefined();
+    expect(result?.steps[1]).toMatchObject({ locked: false, userStepId: "userstep-sod-2" });
+    expect(mockUserStepUpsert).toHaveBeenCalledTimes(1);
+    expect(mockUserStepUpsert.mock.calls[0]?.[0].create.stepOnDayId).toBe("sod-2");
   });
 
   it("resolves a monetized course step target by day and step index", async () => {

@@ -184,13 +184,17 @@ ALTER TABLE "GafusPostReactionMilestone" ADD CONSTRAINT "GafusPostReactionMilest
 
 ALTER TABLE "GafusTargetAccess" ADD CONSTRAINT "GafusTargetAccess_positive_duration" CHECK ("expiresAt" > "grantedAt");
 
-ALTER TABLE "GafusTargetAccess" ADD CONSTRAINT "GafusTargetAccess_target_shape" CHECK (("targetType" = 'COURSE_STEP' AND "courseId" IS NOT NULL AND "dayOnCourseId" IS NOT NULL AND "stepOnDayId" IS NOT NULL) OR ("targetType" = 'MINI_GUIDE' AND "courseId" IS NOT NULL AND "dayOnCourseId" IS NULL AND "stepOnDayId" IS NULL));
-
 ALTER TABLE "GafusSettings" ADD CONSTRAINT "GafusSettings_config_positive" CHECK ("activityLimit" >= 0 AND "activityWindowSeconds" > 0 AND "reactionThreshold" > 0 AND "accessDurationSeconds" > 0 AND "postReward" >= 0 AND "questionReward" >= 0 AND "answerReward" >= 0 AND "reactionReward" >= 0 AND "bestAnswerReward" >= 0 AND "courseStepCost" > 0 AND "miniGuideCost" > 0);
 
 ALTER TABLE "FeedRankingEvent" ADD CONSTRAINT "FeedRankingEvent_kind_chk" CHECK ("kind" IN ('dwell','post_open','profile_open'));
 
 ALTER TABLE "FeedRankingEvent" ADD CONSTRAINT "FeedRankingEvent_duration_chk" CHECK ("durationMs" >= 0 AND "durationMs" <= 120000);
+
+ALTER TABLE "GafusTargetAccess" ADD CONSTRAINT "GafusTargetAccess_target_shape" CHECK (
+  ("targetType"::text = 'COURSE_STEP' AND "courseId" IS NOT NULL AND "dayOnCourseId" IS NOT NULL AND "stepOnDayId" IS NOT NULL)
+  OR ("targetType"::text = 'MINI_GUIDE' AND "courseId" IS NOT NULL AND "dayOnCourseId" IS NULL AND "stepOnDayId" IS NULL)
+  OR ("targetType"::text = 'ARTICLE' AND "courseId" IS NULL AND "dayOnCourseId" IS NULL AND "stepOnDayId" IS NULL AND "targetKey" LIKE 'article:%')
+);
 
 -- partial indexes
 CREATE UNIQUE INDEX "ConsultationBooking_slotId_active_key"

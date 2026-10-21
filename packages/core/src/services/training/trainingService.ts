@@ -890,6 +890,40 @@ export async function getTrainingDayWithMonetizedSteps(
       throw error;
     }
   }));
+  // Only materialize progress for actually accessible preview steps. This
+  // supplies userStepId to exam/survey child APIs after a Gafus unlock, while
+  // leaving locked steps without new progress or entitlement.
+  if (options.createIfMissing) {
+    const allowedIndices = steps.flatMap((step, index) => step.locked ? [] : [index]);
+    if (allowedIndices.length) {
+      const day = await prisma.dayOnCourse.findUnique({
+        where: { id: dayOnCourseId },
+        select: {
+          day: { select: { stepLinks: { orderBy: { order: "asc" }, select: { id: true } } } },
+        },
+      });
+      if (!day?.day) throw new Error("DayOnCourse or day not found");
+      const userTrainingId = await ensureUserTrainingExists(userId, dayOnCourseId);
+      const created = await Promise.all(allowedIndices.map(async index => {
+        const stepOnDayId = day.day.stepLinks[index]?.id;
+        if (!stepOnDayId) throw new Error("Step not found");
+        const record = await prisma.userStep.upsert({
+          where: { userTrainingId_stepOnDayId: { userTrainingId, stepOnDayId } },
+          create: { userTrainingId, stepOnDayId, status: TrainingStatus.NOT_STARTED },
+          update: {},
+          select: { id: true },
+        });
+        return [index, record.id] as const;
+      }));
+      const userStepIds = new Map(created);
+      return {
+        ...detail, description: "", showCoursePathExport: false,
+        steps: steps.map((step, index) => ({
+          ...step, userStepId: userStepIds.get(index) ?? step.userStepId,
+        })),
+      };
+    }
+  }
   return { ...detail, description: "", showCoursePathExport: false, steps };
 }
 
