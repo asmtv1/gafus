@@ -9,6 +9,7 @@ import { WebView } from "react-native-webview";
 import Markdown from "react-native-markdown-display";
 
 import { articlesApi } from "@/shared/lib/api";
+import { GafusContentUnlock } from "@/features/training/components/GafusStepUnlock";
 import { reportClientError } from "@/shared/lib/tracer";
 import {
   wrapArticleHtml,
@@ -305,6 +306,11 @@ export default function ArticleDetailScreen() {
             ) : null}
             {user ? (
               <View style={[styles.paidButtonsRow, styles.rewardedPaidButtonsRow]}>
+                <GafusContentUnlock
+                  target={{ type: "ARTICLE", articleId: article.id }}
+                  label="статью"
+                  onUnlocked={async () => { await refetch(); }}
+                />
                 <RewardedAccessGate
                   title="Открыть статью"
                   subtitle="Подписка открывает все статьи!"

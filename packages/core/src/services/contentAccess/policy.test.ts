@@ -5,6 +5,7 @@ const role = vi.fn();
 const subscription = vi.fn();
 const assignment = vi.fn();
 const rewarded = vi.fn();
+const gafus = vi.fn();
 const flag = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
@@ -13,6 +14,7 @@ vi.mock("@gafus/prisma", () => ({
     appSubscription: { findFirst: (...args: unknown[]) => subscription(...args) },
     courseAccess: { findFirst: (...args: unknown[]) => assignment(...args) },
     rewardedTargetAccess: { findFirst: (...args: unknown[]) => rewarded(...args) },
+    gafusTargetAccess: { findFirst: (...args: unknown[]) => gafus(...args) },
   },
 }));
 vi.mock("../appFeatureFlags", () => ({
@@ -33,6 +35,7 @@ describe("shared Web/Mobile subscription access policy", () => {
     subscription.mockResolvedValue(null);
     assignment.mockResolvedValue(null);
     rewarded.mockResolvedValue(null);
+    gafus.mockResolvedValue(null);
   });
 
   it("guests can access a free course, but no paid/private material", async () => {
@@ -52,6 +55,17 @@ describe("shared Web/Mobile subscription access policy", () => {
         OR: [{ isLifetime: true }, { currentPeriodEnd: { gt: now } }],
       }),
     }));
+  });
+
+  it.each(["WEB_DESKTOP", "IOS", "ANDROID"] as const)("article Gafus access is scoped and checked on %s", async platform => {
+    gafus.mockResolvedValue({ id: "article-access" });
+    expect((await resolveArticleEntitlement("article-1", "user", platform, now)).source).toBe("GAFUS");
+    expect(gafus).toHaveBeenCalledWith({
+      where: { userId: "user", targetType: "ARTICLE", targetKey: "article:article-1", expiresAt: { gt: now } },
+      select: { id: true },
+    });
+    gafus.mockResolvedValue(null);
+    expect((await resolveArticleEntitlement("article-2", "user", platform, now)).allowed).toBe(false);
   });
 
   it("private courses need assignment, even with subscription", async () => {

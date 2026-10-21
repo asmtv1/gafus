@@ -8,6 +8,7 @@ import { gafusApi } from "@/shared/lib/api/gafus";
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { trackEvent } from "@/shared/lib/analytics";
+import type { GafusTarget } from "@gafus/types";
 
 type Props = {
   dayOnCourseId: string;
@@ -15,10 +16,20 @@ type Props = {
   onUnlocked: () => Promise<unknown>;
 };
 
-/** Additional unlock method; existing ads and subscription remain available. */
 export const GafusStepUnlock = memo(function GafusStepUnlock({
   dayOnCourseId, stepOnDayId, onUnlocked,
 }: Props) {
+  return <GafusContentUnlock
+    target={{ type: "COURSE_STEP", dayOnCourseId, stepOnDayId }}
+    label="шаг" onUnlocked={onUnlocked}
+  />;
+});
+
+export const GafusContentUnlock = memo(function GafusContentUnlock({ target, label, onUnlocked }: {
+  target: GafusTarget;
+  label: string;
+  onUnlocked: () => Promise<unknown>;
+}) {
   const queryClient = useQueryClient();
   const userId = useAuthStore(state => state.user?.id);
   const [busy, setBusy] = useState(false);
@@ -42,7 +53,7 @@ export const GafusStepUnlock = memo(function GafusStepUnlock({
       pendingRequestId.current = clientRequestId;
       const result = await gafusApi.unlock({
         clientRequestId,
-        target: { type: "COURSE_STEP", dayOnCourseId, stepOnDayId },
+        target,
       });
       trackEvent({
         eventName: "button_click", platform: "mobile",
@@ -58,15 +69,15 @@ export const GafusStepUnlock = memo(function GafusStepUnlock({
     } catch (caught) {
       reportClientError(caught instanceof Error ? caught : new Error(String(caught)), {
         issueKey: "GafusStepUnlock",
-        keys: { operation: "unlock_step_with_gafus", dayOnCourseId, stepOnDayId },
+        keys: { operation: "unlock_content_with_gafus", targetType: target.type },
       });
       const code = (caught as Error & { code?: string }).code;
       if (code && code !== "GAFUS_INTERNAL_ERROR") pendingRequestId.current = null;
-      setError(caught instanceof Error ? caught.message : "Не удалось открыть шаг");
+      setError(caught instanceof Error ? caught.message : "Не удалось открыть материал");
     } finally {
       setBusy(false);
     }
-  }, [busy, dayOnCourseId, stepOnDayId, onUnlocked, queryClient, userId]);
+  }, [busy, target, onUnlocked, queryClient, userId]);
 
   if (status.isPending) return <Loading variant="inline" />;
   const data = status.data;
@@ -75,10 +86,10 @@ export const GafusStepUnlock = memo(function GafusStepUnlock({
   const price = data.rules.courseStepCost;
   const insufficient = data.wallet.balance < price;
   return <View style={styles.card}>
-    <Text style={styles.title}>Открыть шаг за Гафусы</Text>
+    <Text style={styles.title}>Открыть {label} на {Math.round(data.rules.accessDurationSeconds / 86400)} дней</Text>
     <Text style={styles.balance}>Баланс: {data.wallet.balance} 🐾 · Стоимость: {price}</Text>
     <Button
-      label={busy ? "Открываем…" : "Открыть за Гафусы"}
+      label={busy ? "Открываем…" : `Открыть за ${price} гафус`}
       onPress={() => void unlock()}
       disabled={busy || insufficient}
       loading={busy}

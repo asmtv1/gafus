@@ -22,6 +22,30 @@ export type MiniGuideTarget = {
   courseId: string;
   paidOrPrivate: boolean;
 };
+export type ArticleTarget = {
+  type: "ARTICLE";
+  targetKey: string;
+  articleId: string;
+  courseId: null;
+};
+
+export async function resolveArticleTargetTx(tx: GafusTx, articleId: string): Promise<ArticleTarget | null> {
+  const article = await tx.article.findUnique({ where: { id: articleId }, select: { id: true } });
+  return article ? { type: "ARTICLE", targetKey: `article:${article.id}`, articleId: article.id, courseId: null } : null;
+}
+
+export async function resolveArticleAccessTx(tx: GafusTx, userId: string, target: ArticleTarget, now = new Date()): Promise<ContentEntitlement> {
+  if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true))
+    return { allowed: true, source: "GATING_DISABLED", expiresAt: null, eligibleForGafus: false };
+  if (await hasPremiumTx(tx, userId, now, true))
+    return { allowed: true, source: "PREMIUM", expiresAt: null, eligibleForGafus: false };
+  const access = await tx.gafusTargetAccess.findFirst({
+    where: { userId, targetType: "ARTICLE", targetKey: target.targetKey, expiresAt: { gt: now } },
+    select: { expiresAt: true }, orderBy: { expiresAt: "desc" },
+  });
+  return access ? { allowed: true, source: "GAFUS", expiresAt: access.expiresAt, eligibleForGafus: false }
+    : { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: true };
+}
 export type ContentEntitlementSource =
   | "GATING_DISABLED" | "DAILY_FREE" | "COURSE_ACCESS" | "PREMIUM"
   | "GAFUS" | "DENIED";

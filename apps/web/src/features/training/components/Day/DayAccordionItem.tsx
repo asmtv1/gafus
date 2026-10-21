@@ -258,14 +258,14 @@ export const DayAccordionItem = memo(function DayAccordionItem({
           <div className={styles.paywallPanel}>
             {gatedStepId && gafusStatus?.enabled.economy && gafusStatus.enabled.spending && (
               <div className={styles.gafusUnlock}>
-                <strong>Открыть шаг за Гафусы</strong>
+                <strong>Открыть шаг на {Math.round(gafusStatus.rules.accessDurationSeconds / 86400)} дней</strong>
                 <span>Баланс: {gafusStatus.wallet.balance} 🐾 · Стоимость: {gafusStatus.rules.courseStepCost}</span>
                 <button
                   type="button"
                   onClick={() => void handleGafusUnlock()}
                   disabled={gafusBusy || gafusStatus.wallet.balance < gafusStatus.rules.courseStepCost}
                 >
-                  {gafusBusy ? "Открываем…" : "Открыть за Гафусы"}
+                  {gafusBusy ? "Открываем…" : `Открыть за ${gafusStatus.rules.courseStepCost} гафус`}
                 </button>
                 {gafusStatus.wallet.balance < gafusStatus.rules.courseStepCost && (
                   <span>Недостаточно Гафусов. Их можно заработать за активность в сообществе.</span>

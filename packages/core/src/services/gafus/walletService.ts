@@ -19,7 +19,7 @@ type MutationInput = {
   rewardKind?: "POST_PUBLISHED" | "QUESTION_CREATED" | "ANSWER_CREATED" | "POST_REACTION_MILESTONE" | "BEST_ANSWER";
   sourceEntityType?: string;
   sourceEntityId?: string;
-  targetType?: "COURSE_STEP" | "MINI_GUIDE";
+  targetType?: "COURSE_STEP" | "MINI_GUIDE" | "ARTICLE";
   targetKey?: string;
   settingsRevision?: number;
   metadata?: Prisma.InputJsonValue;

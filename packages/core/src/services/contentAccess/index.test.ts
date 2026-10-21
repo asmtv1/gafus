@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   resolveCourseStepAccessTx,
   resolveMiniGuideAccessTx,
+  resolveArticleAccessTx,
   type CourseStepTarget,
   type MiniGuideTarget,
 } from "./index";
@@ -71,6 +72,19 @@ describe("course-step authorization stays consistent with course entitlement", (
     expect((await resolveCourseStepAccessTx(tx, "user", {
       ...paidStep, isPaid: false, paidOrPrivate: false,
     }, now)).allowed).toBe(true);
+  });
+
+  it("article access expires and never grants other content", async () => {
+    const target = { type: "ARTICLE" as const, articleId: "a1", courseId: null, targetKey: "article:a1" };
+    expect((await resolveArticleAccessTx(tx, "user", target, now)).eligibleForGafus).toBe(true);
+    const expiresAt = new Date("2026-10-22T00:00:00Z");
+    mockGafus.mockResolvedValue({ expiresAt });
+    expect(await resolveArticleAccessTx(tx, "user", target, now)).toMatchObject({ allowed: true, source: "GAFUS", expiresAt });
+    expect(mockGafus).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { userId: "user", targetType: "ARTICLE", targetKey: "article:a1", expiresAt: { gt: now } },
+    }));
+    mockGafus.mockResolvedValue(null);
+    expect((await resolveArticleAccessTx(tx, "user", target, expiresAt)).allowed).toBe(false);
   });
 
   it("the previous mini-guide rule remains unchanged for admin/trainer", async () => {

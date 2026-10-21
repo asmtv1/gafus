@@ -4,7 +4,7 @@ import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from ".
 export type CoursePolicy = { id: string; isPrivate: boolean; isPaid: boolean };
 export type ContentAccessDecision = {
   allowed: boolean;
-  source: "FREE" | "PRIVATE_ASSIGNMENT" | "SUBSCRIPTION" | "ROLE" | "GATING_DISABLED" | "REWARDED" | "DENIED";
+  source: "FREE" | "PRIVATE_ASSIGNMENT" | "SUBSCRIPTION" | "ROLE" | "GATING_DISABLED" | "REWARDED" | "GAFUS" | "DENIED";
 };
 const denied: ContentAccessDecision = { allowed: false, source: "DENIED" };
 
@@ -56,6 +56,13 @@ export async function resolveArticleEntitlement(
   if (!userId) return denied;
   const premium = await premiumAccess(userId, now);
   if (premium.allowed) return premium;
+  if (articleId) {
+    const gafus = await prisma.gafusTargetAccess.findFirst({
+      where: { userId, targetType: "ARTICLE", targetKey: `article:${articleId}`, expiresAt: { gt: now } },
+      select: { id: true },
+    });
+    if (gafus) return { allowed: true, source: "GAFUS" };
+  }
   if (platform === "ANDROID" || platform === "IOS") {
     const rewarded = await prisma.rewardedTargetAccess.findFirst({
       where: { userId, targetType: "ARTICLE", targetId: articleId, expiresAt: { gt: now } },

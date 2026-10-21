@@ -871,6 +871,7 @@ enum GafusRewardDecision {
 enum GafusAccessTargetType {
   COURSE_STEP
   MINI_GUIDE
+  ARTICLE
 }
 enum GafusNotificationKind {
   REACTION_MILESTONE

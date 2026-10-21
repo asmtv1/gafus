@@ -14,11 +14,12 @@ import { getCDNUrl } from "@gafus/cdn-upload/utils";
 import { useCSRFStore } from "@gafus/csrf";
 import { reportClientError } from "@gafus/error-handling";
 import { trackEvent } from "@gafus/analytics";
-import type { ArticleDetailDto } from "@gafus/types";
-import { usePathname } from "next/navigation";
+import type { ArticleDetailDto, GafusStatusDto } from "@gafus/types";
+import { usePathname, useRouter } from "next/navigation";
+import { gafusApi } from "@/features/gafus/api";
 
 import { AppSubscriptionPaywall } from "@/features/app-subscription";
-import { PrimaryButtonLink } from "@/shared/components/ui";
+import { PrimaryButton, PrimaryButtonLink } from "@/shared/components/ui";
 import { getOrCreateArticleGuestVisitorKey } from "@/shared/lib/articles/articleGuestVisitorKey";
 
 import styles from "./ArticleDetailClient.module.css";
@@ -30,6 +31,41 @@ interface PaidArticleBlockProps {
 
 function PaidArticleBlock({ article, userId }: PaidArticleBlockProps) {
   const isGuest = userId === undefined;
+  const router = useRouter();
+  const [gafusStatus, setGafusStatus] = useState<GafusStatusDto | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pendingRequestId = useRef<string | null>(null);
+  const inFlight = useRef(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void gafusApi.status().then(status => { if (active) setGafusStatus(status); })
+      .catch(() => { if (active) setError("Не удалось проверить баланс. Обновите страницу."); });
+    return () => { active = false; };
+  }, [userId, article.id]);
+
+  const unlock = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const clientRequestId = pendingRequestId.current ?? crypto.randomUUID();
+      pendingRequestId.current = clientRequestId;
+      await gafusApi.unlock({ clientRequestId, target: { type: "ARTICLE", articleId: article.id } });
+      pendingRequestId.current = null;
+      router.refresh();
+    } catch (caught) {
+      const code = (caught as Error & { code?: string }).code;
+      if (code && code !== "GAFUS_INTERNAL_ERROR") pendingRequestId.current = null;
+      setError(caught instanceof Error ? caught.message : "Не удалось открыть статью");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
 
   if (isGuest) {
     return (
@@ -63,6 +99,19 @@ function PaidArticleBlock({ article, userId }: PaidArticleBlockProps) {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{article.description}</ReactMarkdown>
         </div>
       )}
+      {gafusStatus?.enabled.economy && gafusStatus.enabled.spending ? (
+        <div className={styles.accessDeniedBlock}>
+          <h2 className={styles.title}>Открыть статью на {Math.round(gafusStatus.rules.accessDurationSeconds / 86400)} дней</h2>
+          <p className={styles.subtitle}>Баланс: {gafusStatus.wallet.balance} · Стоимость: {gafusStatus.rules.courseStepCost} гафус</p>
+          <PrimaryButton onClick={() => void unlock()} disabled={busy || gafusStatus.wallet.balance < gafusStatus.rules.courseStepCost}>
+            {busy ? "Открываем…" : `Открыть за ${gafusStatus.rules.courseStepCost} гафус`}
+          </PrimaryButton>
+          {gafusStatus.wallet.balance < gafusStatus.rules.courseStepCost ? (
+            <p className={styles.subtitle}>Недостаточно гафусов. Их можно заработать за активность в сообществе.</p>
+          ) : null}
+        </div>
+      ) : null}
+      {error ? <p role="alert">{error}</p> : null}
       <AppSubscriptionPaywall mode="embedded" />
       </article>
     </main>

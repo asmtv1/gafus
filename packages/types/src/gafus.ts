@@ -39,6 +39,7 @@ export type GafusHistoryEntry = {
 export type GafusHistoryPage = { items: GafusHistoryEntry[]; nextCursor: string | null };
 export type GafusTarget =
   | { type: "COURSE_STEP"; dayOnCourseId: string; stepOnDayId: string }
+  | { type: "ARTICLE"; articleId: string }
   | { type: "MINI_GUIDE"; courseId: string };
 export type GafusUnlockRequest = { target: GafusTarget; clientRequestId: string };
 export type GafusUnlockResult = {

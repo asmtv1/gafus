@@ -5,6 +5,8 @@ import type { PrismaClient } from "@gafus/prisma";
 import { awardActivityTx } from "./rewardService";
 import { changeGafusBalanceTx } from "./walletService";
 import { lockGafusUser } from "./locking";
+import { unlockContentWithGafus } from "./accessGrantService";
+import { resolveArticleEntitlement } from "../contentAccess/policy";
 
 // Test fixtures run exclusively against a dedicated disposable local database.
 const url = process.env.GAFUS_TEST_DATABASE_URL;
@@ -44,9 +46,36 @@ const messages = [
     });
   });
   afterEach(async () => {
+    await db!.gafusTargetAccess.deleteMany({ where: { userId } });
+    await db!.article.deleteMany({ where: { authorId: userId } });
     await db!.gafusNotificationOutbox.deleteMany({ where: { userId } });
     await db!.gafusFraudSignal.deleteMany({ where: { userId } });
     await db!.user.deleteMany({ where: { id: userId } });
+  });
+  it("atomically purchases an article once, expires at seven days, and rejects an empty wallet", async () => {
+    const article = await db!.article.create({ data: {
+      title: "Article access test", slug: `article-${userId}`, content: "Protected content", authorId: userId,
+    } });
+    const other = await db!.article.create({ data: {
+      title: "Other article", slug: `other-${userId}`, content: "Other content", authorId: userId,
+    } });
+    await db!.$transaction(async tx => {
+      await lockGafusUser(tx, userId);
+      await changeGafusBalanceTx(tx, { userId, amount: 1, kind: "ADMIN_CREDIT", idempotencyKey: `initial:${userId}` });
+    });
+    const now = new Date("2026-10-21T00:00:00Z");
+    const input = { userId, clientRequestId: `article-${userId}`, target: { type: "ARTICLE" as const, articleId: article.id }, now };
+    const results = await Promise.all([unlockContentWithGafus(input), unlockContentWithGafus(input)]);
+    expect(results.map(result => result.spent)).toEqual([1, 1]);
+    expect(results.filter(result => !result.replay)).toHaveLength(1);
+    const expiry = new Date("2026-10-28T00:00:00Z");
+    expect(results[0]?.expiresAt).toBe(expiry.toISOString());
+    expect((await resolveArticleEntitlement(article.id, userId, "WEB_DESKTOP", now)).allowed).toBe(true);
+    expect((await resolveArticleEntitlement(other.id, userId, "IOS", now)).allowed).toBe(false);
+    expect((await resolveArticleEntitlement(article.id, userId, "IOS", expiry)).allowed).toBe(false);
+    await expect(unlockContentWithGafus({ ...input, clientRequestId: `other-${userId}`, target: { type: "ARTICLE", articleId: other.id } })).rejects.toMatchObject({ code: "GAFUS_INSUFFICIENT_BALANCE" });
+    expect((await db!.gafusWallet.findUniqueOrThrow({ where: { userId } })).balance).toBe(0);
+    expect(await db!.gafusTransaction.count({ where: { userId, kind: "SPEND" } })).toBe(1);
   });
   afterAll(async () => {
     if (db) {

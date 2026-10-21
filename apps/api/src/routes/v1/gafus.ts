@@ -10,6 +10,7 @@ import {
 export const gafusRoutes = new Hono();
 
 const targetSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("ARTICLE"), articleId: z.string().min(1).max(128) }).strict(),
   z.object({
     type: z.literal("COURSE_STEP"),
     dayOnCourseId: z.string().min(1).max(128),

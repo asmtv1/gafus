@@ -35,6 +35,13 @@ vi.mock("@gafus/prisma", () => ({
 }));
 vi.mock("./locking", () => ({ lockGafusUser: vi.fn(async () => undefined) }));
 vi.mock("../contentAccess", () => ({
+  resolveArticleTargetTx: vi.fn(async (_tx: unknown, articleId: string) => ({
+    type: "ARTICLE", articleId, courseId: null, targetKey: `article:${articleId}`,
+  })),
+  resolveArticleAccessTx: vi.fn(async () => ({
+    allowed: state.allowed, source: state.allowed ? "PREMIUM" : "DENIED",
+    expiresAt: null, eligibleForGafus: true,
+  })),
   resolveCourseStepTargetTx: vi.fn(async (
     _tx: unknown, dayOnCourseId: string, stepOnDayId: string,
   ) => ({
@@ -100,6 +107,13 @@ describe("Gafus content unlock transaction", () => {
     state.settingsEnabled = true;
     state.transactions.clear();
     state.access.clear();
+  });
+  it("unlocks exactly one article for one Gafus for seven days without double spending", async () => {
+    const input = { ...request("article-request-001"), target: { type: "ARTICLE" as const, articleId: "article-1" } };
+    expect(await unlockContentWithGafus(input)).toMatchObject({ spent: 1, balance: 2, expiresAt: "2026-10-18T00:00:00.000Z" });
+    expect(await unlockContentWithGafus(input)).toMatchObject({ spent: 1, balance: 2, replay: true });
+    expect(state.spent).toBe(1);
+    await expect(unlockContentWithGafus({ ...input, target: { type: "ARTICLE", articleId: "article-2" } })).rejects.toThrow();
   });
   it("debits once and returns the original access on idempotent retry", async () => {
     const first = await unlockContentWithGafus(request("same-request-001"));

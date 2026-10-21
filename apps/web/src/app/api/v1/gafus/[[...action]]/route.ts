@@ -19,6 +19,7 @@ const headers = { "Cache-Control": "no-store" };
 const unlockSchema = z.object({
   clientRequestId: z.string().regex(/^[A-Za-z0-9_-]{8,128}$/),
   target: z.discriminatedUnion("type", [
+    z.object({ type: z.literal("ARTICLE"), articleId: z.string().min(1).max(128) }).strict(),
     z.object({ type: z.literal("COURSE_STEP"),
       dayOnCourseId: z.string().min(1).max(128),
       stepOnDayId: z.string().min(1).max(128) }).strict(),

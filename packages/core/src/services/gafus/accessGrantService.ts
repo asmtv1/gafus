@@ -6,10 +6,12 @@ import { changeGafusBalanceTx, ensureGafusWalletTx } from "./walletService";
 import {
   resolveCourseStepTargetTx, resolveCourseStepAccessTx,
   resolveMiniGuideTargetTx, resolveMiniGuideAccessTx,
+  resolveArticleTargetTx, resolveArticleAccessTx,
 } from "../contentAccess";
 
 export type GafusUnlockTarget =
   | { type: "COURSE_STEP"; dayOnCourseId: string; stepOnDayId: string }
+  | { type: "ARTICLE"; articleId: string }
   | { type: "MINI_GUIDE"; courseId: string };
 
 export type GafusUnlockResult = {
@@ -41,7 +43,9 @@ export async function unlockContentWithGafus(input: {
     await lockGafusUser(tx, input.userId);
     const target = input.target.type === "COURSE_STEP"
       ? await resolveCourseStepTargetTx(tx, input.target.dayOnCourseId, input.target.stepOnDayId)
-      : await resolveMiniGuideTargetTx(tx, input.target.courseId);
+      : input.target.type === "ARTICLE"
+        ? await resolveArticleTargetTx(tx, input.target.articleId)
+        : await resolveMiniGuideTargetTx(tx, input.target.courseId);
     if (!target) {
       throw new GafusError("GAFUS_TARGET_NOT_ELIGIBLE", "Content not found");
     }
@@ -66,7 +70,9 @@ export async function unlockContentWithGafus(input: {
 
     const entitlement = target.type === "COURSE_STEP"
       ? await resolveCourseStepAccessTx(tx, input.userId, target, now)
-      : await resolveMiniGuideAccessTx(tx, input.userId, target, now);
+      : target.type === "ARTICLE"
+        ? await resolveArticleAccessTx(tx, input.userId, target, now)
+        : await resolveMiniGuideAccessTx(tx, input.userId, target, now);
     const wallet = await ensureGafusWalletTx(tx, input.userId);
     if (entitlement.allowed) return {
       spent: 0, balance: wallet.balance, accessSource: entitlement.source,
@@ -79,7 +85,7 @@ export async function unlockContentWithGafus(input: {
     if (!settings.economyEnabled || !settings.spendingEnabled) {
       throw new GafusError("GAFUS_DISABLED", "Gafus unlocks are currently disabled");
     }
-    const cost = target.type === "COURSE_STEP" ? settings.courseStepCost : settings.miniGuideCost;
+    const cost = target.type === "MINI_GUIDE" ? settings.miniGuideCost : settings.courseStepCost;
     if (wallet.balance < cost) {
       throw new GafusError("GAFUS_INSUFFICIENT_BALANCE", "Not enough Gafus");
     }
