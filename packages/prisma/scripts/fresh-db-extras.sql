@@ -134,9 +134,9 @@ ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_amount_kopecks_check" CHECK 
 ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_interval_days_check" CHECK ("intervalDays" IN (14, 30, 90));
 
 ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_plan_interval_check" CHECK (
-    ("planCode" = 'TWO_WEEKS' AND "intervalDays" = 14)
+    ("planCode" = 'TWO_WEEKS' AND "intervalDays" IN (14, 30))
     OR ("planCode" = 'MONTHLY' AND "intervalDays" = 30)
-    OR ("planCode" = 'THREE_MONTHS' AND "intervalDays" = 90)
+    OR ("planCode" = 'THREE_MONTHS' AND "intervalDays" IN (30, 90))
   );
 
 ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_service_name_check" CHECK (length(btrim("serviceName")) > 0);
