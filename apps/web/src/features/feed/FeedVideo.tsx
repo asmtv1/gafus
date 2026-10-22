@@ -178,11 +178,12 @@ export function FeedVideo({ mediaId, poster }: { mediaId: string; poster: string
           )}
           <button
             type="button"
-            className={styles.secondary}
+            className={styles.videoPlayButton}
             disabled={busy}
             onClick={() => void play()}
           >
-            {busy ? "Загружаем видео…" : error ? "Повторить воспроизведение" : "Смотреть видео"}
+            <span className={styles.videoPlayGlyph} aria-hidden="true" />
+            <span>{busy ? "Загружаем видео…" : error ? "Повторить воспроизведение" : "Смотреть видео"}</span>
           </button>
         </>
       )}

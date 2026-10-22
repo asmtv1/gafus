@@ -72,6 +72,23 @@ afterEach(async () => {
   destroy.mockReset();
 });
 describe("FeedVideo HLS engine selection", () => {
+  it("shows a centered play action on top of the poster and reveals the player on demand", async () => {
+    await act(async () => root.render(<FeedVideo mediaId="media1" poster="https://example.test/poster.jpg" />));
+    const player = host.querySelector("video");
+    const button = host.querySelector<HTMLButtonElement>('button[class*="videoPlayButton"]');
+    expect(player?.hidden).toBe(true);
+    expect(host.querySelector("img")).not.toBeNull();
+    expect(button?.textContent).toContain("Смотреть видео");
+
+    await act(async () => {
+      button?.click();
+      await vi.waitFor(() => expect(attachMedia).toHaveBeenCalledOnce());
+    });
+    expect(player?.hidden).toBe(false);
+    expect(host.querySelector("img")).toBeNull();
+    expect(host.querySelector('button[class*="videoPlayButton"]')).toBeNull();
+  });
+
   it("starts HLS on S3 immediately when server marks Feed down", async () => {
     prefers.mockResolvedValue(true);
     await act(async () => root.render(<FeedVideo mediaId="media1" poster={null} />));
