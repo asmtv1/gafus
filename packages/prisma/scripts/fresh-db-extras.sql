@@ -133,12 +133,6 @@ ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_amount_kopecks_check" CHECK 
 
 ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_interval_days_check" CHECK ("intervalDays" IN (14, 30, 90));
 
-ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_plan_interval_check" CHECK (
-    ("planCode" = 'TWO_WEEKS' AND "intervalDays" IN (14, 30))
-    OR ("planCode" = 'MONTHLY' AND "intervalDays" = 30)
-    OR ("planCode" = 'THREE_MONTHS' AND "intervalDays" IN (30, 90))
-  );
-
 ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_service_name_check" CHECK (length(btrim("serviceName")) > 0);
 
 ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_urls_paired_check" CHECK (
@@ -195,6 +189,12 @@ ALTER TABLE "GafusTargetAccess" ADD CONSTRAINT "GafusTargetAccess_target_shape" 
   OR ("targetType"::text = 'MINI_GUIDE' AND "courseId" IS NOT NULL AND "dayOnCourseId" IS NULL AND "stepOnDayId" IS NULL)
   OR ("targetType"::text = 'ARTICLE' AND "courseId" IS NULL AND "dayOnCourseId" IS NULL AND "stepOnDayId" IS NULL AND "targetKey" LIKE 'article:%')
 );
+
+ALTER TABLE "NpdReceipt" ADD CONSTRAINT "NpdReceipt_plan_interval_check" CHECK (
+    ("planCode" = 'TWO_WEEKS' AND "intervalDays" IN (14, 30))
+    OR ("planCode" = 'MONTHLY' AND "intervalDays" = 30)
+    OR ("planCode" = 'THREE_MONTHS' AND "intervalDays" IN (30, 90))
+  );
 
 -- partial indexes
 CREATE UNIQUE INDEX "ConsultationBooking_slotId_active_key"
