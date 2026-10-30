@@ -186,7 +186,9 @@ jobs:
         run: pnpm --filter @gafus/web-vite lint
 
       - name: Enforce core ownership of Prisma access
-        run: node scripts/check-app-prisma-boundary.mjs
+        run: |
+          node scripts/check-app-prisma-boundary.mjs --self-test
+          node scripts/check-app-prisma-boundary.mjs
 
       - name: Guard Worker Prisma boundary
         run: node scripts/check-worker-prisma-boundary.mjs

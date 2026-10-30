@@ -41,7 +41,9 @@ describe('existing production CDN secret reuse', () => {
       assert.equal(gallery, 'GALLERY_CDN_SECRET=${GALLERY_CDN_SECRET:-}', name);
       matches.push(name);
     }
-    assert.equal(matches.length, 3);
+    // Gallery HMAC signing is used by the API and worker; the prior third
+    // Compose service was retired when media processing moved to Cloud.ru.
+    assert.deepEqual(matches.sort(), ['api', 'worker']);
   });
   it('requires explicit Beget-only approval and has NO Yandex CDN fallback', () => {
     assert.match(script, /vars.GAFUS_MEDIA_CDN_TARGET/);

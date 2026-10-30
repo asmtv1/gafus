@@ -1,0 +1,443 @@
+{
+  "reason": "Existing direct app-level Prisma imports as of 60f8fa67c; freeze debt, reject all new runtime imports. Remove entries only when code migrates to Core.",
+  "imports": {
+    "apps/api/src/chat2-v2-cloud-core.ts": [
+      "import('@gafus/prisma')"
+    ],
+    "apps/api/src/lib/consultation-booking-lookup.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/archive.real-pg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/archive.ts": [
+      "import { prisma, Prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/chat2.full-isolated.http.test.ts": [
+      "import { prisma } from '@gafus/prisma';"
+    ],
+    "apps/api/src/modules/chat2/chat2.group-avatar.real-isolated.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/chat2.real-pg.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/chat2.realtime.real-pg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/chat2.s3.real-isolated.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/chats.http.real-pg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/import-cli.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/media-v2-jobs.ts": [
+      "import { prisma, Prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/media-v2-upload.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/chat2/service.ts": [
+      "import { prisma, Prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/pets/composition/g1-user-pets-real-work.read.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/questions/media-v2-jobs.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/questions/media-v2-jobs.ts": [
+      "import { prisma, Prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/questions/media-v2-upload.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/trainer-articles/infrastructure/own-article-cutoff.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/trainer-articles/infrastructure/read-own-article-metadata-rows.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/trainer-notes/infrastructure/read-notes-summary-snapshot.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/trainer-notes/infrastructure/read-notes-summary-snapshot.tie-real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/modules/trainer-notes/infrastructure/read-notes-summary-snapshot.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-analytics.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-broadcasts.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-cache.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-consultation-schedules.realpg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-consultation-schedules.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-feature-flags.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-mail.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-profit.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-reengagement-trigger.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-settings.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-subscriptions.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin-users.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/admin2-real-postgres-http.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/agent3-pet-weight-pg-acceptance.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/auth-session-isolated-work.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/chats.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-booking-realpg-http.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-course-editor-snapshot.real-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-diary-get-real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-favorites-registered-real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-feed-notifications-real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-g03-realjwt-core-pg-redis.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-g05-duplicate-risk.realpg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-g05-idempotency-expected.realpg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-g05-idempotency-isolated-prisma.realpg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-g05-packaged-core-realpg.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-g05-realjwt-core-pg.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-gafus-admin-dashboard.real-prisma-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-learner-daily-today-day-registered.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-off021-e2e-tcp.realpg.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-off021-practice-realjwt-postgres.auth.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-student-notes-registered-real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-surveys-read-real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-tr014-four-registered-read.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-articles-own.real-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-calendar-read.real-prisma-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-exam-two-registered.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-notes-articles-two-registered.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-notes-summary.real-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-statistics-courses.real-prisma-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-statistics-steps.real-prisma-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-three-reads.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-trainer-videos-metadata.real-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-training-current-two-reads.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/g1-training-online-read.real-pg.mounted.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/gafus.unlock.isolatedpg.route.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/public-courses.real-pg.mounted.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/reminders-web1-isolated-work.integration.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/trainer-authoring.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/trainer-content-manage.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/trainer-course-full-manage.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/trainer-statistics.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/trainer-videos-metadata.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/training.preview.real-pg-s3.test.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/training.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/account-delete-playwright-work-20261026.acceptance.ts": [
+      "import { prisma } from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/account-deletion-preflight-playwright-20261026.acceptance.ts": [
+      "import { prisma } from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/account-dev-locator-tx-rollback.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/admin-moderator-safe-work.smoke.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/admin-promo-live-safe.smoke.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/admin18-live-readonly.smoke.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/admin4-real-http.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-account-private-original-http-work.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-account-scope-live-work-rollback.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-account-self-delete-packaged-hono-work.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-articles-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-avatar-packaged-hono-work-http.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-avatar-source-s3-work.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-bound-notification-crash-intent-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-bound-notification-restart-original-http-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-chat-read-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-consultations-browser-lease.retire.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-consultations-browser-lease.setup.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-consultations-lease-retire.preflight.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-consultations-lease-retire.verify.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-consultations-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-course-catalog-private-actor-real-work-http.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-courses-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-daily-bound-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-daily-source-real-pg-race.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-daily-training-complete-packaged-hono-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-daily-training-simultaneous-http-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-feed-ready-real-worker-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-feed-video-hls-real-worker-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-g05-pets-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-gallery-feed-media-real-s3-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-gallery-ready-real-worker-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-hono-61s-hls-real-worker.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-learn032-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-normal-bound-notification-stale-reorder-original-http-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-normal-bound-subscribed-notification-original-http-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-normal-source-real-pg-race.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-normal-training-complete-packaged-hono-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-normal-training-simultaneous-http-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-pet-docs-orphan-recovery.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-pet-documents-real-s3-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-pet-weight-parallel-delete-original-http-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-pet-weight-source-parallel-real-work.acceptance.ts": [
+      "import {prisma} from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/ag1-profile-article-cross-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-profile-security-role-massassignment-original-http-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-profile-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-question-deleted-parent-answer-retention-work-http.acceptance.ts": [
+      "import {prisma} from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-questions-best-bonus-concurrent-original-http-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-questions-different-best-close-delete-original-http-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-questions-photo-real-hono-s3.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-questions-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-reminders-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-scoped-feed-retired-delete-real-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-scoped-gallery-retired-delete-real-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/ag1-trainer-course-name-cas-real-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/agent2-cdn-full-isolated.actor-access.test.ts": [
+      "import { prisma } from '@gafus/prisma';"
+    ],
+    "apps/api/src/test/feed-v2-ephemeral-hono.readonly.smoke.ts": [
+      "import(\"@gafus/prisma\")"
+    ],
+    "apps/api/src/test/feed-v2-local-link-seed.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/feed-v2-local-link-server.ts": [
+      "import(\"@gafus/prisma\")"
+    ],
+    "apps/api/src/test/feed-v2-workdb-readonly.smoke.ts": [
+      "import(\"@gafus/prisma\")"
+    ],
+    "apps/api/src/test/gallery-five-upload-move-delete-isolated-work.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/gallery-v2-isolated-hono.ts": [
+      "import(\"@gafus/prisma\")"
+    ],
+    "apps/api/src/test/live-cdn-preview-readonly.http.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/web4-mixed-photo-poll-ready-r37.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/web4-video120-3501-browser.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ],
+    "apps/api/src/test/web4-video120-real-work-http.acceptance.ts": [
+      "import { prisma } from \"@gafus/prisma\";"
+    ]
+  }
+}

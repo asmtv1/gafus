@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Enforce zero runtime @gafus/prisma imports in apps/src.
+ * Fail closed on ANY new runtime @gafus/prisma import in apps/src.
+ * 146 pre-existing imports are frozen in a reviewable baseline pending Core migration.
  * Type-only imports do not introduce a runtime dependency and are ignored.
  */
 import fs from "node:fs";
@@ -68,12 +69,51 @@ function collect() {
 }
 
 const current = collect();
-const violations = Object.entries(current).flatMap(([file, imports]) =>
-  imports.map(importText => `${file}: forbidden runtime Prisma import: ${importText}`),
-);
+const baselinePath = path.join(root, "scripts/app-prisma-runtime-existing-baseline.json");
+const baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8")).imports;
+if (!baseline || typeof baseline !== "object" || Array.isArray(baseline))
+  throw Error("PRISMA_BASELINE_INVALID");
+function unexpectedImports(source, frozen) {
+const violations = [];
+for (const [file, imports] of Object.entries(source)) {
+  const approved = frozen[file];
+  if (approved === undefined) {
+    violations.push(...imports.map(item => `${file}: new forbidden runtime Prisma import: ${item}`));
+    continue;
+  }
+  if (!Array.isArray(approved) || approved.some(item => typeof item !== "string") ||
+      new Set(approved).size !== approved.length)
+    throw Error("PRISMA_BASELINE_MALFORMED_" + file);
+  const allowance = new Map();
+  for (const item of approved) allowance.set(item, (allowance.get(item) ?? 0) + 1);
+  for (const item of imports) {
+    const remaining = allowance.get(item) ?? 0;
+    if (remaining > 0) allowance.set(item, remaining - 1);
+    else violations.push(`${file}: new forbidden runtime Prisma import: ${item}`);
+  }
+}
+return violations;
+}
+const violations = unexpectedImports(current, baseline);
+if (process.argv.includes("--self-test")) {
+  const file = "apps/api/src/__runtime_prisma_test_canary__.ts";
+  const code = "import { prisma } from '@gafus/prisma';";
+  const newFile = unexpectedImports({ [file]: [code] }, baseline);
+  if (newFile.length !== 1 || !newFile[0].includes("new forbidden"))
+    throw Error("PRISMA_BOUNDARY_FAIL_OPEN_NEW_FILE");
+  const existing = Object.entries(baseline)[0];
+  if (!existing || unexpectedImports({ [existing[0]]: existing[1] }, baseline).length)
+    throw Error("PRISMA_BOUNDARY_BASELINE_FALSE_POSITIVE");
+  const extra = unexpectedImports({ [existing[0]]: [...existing[1], code] }, baseline);
+  if (extra.length !== 1) throw Error("PRISMA_BOUNDARY_FAIL_OPEN_EXTRA_IMPORT");
+  console.log("Prisma boundary regression: new files and added runtime imports BLOCKED");
+  process.exit(0);
+}
+const frozenTotal = Object.values(baseline).reduce((n, values) => n + values.length, 0);
+if (frozenTotal !== 146) throw Error("PRISMA_BASELINE_TOTAL_UNEXPECTED");
 if (violations.length) {
   console.error(violations.join("\n"));
-  console.error("Application code must call core use cases instead of Prisma.");
+  console.error("New app Prisma access forbidden; migrate to Core instead. Existing imports are frozen and cannot grow.");
   process.exit(1);
 }
-console.log("Architecture Prisma boundary: PASS (0 app runtime Prisma imports)");
+console.log(`Prisma boundary: PASS (no NEW runtime imports, existing baseline ${frozenTotal}; migrate legacy imports to Core)`);

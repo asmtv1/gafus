@@ -67,6 +67,8 @@
   "exclude": [
     "node_modules",
     "dist",
+    "src/test/account-delete-playwright-work-20261026.acceptance.ts",
+    "src/test/account-deletion-preflight-playwright-20261026.acceptance.ts",
     "src/test/ag1-feed-ready-real-worker-work-http.acceptance.ts",
     "src/test/ag1-feed-video-hls-real-worker-work-http.acceptance.ts",
     "src/test/ag1-hono-61s-hls-real-worker.acceptance.ts",
