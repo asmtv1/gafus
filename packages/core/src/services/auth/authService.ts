@@ -7,7 +7,7 @@
 
 import bcrypt from "bcryptjs";
 import parsePhoneNumberFromString from "libphonenumber-js";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import { resetPasswordByToken } from "./passwordReset";
 import { prisma, type RegistrationChannel } from "@gafus/prisma";

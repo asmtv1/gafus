@@ -1,7 +1,7 @@
 /** Strictly internal HMAC-signed Cloud.ru Chat2 Job queue API; disabled by default. */
 import {createHash,createHmac,timingSafeEqual} from "node:crypto";
 import {Hono} from "hono";
-import {z} from "zod";
+import {z} from "zod/v3";
 import {connection as redis} from "@gafus/queues";
 import {createLiveChat2V2Queue,type Chat2QueueCore} from "../../modules/chat2/media-v2-jobs.js";
 const prefix="/internal/chat2/media/jobs/";

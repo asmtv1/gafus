@@ -126,3 +126,16 @@ test("Only reviewed Cloud.ru images and immutable SHA tags are allowed", () => {
     }
   }
 });
+
+test("Scoped Questions and Chat2 publish selectors use intended Dockerfile, registry and target", () => {
+  for (const [media,role,file,wanted] of [
+    ["questions","photo","Dockerfile.questions-photo",["apps/feed-cloud/Dockerfile.questions-photo","gafus.cr.cloud.ru/gafus-questions-worker:"]],
+    ["chat","photo","Dockerfile.chat2-job",["apps/feed-cloud/Dockerfile.chat2-job","--target photo","gafus-chat2-20261028.cr.cloud.ru/gafus-chat-photo:"]],
+    ["chat","video","Dockerfile.chat2-job",["apps/feed-cloud/Dockerfile.chat2-job","--target video","gafus-chat2-20261028.cr.cloud.ru/gafus-chat-video:"]],
+  ]) {
+    const {result,argumentLog}=run("success",[media,role,file,revision]);
+    assert.equal(result.status,0,result.stderr);
+    for(const part of wanted)assert(argumentLog.includes(part),part);
+    assert(argumentLog.includes("--platform linux/amd64"));
+  }
+});

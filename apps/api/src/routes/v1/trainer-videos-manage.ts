@@ -1,6 +1,6 @@
 /** Safe trainer video display name editing; media objects are not mutated here. */
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { updateTrainerVideoName } from "@gafus/core/services/trainerVideo";
 
 export interface TrainerVideosManagePorts {

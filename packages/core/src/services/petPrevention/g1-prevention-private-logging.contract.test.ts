@@ -1,6 +1,6 @@
 /** Core prevention service: no raw exception, Zod issue, or owner/pet ID in logging. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ZodError } from "zod";
+import { ZodError } from "zod/v3";
 
 const m = vi.hoisted(() => ({ petLookup: vi.fn(), logError: vi.fn() }));
 vi.mock("@gafus/prisma", () => ({

@@ -3,7 +3,7 @@
  * Requires a separate authenticated revision read, still blocked.
  * No retry after UNKNOWN, and never use destructive full-form updateCourse.
  */
-import { z } from "zod";
+import { z } from "zod/v3";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { invalidateCourseContentCache } from "../training/trainingDayContent";

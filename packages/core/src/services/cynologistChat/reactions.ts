@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { CHAT_REACTIONS } from "@gafus/consultation-shared";
 import { requireCanSend } from "./service";
 import { requireCommunityCanSend } from "./community";

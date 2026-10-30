@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { ANALYTICS_EVENT_NAMES, type AnalyticsTrackPayload } from "@gafus/types";
 
 import { MAX_ANALYTICS_PROPS_BYTES } from "./constants";

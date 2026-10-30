@@ -9,7 +9,7 @@ dockerfile="${3:?dockerfile is required}"
 revision="${4:?revision is required}"
 
 case "${media}:${role}:${dockerfile}" in
-  gallery:origin:Dockerfile.origin|feed:origin:Dockerfile.origin|gallery:worker:Dockerfile|feed:worker:Dockerfile) ;;
+  gallery:origin:Dockerfile.origin|feed:origin:Dockerfile.origin|gallery:worker:Dockerfile|feed:worker:Dockerfile|questions:photo:Dockerfile.questions-photo|chat:photo:Dockerfile.chat2-job|chat:video:Dockerfile.chat2-job) ;;
   *) echo "Invalid Cloud.ru image selector" >&2; exit 2 ;;
 esac
 if [[ ! "${revision}" =~ ^[0-9a-f]{40}$ ]]; then
@@ -17,15 +17,27 @@ if [[ ! "${revision}" =~ ^[0-9a-f]{40}$ ]]; then
   exit 2
 fi
 
-tag="gafus.cr.cloud.ru/gafus-${media}-${role}:${revision}"
+registry="gafus.cr.cloud.ru"
+context_dir="apps/${media}-cloud"
+target_arg=(--platform linux/amd64)
+if [[ "$media" == "questions" ]]; then
+  context_dir="apps/feed-cloud"
+elif [[ "$media" == "chat" ]]; then
+  registry="gafus-chat2-20261028.cr.cloud.ru"
+  context_dir="apps/feed-cloud"
+  target_arg+=(--target "$role")
+fi
+repository="gafus-${media}-${role}"
+if [[ "$media" == "questions" ]]; then repository="gafus-questions-worker"; fi
+tag="${registry}/${repository}:${revision}"
 log_file="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-build.XXXXXXXX")"
 trap 'rm -f -- "$log_file"' EXIT
 
 for attempt in 1 2 3 4; do
   echo "Publishing Cloud.ru image (attempt ${attempt}/4): gafus-${media}-${role}"
   if docker buildx build \
-    --file "apps/${media}-cloud/${dockerfile}" \
-    --platform linux/amd64 \
+    --file "${context_dir}/${dockerfile}" \
+    "${target_arg[@]}" \
     --tag "$tag" \
     --push \
     --provenance=true \
@@ -40,11 +52,11 @@ for attempt in 1 2 3 4; do
   # Never retry an ordinary failed build, invalid image, or bad credentials.
   # Match transient HTTP responses only when linked to the Cloud.ru registry
   # or its OAuth token endpoint; no raw secrets are read or printed.
-  if ! grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru).*(429|502|503|504)([^0-9]|$)' "$log_file"; then
+  if ! grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru|gafus-chat2-20261028\.cr\.cloud\.ru).*(429|502|503|504)([^0-9]|$)' "$log_file"; then
     echo "Cloud.ru image publish failed (not a transient Cloud.ru registry response)" >&2
     exit "$status"
   fi
-  if grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru).*(401|403)([^0-9]|$)' "$log_file"; then
+  if grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru|gafus-chat2-20261028\.cr\.cloud\.ru).*(401|403)([^0-9]|$)' "$log_file"; then
     echo "Cloud.ru registry rejected authorization (no retry)" >&2
     exit "$status"
   fi

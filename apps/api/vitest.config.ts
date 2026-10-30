@@ -38,6 +38,12 @@ export default defineConfig({
       "src/**/*realpg*.test.ts",
       "src/**/*real-prisma-pg*.test.ts",
       "src/**/*real-work*.test.ts",
+      // Full real S3/PG/Redis/CDN and Chat2/WS acceptances are intentionally
+      // NOT included in generic `pnpm --filter @gafus/api test`. They require
+      // explicit dedicated configs, exact QA data directory and local ports.
+      // Do not skip their checks inside the tests or permit production URLs.
+      "src/test/agent2-cdn-full-isolated.actor-access.test.ts",
+      "src/modules/chat2/chat2.full-isolated.http.test.ts",
     ],
     setupFiles: ["./vitest.setup.ts"],
     // Полный импорт app + первый запрос на медленных CI runner'ах иногда > 5s

@@ -7,7 +7,7 @@
  */
 import {randomBytes} from "node:crypto";
 import {beforeAll,afterAll,beforeEach,expect,it,vi} from "vitest";
-import {z} from "zod";
+import {z} from "zod/v3";
 import type * as PrismaModule from "@gafus/prisma";
 import type * as PetModule from "@gafus/core/services/pets";
 

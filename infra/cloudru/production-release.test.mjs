@@ -45,30 +45,22 @@ const ci = readFileSync(".github/workflows/ci-cd.yml", "utf8");
 const deployment = readFileSync(".github/workflows/production-deploy-reusable.yml", "utf8");
 const prod = readFileSync("ci-cd/docker/docker-compose.prod.yml", "utf8");
 for (const gate of [
-  "production-s3-preflight.mjs --verify",
-  "cloudru-media-contracts:",
-  "beget-readonly-preflight:",
-  "cloudru-build-media-images:",
-  "cloudru-prepare-media:",
-  "beget-verify-after-deploy:",
-  "production-media-release.mjs --prepare",
-  "beget-release-readiness.mjs --check",
-  "beget-production-smoke.mjs",
-])
-  assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
-assert(
-  ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  cloudru-build-media-images:") &&
-  ci.indexOf("  cloudru-build-media-images:") < ci.indexOf("  cloudru-prepare-media:") &&
-  ci.indexOf("  cloudru-prepare-media:") < ci.indexOf("  deploy-production:") &&
+  "cloudru-media-contracts:", "beget-readonly-preflight:",
+  "cloudru-jobs-preflight:", "beget-verify-after-deploy:",
+  "beget-release-readiness.mjs --check", "beget-production-smoke.mjs",
+]) assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
+assert(ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  cloudru-jobs-preflight:") &&
+  ci.indexOf("  cloudru-jobs-preflight:") < ci.indexOf("  deploy-production:") &&
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
-  "BEGET_MUST_VERIFY_BEFORE_ANY_MEDIA_PRODUCTION_PREPARATION_AND_AFTER_DEPLOY",
-);
-// Cutover QA approval is an additional mandatory dependency, NOT a relaxation
-// of the established Beget/read-only gate. Assert both before image publication.
-assert(/cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight\]/.test(ci),
-  "NO_PRODUCTION_IMAGE_PUBLICATION_BEFORE_BEGET_AND_CUTOVER_APPROVAL");
-assert(/beget-verify-after-deploy:\s+needs: \[beget-readonly-preflight, cloudru-prepare-media, deploy-production\]/.test(ci),
-  "NO_POSTDEPLOY_BEGET_VERIFY_BEFORE_HEALTHY_APP");
+  "BEGET_AND_EXISTING_JOBS_BEFORE_APP_DEPLOY_READONLY");
+assert(/cloudru-jobs-preflight:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight\]/.test(ci),
+  "PREEXISTING_JOBS_MUST_PASS_GATE_BEFORE_DEPLOY");
+assert(/beget-verify-after-deploy:\s+needs: \[beget-readonly-preflight, cloudru-jobs-verify\]/.test(ci),
+  "POSTDEPLOY_BEGET_VERIFY_AFTER_HEALTHY_APP");
+for (const forbidden of ["cloudru-build-media-images:", "cloudru-jobs-update:", "cloudru-prepare-media:",
+  "production-media-release.mjs --prepare", "publish-cloudru-image.sh", "production-s3-preflight.mjs --verify"]) {
+  assert(!ci.includes(forbidden), "NO_CLOUDRU_MUTATION_IN_PRODUCTION_CI_" + forbidden);
+}
 for (const unsafe of [
   /run:\s+node infra\/cloudru\/production-cdn-release\.mjs --(?:preflight|prepare|activate)/,
   /cloudru-activate-cdn:/,
@@ -85,17 +77,14 @@ assert(sharedReadiness >= 0 && sharedReadiness < sshAction,
 assert(deployment.includes('node infra/cloudru/beget-production-smoke.mjs'),
   'SHARED_DEPLOY_MUST_PROVE_LIVE_BEGET_SIGNING_BEFORE_SSH');
 assert(!ci.includes("compose_down; exit 1"), "DEPLOY_FAILURE_MUST_NOT_BRING_PRODUCTION_DOWN");
-assert(
-  ci.includes("CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only"),
-  "PRIVATE_BUCKET_PREFLIGHT_GUARD",
-);
+assert(!ci.includes("CLOUDRU_S3_PROBE_CONFIRM"), "NO_PRODUCTION_STORAGE_MUTATION");
 // CI/CD and Deploy Only now call the same reusable production script.
 assert(
   ci.includes("uses: ./.github/workflows/production-deploy-reusable.yml"),
   "PRODUCTION_MUST_USE_SHARED_RELEASE",
 );
 assert(
-  deployment.includes("CLOUDRU_MEDIA_JOBS_ENABLED=true"),
+  readFileSync(".github/workflows/production-media-activate-reusable.yml", "utf8").includes("CLOUDRU_MEDIA_JOBS_ENABLED':'true'"),
   "PRODUCTION_PROCESSORS_MUST_ACTIVATE",
 );
 assert(ci.includes("cloudru-media-contracts:"), "BUILD_MUST_VALIDATE_MEDIA_CONTRACTS");

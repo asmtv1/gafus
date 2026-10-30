@@ -6,7 +6,7 @@ const m = vi.hoisted(() => ({
   preflight: vi.fn(), log: vi.fn(),
 }));
 vi.mock("@gafus/core/services/user", async () => {
-  const { z } = await import("zod");
+  const { z } = await import("zod/v3");
   return {
     getPublicProfile: m.public, getUserProfileForApi: m.get,
     updateUserProfile: m.put, getOnboardingTourStatus: m.tour,

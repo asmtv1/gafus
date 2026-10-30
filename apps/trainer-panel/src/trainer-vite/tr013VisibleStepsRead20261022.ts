@@ -1,5 +1,5 @@
 /** AG4 TR013 proposed/frozen-for-mock read-only contract. NOT mounted; live AG1 API absent. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {
   TrainerVisibleStepItem,
   TrainerVisibleStepsRead,

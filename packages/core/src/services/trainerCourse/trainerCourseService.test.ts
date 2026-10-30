@@ -29,6 +29,7 @@ vi.mock("@gafus/core/errors", () => ({
 const mockCourseCreate = vi.fn();
 const mockCourseFindUnique = vi.fn();
 const mockCourseUpdate = vi.fn();
+const mockCourseVersionUpdate = vi.fn();
 const mockCourseDelete = vi.fn();
 const mockDayOnCourseFindMany = vi.fn();
 const mockDayOnCourseUpdate = vi.fn();
@@ -44,6 +45,9 @@ const mockCourseReviewDeleteMany = vi.fn();
 const mockUserCourseDeleteMany = vi.fn();
 
 const txStub = {
+  // Since Course.version was added, the only update is an optimistic SQL
+  // UPDATE ... WHERE version=expectedVersion RETURNING version+1.
+  $queryRaw: (...args: unknown[]) => mockCourseVersionUpdate(...args),
   course: {
     create: (...args: unknown[]) => mockCourseCreate(...args),
     update: (...args: unknown[]) => mockCourseUpdate(...args),
@@ -232,9 +236,13 @@ describe("createCourse", () => {
   });
 });
 
+const updateForTrainer = (input: Omit<Parameters<typeof updateCourse>[0], "expectedVersion">) =>
+  updateCourse({ ...input, expectedVersion: 1 }, { id: "trainer-A", role: "TRAINER" });
+
 describe("updateCourse", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCourseVersionUpdate.mockResolvedValue([{ id: "c1", version: 2 }]);
     mockCourseUpdate.mockResolvedValue({});
     mockDayOnCourseFindMany.mockResolvedValue([]);
     mockDayOnCourseDeleteMany.mockResolvedValue({});
@@ -243,7 +251,7 @@ describe("updateCourse", () => {
   });
 
   it("removes legacy purchase assignments and never queries legacy payments", async () => {
-    const result = await updateCourse({
+    const result = await updateForTrainer({
       id: "c1",
       name: "Курс",
       shortDesc: "Кратко",
@@ -265,7 +273,7 @@ describe("updateCourse", () => {
   });
 
   it("preserves only explicitly assigned students on private course edit", async () => {
-    const result = await updateCourse({
+    const result = await updateForTrainer({
       id: "c1", name: "Курс", shortDesc: "Кратко",
       description: "Описание", duration: "30 дней", logoImg: "",
       isPublic: false, isPaid: false, trainingDays: [], equipment: "",
@@ -278,7 +286,7 @@ describe("updateCourse", () => {
   });
 
   it("returns success on simple update", async () => {
-    const result = await updateCourse({
+    const result = await updateForTrainer({
       id: "c1",
       name: "Курс",
       shortDesc: "Кратко",
@@ -293,7 +301,7 @@ describe("updateCourse", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mockCourseUpdate).toHaveBeenCalled();
+    expect(mockCourseVersionUpdate).toHaveBeenCalledOnce();
     expect(mockDayOnCourseFindMany).toHaveBeenCalled();
     expect(invalidateCourse).toHaveBeenCalledExactlyOnceWith("c1");
     expect(publishRevision).toHaveBeenCalledTimes(1);
@@ -304,9 +312,9 @@ describe("updateCourse", () => {
       code: "P2002",
       meta: { target: ["name"] },
     });
-    mockCourseUpdate.mockRejectedValue(err);
+    mockCourseVersionUpdate.mockRejectedValue(err);
 
-    const result = await updateCourse({
+    const result = await updateForTrainer({
       id: "c1",
       name: "Курс",
       shortDesc: "Кратко",
@@ -327,12 +335,13 @@ describe("updateCourse", () => {
   });
 
   it("update with empty trainingDays removes all existing day links", async () => {
+    mockCourseVersionUpdate.mockResolvedValue([{ id: "guide-1", version: 2 }]);
     mockDayOnCourseFindMany.mockResolvedValue([{ id: "link-1", dayId: "day-old", order: 1 }]);
     mockDayOnCourseDeleteMany.mockResolvedValue({ count: 1 });
     mockDayOnCourseUpdate.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
 
-    const result = await updateCourse({
+    const result = await updateForTrainer({
       id: "guide-1",
       name: "Мини-гайд",
       shortDesc: "Кратко",
@@ -350,23 +359,20 @@ describe("updateCourse", () => {
     expect(mockDayOnCourseDeleteMany).toHaveBeenCalledWith({
       where: { id: { in: ["link-1"] } },
     });
-    expect(mockCourseUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "guide-1" },
-        data: expect.objectContaining({
-          guideContent: undefined,
-          name: "Мини-гайд",
-        }),
-      }),
-    );
+    expect(mockCourseVersionUpdate).toHaveBeenCalledOnce();
+    const [sql, ...params] = mockCourseVersionUpdate.mock.calls[0]!;
+    expect((sql as string[]).join("")).toContain('"version" =');
+    expect(params).toContain("Мини-гайд");
+    expect(params).toContain("guide-1");
   });
 
   it("update with trainingDays creates links and preserves omitted guideContent", async () => {
+    mockCourseVersionUpdate.mockResolvedValue([{ id: "guide-1", version: 2 }]);
     mockDayOnCourseFindMany.mockResolvedValue([]);
     mockDayOnCourseCreateMany.mockResolvedValue({});
     mockCourseAccessDeleteMany.mockResolvedValue({});
 
-    const result = await updateCourse({
+    const result = await updateForTrainer({
       id: "guide-1",
       name: "Курс",
       shortDesc: "Кратко",
@@ -381,13 +387,10 @@ describe("updateCourse", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mockCourseUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          guideContent: undefined,
-        }),
-      }),
-    );
+    expect(mockCourseVersionUpdate).toHaveBeenCalledOnce();
+    const [sql, ...params] = mockCourseVersionUpdate.mock.calls[0]!;
+    expect((sql as string[]).join("")).toContain('"guideContent" = CASE WHEN');
+    expect(params).toContain(true); // omitted content retains its previous value
     expect(mockDayOnCourseFindMany).toHaveBeenCalled();
     expect(mockDayOnCourseCreateMany).toHaveBeenCalled();
   });

@@ -3,7 +3,7 @@
  * Runtime registration uses the same server-side actor policy.
  * Legacy userId/isElevated are not request parameters: server derives them.
  */
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export const trainerStatisticsG1Proposal = {
   method: "GET",

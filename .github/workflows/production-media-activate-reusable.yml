@@ -1,0 +1,104 @@
+name: Activate new Cloud.ru media processors after V2 Jobs cutover
+on:
+  workflow_call:
+    inputs:
+      release_sha:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  activate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 18
+    steps:
+      - name: Enable V2 media only after 11 Cloud.ru Jobs cutover succeeded
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            root=/root/gafus
+            envfile="$root/ci-cd/docker/.env"
+            compose="$root/ci-cd/docker/docker-compose.prod.yml"
+            sha='${{ inputs.release_sha }}'
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+            [ "$(git -C "$root" rev-parse HEAD)" = "$sha" ] || { echo 'RELEASE_SHA_MISMATCH'; exit 1; }
+            [ -f "$envfile" ] || exit 1
+            # Initial Backend deployment must have suppressed dispatch. Never
+            # accidentally reuse old media workers or activate a partial release.
+            grep -qx 'CLOUDRU_MEDIA_JOBS_ENABLED=false' "$envfile" || { echo 'MEDIA_BOOTSTRAP_STATE_MISSING'; exit 1; }
+            docker inspect --format '{{.State.Health.Status}}' gafus-api | grep -qx healthy || { echo 'API_NOT_HEALTHY'; exit 1; }
+            docker inspect --format '{{.State.Health.Status}}' gafus-worker | grep -qx healthy || { echo 'WORKER_NOT_HEALTHY'; exit 1; }
+            # Verify all V2 secret inputs exist WITHOUT printing their values.
+            for k in GALLERY_DEV_INTERNAL_HMAC_SECRET FEED_INTERNAL_HMAC_SECRET QUESTIONS_V2_INTERNAL_HMAC_SECRET CHAT2_INTERNAL_HMAC_SECRET CHAT2_CLOUDRU_KEY_ID CHAT2_CLOUDRU_KEY_SECRET CHAT2_S3_ACCESS_KEY_ID CHAT2_S3_SECRET_ACCESS_KEY QUESTIONS_V2_S3_ACCESS_KEY_ID QUESTIONS_V2_S3_SECRET_ACCESS_KEY; do
+              grep -q "^$k=.." "$envfile" || { echo "REQUIRED_SECRET_NOT_CONFIGURED_$k"; exit 1; }
+            done
+            cp -p "$envfile" "$envfile.pre-media-v2.$sha"
+            chmod 600 "$envfile.pre-media-v2.$sha"
+            activated=false
+            rollback_activation() {
+              if [ "$activated" != true ] && [ -f "$envfile.pre-media-v2.$sha" ]; then
+                cp "$envfile.pre-media-v2.$sha" "$envfile"
+                chmod 600 "$envfile"
+                docker-compose -f "$compose" up -d --no-deps --force-recreate api worker || true
+                echo 'MEDIA_DISPATCH_RESTORED_TO_DISABLED'
+              fi
+            }
+            trap rollback_activation EXIT
+            export GAFUS_ENV_FILE="$envfile"
+            python3 - <<'PY'
+            import os, pathlib
+            path=pathlib.Path(os.environ['GAFUS_ENV_FILE'])
+            original=path.read_text()
+            wanted={
+              'CLOUDRU_MEDIA_JOBS_ENABLED':'true',
+              'GALLERY_PROCESSOR_SECOND_READY':'true',
+              'FEED_CLOUDRU_REFRACTOR_VERIFIED':'true',
+              'QUESTIONS_V2_MEDIA_ENABLED':'true',
+              'QUESTIONS_V2_PROCESSOR_READY':'true',
+              'QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED':'true',
+              'QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED':'true',
+              'QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED':'true',
+              'CHAT2_V2_CORE_ENABLED':'true',
+              'CHAT2_V2_MEDIA_ENABLED':'true',
+              'CHAT2_PROCESSOR_READY':'true',
+              'CHAT2_CLOUDRU_PROJECT_VERIFIED':'true',
+              'CHAT2_PRIVATE_MEDIA_ENABLED':'enabled',
+              'CHAT2_API_ENABLED':'enabled',
+              'CHAT2_WORKER_ENABLED':'enabled',
+              'CHAT2_LEGACY_RETIRE_ENABLED':'enabled',
+            }
+            lines=original.splitlines()
+            for k,v in wanted.items():
+              indices=[i for i,line in enumerate(lines) if line.startswith(k+'=')]
+              if len(indices)!=1: raise SystemExit('MISSING_OR_DUPLICATE_MEDIA_VARIABLE_'+k)
+              lines[indices[0]]=k+'='+v
+            path.write_text('\n'.join(lines)+'\n')
+            path.chmod(0o600)
+            PY
+            # Only API+Worker are recreated; web/auth/Postgres/Redis and all
+            # existing Docker images and production S3 data are preserved.
+            docker-compose -f "$compose" up -d --no-deps --force-recreate api worker
+            for attempt in $(seq 1 24); do
+              if [ "$(docker inspect --format '{{.State.Health.Status}}' gafus-api)" = healthy ] &&
+                 [ "$(docker inspect --format '{{.State.Health.Status}}' gafus-worker)" = healthy ]; then
+                if curl -fsS --max-time 6 https://api.gafus.ru/ready >/dev/null; then
+                  activated=true
+                        # Actual destination API/Worker/broker + public WSS acceptance
+                  # is required before reporting the first release as ready.
+                  (cd "$root" && node scripts/refactor/check-chat2-prod-boundary.mjs --release --destination-env ci-cd/docker/.env)
+                  activated=true
+                  echo 'V2_MEDIA_BACKEND_ACTIVATED'; exit 0
+                fi
+              fi
+              sleep 5
+            done
+            echo 'V2_MEDIA_ACTIVATION_FAILED'
+            exit 1

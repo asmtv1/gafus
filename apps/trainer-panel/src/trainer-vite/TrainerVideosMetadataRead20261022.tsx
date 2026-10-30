@@ -1,5 +1,5 @@
 import {createElement,useEffect,useState} from 'react';
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import type {PanelActor} from './consultationContract';
 const item=z.object({id:z.string().min(1),displayName:z.string().nullable(),transcodingStatus:z.enum(['PENDING','PROCESSING','COMPLETED','FAILED']),durationSec:z.number().nonnegative().nullable(),createdAt:z.string().datetime()}).strict();
 const response=z.object({success:z.literal(true),data:z.object({videos:z.array(item)}).strict()}).strict();

@@ -3,7 +3,7 @@
  * Existing Core updateCourse() rewrites day/access relations, has no atomic
  * owner/revision CAS and MUST NOT be called with this narrow payload.
  */
-import {z} from "zod";
+import {z} from "zod/v3";
 
 const courseIdPattern=/^[A-Za-z0-9_-]{1,128}$/;
 const revisionPattern=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;

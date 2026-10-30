@@ -3,7 +3,7 @@
  * Валидация входных данных для create/update/delete и запроса списка.
  */
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /** Схема одной текстовой записи заметки */
 export const noteEntrySchema = z.object({

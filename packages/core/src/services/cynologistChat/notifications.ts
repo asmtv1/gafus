@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
 import { connection, cynologistChatQueue, pushQueue } from "@gafus/queues";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   CHAT_CHANNEL_TYPE,
   COMMUNITY_CHANNEL_TYPE,

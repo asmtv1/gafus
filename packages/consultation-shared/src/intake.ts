@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { normalizeRuPhoneForStorage } from "./ru-phone";
 const CONSULTATION_PET_GENDER = ["MALE", "FEMALE"] as const;
 

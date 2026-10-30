@@ -5,7 +5,7 @@ import type { AuthRole } from "@gafus/auth";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import {
   ConsultationForbiddenError,

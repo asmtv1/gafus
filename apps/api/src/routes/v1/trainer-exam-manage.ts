@@ -1,6 +1,6 @@
 /** Full trainer exam review read/write API; owner checks remain in Core. */
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   getExamResults,
   reviewExamResult,

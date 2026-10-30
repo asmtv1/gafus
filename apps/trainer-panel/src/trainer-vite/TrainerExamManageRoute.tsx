@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 import type { ExamSummaryTransport } from "./TrainerExamSummaryRead20261022";
 

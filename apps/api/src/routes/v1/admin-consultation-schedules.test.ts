@@ -9,7 +9,7 @@ vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
 vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: f.dbRole } } }));
 vi.mock("@gafus/core/services/consultation", async () => {
-  const { z } = await import("zod");
+  const { z } = await import("zod/v3");
   return {
     resolveTargetTrainerUserIdForStaff: f.target,
     getTrainerAvailability: f.availability, getTrainerEditableSlots: f.editable,

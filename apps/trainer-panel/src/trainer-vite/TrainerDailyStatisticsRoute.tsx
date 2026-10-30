@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 import { initialDailyCalendarFrom } from "./trainerDailyDefaultRange";
 import { shift } from "./tr014ScheduleRangeRead20261022";

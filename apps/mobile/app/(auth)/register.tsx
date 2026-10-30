@@ -14,7 +14,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { coreRegisterEmailSchema } from "@gafus/core-client/validation/auth-register";
 import { suggestRegisterEmailDomain } from "@gafus/core-client/validation/email-domain-suggestion";
 import * as Crypto from "expo-crypto";

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import { connection } from "@gafus/queues";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { prisma } from "@gafus/prisma";
 import { sendBroadcastPush } from "@gafus/core/services/adminBroadcast";
 import { requireRole } from "../../middleware/auth.js";

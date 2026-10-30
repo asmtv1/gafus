@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   cancelYookassaAppSubscription,
   getAppSubscriptionAccess,

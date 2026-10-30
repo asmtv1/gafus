@@ -105,7 +105,7 @@ describe("username availability Hono -> shared DTO", () => {
 
 // Acceptance regression fixture: original Hono Zod chain from before normalization refactor.
 // Kept only as a historical comparator in tests; production policy has one owner.
-import { z } from "zod";
+import { z } from "zod/v3";
 const legacyUsernameQuery = z.object({ username: z.string().trim().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Логин: латиница, цифры, _") });
 describe("username HTTP400 external diagnostics regression", () => {
   it.each(["ab", "a!", "x".repeat(51), "имя", "  ab  ", "", " "])(

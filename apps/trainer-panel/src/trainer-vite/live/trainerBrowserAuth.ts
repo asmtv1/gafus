@@ -1,5 +1,5 @@
 /** Browser-cookie transport, no JWT/localStorage/sessionStorage or URL secrets. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { PanelActor } from "../consultationContract";
 
 const actorSchema = z.object({

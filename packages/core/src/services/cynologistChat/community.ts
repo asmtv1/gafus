@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { createHash } from "node:crypto";
 import { prisma } from "@gafus/prisma";
 import { chatMessageSchema, sendOnce, validateChatQuote } from "./service";

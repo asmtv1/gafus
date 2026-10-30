@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import * as service from "@gafus/core/services/questions";
 import { deleteUnusedQuestionPhoto } from "@gafus/core/services/questions";
 import {

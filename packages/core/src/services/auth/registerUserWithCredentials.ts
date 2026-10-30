@@ -61,7 +61,7 @@ export async function registerUserWithCredentials(
     });
 
   if (!parsed.success) {
-    const message = parsed.error.errors.map((e) => e.message).join(", ");
+    const message = parsed.error.errors.map((e: { message: string }) => e.message).join(", ");
     return {
       ok: false,
       code: "VALIDATION_ERROR",
@@ -85,7 +85,7 @@ export async function registerUserWithCredentials(
     return {
       ok: false,
       code: "VALIDATION_ERROR",
-      messageRu: parsedConsent.error.errors.map((issue) => issue.message).join(", "),
+      messageRu: parsedConsent.error.errors.map((issue: { message: string }) => issue.message).join(", "),
     };
   }
 

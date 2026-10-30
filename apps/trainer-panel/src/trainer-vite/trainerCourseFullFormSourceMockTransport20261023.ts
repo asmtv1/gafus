@@ -1,5 +1,5 @@
 /** COURSE011/TR012: test-injected SOURCE/MOCK-only CourseForm port. No fetch implementation. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {
   TrainerCourseFormCreateWireRequest,
   TrainerCourseFormUpdateWireRequest,

@@ -3,7 +3,7 @@
  * Валидация входных данных для create/update шага и шаблонов.
  */
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import { isKnownSurveySlug } from "../survey/templates";
 

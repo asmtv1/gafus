@@ -3,7 +3,7 @@
  * Валидация регистрации, обновления и запросов.
  */
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /** Регистрация видео после загрузки на CDN */
 export const registerTrainerVideoSchema = z.object({

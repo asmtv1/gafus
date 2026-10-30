@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { FEED_LIMITS as L, FEED_REACTIONS, FEED_SORT_OPTIONS, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES, countFeedCharacters } from "../../../../types/src/feed";
 import { FeedError } from "./errors";
 export const feedIdSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);

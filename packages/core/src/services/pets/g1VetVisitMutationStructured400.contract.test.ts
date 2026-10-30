@@ -1,5 +1,5 @@
 /** AG1 VetVisits create/update/delete boundary: stable 400 errors with no user medical values. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const m=vi.hoisted(()=>({save:vi.fn(),remove:vi.fn(),list:vi.fn(),detail:vi.fn()}));
 vi.mock("./petVetVisitService",()=>({

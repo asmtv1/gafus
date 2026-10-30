@@ -4,7 +4,7 @@
  */
 import { createHash } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const identifier = z.string().trim().min(1).max(128);
 const archivedMessage = z

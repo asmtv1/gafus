@@ -608,7 +608,7 @@ describe("getFavoritesCourses", () => {
         id: { in: ["c2", "missing", "c1"] },
         OR: [{ isPrivate: false }, { access: { some: { userId: "u1" } } }],
       },
-      include: {
+      select: expect.objectContaining({
         author: {
           select: {
             username: true,
@@ -624,7 +624,7 @@ describe("getFavoritesCourses", () => {
             },
           },
         },
-      },
+      }),
     });
     expect(mockFavoriteCourseFindMany).toHaveBeenCalledExactlyOnceWith({
       where: { userId: "u1" },
@@ -671,7 +671,7 @@ describe("getFavoritesCourses", () => {
         id: { in: [] },
         OR: [{ isPrivate: false }, { access: { some: { userId: "u1" } } }],
       },
-      include: expect.objectContaining({
+      select: expect.objectContaining({
         reviews: { select: { rating: true, comment: true, createdAt: true } },
         _count: {
           select: {

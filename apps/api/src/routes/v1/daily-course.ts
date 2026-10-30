@@ -8,7 +8,7 @@ import type {
   DailyCourseDayRead,
   DailyCourseBoundDayRead,
 } from "../../../../../packages/types/src/data/training";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import { createWebLogger } from "@gafus/logger";

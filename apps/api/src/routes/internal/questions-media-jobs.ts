@@ -1,7 +1,7 @@
 /** Internal Questions Photo Jobs API: HMAC, replay protection, exact schema. */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { connection as redis } from "@gafus/queues";
 import { createLiveQuestionsV2Queue, type QuestionsV2Queue } from "../../modules/questions/media-v2-jobs.js";
 

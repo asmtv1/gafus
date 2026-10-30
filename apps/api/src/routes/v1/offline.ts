@@ -3,7 +3,7 @@
  * Endpoints для работы с офлайн-данными курсов
  */
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import {

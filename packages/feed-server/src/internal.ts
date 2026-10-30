@@ -1,5 +1,5 @@
 import { createFeedStorageFromEnv } from "@gafus/feed-storage";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { FEED_LIMITS } from "@gafus/types";
 import { createFeedRequestVerifier, type FeedNonceStore } from "@gafus/feed-cloud";
 import { FeedError, type createFeedStorageJobs, type createFeedMaintenance } from "@gafus/core/services/feed";

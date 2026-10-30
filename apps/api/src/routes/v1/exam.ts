@@ -4,7 +4,7 @@
  */
 import { Hono, type TypedResponse } from "hono";
 import type { ExamResultRead } from "../../../../../packages/types/src/data/exam";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import { uploadExamVideoFile } from "@gafus/core/services/exam";

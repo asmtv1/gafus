@@ -1,4 +1,4 @@
-import { ZodError } from "zod";
+import { ZodError } from "zod/v3";
 import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("questions");
 export class QuestionError extends Error {

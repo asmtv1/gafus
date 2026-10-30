@@ -1,7 +1,7 @@
 /**
  * Zod-схемы для валидации записей журнала профилактики питомца
  */
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export const petPreventionTypeSchema = z.enum(["VACCINATION", "DEWORMING", "TICKS_FLEAS"]);
 

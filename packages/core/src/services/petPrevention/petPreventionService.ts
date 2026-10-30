@@ -1,7 +1,7 @@
 /**
  * Сервис журнала профилактики питомца (прививки, глистогонка, клещи/блохи)
  */
-import { ZodError } from "zod";
+import { ZodError } from "zod/v3";
 
 import { prisma, Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";

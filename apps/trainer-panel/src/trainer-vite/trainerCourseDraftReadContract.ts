@@ -3,7 +3,7 @@
  * Browser default remains OFF; authoring mutations are not approved.
  * Source: Core trainerCourse.getCourseDraftWithRelations and Next EditCoursePage.
  */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {
   TrainerCourseDraftRead,
   TrainerCourseEditorSnapshotRead,

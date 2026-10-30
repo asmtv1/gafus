@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { FEED_LIMITS } from "../../../../types/src/feed";
 import type { FeedDb } from "./ports";
 import { FeedError } from "./errors";

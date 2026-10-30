@@ -11,7 +11,7 @@ import { Text, Snackbar } from "react-native-paper";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   normalizeTelegramInput,
   normalizeInstagramInput,

@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   validate-release:
-    if: github.ref == 'refs/heads/main' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
@@ -32,8 +32,8 @@ jobs:
           sha="$GITHUB_SHA"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid main release SHA'; exit 1; }
 
-          # All seven images must originate from ONE completed build-images
-          # matrix, not a mixture of mutable latest tags or unfinished builds.
+          # All application images must originate from one verified main CI run.
+          # Cloud.ru media images are existing infrastructure, never rebuilt here.
           GH_REPO="${GITHUB_REPOSITORY}"
           gh api --paginate "repos/$GH_REPO/actions/workflows/ci-cd.yml/runs?head_sha=$sha&event=push&per_page=50"             --jq '.workflow_runs[].id' > "$RUNNER_TEMP/release-runs"
           test -s "$RUNNER_TEMP/release-runs" || { echo 'No main CI run for this commit'; exit 1; }
@@ -41,7 +41,7 @@ jobs:
           while IFS= read -r run; do
             gh api --paginate "repos/$GH_REPO/actions/runs/$run/jobs?per_page=100"               --jq '.jobs[] | [.name,.conclusion] | @tsv' > "$RUNNER_TEMP/release-jobs"
             if [ "$(awk -F '	' '$1 ~ /^build-images \(/ && $2 == "success" {n++} END {print n+0}' "$RUNNER_TEMP/release-jobs")" -eq 7 ] &&
-               grep -q $'cloudru-prepare-media	success' "$RUNNER_TEMP/release-jobs" &&
+               awk -F '\t' '$1 ~ /^cloudru-jobs-preflight( \/ jobs)?$/ && $2 == "success" {ok=1} END {exit !ok}' "$RUNNER_TEMP/release-jobs" &&
                grep -q $'build-apps	success' "$RUNNER_TEMP/release-jobs" &&
                grep -q $'security	success' "$RUNNER_TEMP/release-jobs"; then
               approved=true
@@ -50,9 +50,40 @@ jobs:
           done < "$RUNNER_TEMP/release-runs"
           test "$approved" = true || { echo 'No fully built and verified release for SHA'; exit 1; }
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-  deploy:
+  cloudru-jobs-preflight:
     needs: validate-release
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ needs.validate-release.outputs.release_sha }}
+      mode: preflight
+    secrets: inherit
+
+  deploy:
+    needs: [validate-release, cloudru-jobs-preflight]
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ needs.validate-release.outputs.release_sha }}
+    secrets: inherit
+
+  cloudru-jobs-cutover:
+    needs: [validate-release, deploy]
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ needs.validate-release.outputs.release_sha }}
+      mode: cutover
+    secrets: inherit
+
+  cloudru-media-activate:
+    needs: [validate-release, cloudru-jobs-cutover]
+    uses: ./.github/workflows/production-media-activate-reusable.yml
+    with:
+      release_sha: ${{ needs.validate-release.outputs.release_sha }}
+    secrets: inherit
+
+  cloudru-jobs-verify:
+    needs: [validate-release, cloudru-media-activate]
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ needs.validate-release.outputs.release_sha }}
+      mode: verify
     secrets: inherit

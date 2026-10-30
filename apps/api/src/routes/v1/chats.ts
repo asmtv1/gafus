@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import {reserveChat2V2Upload,confirmChat2V2Upload,getChat2V2UploadStatus,attachChat2V2Media} from "../../modules/chat2/media-v2-upload.js";
 import { bodyLimit } from "hono/body-limit";
-import { z, ZodError } from "zod";
+import { z, ZodError } from "zod/v3";
 import { prisma } from "@gafus/prisma";
 import { connectToken, subscriptionToken } from "../../modules/chat2/realtime.js";
 import {

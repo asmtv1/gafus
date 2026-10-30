@@ -1,4 +1,4 @@
-import { ZodError } from "zod";
+import { ZodError } from "zod/v3";
 import { getOwnVetVisitDetail, VetVisitDetailNotFoundError } from "./g1VetVisitDetailRead.review";
 import { createWebLogger } from "@gafus/logger";
 import { VET_VISIT_MAX_FILE_BYTES } from "@gafus/types";

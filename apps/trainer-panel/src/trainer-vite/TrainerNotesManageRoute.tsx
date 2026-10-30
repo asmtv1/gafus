@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 import type { NotesReadTransport } from "./TrainerNotesRead20261022";
 

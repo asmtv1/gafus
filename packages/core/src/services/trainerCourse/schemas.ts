@@ -3,7 +3,7 @@
  * Валидация входных данных для create/update курса.
  */
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /** Защита от подмены src (javascript:, data: HTML и т.д.) при сохранении из клиента */
 const MAX_LOGO_IMG_URL_LENGTH = 2000;

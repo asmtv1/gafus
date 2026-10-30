@@ -13,7 +13,7 @@ import { Link, usePathname } from "expo-router";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";

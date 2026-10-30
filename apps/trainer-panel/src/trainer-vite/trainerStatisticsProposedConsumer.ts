@@ -3,7 +3,7 @@
  * Accepted proposal original SHA256 2e3064f7cc07127fa5d964aff58657478afa8f07ad6a34ca4dd0206e8a2ca7c1.
  * Keep it separate from API source and fail closed if the accepted DTO drifts.
  */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {TrainerCourseStatisticsData,TrainerStepStatisticsData} from "@gafus/types";
 import type { PanelActor } from "./consultationContract";
 

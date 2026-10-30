@@ -13,7 +13,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { authApi } from "@/shared/lib/api/auth";

@@ -6,7 +6,7 @@ const { getProfile, updateProfile } = vi.hoisted(() => ({
   updateProfile: vi.fn(),
 }));
 vi.mock("@gafus/core/services/user", async () => {
-  const { z } = await import("zod");
+  const { z } = await import("zod/v3");
   return {
     getUserProfileForApi: getProfile,
     updateUserProfile: updateProfile,

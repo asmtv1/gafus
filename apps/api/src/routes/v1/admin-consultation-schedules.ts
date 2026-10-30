@@ -1,6 +1,6 @@
 import type { AuthRole } from "@gafus/auth";
 import { Hono, type Context } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { prisma } from "@gafus/prisma";
 import {
   addDayOff,

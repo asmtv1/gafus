@@ -3,7 +3,7 @@
  * Endpoints для профиля и настроек пользователя
  */
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { isValidBirthDateEditWire } from "./petCreateBirthDate";
 import { zValidator } from "@hono/zod-validator";
 import { profileEditValidationError } from "./g1-field-validation";

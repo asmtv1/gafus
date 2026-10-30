@@ -22,7 +22,8 @@ test("manual deploy never builds, stops the database or uses the legacy env buil
   assert.match(manual, /workflow_dispatch/);
   assert.match(manual, /github\.ref == 'refs\/heads\/main'/);
   assert.match(manual, /sha="\$GITHUB_SHA"/);
-  assert.match(manual, /cloudru-prepare-media\\tsuccess|cloudru-prepare-media/);
+  assert.match(manual, /cloudru-jobs-preflight/);
+  assert.doesNotMatch(manual, /cloudru-build-media-images|cloudru-jobs-update|cloudru-prepare-media/);
   assert.match(manual, /build-images/);
   assert.doesNotMatch(manual, /docker (pull|build|compose)|docker-compose|migrate deploy|\.env\s*$/m);
   assert.doesNotMatch(manual, /secrets\.POSTGRES_PASSWORD|secrets\.CLOUDRU_S3_SECRET_ACCESS_KEY/);

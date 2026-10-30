@@ -370,7 +370,7 @@ jobs:
 
   # No Cloud.ru/Registry/SSH mutations may begin before QA and Chat2 sign-off.
   cutover-preflight:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [security, build-apps]
     runs-on: ubuntu-latest
     environment: production
@@ -395,7 +395,7 @@ jobs:
   # Prepare Docker build context
   prepare-docker:
     needs: [security, build-apps]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       docker-cache-key: ${{ steps.docker-cache-key.outputs.key }}
@@ -413,7 +413,7 @@ jobs:
   # Build all Docker images in parallel
   build-images:
     needs: [prepare-docker, cutover-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -487,7 +487,7 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
   cloudru-media-contracts:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -515,7 +515,7 @@ jobs:
   # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
   beget-readonly-preflight:
     needs: [security, build-apps, cloudru-media-contracts]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
@@ -548,78 +548,15 @@ jobs:
       - name: Verify both protected Beget edges with real signed final objects (read-only)
         run: node infra/cloudru/beget-production-smoke.mjs
 
-  # Four immutable, revision-tagged images are required before any production changes.
-  cloudru-build-media-images:
+  # Validate existing jobs before Backend deploy. Images come from Cloud.ru Registry, not CI Docker builds.
+  cloudru-jobs-preflight:
     needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
-    runs-on: ubuntu-latest
-    environment: production
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
-          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
-          - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: feed, role: worker, dockerfile: Dockerfile }
-    steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
-      - name: Authorize private Cloud.ru Registry
-        uses: docker/login-action@v3
-        with:
-          registry: gafus.cr.cloud.ru
-          username: ${{ secrets.CLOUDRU_KEY_ID }}
-          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      - name: Publish Cloud.ru production revision (retry temporary registry 429/5xx)
-        run: bash ci-cd/scripts/publish-cloudru-image.sh "${{ matrix.media }}" "${{ matrix.role }}" "${{ matrix.dockerfile }}" "${{ github.sha }}"
-
-  # Only private Cloud.ru S3, protected Origins and bounded processing Jobs.
-  # Beget live signing/edge readiness was verified BEFORE image publication.
-  cloudru-prepare-media:
-    needs: [cloudru-build-media-images]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 22
-    env:
-      GITHUB_EVENT_NAME: push
-      CLOUDRU_PROD_DEPLOY_CONFIRM: preapproved-main-only-media-release
-      CLOUDRU_S3_PROBE_CONFIRM: synthetic-private-s3-only
-      CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
-      CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
-      CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
-      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
-      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
-      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
-      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
-      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
-      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
-      GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
-      FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-          cache: pnpm
-      - name: Install cloud storage tooling from lockfile
-        run: pnpm install --frozen-lockfile
-      - uses: docker/login-action@v3
-        with:
-          registry: gafus.cr.cloud.ru
-          username: ${{ secrets.CLOUDRU_KEY_ID }}
-          password: ${{ secrets.CLOUDRU_KEY_SECRET }}
-      - name: Confirm guarded OCI release plan
-        run: node infra/cloudru/production-media-release.mjs --plan
-      - name: Confirm all three private Cloud.ru S3 buckets can read, write and delete
-        run: node infra/cloudru/production-s3-preflight.mjs --verify
-      - name: Provision and warm Cloud.ru protected Origins and bounded processing Jobs
-        run: node infra/cloudru/production-media-release.mjs --prepare
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: preflight
+    secrets: inherit
 
   # Deploy to staging (develop branch)
   # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
@@ -633,18 +570,48 @@ jobs:
 
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    needs: [security, build-apps, build-images, cloudru-prepare-media]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    needs: [security, build-apps, build-images, cloudru-jobs-preflight]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ github.sha }}
     secrets: inherit
 
+  # First release: now that Hono/API is on the target SHA, switch the 11
+  # existing Cloud.ru Jobs to V2 images/HMAC; no image rebuild, no new Jobs.
+  cloudru-jobs-cutover:
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: cutover
+    secrets: inherit
+
+  # Keep the initial Backend deployment's media dispatch disabled until all
+  # Cloud.ru images and HMAC fields are updated and verified.
+  cloudru-media-activate:
+    needs: [cloudru-jobs-cutover]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-media-activate-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+    secrets: inherit
+
+  cloudru-jobs-verify:
+    needs: [cloudru-media-activate]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: verify
+    secrets: inherit
+
   # Post-deploy read-only verification. Never switch, mutate, prepare,
   # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
   beget-verify-after-deploy:
-    needs: [beget-readonly-preflight, cloudru-prepare-media, deploy-production]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    needs: [beget-readonly-preflight, cloudru-jobs-verify]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12

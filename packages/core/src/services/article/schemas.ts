@@ -1,7 +1,7 @@
 /**
  * Zod-схемы для articleService (core).
  */
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /** slug: 2+ символа, латиница, цифры, дефисы. Допускаем и 1 символ для коротких slug. */
 const slugRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;

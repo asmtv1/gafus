@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { reserveQuestionsPhoto, confirmQuestionsPhoto,
   statusQuestionsPhoto, discardQuestionsV2Photo
 } from "../../modules/questions/media-v2-upload.js";

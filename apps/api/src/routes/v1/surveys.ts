@@ -4,7 +4,7 @@ import type {
   SurveyBySlugRead,
   SurveyComparisonRead,
 } from "../../../../../packages/types/src/data/survey";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import {

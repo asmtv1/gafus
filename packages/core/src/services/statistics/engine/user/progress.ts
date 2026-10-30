@@ -1,6 +1,6 @@
 import { prisma } from "@gafus/prisma";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export interface UserDayProgress {
   dayOrder: number;

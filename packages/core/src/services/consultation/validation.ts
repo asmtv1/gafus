@@ -1,5 +1,5 @@
 import { cynologistIntakeSchema } from "@gafus/consultation-shared";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 /** Литералы Prisma enum — не `z.nativeEnum` из @gafus/prisma: в server-бандлах Next именованные экспорты Prisma-enum иногда undefined. */
 const CONSULTATION_SLOT_STATUS = ["FREE", "BOOKED", "BLOCKED"] as const;

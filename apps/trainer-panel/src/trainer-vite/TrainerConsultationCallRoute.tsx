@@ -1,5 +1,5 @@
 import { useMemo, type ReactElement } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { VoxConsultationRoom } from "../../../../packages/ui-components/src/VoxConsultationRoom";
 import type { PanelActor } from "./consultationContract";
 

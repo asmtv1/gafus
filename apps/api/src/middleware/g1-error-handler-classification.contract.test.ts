@@ -1,7 +1,7 @@
 /** AG1-003: one Hono error boundary, strict validation vs internal + PII-safe logs. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const log = vi.hoisted(() => ({
   error: vi.fn(),

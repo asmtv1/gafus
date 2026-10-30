@@ -1,6 +1,6 @@
 import { CHAT_LIMITS, ownChatMessageActions } from "@gafus/consultation-shared";
 import { prisma } from "@gafus/prisma";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { chatForActor } from "./service";
 import { requireCommunityCanSend } from "./community";
 import {

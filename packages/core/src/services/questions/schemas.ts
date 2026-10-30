@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 import { QUESTION_CATEGORIES, QUESTION_LIMITS, QUESTION_REPORT_REASONS } from "@gafus/types";
 const body = z
   .string()

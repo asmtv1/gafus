@@ -7,7 +7,7 @@ const db = vi.hoisted(() => ({
   transactionUpdate: vi.fn(), queryRaw: vi.fn(),
   settingsUpsert: vi.fn(), settingsRevision: vi.fn(),
   existing: null as null | {
-    id: string; userId: string; delta: number; adminActorId: string; balanceAfter: number;
+    id: string; userId: string; delta: number; adminActorId: string; balanceAfter: number; reason: string;
   },
 }));
 vi.mock("@gafus/prisma", () => ({
@@ -55,6 +55,7 @@ beforeEach(() => {
     db.existing = {
       id: "g1-transaction", userId: input.userId,
       delta: input.amount, adminActorId: "admin-A", balanceAfter: 42 + input.amount,
+      reason: validAdjust.reason,
     };
     return { transactionId: "g1-transaction", balance: 42 + input.amount, replay: false };
   });

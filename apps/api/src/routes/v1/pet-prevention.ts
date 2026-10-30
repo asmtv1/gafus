@@ -2,7 +2,7 @@
  * Pet Prevention Routes
  * API для журнала профилактики питомца (прививки, глистогонка, клещи/блохи)
  */
-import { ZodError } from "zod";
+import { ZodError } from "zod/v3";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 

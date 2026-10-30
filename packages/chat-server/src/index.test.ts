@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { z } from "zod";
+import { z } from "zod/v3";
 const mocks = vi.hoisted(() => ({
   state: vi.fn(),
   communityState: vi.fn(),

@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { prisma } from "@gafus/prisma";
 import { createArticle as createArticleCore, createArticleSchema } from
   "@gafus/core/services/article";

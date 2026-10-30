@@ -5,7 +5,7 @@
 import { Hono, type Context } from "hono";
 import type { TypedResponse } from "hono";
 import type { PetListRead, PetDetailRead } from "../../../../../packages/types/src/data/pet";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 import { petEditValidationError } from "./g1-field-validation";
 

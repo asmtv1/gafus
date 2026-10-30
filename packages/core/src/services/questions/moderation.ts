@@ -1,6 +1,6 @@
 import { prisma } from "@gafus/prisma";
 import type { QuestionModerationDto } from "@gafus/types";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { requireQuestionAdmin } from "./service";
 import { QuestionError } from "./errors";
 import { presentQuestionPhoto } from "./presentPhoto";

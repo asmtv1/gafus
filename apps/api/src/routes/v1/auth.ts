@@ -10,7 +10,7 @@ import {
 } from "@gafus/types";
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 import { bodyLimit } from "hono/body-limit";
 import crypto from "crypto";

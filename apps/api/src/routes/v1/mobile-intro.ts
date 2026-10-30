@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { getMobileIntroReport, recordMobileIntroAuthOutcome, recordMobileIntroEvent } from "@gafus/mobile-intro-server";
 import { requireRole } from "../../middleware/auth.js";
 

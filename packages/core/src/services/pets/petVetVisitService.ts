@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { fileTypeFromBuffer } from "file-type";
 import { prisma, type Prisma } from "@gafus/prisma";
 import { uploadVetVisitFile, vetVisitFileKeys, vetVisitMediaUrl } from "@gafus/cdn-upload";

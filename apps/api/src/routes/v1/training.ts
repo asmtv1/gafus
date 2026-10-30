@@ -8,7 +8,7 @@ import type {
   TrainingDayRead,
   TrainingDaysRead,
 } from "../../../../../packages/types/src/data/training";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { prisma } from "@gafus/prisma";
 import { zValidator } from "@hono/zod-validator";
 

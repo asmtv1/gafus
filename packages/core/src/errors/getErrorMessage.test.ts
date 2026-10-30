@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { z, ZodError } from "zod";
+import { z, ZodError } from "zod/v3";
 
 import {
   DEFAULT_ACTION_ERROR_MESSAGE,

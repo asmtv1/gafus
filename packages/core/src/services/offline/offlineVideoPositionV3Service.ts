@@ -4,7 +4,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   authorizeVideoOccurrenceV3,
   canonicalOccurrenceV3,

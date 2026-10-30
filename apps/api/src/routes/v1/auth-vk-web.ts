@@ -7,7 +7,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { bodyLimit } from "hono/body-limit";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   assertCompletedUser, generateAccessToken, generateRefreshToken,
 } from "@gafus/auth/jwt";

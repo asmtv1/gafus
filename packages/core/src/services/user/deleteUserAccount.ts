@@ -7,7 +7,7 @@ import crypto from "crypto";
 
 import { prisma, Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import { enqueueAccountStorageCleanup } from "../accountCleanup/enqueue";
 

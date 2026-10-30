@@ -352,7 +352,8 @@ describe("account storage cleanup adapter", () => {
       throw new Error("UNRECOGNIZED_EXTERNAL_API");
     });
     vi.stubGlobal("fetch", request);
-    const targets = { prefixes: ["posts/u/"], keys: ["posts/u/post/attachments/asset/thumb.webp"] };
+    // CDN V2 only caches finished immutable media keys, never legacy source/staging paths.
+    const targets = { prefixes: ["posts/u/"], keys: ["media/v2/u/v1/poster.webp"] };
     const checkpoint = vi.fn();
     const operations = await startAccountCdnPurge("feed", targets, [], checkpoint);
     expect(operations).toHaveLength(2);

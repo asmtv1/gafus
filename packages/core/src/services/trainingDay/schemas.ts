@@ -2,7 +2,7 @@
  * Zod-схемы для сервиса тренировочных дней (core).
  */
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export const createTrainingDaySchema = z.object({
   title: z.string().min(1),

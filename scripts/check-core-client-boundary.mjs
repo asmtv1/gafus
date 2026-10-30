@@ -13,7 +13,7 @@ const root = projectFlag >= 0
 const clientRoot = path.join(root, "packages/core-client/src");
 const appRoots = ["apps/web-vite/src", "apps/mobile/app", "apps/mobile/src"]
   .map((directory) => path.join(root, directory));
-const allowedClientExternals = new Set(["@gafus/types", "zod", "validator", "petrovich"]);
+const allowedClientExternals = new Set(["@gafus/types", "zod", "zod/v3", "validator", "petrovich"]);
 const forbiddenRuntimeWorkspaces = new Set([
   "@gafus/core", "@gafus/prisma", "@gafus/queues", "@gafus/logger", "@gafus/mailer",
 ]);

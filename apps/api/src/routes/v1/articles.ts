@@ -2,7 +2,7 @@
  * Articles Routes — endpoints для mobile.
  */
 import { Hono, type Context } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import {

@@ -1,5 +1,5 @@
 /** AG4 TR014: proposed source/mock-only READ, no registered Hono route. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {
   TrainerDailyBundleItem,
   TrainerDailyBundlesRead,

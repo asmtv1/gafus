@@ -76,7 +76,7 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
   it("RW02 practice and theory API completion contain NO Gafus award or grant call",()=>{
     const source=core("../../../../../apps/api/src/routes/v1/training.ts");
     const span=section(source,'trainingRoutes.post(\n  "/step/complete/practice",', "const postDiaryBodySchema");
-    expect(span).toContain("await updateStepAndDay(");
+    expect(span).toContain("await writeStepProgressApplication.execute(");
     expect(span).toContain("await syncUserCourseStatusFromDays(");
     expect(span).not.toMatch(/awardActivityTx|awardBonusTx|changeGafusBalanceTx|grantRewardedCreditsToWallet|gafusRewardEvent/);
     expect(span).toContain("return c.json({ success: true })");
@@ -84,7 +84,7 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
   it("RW03 daily completion uses progress service only, not Gafus award/grant",()=>{
     const source=core("../../../../../apps/api/src/routes/v1/daily-course.ts");
     const span=section(source,'dailyCourseRoutes.post("/step/complete",',"\n}");
-    expect(span).toContain("await updateDailyCourseStepAndDay(");
+    expect(span).toContain("await dayAndStepCommandsApplication.updateStep(");
     expect(span).not.toMatch(/awardActivityTx|awardBonusTx|changeGafusBalanceTx|grantRewardedCreditsToWallet|gafusRewardEvent/);
   });
   it("RW04 actual Core step/daily complete state transitions never directly write Gafus wallets/events",()=>{

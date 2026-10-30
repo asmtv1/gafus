@@ -1,3 +1,74 @@
+# GAFUS Refactor — текущая готовность релизного кандидата
+
+**READY=YES** — локальная/source-приёмка **для передачи в процесс выкладки**, по согласованным владельцем критериям от 31.10.2026. Эта отметка подтверждает готовность релизного кандидата, **но не факт успешного production-деплоя**.
+
+**PRODUCTION_VERIFIED=NO · DEPLOYED=NO · STORE_RELEASE=OWNER**. Работы выполнялись только в `/Users/asmtv1/Desktop/gafus-refactor`. Не было production-деплоя, push, миграций, изменений Cloud.ru Jobs, production PostgreSQL, S3 или CDN.
+
+## Основания для READY=YES (локальная приёмка)
+
+| Направление | Подтверждённый результат на обновлённых зависимостях |
+| --- | --- |
+| Web | **3050 PASS, 6 SKIP, 0 FAIL**. Повторный полный прогон после устранения таймаута F13, exit 0; все семь ранее проблемных консультационных сценариев PASS |
+| API | **2491 PASS, 266 SKIP, 0 FAIL**, exit 0; отдельные guarded real-provider suites не маскируются как пройденные |
+| Core | **2224 PASS, 169 SKIP, 0 FAIL**, exit 0; real-PostgreSQL-only suites отделены от обычного unit-прогона |
+| Mobile | **2345 PASS, 1 SKIP, 0 FAIL**, exit 0 |
+| Trainer | **639 PASS, 0 FAIL**, exit 0 |
+| Admin | **194 PASS, 0 FAIL**, exit 0 |
+| Сборка workspace | `pnpm build`: **46/46 задач успешно**, exit 0, 0 cached; source build подтверждён после перехода на Zod 4.6.7 |
+| Полная TypeScript-проверка | `pnpm exec turbo run typecheck --concurrency=2`: **75/75 задач успешно**, exit 0, 0 ошибок (72 cached / 3 выполнены заново). Начальный неограниченный параллельный прогон был остановлен из-за перегрузки; итоговый ограниченный прогон PASS |
+| Security | `pnpm audit --audit-level high`: **0 Critical / 0 High**, 41 Moderate и 5 Low; Zod 4.6.7, `@hono/zod-validator` 0.9.1, frozen lockfile PASS |
+| Архитектурные границы | `pnpm check:core-boundaries` PASS, 14/14 tests; API, Web, Worker, Trainer, Mobile TypeScript checks PASS |
+| Cloud media contract | `pnpm test:cloudru-media` PASS, включая inventory, safety guards и CDN-контракты; **это не доказательство актуального состояния production Jobs** |
+| Изолированный Chat2 E2E | **4/4 PASS**: реальные локальные Hono, PostgreSQL, Redis, Centrifugo, outbox/WS/ACL/idempotence |
+| Изолированный CDN E2E | **5/5 PASS**: локальные PostgreSQL/Redis/MinIO, signed readback, owner isolation |
+| Chat2 release contracts | **10/10 PASS**, включая проверки конфигурации/границ и release-guards |
+| GitHub Secrets | **4/4 имени подтверждены в Repository secrets**: `CHAT2_CLOUDRU_KEY_ID`, `CHAT2_CLOUDRU_KEY_SECRET`, `CHAT2_S3_ACCESS_KEY_ID`, `CHAT2_S3_SECRET_ACCESS_KEY`. Значения не читаются и не утверждаются валидными до remote preflight |
+
+**Решение владельца проекта (31.10.2026):** все нативные сценарии iOS/Android владелец уже проверил вручную и принимает их для локального релизного кандидата; повторная проверка на production и публикация приложений в сторах — **ответственность владельца после выкладки**. Локальные проверки медиа, платежей, уведомлений и консультаций владелец считает достаточными до выпуска. Повторять их с реальными production-провайдерами до выпуска не требуется. Внешние транзакционные сценарии не выдаются за автоматически прошедшие production E2E.
+
+## После выкладки — отдельная production-приёмка (не блокирует READY=YES локального кандидата)
+
+Подтвердить конечный SHA и успешный GitHub CI, конфигурации/версии разрешённых Cloud.ru Jobs и фактический запуск V2, сохранённые digest и rollback, доступность API/Worker/Chat2, реальную обработку медиа и CDN, платежи/IAP, SMTP/push и видеоконсультации. Production-only проверки выполнять только в согласованном безопасном сценарии с разрешениями и без тестовой записи в чужие данные. Владелец самостоятельно повторит iOS/Android на production и опубликует сборки в сторах.
+
+**Важно об инфраструктурных полномочиях:** локальный `READY=YES` **не является разрешением** на выкладку или на автоматическую замену 11 Cloud.ru Jobs. Действующее специальное разрешение покрывает только четыре Feed Jobs; production workflows содержат более широкий cutover и требуют отдельного согласования/ограничения перед выполнением. Вариант без перестройки существующих Job-образов предпочтительнее, если их текущие immutable digests и API-контракт совместимы. Никаких Cloud.ru mutations в рамках этой проверки не выполнено.
+
+**Git/CI:** локальный Refactor HEAD на момент проверки `d083d382248ea81b5278da52df6cf518e73448ca`, имеются незакоммиченные изменения, в том числе файлы release workflows. Последний известный remote CI для этого старого SHA (`41081883967`) **отменён**, не PASS. Успешный удалённый pipeline на **новом итоговом commit SHA** объективно появится только после commit/push, поэтому он является gate исполнения релиза, а не доказательством локальной source-приёмки.
+
+**Логи доказательств (локальные, игнорируются Git):** `.local-pg-scratch/qa-logs/release-check-20261030/final-installed/`, `core-full-after-qa-guards-final.log`, `web-full-post-f13-stable.log`, `provider-e2e/`, и `.local-pg-scratch/qa-logs/release-check-20261031/full-workspace-build.log`, `chat2-release-contracts.log`, `workspace-typecheck-concurrency2.log`.
+
+---
+
+## Исторические QA-отчёты (ранние READY=NO и блокеры не заменяют текущее решение)
+
+Ниже сохранены исходные результаты отдельных этапов по состоянию на момент их выполнения; они не пересчитывают установленный вверху статус локального релизного кандидата.
+
+### Предыдущий статус от 30.10.2026 (устаревший)
+
+## Release readiness follow-up — 2026-10-30, exact source and GitHub metadata (GAFUS Refactor)
+
+**Historical verdict on 30.10.2026: `READY=NO` (superseded by the 31.10.2026 READY=YES above)**, NOT because Chat2/Questions secret names are missing, but because the remaining verification gates below are still open. Do not replace this verdict with `READY=YES` based solely on secret metadata, a local build, or a container's `ready` status.
+
+**CLOSED — GitHub secret presence/scope:** verified through GitHub Actions metadata (names only; no values read). `CHAT2_CLOUDRU_KEY_ID`, `CHAT2_CLOUDRU_KEY_SECRET`, `CHAT2_S3_ACCESS_KEY_ID`, `CHAT2_S3_SECRET_ACCESS_KEY` exist as **Repository secrets** in `asmtv1/gafus`. Production Environment does not override these names, so its reusable jobs inherit them. Environment secrets already include `CHAT2_INTERNAL_HMAC_SECRET`, `CHAT2_CENTRIFUGO_TOKEN_SECRET`, `CHAT2_CENTRIFUGO_API_KEY` and the three required `QUESTIONS_V2_*` HMAC/S3 secrets. Project variable `CHAT2_CLOUDRU_PROJECT_ID` is also present. GitHub intentionally does not expose secret values through the read API; existence does **not** prove the Cloud.ru IAM/S3 credentials are valid. New Read-only IAM/HeadBucket verification using GitHub Actions and the final SHA is still required.
+
+**CLOSED — source-level fast gates, fresh executed on 2026-10-30:** `pnpm check:core-boundaries` exit 0, 14 tests PASS; `pnpm test:cloudru-media` exit 0; `pnpm --filter @gafus/api typecheck` and `pnpm --filter @gafus/worker typecheck` exit 0. Exact retained logs: `.local-pg-scratch/qa-logs/release-check-20261030/` (ignored, not production). Production API read-only `GET /health` and `/ready` returned HTTP 200, but current production API is **not** proof of deployed Refactor V2.
+
+**CLOSED — High dependency security gate, 2026-10-30:** initial `pnpm audit --audit-level high` exit 1 discovered GHSA-mrhx-c7xc-m3w5 in Zod 3.25.76 (0 critical / 1 high / 41 moderate / 5 low). Upgraded workspace lockfile and actual installed dependency to **zod@4.6.7**, retained legacy API behavior with explicit `zod/v3` imports, and upgraded `@hono/zod-validator` to **0.9.1**. `pnpm install --frozen-lockfile --ignore-scripts` exit 0. **Fresh `pnpm audit --audit-level high` now exit 0: 0 Critical / 0 High / 41 Moderate / 5 Low.** Core rebuild exit 0; independent API typecheck and `pnpm check:core-boundaries` exit 0. **Actual installed Zod 4.6.7 API regression PASS:** 221 test files / **2491 tests PASS, 266 explicitly SKIP, 0 FAIL**, after rebuilding `@gafus/consultation-shared`, `@gafus/core-client`, `@gafus/core`, `@gafus/gallery-server`. Two separate external-provider suites are excluded from default API Vitest, with strict opt-in configurations and environment-guard tests preserved. `apps/api/vitest.config.ts` and `scripts/qa/api-full-isolated-config-contract.test.mjs` record that separation. Receipts: `.local-pg-scratch/qa-logs/release-check-20261030/final-installed/api-full.log` and `zod4-rebuilt/targeted-api.log` (80/80). This closes the single high audit finding, **not** the global release gate. Initial and updated audit receipts under ignored `.local-pg-scratch/qa-logs/release-check-20261030/`.
+
+**CLOSED — Core unit/contract regression on Zod 4.6.7:** the initial unscoped Core Vitest run (35 failed files) incorrectly included exact real/private PostgreSQL tests with no `DATABASE_URL` and had outdated isolated fixtures for versioned trainer courses, favorite projection, CDN immutable-key purge, admin idempotency audit reason, and consultation email outbox. `packages/core/vitest.config.ts` now excludes **only** dedicated real-DB integration/proof patterns from default unit Vitest (they remain unmodified and require separate isolation); the safe mock/source-assertion fixtures were aligned with the currently implemented and strictly versioned runtime contracts. **Fresh default `pnpm --filter @gafus/core test` exit 0: 275 test files PASS, 25 skipped; 2224 individual PASS, 169 skipped, 0 FAIL.** This does not pass the 25 opt-in real-DB suites. Receipt `.local-pg-scratch/qa-logs/release-check-20261030/core-full-after-qa-guards-final.log`.
+
+**CLOSED — isolated local Chat2 + CDN real-provider E2E (no production IO):** `zsh scripts/qa/chat2-full-isolated-acceptance.sh` exit 0, **4/4 tests PASS** with actual synthetic Hono auth, temporary PostgreSQL/Redis/Centrifugo WebSocket, outbox, ACL and idempotence. `zsh scripts/qa/cdn-full-isolated-actor-access.sh` exit 0, **5/5 tests PASS** using separate disposable PostgreSQL/Redis/MinIO, signed object readback and actor-access checks. Both scripts used ephemeral root-contained directories/loopback services and destroyed them; no production S3/DB/Jobs were written. Receipts `.local-pg-scratch/qa-logs/release-check-20261030/provider-e2e/`.
+
+**CLOSED — other installed-Zod4 regression:** `pnpm --filter @gafus/mobile test` exit 0 (**2345 PASS, 1 skipped**), `@gafus/trainer-panel test` exit 0 (**639 PASS**), `@gafus/admin-panel test` exit 0 (**194 PASS**). Core and API numbers above. `pnpm test:cloudru-media` and `pnpm check:core-boundaries` again exit 0 after the updated dependency install. Web first full post-Zod4 run: **3043 PASS, 6 skipped, 7 FAIL**, all seven from one React-mounted consultations suite after F13 hit the generic 5-second test timeout. The same suite **isolated 20/20 PASS**. F13 now retains all assertions and has scoped 12-second timeout; **a repeat full Web run is pending** in `.local-pg-scratch/qa-logs/release-check-20261030/web-full-post-f13-stable.log`. No global Web PASS is asserted until that run exits 0.
+
+**BLOCKER — full runtime/native/provider acceptance:** Android `adb devices` returns no devices; all iOS Simulator devices are shut down and the QA login/offline video flow lacks a complete signed/native evidence set. Cloud.ru all-11 **live production** post-cutover GET and API/HMAC/worker processing (including Chat2 new IAM and S3 credentials) are not yet demonstrated from GitHub Secrets. Local isolated Chat2 and CDN E2Es now pass, but do not prove real Cloud.ru remote jobs, payment/IAP, SMTP/push, Voximplant calls, production CDN/S3 or real-device role/action acceptance. Never run diagnostics that mutate production DB, S3, billing or Job queues.
+
+**BLOCKER — remote release provenance:** latest known `main` GitHub Actions `CI/CD Pipeline` run `41081883967` for SHA `d083d38224…` was **cancelled**, not PASS. New cutover workflows and documentation are currently local uncommitted/untracked changes; no successful CI for their exact release SHA exists. Production Hono/Worker/frontend deploy has not been performed by this check. A locally passing unit suite is not a verified production release.
+
+**Acceptance rule:** set global `READY=YES` only after the High-severity security gate, full regression, signed native/device scenarios, isolated provider/media processing, both Cloud.ru project readbacks, and real CI on the release SHA are all PASS with traceable receipts. Historial PASS records below remain valid only for their originally scoped checks.
+
+
+---
+
 ## Mobile MSK calendar month-boundary regression — 2026-10-30
 - Local Mobile full regression after moving API/Hono integration tests: 284 files PASS, 1 failed, 1 skipped. The sole failure was a test assumption that two consecutive Moscow-time days always share the same rendered calendar month; the fixture spans 31 October → 1 November.
 - Updated the **test**, not production calendar or booking code: selects the next visible month when the second slot is in another month, then verifies the second FREE day and preserves exact UTC slot/idempotency assertions. Targeted CalendarBookingBoundary PASS; Mobile typecheck PASS. The definitive subsequent full Mobile regression completed **exit 0**: **285 passed, 1 skipped, 0 failed** test files (2,327 individual tests in the earlier failed run; final file summary is authoritative).

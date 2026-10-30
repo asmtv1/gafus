@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConsultationEmailType, Prisma } from "@gafus/prisma";
+import { ConsultationEmailType, ConsultationEmailStatus, Prisma } from "@gafus/prisma";
 import type * as GafusPrisma from "@gafus/prisma";
 
-const { emailLogCreate, bookingFindUnique, mailQueueAdd } = vi.hoisted(() => ({
+const { emailLogCreate, emailLogFindUnique, bookingFindUnique, mailQueueAdd } = vi.hoisted(() => ({
   emailLogCreate: vi.fn(),
+  emailLogFindUnique: vi.fn(),
   bookingFindUnique: vi.fn(),
   mailQueueAdd: vi.fn(),
 }));
@@ -35,6 +36,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
       consultationEmailLog: {
         ...mod.prisma.consultationEmailLog,
         create: emailLogCreate,
+        findUnique: emailLogFindUnique,
       },
     },
   };
@@ -43,6 +45,9 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 describe("enqueueConsultationEmail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    emailLogFindUnique.mockResolvedValue({
+      id: "already-sent-email", status: ConsultationEmailStatus.SENT, attempts: 1,
+    });
     bookingFindUnique.mockResolvedValue({
       client: { email: "client@example.com" },
       cynologist: { user: { email: "trainer@example.com" } },
@@ -65,6 +70,10 @@ describe("enqueueConsultationEmail", () => {
     );
 
     expect(result).toBe("duplicate");
+    expect(emailLogFindUnique).toHaveBeenCalledExactlyOnceWith({
+      where: { bookingId_type: { bookingId: "booking-1", type: ConsultationEmailType.CLIENT_CONSULTATION_START } },
+      select: { id: true, status: true, attempts: true },
+    });
     expect(mailQueueAdd).not.toHaveBeenCalled();
   });
 });

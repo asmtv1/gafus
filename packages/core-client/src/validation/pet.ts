@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const MIN_BIRTH_DATE = new Date("1990-01-01");
 // Shared client validation must not load Prisma's server runtime.

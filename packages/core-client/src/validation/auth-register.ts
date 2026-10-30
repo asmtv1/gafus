@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 
 import { coreRegisterEmailSchema } from "./register-email-domain";

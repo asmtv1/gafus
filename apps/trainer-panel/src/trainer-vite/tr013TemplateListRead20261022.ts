@@ -1,5 +1,5 @@
 /** AG4 TR013 public list scoped DTO freeze. NOT mounted; Hono implementation pending. */
-import { z } from "zod";
+import { z } from "zod/v3";
 import type {
   TrainerPublicStepTemplateItem,
   TrainerPublicStepTemplatesRead,

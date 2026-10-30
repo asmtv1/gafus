@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
-import { z } from "zod";
+import { z } from "zod/v3";
 import {
   cynologistIntakeSchema,
   storedCynologistIntakeSchema,

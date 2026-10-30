@@ -1,5 +1,5 @@
 import validator from "validator";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const IS_EMAIL_OPTS: validator.IsEmailOptions = {
   allow_utf8_local_part: false,

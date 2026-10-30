@@ -242,6 +242,8 @@ describe("WEB consultations connected actual App route-source opt-in",()=>{
   expect(readback).toHaveBeenCalledWith("ownerA",null);
   expect(submit).toHaveBeenCalledTimes(1);
  });
+ // Multi-step synthetic React act + route back/navigation can exceed Vitest's
+ // generic 5 s limit under a full Web regression; never relax assertions.
  it("F13 no second synthetic submission for previously attempted slot in same scope",async()=>{
   await mount("/consultations/cynologists/trainer1/slots/slot_01");
   await form();await click("Проверить и отправить макет");
@@ -253,7 +255,7 @@ describe("WEB consultations connected actual App route-source opt-in",()=>{
    trainerId:"trainer1",slotId:"slot_01"})));await tick();
   expect(node.textContent).toContain("Повторная отправка запрещена");
   expect(submit).toHaveBeenCalledTimes(1);
- });
+ },12000);
  it("F14 A->B->A during pending trainer detail is fenced",async()=>{
   const d=hold<Catalog>();
   specialists.mockResolvedValueOnce(catalog()).mockReturnValueOnce(d.promise);

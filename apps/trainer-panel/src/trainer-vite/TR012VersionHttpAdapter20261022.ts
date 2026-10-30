@@ -1,5 +1,5 @@
 /** AG1 registered name-only Course.version CAS transport, injection-only; no automatic enablement. */
-import {z} from 'zod';
+import {z} from 'zod/v3';
 import type {VersionedCourseOperations,VersionedName} from './TrainerCourseVersionEditor20261022';
 const dto=z.object({id:z.string().min(1),name:z.string().min(1).max(500),version:z.number().int().min(1).max(2147483647)}).strict();
 const success=z.object({success:z.literal(true),data:dto}).strict();

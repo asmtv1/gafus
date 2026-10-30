@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import type { CourseWithProgressWireConformance } from
   "../../../../../packages/types/src/data/course";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import { createWebLogger } from "@gafus/logger";

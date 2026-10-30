@@ -8,7 +8,7 @@ import {
   resolveCourseStepAccessTx,
 } from "../contentAccess";
 import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const utc = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/;

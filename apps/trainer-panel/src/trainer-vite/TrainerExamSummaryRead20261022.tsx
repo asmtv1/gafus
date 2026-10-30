@@ -1,5 +1,5 @@
 import { createElement, useCallback, useEffect, useState } from "react";
-import { z } from "zod";
+import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 const summary = z
   .object({

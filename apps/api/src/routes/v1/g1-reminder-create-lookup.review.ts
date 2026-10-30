@@ -1,6 +1,6 @@
 /** AG1 source-only route for AG4 review. NOT MOUNTED into live remindersRoutes. */
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 import {
   lookupOwnReminderCreateReceipt,

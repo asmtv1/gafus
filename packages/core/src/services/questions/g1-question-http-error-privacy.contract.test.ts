@@ -1,6 +1,6 @@
 /** AG1-SOC-040: unexpected question errors retain stable HTTP 500 without logging PII. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const m = vi.hoisted(() => ({ logError: vi.fn() }));
 vi.mock("@gafus/logger", () => ({

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({ publicProfile: vi.fn(), verify: vi.fn() }));
 vi.mock("@gafus/core/services/user", async () => {
-  const { z } = await import("zod");
+  const { z } = await import("zod/v3");
   return {
     getPublicProfile: m.publicProfile,
     // User profile composition imports these even though this anonymous test never calls them.

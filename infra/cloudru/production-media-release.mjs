@@ -18,7 +18,7 @@ if (mode === "--plan") {
       mode,
       mutates: false,
       origins: base.services.map((x) => x.name),
-      jobs: base.jobs.map((x) => x.name),
+      jobs: [], // Existing Cloud.ru Jobs are owned outside app CI/CD; read-only preflight only.
       requiresPush: false,
     }),
   );
@@ -101,7 +101,8 @@ const values = {
   FEED_INTERNAL_HMAC_SECRET: e.FEED_INTERNAL_HMAC_SECRET,
   FEED_ALBUM_BUCKET: "gafus-gallery-private",
 };
-const resources = [...base.services, ...base.jobs];
+// Jobs are never upgraded or provisioned during the regular application release.
+const resources = [...base.services];
 for (const x of resources) {
   const role =
     (x.name.includes("gallery") ? "gallery" : "feed") +
@@ -159,7 +160,6 @@ const groups = [
     list: "/v1/containers?projectId=" + project + "&pageSize=100",
     items: base.services,
   },
-  { kind: "jobs", list: "/v2/jobs?projectId=" + project + "&pageSize=100", items: base.jobs },
 ];
 for (const group of groups) {
   const listing = await api("GET", group.list);

@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const core = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), public: vi.fn() }));
 vi.mock("@gafus/core/services/user", async () => {
-  const { z } = await import("zod");
+  const { z } = await import("zod/v3");
   return {
     getUserProfileForApi: core.get,
     updateUserProfile: core.update,

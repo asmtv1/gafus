@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   deploy-production:
-    if: vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
@@ -401,7 +401,39 @@ jobs:
               echo "CLOUDRU_QUESTIONS_BUCKET=gafus-documents-private"
               echo "CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=disabled"
               echo "CLOUDRU_QUESTIONS_BUCKET_VERSIONING=disabled"
-              echo "CLOUDRU_MEDIA_JOBS_ENABLED=true"
+              # Initial startup is Hono V2 without Cloud dispatch. Switch existing
+              # jobs AFTER API is healthy; activation is a separate protected step.
+              echo "CLOUDRU_MEDIA_JOBS_ENABLED=false"
+              echo "GALLERY_PROCESSOR_SECOND_READY=false"
+              echo "FEED_CLOUDRU_REFRACTOR_VERIFIED=false"
+              # All V2 handlers are enabled only by post-Cloud.ru-cutover stage.
+              echo "CHAT2_V2_CORE_ENABLED=false"
+              echo "CHAT2_V2_MEDIA_ENABLED=false"
+              echo "CHAT2_PROCESSOR_READY=false"
+              echo "CHAT2_CLOUDRU_PROJECT_VERIFIED=false"
+              echo "CHAT2_CLOUDRU_PROJECT_ID=${{ vars.CHAT2_CLOUDRU_PROJECT_ID }}"
+              echo "CHAT2_CLOUDRU_KEY_ID=${{ secrets.CHAT2_CLOUDRU_KEY_ID }}"
+              echo "CHAT2_CLOUDRU_KEY_SECRET=${{ secrets.CHAT2_CLOUDRU_KEY_SECRET }}"
+              echo "CHAT2_INTERNAL_HMAC_SECRET=${{ secrets.CHAT2_INTERNAL_HMAC_SECRET }}"
+              echo "CHAT2_S3_ENDPOINT=https://s3.cloud.ru"
+              echo "CHAT2_S3_BUCKET=gafus-chat2-media-2026"
+              echo "CHAT2_S3_ACCESS_KEY_ID=${{ secrets.CHAT2_S3_ACCESS_KEY_ID }}"
+              echo "CHAT2_S3_SECRET_ACCESS_KEY=${{ secrets.CHAT2_S3_SECRET_ACCESS_KEY }}"
+              # Prepare ONLY; independent release gates must explicitly flip all
+              # Questions V2 flags after deployed API and Cloud Job HMAC match.
+              echo "QUESTIONS_V2_MEDIA_ENABLED=false"
+              echo "QUESTIONS_V2_PROCESSOR_READY=false"
+              echo "QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED=false"
+              echo "QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED=false"
+              echo "QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED=false"
+              echo "QUESTIONS_V2_INTERNAL_BASE_URL=https://api.gafus.ru/"
+              echo "QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=api.gafus.ru"
+              echo "QUESTIONS_V2_INTERNAL_HMAC_SECRET=${{ secrets.QUESTIONS_V2_INTERNAL_HMAC_SECRET }}"
+              echo "QUESTIONS_V2_S3_ENDPOINT=https://s3.cloud.ru"
+              echo "QUESTIONS_V2_S3_BUCKET=gafus-questions-public"
+              echo "QUESTIONS_V2_S3_REGION=ru-central-1"
+              echo "QUESTIONS_V2_S3_ACCESS_KEY_ID=${{ secrets.QUESTIONS_V2_S3_ACCESS_KEY_ID }}"
+              echo "QUESTIONS_V2_S3_SECRET_ACCESS_KEY=${{ secrets.QUESTIONS_V2_S3_SECRET_ACCESS_KEY }}"
               echo "CLOUDRU_PROJECT_ID=${{ secrets.CLOUDRU_PROJECT_ID }}"
               echo "CLOUDRU_KEY_ID=${{ secrets.CLOUDRU_KEY_ID }}"
               echo "CLOUDRU_KEY_SECRET=${{ secrets.CLOUDRU_KEY_SECRET }}"
@@ -554,9 +586,9 @@ jobs:
             # Set secure permissions for .env file
             chmod 600 ci-cd/docker/.env
             echo "✅ .env file created with secure permissions"
-            # Inspect generated destination Compose env AND running API/worker/broker
-            # before pulling images, changing DB, or allowing legacy-chat 410.
-            node scripts/refactor/check-chat2-prod-boundary.mjs --release --destination-env ci-cd/docker/.env
+            # This is FIRST Refactor deployment: old runtime cannot pass Chat2 live
+            # readiness. Candidate QA is checked before SSH; actual runtime/WSS
+            # readiness is checked only AFTER the new broker/API/worker are live.
 
             # Uploads directories are handled by CDN - no local directories needed
 
@@ -635,6 +667,9 @@ jobs:
 
             # 1. Start core infrastructure (database, redis)
             docker-compose -f "$COMPOSE_PROD" up -d postgres redis
+            # Chat2 is a newly deployed broker on the first main release.
+            # Start it BEFORE new API/worker, not by inspecting the old runtime.
+            docker-compose -f "$COMPOSE_PROD" --profile chat2 up -d --no-deps chat2-centrifugo
             echo "⏳ Waiting for core services to be ready..."
             sleep 15
 

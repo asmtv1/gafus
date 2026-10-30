@@ -1,5 +1,5 @@
 /** Stable owner-edit field codes. Never echo untrusted submitted values. */
-import type { z } from "zod";
+import type { z } from "zod/v3";
 import type { Context } from "hono";
 type ValidationResult = { success: boolean; error?: z.ZodError };
 export type OwnerEditValidationCode = "PET_VALIDATION_ERROR" | "PROFILE_VALIDATION_ERROR";
