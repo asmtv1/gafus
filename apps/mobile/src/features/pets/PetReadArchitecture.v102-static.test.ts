@@ -325,7 +325,17 @@ function inspectReadModules(
 const mobileRoot = path.resolve(process.cwd());
 function currentSources(): Record<string, string> {
   const physical = realpathSync(mobileRoot);
-  if (!physical.endsWith("/gafus-refactor/apps/mobile")) throw Error("V102_BAD_SCOPE");
+  // The checkout folder name differs between local Refactor and GitHub CI.
+  // Verify the actual workspace structure and package identity instead of an
+  // absolute developer-machine path; continue to reject symlink escapes.
+  const workspaceRoot = path.resolve(physical, "../..");
+  if (
+    path.basename(physical) !== "mobile" ||
+    path.basename(path.dirname(physical)) !== "apps" ||
+    realpathSync(path.join(workspaceRoot, "apps/mobile")) !== physical ||
+    JSON.parse(readFileSync(path.join(physical, "package.json"), "utf8")).name !== "@gafus/mobile" ||
+    !readFileSync(path.join(workspaceRoot, "pnpm-workspace.yaml"), "utf8").includes("packages:")
+  ) throw Error("V102_BAD_SCOPE");
   const result: Record<string, string> = {};
   for (const file of Object.keys(rules)) {
     const location = realpathSync(path.join(physical, file));
