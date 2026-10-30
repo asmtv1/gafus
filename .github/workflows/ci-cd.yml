@@ -450,6 +450,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+          # pnpm/action-setup runs next; setup-node must not auto-cache
+          # an executable that does not yet exist on the runner.
+          package-manager-cache: false
       - name: Setup pnpm for Vite release assets
         if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
         uses: pnpm/action-setup@v4
@@ -523,7 +526,10 @@ jobs:
   # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
   beget-readonly-preflight:
     needs: [security, build-apps, cloudru-media-contracts]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # CI builds on main are not permission to deploy production. Only an
+    # explicitly approved release enters provider preflight and its dependent
+    # Cloud.ru / VPS deployment chain. Missing or false flag fails closed.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_PRODUCTION_RELEASE_APPROVED == 'true'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12

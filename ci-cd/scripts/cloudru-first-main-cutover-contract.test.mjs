@@ -47,6 +47,42 @@ test('cutover preflight can run Node 24 without installing pnpm; release gates r
   'BEGET_PRODUCTION_APPROVAL_GATE_MUST_NOT_BE_SKIPPED');
 });
 
+test('main push does not start Beget/Cloud.ru/production deploy without explicit release approval',()=>{
+ const graph=byJobs(ci);
+ const gate=graph['beget-readonly-preflight'];
+ assert.match(gate.if,/vars\.GAFUS_PRODUCTION_RELEASE_APPROVED == 'true'/);
+ assert.match(gate.if,/github\.ref == 'refs\/heads\/main'/);
+ assert.match(gate.if,/github\.event_name == 'push'/);
+ assert(gate.steps.some(x=>x.run?.includes('beget-release-readiness.mjs --check')),
+  'NO_RELEASE_WITHOUT_BEGET_READINESS');
+ assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs')),
+  'NO_RELEASE_WITHOUT_LIVE_SIGNED_DELIVERY');
+ const jobs=graph['cloudru-jobs-preflight'];
+ assert(jobs.needs.includes('beget-readonly-preflight'),
+  'NO_CLOUDRU_RELEASE_WHEN_BEGET_PREFLIGHT_IS_SKIPPED');
+ assert(graph['deploy-production'].needs.includes('cloudru-jobs-preflight'),
+  'NO_VPS_RELEASE_WITHOUT_CLOUDRU_PREFLIGHT');
+ for(const [job,prior] of [
+  ['cloudru-jobs-cutover','deploy-production'],
+  ['cloudru-media-activate','cloudru-jobs-cutover'],
+  ['cloudru-jobs-verify','cloudru-media-activate'],
+  ['beget-verify-after-deploy','cloudru-jobs-verify'],
+ ]) assert(graph[job].needs.includes(prior),'BROKEN_PRODUCTION_DEPENDENCY_'+job);
+});
+
+test('Vite image matrix sets up Node without requiring pnpm before pnpm install',()=>{
+ const graph=byJobs(ci);
+ const steps=graph['build-images'].steps;
+ const setupIndex=steps.findIndex(x=>x.name==='Setup Node for Vite release assets');
+ const pnpmIndex=steps.findIndex(x=>x.name==='Setup pnpm for Vite release assets');
+ assert(setupIndex>=0 && pnpmIndex>setupIndex,'VITE_NODE_AND_PNPM_STEPS_REQUIRED');
+ assert.equal(steps[setupIndex].with['node-version'],'24');
+ assert.equal(steps[setupIndex].with['package-manager-cache'],false,
+  'SETUP_NODE_AUTO_CACHE_UNINSTALLED_PNPM');
+ const images=graph['build-images'].strategy.matrix.image.map(x=>x.name);
+ assert.deepEqual(images.sort(),['admin-panel','api','bull-board','prisma','trainer-panel','web','worker'].sort());
+});
+
 test('no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 mutation in release workflows',()=>{
  for(const flow of [ci,manual,jobs,activation]){
   assert.doesNotMatch(flow,/cloudru-build-media-images:|publish-cloudru-image\.sh|docker\/build-push-action@v6.*gafus\.cr\.cloud\.ru/);
