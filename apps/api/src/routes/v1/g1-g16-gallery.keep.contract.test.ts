@@ -5,13 +5,20 @@
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const R = "/Users/asmtv1/Desktop/gafus-refactor";
+// Derive this test's repository checkout, both on Mac and GitHub Linux.
+// Never fall back to any other local repository or a fixed absolute path.
+const R = path.resolve(fileURLToPath(new URL("../../../../../", import.meta.url)));
 const CAP = `${R}/apps/api/.g16-gallery-ag1-isolated-20261017/captures`;
 // Only test-owned, synthetic Hono response captures are created here.
 // Refuse symlinked paths and any request to write outside the Refactor root.
 beforeAll(() => {
-  if (fs.realpathSync(R) !== R) throw Error("GALLERY_TEST_DENIED_ROOT");
+  if (fs.realpathSync(R) !== R ||
+      !fs.existsSync(path.join(R, "apps/api/package.json")) ||
+      !fs.existsSync(path.join(R, "packages/core/package.json")))
+    throw Error("GALLERY_TEST_DENIED_ROOT");
   for (const path of [
     `${R}/apps`,
     `${R}/apps/api`,

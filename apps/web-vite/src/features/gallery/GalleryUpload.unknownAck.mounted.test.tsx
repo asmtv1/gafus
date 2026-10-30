@@ -51,6 +51,9 @@ afterEach(async()=>{
 async function mount(){await act(async()=>root.render(
   <GalleryUpload albumId="album_A" onRefresh={refresh}/>));}
 describe("connected gallery upload avoids duplicate non-idempotent external POST",()=>{
+  // This scenario exercises two asynchronous uploads and a recovery GET. On
+  // saturated full-workspace runs it can exceed Vitest's generic 5 s timeout;
+  // keep all security assertions and bound only this individual test to 12 s.
   it("lost S3 ACK locks second reserve/upload and manual owner status GET can confirm processing",async()=>{
     storageFails=true;processing=true;
     await mount();await choosePhoto();await click("Загрузить фото");
@@ -66,7 +69,7 @@ describe("connected gallery upload avoids duplicate non-idempotent external POST
     expect(host.textContent).not.toContain("Статус отправки файла неизвестен");
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls.filter(([url])=>url===uploadPath)).toHaveLength(1);
-  });
+  },12000);
   it("lost reservation ACK with no uploadId never starts S3 or second reserve",async()=>{
     reserveFails=true;
     await mount();await choosePhoto();await click("Загрузить фото");

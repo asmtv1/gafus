@@ -333,7 +333,10 @@ jobs:
         run: |
           # main+push: полная сборка (для деплоя). PR/develop: только изменённые приложения.
           if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            pnpm turbo run build test typecheck --filter='./apps/web-vite' --filter='./apps/trainer-panel'  --filter='./apps/admin-panel' --filter='./apps/api'
+            # CI runners have limited cores/RAM. Running four full Vitest suites
+            # alongside their builds/typechecks starves jsdom timers and causes
+            # false 5s hook/test timeouts. Preserve every check, serialize tasks.
+            pnpm turbo run build test typecheck --concurrency=1 --filter='./apps/web-vite' --filter='./apps/trainer-panel' --filter='./apps/admin-panel' --filter='./apps/api'
           else
             pnpm turbo run build test typecheck --filter='./apps/*...[origin/main]'
           fi
