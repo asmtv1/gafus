@@ -360,11 +360,54 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
     queryFn: async () => {
       if (!actor || !sameVetActor(actor)) return null;
       const result = await petsApi.getById(petId, () => sameVetActor(actor));
-      if (!sameVetActor(actor) || !result.success || !result.data || result.data.id !== petId)
-        return null;
-      return { name: result.data.name };
+      if (
+        !sameVetActor(actor) ||
+        !result.success ||
+        !result.data ||
+        result.data.id !== petId ||
+        result.data.ownerId !== actor.ownerId ||
+        typeof result.data.name !== "string" ||
+        !result.data.name.trim()
+      ) return null;
+      // Cache entries are untrusted: stamp GET provenance in the returned DTO.
+      return {
+        name: result.data.name,
+        petId,
+        ownerId: actor.ownerId,
+        authEpoch: actor.authEpoch,
+      };
     },
   });
+  // Keep only the last source-verified title. A poisoned actor-keyed QueryCache
+  // entry cannot replace the header with another owner's private pet name.
+  const [confirmedPetTitle, setConfirmedPetTitle] = useState<{
+    name: string;
+    petId: string;
+    ownerId: string;
+    authEpoch: string;
+  } | null>(null);
+  useEffect(() => {
+    const value = pet.data;
+    if (
+      !actor ||
+      !sameVetActor(actor) ||
+      pet.isFetching ||
+      !value ||
+      value.petId !== petId ||
+      value.ownerId !== actor.ownerId ||
+      value.authEpoch !== actor.authEpoch ||
+      typeof value.name !== "string" ||
+      !value.name.trim()
+    ) return;
+    setConfirmedPetTitle(value);
+  }, [actor, pet.data, pet.isFetching, petId]);
+  const safePetTitle =
+    actor &&
+    confirmedPetTitle?.ownerId === actor.ownerId &&
+    confirmedPetTitle.authEpoch === actor.authEpoch &&
+    confirmedPetTitle.petId === petId
+      ? confirmedPetTitle.name
+      : null;
   const [editing, setEditing] = useState<PetVetVisit | "new" | null>(null);
   const [draft, setDraft] = useState<PetVetVisitInput>(emptyVetVisit);
   const [files, setFiles] = useState<VetLocalFile[]>([]);
@@ -738,7 +781,7 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
           ]}
         >
           <Text style={s.petName}>
-            {readReady ? (pet.data?.name ?? "Посещения врача") : "Посещения врача"}
+            {readReady ? (safePetTitle ?? "Посещения врача") : "Посещения врача"}
           </Text>
           {error && readStatus === "ready" && (
             <View accessibilityRole="alert" style={s.error}>

@@ -226,7 +226,10 @@ beforeEach(() => {
   m.loading = false;
   m.list.mockResolvedValue({ success: true, data: [row()] });
   m.detail.mockResolvedValue({ success: true, data: row() });
-  m.pet.mockResolvedValue({ success: true, data: { id: "pet1", name: "PetPrivate" } });
+  m.pet.mockResolvedValue({
+    success: true,
+    data: { id: "pet1", ownerId: "A", name: "PetPrivate" },
+  });
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -325,6 +328,30 @@ describe("AG3 V100 actual mounted vet history/cache read-only projection", () =>
       });
     });
     expect(host.textContent).not.toContain("FOREIGN_PRIVATE_PET_TITLE");
+    expect(host.textContent).toContain("PetPrivate");
+  });
+  it("foreign pet owner returned by backend cannot become the medical header", async () => {
+    m.pet.mockResolvedValueOnce({
+      success: true,
+      data: { id: "pet1", ownerId: "B", name: "FOREIGN_HTTP_PET_TITLE" },
+    });
+    await render();
+    await shown("THERAPY_PRIVATE");
+    expect(host.textContent).not.toContain("FOREIGN_HTTP_PET_TITLE");
+    expect(host.textContent).toContain("Посещения врача");
+  });
+  it("wrong auth epoch in exact owner cache key cannot replace the verified pet title", async () => {
+    await render();
+    await shown("PetPrivate");
+    await act(async () => {
+      client.setQueryData(["vet-pet-title", "owner", "A", "E1", "pet1"], {
+        name: "STALE_PRIVATE_PET_TITLE",
+        petId: "pet1",
+        ownerId: "A",
+        authEpoch: "E0",
+      });
+    });
+    expect(host.textContent).not.toContain("STALE_PRIVATE_PET_TITLE");
     expect(host.textContent).toContain("PetPrivate");
   });
   it("backend-style 200 owner-mismatched visit is read error, never own empty or private specialty", async () => {
